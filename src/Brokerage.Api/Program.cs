@@ -1,5 +1,7 @@
 ﻿using Brokerage.Application.UseCases;
 using Brokerage.Domain.Enums;
+using Brokerage.Application.Contracts;
+using Brokerage.Application.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
