@@ -12,6 +12,7 @@ builder.Services.AddScoped<CreateServiceRequest>();
 builder.Services.AddScoped<CreateS01ServiceRequest>();
 builder.Services.AddScoped<WorkflowService>();
 builder.Services.AddScoped<IOrganizationIntegrationService, MockOrganizationIntegrationService>();
+builder.Services.AddScoped<IIdentityVerificationService, MockIdentityVerificationService>();
 
 var app = builder.Build();
 
@@ -27,7 +28,6 @@ app.MapGet("/", () => Results.Ok(new
     service = "Brokerage.Api",
     status = "running"
 }));
-
 app.MapPost("/service-requests", (
     CreateServiceRequest useCase,
     ServiceCode serviceCode) =>
@@ -43,10 +43,10 @@ app.MapPost("/service-requests", (
         request.UpdatedAt
     });
 });
-app.MapPost("/service-requests/s01", (
+app.MapPost("/service-requests/s01", async (
     CreateS01ServiceRequest useCase) =>
 {
-    var request = useCase.Execute();
+    var request = await useCase.ExecuteAsync("TEST-NATIONAL-ID");
 
     return Results.Ok(new
     {
