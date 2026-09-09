@@ -7,6 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<CreateServiceRequest>();
+builder.Services.AddScoped<WorkflowService>();
 
 var app = builder.Build();
 
@@ -27,7 +28,7 @@ app.MapPost("/service-requests", (
     CreateServiceRequest useCase,
     ServiceCode serviceCode) =>
 {
-    var request = useCase.Execute(serviceCode);
+    var request = useCase.Execute(serviceCode, "INITIAL");
 
     return Results.Ok(new
     {

@@ -14,6 +14,8 @@ public class ServiceRequest
 
     public DateTimeOffset UpdatedAt { get; private set; }
 
+    public Guid? CurrentWorkflowStageId { get; private set; }
+
     private ServiceRequest()
     {
     }
@@ -30,6 +32,12 @@ public class ServiceRequest
     public void ChangeStatus(RequestStatus status)
     {
         Status = status;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+    
+    public void SetCurrentWorkflowStage(Guid workflowStageId)
+    {
+        CurrentWorkflowStageId = workflowStageId;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 }
