@@ -2,12 +2,16 @@
 using Brokerage.Domain.Enums;
 using Brokerage.Application.Contracts;
 using Brokerage.Application.Services;
+using Brokerage.Application.Integration;
+using Brokerage.Infrastructure.Integration;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<CreateServiceRequest>();
+builder.Services.AddScoped<CreateS01ServiceRequest>();
 builder.Services.AddScoped<WorkflowService>();
+builder.Services.AddScoped<IOrganizationIntegrationService, MockOrganizationIntegrationService>();
 
 var app = builder.Build();
 
@@ -39,5 +43,19 @@ app.MapPost("/service-requests", (
         request.UpdatedAt
     });
 });
+app.MapPost("/service-requests/s01", (
+    CreateS01ServiceRequest useCase) =>
+{
+    var request = useCase.Execute();
 
+    return Results.Ok(new
+    {
+        request.Id,
+        request.ServiceCode,
+        request.Status,
+        request.CreatedAt,
+        request.UpdatedAt,
+        request.CurrentWorkflowStageId
+    });
+});
 app.Run();

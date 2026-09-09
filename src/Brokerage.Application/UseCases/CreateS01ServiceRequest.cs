@@ -20,7 +20,7 @@ public class CreateS01ServiceRequest
 
         _workflowService.CreateStage(
             request,
-            "INITIAL");
+            S01StageCode.Initial.ToString());
 
         return request;
     }
