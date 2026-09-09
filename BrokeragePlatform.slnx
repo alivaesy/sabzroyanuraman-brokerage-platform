@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Brokerage.Api/Brokerage.Api.csproj" />
+    <Project Path="src/Brokerage.Application/Brokerage.Application.csproj" />
+    <Project Path="src/Brokerage.Domain/Brokerage.Domain.csproj" />
+    <Project Path="src/Brokerage.Infrastructure/Brokerage.Infrastructure.csproj" />
+  </Folder>
+</Solution>
