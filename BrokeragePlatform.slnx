@@ -5,4 +5,7 @@
     <Project Path="src/Brokerage.Domain/Brokerage.Domain.csproj" />
     <Project Path="src/Brokerage.Infrastructure/Brokerage.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Brokerage.Application.Tests/Brokerage.Application.Tests.csproj" />
+  </Folder>
 </Solution>
