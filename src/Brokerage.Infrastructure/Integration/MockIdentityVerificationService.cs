@@ -9,6 +9,6 @@ public class MockIdentityVerificationService : IIdentityVerificationService
         CancellationToken cancellationToken = default)
     {
         return Task.FromResult(
-            !string.IsNullOrWhiteSpace(nationalIdentifier));
+            nationalIdentifier == "TEST-123");
     }
 }
