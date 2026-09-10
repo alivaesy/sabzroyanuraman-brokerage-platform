@@ -6,6 +6,7 @@
     <Project Path="src/Brokerage.Infrastructure/Brokerage.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Brokerage.Api.Tests/Brokerage.Api.Tests.csproj" />
     <Project Path="tests/Brokerage.Application.Tests/Brokerage.Application.Tests.csproj" />
   </Folder>
 </Solution>
