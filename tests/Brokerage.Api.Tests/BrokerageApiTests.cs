@@ -14,4 +14,17 @@ public class BrokerageApiTests
 
         Assert.True(response.IsSuccessStatusCode);
     }
+
+    [Fact]
+    public async Task CreateS01_WithValidTestIdentity_ReturnsSuccess()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var response = await client.PostAsync(
+            "/service-requests/s01?nationalIdentifier=TEST-123",
+            null);
+
+        Assert.True(response.IsSuccessStatusCode);
+    }
 }
