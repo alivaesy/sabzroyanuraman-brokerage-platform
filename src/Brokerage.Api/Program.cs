@@ -14,6 +14,9 @@ builder.Services.AddScoped<CreateServiceRequest>();
 builder.Services.AddScoped<CreateS01ServiceRequest>();
 builder.Services.AddScoped<WorkflowService>();
 builder.Services.AddScoped<IOrganizationIntegrationService, MockOrganizationIntegrationService>();
+builder.Services.AddScoped<
+    Brokerage.Application.Integration.IOrganizationApiClient,
+    MockOrganizationApiClient>();
 builder.Services.AddScoped<IIdentityVerificationService, IdentityVerificationService>();
 builder.Services.AddScoped<ISanaClient, MockSanaClient>();
 builder.Services.AddScoped<IShahkarClient, MockShahkarClient>();
