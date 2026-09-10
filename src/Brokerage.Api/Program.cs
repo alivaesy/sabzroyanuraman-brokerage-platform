@@ -5,6 +5,7 @@ using Brokerage.Application.Services;
 using Brokerage.Application.Integration;
 using Brokerage.Infrastructure.Integration;
 using Brokerage.Api.Middleware;
+using Brokerage.Application.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,10 +48,10 @@ app.MapPost("/service-requests", (
 });
 app.MapPost("/service-requests/s01", async (
     CreateS01ServiceRequest useCase,
-    string nationalIdentifier) =>
+    CreateS01RequestModel model) =>
 {
     var request = await useCase.ExecuteAsync(
-        nationalIdentifier);
+        model);
 
     return Results.Ok(new
     {

@@ -3,6 +3,7 @@ using Brokerage.Application.Services;
 using Brokerage.Application.UseCases;
 using Brokerage.Domain.Enums;
 using Brokerage.Infrastructure.Integration;
+using Brokerage.Application.Models;
 
 namespace Brokerage.Application.Tests;
 
@@ -18,7 +19,11 @@ public class CreateS01ServiceRequestTests
             workflowService,
             identityService);
 
-        var request = await useCase.ExecuteAsync("TEST-123");
+        var request = await useCase.ExecuteAsync(
+        new CreateS01RequestModel
+        {
+        NationalIdentifier = "TEST-123"
+        });
 
         Assert.Equal(ServiceCode.S01, request.ServiceCode);
         Assert.Equal(RequestStatus.Created, request.Status);
@@ -37,6 +42,10 @@ public class CreateS01ServiceRequestTests
             identityService);
 
         await Assert.ThrowsAsync<BrokerageException>(
-            () => useCase.ExecuteAsync("TEST-999"));
+            () => useCase.ExecuteAsync(
+        new CreateS01RequestModel
+    {
+        NationalIdentifier = "TEST-999"
+    }));
     }
 }

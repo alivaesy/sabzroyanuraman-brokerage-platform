@@ -3,6 +3,7 @@ using Brokerage.Application.Services;
 using Brokerage.Domain.Entities;
 using Brokerage.Domain.Enums;
 using Brokerage.Application.Exceptions;
+using Brokerage.Application.Models;
 
 namespace Brokerage.Application.UseCases;
 
@@ -20,11 +21,11 @@ public class CreateS01ServiceRequest
     }
 
     public async Task<ServiceRequest> ExecuteAsync(
-        string nationalIdentifier,
+        CreateS01RequestModel model,
         CancellationToken cancellationToken = default)
     {
         var isVerified = await _identityVerificationService.VerifyAsync(
-            nationalIdentifier,
+            model.NationalIdentifier,
             cancellationToken);
 
         if (!isVerified)

@@ -21,10 +21,19 @@ public class BrokerageApiTests
         await using var application = new WebApplicationFactory<Program>();
         using var client = application.CreateClient();
 
-        var response = await client.PostAsync(
-            "/service-requests/s01?nationalIdentifier=TEST-123",
-            null);
+        var content = new StringContent(
+    """
+    {
+        "nationalIdentifier": "TEST-123"
+    }
+    """,
+    System.Text.Encoding.UTF8,
+    "application/json");
 
-        Assert.True(response.IsSuccessStatusCode);
+     var response = await client.PostAsync(
+    "/service-requests/s01",
+    content);
+    
+    Assert.True(response.IsSuccessStatusCode);
     }
 }
