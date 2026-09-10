@@ -2,6 +2,7 @@ using Brokerage.Application.Integration;
 using Brokerage.Application.Services;
 using Brokerage.Domain.Entities;
 using Brokerage.Domain.Enums;
+using Brokerage.Application.Exceptions;
 
 namespace Brokerage.Application.UseCases;
 
@@ -28,7 +29,7 @@ public class CreateS01ServiceRequest
 
         if (!isVerified)
         {
-            throw new InvalidOperationException(
+            throw new BrokerageException(
                 "Identity verification failed.");
         }
 
