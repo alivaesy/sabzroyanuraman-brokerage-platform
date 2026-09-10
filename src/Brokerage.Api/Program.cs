@@ -44,9 +44,11 @@ app.MapPost("/service-requests", (
     });
 });
 app.MapPost("/service-requests/s01", async (
-    CreateS01ServiceRequest useCase) =>
+    CreateS01ServiceRequest useCase,
+    string nationalIdentifier) =>
 {
-    var request = await useCase.ExecuteAsync("TEST-NATIONAL-ID");
+    var request = await useCase.ExecuteAsync(
+        nationalIdentifier);
 
     return Results.Ok(new
     {
