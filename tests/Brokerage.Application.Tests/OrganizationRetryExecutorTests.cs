@@ -145,4 +145,90 @@ public async Task ExecuteAsync_WhenOperationTimesOut_ReturnsTimeout()
         OrganizationIntegrationErrorType.Timeout,
         result.ErrorType);
 }
+[Fact]
+public async Task ExecuteAsync_WhenCancellationIsRequested_PropagatesCancellation()
+{
+    var policy = new OrganizationRetryPolicy();
+
+    var options = new OrganizationRetryOptions
+    {
+        MaxRetryCount = 3
+    };
+
+    var timeoutOptions = new OrganizationTimeoutOptions
+    {
+        Timeout = TimeSpan.FromSeconds(30)
+    };
+
+    var executor = new OrganizationRetryExecutor(
+        policy,
+        options,
+        timeoutOptions);
+
+    using var cancellationTokenSource =
+        new CancellationTokenSource();
+
+    cancellationTokenSource.Cancel();
+
+    var exception = await Assert.ThrowsAnyAsync<OperationCanceledException>(
+        () => executor.ExecuteAsync(
+            async cancellationToken =>
+            {
+                await Task.Delay(
+                    TimeSpan.FromSeconds(1),
+                    cancellationToken);
+
+                return OrganizationApiResult.Success();
+            },
+            cancellationTokenSource.Token));
+
+    Assert.IsType<TaskCanceledException>(exception);
+}
+[Fact]
+public async Task ExecuteAsync_WhenCancellationOccursDuringBackoff_StopsRetry()
+{
+    var policy = new OrganizationRetryPolicy();
+
+    var options = new OrganizationRetryOptions
+    {
+        MaxRetryCount = 3,
+        InitialBackoff = TimeSpan.FromSeconds(5)
+    };
+
+    var timeoutOptions = new OrganizationTimeoutOptions
+    {
+        Timeout = TimeSpan.FromSeconds(30)
+    };
+
+    var executor = new OrganizationRetryExecutor(
+        policy,
+        options,
+        timeoutOptions);
+
+    using var cancellationTokenSource =
+        new CancellationTokenSource();
+
+    var attempts = 0;
+
+    var executionTask = executor.ExecuteAsync(
+        _ =>
+        {
+            attempts++;
+
+            return Task.FromResult(
+                OrganizationApiResult.Failure(
+                    OrganizationIntegrationErrorType.ServerError,
+                    "Server error."));
+        },
+        cancellationTokenSource.Token);
+
+    await Task.Delay(50);
+
+    cancellationTokenSource.Cancel();
+
+    await Assert.ThrowsAnyAsync<OperationCanceledException>(
+        () => executionTask);
+
+    Assert.Equal(1, attempts);
+}
 }
