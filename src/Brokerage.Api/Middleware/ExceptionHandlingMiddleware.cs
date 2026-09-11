@@ -1,4 +1,5 @@
 ﻿using Brokerage.Application.Exceptions;
+using Brokerage.Application.Models;
 
 namespace Brokerage.Api.Middleware;
 
@@ -13,6 +14,8 @@ public class ExceptionHandlingMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
+        var correlationId = context.TraceIdentifier;
+
         try
         {
             await _next(context);
@@ -22,10 +25,28 @@ public class ExceptionHandlingMiddleware
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             context.Response.ContentType = "application/json";
 
-            await context.Response.WriteAsJsonAsync(new
-            {
-                error = ex.Message
-            });
+            await context.Response.WriteAsJsonAsync(
+                new ErrorResponse
+                {
+                    Code = "BROKERAGE_ERROR",
+                    Message = ex.Message,
+                    CorrelationId = correlationId
+                });
+        }
+        catch (Exception)
+        {
+            context.Response.StatusCode =
+                StatusCodes.Status500InternalServerError;
+
+            context.Response.ContentType = "application/json";
+
+            await context.Response.WriteAsJsonAsync(
+                new ErrorResponse
+                {
+                    Code = "INTERNAL_ERROR",
+                    Message = "An unexpected error occurred.",
+                    CorrelationId = correlationId
+                });
         }
     }
 }
