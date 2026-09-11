@@ -309,4 +309,49 @@ public async Task ExecuteAsync_WhenRateLimitOccurs_RetriesUntilLimit()
         result.ErrorType);
     Assert.Equal(3, attempts);
 }
+[Fact]
+public async Task ExecuteAsync_WhenBackoffIsConfigured_DelaysBeforeRetry()
+{
+    var policy = new OrganizationRetryPolicy();
+
+    var options = new OrganizationRetryOptions
+    {
+        MaxRetryCount = 1,
+        InitialBackoff = TimeSpan.FromMilliseconds(100)
+    };
+
+    var timeoutOptions = new OrganizationTimeoutOptions
+    {
+        Timeout = TimeSpan.FromSeconds(30)
+    };
+
+    var executor = new OrganizationRetryExecutor(
+        policy,
+        options,
+        timeoutOptions);
+
+    var attempts = 0;
+    var timestamps = new List<DateTimeOffset>();
+
+    var result = await executor.ExecuteAsync(
+        _ =>
+        {
+            attempts++;
+            timestamps.Add(DateTimeOffset.UtcNow);
+
+            return Task.FromResult(
+                OrganizationApiResult.Failure(
+                    OrganizationIntegrationErrorType.ServerError,
+                    "Server error."));
+        });
+
+    Assert.False(result.IsSuccess);
+    Assert.Equal(2, attempts);
+
+    var elapsed =
+        timestamps[1] - timestamps[0];
+
+    Assert.True(
+        elapsed >= TimeSpan.FromMilliseconds(90));
+}
 }
