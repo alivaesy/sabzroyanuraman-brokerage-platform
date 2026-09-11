@@ -42,7 +42,39 @@ public class OrganizationIntegrationServiceTests
             3,
             apiClient.Attempts);
     }
+    [Fact]
+    public async Task GetStatusAsync_ReturnsStatusFromOrganizationApi()
+    {
+    var apiClient = new RetryTestOrganizationApiClient();
 
+    var retryPolicy = new OrganizationRetryPolicy();
+
+    var retryOptions = new OrganizationRetryOptions
+    {
+        MaxRetryCount = 2
+    };
+
+    var timeoutOptions = new OrganizationTimeoutOptions
+    {
+        Timeout = TimeSpan.FromMilliseconds(50)
+    };
+
+    var retryExecutor = new OrganizationRetryExecutor(
+        retryPolicy,
+        retryOptions,
+        timeoutOptions);
+
+    var service = new OrganizationIntegrationService(
+        apiClient,
+        retryExecutor);
+
+    var status =
+        await service.GetStatusAsync("MOCK-TRACKING-ID");
+
+    Assert.Equal(
+        "MockStatus",
+        status);
+}
     private sealed class RetryTestOrganizationApiClient
         : IOrganizationApiClient
     {
