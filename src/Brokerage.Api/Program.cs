@@ -13,7 +13,11 @@ builder.Services.AddOpenApi();
 builder.Services.AddScoped<CreateServiceRequest>();
 builder.Services.AddScoped<CreateS01ServiceRequest>();
 builder.Services.AddScoped<WorkflowService>();
-builder.Services.AddScoped<IOrganizationIntegrationService, MockOrganizationIntegrationService>();
+builder.Services.AddScoped<IOrganizationIntegrationService, OrganizationIntegrationService>();
+builder.Services.AddScoped<OrganizationRetryPolicy>();
+builder.Services.AddScoped<OrganizationRetryOptions>();
+builder.Services.AddScoped<OrganizationTimeoutOptions>();
+builder.Services.AddScoped<OrganizationRetryExecutor>();
 builder.Services.AddScoped<
     Brokerage.Application.Integration.IOrganizationApiClient,
     MockOrganizationApiClient>();
