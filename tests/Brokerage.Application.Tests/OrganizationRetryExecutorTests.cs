@@ -14,9 +14,12 @@ public class OrganizationRetryExecutorTests
             MaxRetryCount = 3
         };
 
+        var timeoutOptions = new OrganizationTimeoutOptions();
+
         var executor = new OrganizationRetryExecutor(
             policy,
-            options);
+            options,
+            timeoutOptions);
 
         var attempts = 0;
 
@@ -44,9 +47,12 @@ public class OrganizationRetryExecutorTests
             MaxRetryCount = 3
         };
 
+        var timeoutOptions = new OrganizationTimeoutOptions();
+
         var executor = new OrganizationRetryExecutor(
             policy,
-            options);
+            options,
+            timeoutOptions);
 
         var attempts = 0;
 
@@ -78,9 +84,12 @@ public class OrganizationRetryExecutorTests
             MaxRetryCount = 2
         };
 
+        var timeoutOptions = new OrganizationTimeoutOptions();
+
         var executor = new OrganizationRetryExecutor(
             policy,
-            options);
+            options,
+            timeoutOptions);
 
         var attempts = 0;
 
@@ -101,4 +110,39 @@ public class OrganizationRetryExecutorTests
             result.ErrorType);
         Assert.Equal(3, attempts);
     }
+    [Fact]
+public async Task ExecuteAsync_WhenOperationTimesOut_ReturnsTimeout()
+{
+    var policy = new OrganizationRetryPolicy();
+
+    var options = new OrganizationRetryOptions
+    {
+        MaxRetryCount = 0
+    };
+
+    var timeoutOptions = new OrganizationTimeoutOptions
+    {
+        Timeout = TimeSpan.FromMilliseconds(50)
+    };
+
+    var executor = new OrganizationRetryExecutor(
+        policy,
+        options,
+        timeoutOptions);
+
+    var result = await executor.ExecuteAsync(
+        async cancellationToken =>
+        {
+            await Task.Delay(
+                TimeSpan.FromSeconds(1),
+                cancellationToken);
+
+            return OrganizationApiResult.Success();
+        });
+
+    Assert.False(result.IsSuccess);
+    Assert.Equal(
+        OrganizationIntegrationErrorType.Timeout,
+        result.ErrorType);
+}
 }

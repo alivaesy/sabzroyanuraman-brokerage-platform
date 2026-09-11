@@ -3,14 +3,17 @@ namespace Brokerage.Application.Integration;
 public sealed class OrganizationRetryExecutor
 {
     private readonly OrganizationRetryPolicy _retryPolicy;
-    private readonly OrganizationRetryOptions _options;
+    private readonly OrganizationRetryOptions _retryOptions;
+    private readonly OrganizationTimeoutOptions _timeoutOptions;
 
     public OrganizationRetryExecutor(
         OrganizationRetryPolicy retryPolicy,
-        OrganizationRetryOptions options)
+        OrganizationRetryOptions retryOptions,
+        OrganizationTimeoutOptions timeoutOptions)
     {
         _retryPolicy = retryPolicy;
-        _options = options;
+        _retryOptions = retryOptions;
+        _timeoutOptions = timeoutOptions;
     }
 
     public async Task<OrganizationApiResult> ExecuteAsync(
@@ -21,7 +24,25 @@ public sealed class OrganizationRetryExecutor
 
         while (true)
         {
-            var result = await operation(cancellationToken);
+            using var timeoutCts =
+                CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken);
+
+            timeoutCts.CancelAfter(_timeoutOptions.Timeout);
+
+            OrganizationApiResult result;
+
+            try
+            {
+                result = await operation(timeoutCts.Token);
+            }
+            catch (OperationCanceledException)
+                when (!cancellationToken.IsCancellationRequested)
+            {
+                result = OrganizationApiResult.Failure(
+                    OrganizationIntegrationErrorType.Timeout,
+                    "Organization API request timed out.");
+            }
 
             if (result.IsSuccess)
             {
@@ -33,17 +54,17 @@ public sealed class OrganizationRetryExecutor
                 return result;
             }
 
-            if (attempt >= _options.MaxRetryCount)
+            if (attempt >= _retryOptions.MaxRetryCount)
             {
                 return result;
             }
 
             attempt++;
 
-            if (_options.InitialBackoff > TimeSpan.Zero)
+            if (_retryOptions.InitialBackoff > TimeSpan.Zero)
             {
                 await Task.Delay(
-                    _options.InitialBackoff,
+                    _retryOptions.InitialBackoff,
                     cancellationToken);
             }
         }
