@@ -231,4 +231,43 @@ public async Task ExecuteAsync_WhenCancellationOccursDuringBackoff_StopsRetry()
 
     Assert.Equal(1, attempts);
 }
+[Fact]
+public async Task ExecuteAsync_WhenAuthenticationFails_DoesNotRetry()
+{
+    var policy = new OrganizationRetryPolicy();
+
+    var options = new OrganizationRetryOptions
+    {
+        MaxRetryCount = 3
+    };
+
+    var timeoutOptions = new OrganizationTimeoutOptions
+    {
+        Timeout = TimeSpan.FromSeconds(30)
+    };
+
+    var executor = new OrganizationRetryExecutor(
+        policy,
+        options,
+        timeoutOptions);
+
+    var attempts = 0;
+
+    var result = await executor.ExecuteAsync(
+        _ =>
+        {
+            attempts++;
+
+            return Task.FromResult(
+                OrganizationApiResult.Failure(
+                    OrganizationIntegrationErrorType.AuthenticationFailure,
+                    "Authentication failed."));
+        });
+
+    Assert.False(result.IsSuccess);
+    Assert.Equal(
+        OrganizationIntegrationErrorType.AuthenticationFailure,
+        result.ErrorType);
+    Assert.Equal(1, attempts);
+}
 }
