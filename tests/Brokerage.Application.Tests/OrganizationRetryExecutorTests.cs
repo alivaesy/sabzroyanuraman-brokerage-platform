@@ -270,4 +270,43 @@ public async Task ExecuteAsync_WhenAuthenticationFails_DoesNotRetry()
         result.ErrorType);
     Assert.Equal(1, attempts);
 }
+[Fact]
+public async Task ExecuteAsync_WhenRateLimitOccurs_RetriesUntilLimit()
+{
+    var policy = new OrganizationRetryPolicy();
+
+    var options = new OrganizationRetryOptions
+    {
+        MaxRetryCount = 2
+    };
+
+    var timeoutOptions = new OrganizationTimeoutOptions
+    {
+        Timeout = TimeSpan.FromSeconds(30)
+    };
+
+    var executor = new OrganizationRetryExecutor(
+        policy,
+        options,
+        timeoutOptions);
+
+    var attempts = 0;
+
+    var result = await executor.ExecuteAsync(
+        _ =>
+        {
+            attempts++;
+
+            return Task.FromResult(
+                OrganizationApiResult.Failure(
+                    OrganizationIntegrationErrorType.RateLimit,
+                    "Rate limit exceeded."));
+        });
+
+    Assert.False(result.IsSuccess);
+    Assert.Equal(
+        OrganizationIntegrationErrorType.RateLimit,
+        result.ErrorType);
+    Assert.Equal(3, attempts);
+}
 }
