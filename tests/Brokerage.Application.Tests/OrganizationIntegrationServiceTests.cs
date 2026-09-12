@@ -80,7 +80,7 @@ public class OrganizationIntegrationServiceTests
     {
         public int Attempts { get; private set; }
 
-        public async Task<string> SubmitAsync(
+        public async Task<OrganizationApiResult> SubmitAsync(
             string serviceCode,
             CancellationToken cancellationToken = default)
         {
@@ -93,14 +93,16 @@ public class OrganizationIntegrationServiceTests
                     cancellationToken);
             }
 
-            return "MOCK-RETRY-SUCCESS";
+            return OrganizationApiResult.Success(
+                   "MOCK-RETRY-SUCCESS");
         }
 
-        public Task<string> GetStatusAsync(
+        public Task<OrganizationApiResult> GetStatusAsync(
             string trackingId,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult("MockStatus");
+            return Task.FromResult(
+                OrganizationApiResult.Success("MockStatus"));
         }
     }
 }

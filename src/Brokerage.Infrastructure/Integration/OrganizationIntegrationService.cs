@@ -61,23 +61,21 @@ public class OrganizationIntegrationService
         string serviceCode,
         CancellationToken cancellationToken)
     {
-        var trackingId =
-            await _organizationApiClient.SubmitAsync(
-                serviceCode,
-                cancellationToken);
+        return await _organizationApiClient.SubmitAsync(
+            serviceCode,
+            cancellationToken);
 
-        return OrganizationApiResult.Success(trackingId);
+        
     }
 
     private async Task<OrganizationApiResult> ExecuteGetStatusAsync(
         string trackingId,
         CancellationToken cancellationToken)
     {
-        var status =
-            await _organizationApiClient.GetStatusAsync(
-                trackingId,
-                cancellationToken);
+        return await _organizationApiClient.GetStatusAsync(
+            trackingId,
+            cancellationToken);
 
-        return OrganizationApiResult.Success(status);
+        
     }
 }

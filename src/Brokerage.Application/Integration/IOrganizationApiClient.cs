@@ -2,11 +2,11 @@ namespace Brokerage.Application.Integration;
 
 public interface IOrganizationApiClient
 {
-    Task<string> SubmitAsync(
+    Task<OrganizationApiResult> SubmitAsync(
         string serviceCode,
         CancellationToken cancellationToken = default);
 
-    Task<string> GetStatusAsync(
+    Task<OrganizationApiResult> GetStatusAsync(
         string trackingId,
         CancellationToken cancellationToken = default);
 }

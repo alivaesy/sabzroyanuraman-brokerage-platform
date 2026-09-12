@@ -4,19 +4,21 @@ namespace Brokerage.Infrastructure.Integration;
 
 public class MockOrganizationApiClient : IOrganizationApiClient
 {
-    public Task<string> SubmitAsync(
+    public Task<OrganizationApiResult> SubmitAsync(
         string serviceCode,
         CancellationToken cancellationToken = default)
     {
         var trackingId = $"MOCK-ORG-{Guid.NewGuid():N}";
 
-        return Task.FromResult(trackingId);
+        return Task.FromResult(
+            OrganizationApiResult.Success(trackingId));
     }
 
-    public Task<string> GetStatusAsync(
+    public Task<OrganizationApiResult> GetStatusAsync(
         string trackingId,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult("MockStatus");
+        return Task.FromResult(
+            OrganizationApiResult.Success("MockStatus"));
     }
 }

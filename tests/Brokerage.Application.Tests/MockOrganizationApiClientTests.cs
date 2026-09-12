@@ -9,9 +9,10 @@ public class MockOrganizationApiClientTests
     {
         var client = new MockOrganizationApiClient();
 
-        var trackingId = await client.SubmitAsync("S01");
+        var result = await client.SubmitAsync("S01");
 
-        Assert.StartsWith("MOCK-ORG-", trackingId);
+        Assert.True(result.IsSuccess);
+        Assert.StartsWith("MOCK-ORG-", result.TrackingId);
     }
 
     [Fact]
@@ -19,8 +20,9 @@ public class MockOrganizationApiClientTests
     {
         var client = new MockOrganizationApiClient();
 
-        var status = await client.GetStatusAsync("MOCK-ORG-123");
+        var result = await client.GetStatusAsync("MOCK-ORG-123");
 
-        Assert.Equal("MockStatus", status);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("MockStatus", result.TrackingId);
     }
 }
