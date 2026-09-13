@@ -74,10 +74,41 @@ public class OrganizationIntegrationServiceTests
 
     Assert.Equal(1, apiClient.Attempts);
 }
-[Fact]
-public async Task SubmitAsync_WhenApiReturnsAuthenticationFailure_ThrowsBrokerageExceptionWithoutRetry()
+    [Fact]
+    public async Task SubmitAsync_WhenApiReturnsAuthenticationFailure_ThrowsBrokerageExceptionWithoutRetry()
 {
     var apiClient = new AuthenticationFailureOrganizationApiClient();
+
+    var retryPolicy = new OrganizationRetryPolicy();
+
+    var retryOptions = new OrganizationRetryOptions
+    {
+        MaxRetryCount = 2
+    };
+
+    var timeoutOptions = new OrganizationTimeoutOptions
+    {
+        Timeout = TimeSpan.FromMilliseconds(50)
+    };
+
+    var retryExecutor = new OrganizationRetryExecutor(
+        retryPolicy,
+        retryOptions,
+        timeoutOptions);
+
+    var service = new OrganizationIntegrationService(
+        apiClient,
+        retryExecutor);
+
+    await Assert.ThrowsAsync<BrokerageException>(
+        () => service.SubmitAsync("S01"));
+
+    Assert.Equal(1, apiClient.Attempts);
+}
+    [Fact]
+    public async Task SubmitAsync_WhenApiReturnsUnknownError_ThrowsBrokerageExceptionWithoutRetry()
+{
+    var apiClient = new UnknownErrorOrganizationApiClient();
 
     var retryPolicy = new OrganizationRetryPolicy();
 
@@ -224,6 +255,35 @@ public async Task SubmitAsync_WhenApiReturnsAuthenticationFailure_ThrowsBrokerag
             OrganizationApiResult.Failure(
                 OrganizationIntegrationErrorType.ClientError,
                 "Mock client error."));
+    }
+}
+    private sealed class UnknownErrorOrganizationApiClient
+        : IOrganizationApiClient
+{
+    public int Attempts { get; private set; }
+
+    public Task<OrganizationApiResult> SubmitAsync(
+        string serviceCode,
+        CancellationToken cancellationToken = default)
+    {
+        Attempts++;
+
+        return Task.FromResult(
+            OrganizationApiResult.Failure(
+                OrganizationIntegrationErrorType.Unknown,
+                "Mock unknown error."));
+    }
+
+    public Task<OrganizationApiResult> GetStatusAsync(
+        string trackingId,
+        CancellationToken cancellationToken = default)
+    {
+        Attempts++;
+
+        return Task.FromResult(
+            OrganizationApiResult.Failure(
+                OrganizationIntegrationErrorType.Unknown,
+                "Mock unknown error."));
     }
 }
 }
