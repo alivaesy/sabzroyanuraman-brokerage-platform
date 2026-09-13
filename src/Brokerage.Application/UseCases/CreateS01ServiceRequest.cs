@@ -11,14 +11,17 @@ public class CreateS01ServiceRequest
 {
     private readonly WorkflowService _workflowService;
     private readonly IIdentityVerificationService _identityVerificationService;
+    private readonly IOrganizationIntegrationService _organizationIntegrationService;
 
     public CreateS01ServiceRequest(
-        WorkflowService workflowService,
-        IIdentityVerificationService identityVerificationService)
-    {
-        _workflowService = workflowService;
-        _identityVerificationService = identityVerificationService;
-    }
+    WorkflowService workflowService,
+    IIdentityVerificationService identityVerificationService,
+    IOrganizationIntegrationService organizationIntegrationService)
+{
+    _workflowService = workflowService;
+    _identityVerificationService = identityVerificationService;
+    _organizationIntegrationService = organizationIntegrationService;
+}
 
     public async Task<ServiceRequest> ExecuteAsync(
         CreateS01RequestModel model,
@@ -33,6 +36,10 @@ public class CreateS01ServiceRequest
             throw new BrokerageException(
                 "Identity verification failed.");
         }
+        
+        await _organizationIntegrationService.SubmitAsync(
+            ServiceCode.S01.ToString(),
+            cancellationToken);
 
         var request = new ServiceRequest(ServiceCode.S01);
 
