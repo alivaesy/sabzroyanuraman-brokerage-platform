@@ -74,6 +74,37 @@ public class OrganizationIntegrationServiceTests
 
     Assert.Equal(1, apiClient.Attempts);
 }
+[Fact]
+public async Task SubmitAsync_WhenApiReturnsAuthenticationFailure_ThrowsBrokerageExceptionWithoutRetry()
+{
+    var apiClient = new AuthenticationFailureOrganizationApiClient();
+
+    var retryPolicy = new OrganizationRetryPolicy();
+
+    var retryOptions = new OrganizationRetryOptions
+    {
+        MaxRetryCount = 2
+    };
+
+    var timeoutOptions = new OrganizationTimeoutOptions
+    {
+        Timeout = TimeSpan.FromMilliseconds(50)
+    };
+
+    var retryExecutor = new OrganizationRetryExecutor(
+        retryPolicy,
+        retryOptions,
+        timeoutOptions);
+
+    var service = new OrganizationIntegrationService(
+        apiClient,
+        retryExecutor);
+
+    await Assert.ThrowsAsync<BrokerageException>(
+        () => service.SubmitAsync("S01"));
+
+    Assert.Equal(1, apiClient.Attempts);
+}
     [Fact]
     public async Task GetStatusAsync_ReturnsStatusFromOrganizationApi()
     {
@@ -106,6 +137,35 @@ public class OrganizationIntegrationServiceTests
     Assert.Equal(
         "MockStatus",
         status);
+}
+    private sealed class AuthenticationFailureOrganizationApiClient
+        : IOrganizationApiClient
+{
+    public int Attempts { get; private set; }
+
+    public Task<OrganizationApiResult> SubmitAsync(
+        string serviceCode,
+        CancellationToken cancellationToken = default)
+    {
+        Attempts++;
+
+        return Task.FromResult(
+            OrganizationApiResult.Failure(
+                OrganizationIntegrationErrorType.AuthenticationFailure,
+                "Mock authentication failure."));
+    }
+
+    public Task<OrganizationApiResult> GetStatusAsync(
+        string trackingId,
+        CancellationToken cancellationToken = default)
+    {
+        Attempts++;
+
+        return Task.FromResult(
+            OrganizationApiResult.Failure(
+                OrganizationIntegrationErrorType.AuthenticationFailure,
+                "Mock authentication failure."));
+    }
 }
     private sealed class RetryTestOrganizationApiClient
         : IOrganizationApiClient
