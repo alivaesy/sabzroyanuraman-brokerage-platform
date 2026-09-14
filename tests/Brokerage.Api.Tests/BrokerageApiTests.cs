@@ -36,4 +36,27 @@ public class BrokerageApiTests
     
     Assert.True(response.IsSuccessStatusCode);
     }
+    [Fact]
+    public async Task CreateS01_WithInvalidTestIdentity_ReturnsBadRequest()
+{
+    await using var application = new WebApplicationFactory<Program>();
+    using var client = application.CreateClient();
+
+    var content = new StringContent(
+        """
+        {
+            "nationalIdentifier": "TEST-999"
+        }
+        """,
+        System.Text.Encoding.UTF8,
+        "application/json");
+
+    var response = await client.PostAsync(
+        "/service-requests/s01",
+        content);
+
+    Assert.Equal(
+        System.Net.HttpStatusCode.BadRequest,
+        response.StatusCode);
+}
 }
