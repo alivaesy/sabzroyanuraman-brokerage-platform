@@ -200,6 +200,46 @@ public class OrganizationIntegrationServiceTests
 
         Assert.Equal(1, apiClient.Attempts);
     }
+    [Fact]
+    public async Task SubmitAsync_WhenCancellationIsRequested_PropagatesCancellation()
+    {
+        var apiClient = new CancellationOrganizationApiClient();
+
+        var retryPolicy = new OrganizationRetryPolicy();
+
+        var retryOptions = new OrganizationRetryOptions
+        {
+            MaxRetryCount = 2
+        };
+
+        var timeoutOptions = new OrganizationTimeoutOptions
+        {
+            Timeout = TimeSpan.FromSeconds(5)
+        };
+
+        var retryExecutor = new OrganizationRetryExecutor(
+            retryPolicy,
+            retryOptions,
+            timeoutOptions);
+
+        var service = new OrganizationIntegrationService(
+            apiClient,
+            retryExecutor);
+
+        using var cancellationTokenSource =
+            new CancellationTokenSource();
+
+        var task = service.SubmitAsync(
+            "S01",
+            cancellationTokenSource.Token);
+
+        cancellationTokenSource.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => task);
+
+        Assert.Equal(1, apiClient.Attempts);
+    }
     private sealed class AuthenticationFailureOrganizationApiClient
         : IOrganizationApiClient
 {
@@ -317,4 +357,31 @@ public class OrganizationIntegrationServiceTests
                 "Mock unknown error."));
     }
 }
+    private sealed class CancellationOrganizationApiClient
+        : IOrganizationApiClient
+    {
+        public int Attempts { get; private set; }
+
+        public async Task<OrganizationApiResult> SubmitAsync(
+            string serviceCode,
+            CancellationToken cancellationToken = default)
+        {
+            Attempts++;
+
+            await Task.Delay(
+                TimeSpan.FromSeconds(30),
+                cancellationToken);
+
+            return OrganizationApiResult.Success(
+                "MOCK-CANCELLATION-SUCCESS");
+        }
+
+        public Task<OrganizationApiResult> GetStatusAsync(
+            string trackingId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(
+                OrganizationApiResult.Success("MockStatus"));
+        }
+    }
 }
