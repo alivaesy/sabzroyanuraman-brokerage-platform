@@ -281,6 +281,43 @@ public class OrganizationIntegrationServiceTests
             apiClient.Attempts);
     }
     [Fact]
+    public async Task GetStatusAsync_WhenApiReturnsServerErrorUntilRetriesExhausted_ThrowsBrokerageException()
+    {
+        var apiClient = new GetStatusServerErrorOrganizationApiClient();
+
+        var retryPolicy = new OrganizationRetryPolicy();
+
+        var retryOptions = new OrganizationRetryOptions
+        {
+            MaxRetryCount = 2
+        };
+
+        var timeoutOptions = new OrganizationTimeoutOptions
+        {
+            Timeout = TimeSpan.FromMilliseconds(50)
+        };
+
+        var retryExecutor = new OrganizationRetryExecutor(
+            retryPolicy,
+            retryOptions,
+            timeoutOptions);
+
+        var service = new OrganizationIntegrationService(
+            apiClient,
+            retryExecutor);
+
+        var exception = await Assert.ThrowsAsync<BrokerageException>(
+            () => service.GetStatusAsync("MOCK-TRACKING-ID"));
+
+        Assert.Equal(
+            "Mock server error.",
+            exception.Message);
+
+        Assert.Equal(
+            3,
+            apiClient.Attempts);
+    }
+    [Fact]
     public async Task GetStatusAsync_WhenApiReturnsClientError_ThrowsBrokerageException()
     {
         var apiClient = new ClientErrorOrganizationApiClient();
@@ -651,6 +688,31 @@ public class OrganizationIntegrationServiceTests
 
             return OrganizationApiResult.Success(
                 "MOCK-STATUS-TIMEOUT-SUCCESS");
+        }
+    }
+    private sealed class GetStatusServerErrorOrganizationApiClient
+        : IOrganizationApiClient
+    {
+        public int Attempts { get; private set; }
+
+        public Task<OrganizationApiResult> SubmitAsync(
+            string serviceCode,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(
+                OrganizationApiResult.Success("MockSubmit"));
+        }
+
+        public Task<OrganizationApiResult> GetStatusAsync(
+            string trackingId,
+            CancellationToken cancellationToken = default)
+        {
+            Attempts++;
+
+            return Task.FromResult(
+                OrganizationApiResult.Failure(
+                    OrganizationIntegrationErrorType.ServerError,
+                    "Mock server error."));
         }
     }
 }
