@@ -201,6 +201,37 @@ public class OrganizationIntegrationServiceTests
         Assert.Equal(1, apiClient.Attempts);
     }
     [Fact]
+    public async Task GetStatusAsync_WhenApiReturnsUnknownError_ThrowsBrokerageException()
+    {
+        var apiClient = new UnknownErrorOrganizationApiClient();
+
+        var retryPolicy = new OrganizationRetryPolicy();
+
+        var retryOptions = new OrganizationRetryOptions
+        {
+            MaxRetryCount = 2
+        };
+
+        var timeoutOptions = new OrganizationTimeoutOptions
+        {
+            Timeout = TimeSpan.FromMilliseconds(50)
+        };
+
+        var retryExecutor = new OrganizationRetryExecutor(
+            retryPolicy,
+            retryOptions,
+            timeoutOptions);
+
+        var service = new OrganizationIntegrationService(
+            apiClient,
+            retryExecutor);
+
+        await Assert.ThrowsAsync<BrokerageException>(
+            () => service.GetStatusAsync("MOCK-TRACKING-ID"));
+
+        Assert.Equal(1, apiClient.Attempts);
+    }
+    [Fact]
     public async Task GetStatusAsync_WhenApiReturnsAuthenticationFailure_ThrowsBrokerageException()
     {
         var apiClient = new AuthenticationFailureOrganizationApiClient();
