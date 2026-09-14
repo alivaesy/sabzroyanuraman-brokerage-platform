@@ -18,25 +18,67 @@ public class BrokerageApiTests
 
     [Fact]
     public async Task CreateS01_WithValidTestIdentity_ReturnsSuccess()
-    {
-        await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
+{
+    await using var application = new WebApplicationFactory<Program>();
+    using var client = application.CreateClient();
 
-        var content = new StringContent(
-    """
-    {
-        "nationalIdentifier": "TEST-123"
-    }
-    """,
-    System.Text.Encoding.UTF8,
-    "application/json");
+    var content = new StringContent(
+        """
+        {
+            "nationalIdentifier": "TEST-123"
+        }
+        """,
+        System.Text.Encoding.UTF8,
+        "application/json");
 
-     var response = await client.PostAsync(
-    "/service-requests/s01",
-    content);
-    
-    Assert.True(response.IsSuccessStatusCode);
-    }
+    var response = await client.PostAsync(
+        "/service-requests/s01",
+        content);
+
+    Assert.Equal(
+        System.Net.HttpStatusCode.OK,
+        response.StatusCode);
+
+    var json =
+        await response.Content.ReadFromJsonAsync<
+            System.Text.Json.JsonElement>();
+
+    Assert.True(json.TryGetProperty("id", out var id));
+    Assert.Equal(
+    System.Text.Json.JsonValueKind.String,
+    id.ValueKind);
+
+    Assert.True(
+    Guid.TryParse(id.GetString(), out var requestId));
+
+    Assert.NotEqual(
+    Guid.Empty,
+    requestId);
+
+    Assert.True(json.TryGetProperty("serviceCode", out var serviceCode));
+    Assert.Equal(
+    System.Text.Json.JsonValueKind.Number,
+    serviceCode.ValueKind);
+
+    Assert.True(
+    serviceCode.GetInt32() > 0);
+
+    Assert.True(
+    json.TryGetProperty("currentWorkflowStageId", out var stageId));
+
+    Assert.Equal(
+    System.Text.Json.JsonValueKind.String,
+    stageId.ValueKind);
+
+    Assert.True(
+    Guid.TryParse(stageId.GetString(), out var workflowStageId));
+
+    Assert.NotEqual(
+    Guid.Empty,
+    workflowStageId);
+
+
+}
     [Fact]
     public async Task CreateS01_WithInvalidTestIdentity_ReturnsBadRequest()
 {
