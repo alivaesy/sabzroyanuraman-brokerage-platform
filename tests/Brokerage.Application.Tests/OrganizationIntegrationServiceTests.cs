@@ -170,6 +170,43 @@ public class OrganizationIntegrationServiceTests
         status);
 }
     [Fact]
+    public async Task GetStatusAsync_WhenApiReturnsServerError_RetriesAndEventuallySucceeds()
+    {
+        var apiClient = new GetStatusRetryOrganizationApiClient();
+
+        var retryPolicy = new OrganizationRetryPolicy();
+
+        var retryOptions = new OrganizationRetryOptions
+        {
+            MaxRetryCount = 2
+        };
+
+        var timeoutOptions = new OrganizationTimeoutOptions
+        {
+            Timeout = TimeSpan.FromMilliseconds(50)
+        };
+
+        var retryExecutor = new OrganizationRetryExecutor(
+            retryPolicy,
+            retryOptions,
+            timeoutOptions);
+
+        var service = new OrganizationIntegrationService(
+            apiClient,
+            retryExecutor);
+
+        var status =
+            await service.GetStatusAsync("MOCK-TRACKING-ID");
+
+        Assert.Equal(
+            "MOCK-STATUS-RETRY-SUCCESS",
+            status);
+
+        Assert.Equal(
+            3,
+            apiClient.Attempts);
+    }
+    [Fact]
     public async Task GetStatusAsync_WhenApiReturnsClientError_ThrowsBrokerageException()
     {
         var apiClient = new ClientErrorOrganizationApiClient();
@@ -359,6 +396,36 @@ public class OrganizationIntegrationServiceTests
         {
             return Task.FromResult(
                 OrganizationApiResult.Success("MockStatus"));
+        }
+    }
+    private sealed class GetStatusRetryOrganizationApiClient
+        : IOrganizationApiClient
+    {
+        public int Attempts { get; private set; }
+
+        public Task<OrganizationApiResult> SubmitAsync(
+            string serviceCode,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(
+                OrganizationApiResult.Success("MockSubmit"));
+        }
+
+        public async Task<OrganizationApiResult> GetStatusAsync(
+            string trackingId,
+            CancellationToken cancellationToken = default)
+        {
+            Attempts++;
+
+            if (Attempts < 3)
+            {
+                return OrganizationApiResult.Failure(
+                    OrganizationIntegrationErrorType.ServerError,
+                    "Mock server error.");
+            }
+
+            return OrganizationApiResult.Success(
+                "MOCK-STATUS-RETRY-SUCCESS");
         }
     }
     private sealed class ClientErrorOrganizationApiClient
