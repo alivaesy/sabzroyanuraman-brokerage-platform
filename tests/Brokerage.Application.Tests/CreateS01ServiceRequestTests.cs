@@ -60,8 +60,8 @@ public class CreateS01ServiceRequestTests
                 {
                     NationalIdentifier = "TEST-999"
                 }));
-    }
-
+    
+}
     [Fact]
     public async Task ExecuteAsync_WithValidIdentity_SubmitsToOrganizationIntegration()
     {
@@ -86,6 +86,32 @@ public class CreateS01ServiceRequestTests
             organizationIntegrationService.SubmittedServiceCode);
     }
 
+    [Fact]
+   public async Task ExecuteAsync_PassesCancellationTokenToOrganizationIntegration()
+{
+    var workflowService = new WorkflowService();
+    var identityService = new MockIdentityVerificationService();
+    var organizationIntegrationService =
+        new TestOrganizationIntegrationService();
+
+    var useCase = new CreateS01ServiceRequest(
+        workflowService,
+        identityService,
+        organizationIntegrationService);
+
+    using var cts = new CancellationTokenSource();
+
+    await useCase.ExecuteAsync(
+        new CreateS01RequestModel
+        {
+            NationalIdentifier = "TEST-123"
+        },
+        cts.Token);
+
+    Assert.Equal(
+        cts.Token,
+        organizationIntegrationService.ReceivedCancellationToken);
+}
     [Fact]
     public async Task ExecuteAsync_WithInvalidIdentity_DoesNotSubmitToOrganizationIntegration()
     {
@@ -132,25 +158,28 @@ public class CreateS01ServiceRequestTests
     }
 }
 
-internal sealed class TestOrganizationIntegrationService
-    : IOrganizationIntegrationService
-{
+internal sealed class TestOrganizationIntegrationService 
+    : IOrganizationIntegrationService 
+{ 
     public string? SubmittedServiceCode { get; private set; }
 
-    public Task<string> SubmitAsync(
-        string serviceCode,
-        CancellationToken cancellationToken = default)
-    {
+    public CancellationToken ReceivedCancellationToken { get; private set; }
+ 
+    public Task<string> SubmitAsync( 
+        string serviceCode, 
+        CancellationToken cancellationToken = default) 
+    { 
         SubmittedServiceCode = serviceCode;
-
-        return Task.FromResult("TEST-TRACKING-ID");
-    }
-
-    public Task<string> GetStatusAsync(
-        string trackingId,
-        CancellationToken cancellationToken = default)
-    {
-        return Task.FromResult("TEST-STATUS");
+        ReceivedCancellationToken = cancellationToken;
+ 
+        return Task.FromResult("TEST-TRACKING-ID"); 
+    } 
+ 
+    public Task<string> GetStatusAsync( 
+        string trackingId, 
+        CancellationToken cancellationToken = default) 
+    { 
+        return Task.FromResult("TEST-STATUS"); 
     }
 }
 
