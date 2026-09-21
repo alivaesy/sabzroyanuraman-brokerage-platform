@@ -6313,5 +6313,644 @@ function addHiddenField(
 
 </script>
 
+
+<style id="sabz-map-controls-v2">
+/* =========================================================
+   SABZ MAP CONTROLS V2
+  &G1&EN.H1&FF6G&¯F.7D&'..7'7Ì .N/4&1'&/'7/.
+========================================================= */
+.sabz-map-control-column{
+    direction:rtl;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    width:190px;
+    max-height:calc(100% - 20px);
+    overflow-y:auto;
+    padding:6px;
+    box-sizing:border-box;
+    background:rgba(255,255,255,.96);
+    border:1px solid #d7e2e8;
+    border-radius:9px;
+    box-shadow:0 3px 14px rgba(0,0,0,.22);
+    font-family:Vazirmatn,Arial,sans-serif;
+}
+.sabz-map-control-column::-webkit-scrollbar{width:5px}
+.sabz-map-control-column::-webkit-scrollbar-thumb{background:#b8c8d1;border-radius:8px}
+.sabz-map-control-button{
+    width:100%;
+    min-height:34px;
+    border:1px solid #d7e2e8;
+    border-radius:6px;
+    background:#fff;
+    color:#173b4d;
+    cursor:pointer;
+    font:600 12px Vazirmatn,Arial,sans-serif;
+    padding:6px 8px;
+    text-align:right;
+    transition:.15s;
+}
+.sabz-map-control-button:hover{background:#edf7f3;border-color:#8dbcae}
+.sabz-map-control-button.active{background:#dcefe7;border-color:#0f795d;color:#07573e}
+.sabz-map-control-title{
+    font-weight:800;
+    color:#07573e;
+    padding:5px 4px 2px;
+    border-bottom:1px solid #e1e8ec;
+    margin-bottom:2px;
+}
+.sabz-map-control-separator{height:1px;background:#e1e8ec;margin:2px 0}
+#mapboxMap .mapboxgl-ctrl-top-right,
+#mapboxMap .mapboxgl-ctrl-top-left,
+#mapboxMap .mapboxgl-ctrl-bottom-left,
+#mapboxMap .mapboxgl-ctrl-bottom-right{display:none!important}
+#mapboxMap .sabz-map-control-column{pointer-events:auto}
+#leafletMap .sabz-map-control-overlay,
+#azureMap .sabz-map-control-overlay{
+    position:absolute;
+    top:10px;
+    right:10px;
+    z-index:1000;
+}
+#googleMap .sabz-map-control-column{
+    margin:10px;
+}
+.sabz-map-search{
+    width:100%;
+    box-sizing:border-box;
+    border:1px solid #ccd9df;
+    border-radius:6px;
+    padding:7px 8px;
+    font:500 12px Vazirmatn,Arial,sans-serif;
+    margin-bottom:4px;
+}
+.sabz-map-search:focus{outline:2px solid #b8d9ce}
+.sabz-map-hidden-file{display:none!important}
+</style>
+
+<script id="sabz-map-controls-v2-js">
+(function(){
+
+"use strict";
+
+const SABZ_CENTER=[45.9486,37.1395];
+const SABZ_ZOOM=12;
+
+/* ---------- shared DOM helpers ---------- */
+
+function sabzButton(text, handler, title){
+    const b=document.createElement("button");
+    b.type="button";
+    b.className="sabz-map-control-button";
+    b.textContent=text;
+    b.title=title||text;
+    b.setAttribute("aria-label",title||text);
+    b.addEventListener("click",function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        try{handler(e,b);}catch(err){console.error("Map control:",err);}
+    });
+    return b;
+}
+
+function sabzTitle(text){
+    const d=document.createElement("div");
+    d.className="sabz-map-control-title";
+    d.textContent=text;
+    return d;
+}
+
+function sabzSep(){
+    const d=document.createElement("div");
+    d.className="sabz-map-control-separator";
+    return d;
+}
+
+function sabzColumn(title){
+    const d=document.createElement("div");
+    d.className="sabz-map-control-column";
+    d.appendChild(sabzTitle(title));
+    return d;
+}
+
+function sabzFileInput(accept,callback){
+    const i=document.createElement("input");
+    i.type="file";
+    i.accept=accept;
+    i.className="sabz-map-hidden-file";
+    i.addEventListener("change",function(){
+        if(i.files&&i.files[0]) callback(i.files[0]);
+        i.value="";
+    });
+    document.body.appendChild(i);
+    return i;
+}
+
+function sabzDownload(name,text,type){
+    const blob=new Blob([text],{type:type||"application/octet-stream"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},1000);
+}
+
+/* =========================================================
+   MAPBOX &'..5'7Ì
+========================================================= */
+
+let sabzMapboxColumn=null;
+
+class SabzMapboxCustomControl{
+    onAdd(map){
+        this._map=map;
+        this._container=document.createElement("div");
+        this._container.className="mapboxgl-ctrl sabz-map-control-column";
+        this._container.style.maxHeight="calc(100% - 20px)";
+        this._container.style.margin="10px";
+        this._build();
+        return this._container;
+    }
+    onRemove(){
+        if(this._container&&this._container.parentNode)this._container.parentNode.removeChild(this._container);
+        this._map=null;
+    }
+    add(text,fn,title){
+        this._container.appendChild(sabzButton(text,fn,title));
+    }
+    _build(){
+        const m=this._map,c=this._container;
+        this.add("Zoom +",()=>m.zoomIn(),"Zoom In");
+        this.add("Zoom"",()=>m.zoomOut(),"Zoom Out");
+        this.add("Fullscreen",()=>{
+            const el=document.getElementById("mapboxMap");
+            if(!document.fullscreenElement) el.requestFullscreen?.();
+            else document.exitFullscreen?.();
+        },"Fullscreen");
+        this.add("Geolocate",()=>{
+            if(!m.__sabzGeo){
+                m.__sabzGeo=new mapboxgl.GeolocateControl({
+                    positionOptions:{enableHighAccuracy:true},
+                    trackUserLocation:true,
+                    showUserHeading:true
+                });
+                m.__sabzGeo.onAdd(m);
+            }
+            const el=m.__sabzGeo._container;
+            el.querySelector("button")?.click();
+        },"Geolocate");
+        this.add("Reset North",()=>m.resetNorth({duration:500}),"Reset North");
+        this.add("Scale",()=>showMapboxStatusTemporarily("Scale is shown by the map status bar."),"Scale");
+        c.appendChild(sabzSep());
+
+        const search=document.createElement("input");
+        search.className="sabz-map-search";
+        search.placeholder="Search";
+        search.id="sabzMapboxSearch";
+        search.addEventListener("keydown",function(e){
+            if(e.key==="Enter"&&typeof mapboxGeocoder!=="undefined"&&mapboxGeocoder){
+                mapboxGeocoder.query(search.value);
+            }
+        });
+        c.appendChild(search);
+
+        this.add("Satellite",()=>setMapboxStyle("mapbox://styles/mapbox/satellite-v9"),"Satellite");
+        this.add("Streets",()=>setMapboxStyle("mapbox://styles/mapbox/streets-v12"),"Streets");
+        this.add("Satellite Streets",()=>setMapboxStyle("mapbox://styles/mapbox/satellite-streets-v12"),"Satellite Streets");
+        this.add("Terrain",()=>toggleMapboxTerrain(),"Terrain");
+        this.add("3D Buildings",()=>toggleMapbox3DBuildings(),"3D Buildings");
+        c.appendChild(sabzSep());
+
+        this.add("Point",()=>startMapboxPointDraw(),"Point");
+        this.add("LineString",()=>startMapboxLineDraw(),"LineString");
+        this.add("Polygon",()=>startMapboxPolygonDraw(),"Polygon");
+        this.add("MultiPolygon",()=>startMapboxMultiPolygonDraw(),"MultiPolygon");
+        this.add("Direct Select",()=>startMapboxDirectSelect(),"Direct Select");
+        this.add("Simple Select",()=>startMapboxSimpleSelect(),"Simple Select");
+        this.add("Trash",()=>deleteMapboxSelected(),"Trash");
+        this.add("Clear All",()=>clearMapboxDrawings(),"Clear All");
+        c.appendChild(sabzSep());
+
+        this.add("Import GeoJSON",()=>document.getElementById("sabzMapboxGeoJSONInput").click(),"Import GeoJSON");
+        this.add("Import KML",()=>document.getElementById("sabzMapboxKMLInput").click(),"Import KML");
+        this.add("Export GeoJSON",()=>exportMapboxGeoJSON(),"Export GeoJSON");
+        this.add("Export KML",()=>exportMapboxKML(),"Export KML");
+        this.add("Reset View",()=>resetMapboxView(),"Reset View");
+    }
+}
+
+function installMapboxColumn(){
+    if(!mapboxMap||mapboxMap.__sabzColumnInstalled)return;
+    mapboxMap.__sabzColumnInstalled=true;
+    mapboxMap.addControl(new SabzMapboxCustomControl(),"top-right");
+    sabzMapboxColumn=true;
+    if(!document.getElementById("sabzMapboxGeoJSONInput")){
+        const gi=sabzFileInput(".geojson,.json",function(f){importMapboxGeoJSON({target:{files:[f]}});});
+        gi.id="sabzMapboxGeoJSONInput";
+        const ki=sabzFileInput(".kml,.xml",function(f){importMapboxKML({target:{files:[f]}});});
+        ki.id="sabzMapboxKMLInput";
+    }
+}
+
+/* override Mapbox creation: satellite imagery is the default */
+const sabzOriginalCreateMapboxMap=window.createMapboxMap;
+window.createMapboxMap=function(){
+    if(!mapboxgl)return;
+    if(mapboxMap){
+        mapboxMap.resize();
+        installMapboxColumn();
+        return;
+    }
+    if(!MAPBOX_ACCESS_TOKEN||MAPBOX_ACCESS_TOKEN==="YOUR_MAPBOX_ACCESS_TOKEN"){
+        showMapboxStatus("Mapbox Access Token is not configured.");
+        return;
+    }
+    mapboxgl.accessToken=MAPBOX_ACCESS_TOKEN;
+    mapboxMap=new mapboxgl.Map({
+        container:"mapboxMap",
+        style:"mapbox://styles/mapbox/satellite-v9",
+        center:SABZ_CENTER,
+        zoom:SABZ_ZOOM,
+        pitch:0,
+        bearing:0,
+        attributionControl:true,
+        config:{basemap:{show3dObjects:true,show3dBuildings:true}}
+    });
+    mapboxMap.on("load",function(){
+        addMapboxMarker?.();
+        setupMapboxStandard3D?.();
+        createMapboxGeocoder?.();
+        installMapboxColumn();
+        hideMapboxStatus?.();
+    });
+    mapboxMap.on("style.load",function(){
+        setupMapboxStandard3D?.();
+        restoreMapboxDrawAfterStyleChange?.();
+        installMapboxColumn();
+    });
+};
+
+/* =========================================================
+   LEAFLET  '.*7'5Ì
+========================================================= */
+
+let sabzLeafletLayers={};
+let sabzLeafletDrawLayer=null;
+let sabzLeafletMode=null;
+let sabzLeafletTemp=[];
+let sabzLeafletClickHandler=null;
+
+function sabzLeafletStopDraw(){
+    if(sabzLeafletClickHandler&&leafletMap){
+        leafletMap.off("click",sabzLeafletClickHandler);
+    }
+    sabzLeafletClickHandler=null;
+    sabzLeafletMode=null;
+    sabzLeafletTemp=[];
+}
+
+function sabzLeafletDraw(mode){
+    if(!leafletMap)return;
+    sabzLeafletStopDraw();
+    sabzLeafletMode=mode;
+    sabzLeafletTemp=[];
+    if(!sabzLeafletDrawLayer)sabzLeafletDrawLayer=L.featureGroup().addTo(leafletMap);
+    sabzLeafletClickHandler=function(e){
+        sabzLeafletTemp.push([e.latlng.lat,e.latlng.lng]);
+        if(mode==="Point"){
+            L.marker(e.latlng).addTo(sabzLeafletDrawLayer);
+            sabzLeafletStopDraw();
+        }else if(mode==="LineString"&&sabzLeafletTemp.length>=2){
+            const pts=sabzLeafletTemp.map(p=>[p[0],p[1]]);
+            if(window.L) L.polyline(pts,{weight:4}).addTo(sabzLeafletDrawLayer);
+            sabzLeafletStopDraw();
+        }else if(mode==="Polygon"&&sabzLeafletTemp.length>=3){
+            const pts=sabzLeafletTemp.map(p=>[p[0],p[1]]);
+            if(window.L)L.polygon(pts).addTo(sabzLeafletDrawLayer);
+            sabzLeafletStopDraw();
+        }
+    };
+    leafletMap.on("click",sabzLeafletClickHandler);
+}
+
+function sabzLeafletGeoJSON(){
+    if(!sabzLeafletDrawLayer)return {type:"FeatureCollection",features:[]};
+    return sabzLeafletDrawLayer.toGeoJSON();
+}
+
+function sabzLeafletImport(file){
+    const reader=new FileReader();
+    reader.onload=function(){
+        try{
+            const data=JSON.parse(reader.result);
+            if(!sabzLeafletDrawLayer)sabzLeafletDrawLayer=L.featureGroup().addTo(leafletMap);
+            L.geoJSON(data).eachLayer(function(layer){sabzLeafletDrawLayer.addLayer(layer);});
+        }catch(e){alert("GeoJSON&F'G9..1&'3*.");}
+    };
+    reader.readAsText(file);
+}
+
+function installLeafletColumn(){
+    if(!leafletMap||leafletMap.__sabzColumnInstalled)return;
+    leafletMap.__sabzColumnInstalled=true;
+    const wrap=document.createElement("div");
+    wrap.className="sabz-map-control-overlay";
+    const c=sabzColumn("Leaflet");
+    wrap.appendChild(c);
+    c.appendChild(sabzButton("Zoom +",()=>leafletMap.zoomIn(),"Zoom In"));
+    c.appendChild(sabzButton("Zoom"",()=>leafletMap.zoomOut(),"Zoom Out"));
+    c.appendChild(sabzButton("Fullscreen",()=>{
+        const el=document.getElementById("leafletMap");
+        if(!document.fullscreenElement)el.requestFullscreen?.();else document.exitFullscreen?.();
+    },"Fullscreen"));
+    c.appendChild(sabzButton("Locate",()=>{
+        leafletMap.locate({setView:true,enableHighAccuracy:true});
+    },"Locate"));
+    c.appendChild(sabzButton("Satellite",()=>{
+        Object.values(sabzLeafletLayers).forEach(x=>leafletMap.removeLayer(x));
+        sabzLeafletLayers.satellite.addTo(leafletMap);
+    },"Satellite"));
+    c.appendChild(sabzButton("Streets",()=>{
+        Object.values(sabzLeafletLayers).forEach(x=>leafletMap.removeLayer(x));
+        sabzLeafletLayers.streets.addTo(leafletMap);
+    },"Streets"));
+    c.appendChild(sabzButton("Scale",()=>showMapboxStatusTemporarily("Leaflet Scale: enabled by scale control."),"Scale"));
+    c.appendChild(sabzSep());
+    c.appendChild(sabzButton("Marker",()=>sabzLeafletDraw("Point"),"Marker"));
+    c.appendChild(sabzButton("Polyline",()=>sabzLeafletDraw("LineString"),"Polyline"));
+    c.appendChild(sabzButton("Polygon",()=>sabzLeafletDraw("Polygon"),"Polygon"));
+    c.appendChild(sabzButton("Stop Drawing",()=>sabzLeafletStopDraw(),"Stop Drawing"));
+    c.appendChild(sabzButton("Clear Drawings",()=>{sabzLeafletStopDraw();sabzLeafletDrawLayer?.clearLayers();},"Clear Drawings"));
+    c.appendChild(sabzSep());
+    const inp=sabzFileInput(".geojson,.json",sabzLeafletImport);inp.id="sabzLeafletGeoJSONInput";
+    c.appendChild(sabzButton("Import GeoJSON",()=>inp.click(),"Import GeoJSON"));
+    c.appendChild(sabzButton("Export GeoJSON",()=>{
+        sabzDownload("leaflet.geojson",JSON.stringify(sabzLeafletGeoJSON(),null,2),"application/geo+json");
+    },"Export GeoJSON"));
+    c.appendChild(sabzButton("Reset View",()=>leafletMap.setView(SABZ_CENTER,SABZ_ZOOM),"Reset View"));
+    document.getElementById("leafletMap").appendChild(wrap);
+}
+
+/* override Leaflet creation */
+window.createLeafletMap=function(){
+    if(leafletMap){
+        leafletMap.invalidateSize();
+        installLeafletColumn();
+        return;
+    }
+    leafletMap=L.map("leafletMap",{center:SABZ_CENTER,zoom:SABZ_ZOOM,zoomControl:false});
+    sabzLeafletLayers.streets=L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"});
+    sabzLeafletLayers.satellite=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Tiles © Esri"});
+    sabzLeafletLayers.satellite.addTo(leafletMap);
+    L.control.scale({metric:true,imperial:false}).addTo(leafletMap);
+    L.marker(SABZ_CENTER).addTo(leafletMap).bindPopup(".'2g".'/&4G73.'F&/D'+ .'('.'FÌ");
+    installLeafletColumn();
+};
+
+/* =========================================================
+   AZURE MAPS &'..7'7Ì
+========================================================= */
+
+function sabzLoadScript(src,done){
+    if(document.querySelector('script[src="'+src+'"]')){done?.();return;}
+    const s=document.createElement("script");
+    s.src=src;s.onload=done;s.onerror=function(){console.error("Failed:",src);};
+    document.head.appendChild(s);
+}
+
+function sabzLoadCSS(href){
+    if(document.querySelector('link[href="'+href+'"]'))return;
+    const l=document.createElement("link");
+    l.rel="stylesheet";l.href=href;document.head.appendChild(l);
+}
+
+let sabzAzureDrawManager=null;
+let sabzAzureColumn=null;
+
+function installAzureColumn(){
+    if(!azureMap||document.getElementById("sabzAzureControls"))return;
+    const wrap=document.createElement("div");
+    wrap.id="sabzAzureControls";
+    wrap.className="sabz-map-control-overlay";
+    const c=sabzColumn("Azure Maps");
+    wrap.appendChild(c);
+    c.appendChild(sabzButton("Zoom +",()=>azureMap.setCamera({zoom:azureMap.getCamera().zoom+1}),"Zoom In"));
+    c.appendChild(sabzButton("Zoom ",()=>azureMap.setCamera({zoom:Math.max(0,azureMap.getCamera().zoom-1)}),"Zoom Out"));
+    c.appendChild(sabzButton("Compass",()=>azureMap.setCamera({bearing:0,pitch:0}),"Compass"));
+    c.appendChild(sabzButton("Pitch",()=>azureMap.setCamera({pitch:azureMap.getCamera().pitch?0:45}),"Pitch"));
+    c.appendChild(sabzButton("Fullscreen",()=>{
+        const el=document.getElementById("azureMap");
+        if(!document.fullscreenElement)el.requestFullscreen?.();else document.exitFullscreen?.();
+    },"Fullscreen"));
+    c.appendChild(sabzButton("Satellite",()=>azureMap.setStyle({style:"satellite"}),"Satellite"));
+    c.appendChild(sabzButton("Satellite Road Labels",()=>azureMap.setStyle({style:"satellite_road_labels"}),"Satellite Road Labels"));
+    c.appendChild(sabzButton("Road",()=>azureMap.setStyle({style:"road"}),"Road"));
+    c.appendChild(sabzButton("Road Shaded Relief",()=>azureMap.setStyle({style:"road_shaded_relief"}),"Road Shaded Relief"));
+    c.appendChild(sabzButton("3D Terrain",()=>{
+        try{azureMap.setCamera({pitch:60});showMapboxStatusTemporarily("Azure Maps 3D Terrain requires an elevation source.");}catch(e){}
+    },"3D Terrain"));
+    c.appendChild(sabzSep());
+    c.appendChild(sabzButton("Drawing Toolbar",()=>{
+        if(sabzAzureDrawManager&&atlas?.drawing){
+            alert("Azure Maps Drawing Tools &G'/G '7*&(7'Ì&'(6'1&¯'GD '2 DrawingManager '7*G'/G&Eì4N/.");
+        }
+    },"Drawing Toolbar"));
+    c.appendChild(sabzButton("Point",()=>{if(sabzAzureDrawManager)sabzAzureDrawManager.setOptions({mode:"draw-point"});},"Point"));
+    c.appendChild(sabzButton("Line",()=>{if(sabzAzureDrawManager)sabzAzureDrawManager.setOptions({mode:"draw-line"});},"Line"));
+    c.appendChild(sabzButton("Polygon",()=>{if(sabzAzureDrawManager)sabzAzureDrawManager.setOptions({mode:"draw-polygon"});},"Polygon"));
+    c.appendChild(sabzButton("Edit",()=>{if(sabzAzureDrawManager)sabzAzureDrawManager.setOptions({mode:"edit"});},"Edit"));
+    c.appendChild(sabzButton("Delete",()=>{if(sabzAzureDrawManager)sabzAzureDrawManager.setOptions({mode:"erase"});},"Delete"));
+    c.appendChild(sabzSep());
+    c.appendChild(sabzButton("Search",()=>{
+        const q=prompt("Azure Maps Search");
+        if(q)alert(&.1'Ì Search&N'F?Ì&.'Î/ Azure Maps Search API&.'&¯DÎ/ G?*.1 G7'.N'FÌ 6N/.");
+    },"Search"));
+    c.appendChild(sabzButton("Spatial IO",()=>alert("Azure Maps Spatial IO&'2 KML, KMZ, GPX, GeoRSS, GML, GeoJSON, WKT&H CSV&~4.Î('FÌ&GÌ¯F/."),"Spatial IO"));
+    c.appendChild(sabzButton("Reset View",()=>azureMap.setCamera({center:SABZ_CENTER,zoom:SABZ_ZOOM,pitch:0,bearing:0}),"Reset View"));
+    document.getElementById("azureMap").appendChild(wrap);
+}
+
+window.createAzureMap=function(){
+    if(azureMap){
+        installAzureColumn();
+        return;
+    }
+    if(typeof atlas==="undefined"){
+        showMapboxStatus?.("Azure Maps SDK is not loaded.");
+        return;
+    }
+    sabzLoadCSS("https://atlas.microsoft.com/sdk/javascript/drawing/1/atlas-drawing.min.css");
+    sabzLoadScript("https://atlas.microsoft.com/sdk/javascript/drawing/1/atlas-drawing.min.js",function(){});
+    azureMap=new atlas.Map("azureMap",{
+        center:SABZ_CENTER,
+        zoom:SABZ_ZOOM,
+        language:"fa-IR",
+        style:"satellite",
+        authOptions:{authType:"subscriptionKey",subscriptionKey:"YOUR_AZURE_MAPS_KEY"}
+    });
+    azureMap.events.add("ready",function(){
+        try{
+            if(atlas.drawing&&atlas.drawing.DrawingManager){
+                sabzAzureDrawManager=new atlas.drawing.DrawingManager(azureMap,{});
+            }
+        }catch(e){console.warn("Azure Drawing Tools:",e);}
+        try{azureMap.controls.add(new atlas.control.ScaleControl(),{position:"bottom-left"});}catch(e){}
+        installAzureColumn();
+    });
+};
+
+/* =========================================================
+   GOOGLE MAPS JAVASCRIPT API &'..7'7Ì
+========================================================= */
+
+let sabzGoogleColumn=null;
+let sabzGoogleOverlays=[];
+let sabzGoogleMode=null;
+let sabzGoogleTemp=[];
+let sabzGoogleListener=null;
+
+function sabzGoogleStopDraw(){
+    if(sabzGoogleListener){google.maps.event.removeListener(sabzGoogleListener);sabzGoogleListener=null;}
+    sabzGoogleMode=null;sabzGoogleTemp=[];
+}
+
+function sabzGoogleDraw(mode){
+    if(!googleMap)return;
+    sabzGoogleStopDraw();
+    sabzGoogleMode=mode;
+    sabzGoogleTemp=[];
+    sabzGoogleListener=googleMap.addListener("click",function(ev){
+        const p={lat:ev.latLng.lat(),lng:ev.latLng.lng()};
+        if(mode==="Point"){
+            sabzGoogleOverlays.push(new google.maps.Marker({map:googleMap,position:p}));
+            sabzGoogleStopDraw();
+        }else{
+            sabzGoogleTemp.push(p);
+            if(mode==="LineString"&&sabzGoogleTemp.length>=2){
+                sabzGoogleOverlays.push(new google.maps.Polyline({map:googleMap,path:sabzGoogleTemp,editable:true,strokeWeight:3}));
+                sabzGoogleStopDraw();
+            }
+            if(mode==="Polygon"&&sabzGoogleTemp.length>=3){
+                sabzGoogleOverlays.push(new google.maps.Polygon({map:googleMap,paths:sabzGoogleTemp,editable:true,strokeWeight:2}));
+                sabzGoogleStopDraw();
+            }
+        }
+    });
+}
+
+function sabzGoogleClear(){
+    sabzGoogleStopDraw();
+    sabzGoogleOverlays.forEach(x=>x.setMap(null));
+    sabzGoogleOverlays=[];
+}
+
+function sabzGoogleGeoJSON(){
+    const features=[];
+    sabzGoogleOverlays.forEach(o=>{
+        if(o instanceof google.maps.Marker){
+            const p=o.getPosition();features.push({type:"Feature",properties:{},geometry:{type:"Point",coordinates:[p.lng(),p.lat()]}});
+        }else if(o instanceof google.maps.Polyline){
+            const a=o.getPath().getArray().map(p=>[p.lng(),p.lat()]);
+            features.push({type:"Feature",properties:{},geometry:{type:"LineString",coordinates:a}});
+        }else if(o instanceof google.maps.Polygon){
+            const a=o.getPath().getArray().map(p=>[p.lng(),p.lat()]);
+            if(a.length)a.push(a[0]);
+            features.push({type:"Feature",properties:{},geometry:{type:"Polygon",coordinates:[a]}});
+        }
+    });
+    return {type:"FeatureCollection",features};
+}
+
+function installGoogleColumn(){
+    if(!googleMap||googleMap.__sabzColumnInstalled)return;
+    googleMap.__sabzColumnInstalled=true;
+    const c=sabzColumn("Google Maps JavaScript API");
+    c.appendChild(sabzButton("Camera",()=>googleMap.setZoom(googleMap.getZoom()),"Camera"));
+    c.appendChild(sabzButton("Zoom +",()=>googleMap.setZoom(googleMap.getZoom()+1),"Zoom In"));
+    c.appendChild(sabzButton("Zoom"",()=>googleMap.setZoom(Math.max(0,googleMap.getZoom()-1)),"Zoom Out"));
+    c.appendChild(sabzButton("Roadmap",()=>googleMap.setMapTypeId("roadmap"),"Roadmap"));
+    c.appendChild(sabzButton("Satellite",()=>googleMap.setMapTypeId("satellite"),"Satellite"));
+    c.appendChild(sabzButton("Hybrid",()=>googleMap.setMapTypeId("hybrid"),"Hybrid"));
+    c.appendChild(sabzButton("Terrain",()=>googleMap.setMapTypeId("terrain"),"Terrain"));
+    c.appendChild(sabzButton("Fullscreen",()=>{
+        const el=document.getElementById("googleMap");
+        if(!document.fullscreenElement)el.requestFullscreen?.();else document.exitFullscreen?.();
+    },"Fullscreen"));
+    c.appendChild(sabzButton("Street View",()=>googleMap.getStreetView().setVisible(!googleMap.getStreetView().getVisible()),"Street View"));
+    c.appendChild(sabzButton("Rotate",()=>googleMap.setHeading((googleMap.getHeading()||0)+45),"Rotate"));
+    c.appendChild(sabzButton("Scale",()=>alert("Scale Control /1 Google Maps '2 MapOptions&B'.D&G9'd7'2Ì&'7*."),"Scale"));
+    c.appendChild(sabzSep());
+    const s=document.createElement("input");s.className="sabz-map-search";s.placeholder="Search / Geocoding";
+    s.addEventListener("keydown",function(e){
+        if(e.key!=="Enter"||!s.value)return;
+        const geocoder=new google.maps.Geocoder();
+        geocoder.geocode({address:s.value},function(results,status){
+            if(status==="OK"&&results[0]){
+                googleMap.setCenter(results[0].geometry.location);googleMap.setZoom(16);
+            }else alert("G¯'F&~Î/'&F4/.");
+        });
+    });
+    c.appendChild(s);
+    c.appendChild(sabzButton("Locate",()=>{
+        navigator.geolocation?.getCurrentPosition(pos=>{
+            googleMap.setCenter({lat:pos.coords.latitude,lng:pos.coords.longitude});
+            googleMap.setZoom(16);
+        });
+    },"Geolocation"));
+    c.appendChild(sabzButton("Traffic",()=>alert("Traffic Layer&A?'D&GÌ6H/."),"Traffic"));
+    c.appendChild(sabzButton("Transit",()=>alert("Transit Layer&'2 Google Maps API&B'.D&'3.G'/G '7*."),"Transit"));
+    c.appendChild(sabzButton("Bicycling",()=>alert("Bicycling Layer&'2 Google Maps API&B'.D&'3.G'/G '7*."),"Bicycling"));
+    c.appendChild(sabzSep());
+    c.appendChild(sabzButton("Marker",()=>sabzGoogleDraw("Point"),"Marker"));
+    c.appendChild(sabzButton("Polyline",()=>sabzGoogleDraw("LineString"),"Polyline"));
+    c.appendChild(sabzButton("Polygon",()=>sabzGoogleDraw("Polygon"),"Polygon"));
+    c.appendChild(sabzButton("Stop Drawing",()=>sabzGoogleStopDraw(),"Stop Drawing"));
+    c.appendChild(sabzButton("Clear Drawings",()=>sabzGoogleClear(),"Clear Drawings"));
+    c.appendChild(sabzButton("Export GeoJSON",()=>sabzDownload("google-map.geojson",JSON.stringify(sabzGoogleGeoJSON(),null,2),"application/geo+json"),"Export GeoJSON"));
+    c.appendChild(sabzButton("Reset View",()=>googleMap.setOptions({center:{lat:SABZ_CENTER[1],lng:SABZ_CENTER[0]},zoom:SABZ_ZOOM,heading:0,tilt:0}),"Reset View"));
+    googleMap.controls[google.maps.ControlPosition.TOP_RIGHT].push(c);
+    sabzGoogleColumn=c;
+}
+
+window.createGoogleMap=function(){
+    if(typeof google==="undefined"||!google.maps)return;
+    if(googleMap){
+        google.maps.event.trigger(googleMap,"resize");
+        installGoogleColumn();
+        return;
+    }
+    const center={lat:SABZ_CENTER[1],lng:SABZ_CENTER[0]};
+    googleMap=new google.maps.Map(document.getElementById("googleMap"),{
+        center:center,
+        zoom:SABZ_ZOOM,
+        mapTypeId:"satellite",
+        scrollwheel:true,
+        gestureHandling:"greedy",
+        disableDefaultUI:true,
+        clickableIcons:true
+    });
+    new google.maps.Marker({position:center,map:googleMap,title:&.'6g&.'/ 6G17.'F&+F'+&.'.','FÌ"});
+    installGoogleColumn();
+};
+
+/* =========================================================
+   OPEN MAP:&A?'D7'6Ì ¯F*7D '.*7'5Ì&G1&EN.H1
+========================================================= */
+
+const sabzOriginalOpenMap=window.openMap;
+window.openMap=function(type){
+    sabzOriginalOpenMap(type);
+    setTimeout(function(){
+        if(type==="mapbox"&&window.mapboxMap)installMapboxColumn();
+        if(type==="leaflet"&&window.leafletMap)installLeafletColumn();
+        if(type==="azure"&&window.azureMap)installAzureColumn();
+        if(type==="google"&&window.googleMap)installGoogleColumn();
+    },250);
+};
+
+})();
+</script>
+
 </body>
 </html>
