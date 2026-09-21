@@ -1,0 +1,3265 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>درگاه کارگزاری فنی مهندسی و حقوقی شهرستان ثلاث باباجانی</title>
+
+<!-- =========================================================
+     LEAFLET
+========================================================= -->
+
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+
+<script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+</script>
+
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    background: #f7fbfd;
+    color: #0d3158;
+    font-family: Tahoma, Arial, sans-serif;
+}
+
+:root {
+    --sidebar-width: 235px;
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.header {
+    height: 72px;
+    background: #fff;
+    border-bottom: 1px solid #cddbe4;
+
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+
+    padding: 0 4%;
+
+    position: relative;
+    z-index: 20;
+
+    margin-right: var(--sidebar-width);
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.header-title {
+    color: #07396c;
+
+    font-size: 22px;
+
+    font-weight: 800;
+
+    white-space: nowrap;
+}
+
+.login-box {
+    height: 40px;
+    min-width: 145px;
+
+    border: 1px solid #b6c8d5;
+    border-radius: 22px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+
+    color: #103451;
+
+    font-size: 11px;
+}
+
+.login-icon {
+    font-size: 21px;
+}
+
+.apps {
+    width: 28px;
+
+    display: grid;
+    grid-template-columns: repeat(3, 6px);
+    gap: 5px;
+}
+
+.apps span {
+    width: 6px;
+    height: 6px;
+
+    background: #096540;
+
+    border-radius: 2px;
+}
+
+.header-separator {
+    height: 35px;
+    width: 1px;
+
+    background: #ccd5db;
+}
+
+.header-link {
+    color: #064878;
+    font-size: 25px;
+}
+
+
+/* =========================================================
+   SIDEBAR
+========================================================= */
+
+.sidebar {
+    position: fixed;
+
+    top: 0;
+    right: 0;
+    bottom: 0;
+
+    width: var(--sidebar-width);
+
+    background: #ffffff;
+
+    border-left: 1px solid #d7e2e8;
+
+    box-shadow: -4px 0 18px rgba(20,60,90,.07);
+
+    padding: 18px 12px;
+
+    z-index: 1000;
+
+    overflow-y: auto;
+
+    direction: rtl;
+}
+
+
+/* =========================================================
+   LOGO
+========================================================= */
+
+.sidebar-brand {
+    width: 100%;
+
+    display: flex;
+    flex-direction: column;
+
+    align-items: center;
+    justify-content: center;
+
+    text-align: center;
+
+    padding: 4px 4px 18px;
+
+    border-bottom: 1px solid #edf2f5;
+
+    margin-bottom: 12px;
+}
+
+.sidebar-brand img {
+    width: 78px;
+    height: 78px;
+
+    object-fit: contain;
+
+    display: block;
+
+    margin-bottom: 8px;
+}
+
+.sidebar-brand-title {
+    color: #08613f;
+
+    font-size: 17px;
+
+    font-weight: 800;
+
+    line-height: 1.8;
+}
+
+.sidebar-brand-subtitle {
+    color: #075e40;
+
+    font-size: 12px;
+
+    font-weight: 600;
+
+    line-height: 1.8;
+
+    margin-top: 1px;
+}
+
+
+/* =========================================================
+   SIDEBAR TITLE
+========================================================= */
+
+.sidebar-title {
+    color: #07573e;
+
+    font-size: 13px;
+
+    font-weight: 800;
+
+    text-align: right;
+
+    padding: 6px 12px 10px;
+}
+
+
+/* =========================================================
+   SIDEBAR MENU
+========================================================= */
+
+.sidebar-menu {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 7px;
+}
+
+.sidebar-link {
+    width: 100%;
+
+    min-height: 82px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: flex-start;
+
+    justify-content: center;
+
+    gap: 7px;
+
+    padding: 10px 13px;
+
+    border-radius: 12px;
+
+    color: #29465f;
+
+    text-decoration: none;
+
+    font-size: 13px;
+
+    font-weight: 700;
+
+    text-align: right;
+
+    transition: .18s ease;
+
+    cursor: pointer;
+
+    background: #ffffff;
+}
+
+.sidebar-icon {
+    width: 36px;
+    height: 36px;
+
+    flex: 0 0 36px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 10px;
+
+    background: #edf6f2;
+
+    color: #086344;
+
+    font-size: 19px;
+}
+
+.sidebar-link > span:last-child {
+    width: 100%;
+
+    text-align: right;
+
+    line-height: 1.7;
+}
+
+.sidebar-link:hover {
+    background: #eef7f3;
+
+    color: #07573e;
+}
+
+.sidebar-link:hover .sidebar-icon {
+    background: #dcefe7;
+}
+
+.sidebar-divider {
+    height: 1px;
+
+    width: calc(100% - 12px);
+
+    background: #edf2f5;
+
+    margin: 6px auto;
+}
+
+
+/* =========================================================
+   MAP SUBMENU
+========================================================= */
+
+.map-menu {
+    display: none;
+
+    margin: -1px 5px 5px;
+
+    padding: 5px;
+
+    background: #f5faf8;
+
+    border: 1px solid #dcece5;
+
+    border-radius: 12px;
+}
+
+.map-menu.open {
+    display: block;
+}
+
+.map-menu-item {
+    width: 100%;
+
+    min-height: 48px;
+
+    border: none;
+
+    border-radius: 9px;
+
+    background: transparent;
+
+    color: #29465f;
+
+    font-family: Tahoma, Arial, sans-serif;
+
+    font-size: 12px;
+
+    font-weight: 700;
+
+    text-align: right;
+
+    padding: 8px 10px;
+
+    cursor: pointer;
+
+    transition: .18s ease;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+}
+
+.map-menu-item:hover {
+    background: #e3f2eb;
+
+    color: #07573e;
+}
+
+.map-menu-item.active {
+    background: #dcefe7;
+
+    color: #07573e;
+
+    font-weight: 800;
+}
+
+.map-menu-icon {
+    width: 27px;
+    height: 27px;
+
+    flex: 0 0 27px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 7px;
+
+    background: #ffffff;
+
+    color: #086344;
+
+    border: 1px solid #d7e7df;
+}
+
+
+/* =========================================================
+   HERO
+========================================================= */
+
+.hero {
+    min-height: 0;
+
+    background:
+        linear-gradient(
+            rgba(226, 241, 250, .72),
+            rgba(226, 241, 250, .72)
+        ),
+        url("images/mountain-bg.jpg");
+
+    background-position: center;
+    background-size: cover;
+
+    padding-top: 0;
+
+    text-align: center;
+
+    margin-right: var(--sidebar-width);
+}
+
+
+/* =========================================================
+   MAIN CONTAINER
+========================================================= */
+
+.container {
+    width: calc(98% - var(--sidebar-width));
+
+    max-width: 1215px;
+
+    margin: -2px calc(1% + var(--sidebar-width)) 18px 1%;
+
+    background: rgba(255,255,255,.97);
+
+    border: 1px solid #d6e2e9;
+
+    border-radius: 20px;
+
+    box-shadow: 0 8px 25px rgba(20,60,90,.09);
+
+    padding: 18px 28px 12px;
+}
+
+
+/* =========================================================
+   MAIN CONTENT
+========================================================= */
+
+.main-content-section {
+    display: block;
+}
+
+
+/* =========================================================
+   SECTION
+========================================================= */
+
+.section {
+    margin-bottom: 18px;
+}
+
+.section-title {
+    min-height: 58px;
+
+    border-radius: 16px;
+
+    display: flex;
+    align-items: center;
+
+    padding: 0 20px;
+
+    font-size: 23px;
+
+    font-weight: 800;
+
+    color: #07573e;
+}
+
+.section-title.green {
+    background: linear-gradient(
+        90deg,
+        #f0faf5,
+        #e1f1eb
+    );
+}
+
+.section-title.blue {
+    background: linear-gradient(
+        90deg,
+        #edf6ff,
+        #e2effd
+    );
+
+    color: #06457d;
+}
+
+.section-icon {
+    margin-left: 12px;
+
+    width: 42px;
+    height: 42px;
+
+    border-radius: 50%;
+
+    display: flex;
+
+    justify-content: center;
+    align-items: center;
+
+    background: #087653;
+
+    color: white;
+
+    font-size: 23px;
+}
+
+.blue .section-icon {
+    background: #0865ad;
+}
+
+
+/* =========================================================
+   BROKERAGE SERVICES
+========================================================= */
+
+.brokerage-grid {
+    display: grid;
+
+    grid-template-columns: repeat(5, 1fr);
+
+    gap: 14px;
+
+    margin-top: 12px;
+}
+
+.brokerage-card {
+    min-height: 145px;
+
+    background: linear-gradient(
+        145deg,
+        #ffffff,
+        #f4fbfd
+    );
+
+    border: 1px solid #d5e3e9;
+
+    border-radius: 14px;
+
+    padding: 17px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    justify-content: center;
+
+    align-items: center;
+
+    text-align: center;
+
+    text-decoration: none;
+
+    color: #092f58;
+
+    transition: .2s;
+}
+
+.brokerage-card:hover {
+    transform: translateY(-3px);
+
+    border-color: #8bcdb9;
+
+    box-shadow: 0 7px 18px rgba(5,90,70,.12);
+}
+
+.brokerage-icon {
+    width: 56px;
+    height: 56px;
+
+    border-radius: 50%;
+
+    background: #e4f3ed;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    color: #086344;
+
+    font-size: 28px;
+
+    margin-bottom: 12px;
+}
+
+.brokerage-card-title {
+    font-size: 15px;
+
+    font-weight: 700;
+
+    line-height: 1.9;
+}
+
+
+/* =========================================================
+   PERSONAL SERVICES
+========================================================= */
+
+.personal-grid {
+    display: grid;
+
+    grid-template-columns: repeat(4, 1fr);
+
+    gap: 14px;
+
+    margin-top: 12px;
+}
+
+.personal-card {
+    background: #fff;
+
+    border: 1px solid #d2e2f0;
+
+    border-radius: 14px;
+
+    padding: 17px;
+
+    min-height: 265px;
+
+    display: flex;
+
+    flex-direction: column;
+}
+
+.personal-icon {
+    width: 56px;
+    height: 56px;
+
+    border-radius: 50%;
+
+    background: #e3effc;
+
+    color: #08549a;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    font-size: 27px;
+
+    margin: 0 auto 10px;
+}
+
+.personal-title {
+    color: #062f59;
+
+    font-size: 15px;
+
+    font-weight: 800;
+
+    text-align: center;
+
+    line-height: 1.9;
+
+    text-decoration: none;
+
+    cursor: pointer;
+}
+
+.personal-price {
+    margin-top: 12px;
+
+    background: #edf7ff;
+
+    border-radius: 18px;
+
+    padding: 8px;
+
+    text-align: center;
+
+    color: #0757a0;
+
+    font-size: 15px;
+
+    font-weight: 800;
+}
+
+.pay-button {
+    display: inline-flex;
+
+    justify-content: center;
+    align-items: center;
+
+    margin: 12px auto 0;
+
+    padding: 8px 22px;
+
+    border-radius: 22px;
+
+    border: none;
+
+    background: #0878d1;
+
+    color: white;
+
+    text-decoration: none;
+
+    font-size: 13px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+}
+
+.personal-description {
+    display: none;
+
+    margin-top: 12px;
+
+    padding-top: 12px;
+
+    border-top: 1px solid #e4edf3;
+
+    color: #48627b;
+
+    font-size: 12px;
+
+    line-height: 2;
+}
+
+.personal-card.open .personal-description {
+    display: block;
+}
+
+
+/* =========================================================
+   PAYMENT
+========================================================= */
+
+#paymentSection {
+    margin-top: 16px;
+}
+
+.payment-box {
+    margin-top: 8px;
+
+    padding: 12px 16px;
+
+    border: 2px solid #146c43;
+
+    border-radius: 14px;
+
+    background: #fff;
+
+    text-align: center;
+}
+
+.payment-message {
+    color: #48627b;
+
+    font-size: 13px;
+
+    margin-bottom: 7px;
+
+    min-height: 20px;
+
+    display: block;
+}
+
+.payment-message-alert {
+    background: #fff7e8;
+
+    color: #8a4b00;
+
+    font-weight: 800;
+
+    border-radius: 8px;
+
+    padding: 8px 12px;
+
+    margin-bottom: 10px;
+
+    transition: .2s;
+}
+
+.payment-service-info {
+    display: none;
+
+    margin: 0 auto 8px;
+
+    max-width: 500px;
+
+    padding: 7px 12px;
+
+    border-radius: 10px;
+
+    background: #f3f8fb;
+}
+
+.payment-service-name {
+    color: #07573e;
+
+    font-size: 14px;
+
+    font-weight: 800;
+}
+
+.payment-service-price {
+    margin-top: 2px;
+
+    color: #0757a0;
+
+    font-size: 13px;
+
+    font-weight: 700;
+}
+
+
+/* =========================================================
+   GATEWAYS
+========================================================= */
+
+.gateway-container {
+    display: flex;
+
+    justify-content: center;
+
+    align-items: stretch;
+
+    gap: 12px;
+
+    flex-wrap: wrap;
+
+    margin-top: 6px;
+}
+
+.gateway-button {
+    width: 155px;
+
+    min-height: 118px;
+
+    border: 1px solid #d5dcd8;
+
+    background: #fff;
+
+    border-radius: 11px;
+
+    padding: 7px 10px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 3px;
+
+    cursor: pointer;
+
+    transition: .2s;
+
+    position: relative;
+}
+
+.gateway-button:hover {
+    border-color: #8bcdb9;
+
+    box-shadow: 0 5px 13px rgba(5,90,70,.12);
+}
+
+.gateway-button img {
+    max-width: 110px;
+
+    max-height: 38px;
+
+    object-fit: contain;
+}
+
+.gateway-radio {
+    width: 19px;
+
+    height: 19px;
+
+    border: 2px solid #9aa9a3;
+
+    border-radius: 50%;
+
+    margin-top: 3px;
+
+    display: flex;
+
+    justify-content: center;
+    align-items: center;
+}
+
+.gateway-radio-dot {
+    width: 9px;
+
+    height: 9px;
+
+    border-radius: 50%;
+
+    background: transparent;
+}
+
+.gateway-highlight {
+    border: 2px solid #146c43;
+
+    background: #f0faf5;
+
+    box-shadow: 0 5px 15px rgba(20,108,67,.16);
+
+    transform: scale(1.01);
+}
+
+.gateway-highlight .gateway-radio {
+    border-color: #146c43;
+}
+
+.gateway-highlight .gateway-radio-dot {
+    background: #146c43;
+}
+
+
+/* =========================================================
+   ENAMAD
+========================================================= */
+
+.enamad-box {
+    width: 155px;
+
+    min-height: 118px;
+
+    border: 1px solid #d5dcd8;
+
+    border-radius: 11px;
+
+    background: #fff;
+
+    display: flex;
+
+    justify-content: center;
+    align-items: center;
+
+    padding: 7px;
+}
+
+.enamad-box img {
+    width: 82px;
+
+    height: auto;
+
+    display: block;
+}
+
+
+/* =========================================================
+   CONTACT
+========================================================= */
+
+.contact-section {
+    margin: 4px 0 0;
+}
+
+.contact-box {
+    width: 100%;
+
+    background: transparent;
+
+    border: none;
+
+    padding: 3px 0 0;
+}
+
+.contact-grid {
+    display: flex;
+
+    width: 100%;
+
+    min-height: 38px;
+
+    align-items: center;
+
+    justify-content: space-between;
+}
+
+.contact-item {
+    min-height: 32px;
+
+    border: none;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 6px;
+
+    text-align: center;
+
+    padding: 0 10px;
+
+    flex: 1;
+}
+
+.contact-icon {
+    color: #08674c;
+
+    font-size: 18px;
+}
+
+.contact-label {
+    display: inline;
+
+    font-size: 10px;
+
+    color: #48627b;
+}
+
+.contact-value {
+    display: inline;
+
+    margin-top: 0;
+
+    font-size: 11px;
+
+    color: #082f54;
+
+    direction: rtl;
+}
+
+.contact-email {
+    color: #0757a0;
+
+    text-decoration: none;
+
+    direction: ltr;
+}
+
+.contact-email:hover {
+    text-decoration: underline;
+}
+
+
+/* =========================================================
+   MAP SECTION
+========================================================= */
+
+.map-section {
+    display: none;
+
+    width: 100%;
+
+    margin: 0;
+
+    scroll-margin-top: 15px;
+}
+
+.map-wrapper {
+    width: 100%;
+
+    height: calc(100vh - 30px);
+
+    min-height: 600px;
+
+    overflow: hidden;
+
+    border: 1px solid #d5e3e9;
+
+    border-radius: 14px;
+
+    background: #eef4f7;
+
+    position: relative;
+}
+
+
+/* =========================================================
+   GOOGLE MAP
+========================================================= */
+
+#googleMap {
+    width: 100%;
+    height: 100%;
+}
+
+
+/* =========================================================
+   LEAFLET MAP
+========================================================= */
+
+#leafletMap {
+    width: 100%;
+    height: 100%;
+}
+
+
+/* =========================================================
+   MY MAPS
+========================================================= */
+
+#myMapsContainer {
+    width: 100%;
+    height: 100%;
+
+    background: #eef4f7;
+
+    display: none;
+
+    position: relative;
+}
+
+#myMapsFrame {
+    width: 100%;
+    height: 100%;
+
+    border: 0;
+}
+
+
+/* =========================================================
+   MAP INFORMATION MESSAGE
+========================================================= */
+
+.map-info {
+    position: absolute;
+
+    top: 12px;
+    left: 12px;
+
+    z-index: 1000;
+
+    max-width: 320px;
+
+    padding: 10px 14px;
+
+    background: rgba(255,255,255,.94);
+
+    border: 1px solid #d4e1e7;
+
+    border-radius: 10px;
+
+    color: #29465f;
+
+    font-size: 12px;
+
+    line-height: 1.8;
+
+    box-shadow: 0 4px 15px rgba(20,60,90,.12);
+}
+
+
+/* =========================================================
+   MAP OPEN MODE
+========================================================= */
+
+body.map-mode .main-content-section,
+body.map-mode .contact-section {
+    display: none;
+}
+
+body.map-mode .container {
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+
+body.map-mode .map-section {
+    display: block;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media(max-width:1300px) {
+
+    :root {
+        --sidebar-width: 205px;
+    }
+
+    .brokerage-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .personal-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .header-title {
+        font-size: 17px;
+    }
+
+    .login-box {
+        min-width: 135px;
+        height: 38px;
+        font-size: 10px;
+    }
+
+    .login-icon {
+        font-size: 19px;
+    }
+}
+
+
+@media(max-width:900px) {
+
+    :root {
+        --sidebar-width: 0px;
+    }
+
+    .sidebar {
+
+        position: static;
+
+        width: 100%;
+
+        height: auto;
+
+        border-left: none;
+
+        border-bottom: 1px solid #d7e2e8;
+
+        box-shadow: none;
+
+        padding: 8px 10px;
+
+        overflow: visible;
+    }
+
+    .header {
+        margin-right: 0;
+    }
+
+    .hero {
+        margin-right: 0;
+    }
+
+    .sidebar-brand {
+
+        flex-direction: row;
+
+        justify-content: flex-start;
+
+        gap: 10px;
+
+        padding: 5px 8px 10px;
+
+        text-align: right;
+    }
+
+    .sidebar-brand img {
+
+        width: 55px;
+        height: 55px;
+
+        margin-bottom: 0;
+    }
+
+    .sidebar-brand-title {
+        font-size: 15px;
+    }
+
+    .sidebar-brand-subtitle {
+        font-size: 11px;
+    }
+
+    .sidebar-title {
+        display: none;
+    }
+
+    .sidebar-menu {
+
+        flex-direction: row;
+
+        justify-content: flex-start;
+
+        gap: 6px;
+
+        overflow-x: auto;
+
+        padding-bottom: 2px;
+    }
+
+    .sidebar-link {
+
+        width: auto;
+
+        min-width: 115px;
+
+        min-height: 65px;
+
+        flex: 0 0 auto;
+
+        align-items: flex-start;
+
+        padding: 7px 9px;
+
+        gap: 5px;
+
+        font-size: 11px;
+    }
+
+    .sidebar-icon {
+
+        width: 29px;
+
+        height: 29px;
+
+        flex-basis: 29px;
+
+        font-size: 15px;
+    }
+
+    .sidebar-divider {
+        display: none;
+    }
+
+    .map-menu {
+        margin: 0;
+        min-width: 210px;
+    }
+
+    .container {
+
+        width: 92%;
+
+        margin: -2px auto 18px;
+    }
+
+    .map-wrapper {
+        height: calc(100vh - 190px);
+        min-height: 500px;
+    }
+
+    .header {
+        height: auto;
+        min-height: 62px;
+    }
+
+    .header-title {
+        font-size: 15px;
+    }
+
+    .login-box {
+        min-width: 125px;
+        height: 36px;
+        font-size: 10px;
+    }
+}
+
+
+@media(max-width:700px) {
+
+    .header {
+
+        height: auto;
+
+        padding: 10px 15px;
+
+        flex-wrap: wrap;
+
+        gap: 8px;
+    }
+
+    .header-left {
+        width: 100%;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .header-title {
+        font-size: 13px;
+        white-space: normal;
+        line-height: 1.7;
+        text-align: right;
+        max-width: 100%;
+    }
+
+    .login-box {
+        min-width: 118px;
+        height: 34px;
+        font-size: 9px;
+    }
+
+    .login-icon {
+        font-size: 18px;
+    }
+
+    .hero h1 {
+
+        font-size: 24px;
+
+        padding: 0 20px;
+    }
+
+    .container {
+
+        width: 96%;
+
+        padding: 12px;
+    }
+
+    .brokerage-grid,
+    .personal-grid {
+
+        grid-template-columns: 1fr;
+    }
+
+    .contact-grid {
+
+        flex-wrap: nowrap;
+
+        overflow-x: auto;
+
+        justify-content: flex-start;
+    }
+
+    .contact-item {
+
+        flex: 0 0 auto;
+
+        padding: 0 7px;
+
+        white-space: nowrap;
+    }
+
+    .gateway-container {
+        gap: 8px;
+    }
+
+    .gateway-button,
+    .enamad-box {
+
+        width: 140px;
+
+        min-height: 110px;
+    }
+
+    .gateway-button img {
+
+        max-width: 100px;
+
+        max-height: 34px;
+    }
+
+    .enamad-box img {
+        width: 76px;
+    }
+
+    .map-wrapper {
+        height: calc(100vh - 245px);
+
+        min-height: 450px;
+
+        border-radius: 10px;
+    }
+
+    .map-info {
+        max-width: 230px;
+        font-size: 10px;
+    }
+}
+
+</style>
+</head>
+
+
+<body>
+
+
+<!-- =========================================================
+     SIDEBAR
+========================================================= -->
+
+<aside class="sidebar">
+
+    <div class="sidebar-brand">
+
+        <img
+            src="images/logo.png"
+            alt="سبز رویان اورامان"
+        >
+
+        <div class="sidebar-brand-title">
+            سبز رویان اورامان
+        </div>
+
+        <div class="sidebar-brand-subtitle">
+            کارگزاری فنی مهندسی و حقوقی
+        </div>
+
+    </div>
+
+
+    <div class="sidebar-title">
+        منوی کارگزاری
+    </div>
+
+
+    <nav class="sidebar-menu">
+
+
+        <a
+            href="#brokerageServices"
+            class="sidebar-link"
+            onclick="showServices();"
+        >
+
+            <span class="sidebar-icon">
+                ▣
+            </span>
+
+            <span>
+                خدمات اصلی کارگزاری
+            </span>
+
+        </a>
+
+
+        <a
+            href="#registeredParcels"
+            class="sidebar-link"
+        >
+
+            <span class="sidebar-icon">
+                ▤
+            </span>
+
+            <span>
+                پلاک‌های ثبتی
+            </span>
+
+        </a>
+
+
+        <!-- =================================================
+             MAP MAIN BUTTON
+        ================================================== -->
+
+        <a
+            href="#mapView"
+            class="sidebar-link"
+            onclick="toggleMapMenu(event);"
+        >
+
+            <span class="sidebar-icon">
+                ⌖
+            </span>
+
+            <span>
+                نمایش نقشه
+            </span>
+
+        </a>
+
+
+        <!-- =================================================
+             MAP SUBMENU
+        ================================================== -->
+
+        <div
+            id="mapMenu"
+            class="map-menu"
+        >
+
+            <button
+                type="button"
+                class="map-menu-item"
+                id="googleMapMenuItem"
+                onclick="openMap('google')"
+            >
+
+                <span class="map-menu-icon">
+                    G
+                </span>
+
+                <span>
+                    Google Maps JavaScript API
+                </span>
+
+            </button>
+
+
+            <button
+                type="button"
+                class="map-menu-item"
+                id="leafletMapMenuItem"
+                onclick="openMap('leaflet')"
+            >
+
+                <span class="map-menu-icon">
+                    L
+                </span>
+
+                <span>
+                    Leaflet
+                </span>
+
+            </button>
+
+
+            <button
+                type="button"
+                class="map-menu-item"
+                id="myMapsMenuItem"
+                onclick="openMap('mymaps')"
+            >
+
+                <span class="map-menu-icon">
+                    M
+                </span>
+
+                <span>
+                    My Maps
+                </span>
+
+            </button>
+
+        </div>
+
+
+        <div class="sidebar-divider"></div>
+
+
+        <a
+            href="#supportTicket"
+            class="sidebar-link"
+        >
+
+            <span class="sidebar-icon">
+                ✉
+            </span>
+
+            <span>
+                تیکت پشتیبان
+            </span>
+
+        </a>
+
+
+        <a
+            href="#aboutUs"
+            class="sidebar-link"
+        >
+
+            <span class="sidebar-icon">
+                ⓘ
+            </span>
+
+            <span>
+                درباره ما
+            </span>
+
+        </a>
+
+
+    </nav>
+
+</aside>
+
+
+<!-- =========================================================
+     HEADER
+========================================================= -->
+
+<header class="header">
+
+    <div class="header-left">
+
+        <div class="header-title">
+            درگاه کارگزاری فنی مهندسی و حقوقی شهرستان ثلاث باباجانی
+        </div>
+
+
+        <div class="login-box">
+
+            <span>⌄</span>
+
+            <span>
+                ورود / ثبت‌نام
+            </span>
+
+            <span class="login-icon">
+                ♙
+            </span>
+
+        </div>
+
+
+        <div class="apps">
+
+            <span></span>
+            <span></span>
+            <span></span>
+
+            <span></span>
+            <span></span>
+            <span></span>
+
+            <span></span>
+            <span></span>
+            <span></span>
+
+        </div>
+
+
+        <div class="header-separator"></div>
+
+
+        <div class="header-link">
+            ☎
+        </div>
+
+
+        <div class="header-link">
+            ✉
+        </div>
+
+    </div>
+
+</header>
+
+
+<!-- =========================================================
+     HERO
+========================================================= -->
+
+<section class="hero"></section>
+
+
+<!-- =========================================================
+     MAIN
+========================================================= -->
+
+<main class="container">
+
+
+    <!-- =====================================================
+         MAP SECTION
+    ====================================================== -->
+
+    <section
+        id="mapView"
+        class="map-section"
+    >
+
+        <div
+            class="map-wrapper"
+            id="mapWrapper"
+        >
+
+
+            <!-- GOOGLE MAP -->
+
+            <div
+                id="googleMap"
+                style="display:none;"
+            ></div>
+
+
+            <!-- LEAFLET MAP -->
+
+            <div
+                id="leafletMap"
+                style="display:none;"
+            ></div>
+
+
+            <!-- =================================================
+                 GOOGLE MY MAPS EMBED
+            ================================================== -->
+
+            <div
+                id="myMapsContainer"
+            >
+
+                <iframe
+                    id="myMapsFrame"
+                    title="Google My Maps"
+                    src="https://www.google.com/maps/d/embed?mid=18GJ7jBoL2_MhwZpzE3sfbmIqwquXJwg&ehbc=2E312F"
+                    loading="lazy"
+                    allowfullscreen
+                ></iframe>
+
+            </div>
+
+
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         MAIN SERVICES
+    ====================================================== -->
+
+    <div id="servicesContent">
+
+
+        <!-- خدمات کارگزاری -->
+
+        <section
+            class="section main-content-section"
+            id="brokerageServices"
+        >
+
+            <div class="section-title green">
+
+                <span class="section-icon">
+                    ▣
+                </span>
+
+                خدمات کارگزاری
+
+            </div>
+
+
+            <div class="brokerage-grid">
+
+
+                <a
+                    href="brokerage-details.html?service=1"
+                    class="brokerage-card"
+                >
+
+                    <div class="brokerage-icon">
+                        ▣
+                    </div>
+
+                    <div class="brokerage-card-title">
+                        صدور سند مالکیت المثنی و تبدیل اسناد
+                    </div>
+
+                </a>
+
+
+                <a
+                    href="brokerage-details.html?service=2"
+                    class="brokerage-card"
+                >
+
+                    <div class="brokerage-icon">
+                        ◫
+                    </div>
+
+                    <div class="brokerage-card-title">
+                        تفکیک، تجمیع و افراز ملک
+                    </div>
+
+                </a>
+
+
+                <a
+                    href="brokerage-details.html?service=3"
+                    class="brokerage-card"
+                >
+
+                    <div class="brokerage-icon">
+                        ◉
+                    </div>
+
+                    <div class="brokerage-card-title">
+                        تغییر، تعیین حدود و اصلاح ملک
+                    </div>
+
+                </a>
+
+
+                <a
+                    href="brokerage-details.html?service=4"
+                    class="brokerage-card"
+                >
+
+                    <div class="brokerage-icon">
+                        ▤
+                    </div>
+
+                    <div class="brokerage-card-title">
+                        صدور سند مالکیت حدنگار
+                    </div>
+
+                </a>
+
+
+                <a
+                    href="brokerage-details.html?service=5"
+                    class="brokerage-card"
+                >
+
+                    <div class="brokerage-icon">
+                        ▧
+                    </div>
+
+                    <div class="brokerage-card-title">
+                        درج ادعای موضوع ماده ۱۰ قانون
+                    </div>
+
+                </a>
+
+
+            </div>
+
+        </section>
+
+
+        <!-- خدمات شخصی -->
+
+        <section class="section main-content-section">
+
+            <div class="section-title blue">
+
+                <span class="section-icon">
+                    ♙
+                </span>
+
+                خدمات شخصی شرکت
+
+            </div>
+
+
+            <div class="personal-grid">
+
+
+                <!-- UTM -->
+
+                <article class="personal-card">
+
+                    <div class="personal-icon">
+                        ⌖
+                    </div>
+
+                    <a
+                        href="#"
+                        class="personal-title"
+                        onclick="toggleDetails(event, this)"
+                    >
+                        تهیه نقشه UTM ملک
+                    </a>
+
+
+                    <div class="personal-description">
+
+                        نقشه‌برداری با GPS شمیم از اراضی کشاورزی
+                        تا سقف یک هکتار و تحویل سی‌دی نقشه
+                        به‌همراه نقشه کاغذی مهرشده
+
+                    </div>
+
+
+                    <div class="personal-price">
+                        ۱٬۵۰۰٬۰۰۰ تومان
+                    </div>
+
+
+                    <a
+                        href="#paymentSection"
+                        class="pay-button"
+                        onclick="preparePayment(
+                            event,
+                            'utm',
+                            'تهیه نقشه UTM ملک',
+                            '1500000'
+                        )"
+                    >
+                        پرداخت هزینه
+                    </a>
+
+                </article>
+
+
+                <!-- TOPO -->
+
+                <article class="personal-card">
+
+                    <div class="personal-icon">
+                        ▱
+                    </div>
+
+                    <a
+                        href="#"
+                        class="personal-title"
+                        onclick="toggleDetails(event, this)"
+                    >
+                        برداشت و تهیه نقشه توپوگرافی
+                    </a>
+
+
+                    <div class="personal-description">
+
+                        نقشه‌برداری وضعیت ارتفاعی محدوده موردنظر
+                        تا سقف یک هکتار با GPS شمیم و ارائه فایل
+                        رقومی و نقشه کاغذی توپوگرافی به مالک
+
+                    </div>
+
+
+                    <div class="personal-price">
+                        ۲٬۵۰۰٬۰۰۰ تومان
+                    </div>
+
+
+                    <a
+                        href="#paymentSection"
+                        class="pay-button"
+                        onclick="preparePayment(
+                            event,
+                            'topo',
+                            'برداشت و تهیه نقشه توپوگرافی',
+                            '2500000'
+                        )"
+                    >
+                        پرداخت هزینه
+                    </a>
+
+                </article>
+
+
+                <!-- INQUIRY -->
+
+                <article class="personal-card">
+
+                    <div class="personal-icon">
+                        ▤
+                    </div>
+
+                    <a
+                        href="#"
+                        class="personal-title"
+                        onclick="toggleDetails(event, this)"
+                    >
+                        استعلام نقشه از اداره منابع طبیعی و بنیاد مسکن
+                    </a>
+
+
+                    <div class="personal-description">
+
+                        استعلام از اداره منابع طبیعی و بنیاد مسکن
+                        از طریق سامانه پنجره واحد مدیریت زمین
+                        با دریافت نامه از ارگان‌های استعلام‌کننده
+                        و ثبت اطلاعات متقاضی و ملک در سامانه مذکور،
+                        دریافت پاسخ استعلام از طریق سامانه مذکور
+                        و ارائه آن به مالک به‌صورت چاپ‌شده
+
+                    </div>
+
+
+                    <div class="personal-price">
+                        ۳۷۰٬۰۰۰ تومان
+                    </div>
+
+
+                    <a
+                        href="#paymentSection"
+                        class="pay-button"
+                        onclick="preparePayment(
+                            event,
+                            'inquiry',
+                            'استعلام نقشه از اداره منابع طبیعی و بنیاد مسکن',
+                            '370000'
+                        )"
+                    >
+                        پرداخت هزینه
+                    </a>
+
+                </article>
+
+
+                <!-- GAS -->
+
+                <article class="personal-card">
+
+                    <div class="personal-icon">
+                        ⌖
+                    </div>
+
+                    <a
+                        href="#"
+                        class="personal-title"
+                        onclick="toggleDetails(event, this)"
+                    >
+                        تهیه نقشه UTM ملک جهت دریافت انشعاب گاز
+                    </a>
+
+
+                    <div class="personal-description">
+
+                        نقشه‌برداری چهارگوش ساختمان‌های واقع
+                        در محدوده شهری، جهت استفاده در فرآیند
+                        درخواست دریافت انشعاب گاز و ارائه به
+                        دفاتر پیشخوان خدمات دولت، نقشه UTM
+                        تولیدی به صورت کاغذی تحویل متقاضی داده می‌شود
+
+                    </div>
+
+
+                    <div class="personal-price">
+                        ۴۸۰٬۰۰۰ تومان
+                    </div>
+
+
+                    <a
+                        href="#paymentSection"
+                        class="pay-button"
+                        onclick="preparePayment(
+                            event,
+                            'gas',
+                            'تهیه نقشه UTM ملک جهت دریافت انشعاب گاز',
+                            '480000'
+                        )"
+                    >
+                        پرداخت هزینه
+                    </a>
+
+                </article>
+
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             PAYMENT
+        ====================================================== -->
+
+        <section
+            class="section main-content-section"
+            id="paymentSection"
+        >
+
+            <div class="payment-box">
+
+
+                <div
+                    id="paymentMessage"
+                    class="payment-message"
+                >
+                    لطفاً ابتدا یکی از خدمات بالا را انتخاب کنید.
+                </div>
+
+
+                <div
+                    id="paymentServiceInfo"
+                    class="payment-service-info"
+                >
+
+                    <div
+                        id="selectedServiceName"
+                        class="payment-service-name"
+                    >
+                        خدمتی انتخاب نشده است
+                    </div>
+
+
+                    <div
+                        id="selectedServicePrice"
+                        class="payment-service-price"
+                    >
+                        —
+                    </div>
+
+                </div>
+
+
+                <div class="gateway-container">
+
+
+                    <!-- آسان پرداخت -->
+
+                    <div
+                        class="gateway-button"
+                        id="gateway-asan"
+                        onclick="selectGateway('asan')"
+                    >
+
+                        <img
+                            src="/payment/asan-logo.png"
+                            alt="آسان پرداخت"
+                        >
+
+                        <img
+                            src="/payment/آپ.png"
+                            alt="آسان پرداخت"
+                        >
+
+                        <div class="gateway-radio">
+
+                            <div class="gateway-radio-dot"></div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- سداد -->
+
+                    <div
+                        class="gateway-button"
+                        id="gateway-sadad"
+                        onclick="selectGateway('sadad')"
+                    >
+
+                        <img
+                            src="/payment/sadad-logo.png"
+                            alt="سداد"
+                        >
+
+                        <img
+                            src="/payment/سداد.png"
+                            alt="سداد"
+                        >
+
+                        <div class="gateway-radio">
+
+                            <div class="gateway-radio-dot"></div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- نماد اعتماد -->
+
+                    <div class="enamad-box">
+
+                        <a
+                            referrerpolicy="origin"
+                            target="_blank"
+                            href="https://trustseal.enamad.ir/?id=7563842&Code=nTDANyhBFXOoZlHNEVaBl0OsvBjH0TNs"
+                        >
+
+                            <img
+                                referrerpolicy="origin"
+                                src="https://trustseal.enamad.ir/logo.aspx?id=7563842&Code=nTDANyhBFXOoZlHNEVaBl0OsvBjH0TNs"
+                                alt="نماد اعتماد الکترونیکی"
+                            >
+
+                        </a>
+
+                    </div>
+
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             CONTACT
+        ====================================================== -->
+
+        <section class="contact-section">
+
+            <div class="contact-box">
+
+                <div class="contact-grid">
+
+
+                    <div class="contact-item">
+
+                        <div class="contact-icon">
+                            ☎
+                        </div>
+
+                        <div class="contact-label">
+                            تلفن:
+                        </div>
+
+                        <div class="contact-value">
+                            ۰۸۳۴۶۷۲۵۵۲۱
+                        </div>
+
+                    </div>
+
+
+                    <div class="contact-item">
+
+                        <div class="contact-icon">
+                            ✉
+                        </div>
+
+                        <div class="contact-label">
+                            ایمیل:
+                        </div>
+
+                        <a
+                            class="contact-value contact-email"
+                            href="mailto:info@sabzroyanuraman.com"
+                        >
+                            info@sabzroyanuraman.com
+                        </a>
+
+                    </div>
+
+
+                    <div class="contact-item">
+
+                        <div class="contact-icon">
+                            ⌖
+                        </div>
+
+                        <div class="contact-label">
+                            آدرس:
+                        </div>
+
+                        <div class="contact-value">
+                            استان کرمانشاه، شهرستان ثلاث باباجانی
+                        </div>
+
+                    </div>
+
+
+                    <div class="contact-item">
+
+                        <div class="contact-icon">
+                            ▣
+                        </div>
+
+                        <div class="contact-label">
+                            تأسیس:
+                        </div>
+
+                        <div class="contact-value">
+                            ۱۳۸۸
+                        </div>
+
+                    </div>
+
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+    </div>
+
+</main>
+
+
+<!-- =========================================================
+     GOOGLE MAPS JAVASCRIPT API
+=========================================================
+
+     کلید Google Maps فعلی خودت را در همین محل قرار بده.
+
+========================================================= -->
+
+<script
+    async
+    defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCh3Elxg1P6rxHkNiyvTyFiZ6kBdl1W-Zk&callback=initGoogleMap">
+</script>
+
+
+<script>
+
+/* =========================================================
+   GLOBAL MAP VARIABLES
+========================================================= */
+
+let googleMap = null;
+
+let googleMapsReady = false;
+
+let leafletMap = null;
+
+let currentMapType = "";
+
+
+/* =========================================================
+   GOOGLE MAPS INITIALIZATION CALLBACK
+========================================================= */
+
+function initGoogleMap() {
+
+    googleMapsReady = true;
+
+
+    if (currentMapType === "google") {
+
+        createGoogleMap();
+
+    }
+
+}
+
+
+/* =========================================================
+   CREATE GOOGLE MAP
+========================================================= */
+
+function createGoogleMap() {
+
+    if (!googleMapsReady) {
+
+        return;
+
+    }
+
+
+    if (googleMap) {
+
+        return;
+
+    }
+
+
+    const mapElement =
+        document.getElementById("googleMap");
+
+
+    if (!mapElement) {
+
+        console.error(
+            "عنصر googleMap پیدا نشد."
+        );
+
+        return;
+
+    }
+
+
+    const centerPosition = {
+
+        lat: 37.1395,
+
+        lng: 45.9486
+
+    };
+
+
+    googleMap =
+        new google.maps.Map(
+            mapElement,
+            {
+
+                center: centerPosition,
+
+                zoom: 12,
+
+                mapTypeId: "satellite",
+
+                scrollwheel: true,
+
+                gestureHandling: "greedy",
+
+                mapTypeControl: true,
+
+                mapTypeControlOptions: {
+
+                    mapTypeIds: [
+                        "roadmap",
+                        "satellite",
+                        "hybrid"
+                    ],
+
+                    position:
+                        google.maps.ControlPosition.TOP_RIGHT
+                },
+
+                zoomControl: true,
+
+                streetViewControl: false,
+
+                fullscreenControl: true,
+
+                clickableIcons: true
+
+            }
+        );
+
+
+    new google.maps.Marker({
+
+        position: centerPosition,
+
+        map: googleMap,
+
+        title:
+            "تازه‌آباد، شهرستان ثلاث باباجانی"
+
+    });
+
+}
+
+
+/* =========================================================
+   LEAFLET INITIALIZATION
+========================================================= */
+
+function createLeafletMap() {
+
+    const mapElement =
+        document.getElementById("leafletMap");
+
+
+    if (!mapElement) {
+
+        return;
+
+    }
+
+
+    if (leafletMap) {
+
+        setTimeout(function() {
+
+            leafletMap.invalidateSize();
+
+        }, 100);
+
+        return;
+
+    }
+
+
+    const centerPosition = [
+        37.1395,
+        45.9486
+    ];
+
+
+    leafletMap =
+        L.map(
+            "leafletMap",
+            {
+
+                center: centerPosition,
+
+                zoom: 12,
+
+                zoomControl: true
+
+            }
+        );
+
+
+    L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+
+            maxZoom: 19,
+
+            attribution:
+                '&copy; OpenStreetMap contributors'
+
+        }
+    ).addTo(leafletMap);
+
+
+    const esriSatellite =
+        L.tileLayer(
+            "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            {
+
+                maxZoom: 19,
+
+                attribution:
+                    "Tiles &copy; Esri"
+
+            }
+        );
+
+
+    esriSatellite.addTo(leafletMap);
+
+
+    L.marker(centerPosition)
+        .addTo(leafletMap)
+        .bindPopup(
+            "تازه‌آباد، شهرستان ثلاث باباجانی"
+        );
+
+
+    const baseMaps = {
+
+        "ماهواره‌ای": esriSatellite
+
+    };
+
+
+    L.control.layers(
+        baseMaps,
+        null,
+        {
+            position: "topright"
+        }
+    ).addTo(leafletMap);
+
+}
+
+
+/* =========================================================
+   MY MAPS
+========================================================= */
+
+
+/*
+   Google My Maps Embed واقعی شما
+*/
+
+const MY_MAPS_URL =
+    "https://www.google.com/maps/d/embed?mid=18GJ7jBoL2_MhwZpzE3sfbmIqwquXJwg&ehbc=2E312F";
+
+
+function openMyMaps() {
+
+    const frame =
+        document.getElementById(
+            "myMapsFrame"
+        );
+
+
+    frame.src = MY_MAPS_URL;
+
+}
+
+
+/* =========================================================
+   TOGGLE MAP MENU
+========================================================= */
+
+function toggleMapMenu(event) {
+
+    event.preventDefault();
+
+
+    const menu =
+        document.getElementById(
+            "mapMenu"
+        );
+
+
+    menu.classList.toggle("open");
+
+}
+
+
+/* =========================================================
+   CHANGE MAP TYPE
+========================================================= */
+
+function openMap(type) {
+
+    currentMapType = type;
+
+
+    document.body.classList.add(
+        "map-mode"
+    );
+
+
+    document.getElementById(
+        "googleMap"
+    ).style.display = "none";
+
+
+    document.getElementById(
+        "leafletMap"
+    ).style.display = "none";
+
+
+    document.getElementById(
+        "myMapsContainer"
+    ).style.display = "none";
+
+
+    document
+        .querySelectorAll(".map-menu-item")
+        .forEach(function(item) {
+
+            item.classList.remove(
+                "active"
+            );
+
+        });
+
+
+    /*
+       GOOGLE
+    */
+
+    if (type === "google") {
+
+        const googleElement =
+            document.getElementById(
+                "googleMap"
+            );
+
+
+        googleElement.style.display =
+            "block";
+
+
+        document
+            .getElementById(
+                "googleMapMenuItem"
+            )
+            .classList.add(
+                "active"
+            );
+
+
+        setTimeout(function() {
+
+            createGoogleMap();
+
+
+            if (googleMap) {
+
+                google.maps.event.trigger(
+                    googleMap,
+                    "resize"
+                );
+
+
+                googleMap.setCenter({
+
+                    lat: 37.1395,
+
+                    lng: 45.9486
+
+                });
+
+            }
+
+        }, 100);
+
+    }
+
+
+    /*
+       LEAFLET
+    */
+
+    else if (type === "leaflet") {
+
+        const leafletElement =
+            document.getElementById(
+                "leafletMap"
+            );
+
+
+        leafletElement.style.display =
+            "block";
+
+
+        document
+            .getElementById(
+                "leafletMapMenuItem"
+            )
+            .classList.add(
+                "active"
+            );
+
+
+        setTimeout(function() {
+
+            createLeafletMap();
+
+        }, 100);
+
+    }
+
+
+    /*
+       MY MAPS
+    */
+
+    else if (type === "mymaps") {
+
+        document.getElementById(
+            "myMapsContainer"
+        ).style.display =
+            "block";
+
+
+        document
+            .getElementById(
+                "myMapsMenuItem"
+            )
+            .classList.add(
+                "active"
+            );
+
+
+        setTimeout(function() {
+
+            openMyMaps();
+
+        }, 100);
+
+    }
+
+
+    window.scrollTo({
+
+        top: 0,
+
+        behavior: "smooth"
+
+    });
+
+}
+
+
+/* =========================================================
+   SHOW SERVICES
+========================================================= */
+
+function showServices() {
+
+    document.body.classList.remove(
+        "map-mode"
+    );
+
+
+    const mapMenu =
+        document.getElementById(
+            "mapMenu"
+        );
+
+
+    if (mapMenu) {
+
+        mapMenu.classList.remove(
+            "open"
+        );
+
+    }
+
+
+    currentMapType = "";
+
+
+    const services =
+        document.getElementById(
+            "brokerageServices"
+        );
+
+
+    if (services) {
+
+        setTimeout(function() {
+
+            services.scrollIntoView({
+
+                behavior: "smooth",
+
+                block: "start"
+
+            });
+
+        }, 50);
+
+    }
+
+}
+
+
+/* =========================================================
+   TOGGLE PERSONAL SERVICE DETAILS
+========================================================= */
+
+function toggleDetails(
+    event,
+    titleElement
+) {
+
+    event.preventDefault();
+
+
+    const card =
+        titleElement.closest(
+            ".personal-card"
+        );
+
+
+    const wasOpen =
+        card.classList.contains(
+            "open"
+        );
+
+
+    card.classList.toggle(
+        "open"
+    );
+
+
+    if (!wasOpen) {
+
+        setTimeout(function() {
+
+            const rect =
+                titleElement.getBoundingClientRect();
+
+
+            const target =
+                window.scrollY +
+                rect.top -
+                105;
+
+
+            window.scrollTo({
+
+                top: Math.max(
+                    0,
+                    target
+                ),
+
+                behavior: "smooth"
+
+            });
+
+        }, 30);
+
+    }
+
+}
+
+
+/* =========================================================
+   PAYMENT
+========================================================= */
+
+let selectedPayment = {
+
+    service: "",
+    name: "",
+    price: "",
+    description: ""
+
+};
+
+
+let gatewayTimer = null;
+
+
+/* =========================================================
+   PREPARE PAYMENT
+========================================================= */
+
+function preparePayment(
+    event,
+    service,
+    name,
+    price
+) {
+
+    event.preventDefault();
+
+
+    selectedPayment.service =
+        service;
+
+
+    selectedPayment.name =
+        name;
+
+
+    selectedPayment.price =
+        price;
+
+
+    selectedPayment.description =
+        name;
+
+
+    document
+        .getElementById(
+            "selectedServiceName"
+        )
+        .textContent =
+        name;
+
+
+    document
+        .getElementById(
+            "selectedServicePrice"
+        )
+        .textContent =
+        Number(price)
+            .toLocaleString("fa-IR")
+        + " تومان";
+
+
+    document
+        .getElementById(
+            "paymentServiceInfo"
+        )
+        .style.display =
+        "block";
+
+
+    document
+        .getElementById(
+            "paymentMessage"
+        )
+        .textContent =
+        "لطفاً یکی از درگاه‌های پرداخت را انتخاب کنید.";
+
+
+    document
+        .getElementById(
+            "paymentMessage"
+        )
+        .classList.remove(
+            "payment-message-alert"
+        );
+
+
+    clearTimeout(
+        gatewayTimer
+    );
+
+
+    document
+        .querySelectorAll(
+            ".gateway-button"
+        )
+        .forEach(function(button) {
+
+            button.classList.remove(
+                "gateway-highlight"
+            );
+
+        });
+
+
+    document
+        .getElementById(
+            "paymentSection"
+        )
+        .scrollIntoView({
+
+            behavior: "smooth",
+
+            block: "start"
+
+        });
+
+
+    gatewayTimer =
+        setTimeout(function() {
+
+            document
+                .getElementById(
+                    "gateway-asan"
+                )
+                .classList.add(
+                    "gateway-highlight"
+                );
+
+        }, 500);
+
+}
+
+
+/* =========================================================
+   SELECT PAYMENT GATEWAY
+========================================================= */
+
+function selectGateway(
+    gateway
+) {
+
+    clearTimeout(
+        gatewayTimer
+    );
+
+
+    if (!selectedPayment.service) {
+
+        const message =
+            document.getElementById(
+                "paymentMessage"
+            );
+
+
+        message.textContent =
+            "لطفاً ابتدا یکی از خدمات بالا را انتخاب کنید.";
+
+
+        message.style.display =
+            "block";
+
+
+        message.classList.remove(
+            "payment-message-alert"
+        );
+
+
+        void message.offsetWidth;
+
+
+        message.classList.add(
+            "payment-message-alert"
+        );
+
+
+        message.scrollIntoView({
+
+            behavior: "smooth",
+
+            block: "center"
+
+        });
+
+
+        return;
+
+    }
+
+
+    document
+        .querySelectorAll(
+            ".gateway-button"
+        )
+        .forEach(function(button) {
+
+            button.classList.remove(
+                "gateway-highlight"
+            );
+
+        });
+
+
+    document
+        .getElementById(
+            "gateway-" + gateway
+        )
+        .classList.add(
+            "gateway-highlight"
+        );
+
+
+    const form =
+        document.createElement(
+            "form"
+        );
+
+
+    form.method = "POST";
+
+
+    form.action =
+        "/payment/order.php";
+
+
+    addHiddenField(
+        form,
+        "service",
+        selectedPayment.service
+    );
+
+
+    addHiddenField(
+        form,
+        "name",
+        selectedPayment.name
+    );
+
+
+    addHiddenField(
+        form,
+        "mobile",
+        ""
+    );
+
+
+    addHiddenField(
+        form,
+        "description",
+        selectedPayment.description
+    );
+
+
+    addHiddenField(
+        form,
+        "gateway",
+        gateway
+    );
+
+
+    document.body.appendChild(
+        form
+    );
+
+
+    form.submit();
+
+}
+
+
+/* =========================================================
+   ADD HIDDEN POST FIELD
+========================================================= */
+
+function addHiddenField(
+    form,
+    name,
+    value
+) {
+
+    const input =
+        document.createElement(
+            "input"
+        );
+
+
+    input.type = "hidden";
+
+
+    input.name = name;
+
+
+    input.value = value;
+
+
+    form.appendChild(
+        input
+    );
+
+}
+
+</script>
+
+
+</body>
+</html>
