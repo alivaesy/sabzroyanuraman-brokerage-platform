@@ -1513,256 +1513,406 @@ body.map-mode .map-section {
          MAP SECTION
     ====================================================== -->
 
-    <section
-        id="mapView"
-        class="map-section"
-    >
+    
+<section id="mapView" class="map-section">
+<style>
+#mapWrapper{position:relative}
+.map-platform-host{position:absolute;inset:0;display:none}
+.map-platform-host.active{display:block}
+.dedicated-map-panel{
+ position:absolute;top:10px;right:58px;z-index:80;width:285px;max-height:calc(100% - 20px);
+ overflow-y:auto;background:rgba(255,255,255,.96);border:1px solid #cbdbe2;border-radius:12px;
+ padding:8px;box-shadow:0 5px 20px rgba(20,60,90,.18);direction:rtl
+}
+.dedicated-map-title{font-weight:800;color:#07573e;text-align:center;padding:6px;border-bottom:1px solid #e6eef1;margin-bottom:6px}
+.dedicated-map-tools{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.dedicated-map-tools button{min-height:32px;border:1px solid #cbd8df;background:#fff;color:#173b58;border-radius:7px;padding:5px;font-family:Vazirmatn,sans-serif!important;font-size:10px;font-weight:700;cursor:pointer}
+.dedicated-map-tools button:hover{background:#eef7f3;border-color:#86bca9;color:#07573e}
+.map-tool-status{position:absolute;left:12px;bottom:12px;z-index:90;background:rgba(255,255,255,.96);border:1px solid #d4e1e7;border-radius:8px;padding:7px 10px;font-size:10px;color:#29465f;display:none}
+#googleMap,#leafletMap,#azureMap{width:100%;height:100%}
+#myMapsContainer{width:100%;height:100%;position:relative}
+#myMapsFrame{width:100%;height:100%;border:0}
+@media(max-width:900px){.dedicated-map-panel{right:8px;width:250px}.dedicated-map-tools{grid-template-columns:1fr}}
+</style>
 
-        <div
-            class="map-wrapper"
-            id="mapWrapper"
-        >
+<div class="map-wrapper" id="mapWrapper">
 
-            <div
-                id="googleMap"
-                style="display:none;"
-            ></div>
+  <div id="googleMap" class="map-platform-host"></div>
+  
+<div class="dedicated-map-panel" id="googleToolsColumn">
+  <div class="dedicated-map-title">Google Maps JavaScript API</div>
+  <div class="dedicated-map-tools">
+    <button type="button" onclick="sectionGoogleZoomControl()">Zoom Control</button>
+    <button type="button" onclick="sectionGoogleMapTypeControl()">Map Type Control</button>
+    <button type="button" onclick="sectionGoogleFullscreenControl()">Fullscreen Control</button>
+    <button type="button" onclick="sectionGoogleStreetViewControl()">Street View Control</button>
+    <button type="button" onclick="sectionGoogleRotateControl()">Rotate Control</button>
+    <button type="button" onclick="sectionGoogleScaleControl()">Scale Control</button>
+    <button type="button" onclick="sectionGoogleCameraControl()">Camera Control</button>
+    <button type="button" onclick="sectionGoogleKeyboardShortcuts()">Keyboard Shortcuts</button>
+    <button type="button" onclick="sectionGoogleRoadmap()">Roadmap</button>
+    <button type="button" onclick="sectionGoogleSatellite()">Satellite</button>
+    <button type="button" onclick="sectionGoogleHybrid()">Hybrid</button>
+    <button type="button" onclick="sectionGoogleTerrain()">Terrain</button>
+    <button type="button" onclick="sectionGoogleVector()">Vector Map</button>
+    <button type="button" onclick="sectionGoogleRaster()">Raster Map</button>
+    <button type="button" onclick="sectionGoogleCenter()">Center</button>
+    <button type="button" onclick="sectionGoogleSetZoom()">Zoom</button>
+    <button type="button" onclick="sectionGoogleTilt()">Tilt</button>
+    <button type="button" onclick="sectionGoogleHeading()">Heading</button>
+    <button type="button" onclick="sectionGoogleMoveCamera()">Move Camera</button>
+    <button type="button" onclick="sectionGoogleFractionalZoom()">Fractional Zoom</button>
+    <button type="button" onclick="sectionGoogleMarker()">Marker</button>
+    <button type="button" onclick="sectionGoogleAdvancedMarker()">Advanced Marker</button>
+    <button type="button" onclick="sectionGoogleCustomMarker()">Custom Marker</button>
+    <button type="button" onclick="sectionGooglePolyline()">Polyline</button>
+    <button type="button" onclick="sectionGooglePolygon()">Polygon</button>
+    <button type="button" onclick="sectionGoogleCircle()">Circle</button>
+    <button type="button" onclick="sectionGoogleRectangle()">Rectangle</button>
+    <button type="button" onclick="sectionGoogleGroundOverlay()">Ground Overlay</button>
+    <button type="button" onclick="sectionGoogleCustomOverlay()">Custom Overlay</button>
+    <button type="button" onclick="sectionGoogleInfoWindow()">Info Window</button>
+    <button type="button" onclick="sectionGoogleDataLayer()">Data Layer</button>
+    <button type="button" onclick="sectionGoogleGeoJSON()">GeoJSON</button>
+    <button type="button" onclick="sectionGoogleKML()">KML Layer</button>
+    <button type="button" onclick="sectionGoogleGeoRSS()">GeoRSS Layer</button>
+    <button type="button" onclick="sectionGoogleTraffic()">Traffic Layer</button>
+    <button type="button" onclick="sectionGoogleTransit()">Transit Layer</button>
+    <button type="button" onclick="sectionGoogleBicycling()">Bicycling Layer</button>
+    <button type="button" onclick="sectionGoogleHeatmap()">Heatmap Layer</button>
+    <button type="button" onclick="sectionGoogleOverlayTypes()">Overlay Map Types</button>
+    <button type="button" onclick="sectionGoogleImageTypes()">Image Map Types</button>
+    <button type="button" onclick="sectionGooglePlaces()">Places</button>
+    <button type="button" onclick="sectionGoogleAutocomplete()">Autocomplete</button>
+    <button type="button" onclick="sectionGooglePlaceDetails()">Place Details</button>
+    <button type="button" onclick="sectionGooglePlaceSearch()">Place Search</button>
+    <button type="button" onclick="sectionGoogleNearbySearch()">Nearby Search</button>
+    <button type="button" onclick="sectionGoogleGeocoding()">Geocoding</button>
+    <button type="button" onclick="sectionGoogleReverseGeocoding()">Reverse Geocoding</button>
+    <button type="button" onclick="sectionGoogleRoutes()">Routes</button>
+    <button type="button" onclick="sectionGoogleDirections()">Directions</button>
+    <button type="button" onclick="sectionGoogleDistanceMatrix()">Distance Matrix</button>
+    <button type="button" onclick="sectionGoogleElevation()">Elevation</button>
+    <button type="button" onclick="sectionGoogleStreetView()">Street View</button>
+    <button type="button" onclick="sectionGoogleStreetViewMetadata()">Street View Metadata</button>
+    <button type="button" onclick="sectionGoogleMaximumZoom()">Maximum Zoom Imagery</button>
+    <button type="button" onclick="sectionGoogleWebGL()">WebGL Overlay View</button>
+    <button type="button" onclick="sectionGoogle3D()">3D Graphics</button>
+    <button type="button" onclick="sectionGoogleFeatureLayer()">Feature Layer</button>
+    <button type="button" onclick="sectionGoogleDDS()">Data-Driven Styling</button>
+    <button type="button" onclick="sectionGoogleBoundaries()">Administrative Boundaries</button>
+    <button type="button" onclick="sectionGoogleGeometry()">Geometry</button>
+    <button type="button" onclick="sectionGoogleGeolocation()">Geolocation</button>
+    <button type="button" onclick="sectionGoogleReset()">Reset View</button>
+  </div>
+</div>
 
-            <div
-                id="leafletMap"
-                style="display:none;"
-            ></div>
+  <div id="leafletMap" class="map-platform-host"></div>
+  
+<div class="dedicated-map-panel" id="leafletToolsColumn">
+  <div class="dedicated-map-title">Leaflet</div>
+  <div class="dedicated-map-tools">
+    <button type="button" onclick="sectionLeafletPan()">Pan</button>
+    <button type="button" onclick="sectionLeafletZoomIn()">Zoom In</button>
+    <button type="button" onclick="sectionLeafletZoomOut()">Zoom Out</button>
+    <button type="button" onclick="sectionLeafletZoomBox()">Zoom Box</button>
+    <button type="button" onclick="sectionLeafletFitBounds()">Fit Bounds</button>
+    <button type="button" onclick="sectionLeafletLocate()">Locate</button>
+    <button type="button" onclick="sectionLeafletFullscreen()">Fullscreen</button>
+    <button type="button" onclick="sectionLeafletLayers()">Layers Control</button>
+    <button type="button" onclick="sectionLeafletScale()">Scale Control</button>
+    <button type="button" onclick="sectionLeafletAttribution()">Attribution Control</button>
+    <button type="button" onclick="sectionLeafletMousePosition()">Mouse Position</button>
+    <button type="button" onclick="sectionLeafletCoordinates()">Coordinates</button>
+    <button type="button" onclick="sectionLeafletMiniMap()">MiniMap</button>
+    <button type="button" onclick="sectionLeafletOSM()">OpenStreetMap</button>
+    <button type="button" onclick="sectionLeafletSatellite()">Satellite</button>
+    <button type="button" onclick="sectionLeafletTerrain()">Terrain</button>
+    <button type="button" onclick="sectionLeafletCustomTiles()">Custom Tile Layer</button>
+    <button type="button" onclick="sectionLeafletMarker()">Marker</button>
+    <button type="button" onclick="sectionLeafletCircleMarker()">Circle Marker</button>
+    <button type="button" onclick="sectionLeafletCircle()">Circle</button>
+    <button type="button" onclick="sectionLeafletPolyline()">Polyline</button>
+    <button type="button" onclick="sectionLeafletMultiPolyline()">MultiPolyline</button>
+    <button type="button" onclick="sectionLeafletPolygon()">Polygon</button>
+    <button type="button" onclick="sectionLeafletMultiPolygon()">MultiPolygon</button>
+    <button type="button" onclick="sectionLeafletRectangle()">Rectangle</button>
+    <button type="button" onclick="sectionLeafletFeatureGroup()">FeatureGroup</button>
+    <button type="button" onclick="sectionLeafletLayerGroup()">LayerGroup</button>
+    <button type="button" onclick="sectionLeafletGeoJSON()">GeoJSON</button>
+    <button type="button" onclick="sectionLeafletWMS()">WMS</button>
+    <button type="button" onclick="sectionLeafletWFS()">WFS</button>
+    <button type="button" onclick="sectionLeafletImageOverlay()">ImageOverlay</button>
+    <button type="button" onclick="sectionLeafletVideoOverlay()">VideoOverlay</button>
+    <button type="button" onclick="sectionLeafletSVGOverlay()">SVGOverlay</button>
+    <button type="button" onclick="sectionLeafletPopup()">Popup</button>
+    <button type="button" onclick="sectionLeafletTooltip()">Tooltip</button>
+    <button type="button" onclick="sectionLeafletDrawMarker()">Draw Marker</button>
+    <button type="button" onclick="sectionLeafletDrawPolyline()">Draw Polyline</button>
+    <button type="button" onclick="sectionLeafletDrawPolygon()">Draw Polygon</button>
+    <button type="button" onclick="sectionLeafletDrawRectangle()">Draw Rectangle</button>
+    <button type="button" onclick="sectionLeafletDrawCircle()">Draw Circle</button>
+    <button type="button" onclick="sectionLeafletEdit()">Edit</button>
+    <button type="button" onclick="sectionLeafletDelete()">Delete</button>
+    <button type="button" onclick="sectionLeafletSnap()">Snap</button>
+    <button type="button" onclick="sectionLeafletSearch()">Search</button>
+    <button type="button" onclick="sectionLeafletGeocoder()">Geocoder</button>
+    <button type="button" onclick="sectionLeafletReverseGeocoder()">Reverse Geocoder</button>
+    <button type="button" onclick="sectionLeafletRouting()">Routing</button>
+    <button type="button" onclick="sectionLeafletMeasureDistance()">Measure Distance</button>
+    <button type="button" onclick="sectionLeafletMeasureArea()">Measure Area</button>
+    <button type="button" onclick="sectionLeafletHeatmap()">Heatmap</button>
+    <button type="button" onclick="sectionLeafletCluster()">Marker Cluster</button>
+    <button type="button" onclick="sectionLeafletTimeDimension()">Time Dimension</button>
+    <button type="button" onclick="sectionLeafletImportGeoJSON()">Import GeoJSON</button>
+    <button type="button" onclick="sectionLeafletImportKML()">Import KML</button>
+    <button type="button" onclick="sectionLeafletImportGPX()">Import GPX</button>
+    <button type="button" onclick="sectionLeafletImportCSV()">Import CSV</button>
+    <button type="button" onclick="sectionLeafletExportGeoJSON()">Export GeoJSON</button>
+    <button type="button" onclick="sectionLeafletExportKML()">Export KML</button>
+    <button type="button" onclick="sectionLeafletExportGPX()">Export GPX</button>
+    <button type="button" onclick="sectionLeafletPrint()">Print</button>
+    <button type="button" onclick="sectionLeafletReset()">Reset View</button>
+  </div>
+</div>
 
-            <div
-                id="azureMap"
-                style="display:none;"
-            ></div>
+  <div id="azureMap" class="map-platform-host"></div>
+  
+<div class="dedicated-map-panel" id="azureToolsColumn">
+  <div class="dedicated-map-title">Azure Maps Web SDK</div>
+  <div class="dedicated-map-tools">
+    <button type="button" onclick="sectionAzureZoom()">Zoom Control</button>
+    <button type="button" onclick="sectionAzureCompass()">Compass Control</button>
+    <button type="button" onclick="sectionAzurePitch()">Pitch Control</button>
+    <button type="button" onclick="sectionAzureRotation()">Rotation Control</button>
+    <button type="button" onclick="sectionAzureStyleControl()">Style Control</button>
+    <button type="button" onclick="sectionAzureFullscreen()">Fullscreen Control</button>
+    <button type="button" onclick="sectionAzureScale()">Scale Control</button>
+    <button type="button" onclick="sectionAzureTrafficControl()">Traffic Control</button>
+    <button type="button" onclick="sectionAzureIndoor()">Indoor Control</button>
+    <button type="button" onclick="sectionAzureCamera()">Camera</button>
+    <button type="button" onclick="sectionAzureCenter()">Center</button>
+    <button type="button" onclick="sectionAzureSetZoom()">Zoom</button>
+    <button type="button" onclick="sectionAzureSetPitch()">Pitch</button>
+    <button type="button" onclick="sectionAzureBearing()">Bearing</button>
+    <button type="button" onclick="sectionAzureFitBounds()">Fit Bounds</button>
+    <button type="button" onclick="sectionAzureResetCamera()">Reset Camera</button>
+    <button type="button" onclick="sectionAzureRoad()">Road</button>
+    <button type="button" onclick="sectionAzureSatellite()">Satellite</button>
+    <button type="button" onclick="sectionAzureNight()">Night</button>
+    <button type="button" onclick="sectionAzureGrayscale()">Grayscale</button>
+    <button type="button" onclick="sectionAzureBlank()">Blank</button>
+    <button type="button" onclick="sectionAzureCustomStyle()">Custom Style</button>
+    <button type="button" onclick="sectionAzureTerrain()">3D Terrain</button>
+    <button type="button" onclick="sectionAzureBuildings()">3D Buildings</button>
+    <button type="button" onclick="sectionAzureGlobe()">Globe</button>
+    <button type="button" onclick="sectionAzureSearch()">Search</button>
+    <button type="button" onclick="sectionAzureAutocomplete()">Autocomplete</button>
+    <button type="button" onclick="sectionAzureAddress()">Address Search</button>
+    <button type="button" onclick="sectionAzurePOI()">POI Search</button>
+    <button type="button" onclick="sectionAzureReverse()">Reverse Search</button>
+    <button type="button" onclick="sectionAzureNearby()">Nearby Search</button>
+    <button type="button" onclick="sectionAzureRoute()">Route</button>
+    <button type="button" onclick="sectionAzureDirections()">Directions</button>
+    <button type="button" onclick="sectionAzureMatrix()">Route Matrix</button>
+    <button type="button" onclick="sectionAzureIsochrone()">Isochrone</button>
+    <button type="button" onclick="sectionAzureReachable()">Reachable Range</button>
+    <button type="button" onclick="sectionAzureTraffic()">Traffic</button>
+    <button type="button" onclick="sectionAzureTransit()">Transit</button>
+    <button type="button" onclick="sectionAzureGeolocation()">Geolocation</button>
+    <button type="button" onclick="sectionAzurePoint()">Point</button>
+    <button type="button" onclick="sectionAzureLine()">LineString</button>
+    <button type="button" onclick="sectionAzurePolygon()">Polygon</button>
+    <button type="button" onclick="sectionAzureRectangle()">Rectangle</button>
+    <button type="button" onclick="sectionAzureCircle()">Circle</button>
+    <button type="button" onclick="sectionAzureEdit()">Edit</button>
+    <button type="button" onclick="sectionAzureDelete()">Delete</button>
+    <button type="button" onclick="sectionAzureMeasureDistance()">Measure Distance</button>
+    <button type="button" onclick="sectionAzureMeasureArea()">Measure Area</button>
+    <button type="button" onclick="sectionAzureSpatialIO()">Spatial IO</button>
+    <button type="button" onclick="sectionAzureGeoJSON()">GeoJSON</button>
+    <button type="button" onclick="sectionAzureKML()">KML</button>
+    <button type="button" onclick="sectionAzureKMZ()">KMZ</button>
+    <button type="button" onclick="sectionAzureGPX()">GPX</button>
+    <button type="button" onclick="sectionAzureGeoRSS()">GeoRSS</button>
+    <button type="button" onclick="sectionAzureCSV()">CSV</button>
+    <button type="button" onclick="sectionAzureShapefile()">Shapefile</button>
+    <button type="button" onclick="sectionAzureSymbol()">Symbol Layer</button>
+    <button type="button" onclick="sectionAzureLineLayer()">Line Layer</button>
+    <button type="button" onclick="sectionAzurePolygonLayer()">Polygon Layer</button>
+    <button type="button" onclick="sectionAzureBubble()">Bubble Layer</button>
+    <button type="button" onclick="sectionAzureHeat()">Heat Map Layer</button>
+    <button type="button" onclick="sectionAzureImage()">Image Layer</button>
+    <button type="button" onclick="sectionAzureTile()">Tile Layer</button>
+    <button type="button" onclick="sectionAzureVectorTile()">Vector Tile Layer</button>
+    <button type="button" onclick="sectionAzureHTMLMarker()">HTML Marker</button>
+    <button type="button" onclick="sectionAzureWebGL()">WebGL</button>
+    <button type="button" onclick="sectionAzureImportGeoJSON()">Import GeoJSON</button>
+    <button type="button" onclick="sectionAzureImportKML()">Import KML</button>
+    <button type="button" onclick="sectionAzureImportGPX()">Import GPX</button>
+    <button type="button" onclick="sectionAzureImportCSV()">Import CSV</button>
+    <button type="button" onclick="sectionAzureExportGeoJSON()">Export GeoJSON</button>
+    <button type="button" onclick="sectionAzureExportKML()">Export KML</button>
+    <button type="button" onclick="sectionAzureExportGPX()">Export GPX</button>
+    <button type="button" onclick="sectionAzureReset()">Reset View</button>
+  </div>
+</div>
 
+  <div id="mapboxMap" class="map-platform-host">
+    <div id="mapboxGeocoderContainer" class="mapbox-geocoder-container"></div>
+    <div class="mapbox-tools">
+      <div class="mapbox-tools-title">Mapbox Controls</div>
+      <div class="mapbox-tools-group">
+        <button type="button" id="mapboxStreetButton" onclick="setMapboxStyle('street')" class="active">Streets</button>
+        <button type="button" id="mapboxSatelliteButton" onclick="setMapboxStyle('satellite')">Satellite</button>
+        <button type="button" id="mapboxTerrainButton" onclick="toggleMapboxTerrain()">Terrain</button>
+        <button type="button" id="mapbox3DBuildingsButton" onclick="toggleMapbox3DBuildings()">3D Buildings</button>
+      </div>
+      <div class="mapbox-tools-group">
+        <button type="button" onclick="startMapboxPointDraw()">Point</button>
+        <button type="button" onclick="startMapboxLineDraw()">LineString</button>
+        <button type="button" onclick="startMapboxPolygonDraw()">Polygon</button>
+        <button type="button" onclick="startMapboxMultiPolygonDraw()">MultiPolygon</button>
+      </div>
+      <div class="mapbox-tools-group">
+        <button type="button" onclick="startMapboxSimpleSelect()">Simple Select</button>
+        <button type="button" onclick="startMapboxDirectSelect()">Direct Select</button>
+        <button type="button" onclick="deleteMapboxSelected()">Trash</button>
+        <button type="button" onclick="finishMapboxMultiPolygon()">Finish MultiPolygon</button>
+      </div>
+      <div class="mapbox-tools-group">
+        <button type="button" onclick="exportMapboxGeoJSON()">Export GeoJSON</button>
+        <button type="button" onclick="exportMapboxKML()">Export KML</button>
+        <button type="button" onclick="importMapboxGeoJSON()">Import GeoJSON</button>
+        <button type="button" onclick="importMapboxKML()">Import KML</button>
+      </div>
+      <div class="mapbox-tools-group">
+        <button type="button" onclick="clearMapboxDrawings()">Clear Drawings</button>
+        <button type="button" onclick="resetMapboxView()">Reset View</button>
+      </div>
+    </div>
+    <input type="file" id="mapboxGeoJSONFile" class="mapbox-import-input" accept=".geojson,.json,application/geo+json">
+    <input type="file" id="mapboxKMLFile" class="mapbox-import-input" accept=".kml,.xml,application/vnd.google-earth.kml+xml,text/xml">
+    <div id="mapboxStatus" class="mapbox-status"></div>
+  </div>
 
-            <!-- =================================================
-                 MAPBOX
-            ================================================== -->
+  <div id="myMapsContainer" class="map-platform-host">
+    <iframe id="myMapsFrame" title="Google My Maps" src="https://www.google.com/maps/d/embed?mid=18GJ7jBoL2_MhwZpzE3sfbmIqwquXJwg&ehbc=2E312F" loading="lazy" allowfullscreen></iframe>
+  </div>
+  
+<div class="dedicated-map-panel" id="myMapsToolsColumn">
+  <div class="dedicated-map-title">Google My Maps — قابلیت‌های قابل‌کنترل</div>
+  <div class="dedicated-map-tools">
+    <button type="button" onclick="sectionMyMapsOpen()">Open My Maps</button>
+    <button type="button" onclick="sectionMyMapsGoogleMaps()">Open in Google Maps</button>
+    <button type="button" onclick="sectionMyMapsShare()">Share</button>
+    <button type="button" onclick="sectionMyMapsCollaborate()">Collaborate</button>
+    <button type="button" onclick="sectionMyMapsEmbed()">Embed</button>
+    <button type="button" onclick="sectionMyMapsPrint()">Print</button>
+    <button type="button" onclick="sectionMyMapsExport()">Export KML/KMZ</button>
+  </div>
+</div>
 
-            <div
-                id="mapboxMap"
-                style="display:none;"
-            >
+  <div id="mapToolStatus" class="map-tool-status"></div>
+</div>
 
-                <div
-                    id="mapboxGeocoderContainer"
-                    class="mapbox-geocoder-container"
-                ></div>
+<script>
+(function(){
+ const hosts=["googleMap","leafletMap","azureMap","mapboxMap","myMapsContainer"];
+ const panels=["googleToolsColumn","leafletToolsColumn","azureToolsColumn","myMapsToolsColumn"];
+ function active(type){
+   hosts.forEach(id=>{const e=document.getElementById(id);if(e)e.classList.remove("active");});
+   panels.forEach(id=>{const e=document.getElementById(id);if(e)e.style.display="none";});
+   const h=document.getElementById(type==="google"?"googleMap":type==="leaflet"?"leafletMap":type==="azure"?"azureMap":type==="mapbox"?"mapboxMap":"myMapsContainer");
+   const p=document.getElementById(type==="google"?"googleToolsColumn":type==="leaflet"?"leafletToolsColumn":type==="azure"?"azureToolsColumn":type==="mymaps"?"myMapsToolsColumn":null);
+   if(h)h.classList.add("active"); if(p)p.style.display="block";
+ }
+ window.__dedicatedMapUI={active};
+ window.sectionMapStatus=function(m){const e=document.getElementById("mapToolStatus");if(e){e.textContent=m;e.style.display="block";clearTimeout(window.__mapStatusTimer);window.__mapStatusTimer=setTimeout(()=>e.style.display="none",3000)}};
 
+ /* Leaflet: native actions available with the already-loaded Leaflet SDK. */
+ window.sectionLeafletPan=()=>sectionMapStatus("Pan با حرکت مستقیم روی نقشه انجام می‌شود.");
+ window.sectionLeafletZoomIn=()=>leafletMap&&leafletMap.zoomIn();
+ window.sectionLeafletZoomOut=()=>leafletMap&&leafletMap.zoomOut();
+ window.sectionLeafletZoomBox=()=>sectionMapStatus("Zoom Box نیازمند پلاگین Leaflet ZoomBox است.");
+ window.sectionLeafletFitBounds=()=>leafletMap&&leafletMap.fitBounds(leafletMap.getBounds());
+ window.sectionLeafletLocate=()=>leafletMap&&leafletMap.locate({setView:true});
+ window.sectionLeafletFullscreen=()=>sectionMapStatus("Fullscreen به پلاگین Leaflet Fullscreen نیاز دارد.");
+ window.sectionLeafletLayers=()=>sectionMapStatus("Layers Control در نقشه Leaflet موجود است.");
+ window.sectionLeafletScale=()=>{if(leafletMap)L.control.scale().addTo(leafletMap)};
+ window.sectionLeafletAttribution=()=>sectionMapStatus("Attribution Control در Leaflet فعال است.");
+ window.sectionLeafletMousePosition=()=>sectionMapStatus("Mouse Position نیازمند پلاگین است.");
+ window.sectionLeafletCoordinates=()=>sectionMapStatus("Coordinates نیازمند کنترل مختصات است.");
+ window.sectionLeafletMiniMap=()=>sectionMapStatus("MiniMap نیازمند پلاگین Leaflet MiniMap است.");
+ window.sectionLeafletOSM=()=>{if(leafletMap)location.reload()};
+ window.sectionLeafletSatellite=()=>sectionMapStatus("لایه ماهواره‌ای موجود است؛ از Layers Control انتخاب کنید.");
+ window.sectionLeafletTerrain=()=>sectionMapStatus("Terrain به provider tile یا پلاگین نیاز دارد.");
+ window.sectionLeafletCustomTiles=()=>sectionMapStatus("Custom Tile Layer آماده اتصال به URL tile است.");
+ window.sectionLeafletMarker=()=>sectionMapStatus("Marker از API اصلی Leaflet پشتیبانی می‌شود.");
+ window.sectionLeafletCircleMarker=()=>sectionMapStatus("Circle Marker از API اصلی Leaflet پشتیبانی می‌شود.");
+ window.sectionLeafletCircle=()=>sectionMapStatus("Circle از API اصلی Leaflet پشتیبانی می‌شود.");
+ window.sectionLeafletPolyline=()=>sectionMapStatus("Polyline از API اصلی Leaflet پشتیبانی می‌شود.");
+ window.sectionLeafletMultiPolyline=()=>sectionMapStatus("MultiPolyline از API اصلی Leaflet پشتیبانی می‌شود.");
+ window.sectionLeafletPolygon=()=>sectionMapStatus("Polygon از API اصلی Leaflet پشتیبانی می‌شود.");
+ window.sectionLeafletMultiPolygon=()=>sectionMapStatus("MultiPolygon با GeoJSON قابل استفاده است.");
+ window.sectionLeafletRectangle=()=>sectionMapStatus("Rectangle از API اصلی Leaflet پشتیبانی می‌شود.");
+ window.sectionLeafletFeatureGroup=()=>sectionMapStatus("FeatureGroup آماده استفاده است.");
+ window.sectionLeafletLayerGroup=()=>sectionMapStatus("LayerGroup آماده استفاده است.");
+ window.sectionLeafletGeoJSON=()=>sectionMapStatus("GeoJSON در Leaflet پشتیبانی می‌شود.");
+ window.sectionLeafletWMS=()=>sectionMapStatus("WMS با L.tileLayer.wms قابل استفاده است.");
+ window.sectionLeafletWFS=()=>sectionMapStatus("WFS سرویس OGC است و باید endpoint آن مشخص شود.");
+ window.sectionLeafletImageOverlay=()=>sectionMapStatus("ImageOverlay پشتیبانی می‌شود.");
+ window.sectionLeafletVideoOverlay=()=>sectionMapStatus("VideoOverlay پشتیبانی می‌شود.");
+ window.sectionLeafletSVGOverlay=()=>sectionMapStatus("SVGOverlay پشتیبانی می‌شود.");
+ window.sectionLeafletPopup=()=>sectionMapStatus("Popup پشتیبانی می‌شود.");
+ window.sectionLeafletTooltip=()=>sectionMapStatus("Tooltip پشتیبانی می‌شود.");
+ ["DrawMarker","DrawPolyline","DrawPolygon","DrawRectangle","DrawCircle","Edit","Delete","Snap","Search","Geocoder","ReverseGeocoder","Routing","MeasureDistance","MeasureArea","Heatmap","Cluster","TimeDimension","ImportGeoJSON","ImportKML","ImportGPX","ImportCSV","ExportGeoJSON","ExportKML","ExportGPX"].forEach(n=>window["sectionLeaflet"+n]=()=>sectionMapStatus("این قابلیت در UI ثبت شده و برای اجرای واقعی به کتابخانه/endpoint مربوطه نیاز دارد."));
+ window.sectionLeafletPrint=()=>window.print();
+ window.sectionLeafletReset=()=>leafletMap&&leafletMap.setView([37.1395,45.9486],12);
 
-                <div class="mapbox-tools">
+ /* Azure */
+ ["Zoom","Compass","Pitch","Rotation","StyleControl","Fullscreen","Scale","TrafficControl","Indoor","Camera","Center","SetZoom","SetPitch","Bearing","FitBounds","ResetCamera","Road","Satellite","Night","Grayscale","Blank","CustomStyle","Terrain","Buildings","Globe","Search","Autocomplete","Address","POI","Reverse","Nearby","Route","Directions","Matrix","Isochrone","Reachable","Traffic","Transit","Geolocation","Point","Line","Polygon","Rectangle","Circle","Edit","Delete","MeasureDistance","MeasureArea","SpatialIO","GeoJSON","KML","KMZ","GPX","GeoRSS","CSV","Shapefile","Symbol","LineLayer","PolygonLayer","Bubble","Heat","Image","Tile","VectorTile","HTMLMarker","WebGL","ImportGeoJSON","ImportKML","ImportGPX","ImportCSV","ExportGeoJSON","ExportKML","ExportGPX"].forEach(n=>window["sectionAzure"+n]=()=>sectionMapStatus("قابلیت Azure Maps ثبت شده است؛ برای اجرای این مورد باید ماژول/REST endpoint مربوطه فعال باشد."));
+ window.sectionAzureReset=()=>azureMap&&azureMap.setCamera({center:[45.9486,37.1395],zoom:12});
 
-                    <div class="mapbox-tools-title">
-                        Mapbox Controls
-                    </div>
+ /* Google */
+ window.sectionGoogleZoomControl=()=>googleMap&&googleMap.setOptions({zoomControl:true});
+ window.sectionGoogleMapTypeControl=()=>googleMap&&googleMap.setOptions({mapTypeControl:true});
+ window.sectionGoogleFullscreenControl=()=>googleMap&&googleMap.setOptions({fullscreenControl:true});
+ window.sectionGoogleStreetViewControl=()=>googleMap&&googleMap.setOptions({streetViewControl:true});
+ window.sectionGoogleRotateControl=()=>googleMap&&googleMap.setOptions({rotateControl:true});
+ window.sectionGoogleScaleControl=()=>googleMap&&googleMap.setOptions({scaleControl:true});
+ window.sectionGoogleCameraControl=()=>googleMap&&googleMap.setOptions({cameraControl:true});
+ window.sectionGoogleKeyboardShortcuts=()=>googleMap&&googleMap.setOptions({keyboardShortcuts:true});
+ window.sectionGoogleRoadmap=()=>googleMap&&googleMap.setMapTypeId("roadmap");
+ window.sectionGoogleSatellite=()=>googleMap&&googleMap.setMapTypeId("satellite");
+ window.sectionGoogleHybrid=()=>googleMap&&googleMap.setMapTypeId("hybrid");
+ window.sectionGoogleTerrain=()=>googleMap&&googleMap.setMapTypeId("terrain");
+ window.sectionGoogleCenter=()=>googleMap&&googleMap.setCenter({lat:37.1395,lng:45.9486});
+ window.sectionGoogleSetZoom=()=>googleMap&&googleMap.setZoom(12);
+ window.sectionGoogleTilt=()=>googleMap&&googleMap.setTilt(45);
+ window.sectionGoogleHeading=()=>googleMap&&googleMap.setHeading(0);
+ window.sectionGoogleMoveCamera=()=>googleMap&&googleMap.moveCamera({center:{lat:37.1395,lng:45.9486},zoom:12,tilt:0,heading:0});
+ window.sectionGoogleFractionalZoom=()=>sectionMapStatus("Fractional Zoom در نقشه‌های vector قابل استفاده است.");
+ window.sectionGoogleVector=()=>sectionMapStatus("Vector Map نیازمند renderingType=VECTOR یا Map ID مناسب است.");
+ window.sectionGoogleRaster=()=>sectionMapStatus("Raster Map در حالت فعلی قابل استفاده است.");
+ ["Marker","AdvancedMarker","CustomMarker","Polyline","Polygon","Circle","Rectangle","GroundOverlay","CustomOverlay","InfoWindow","DataLayer","GeoJSON","KML","GeoRSS","Traffic","Transit","Bicycling","Heatmap","OverlayTypes","ImageTypes","Places","Autocomplete","PlaceDetails","PlaceSearch","NearbySearch","Geocoding","ReverseGeocoding","Routes","Directions","DistanceMatrix","Elevation","StreetView","StreetViewMetadata","MaximumZoom","WebGL","3D","FeatureLayer","DDS","Boundaries","Geometry","Geolocation"].forEach(n=>window["sectionGoogle"+n]=()=>sectionMapStatus("این قابلیت Google Maps API در ستون اختصاصی قرار گرفت؛ برای اجرای واقعی باید library/service مربوطه و مجوز آن فعال باشد."));
+ window.sectionGoogleReset=()=>googleMap&&googleMap.setOptions({center:{lat:37.1395,lng:45.9486},zoom:12,tilt:0,heading:0});
 
+ /* My Maps: no fake API; only navigation to the real product/embed. */
+ window.sectionMyMapsOpen=()=>window.open("https://www.google.com/mymaps","_blank","noopener");
+ window.sectionMyMapsGoogleMaps=()=>window.open("https://www.google.com/maps","_blank","noopener");
+ window.sectionMyMapsShare=()=>sectionMapStatus("اشتراک‌گذاری My Maps باید از خود Google My Maps انجام شود.");
+ window.sectionMyMapsCollaborate=()=>sectionMapStatus("همکاری/ویرایش My Maps باید از خود Google My Maps انجام شود.");
+ window.sectionMyMapsEmbed=()=>sectionMapStatus("Embed همین نقشه در iframe موجود است.");
+ window.sectionMyMapsPrint=()=>window.print();
+ window.sectionMyMapsExport=()=>sectionMapStatus("Export KML/KMZ از داخل My Maps انجام می‌شود.");
 
-                    <div class="mapbox-tools-group">
+ /* expose platform switching for the existing openMap() flow */
+ window.addEventListener("dedicated-map-switch",e=>active(e.detail));
+})();
+</script>
 
-                        <button
-                            type="button"
-                            id="mapboxStreetButton"
-                            onclick="setMapboxStyle('street')"
-                            class="active"
-                        >
-                            Streets
-                        </button>
-
-                        <button
-                            type="button"
-                            id="mapboxSatelliteButton"
-                            onclick="setMapboxStyle('satellite')"
-                        >
-                            Satellite
-                        </button>
-
-                        <button
-                            type="button"
-                            id="mapboxTerrainButton"
-                            onclick="toggleMapboxTerrain()"
-                        >
-                            Terrain
-                        </button>
-
-                        <button
-                            type="button"
-                            id="mapbox3DBuildingsButton"
-                            onclick="toggleMapbox3DBuildings()"
-                        >
-                            3D Buildings
-                        </button>
-
-                    </div>
-
-
-                    <div class="mapbox-tools-group">
-
-                        <button
-                            type="button"
-                            onclick="startMapboxPointDraw()"
-                        >
-                            Point
-                        </button>
-
-                        <button
-                            type="button"
-                            onclick="startMapboxLineDraw()"
-                        >
-                            LineString
-                        </button>
-
-                        <button
-                            type="button"
-                            onclick="startMapboxPolygonDraw()"
-                        >
-                            Polygon
-                        </button>
-
-                        <button
-                            type="button"
-                            onclick="startMapboxMultiPolygonDraw()"
-                        >
-                            MultiPolygon
-                        </button>
-
-                    </div>
-
-
-                    <div class="mapbox-tools-group">
-
-                        <button
-                            type="button"
-                            onclick="startMapboxSimpleSelect()"
-                        >
-                            Simple Select
-                        </button>
-
-                        <button
-                            type="button"
-                            onclick="startMapboxDirectSelect()"
-                        >
-                            Direct Select
-                        </button>
-
-                        <button
-                            type="button"
-                            onclick="deleteMapboxSelected()"
-                        >
-                            Trash
-                        </button>
-
-                        <button
-                            type="button"
-                            onclick="finishMapboxMultiPolygon()"
-                        >
-                            Finish MultiPolygon
-                        </button>
-
-                    </div>
-
-
-                    <div class="mapbox-tools-group">
-
-                        <button
-                            type="button"
-                            onclick="exportMapboxGeoJSON()"
-                        >
-                            Export GeoJSON
-                        </button>
-
-                        <button
-                            type="button"
-                            onclick="exportMapboxKML()"
-                        >
-                            Export KML
-                        </button>
-
-                        <button
-                            type="button"
-                            onclick="importMapboxGeoJSON()"
-                        >
-                            Import GeoJSON
-                        </button>
-
-                        <button
-                            type="button"
-                            onclick="importMapboxKML()"
-                        >
-                            Import KML
-                        </button>
-
-                    </div>
-
-
-                    <div class="mapbox-tools-group">
-
-                        <button
-                            type="button"
-                            onclick="clearMapboxDrawings()"
-                        >
-                            Clear Drawings
-                        </button>
-
-                        <button
-                            type="button"
-                            onclick="resetMapboxView()"
-                        >
-                            Reset View
-                        </button>
-
-                    </div>
-
-                </div>
-
-
-                <input
-                    type="file"
-                    id="mapboxGeoJSONFile"
-                    class="mapbox-import-input"
-                    accept=".geojson,.json,application/geo+json"
-                >
-
-
-                <input
-                    type="file"
-                    id="mapboxKMLFile"
-                    class="mapbox-import-input"
-                    accept=".kml,.xml,application/vnd.google-earth.kml+xml,text/xml"
-                >
-
-
-                <div
-                    id="mapboxStatus"
-                    class="mapbox-status"
-                ></div>
-
-            </div>
-
-
-            <!-- =================================================
-                 GOOGLE MY MAPS
-            ================================================== -->
-
-            <div id="myMapsContainer">
-
-                <iframe
-                    id="myMapsFrame"
-                    title="Google My Maps"
-                    src="https://www.google.com/maps/d/embed?mid=18GJ7jBoL2_MhwZpzE3sfbmIqwquXJwg&ehbc=2E312F"
-                    loading="lazy"
-                    allowfullscreen
-                ></iframe>
-
-            </div>
-
-        </div>
-
-    </section>
-
+</section>
 
     <!-- =====================================================
          MAIN SERVICES
