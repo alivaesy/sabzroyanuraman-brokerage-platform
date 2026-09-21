@@ -20,6 +20,14 @@
 </script>
 
 
+<!-- AZURE MAPS -->
+<link rel="stylesheet"
+href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.css">
+
+<script
+src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.js">
+</script>
+
 <style>
 
 * {
@@ -1124,6 +1132,14 @@ body {
 }
 
 
+#azureMap {
+
+    width:100%;
+    height:100%;
+
+}
+
+
 /* =========================================================
    MY MAPS
 ========================================================= */
@@ -1627,8 +1643,25 @@ body.map-mode .map-section {
                     Leaflet
                 </span>
 
-            </button>
 
+
+
+            <button
+                type="button"
+                class="map-menu-item"
+                id="azureMapMenuItem"
+                onclick="openMap('azure')"
+            >
+
+                <span class="map-menu-icon">
+                    A
+                </span>
+
+                <span>
+                    Azure Maps
+                </span>
+
+            </button>
 
             <button
                 type="button"
@@ -1793,6 +1826,14 @@ body.map-mode .map-section {
 
             <div
                 id="leafletMap"
+                style="display:none;"
+            ></div>
+
+
+            <!-- AZURE MAP -->
+
+            <div
+                id="azureMap"
                 style="display:none;"
             ></div>
 
@@ -2399,6 +2440,8 @@ let googleMapsReady = false;
 
 let leafletMap = null;
 
+let azureMap = null;
+
 let currentMapType = "";
 
 
@@ -2675,6 +2718,49 @@ function toggleMapMenu(event) {
    CHANGE MAP TYPE
 ========================================================= */
 
+
+
+/* =========================================================
+   AZURE MAPS INITIALIZATION
+========================================================= */
+
+function createAzureMap(){
+
+    if(azureMap){
+        return;
+    }
+
+
+    azureMap = new atlas.Map(
+        'azureMap',
+        {
+
+            center:[
+                45.9486,
+                37.1395
+            ],
+
+            zoom:12,
+
+            language:'fa-IR',
+
+            authOptions:{
+
+                authType:'subscriptionKey',
+
+                subscriptionKey:
+                'YOUR_AZURE_MAPS_KEY'
+
+            }
+
+        }
+
+    );
+
+
+}
+
+
 function openMap(type) {
 
     currentMapType = type;
@@ -2692,6 +2778,11 @@ function openMap(type) {
 
     document.getElementById(
         "leafletMap"
+    ).style.display = "none";
+
+
+    document.getElementById(
+        "azureMap"
     ).style.display = "none";
 
 
@@ -2794,6 +2885,38 @@ function openMap(type) {
             createLeafletMap();
 
         }, 100);
+
+    }
+
+
+
+
+    /*
+       AZURE MAPS
+    */
+
+    else if(type==="azure"){
+
+
+        document.getElementById(
+            "azureMap"
+        ).style.display="block";
+
+
+        document
+        .getElementById(
+            "azureMapMenuItem"
+        )
+        .classList.add(
+            "active"
+        );
+
+
+        setTimeout(function(){
+
+            createAzureMap();
+
+        },100);
 
     }
 
