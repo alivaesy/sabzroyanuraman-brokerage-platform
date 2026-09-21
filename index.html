@@ -1520,6 +1520,7 @@ body.map-mode .map-section {
 .map-platform-host{position:absolute;inset:0;display:none}
 .map-platform-host.active{display:block}
 .dedicated-map-panel{
+ display:none;
  position:absolute;top:10px;right:58px;z-index:80;width:285px;max-height:calc(100% - 20px);
  overflow-y:auto;background:rgba(255,255,255,.96);border:1px solid #cbdbe2;border-radius:12px;
  padding:8px;box-shadow:0 5px 20px rgba(20,60,90,.18);direction:rtl
@@ -1909,6 +1910,21 @@ body.map-mode .map-section {
 
  /* expose platform switching for the existing openMap() flow */
  window.addEventListener("dedicated-map-switch",e=>active(e.detail));
+ const panelMap={googleMap:"googleToolsColumn",leafletMap:"leafletToolsColumn",azureMap:"azureToolsColumn",myMapsContainer:"myMapsToolsColumn"};
+ const observer=new MutationObserver(()=>{
+   for(const host of Object.keys(panelMap)){
+     const h=document.getElementById(host), p=document.getElementById(panelMap[host]);
+     if(h&&p) p.style.display=(h.style.display!=="none" && getComputedStyle(h).display!=="none")?"block":"none";
+   }
+ });
+ const wrapper=document.getElementById("mapWrapper");
+ if(wrapper) observer.observe(wrapper,{subtree:true,attributes:true,attributeFilter:["style","class"]});
+ setTimeout(()=>{
+   for(const host of Object.keys(panelMap)){
+     const h=document.getElementById(host), p=document.getElementById(panelMap[host]);
+     if(h&&p) p.style.display=(h.style.display!=="none" && getComputedStyle(h).display!=="none")?"block":"none";
+   }
+ },200);
 })();
 </script>
 
