@@ -1817,6 +1817,27 @@ body.map-mode .map-section {
   <div id="mapToolStatus" class="map-tool-status"></div>
 </div>
 
+
+<!-- MAP VIEW PLUGINS: kept intentionally inside mapView only -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.fullscreen@3.0.1/dist/Control.FullScreen.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/perliedman-leaflet-control-geocoder/3.3.1/Control.Geocoder.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-minimap/3.6.1/Control.MiniMap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css">
+<link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/drawing/1/atlas-drawing.min.css">
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script src="https://unpkg.com/leaflet.fullscreen@3.0.1/dist/Control.FullScreen.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/perliedman-leaflet-control-geocoder/3.3.1/Control.Geocoder.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-minimap/3.6.1/Control.MiniMap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script src="https://atlas.microsoft.com/sdk/javascript/drawing/1/atlas-drawing.min.js"></script>
+<script src="https://atlas.microsoft.com/sdk/javascript/spatial/0/atlas-spatial.min.js"></script>
+<style>
+#leafletToolsColumn,#googleToolsColumn,#azureToolsColumn,#myMapsToolsColumn{z-index:10000!important}
+</style>
 <script>
 (function(){
  const hosts=["googleMap","leafletMap","azureMap","mapboxMap","myMapsContainer"];
@@ -1928,6 +1949,456 @@ body.map-mode .map-section {
 })();
 </script>
 
+
+<script>
+/* =========================================================
+   MAP VIEW — REAL PLUGIN/ACTION OVERRIDES
+   Buttons are intentionally unchanged. Only their behavior is replaced.
+========================================================= */
+(function(){
+
+"use strict";
+
+const C={lat:37.1395,lng:45.9486};
+let drawControl=null, miniMap=null, geocoderControl=null, cluster=null, heat=null;
+let leafletZoomBoxActive=false;
+let googleObjects=[];
+let azureDrawingManager=null;
+
+function status(m,t=3500){
+    const e=document.getElementById("mapToolStatus");
+    if(!e)return;
+    e.textContent=m;e.style.display="block";
+    clearTimeout(window.__realMapStatus);
+    window.__realMapStatus=setTimeout(()=>e.style.display="none",t);
+}
+function Lready(){if(!leafletMap){status("نقشه Leaflet هنوز آماده نشده است.");return false}return true}
+function Gready(){if(!googleMap||!window.google||!google.maps){status("Google Maps هنوز آماده نشده است.");return false}return true}
+function Aready(){if(!azureMap||!window.atlas){status("Azure Maps هنوز آماده نشده است.");return false}return true}
+function dl(name,text,type){
+    const a=document.createElement("a"),b=new Blob([text],{type:type||"text/plain"});
+    a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+/* ---------------- LEAFLET PLUGINS ---------------- */
+
+function leafletPlugins(){
+    if(!Lready())return;
+    if(L.Control&&L.Control.Draw&&!drawControl){
+        const fg=L.featureGroup().addTo(leafletMap);
+        drawControl=new L.Control.Draw({
+            position:"topleft",
+            draw:{
+                polyline:true,
+                polygon:{allowIntersection:false,showArea:true},
+                rectangle:true,circle:true,marker:true,circlemarker:true
+            },
+            edit:{featureGroup:fg}
+        });
+        leafletMap.addControl(drawControl);
+        leafletMap.on("draw:created",e=>{
+            e.layer.addTo(leafletMap);
+            status("عارضه با Leaflet Draw ایجاد شد.");
+        });
+    }
+    if(L.Control&&L.Control.FullScreen&&!leafletMap.__fullscreen){
+        leafletMap.addControl(new L.Control.FullScreen({position:"topleft"}));
+        leafletMap.__fullscreen=true;
+    }
+    if(L.Control&&L.Control.Geocoder&&!geocoderControl){
+        geocoderControl=L.Control.geocoder({
+            position:"topleft",defaultMarkGeocode:true,placeholder:"جستجوی مکان..."
+        }).addTo(leafletMap);
+    }
+    if(L.Control&&L.Control.MiniMap&&!miniMap){
+        miniMap=new L.Control.MiniMap(
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{minZoom:0,maxZoom:13}),
+            {position:"bottomright",width:150,height:150,collapsed:true}
+        ).addTo(leafletMap);
+    }
+}
+function draw(handler){if(!Lready())return;leafletPlugins();if(handler)handler.enable()}
+function layersControl(){
+    if(!Lready())return;
+    if(!leafletMap.__sabzLayers){
+        const osm=L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"});
+        const sat=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Tiles © Esri"});
+        const topo=L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",{maxZoom:17,attribution:"© OpenTopoMap"});
+        leafletMap.__sabzLayers=L.control.layers({"ماهواره‌ای":sat,"OpenStreetMap":osm,"Terrain":topo},null,{position:"topright"}).addTo(leafletMap);
+        sat.addTo(leafletMap);
+    }
+}
+
+/* Leaflet native/plugin buttons */
+window.sectionLeafletPan=()=>Lready()&&leafletMap.dragging.enable();
+window.sectionLeafletZoomIn=()=>Lready()&&leafletMap.zoomIn();
+window.sectionLeafletZoomOut=()=>Lready()&&leafletMap.zoomOut();
+window.sectionLeafletFitBounds=()=>{
+    if(!Lready())return;
+    const g=L.featureGroup();
+    leafletMap.eachLayer(x=>{if(x.getLatLng)g.addLayer(x);else if(x.getBounds)try{if(x.getBounds().isValid())g.addLayer(x)}catch(e){}});
+    const b=g.getBounds();if(b.isValid())leafletMap.fitBounds(b,{padding:[30,30]});else leafletMap.setView(C,12);
+};
+window.sectionLeafletLocate=()=>Lready()&&leafletMap.locate({setView:true,maxZoom:17,enableHighAccuracy:true});
+window.sectionLeafletFullscreen=()=>{if(!Lready())return;leafletPlugins();if(leafletMap.toggleFullscreen)leafletMap.toggleFullscreen()};
+window.sectionLeafletLayers=()=>{layersControl();status("Layers Control واقعی Leaflet فعال شد.")};
+window.sectionLeafletScale=()=>{if(Lready()){if(!leafletMap.__scale)leafletMap.__scale=L.control.scale({imperial:false}).addTo(leafletMap);status("Scale Control فعال شد.")}};
+window.sectionLeafletAttribution=()=>{if(Lready()&&leafletMap.attributionControl){const e=leafletMap.attributionControl._container;e.style.display=e.style.display==="none"?"":"none"}};
+
+window.sectionLeafletMousePosition=()=>{
+    if(!Lready())return;
+    if(leafletMap.__mousePos){status("Mouse Position قبلاً فعال است.");return}
+    leafletMap.__mousePos=L.control({position:"bottomleft"});
+    leafletMap.__mousePos.onAdd=function(){
+        const d=L.DomUtil.create("div","leaflet-control leaflet-bar");
+        d.style.cssText="background:#fff;padding:4px 7px;font-size:10px;direction:ltr";
+        d.textContent="Lat: — | Lng: —";
+        leafletMap.on("mousemove",e=>d.textContent="Lat: "+e.latlng.lat.toFixed(6)+" | Lng: "+e.latlng.lng.toFixed(6));
+        return d;
+    };
+    leafletMap.__mousePos.addTo(leafletMap);status("Mouse Position فعال شد.");
+};
+window.sectionLeafletCoordinates=window.sectionLeafletMousePosition;
+window.sectionLeafletMiniMap=()=>{if(Lready()){leafletPlugins();status("MiniMap فعال شد.")}};
+
+window.sectionLeafletOSM=()=>{if(!Lready())return;layersControl();leafletMap.eachLayer(x=>{if(x instanceof L.TileLayer&&x._url.includes("openstreetmap.org"))leafletMap.addLayer(x)});status("OpenStreetMap فعال شد.")};
+window.sectionLeafletSatellite=()=>{if(!Lready())return;layersControl();const l=leafletMap.__sabzLayers._layers.find(x=>x.name==="ماهواره‌ای");if(l)leafletMap.addLayer(l.layer);status("لایه ماهواره‌ای فعال شد.")};
+window.sectionLeafletTerrain=()=>{if(!Lready())return;layersControl();const l=leafletMap.__sabzLayers._layers.find(x=>x.name==="Terrain");if(l)leafletMap.addLayer(l.layer);status("Terrain فعال شد.")};
+
+window.sectionLeafletCustomTiles=()=>{
+    if(!Lready())return;
+    const u=prompt("URL لایه Tile را وارد کنید:","https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png");
+    if(u)L.tileLayer(u,{maxZoom:22,attribution:"Custom Tile"}).addTo(leafletMap);
+};
+
+window.sectionLeafletMarker=()=>Lready()&&draw(new L.Draw.Marker(leafletMap));
+window.sectionLeafletCircleMarker=()=>Lready()&&draw(new L.Draw.CircleMarker(leafletMap));
+window.sectionLeafletCircle=()=>Lready()&&draw(new L.Draw.Circle(leafletMap));
+window.sectionLeafletPolyline=()=>Lready()&&draw(new L.Draw.Polyline(leafletMap));
+window.sectionLeafletMultiPolyline=window.sectionLeafletPolyline;
+window.sectionLeafletPolygon=()=>Lready()&&draw(new L.Draw.Polygon(leafletMap));
+window.sectionLeafletMultiPolygon=window.sectionLeafletPolygon;
+window.sectionLeafletRectangle=()=>Lready()&&draw(new L.Draw.Rectangle(leafletMap));
+
+window.sectionLeafletFeatureGroup=()=>{
+    if(!Lready())return;
+    L.featureGroup([L.marker(C),L.circle(C,{radius:300})]).addTo(leafletMap);
+    status("FeatureGroup ایجاد شد.");
+};
+window.sectionLeafletLayerGroup=()=>{
+    if(!Lready())return;
+    L.layerGroup([L.marker(C),L.circleMarker([C.lat+.01,C.lng+.01],{radius:7})]).addTo(leafletMap);
+    status("LayerGroup ایجاد شد.");
+};
+window.sectionLeafletGeoJSON=()=>{
+    if(!Lready())return;
+    L.geoJSON({type:"FeatureCollection",features:[{type:"Feature",properties:{name:"نمونه"},geometry:{type:"Point",coordinates:[C.lng,C.lat]}}]}).addTo(leafletMap);
+    status("GeoJSON اضافه شد.");
+};
+window.sectionLeafletWMS=()=>{
+    if(!Lready())return;
+    const u=prompt("URL سرویس WMS را وارد کنید:");
+    const n=u&&prompt("نام Layer در WMS را وارد کنید:");
+    if(u&&n)L.tileLayer.wms(u,{layers:n,format:"image/png",transparent:true}).addTo(leafletMap);
+};
+window.sectionLeafletWFS=()=>{
+    if(!Lready())return;
+    const u=prompt("URL سرویس WFS با خروجی GeoJSON را وارد کنید:");
+    if(!u)return;
+    fetch(u,{headers:{Accept:"application/json"}}).then(r=>r.json()).then(d=>L.geoJSON(d).addTo(leafletMap)).then(()=>status("WFS نمایش داده شد.")).catch(()=>status("WFS قابل دریافت نبود."));
+};
+window.sectionLeafletImageOverlay=()=>{
+    if(!Lready())return;
+    const u=prompt("URL تصویر را وارد کنید:");if(u)L.imageOverlay(u,leafletMap.getBounds(),{opacity:.7}).addTo(leafletMap);
+};
+window.sectionLeafletVideoOverlay=()=>{
+    if(!Lready())return;
+    const u=prompt("URL ویدئو را وارد کنید:");if(u)L.videoOverlay([u],leafletMap.getBounds(),{opacity:.7}).addTo(leafletMap);
+};
+window.sectionLeafletSVGOverlay=()=>{
+    if(!Lready())return;
+    const svg='<svg xmlns="http://www.w3.org/2000/svg" width="300" height="180"><rect width="300" height="180" fill="#146c4333" stroke="#146c43" stroke-width="4"/><text x="150" y="95" text-anchor="middle" font-size="22">SVG Overlay</text></svg>';
+    L.svgOverlay(svg,leafletMap.getBounds()).addTo(leafletMap);
+};
+window.sectionLeafletPopup=()=>{
+    if(!Lready())return;
+    L.marker(C).addTo(leafletMap).bindPopup("Popup فعال Leaflet").openPopup();
+};
+window.sectionLeafletTooltip=()=>{
+    if(!Lready())return;
+    L.circleMarker(C,{radius:8}).addTo(leafletMap).bindTooltip("Tooltip فعال Leaflet").openTooltip();
+};
+window.sectionLeafletDrawMarker=window.sectionLeafletMarker;
+window.sectionLeafletDrawPolyline=window.sectionLeafletPolyline;
+window.sectionLeafletDrawPolygon=window.sectionLeafletPolygon;
+window.sectionLeafletDrawRectangle=window.sectionLeafletRectangle;
+window.sectionLeafletDrawCircle=window.sectionLeafletCircle;
+window.sectionLeafletEdit=()=>{if(Lready()){leafletPlugins();status("Leaflet Draw Edit فعال است؛ از ابزار ویرایش روی نقشه استفاده کنید.")}};
+window.sectionLeafletDelete=()=>{if(Lready()){leafletPlugins();status("Leaflet Draw Delete فعال است؛ از ابزار حذف روی نقشه استفاده کنید.")}};
+window.sectionLeafletSnap=()=>status("Snap مستقل در Leaflet Draw موجود نیست؛ سایر ابزارهای رسم و ویرایش فعال هستند.");
+window.sectionLeafletSearch=()=>{if(Lready()){leafletPlugins();status("Leaflet Geocoder فعال شد.")}};
+window.sectionLeafletGeocoder=window.sectionLeafletSearch;
+
+window.sectionLeafletReverseGeocoder=()=>{
+    if(!Lready())return;
+    const p=leafletMap.getCenter();
+    fetch("https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat="+p.lat+"&lon="+p.lng)
+      .then(r=>r.json()).then(d=>status(d.display_name||"آدرس پیدا نشد.",6000))
+      .catch(()=>status("Reverse Geocoder در دسترس نبود."));
+};
+window.sectionLeafletRouting=()=>{
+    if(!Lready())return;
+    const v=prompt("مقصد را lat,lng وارد کنید:","37.1500,45.9600");if(!v)return;
+    const a=v.split(",").map(Number);if(a.length<2)return;
+    const s=leafletMap.getCenter();
+    fetch("https://router.project-osrm.org/route/v1/driving/"+s.lng+","+s.lat+";"+a[1]+","+a[0]+"?overview=full&geometries=geojson")
+      .then(r=>r.json()).then(d=>{
+        if(!d.routes||!d.routes[0])throw 0;
+        const l=L.geoJSON(d.routes[0].geometry,{style:{color:"#07573e",weight:5}}).addTo(leafletMap);
+        leafletMap.fitBounds(l.getBounds(),{padding:[30,30]});status("مسیر OSRM رسم شد.");
+      }).catch(()=>status("Routing سرویس عمومی در دسترس نبود."));
+};
+
+window.sectionLeafletMeasureDistance=()=>{
+    if(!Lready())return;
+    const p=[];status("دو نقطه روی نقشه کلیک کنید.");
+    const f=e=>{p.push(e.latlng);L.circleMarker(e.latlng,{radius:5}).addTo(leafletMap);if(p.length===2){const R=6371008.8,rad=Math.PI/180,a=p[0],b=p[1],x=Math.sin((b.lat-a.lat)*rad/2)**2+Math.cos(a.lat*rad)*Math.cos(b.lat*rad)*Math.sin((b.lng-a.lng)*rad/2)**2,d=2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));status("فاصله: "+(d/1000).toFixed(3)+" کیلومتر",6000);leafletMap.off("click",f)}};
+    leafletMap.on("click",f);
+};
+window.sectionLeafletMeasureArea=()=>{
+    if(!Lready())return;
+    if(!L.Draw){status("Leaflet Draw بارگذاری نشده است.");return}
+    const h=new L.Draw.Polygon(leafletMap,{showArea:true});h.enable();
+    leafletMap.once("draw:created",e=>{e.layer.addTo(leafletMap);status("مساحت با Leaflet Draw محاسبه/نمایش داده شد.")});
+};
+window.sectionLeafletHeatmap=()=>{
+    if(!Lready())return;
+    if(!L.heatLayer){status("Leaflet.heat بارگذاری نشده است.");return}
+    if(heat){leafletMap.removeLayer(heat);heat=null;return}
+    heat=L.heatLayer([[C.lat,C.lng,.9],[C.lat+.01,C.lng+.01,.7],[C.lat-.01,C.lng-.01,.6]],{radius:30}).addTo(leafletMap);
+    status("Heatmap فعال شد.");
+};
+window.sectionLeafletCluster=()=>{
+    if(!Lready())return;
+    if(!L.markerClusterGroup){status("MarkerCluster بارگذاری نشده است.");return}
+    if(!cluster)cluster=L.markerClusterGroup();
+    [[C.lat,C.lng],[C.lat+.01,C.lng+.01],[C.lat-.01,C.lng-.01],[C.lat+.02,C.lng+.015]].forEach(p=>cluster.addLayer(L.marker(p)));
+    cluster.addTo(leafletMap);status("Marker Cluster فعال شد.");
+};
+window.sectionLeafletTimeDimension=()=>status("Time Dimension نیازمند داده زمانی است و در این پروژه داده زمانی تعریف نشده است.");
+
+function importText(accept,cb){
+    const i=document.createElement("input");i.type="file";i.accept=accept;
+    i.onchange=()=>{const f=i.files[0];if(!f)return;const r=new FileReader();r.onload=()=>cb(String(r.result),f.name);r.readAsText(f)};
+    i.click();
+}
+window.sectionLeafletImportGeoJSON=()=>importText(".geojson,.json",t=>{try{const l=L.geoJSON(JSON.parse(t)).addTo(leafletMap);leafletMap.fitBounds(l.getBounds());status("GeoJSON وارد شد.")}catch(e){status("GeoJSON نامعتبر است.")}});
+window.sectionLeafletImportKML=()=>importText(".kml,.xml",t=>{try{const x=new DOMParser().parseFromString(t,"application/xml"),f=[];[...x.getElementsByTagNameNS("*","Placemark")].forEach(p=>{const c=p.getElementsByTagNameNS("*","coordinates")[0];if(!c)return;const a=c.textContent.trim().split(/[ ,\n\r\t]+/).map(Number);if(a.length>=2)f.push({type:"Feature",geometry:{type:"Point",coordinates:[a[0],a[1]]},properties:{}})});L.geoJSON({type:"FeatureCollection",features:f}).addTo(leafletMap);status("KML وارد شد.")}catch(e){status("KML نامعتبر است.")}});
+window.sectionLeafletImportGPX=()=>importText(".gpx,.xml",t=>{try{const x=new DOMParser().parseFromString(t,"application/xml"),p=[...x.getElementsByTagNameNS("*","trkpt")].map(n=>[+n.getAttribute("lat"),+n.getAttribute("lon")]);if(!p.length)throw 0;L.polyline(p,{color:"#07573e",weight:4}).addTo(leafletMap);status("GPX وارد شد.")}catch(e){status("GPX نامعتبر است.")}});
+window.sectionLeafletImportCSV=()=>importText(".csv,.txt",t=>{const p=t.trim().split(/\r?\n/).map(x=>x.split(/[;,]/).map(Number)).filter(x=>x.length>=2&&Number.isFinite(x[0])&&Number.isFinite(x[1])).map(x=>[Math.abs(x[0])<=90?x[0]:x[1],Math.abs(x[0])<=90?x[1]:x[0]]);p.forEach(x=>L.marker(x).addTo(leafletMap));status(p.length+" نقطه از CSV وارد شد.")});
+window.sectionLeafletExportGeoJSON=()=>{
+    if(!Lready())return;const f=[];
+    leafletMap.eachLayer(x=>{if(x.toGeoJSON&&!(x instanceof L.TileLayer))try{const g=x.toGeoJSON();g.type==="FeatureCollection"?f.push(...g.features):f.push(g)}catch(e){}});
+    dl("leaflet-export.geojson",JSON.stringify({type:"FeatureCollection",features:f},null,2),"application/geo+json");
+};
+window.sectionLeafletExportKML=()=>{if(Lready())dl("leaflet-export.kml",'<?xml version="1.0"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document></Document></kml>',"application/vnd.google-earth.kml+xml")};
+window.sectionLeafletExportGPX=()=>{if(Lready())dl("leaflet-export.gpx",'<?xml version="1.0"?><gpx version="1.1" creator="Sabz Royan Uraman" xmlns="http://www.topografix.com/GPX/1/1"></gpx>',"application/gpx+xml")};
+window.sectionLeafletPrint=()=>window.print();
+window.sectionLeafletReset=()=>Lready()&&leafletMap.setView(C,12);
+
+/* ---------------- AZURE ---------------- */
+
+function azureControls(){
+    if(!Aready())return;
+    try{
+        if(atlas.control.ZoomControl)azureMap.controls.add(new atlas.control.ZoomControl(),{position:"top-left"});
+        if(atlas.control.CompassControl)azureMap.controls.add(new atlas.control.CompassControl(),{position:"top-left"});
+        if(atlas.control.PitchControl)azureMap.controls.add(new atlas.control.PitchControl(),{position:"top-left"});
+        if(atlas.control.RotationControl)azureMap.controls.add(new atlas.control.RotationControl(),{position:"top-left"});
+        if(atlas.control.StyleControl)azureMap.controls.add(new atlas.control.StyleControl(),{position:"top-right"});
+        if(atlas.control.ScaleControl)azureMap.controls.add(new atlas.control.ScaleControl(),{position:"bottom-left"});
+        if(atlas.control.FullscreenControl)azureMap.controls.add(new atlas.control.FullscreenControl(),{position:"top-right"});
+        if(atlas.control.TrafficControl)azureMap.controls.add(new atlas.control.TrafficControl(),{position:"top-right"});
+    }catch(e){}
+    if(window.atlas.drawing&&!azureDrawingManager){
+        try{azureDrawingManager=new atlas.drawing.DrawingManager(azureMap,{mode:"idle",interactionType:"click"})}catch(e){}
+    }
+}
+window.sectionAzureZoom=azureControls;
+window.sectionAzureCompass=azureControls;
+window.sectionAzurePitch=azureControls;
+window.sectionAzureRotation=azureControls;
+window.sectionAzureStyleControl=azureControls;
+window.sectionAzureFullscreen=azureControls;
+window.sectionAzureScale=azureControls;
+window.sectionAzureTrafficControl=azureControls;
+window.sectionAzureIndoor=()=>status("Indoor فقط در داده/نقشه Indoor قابل استفاده است.");
+window.sectionAzureCamera=()=>Aready()&&azureMap.setCamera({center:[C.lng,C.lat],zoom:12,pitch:35,bearing:20});
+window.sectionAzureCenter=()=>Aready()&&azureMap.setCamera({center:[C.lng,C.lat]});
+window.sectionAzureSetZoom=()=>Aready()&&azureMap.setCamera({zoom:14});
+window.sectionAzureSetPitch=()=>Aready()&&azureMap.setCamera({pitch:45});
+window.sectionAzureBearing=()=>Aready()&&azureMap.setCamera({bearing:45});
+window.sectionAzureFitBounds=()=>Aready()&&azureMap.setCamera({center:[C.lng,C.lat],zoom:12});
+window.sectionAzureResetCamera=()=>Aready()&&azureMap.setCamera({center:[C.lng,C.lat],zoom:12,pitch:0,bearing:0});
+window.sectionAzureReset=window.sectionAzureResetCamera;
+
+["Road","Satellite","Night","Grayscale","Blank"].forEach((n,i)=>{
+    const styles=["road","satellite_road_labels","night","grayscale_light","blank"];
+    window["sectionAzure"+n]=()=>Aready()&&azureMap.setStyle({style:styles[i]});
+});
+window.sectionAzureCustomStyle=()=>status("Custom Style با styleOverrides یا Style JSON تعریف می‌شود.");
+window.sectionAzureTerrain=()=>{if(Aready()){azureMap.setCamera({pitch:45});status("Terrain سه‌بعدی به منبع ارتفاعی نیاز دارد.")}};
+window.sectionAzureBuildings=()=>{if(Aready()){azureMap.setCamera({pitch:45});status("نمای سه‌بعدی فعال شد؛ ساختمان‌ها وابسته به سبک نقشه هستند.")}};
+window.sectionAzureGlobe=()=>status("WebGL2 در Azure Maps v3 فعال است؛ Globe وابسته به سبک/نسخه سرویس است.");
+
+function azureDraw(mode){
+    if(!Aready())return;azureControls();
+    if(!azureDrawingManager){status("Azure Drawing Tools بارگذاری نشده است.");return}
+    try{azureDrawingManager.setOptions({mode:mode});status("ابزار رسم Azure فعال شد.")}catch(e){status("این حالت رسم در نسخه فعلی پشتیبانی نشد.")}
+}
+window.sectionAzurePoint=()=>azureDraw("draw-point");
+window.sectionAzureLine=()=>azureDraw("draw-line");
+window.sectionAzurePolygon=()=>azureDraw("draw-polygon");
+window.sectionAzureRectangle=()=>azureDraw("draw-rectangle");
+window.sectionAzureCircle=()=>azureDraw("draw-circle");
+window.sectionAzureEdit=()=>azureDraw("edit-geometry");
+window.sectionAzureDelete=()=>azureDraw("erase-geometry");
+window.sectionAzureMeasureDistance=()=>status("ابتدا Line رسم کنید؛ سپس طول آن از Geometry قابل محاسبه است.");
+window.sectionAzureMeasureArea=()=>status("ابتدا Polygon رسم کنید؛ سپس مساحت آن از Geometry قابل محاسبه است.");
+window.sectionAzureGeolocation=()=>{if(Aready())navigator.geolocation.getCurrentPosition(p=>azureMap.setCamera({center:[p.coords.longitude,p.coords.latitude],zoom:16}),()=>status("دسترسی به موقعیت رد شد."))};
+
+["Search","Autocomplete","Address","POI","Reverse","Nearby"].forEach(n=>window["sectionAzure"+n]=()=>status("این قابلیت به Azure Maps Search REST API و Subscription Key نیاز دارد."));
+["Route","Directions","Matrix","Isochrone","Reachable"].forEach(n=>window["sectionAzure"+n]=()=>status("این قابلیت به Azure Maps Route REST API و Subscription Key نیاز دارد."));
+window.sectionAzureTraffic=azureControls;
+window.sectionAzureTransit=()=>status("Transit به داده سرویس حمل‌ونقل عمومی نیاز دارد.");
+window.sectionAzureSpatialIO=()=>{if(window.atlas&&atlas.io)status("Spatial IO بارگذاری شده است و آماده Read/Write داده‌های مکانی است.");else status("Spatial IO بارگذاری نشده است.")};
+["ImportGeoJSON","ImportKML","ImportGPX","ImportCSV"].forEach(n=>window["sectionAzure"+n]=window.sectionAzureSpatialIO);
+["ExportGeoJSON","ExportKML","ExportGPX","KMZ","GeoRSS","CSV","Shapefile"].forEach(n=>window["sectionAzure"+n]=()=>status("Spatial IO برای فرمت‌های مکانی مناسب است؛ برای Export باید داده انتخاب/تولید شده باشد."));
+["Symbol","LineLayer","PolygonLayer","Bubble","Heat","Image","Tile","VectorTile","HTMLMarker","WebGL"].forEach(n=>window["sectionAzure"+n]=()=>status(n+" با DataSource/Layers API Azure قابل استفاده است."));
+window.sectionAzureHTMLMarker=()=>{if(Aready()){azureMap.markers.add(new atlas.HtmlMarker({position:[C.lng,C.lat],text:"●"}));status("HTML Marker اضافه شد.")}};
+
+/* ---------------- GOOGLE MAPS ---------------- */
+
+async function gLib(name){
+    if(!Gready())return null;
+    try{return await google.maps.importLibrary(name)}catch(e){status("کتابخانه Google "+name+" یا API مربوطه فعال نیست.");return null}
+}
+function gadd(o){if(o)googleObjects.push(o);return o}
+
+window.sectionGoogleZoomControl=()=>Gready()&&googleMap.setOptions({zoomControl:true});
+window.sectionGoogleMapTypeControl=()=>Gready()&&googleMap.setOptions({mapTypeControl:true});
+window.sectionGoogleFullscreenControl=()=>Gready()&&googleMap.setOptions({fullscreenControl:true});
+window.sectionGoogleStreetViewControl=()=>Gready()&&googleMap.setOptions({streetViewControl:true});
+window.sectionGoogleRotateControl=()=>Gready()&&googleMap.setOptions({rotateControl:true});
+window.sectionGoogleScaleControl=()=>Gready()&&googleMap.setOptions({scaleControl:true});
+window.sectionGoogleCameraControl=()=>Gready()&&googleMap.setOptions({cameraControl:true});
+window.sectionGoogleKeyboardShortcuts=()=>Gready()&&googleMap.setOptions({keyboardShortcuts:true});
+window.sectionGoogleRoadmap=()=>Gready()&&googleMap.setMapTypeId("roadmap");
+window.sectionGoogleSatellite=()=>Gready()&&googleMap.setMapTypeId("satellite");
+window.sectionGoogleHybrid=()=>Gready()&&googleMap.setMapTypeId("hybrid");
+window.sectionGoogleTerrain=()=>Gready()&&googleMap.setMapTypeId("terrain");
+window.sectionGoogleVector=()=>Gready()&&googleMap.setOptions({renderingType:"VECTOR"});
+window.sectionGoogleRaster=()=>Gready()&&googleMap.setOptions({renderingType:"RASTER"});
+window.sectionGoogleCenter=()=>Gready()&&googleMap.setCenter(C);
+window.sectionGoogleSetZoom=()=>Gready()&&googleMap.setZoom(12);
+window.sectionGoogleTilt=()=>Gready()&&googleMap.setTilt(45);
+window.sectionGoogleHeading=()=>Gready()&&googleMap.setHeading(0);
+window.sectionGoogleMoveCamera=()=>Gready()&&googleMap.moveCamera({center:C,zoom:12,tilt:0,heading:0});
+window.sectionGoogleFractionalZoom=()=>Gready()&&googleMap.setOptions({isFractionalZoomEnabled:true});
+
+window.sectionGoogleMarker=()=>Gready()&&gadd(new google.maps.Marker({map:googleMap,position:C,title:"Marker"}));
+window.sectionGoogleAdvancedMarker=async()=>{if(!Gready())return;const l=await gLib("marker");if(l&&l.AdvancedMarkerElement)try{gadd(new l.AdvancedMarkerElement({map:googleMap,position:C,title:"Advanced Marker"}))}catch(e){status("Advanced Marker به Map ID مناسب نیاز دارد.")}};
+window.sectionGoogleCustomMarker=window.sectionGoogleMarker;
+window.sectionGooglePolyline=()=>Gready()&&gadd(new google.maps.Polyline({map:googleMap,path:[C,{lat:C.lat+.02,lng:C.lng+.03}],strokeColor:"#146c43",strokeWeight:4}));
+window.sectionGooglePolygon=()=>Gready()&&gadd(new google.maps.Polygon({map:googleMap,paths:[{lat:C.lat+.015,lng:C.lng-.02},{lat:C.lat+.02,lng:C.lng+.02},{lat:C.lat-.01,lng:C.lng+.025}],fillColor:"#146c43",fillOpacity:.2,strokeColor:"#146c43"}));
+window.sectionGoogleCircle=()=>Gready()&&gadd(new google.maps.Circle({map:googleMap,center:C,radius:500,fillColor:"#146c43",fillOpacity:.2,strokeColor:"#146c43"}));
+window.sectionGoogleRectangle=()=>Gready()&&gadd(new google.maps.Rectangle({map:googleMap,bounds:{north:C.lat+.015,south:C.lat-.015,east:C.lng+.02,west:C.lng-.02},fillColor:"#146c43",fillOpacity:.15,strokeColor:"#146c43"}));
+window.sectionGoogleGroundOverlay=()=>{if(!Gready())return;const u=prompt("URL تصویر Ground Overlay را وارد کنید:");if(u)gadd(new google.maps.GroundOverlay(u,{north:C.lat+.01,south:C.lat-.01,east:C.lng+.015,west:C.lng-.015},{map:googleMap}))};
+window.sectionGoogleCustomOverlay=window.sectionGoogleCustomMarker;
+window.sectionGoogleInfoWindow=()=>{if(Gready()){const i=new google.maps.InfoWindow({content:"<b>Info Window</b><br>سبز رویان اورامان",position:C});i.open(googleMap);gadd(i)}};
+window.sectionGoogleDataLayer=()=>{if(Gready()){const d=new google.maps.Data({map:googleMap});d.addGeoJson({type:"FeatureCollection",features:[{type:"Feature",geometry:{type:"Point",coordinates:[C.lng,C.lat]},properties:{name:"نمونه"}}]})}};
+window.sectionGoogleGeoJSON=window.sectionGoogleDataLayer;
+window.sectionGoogleKML=()=>{if(Gready()){const u=prompt("URL عمومی KML/KMZ را وارد کنید:");if(u)gadd(new google.maps.KmlLayer({url:u,map:googleMap}))}};
+window.sectionGoogleGeoRSS=window.sectionGoogleKML;
+window.sectionGoogleTraffic=()=>Gready()&&gadd(new google.maps.TrafficLayer({map:googleMap}));
+window.sectionGoogleTransit=()=>Gready()&&gadd(new google.maps.TransitLayer({map:googleMap}));
+window.sectionGoogleBicycling=()=>Gready()&&gadd(new google.maps.BicyclingLayer({map:googleMap}));
+window.sectionGoogleHeatmap=async()=>{if(!Gready())return;const l=await gLib("visualization");if(l&&l.HeatmapLayer)gadd(new l.HeatmapLayer({map:googleMap,data:[new google.maps.LatLng(C.lat,C.lng),new google.maps.LatLng(C.lat+.01,C.lng+.01),new google.maps.LatLng(C.lat-.01,C.lng-.01)],radius:25}))};
+window.sectionGoogleOverlayTypes=()=>status("Overlay Map Types نیازمند Tile Provider سفارشی است.");
+window.sectionGoogleImageTypes=()=>status("Image Map Types نیازمند ImageMapType و Tile Provider است.");
+
+window.sectionGooglePlaces=async()=>{
+    if(!Gready())return;const l=await gLib("places");if(!l)return;
+    const q=prompt("نام مکان/POI را وارد کنید:","تازه‌آباد");if(!q)return;
+    const s=new google.maps.places.PlacesService(googleMap);
+    s.findPlaceFromQuery({query:q,fields:["name","geometry","formatted_address"]},(r,st)=>{
+        if(st==="OK"&&r[0]&&r[0].geometry){googleMap.setCenter(r[0].geometry.location);googleMap.setZoom(15);gadd(new google.maps.Marker({map:googleMap,position:r[0].geometry.location,title:r[0].name}));status(r[0].name+" — "+(r[0].formatted_address||""),6000)}else status("مکان پیدا نشد.")
+    });
+};
+window.sectionGoogleAutocomplete=async()=>{
+    if(!Gready())return;const l=await gLib("places");if(!l)return;
+    let i=document.getElementById("googlePlacesInput");
+    if(!i){i=document.createElement("input");i.id="googlePlacesInput";i.placeholder="جستجوی مکان...";i.style.cssText="position:absolute;top:12px;left:12px;z-index:10001;width:280px;padding:9px;border:1px solid #ccdbe2;border-radius:8px";document.getElementById("mapWrapper").appendChild(i)}
+    const a=new google.maps.places.Autocomplete(i);a.bindTo("bounds",googleMap);a.addListener("place_changed",()=>{const p=a.getPlace();if(p.geometry){googleMap.setCenter(p.geometry.location);googleMap.setZoom(16)}});
+};
+window.sectionGooglePlaceDetails=window.sectionGooglePlaces;
+window.sectionGooglePlaceSearch=window.sectionGooglePlaces;
+window.sectionGoogleNearbySearch=async()=>{
+    if(!Gready())return;await gLib("places");const k=prompt("نوع POI را وارد کنید:","office");if(!k)return;
+    new google.maps.places.PlacesService(googleMap).nearbySearch({location:googleMap.getCenter(),radius:3000,keyword:k},(r,st)=>{
+        if(st==="OK"&&r)r.slice(0,20).forEach(p=>{if(p.geometry)gadd(new google.maps.Marker({map:googleMap,position:p.geometry.location,title:p.name}))});
+        status(st==="OK"?"Nearby Search اجرا شد.":"Nearby Search نتیجه‌ای نداشت.")
+    });
+};
+window.sectionGoogleGeocoding=async()=>{
+    if(!Gready())return;await gLib("geocoding");const a=prompt("آدرس را وارد کنید:","تازه‌آباد ثلاث باباجانی");if(!a)return;
+    new google.maps.Geocoder().geocode({address:a},(r,st)=>{if(st==="OK"&&r[0]){googleMap.setCenter(r[0].geometry.location);googleMap.setZoom(15);gadd(new google.maps.Marker({map:googleMap,position:r[0].geometry.location}));status(r[0].formatted_address,6000)}else status("Geocoding ناموفق بود.")});
+};
+window.sectionGoogleReverseGeocoding=async()=>{
+    if(!Gready())return;await gLib("geocoding");new google.maps.Geocoder().geocode({location:googleMap.getCenter()},(r,st)=>status(st==="OK"&&r[0]?r[0].formatted_address:"Reverse Geocoding ناموفق بود.",6000));
+};
+window.sectionGoogleRoutes=async()=>{if(Gready()){await gLib("routes");status("Routes Library بارگذاری شد.")}};
+window.sectionGoogleDirections=()=>{
+    if(!Gready())return;const v=prompt("مقصد lat,lng:","37.1500,45.9600");if(!v)return;const a=v.split(",").map(Number);if(a.length<2)return;
+    const r=new google.maps.DirectionsRenderer({map:googleMap});new google.maps.DirectionsService().route({origin:googleMap.getCenter(),destination:{lat:a[0],lng:a[1]},travelMode:"DRIVING"},(res,st)=>{if(st==="OK"){r.setDirections(res);gadd(r);status("Directions اجرا شد.")}else status("Directions ناموفق بود: "+st)});
+};
+window.sectionGoogleDistanceMatrix=()=>{
+    if(!Gready())return;const v=prompt("مقصد lat,lng:","37.1500,45.9600");if(!v)return;const a=v.split(",").map(Number);if(a.length<2)return;
+    new google.maps.DistanceMatrixService().getDistanceMatrix({origins:[googleMap.getCenter()],destinations:[{lat:a[0],lng:a[1]}],travelMode:"DRIVING"},(r,st)=>{if(st==="OK"&&r.rows[0].elements[0])status("Distance: "+r.rows[0].elements[0].distance.text+" | "+r.rows[0].elements[0].duration.text,6000);else status("Distance Matrix ناموفق بود.")});
+};
+window.sectionGoogleElevation=async()=>{if(!Gready())return;await gLib("elevation");new google.maps.ElevationService().getElevationForLocations({locations:[googleMap.getCenter()]},(r,st)=>status(st==="OK"&&r[0]?"ارتفاع: "+r[0].elevation.toFixed(2)+" متر":"Elevation ناموفق بود.",6000))};
+window.sectionGoogleStreetView=()=>{if(Gready()){const s=googleMap.getStreetView();s.setPosition(googleMap.getCenter());s.setVisible(true)}};
+window.sectionGoogleStreetViewMetadata=()=>{if(Gready())new google.maps.StreetViewService().getPanorama({location:googleMap.getCenter(),radius:100},(r,st)=>status(st==="OK"?"Street View موجود است.":"Street View پیدا نشد.",5000))};
+window.sectionGoogleMaximumZoom=()=>{if(Gready())new google.maps.MaxZoomService().getMaxZoomAtLatLng(googleMap.getCenter(),r=>status("Maximum Zoom: "+r.zoom,5000))};
+window.sectionGoogleWebGL=()=>status("WebGL Overlay View برای گرافیک سفارشی آماده است؛ پیاده‌سازی خود گرافیک جداگانه است.");
+window.sectionGoogle3D=()=>Gready()&&googleMap.setOptions({tilt:67.5,heading:20});
+window.sectionGoogleFeatureLayer=()=>status("Feature Layer/DDS/Boundaries به Map ID و فعال‌سازی قابلیت مربوطه نیاز دارد.");
+window.sectionGoogleDDS=window.sectionGoogleFeatureLayer;
+window.sectionGoogleBoundaries=window.sectionGoogleFeatureLayer;
+window.sectionGoogleGeometry=async()=>{if(Gready()){await gLib("geometry");status("Geometry Library بارگذاری شد.")}};
+window.sectionGoogleGeolocation=()=>{if(Gready())navigator.geolocation.getCurrentPosition(p=>{googleMap.setCenter({lat:p.coords.latitude,lng:p.coords.longitude});googleMap.setZoom(16)},()=>status("دسترسی به موقعیت رد شد."))};
+window.sectionGoogleReset=()=>Gready()&&googleMap.setOptions({center:C,zoom:12,tilt:0,heading:0,mapTypeId:"satellite"});
+
+/* ---------------- MY MAPS ---------------- */
+
+const MYMAP="https://www.google.com/maps/d/u/0/embed?mid=18GJ7jBoL2_MhwZpzE3sfbmIqwquXJwg&ehbc=2E312F&noprof=1";
+window.sectionMyMapsOpen=()=>window.open("https://www.google.com/mymaps","_blank","noopener");
+window.sectionMyMapsGoogleMaps=()=>window.open("https://www.google.com/maps","_blank","noopener");
+window.sectionMyMapsShare=()=>navigator.clipboard?navigator.clipboard.writeText(MYMAP).then(()=>status("لینک Embed در Clipboard کپی شد."),()=>status("کپی خودکار مجاز نیست؛ Share را از My Maps انجام دهید.")):status("Share را از My Maps انجام دهید.");
+window.sectionMyMapsCollaborate=()=>{window.open("https://www.google.com/mymaps","_blank","noopener");status("My Maps برای همکاری باز شد.")};
+window.sectionMyMapsEmbed=()=>navigator.clipboard?navigator.clipboard.writeText('<iframe src="'+MYMAP+'" style="width:100%;height:600px;border:0" allowfullscreen></iframe>').then(()=>status("کد Embed کپی شد."),()=>status("کپی خودکار مجاز نیست.")):status("کد Embed در iframe موجود است.");
+window.sectionMyMapsPrint=()=>window.print();
+window.sectionMyMapsExport=()=>{window.open("https://www.google.com/mymaps","_blank","noopener");status("Export KML/KMZ از محیط My Maps انجام می‌شود.")};
+
+/* Run enhancements after the selected map is created. */
+setInterval(()=>{
+    try{if(leafletMap)leafletPlugins()}catch(e){}
+    try{if(azureMap)azureControls()}catch(e){}
+},1200);
+
+})();
+</script>
 </section>
 
     <!-- =====================================================
