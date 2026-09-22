@@ -263,7 +263,7 @@ body {
     flex-direction: column;
     align-items: flex-start;
     justify-content: center;
-    gap: 7px;
+    gap: 0;
     padding: 10px 13px;
     border-radius: 12px;
     color: #29465f;
@@ -276,18 +276,7 @@ body {
     background: #ffffff;
 }
 
-.sidebar-icon {
-    width: 36px;
-    height: 36px;
-    flex: 0 0 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 10px;
-    background: #edf6f2;
-    color: #086344;
-    font-size: 19px;
-}
+.sidebar-icon { display:none !important; }
 
 .sidebar-link > span:last-child {
     width: 100%;
@@ -8012,3 +8001,9 @@ setTimeout(mdStage3Watch,700);
 })();
 </script></body>
 </html>
+<style id="map-leaflet-control-fix">
+/* Keep Leaflet controls clear of the MapDraw layer panel. */
+#leafletMap .leaflet-control-layers { top: 58px !important; }
+#leafletMap .leaflet-top.leaflet-left { z-index: 1100; }
+#leafletMap .mapdraw-search-panel, #leafletMap .mapdraw-stage3-panel { z-index: 1200; }
+</style>
