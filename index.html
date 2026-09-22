@@ -592,6 +592,29 @@ body {
 
 
 /* =========================================================
+   MAPDRAW STAGE 3 - ROUTING / ELEVATION / DISTANCE LABELS
+========================================================= */
+.mapdraw-stage3-panel{
+ position:absolute;top:365px;left:12px;z-index:1200;width:330px;max-width:calc(100% - 24px);
+ background:rgba(255,255,255,.97);border:1px solid #cbdbe3;border-radius:10px;
+ box-shadow:0 5px 20px rgba(20,60,90,.16);padding:9px;direction:rtl;
+}
+.mapdraw-stage3-title{color:#07573e;font-size:13px;font-weight:800;margin-bottom:7px}
+.mapdraw-stage3-actions{display:flex;gap:5px;flex-wrap:wrap}
+.mapdraw-stage3-btn{border:1px solid #cbd8df;background:#f7faf9;color:#29465f;border-radius:7px;padding:6px 8px;cursor:pointer;font-family:inherit;font-size:11px}
+.mapdraw-stage3-btn:hover{background:#e4f2eb}
+.mapdraw-route-status{margin-top:6px;font-size:10px;color:#48627b;line-height:1.7}
+.mapdraw-elevation{
+ position:absolute;bottom:12px;right:12px;z-index:1200;width:430px;max-width:calc(100% - 24px);
+ background:rgba(255,255,255,.98);border:1px solid #cbdbe3;border-radius:10px;
+ box-shadow:0 5px 20px rgba(20,60,90,.16);padding:9px;direction:rtl;display:none;
+}
+.mapdraw-elevation.open{display:block}
+.mapdraw-elevation h4{margin:0 0 6px;color:#07573e;font-size:13px}
+.mapdraw-elevation svg{width:100%;height:150px;background:#f6faf8;border:1px solid #e0ebe7;border-radius:7px}
+.mapdraw-distance-label{background:rgba(255,255,255,.94);border:1px solid #146c43;border-radius:5px;padding:2px 5px;color:#07573e;font-size:10px;font-weight:800;box-shadow:0 2px 7px rgba(0,0,0,.12);white-space:nowrap;direction:rtl}
+
+/* =========================================================
    MAPDRAW STAGE 2 - FIND PLACES / FEATURE INFO
 ========================================================= */
 .mapdraw-search-panel{
@@ -7726,6 +7749,113 @@ async function mdExport(format){
 }
 
 /* =========================================================
+   MAPDRAW STAGE 3
+   Routing + Elevation Profile + Distance Labels
+========================================================= */
+let mdStage3Ready=false;
+let mdRouteStart=null,mdRouteEnd=null,mdRouteLayer=null;
+let mdDistanceLabels=true;
+let mdElevationPanel=null;
+
+function mdStage3Init(){
+ if(mdStage3Ready||typeof leafletMap==="undefined"||!leafletMap)return;
+ const host=document.getElementById("leafletMap"); if(!host)return;
+ const p=document.createElement("div"); p.className="mapdraw-stage3-panel";
+ p.innerHTML='<div class="mapdraw-stage3-title">Routing / Elevation / Distance</div>'+
+ '<div class="mapdraw-stage3-actions">'+
+ '<button class="mapdraw-stage3-btn" id="mdRouteStart">نقطه شروع</button>'+
+ '<button class="mapdraw-stage3-btn" id="mdRouteEnd">نقطه پایان</button>'+
+ '<button class="mapdraw-stage3-btn" id="mdRouteRun">مسیریابی</button>'+
+ '<button class="mapdraw-stage3-btn" id="mdDistanceToggle">برچسب فاصله</button>'+
+ '</div><div id="mdRouteStatus" class="mapdraw-route-status">برای مسیریابی، ابتدا نقطه شروع و پایان را روی نقشه انتخاب کنید.</div>';
+ host.appendChild(p);
+ const ep=document.createElement("div"); ep.id="mdElevationPanel"; ep.className="mapdraw-elevation";
+ ep.innerHTML='<h4>پروفایل ارتفاعی</h4><div id="mdElevationMeta"></div><svg id="mdElevationSvg" viewBox="0 0 420 150" preserveAspectRatio="none"></svg>';
+ host.appendChild(ep); mdElevationPanel=ep;
+
+ document.getElementById("mdRouteStart").onclick=function(){mdRouteMode="start";mdRouteStatus("نقطه شروع را روی نقشه انتخاب کنید.");};
+ document.getElementById("mdRouteEnd").onclick=function(){mdRouteMode="end";mdRouteStatus("نقطه پایان را روی نقشه انتخاب کنید.");};
+ document.getElementById("mdRouteRun").onclick=mdRunRouting;
+ document.getElementById("mdDistanceToggle").onclick=function(){
+   mdDistanceLabels=!mdDistanceLabels; mdRefreshDistanceLabels();
+   this.textContent=mdDistanceLabels?"برچسب فاصله":"نمایش فاصله";
+ };
+ leafletMap.on("click",mdRouteMapClick);
+ mdStage3Ready=true;
+}
+let mdRouteMode="";
+function mdRouteStatus(s){const e=document.getElementById("mdRouteStatus");if(e)e.textContent=s;}
+function mdRouteMapClick(e){
+ if(!mdRouteMode)return;
+ const ll=e.latlng;
+ if(mdRouteMode==="start")mdRouteStart=ll;
+ else mdRouteEnd=ll;
+ L.marker(ll).addTo(leafletMap).bindTooltip(mdRouteMode==="start"?"شروع":"پایان",{permanent:false});
+ mdRouteMode="";
+ mdRouteStatus("شروع: "+(mdRouteStart?mdRouteStart.lat.toFixed(5)+", "+mdRouteStart.lng.toFixed(5):"—")+" | پایان: "+(mdRouteEnd?mdRouteEnd.lat.toFixed(5)+", "+mdRouteEnd.lng.toFixed(5):"—"));
+}
+async function mdRunRouting(){
+ if(!mdRouteStart||!mdRouteEnd){mdRouteStatus("هر دو نقطه شروع و پایان را انتخاب کنید.");return;}
+ mdRouteStatus("در حال محاسبه مسیر...");
+ try{
+   const u="https://router.project-osrm.org/route/v1/driving/"+mdRouteStart.lng+","+mdRouteStart.lat+";"+mdRouteEnd.lng+","+mdRouteEnd.lat+"?overview=full&geometries=geojson&steps=true";
+   const res=await fetch(u); if(!res.ok)throw new Error("HTTP "+res.status);
+   const data=await res.json(); if(data.code!=="Ok"||!data.routes.length)throw new Error("مسیر پیدا نشد");
+   const route=data.routes[0], geo=route.geometry;
+   if(mdRouteLayer)leafletMap.removeLayer(mdRouteLayer);
+   mdRouteLayer=L.geoJSON(geo,{style:{color:"#c62828",weight:5,opacity:.85}}).addTo(leafletMap);
+   leafletMap.fitBounds(mdRouteLayer.getBounds(),{padding:[40,40]});
+   mdRouteStatus("فاصله: "+(route.distance/1000).toFixed(2)+" کیلومتر | زمان: "+Math.round(route.duration/60)+" دقیقه");
+   mdDrawDistanceLabels(geo.coordinates);
+   mdShowElevation(geo.coordinates,route.distance);
+ }catch(e){mdRouteStatus("خطا در مسیریابی: "+e.message);console.error("Routing:",e);}
+}
+function mdHaversine(a,b){
+ const R=6371008.8,d=Math.PI/180,la1=a[1]*d,la2=b[1]*d,dl=(b[1]-a[1])*d,do_= (b[0]-a[0])*d;
+ const h=Math.sin(dl/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(do_/2)**2;
+ return 2*R*Math.asin(Math.sqrt(h));
+}
+function mdDrawDistanceLabels(coords){
+ if(!mdDistanceLabels||typeof L==="undefined")return;
+ if(!window.__mdDistanceLabels)window.__mdDistanceLabels=L.layerGroup().addTo(leafletMap);
+ window.__mdDistanceLabels.clearLayers();
+ let cumulative=0;
+ for(let i=1;i<coords.length;i++){
+   cumulative+=mdHaversine(coords[i-1],coords[i]);
+   if(i===1||i===coords.length-1||i%Math.max(1,Math.floor(coords.length/8))===0){
+     const a=coords[i-1],b=coords[i],m=[(a[1]+b[1])/2,(a[0]+b[0])/2];
+     L.marker(m,{icon:L.divIcon({className:"mapdraw-distance-label",html:(cumulative/1000).toFixed(2)+" km",iconSize:null})}).addTo(window.__mdDistanceLabels);
+   }
+ }
+}
+function mdRefreshDistanceLabels(){
+ if(!window.__mdDistanceLabels)return;
+ if(!mdDistanceLabels)window.__mdDistanceLabels.clearLayers();
+ else if(mdRouteLayer&&mdRouteLayer.toGeoJSON)mdDrawDistanceLabels(mdRouteLayer.toGeoJSON().geometry.coordinates);
+}
+async function mdShowElevation(coords,totalDistance){
+ const ep=document.getElementById("mdElevationPanel"),svg=document.getElementById("mdElevationSvg"),meta=document.getElementById("mdElevationMeta");
+ if(!ep||!svg||!coords||coords.length<2)return;
+ ep.classList.add("open"); svg.innerHTML="";
+ try{
+   const locs=coords.map(c=>c[1]+","+c[0]).join("|");
+   const u="https://api.open-elevation.com/api/v1/lookup?locations="+encodeURIComponent(locs);
+   const res=await fetch(u); if(!res.ok)throw new Error("HTTP "+res.status);
+   const data=await res.json(); const elev=(data.results||[]).map(x=>Number(x.elevation)||0);
+   if(!elev.length)throw new Error("ارتفاعی دریافت نشد");
+   let min=Math.min(...elev),max=Math.max(...elev); if(min===max)max=min+1;
+   const points=elev.map(function(v,i){return [(i/(elev.length-1))*420,145-((v-min)/(max-min))*125];});
+   const d=points.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
+   svg.innerHTML='<path d="'+d+'" fill="none" stroke="#07573e" stroke-width="2.5"/>';
+   meta.textContent="حداقل: "+min.toFixed(0)+" m | حداکثر: "+max.toFixed(0)+" m | اختلاف: "+(max-min).toFixed(0)+" m";
+ }catch(e){
+   meta.textContent="پروفایل ارتفاعی در دسترس نیست؛ سرویس ارتفاع پاسخ نداد.";
+   console.error("Elevation:",e);
+ }
+}
+function mdStage3Watch(){if(typeof leafletMap!=="undefined"&&leafletMap){mdStage3Init();}}
+
+/* =========================================================
    MAPDRAW STAGE 2
    Find Places + feature selection + feature information
 ========================================================= */
@@ -7877,6 +8007,8 @@ setInterval(mdWatch,500);
 setTimeout(mdWatch,300);
 setInterval(mdStage2Watch,700);
 setTimeout(mdStage2Watch,500);
+setInterval(mdStage3Watch,900);
+setTimeout(mdStage3Watch,700);
 })();
 </script></body>
 </html>
