@@ -7397,7 +7397,7 @@ function mdBuildPanel(){
       '<div class="mapdraw-layer-group"><div class="mapdraw-layer-actions">'+
       '<button class="mapdraw-layer-btn" id="mdXYZ">افزودن XYZ</button>'+
       '<button class="mapdraw-layer-btn" id="mdWMS">افزودن WMS</button>'+
-      '<label class="mapdraw-layer-btn">ورود فایل<input class="mapdraw-file-input" id="mdFile" type="file" accept=".geojson,.json,.kml,.kmz,.gpx"></label>'+
+      '<label class="mapdraw-layer-btn">ورود فایل<input class="mapdraw-file-input" id="mdFile" type="file" accept=".geojson,.json,.kml,.kmz,.gpx"></label>'+'<button class="mapdraw-layer-btn" id="mdExportGeoJSON">خروجی GeoJSON</button>'+'<button class="mapdraw-layer-btn" id="mdExportKML">خروجی KML</button>'+'<button class="mapdraw-layer-btn" id="mdExportKMZ">خروجی KMZ</button>'+'<button class="mapdraw-layer-btn" id="mdExportGPX">خروجی GPX</button>'+
       '</div></div>';
     host.appendChild(mapDrawPanel);
 
@@ -7423,6 +7423,10 @@ function mdBuildPanel(){
     document.getElementById("mdXYZ").onclick=mdAddXYZ;
     document.getElementById("mdWMS").onclick=mdAddWMS;
     document.getElementById("mdFile").onchange=function(e){if(e.target.files[0])mdImportFile(e.target.files[0]);e.target.value="";};
+    document.getElementById("mdExportGeoJSON").onclick=function(){mdExport("geojson");};
+    document.getElementById("mdExportKML").onclick=function(){mdExport("kml");};
+    document.getElementById("mdExportKMZ").onclick=function(){mdExport("kmz");};
+    document.getElementById("mdExportGPX").onclick=function(){mdExport("gpx");};
 }
 
 function mdAddXYZ(){
@@ -7504,6 +7508,173 @@ function mdGpxToGeoJSON(xml){
         if(pts.length>=2)features.push({type:"Feature",properties:{},geometry:{type:"LineString",coordinates:pts}});
     });
     return {type:"FeatureCollection",features:features};
+}
+
+function mdCollectGeoJSON(){
+    const features=[];
+    const seen=new Set();
+
+    function collectLayer(layer){
+        if(!layer||seen.has(layer))return;
+        seen.add(layer);
+        try{
+            if(typeof layer.toGeoJSON==="function"){
+                const g=layer.toGeoJSON();
+                if(!g)return;
+                if(g.type==="FeatureCollection")g.features.forEach(function(f){if(f&&f.geometry)features.push(f);});
+                else if(g.type==="Feature"&&g.geometry)features.push(g);
+            }
+        }catch(e){}
+    }
+
+    if(typeof leafletDrawItems!=="undefined"&&leafletDrawItems){
+        leafletDrawItems.eachLayer(collectLayer);
+    }
+
+    Object.keys(mapDrawOverlayLayers||{}).forEach(function(name){
+        const layer=mapDrawOverlayLayers[name];
+        if(layer instanceof L.TileLayer)return;
+        collectLayer(layer);
+    });
+
+    return {type:"FeatureCollection",features:features};
+}
+
+function mdEscXml(s){
+    return String(s==null?"":s)
+        .replace(/&/g,"&amp;")
+        .replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;")
+        .replace(/"/g,"&quot;")
+        .replace(/'/g,"&apos;");
+}
+
+function mdCoordsKml(coords){
+    return coords.map(function(p){return p[0]+","+p[1]+(p.length>2&&p[2]!=null?","+p[2]:"");}).join(" ");
+}
+
+function mdFeatureToKml(f){
+    if(!f||!f.geometry)return "";
+    const p=f.properties||{};
+    const name=mdEscXml(p.name||p.title||"");
+    const g=f.geometry;
+    let geom="";
+
+    if(g.type==="Point"){
+        geom="<Point><coordinates>"+mdCoordsKml([g.coordinates])+"</coordinates></Point>";
+    }else if(g.type==="LineString"){
+        geom="<LineString><tessellate>1</tessellate><coordinates>"+mdCoordsKml(g.coordinates)+"</coordinates></LineString>";
+    }else if(g.type==="Polygon"){
+        const rings=g.coordinates||[];
+        if(!rings.length)return "";
+        geom="<Polygon><outerBoundaryIs><LinearRing><coordinates>"+mdCoordsKml(rings[0])+"</coordinates></LinearRing></outerBoundaryIs>";
+        for(let i=1;i<rings.length;i++){
+            geom+="<innerBoundaryIs><LinearRing><coordinates>"+mdCoordsKml(rings[i])+"</coordinates></LinearRing></innerBoundaryIs>";
+        }
+        geom+="</Polygon>";
+    }else if(g.type==="MultiPoint"){
+        geom="<MultiGeometry>"+g.coordinates.map(function(c){return "<Point><coordinates>"+mdCoordsKml([c])+"</coordinates></Point>";}).join("")+"</MultiGeometry>";
+    }else if(g.type==="MultiLineString"){
+        geom="<MultiGeometry>"+g.coordinates.map(function(c){return "<LineString><coordinates>"+mdCoordsKml(c)+"</coordinates></LineString>";}).join("")+"</MultiGeometry>";
+    }else if(g.type==="MultiPolygon"){
+        geom="<MultiGeometry>"+g.coordinates.map(function(poly){
+            return mdFeatureToKml({type:"Feature",properties:p,geometry:{type:"Polygon",coordinates:poly}});
+        }).join("")+"</MultiGeometry>";
+    }
+
+    return geom?("<Placemark><name>"+name+"</name>"+geom+"</Placemark>"):"";
+}
+
+function mdGeoJSONToKML(fc){
+    return '<?xml version="1.0" encoding="UTF-8"?>'+
+        '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>'+
+        '<name>Sabz Royan GIS Export</name>'+
+        (fc.features||[]).map(mdFeatureToKml).join("")+
+        '</Document></kml>';
+}
+
+function mdEscXmlText(s){
+    return mdEscXml(s);
+}
+
+function mdGeoJSONToGPX(fc){
+    let out='<?xml version="1.0" encoding="UTF-8"?>';
+    out+='<gpx version="1.1" creator="Sabz Royan GIS" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">';
+    (fc.features||[]).forEach(function(f,i){
+        const g=f.geometry,p=f.properties||{},name=mdEscXmlText(p.name||p.title||("Feature "+(i+1)));
+        if(!g)return;
+        if(g.type==="Point"){
+            out+='<wpt lat="'+g.coordinates[1]+'" lon="'+g.coordinates[0]+'"><name>'+name+'</name></wpt>';
+        }else if(g.type==="LineString"){
+            out+='<trk><name>'+name+'</name><trkseg>';
+            g.coordinates.forEach(function(c){out+='<trkpt lat="'+c[1]+'" lon="'+c[0]+'"></trkpt>';});
+            out+='</trkseg></trk>';
+        }else if(g.type==="Polygon"){
+            const ring=(g.coordinates&&g.coordinates[0])||[];
+            if(ring.length){
+                out+='<trk><name>'+name+'</name><trkseg>';
+                ring.forEach(function(c){out+='<trkpt lat="'+c[1]+'" lon="'+c[0]+'"></trkpt>';});
+                out+='</trkseg></trk>';
+            }
+        }else if(g.type==="MultiLineString"){
+            g.coordinates.forEach(function(line,j){
+                out+='<trk><name>'+name+' '+(j+1)+'</name><trkseg>';
+                line.forEach(function(c){out+='<trkpt lat="'+c[1]+'" lon="'+c[0]+'"></trkpt>';});
+                out+='</trkseg></trk>';
+            });
+        }
+    });
+    return out+'</gpx>';
+}
+
+function mdDownloadBlob(blob,filename){
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function(){URL.revokeObjectURL(a.href);},1000);
+}
+
+async function mdExport(format){
+    const fc=mdCollectGeoJSON();
+    if(!fc.features.length){
+        alert("هیچ عارضه برداری برای خروجی وجود ندارد. ابتدا عارضه‌ای رسم یا فایل برداری وارد کنید.");
+        return;
+    }
+
+    const stamp=new Date().toISOString().slice(0,19).replace(/[T:]/g,"-");
+    try{
+        if(format==="geojson"){
+            const blob=new Blob([JSON.stringify(fc,null,2)],{type:"application/geo+json;charset=utf-8"});
+            mdDownloadBlob(blob,"sabz-royan-"+stamp+".geojson");
+            return;
+        }
+
+        const kml=mdGeoJSONToKML(fc);
+
+        if(format==="kml"){
+            mdDownloadBlob(new Blob([kml],{type:"application/vnd.google-earth.kml+xml;charset=utf-8"}),"sabz-royan-"+stamp+".kml");
+            return;
+        }
+
+        if(format==="kmz"){
+            if(!window.JSZip)throw new Error("کتابخانه JSZip بارگذاری نشده است.");
+            const zip=new JSZip();
+            zip.file("doc.kml",kml);
+            const blob=await zip.generateAsync({type:"blob",mimeType:"application/vnd.google-earth.kmz"});
+            mdDownloadBlob(blob,"sabz-royan-"+stamp+".kmz");
+            return;
+        }
+
+        if(format==="gpx"){
+            const gpx=mdGeoJSONToGPX(fc);
+            mdDownloadBlob(new Blob([gpx],{type:"application/gpx+xml;charset=utf-8"}),"sabz-royan-"+stamp+".gpx");
+        }
+    }catch(e){
+        alert("خطا در تهیه خروجی: "+e.message);
+    }
 }
 
 function mdWatch(){
