@@ -590,6 +590,54 @@ body {
     cursor: pointer;
 }
 
+
+/* =========================================================
+   MAPDRAW STAGE 2 - FIND PLACES / FEATURE INFO
+========================================================= */
+.mapdraw-search-panel{
+    position:absolute;
+    top:12px;
+    left:12px;
+    z-index:1200;
+    width:330px;
+    max-width:calc(100% - 24px);
+    background:rgba(255,255,255,.97);
+    border:1px solid #cbdbe3;
+    border-radius:10px;
+    box-shadow:0 5px 20px rgba(20,60,90,.16);
+    padding:8px;
+    direction:rtl;
+}
+.mapdraw-search-row{display:flex;gap:6px}
+.mapdraw-search-input{
+    flex:1;min-width:0;height:36px;border:1px solid #c9d8df;border-radius:7px;
+    padding:0 10px;font-family:"Vazirmatn",sans-serif!important;font-size:12px;
+    direction:rtl;background:#fff;
+}
+.mapdraw-search-btn{
+    border:1px solid #146c43;background:#146c43;color:#fff;border-radius:7px;
+    padding:0 12px;cursor:pointer;font-family:"Vazirmatn",sans-serif!important;font-weight:700;
+}
+.mapdraw-search-results{margin-top:6px;max-height:220px;overflow:auto}
+.mapdraw-search-result{
+    padding:8px;border-bottom:1px solid #edf2f5;cursor:pointer;font-size:11px;line-height:1.7;
+}
+.mapdraw-search-result:hover{background:#eef7f3}
+.mapdraw-feature-info{
+    position:absolute;bottom:12px;left:12px;z-index:1200;width:330px;max-width:calc(100% - 24px);
+    max-height:300px;overflow:auto;background:rgba(255,255,255,.98);
+    border:1px solid #cbdbe3;border-radius:10px;box-shadow:0 5px 20px rgba(20,60,90,.16);
+    padding:10px;direction:rtl;display:none;
+}
+.mapdraw-feature-info.open{display:block}
+.mapdraw-feature-info h4{margin:0 0 7px;color:#07573e;font-size:13px}
+.mapdraw-feature-row{display:flex;gap:7px;border-bottom:1px solid #edf2f5;padding:5px 0;font-size:11px}
+.mapdraw-feature-key{font-weight:800;color:#29465f;min-width:85px}
+.mapdraw-feature-value{color:#48627b;word-break:break-word}
+.mapdraw-feature-close{
+    float:left;border:0;background:#eef4f7;border-radius:6px;cursor:pointer;padding:2px 7px;
+}
+
 /* =========================================================
    HIDE DECORATIVE SERVICE ICONS
    Main site/logo icons are intentionally untouched.
@@ -7674,6 +7722,151 @@ async function mdExport(format){
         }
     }catch(e){
         alert("خطا در تهیه خروجی: "+e.message);
+    }
+}
+
+/* =========================================================
+   MAPDRAW STAGE 2
+   Find Places + feature selection + feature information
+========================================================= */
+let mdStage2Ready=false;
+let mdSearchMarker=null;
+let mdSelectedFeatureLayer=null;
+
+function mdStage2Init(){
+    if(mdStage2Ready||typeof leafletMap==="undefined"||!leafletMap)return;
+    const host=document.getElementById("leafletMap");
+    if(!host)return;
+
+    const search=document.createElement("div");
+    search.className="mapdraw-search-panel";
+    search.innerHTML='<div class="mapdraw-search-row">'+
+        '<input id="mdPlaceSearch" class="mapdraw-search-input" placeholder="جستجوی مکان / Find Places" autocomplete="off">'+
+        '<button id="mdPlaceSearchBtn" class="mapdraw-search-btn">جستجو</button>'+
+        '</div><div id="mdPlaceResults" class="mapdraw-search-results"></div>';
+    host.appendChild(search);
+
+    const info=document.createElement("div");
+    info.id="mdFeatureInfo";
+    info.className="mapdraw-feature-info";
+    info.innerHTML='<button class="mapdraw-feature-close" id="mdFeatureClose">×</button><h4>اطلاعات عارضه</h4><div id="mdFeatureRows"></div>';
+    host.appendChild(info);
+
+    document.getElementById("mdFeatureClose").onclick=function(){
+        info.classList.remove("open");
+        if(mdSelectedFeatureLayer&&mdSelectedFeatureLayer.setStyle)mdSelectedFeatureLayer.setStyle({weight:3});
+        mdSelectedFeatureLayer=null;
+    };
+
+    const run=function(){mdFindPlaces();};
+    document.getElementById("mdPlaceSearchBtn").onclick=run;
+    document.getElementById("mdPlaceSearch").addEventListener("keydown",function(e){if(e.key==="Enter")run();});
+
+    leafletMap.on("click",function(e){
+        mdSelectFeatureAt(e.latlng);
+    });
+
+    mdBindFeatureClicks();
+    mdStage2Ready=true;
+}
+
+async function mdFindPlaces(){
+    const input=document.getElementById("mdPlaceSearch");
+    const results=document.getElementById("mdPlaceResults");
+    const q=(input.value||"").trim();
+    if(!q){results.innerHTML="<div class='mapdraw-search-result'>نام مکان را وارد کنید.</div>";return;}
+    results.innerHTML="<div class='mapdraw-search-result'>در حال جستجو...</div>";
+    try{
+        const url="https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&accept-language=fa&addressdetails=1&q="+encodeURIComponent(q);
+        const res=await fetch(url,{headers:{"Accept":"application/json"}});
+        if(!res.ok)throw new Error("HTTP "+res.status);
+        const data=await res.json();
+        if(!data.length){results.innerHTML="<div class='mapdraw-search-result'>مکانی پیدا نشد.</div>";return;}
+        results.innerHTML="";
+        data.forEach(function(item){
+            const row=document.createElement("div");
+            row.className="mapdraw-search-result";
+            row.textContent=item.display_name||q;
+            row.onclick=function(){
+                const lat=Number(item.lat),lon=Number(item.lon);
+                leafletMap.setView([lat,lon],Math.max(leafletMap.getZoom(),15),{animate:true});
+                if(mdSearchMarker)leafletMap.removeLayer(mdSearchMarker);
+                mdSearchMarker=L.marker([lat,lon]).addTo(leafletMap).bindPopup(item.display_name||q).openPopup();
+            };
+            results.appendChild(row);
+        });
+    }catch(e){
+        results.innerHTML="<div class='mapdraw-search-result'>خطا در جستجوی مکان. اتصال اینترنت یا سرویس جستجو را بررسی کنید.</div>";
+        console.error("Find Places:",e);
+    }
+}
+
+function mdBindFeatureClicks(){
+    if(typeof leafletDrawItems!=="undefined"&&leafletDrawItems){
+        leafletDrawItems.eachLayer(mdBindOneFeature);
+    }
+    Object.keys(mapDrawOverlayLayers||{}).forEach(function(name){
+        const layer=mapDrawOverlayLayers[name];
+        if(layer instanceof L.TileLayer)return;
+        if(layer&&layer.eachLayer)layer.eachLayer(mdBindOneFeature);
+        else mdBindOneFeature(layer);
+    });
+}
+
+function mdBindOneFeature(layer){
+    if(!layer||layer.__mdFeatureBound)return;
+    layer.__mdFeatureBound=true;
+    layer.on("click",function(e){
+        if(e&&e.originalEvent)e.originalEvent.stopPropagation();
+        mdShowFeatureInfo(layer);
+    });
+}
+
+function mdSelectFeatureAt(latlng){
+    let found=null;
+    function inspect(layer){
+        if(found||!layer)return;
+        if(layer.getBounds&&layer.getBounds().isValid&&layer.getBounds().isValid()&&layer.getBounds().contains(latlng))found=layer;
+        else if(layer.getLatLng&&layer.getLatLng().distanceTo&&layer.getLatLng().distanceTo(latlng)<25)found=layer;
+    }
+    if(typeof leafletDrawItems!=="undefined"&&leafletDrawItems)leafletDrawItems.eachLayer(inspect);
+    Object.keys(mapDrawOverlayLayers||{}).forEach(function(name){
+        const l=mapDrawOverlayLayers[name];
+        if(found||!l||l instanceof L.TileLayer)return;
+        if(l.eachLayer)l.eachLayer(inspect);else inspect(l);
+    });
+    if(found)mdShowFeatureInfo(found);
+}
+
+function mdShowFeatureInfo(layer){
+    const info=document.getElementById("mdFeatureInfo"),rows=document.getElementById("mdFeatureRows");
+    if(!info||!rows)return;
+    if(mdSelectedFeatureLayer&&mdSelectedFeatureLayer!==layer&&mdSelectedFeatureLayer.setStyle){
+        try{mdSelectedFeatureLayer.setStyle({weight:3});}catch(e){}
+    }
+    mdSelectedFeatureLayer=layer;
+    if(layer.setStyle)try{layer.setStyle({weight:5});}catch(e){}
+    let feature=null;
+    try{feature=layer.feature||layer.toGeoJSON();}catch(e){}
+    const props=(feature&&feature.properties)||{};
+    let html="";
+    Object.keys(props).forEach(function(k){
+        html+='<div class="mapdraw-feature-row"><span class="mapdraw-feature-key">'+mdEscXml(k)+'</span><span class="mapdraw-feature-value">'+mdEscXml(props[k])+'</span></div>';
+    });
+    const ll=layer.getLatLng?layer.getLatLng():null;
+    if(ll){
+        html+='<div class="mapdraw-feature-row"><span class="mapdraw-feature-key">عرض جغرافیایی</span><span class="mapdraw-feature-value">'+ll.lat.toFixed(6)+'</span></div>';
+        html+='<div class="mapdraw-feature-row"><span class="mapdraw-feature-key">طول جغرافیایی</span><span class="mapdraw-feature-value">'+ll.lng.toFixed(6)+'</span></div>';
+    }
+    if(!html)html='<div class="mapdraw-feature-row"><span class="mapdraw-feature-value">اطلاعات توصیفی برای این عارضه ثبت نشده است.</span></div>';
+    rows.innerHTML=html;
+    info.classList.add("open");
+}
+
+function mdStage2Watch(){
+    if(typeof leafletMap!=="undefined"&&leafletMap){
+        mdStage2Init();
+        if(mdStage2Ready)mdBindFeatureClicks();
     }
 }
 
