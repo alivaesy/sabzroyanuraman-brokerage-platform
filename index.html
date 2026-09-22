@@ -4389,14 +4389,20 @@ function myMapsSnapshot() {
 function myMapsRestoreSnapshot(snapshot) {
     if (!myMapsDrawItems || !snapshot) return;
     myMapsRestoring = true;
-    myMapsDrawItems.clearLayers();
     try {
+        Object.keys(myMapsLayers).forEach(function(name){ myMapsLayers[name].clearLayers(); });
+        myMapsDrawItems.clearLayers();
         const fc = JSON.parse(snapshot);
-        L.geoJSON(fc, {
-            onEachFeature: function(feature, layer) {
-                myMapsDrawItems.addLayer(layer);
-            }
+        (fc.features || []).forEach(function(feature){
+            const name=(feature.properties&&feature.properties.__myMapsLayer)||"ترسیمات";
+            const layer=myMapsFeatureToLayer(feature);
+            if(!layer)return;
+            myMapsEnsureLayer(name);
+            myMapsLayers[name].addLayer(layer);
+            if(layer.eachLayer) layer.eachLayer(function(x){myMapsDrawItems.addLayer(x);x.feature=feature;});
+            else {myMapsDrawItems.addLayer(layer);layer.feature=feature;}
         });
+        myMapsRefreshLayerPanel();
     } catch (e) {
         console.error("My Maps restore:", e);
     }
