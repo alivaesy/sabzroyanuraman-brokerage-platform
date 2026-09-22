@@ -1140,6 +1140,7 @@ body {
 .my-maps-info-row{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid #edf2f5;padding:2px 0}
 .my-maps-info-key{font-weight:800}
 .my-maps-info-value{direction:ltr;text-align:left}
+.my-maps-gis-status{margin-top:6px;padding:5px 7px;border-radius:6px;background:#eef7f3;color:#07573e;font-size:10px}
 #myMapsToolsColumn .dedicated-map-tools button {
     min-height: 34px;
 }
@@ -2082,10 +2083,15 @@ body.map-mode .map-section {
     <button type="button" onclick="myMapsExport('kml')">KML</button>
     <button type="button" onclick="myMapsExport('kmz')">KMZ</button>
     <button type="button" onclick="myMapsExport('gpx')">GPX</button>
+    <button type="button" onclick="myMapsBuffer()">Buffer</button>
+    <button type="button" onclick="myMapsCentroid()">مرکز</button>
+    <button type="button" onclick="myMapsBBox()">BBox</button>
+    <button type="button" onclick="myMapsIntersectMode()">Intersect</button>
   </div>
   <div class="my-maps-info-box">
     <div class="my-maps-info-title">اطلاعات و محاسبات عارضه</div>
     <div id="myMapsInfoBox">روی یک عارضه کلیک کنید.</div>
+    <div id="myMapsGisStatus" class="my-maps-gis-status">ابزارهای GIS آماده‌اند.</div>
   </div>
   <div class="my-maps-layer-box">
     <div class="my-maps-layer-head">لایه‌ها</div>
@@ -2113,6 +2119,7 @@ body.map-mode .map-section {
 <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/drawing/1/atlas-drawing.min.css">
 
 <script src="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@7.2.0/turf.min.js"></script>
 <script src="https://unpkg.com/leaflet.fullscreen@3.0.1/dist/Control.FullScreen.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/perliedman-leaflet-control-geocoder/3.3.1/Control.Geocoder.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-minimap/3.6.1/Control.MiniMap.min.js"></script>
@@ -3866,6 +3873,99 @@ function myMapsInitImport() {
     });
 }
 
+let myMapsSpatialMode = "";
+let myMapsSpatialSelection = [];
+
+function myMapsLayerFeature(layer) {
+    if(!layer || !layer.toGeoJSON) return null;
+    const f=layer.toGeoJSON();
+    if(f && f.type==="Feature") return f;
+    return null;
+}
+
+function myMapsAddGeoJSONFeature(feature, layerName) {
+    const layer=myMapsFeatureToLayer(feature);
+    if(!layer) return null;
+    const name=layerName||myMapsCurrentLayer||"GIS Results";
+    myMapsEnsureLayer(name);
+    myMapsLayers[name].addLayer(layer);
+    if(layer.eachLayer) layer.eachLayer(x=>myMapsDrawItems.addLayer(x));
+    else myMapsDrawItems.addLayer(layer);
+    if(layer.eachLayer) layer.eachLayer(x=>x.feature=feature);
+    else layer.feature=feature;
+    return layer;
+}
+
+function myMapsBuffer() {
+    createMyMapsWebGIS();
+    if(!window.turf){sectionMapStatus("کتابخانه Turf بارگذاری نشده است.");return;}
+    const layer=myMapsSpatialSelection[0];
+    if(!layer){myMapsSpatialMode="buffer";myMapsSetGisStatus("یک عارضه را انتخاب کنید.");return;}
+    const f=myMapsLayerFeature(layer);
+    if(!f){sectionMapStatus("این عارضه قابل Buffer نیست.");return;}
+    const d=Number(prompt("فاصله Buffer را به متر وارد کنید:", "10"));
+    if(!isFinite(d)||d<=0)return;
+    try{
+        const out=turf.buffer(f,d,{units:"meters"});
+        if(!out)throw new Error("خروجی تولید نشد");
+        myMapsAddGeoJSONFeature(out,"Buffer");
+        myMapsRefreshLayerPanel();
+        myMapsRecordHistory();
+        myMapsSetGisStatus("Buffer "+d+" متری ایجاد شد.");
+    }catch(e){myMapsSetGisStatus("خطا در Buffer: "+e.message);}
+}
+
+function myMapsCentroid() {
+    createMyMapsWebGIS();
+    if(!window.turf){myMapsSetGisStatus("Turf بارگذاری نشده است.");return;}
+    const layer=myMapsSpatialSelection[0];
+    if(!layer){myMapsSpatialMode="centroid";myMapsSetGisStatus("یک عارضه را انتخاب کنید.");return;}
+    const f=myMapsLayerFeature(layer); if(!f)return;
+    const out=turf.centroid(f);
+    myMapsAddGeoJSONFeature(out,"GIS Results");
+    myMapsRefreshLayerPanel(); myMapsRecordHistory();
+    myMapsSetGisStatus("مرکز عارضه ایجاد شد.");
+}
+
+function myMapsBBox() {
+    createMyMapsWebGIS();
+    if(!window.turf){myMapsSetGisStatus("Turf بارگذاری نشده است.");return;}
+    const layer=myMapsSpatialSelection[0];
+    if(!layer){myMapsSpatialMode="bbox";myMapsSetGisStatus("یک عارضه را انتخاب کنید.");return;}
+    const f=myMapsLayerFeature(layer); if(!f)return;
+    const out=turf.bboxPolygon(turf.bbox(f));
+    myMapsAddGeoJSONFeature(out,"GIS Results");
+    myMapsRefreshLayerPanel(); myMapsRecordHistory();
+    myMapsSetGisStatus("Bounding Box ایجاد شد.");
+}
+
+function myMapsIntersectMode() {
+    myMapsSpatialSelection=[];
+    myMapsSpatialMode="intersect";
+    myMapsSetGisStatus("دو عارضه را یکی‌یکی انتخاب کنید.");
+}
+
+function myMapsSetGisStatus(text) {
+    const e=document.getElementById("myMapsGisStatus");
+    if(e)e.textContent=text;
+    sectionMapStatus(text);
+}
+
+function myMapsRunIntersect() {
+    if(!window.turf || myMapsSpatialSelection.length<2)return;
+    const a=myMapsLayerFeature(myMapsSpatialSelection[0]), b=myMapsLayerFeature(myMapsSpatialSelection[1]);
+    if(!a||!b)return;
+    try{
+        const out=turf.intersect(turf.featureCollection([a,b]));
+        if(!out){myMapsSetGisStatus("تقاطع مشترکی پیدا نشد.");return;}
+        myMapsAddGeoJSONFeature(out,"GIS Results");
+        myMapsRefreshLayerPanel(); myMapsRecordHistory();
+        myMapsSetGisStatus("تقاطع دو عارضه ایجاد شد.");
+    }catch(e){myMapsSetGisStatus("خطا در Intersect: "+e.message);}
+    myMapsSpatialMode="";
+    myMapsSpatialSelection=[];
+}
+
 function myMapsDistance(a, b) {
     const R = 6371008.8, d = Math.PI / 180;
     const lat1 = a.lat * d, lat2 = b.lat * d;
@@ -4159,6 +4259,18 @@ function createMyMapsWebGIS() {
             e.layer.__myMapsInfoBound = true;
             e.layer.on("click", function(ev) {
                 if (ev && ev.originalEvent) L.DomEvent.stopPropagation(ev);
+                if (myMapsSpatialMode) {
+                    myMapsSpatialSelection.push(e.layer);
+                    if (myMapsSpatialMode === "intersect" && myMapsSpatialSelection.length === 2) {
+                        myMapsRunIntersect();
+                    } else if (myMapsSpatialMode === "buffer" || myMapsSpatialMode === "centroid" || myMapsSpatialMode === "bbox") {
+                        const mode=myMapsSpatialMode; myMapsSpatialMode=""; 
+                        if(mode==="buffer") { const f=myMapsLayerFeature(e.layer); if(f) { const d=Number(prompt("فاصله Buffer را به متر وارد کنید:","10")); if(isFinite(d)&&d>0){ const out=turf.buffer(f,d,{units:"meters"}); if(out){myMapsAddGeoJSONFeature(out,"Buffer");myMapsRefreshLayerPanel();myMapsRecordHistory();myMapsSetGisStatus("Buffer ایجاد شد.");}}}}
+                        if(mode==="centroid") { const f=myMapsLayerFeature(e.layer); if(f){myMapsAddGeoJSONFeature(turf.centroid(f),"GIS Results");myMapsRefreshLayerPanel();myMapsRecordHistory();myMapsSetGisStatus("مرکز عارضه ایجاد شد.");}}
+                        if(mode==="bbox") { const f=myMapsLayerFeature(e.layer); if(f){myMapsAddGeoJSONFeature(turf.bboxPolygon(turf.bbox(f)),"GIS Results");myMapsRefreshLayerPanel();myMapsRecordHistory();myMapsSetGisStatus("BBox ایجاد شد.");}}
+                        myMapsSpatialSelection=[];
+                    }
+                }
                 myMapsShowMeasurement(e.layer);
             });
         }
