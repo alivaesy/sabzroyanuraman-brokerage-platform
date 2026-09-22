@@ -1421,11 +1421,100 @@ body.map-mode .map-section {
 </style><script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style id="map-leaflet-control-fix">
 /* Keep Leaflet controls clear of the MapDraw layer panel. */
-#leafletMap .leaflet-control-layers { top: 58px !important; }
+#leafletMap .leaflet-control-layers {
+    top: 10px !important;
+    right: auto !important;
+    left: 10px !important;
+    z-index: 1300 !important;
+    cursor: move;
+    user-select: none;
+}
+#leafletMap .leaflet-control-layers-toggle,
+#leafletMap .leaflet-control-layers-list {
+    cursor: move;
+}
 #leafletMap .leaflet-top.leaflet-left { z-index: 1100; }
-#leafletMap .mapdraw-search-panel, #leafletMap .mapdraw-stage3-panel { z-index: 1200; }
+#leafletMap .mapdraw-layer-panel { z-index: 1200; }
+#leafletMap .mapdraw-search-panel, #leafletMap .mapdraw-stage3-panel { z-index: 1250; }
+#leafletMap .leaflet-control-layers.md-dragging {
+    opacity: .92;
+    box-shadow: 0 8px 24px rgba(0,0,0,.22);
+}
 </style>
-</head>
+<script id="draggable-leaflet-control">
+(function(){
+    function makeLeafletControlsDraggable(){
+        if(typeof L==="undefined") return;
+        document.querySelectorAll("#leafletMap .leaflet-control-layers").forEach(function(el){
+            if(el.dataset.draggable==="1") return;
+            el.dataset.draggable="1";
+
+            var dragging=false, startX=0, startY=0, startLeft=0, startTop=0;
+
+            function start(e){
+                if(e.type==="mousedown" && e.button!==0) return;
+                var p=e.touches ? e.touches[0] : e;
+                var rect=el.getBoundingClientRect();
+                var host=document.getElementById("leafletMap");
+                if(!host) return;
+                var hr=host.getBoundingClientRect();
+
+                dragging=true;
+                startX=p.clientX;
+                startY=p.clientY;
+                startLeft=rect.left-hr.left;
+                startTop=rect.top-hr.top;
+
+                el.classList.add("md-dragging");
+                if(leafletMap && leafletMap.dragging) leafletMap.dragging.disable();
+
+                document.addEventListener("mousemove",move,true);
+                document.addEventListener("mouseup",end,true);
+                document.addEventListener("touchmove",move,{passive:false,capture:true});
+                document.addEventListener("touchend",end,true);
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            function move(e){
+                if(!dragging) return;
+                var p=e.touches ? e.touches[0] : e;
+                var host=document.getElementById("leafletMap");
+                if(!host) return;
+                var maxX=host.clientWidth-el.offsetWidth-6;
+                var maxY=host.clientHeight-el.offsetHeight-6;
+                var x=Math.max(6,Math.min(maxX,startLeft+(p.clientX-startX)));
+                var y=Math.max(6,Math.min(maxY,startTop+(p.clientY-startY)));
+
+                el.style.setProperty("left",x+"px","important");
+                el.style.setProperty("top",y+"px","important");
+                el.style.setProperty("right","auto","important");
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            function end(e){
+                if(!dragging) return;
+                dragging=false;
+                el.classList.remove("md-dragging");
+                if(leafletMap && leafletMap.dragging) leafletMap.dragging.enable();
+
+                document.removeEventListener("mousemove",move,true);
+                document.removeEventListener("mouseup",end,true);
+                document.removeEventListener("touchmove",move,true);
+                document.removeEventListener("touchend",end,true);
+                if(e){ e.preventDefault(); e.stopPropagation(); }
+            }
+
+            el.addEventListener("mousedown",start,true);
+            el.addEventListener("touchstart",start,{passive:false,capture:true});
+        });
+    }
+
+    setInterval(makeLeafletControlsDraggable,700);
+    setTimeout(makeLeafletControlsDraggable,300);
+})();
+</script></head>
 
 
 <body>
