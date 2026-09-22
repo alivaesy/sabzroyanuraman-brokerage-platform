@@ -2061,6 +2061,7 @@ body.map-mode .map-section {
 
   <div id="myMapsContainer" class="map-platform-host">
     <div id="myMapsWebGIS"></div>
+    <input id="myMapsImportFile" type="file" accept=".geojson,.json,.kml,.kmz,.gpx" style="display:none">
   </div>
   
 <div class="dedicated-map-panel" id="myMapsToolsColumn">
@@ -2076,6 +2077,11 @@ body.map-mode .map-section {
     <button type="button" onclick="myMapsUndo()">Undo</button>
     <button type="button" onclick="myMapsRedo()">Redo</button>
     <button type="button" onclick="myMapsClearDrawings()">پاک کردن همه</button>
+    <button type="button" onclick="myMapsImport()">Import</button>
+    <button type="button" onclick="myMapsExport('geojson')">GeoJSON</button>
+    <button type="button" onclick="myMapsExport('kml')">KML</button>
+    <button type="button" onclick="myMapsExport('kmz')">KMZ</button>
+    <button type="button" onclick="myMapsExport('gpx')">GPX</button>
   </div>
   <div class="my-maps-info-box">
     <div class="my-maps-info-title">اطلاعات و محاسبات عارضه</div>
@@ -3652,6 +3658,214 @@ let myMapsLayers = {};
 let myMapsCurrentLayer = "ترسیمات";
 let myMapsLayerId = 0;
 
+function myMapsEscXml(s) {
+    return String(s == null ? "" : s)
+        .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+        .replace(/"/g,"&quot;").replace(/'/g,"&apos;");
+}
+
+function myMapsGeoJSON() {
+    const features=[];
+    Object.keys(myMapsLayers).forEach(function(name) {
+        myMapsLayers[name].eachLayer(function(layer) {
+            if (!layer.toGeoJSON) return;
+            const f=layer.toGeoJSON();
+            if (f && f.type==="Feature") {
+                f.properties=f.properties||{};
+                f.properties.__myMapsLayer=name;
+                features.push(f);
+            }
+        });
+    });
+    return {type:"FeatureCollection",features:features};
+}
+
+function myMapsCoordsKml(coords) {
+    return coords.map(function(p){return p[0]+","+p[1];}).join(" ");
+}
+
+function myMapsFeatureKml(f) {
+    if(!f || !f.geometry) return "";
+    const g=f.geometry, p=f.properties||{}, name=myMapsEscXml(p.name||p.title||p.__myMapsLayer||"عارضه");
+    let geom="";
+    if(g.type==="Point") geom="<Point><coordinates>"+myMapsCoordsKml([g.coordinates])+"</coordinates></Point>";
+    else if(g.type==="LineString") geom="<LineString><coordinates>"+myMapsCoordsKml(g.coordinates)+"</coordinates></LineString>";
+    else if(g.type==="Polygon") {
+        const rings=g.coordinates||[]; if(!rings.length)return "";
+        geom="<Polygon><outerBoundaryIs><LinearRing><coordinates>"+myMapsCoordsKml(rings[0])+"</coordinates></LinearRing></outerBoundaryIs>";
+        for(let i=1;i<rings.length;i++) geom+="<innerBoundaryIs><LinearRing><coordinates>"+myMapsCoordsKml(rings[i])+"</coordinates></LinearRing></innerBoundaryIs>";
+        geom+="</Polygon>";
+    } else if(g.type==="MultiPoint") {
+        geom="<MultiGeometry>"+g.coordinates.map(c=>"<Point><coordinates>"+myMapsCoordsKml([c])+"</coordinates></Point>").join("")+"</MultiGeometry>";
+    } else if(g.type==="MultiLineString") {
+        geom="<MultiGeometry>"+g.coordinates.map(c=>"<LineString><coordinates>"+myMapsCoordsKml(c)+"</coordinates></LineString>").join("")+"</MultiGeometry>";
+    } else if(g.type==="MultiPolygon") {
+        geom="<MultiGeometry>"+g.coordinates.map(poly=>myMapsFeatureKml({geometry:{type:"Polygon",coordinates:poly},properties:p})).join("")+"</MultiGeometry>";
+    }
+    return geom ? "<Placemark><name>"+name+"</name>"+geom+"</Placemark>" : "";
+}
+
+function myMapsToKml(fc) {
+    return '<?xml version="1.0" encoding="UTF-8"?>' +
+        '<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Sabz Royan My Maps</name>' +
+        (fc.features||[]).map(myMapsFeatureKml).join("") +
+        '</Document></kml>';
+}
+
+function myMapsToGpx(fc) {
+    let out='<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="Sabz Royan My Maps" xmlns="http://www.topografix.com/GPX/1/1">';
+    (fc.features||[]).forEach(function(f,i){
+        const g=f.geometry,p=f.properties||{},name=myMapsEscXml(p.name||p.title||("Feature "+(i+1)));
+        if(!g)return;
+        if(g.type==="Point") out+='<wpt lat="'+g.coordinates[1]+'" lon="'+g.coordinates[0]+'"><name>'+name+'</name></wpt>';
+        else if(g.type==="LineString"){
+            out+='<trk><name>'+name+'</name><trkseg>';
+            g.coordinates.forEach(c=>out+='<trkpt lat="'+c[1]+'" lon="'+c[0]+'"></trkpt>');
+            out+='</trkseg></trk>';
+        } else if(g.type==="Polygon"){
+            const ring=(g.coordinates[0]||[]);
+            out+='<trk><name>'+name+'</name><trkseg>';
+            ring.forEach(c=>out+='<trkpt lat="'+c[1]+'" lon="'+c[0]+'"></trkpt>');
+            out+='</trkseg></trk>';
+        }
+    });
+    return out+'</gpx>';
+}
+
+function myMapsDownload(blob, filename) {
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob); a.download=filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+async function myMapsExport(format) {
+    createMyMapsWebGIS();
+    const fc=myMapsGeoJSON();
+    if(!fc.features.length){ sectionMapStatus("هیچ عارضه‌ای برای خروجی وجود ندارد."); return; }
+    const stamp=new Date().toISOString().slice(0,19).replace(/[T:]/g,"-");
+    try {
+        if(format==="geojson"){
+            myMapsDownload(new Blob([JSON.stringify(fc,null,2)],{type:"application/geo+json"}),"my-maps-"+stamp+".geojson");
+        } else if(format==="kml"){
+            myMapsDownload(new Blob([myMapsToKml(fc)],{type:"application/vnd.google-earth.kml+xml"}),"my-maps-"+stamp+".kml");
+        } else if(format==="gpx"){
+            myMapsDownload(new Blob([myMapsToGpx(fc)],{type:"application/gpx+xml"}),"my-maps-"+stamp+".gpx");
+        } else if(format==="kmz"){
+            if(!window.JSZip) throw new Error("JSZip بارگذاری نشده است.");
+            const zip=new JSZip(); zip.file("doc.kml",myMapsToKml(fc));
+            const blob=await zip.generateAsync({type:"blob",mimeType:"application/vnd.google-earth.kmz"});
+            myMapsDownload(blob,"my-maps-"+stamp+".kmz");
+        }
+        sectionMapStatus("خروجی "+format.toUpperCase()+" آماده شد.");
+    } catch(e) { sectionMapStatus("خطا در خروجی: "+e.message); }
+}
+
+function myMapsFeatureToLayer(feature) {
+    if(!feature || !feature.geometry) return null;
+    const g=feature.geometry, style={color:"#146c43",weight:4,fillOpacity:.22};
+    if(g.type==="Point") return L.marker([g.coordinates[1],g.coordinates[0]]);
+    if(g.type==="LineString") return L.polyline(g.coordinates.map(c=>[c[1],c[0]]),style);
+    if(g.type==="Polygon") return L.polygon(g.coordinates.map(r=>r.map(c=>[c[1],c[0]])),style);
+    if(g.type==="MultiPoint") return L.featureGroup(g.coordinates.map(c=>L.marker([c[1],c[0]])));
+    if(g.type==="MultiLineString") return L.featureGroup(g.coordinates.map(line=>L.polyline(line.map(c=>[c[1],c[0]]),style)));
+    if(g.type==="MultiPolygon") return L.featureGroup(g.coordinates.map(poly=>L.polygon(poly.map(r=>r.map(c=>[c[1],c[0]])),style)));
+    return null;
+}
+
+function myMapsImportGeoJSON(fc) {
+    createMyMapsWebGIS();
+    const features=fc&&fc.type==="FeatureCollection"?fc.features:[fc];
+    let count=0;
+    (features||[]).forEach(function(f){
+        const layer=myMapsFeatureToLayer(f);
+        if(!layer)return;
+        const props=f.properties||{};
+        let name=props.__myMapsLayer||myMapsCurrentLayer||"واردشده";
+        myMapsEnsureLayer(name);
+        myMapsLayers[name].addLayer(layer);
+        if(layer.eachLayer) layer.eachLayer(x=>myMapsDrawItems.addLayer(x));
+        else myMapsDrawItems.addLayer(layer);
+        if(layer.eachLayer) layer.eachLayer(x=>x.feature=f);
+        else layer.feature=f;
+        count++;
+    });
+    myMapsRefreshLayerPanel();
+    myMapsRecordHistory();
+    if(count) {
+        const b=myMapsDrawItems.getBounds();
+        if(b.isValid()) myMapsWebGISMap.fitBounds(b,{padding:[35,35]});
+    }
+    sectionMapStatus(count+" عارضه وارد شد.");
+}
+
+function myMapsParseKml(text) {
+    const xml=new DOMParser().parseFromString(text,"application/xml");
+    const features=[];
+    xml.querySelectorAll("Placemark").forEach(function(pm){
+        const name=(pm.querySelector("name")||{}).textContent||"واردشده";
+        const point=pm.querySelector("Point coordinates");
+        if(point) {
+            const c=point.textContent.trim().split(",").map(Number);
+            if(c.length>=2) features.push({type:"Feature",properties:{name:name},geometry:{type:"Point",coordinates:[c[0],c[1]]}});
+            return;
+        }
+        const line=pm.querySelector("LineString coordinates");
+        if(line) {
+            const cs=line.textContent.trim().split(/\s+/).map(s=>s.split(",").map(Number)).filter(c=>c.length>=2);
+            if(cs.length>=2) features.push({type:"Feature",properties:{name:name},geometry:{type:"LineString",coordinates:cs.map(c=>[c[0],c[1]])}});
+            return;
+        }
+        const poly=pm.querySelector("Polygon outerBoundaryIs LinearRing coordinates");
+        if(poly) {
+            const cs=poly.textContent.trim().split(/\s+/).map(s=>s.split(",").map(Number)).filter(c=>c.length>=2);
+            if(cs.length>=3) features.push({type:"Feature",properties:{name:name},geometry:{type:"Polygon",coordinates:[[...cs.map(c=>[c[0],c[1]])]]}});
+        }
+    });
+    return {type:"FeatureCollection",features:features};
+}
+
+function myMapsParseGpx(text) {
+    const xml=new DOMParser().parseFromString(text,"application/xml"), features=[];
+    xml.querySelectorAll("wpt").forEach(n=>{
+        features.push({type:"Feature",properties:{name:(n.querySelector("name")||{}).textContent||"Waypoint"},
+            geometry:{type:"Point",coordinates:[+n.getAttribute("lon"),+n.getAttribute("lat")]}});
+    });
+    xml.querySelectorAll("trkseg").forEach(seg=>{
+        const cs=[...seg.querySelectorAll("trkpt")].map(n=>[+n.getAttribute("lon"),+n.getAttribute("lat")]);
+        if(cs.length>=2)features.push({type:"Feature",properties:{},geometry:{type:"LineString",coordinates:cs}});
+    });
+    return {type:"FeatureCollection",features:features};
+}
+
+function myMapsImport() {
+    const input=document.getElementById("myMapsImportFile");
+    if(input) { input.value=""; input.click(); }
+}
+
+function myMapsInitImport() {
+    const input=document.getElementById("myMapsImportFile");
+    if(!input || input.__bound) return;
+    input.__bound=true;
+    input.addEventListener("change",async function(){
+        const file=input.files&&input.files[0]; if(!file)return;
+        try {
+            const name=file.name.toLowerCase(), buf=await file.arrayBuffer();
+            let fc=null;
+            if(name.endsWith(".kmz")){
+                if(!window.JSZip) throw new Error("JSZip بارگذاری نشده است.");
+                const zip=await JSZip.loadAsync(buf);
+                const kmlEntry=zip.file("doc.kml") || zip.file(/\.kml$/i)[0];
+                if(!kmlEntry) throw new Error("doc.kml پیدا نشد.");
+                fc=myMapsParseKml(await kmlEntry.async("text"));
+            } else if(name.endsWith(".kml")) fc=myMapsParseKml(new TextDecoder().decode(buf));
+            else if(name.endsWith(".gpx")) fc=myMapsParseGpx(new TextDecoder().decode(buf));
+            else fc=JSON.parse(new TextDecoder().decode(buf));
+            myMapsImportGeoJSON(fc);
+        } catch(e) { sectionMapStatus("خطا در Import: "+e.message); console.error("My Maps Import:",e); }
+    });
+}
+
 function myMapsDistance(a, b) {
     const R = 6371008.8, d = Math.PI / 180;
     const lat1 = a.lat * d, lat2 = b.lat * d;
@@ -4046,6 +4260,7 @@ function myMapsClearDrawings() {
 
 function openMyMaps() {
     createMyMapsWebGIS();
+    myMapsInitImport();
     myMapsRefreshLayerPanel();
     setTimeout(function() {
         if (myMapsWebGISMap) myMapsWebGISMap.invalidateSize();
