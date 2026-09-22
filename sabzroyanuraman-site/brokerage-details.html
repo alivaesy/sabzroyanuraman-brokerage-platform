@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>جزئیات خدمات کارگزاری</title>
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Tahoma, Arial, sans-serif;
+    background: #f6faf9;
+    color: #123553;
+    font-size: 14px;
+}
+
+
+/* =========================
+   HEADER
+   ========================= */
+
+.header {
+    background: white;
+    padding: 16px 6%;
+    border-bottom: 1px solid #d5e1e5;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.logo img {
+    width: 58px;
+    height: 58px;
+    object-fit: contain;
+}
+
+.logo-text {
+    color: #075d40;
+    font-weight: bold;
+    line-height: 1.7;
+    font-size: 14px;
+}
+
+
+/* =========================
+   PAGE
+   ========================= */
+
+.page {
+    width: 90%;
+    max-width: 900px;
+    margin: 30px auto;
+}
+
+.card {
+    background: white;
+    border-radius: 18px;
+    padding: 25px;
+
+    box-shadow: 0 5px 20px rgba(0,0,0,.07);
+
+    border: 1px solid #dbe7e5;
+}
+
+
+/* =========================
+   TITLE
+   ========================= */
+
+h1 {
+    color: #075d40;
+    font-size: 21px;
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+
+/* =========================
+   SERVICE LIST
+   ========================= */
+
+.service-list {
+    margin-top: 15px;
+}
+
+.service {
+    padding: 17px 12px;
+
+    border-bottom: 1px solid #e1e9e7;
+
+    font-size: 14px;
+
+    line-height: 1.9;
+}
+
+.service strong {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+
+/* =========================
+   PRICE
+   ========================= */
+
+.price {
+    display: inline-block;
+
+    background: #eef8f4;
+
+    padding: 4px 12px;
+
+    border-radius: 14px;
+
+    margin-top: 7px;
+
+    color: #075d40;
+
+    font-size: 13px;
+
+    font-weight: bold;
+}
+
+
+/* =========================
+   PAY BUTTON
+   ========================= */
+
+.pay {
+    display: inline-block;
+
+    background: #0878d1;
+
+    color: white;
+
+    padding: 7px 19px;
+
+    border-radius: 20px;
+
+    margin-top: 8px;
+
+    border: none;
+
+    cursor: pointer;
+
+    font-family: inherit;
+
+    font-size: 13px;
+
+    transition: .2s;
+}
+
+.pay:hover {
+    background: #075fa8;
+}
+
+
+/* =========================
+   PAYMENT SECTION
+   ========================= */
+
+#paymentSection {
+    display: none;
+
+    margin-top: 30px;
+
+    padding: 22px;
+
+    border: 2px solid #146c43;
+
+    border-radius: 16px;
+
+    background: #ffffff;
+}
+
+#paymentSection h2 {
+    color: #075d40;
+
+    text-align: center;
+
+    font-size: 18px;
+
+    margin-top: 0;
+
+    margin-bottom: 12px;
+}
+
+
+/* =========================
+   PAYMENT INFO
+   ========================= */
+
+.payment-info {
+    text-align: center;
+
+    background: #f2f8f5;
+
+    border-radius: 10px;
+
+    padding: 10px;
+
+    margin-bottom: 18px;
+
+    color: #123553;
+
+    font-size: 13px;
+
+    line-height: 1.8;
+}
+
+.payment-info strong {
+    color: #075d40;
+}
+
+
+/* =========================
+   GATEWAYS
+   ========================= */
+
+.gateway-container {
+    display: flex;
+
+    justify-content: center;
+
+    align-items: stretch;
+
+    gap: 15px;
+
+    flex-wrap: wrap;
+}
+
+.gateway-button {
+    width: 165px;
+
+    min-height: 130px;
+
+    border: 1px solid #d5dcd8;
+
+    background: white;
+
+    border-radius: 11px;
+
+    padding: 9px 10px;
+
+    cursor: pointer;
+
+    transition: .2s;
+
+    text-align: center;
+
+    font-family: inherit;
+
+    font-size: 13px;
+}
+
+.gateway-button:hover {
+    border-color: #146c43;
+
+    box-shadow: 0 4px 12px rgba(0,0,0,.08);
+}
+
+
+/* =========================
+   GATEWAY LOGOS
+   ========================= */
+
+.gateway-logos {
+    display: flex;
+
+    justify-content: center;
+
+    align-items: center;
+
+    gap: 7px;
+
+    height: 75px;
+}
+
+.gateway-logos img {
+    max-width: 65px;
+
+    max-height: 58px;
+
+    object-fit: contain;
+}
+
+
+/* =========================
+   RADIO
+   ========================= */
+
+.gateway-radio {
+    width: 17px;
+
+    height: 17px;
+
+    border: 2px solid #8a9992;
+
+    border-radius: 50%;
+
+    margin: 5px auto 0;
+
+    position: relative;
+}
+
+
+/* =========================
+   SELECTED GATEWAY
+   ========================= */
+
+.gateway-highlight {
+    border: 2px solid #146c43 !important;
+
+    background: #f0faf5 !important;
+
+    box-shadow: 0 5px 15px rgba(20,108,67,.16);
+
+    transform: scale(1.01);
+}
+
+.gateway-highlight .gateway-radio {
+    border-color: #146c43;
+}
+
+.gateway-highlight .gateway-radio::after {
+    content: "";
+
+    position: absolute;
+
+    width: 7px;
+
+    height: 7px;
+
+    background: #146c43;
+
+    border-radius: 50%;
+
+    top: 3px;
+
+    left: 3px;
+}
+
+.gateway-highlight::before {
+    content: "انتخاب درگاه";
+
+    display: block;
+
+    color: #146c43;
+
+    font-size: 11px;
+
+    font-weight: bold;
+
+    margin-bottom: 2px;
+}
+
+
+/* =========================
+   BACK
+   ========================= */
+
+.back {
+    display: inline-block;
+
+    margin-top: 22px;
+
+    text-decoration: none;
+
+    color: #075d40;
+
+    font-size: 13px;
+}
+
+
+/* =========================
+   MOBILE
+   ========================= */
+
+@media (max-width: 600px) {
+
+    .page {
+        width: 94%;
+        margin: 20px auto;
+    }
+
+    .card {
+        padding: 18px;
+    }
+
+    h1 {
+        font-size: 19px;
+    }
+
+    .service {
+        font-size: 13px;
+    }
+
+    .service strong {
+        font-size: 13px;
+    }
+
+    .gateway-button {
+        width: 150px;
+    }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<!-- =========================
+     HEADER
+     ========================= -->
+
+<header class="header">
+
+    <div class="logo">
+
+        <img
+            src="images/logo.png"
+            alt="سبز رویان اورامان">
+
+        <div class="logo-text">
+
+            سبز رویان اورامان<br>
+
+            کارگزاری فنی مهندسی و حقوقی
+
+        </div>
+
+    </div>
+
+</header>
+
+
+
+<!-- =========================
+     MAIN
+     ========================= -->
+
+<main class="page">
+
+<div class="card">
+
+
+    <!-- TITLE -->
+
+    <h1 id="title">
+        خدمات کارگزاری
+    </h1>
+
+
+    <!-- SERVICES -->
+
+    <div
+        id="services"
+        class="service-list">
+    </div>
+
+
+
+    <!-- =========================
+         PAYMENT SECTION
+         ========================= -->
+
+    <section id="paymentSection">
+
+
+        <h2>
+            انتخاب درگاه پرداخت
+        </h2>
+
+
+        <div
+            id="paymentInfo"
+            class="payment-info">
+        </div>
+
+
+
+        <div class="gateway-container">
+
+
+            <!-- =====================
+                 ASAN PARDAKHT
+                 ===================== -->
+
+            <button
+                type="button"
+                class="gateway-button"
+                id="asanGateway"
+                onclick="selectGateway('asan')">
+
+
+                <div class="gateway-logos">
+
+                    <img
+                        src="/payment/asan-logo.png"
+                        alt="آسان پرداخت">
+
+                    <img
+                        src="/payment/آپ.png"
+                        alt="آپ">
+
+                </div>
+
+
+                <div>
+                    آسان پرداخت
+                </div>
+
+
+                <div class="gateway-radio"></div>
+
+
+            </button>
+
+
+
+            <!-- =====================
+                 SADAD
+                 ===================== -->
+
+            <button
+                type="button"
+                class="gateway-button"
+                id="sadadGateway"
+                onclick="selectGateway('sadad')">
+
+
+                <div class="gateway-logos">
+
+                    <img
+                        src="/payment/sadad-logo.png"
+                        alt="سداد">
+
+                    <img
+                        src="/payment/سداد.png"
+                        alt="سداد">
+
+                </div>
+
+
+                <div>
+                    سداد
+                </div>
+
+
+                <div class="gateway-radio"></div>
+
+
+            </button>
+
+
+        </div>
+
+
+    </section>
+
+
+
+    <!-- BACK -->
+
+    <a
+        href="index.html"
+        class="back">
+
+        ← بازگشت به صفحه اصلی
+
+    </a>
+
+
+</div>
+
+</main>
+
+
+
+<script>
+
+
+/* =====================================================
+   SERVICE DEFINITIONS
+   ===================================================== */
+
+const services = {
+
+
+    /* =====================
+       SERVICE 1
+       ===================== */
+
+    1: {
+
+        title:
+            "صدور سند مالکیت المثنی و تبدیل اسناد",
+
+        code:
+            "duplicate",
+
+        items: [
+
+            {
+                title:
+                    "صدور سند مالکیت المثنی"
+            },
+
+            {
+                title:
+                    "تبدیل اسناد مالکیت دفترچه‌ای به حدنگار"
+            }
+
+        ]
+
+    },
+
+
+    /* =====================
+       SERVICE 2
+       ===================== */
+
+    2: {
+
+        title:
+            "تفکیک، تجمیع و افراز ملک",
+
+        code:
+            "partition",
+
+        items: [
+
+            {
+                title:
+                    "تفکیک عرصه"
+            },
+
+            {
+                title:
+                    "تفکیک آپارتمان"
+            },
+
+            {
+                title:
+                    "تجمیع املاک"
+            },
+
+            {
+                title:
+                    "افراز ملک مشاع"
+            }
+
+        ]
+
+    },
+
+
+    /* =====================
+       SERVICE 3
+       ===================== */
+
+    3: {
+
+        title:
+            "تغییر، تعیین حدود و اصلاح ملک",
+
+        code:
+            "correction",
+
+        items: [
+
+            {
+                title:
+                    "تغییر وضعیت املاک"
+            },
+
+            {
+                title:
+                    "تعیین حدود باقی‌مانده املاک"
+            },
+
+            {
+                title:
+                    "اصلاح ملک"
+            },
+
+            {
+                title:
+                    "اصلاح مندرجات اسناد مالکیت"
+            }
+
+        ]
+
+    },
+
+
+    /* =====================
+       SERVICE 4
+       ===================== */
+
+    4: {
+
+        title:
+            "صدور سند مالکیت حدنگار",
+
+        code:
+            "occupant",
+
+        items: [
+
+            {
+                title:
+                    "صدور سند مالکیت حدنگار برای متصرفان قانونی فاقد سند رسمی مالکیت بر اساس مقررات ثبت عمومی و سایر مقررات فوق‌العاده ثبتی"
+            }
+
+        ]
+
+    },
+
+
+    /* =====================
+       SERVICE 5
+       ===================== */
+
+    5: {
+
+        title:
+            "درج ادعای موضوع ماده ۱۰ قانون",
+
+        code:
+            "article10",
+
+        items: [
+
+            {
+                title:
+                    "درج ادعای موضوع ماده ۱۰ قانون الزام به ثبت رسمی معاملات اموال غیرمنقول"
+            }
+
+        ]
+
+    }
+
+};
+
+
+
+/* =====================================================
+   READ URL
+   ===================================================== */
+
+const params =
+    new URLSearchParams(
+        window.location.search
+    );
+
+
+const serviceId =
+    params.get("service");
+
+
+const data =
+    services[serviceId] || services[1];
+
+
+
+/* =====================================================
+   SHOW MAIN TITLE
+   ===================================================== */
+
+document.getElementById("title").textContent =
+    data.title;
+
+
+
+const container =
+    document.getElementById("services");
+
+
+
+/* =====================================================
+   PAYMENT STATE
+   ===================================================== */
+
+let selectedPayment = null;
+
+
+
+/* =====================================================
+   CREATE SERVICE ITEMS
+   ===================================================== */
+
+data.items.forEach(function(item) {
+
+
+    const div =
+        document.createElement("div");
+
+
+    div.className =
+        "service";
+
+
+    div.innerHTML = `
+
+        <div>
+
+            <strong>
+                ${escapeHtml(item.title)}
+            </strong>
+
+        </div>
+
+
+        <div class="price">
+
+            پرداخت آزمایشی ۵٬۰۰۰ تومان
+
+        </div>
+
+
+        <br>
+
+
+        <button
+            type="button"
+            class="pay"
+            onclick="preparePayment(
+                '${escapeForJs(item.title)}'
+            )">
+
+            پرداخت
+
+        </button>
+
+    `;
+
+
+    container.appendChild(div);
+
+});
+
+
+
+/* =====================================================
+   PREPARE PAYMENT
+   ===================================================== */
+
+function preparePayment(itemTitle) {
+
+
+    selectedPayment = {
+
+        /*
+         * این همان کدی است که order.php
+         * قبول می‌کند.
+         */
+
+        serviceCode:
+            data.code,
+
+
+        /*
+         * عنوان اصلی گروه خدمت
+         */
+
+        parentService:
+            data.title,
+
+
+        /*
+         * عنوان زیرخدمت انتخاب‌شده
+         */
+
+        service:
+            itemTitle
+
+    };
+
+
+
+    /* نمایش بخش پرداخت */
+
+    document.getElementById(
+        "paymentSection"
+    ).style.display = "block";
+
+
+
+    /* نمایش اطلاعات خدمت */
+
+    document.getElementById(
+        "paymentInfo"
+    ).innerHTML = `
+
+        <strong>
+            ${escapeHtml(itemTitle)}
+        </strong>
+
+        <br>
+
+        مبلغ قابل پرداخت:
+
+        <strong>
+            ۵٬۰۰۰ تومان
+        </strong>
+
+    `;
+
+
+
+    /* رفتن نرم به قسمت پرداخت */
+
+    document.getElementById(
+        "paymentSection"
+    ).scrollIntoView({
+
+        behavior: "smooth",
+
+        block: "start"
+
+    });
+
+
+
+    /* حذف انتخاب قبلی */
+
+    document.getElementById(
+        "asanGateway"
+    ).classList.remove(
+        "gateway-highlight"
+    );
+
+
+    document.getElementById(
+        "sadadGateway"
+    ).classList.remove(
+        "gateway-highlight"
+    );
+
+
+
+    /* انتخاب بصری آسان پرداخت */
+
+    setTimeout(function() {
+
+        document.getElementById(
+            "asanGateway"
+        ).classList.add(
+            "gateway-highlight"
+        );
+
+    }, 500);
+
+}
+
+
+
+/* =====================================================
+   SELECT GATEWAY
+   ===================================================== */
+
+function selectGateway(gateway) {
+
+
+    if (!selectedPayment) {
+
+        alert(
+            "ابتدا یک خدمت را برای پرداخت انتخاب کنید."
+        );
+
+        return;
+
+    }
+
+
+
+    /*
+     * ساخت فرم POST
+     */
+
+    const form =
+        document.createElement("form");
+
+
+    form.method =
+        "POST";
+
+
+    form.action =
+        "/payment/order.php";
+
+
+
+    /*
+     * بسیار مهم:
+     *
+     * اینجا کد معتبر ارسال می‌شود:
+     *
+     * duplicate
+     * partition
+     * correction
+     * occupant
+     * article10
+     */
+
+    addHiddenField(
+        form,
+        "service",
+        selectedPayment.serviceCode
+    );
+
+
+
+    /*
+     * توضیح سفارش
+     */
+
+    addHiddenField(
+        form,
+        "description",
+        selectedPayment.parentService +
+        " - " +
+        selectedPayment.service
+    );
+
+
+
+    /*
+     * درگاه انتخاب‌شده
+     */
+
+    addHiddenField(
+        form,
+        "gateway",
+        gateway
+    );
+
+
+
+    /*
+     * مبلغ عمداً از اینجا ارسال نمی‌شود.
+     *
+     * order.php خودش بر اساس serviceCode
+     * مبلغ صحیح را تعیین می‌کند.
+     */
+
+
+
+    /*
+     * ارسال فرم
+     */
+
+    document.body.appendChild(form);
+
+    form.submit();
+
+}
+
+
+
+/* =====================================================
+   ADD HIDDEN FIELD
+   ===================================================== */
+
+function addHiddenField(
+    form,
+    name,
+    value
+) {
+
+
+    const input =
+        document.createElement("input");
+
+
+    input.type =
+        "hidden";
+
+
+    input.name =
+        name;
+
+
+    input.value =
+        value;
+
+
+    form.appendChild(input);
+
+}
+
+
+
+/* =====================================================
+   ESCAPE HTML
+   ===================================================== */
+
+function escapeHtml(text) {
+
+    return text
+
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+
+        .replace(
+            /</g,
+            "&lt;"
+        )
+
+        .replace(
+            />/g,
+            "&gt;"
+        )
+
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+
+}
+
+
+
+/* =====================================================
+   ESCAPE JAVASCRIPT
+   ===================================================== */
+
+function escapeForJs(text) {
+
+    return text
+
+        .replace(
+            /\\/g,
+            "\\\\"
+        )
+
+        .replace(
+            /'/g,
+            "\\'"
+        )
+
+        .replace(
+            /\r/g,
+            ""
+        )
+
+        .replace(
+            /\n/g,
+            "\\n"
+        );
+
+}
+
+</script>
+
+
+</body>
+
+</html>
