@@ -1104,10 +1104,25 @@ body {
     position: relative;
 }
 
-#myMapsFrame {
+#myMapsWebGIS {
     width: 100%;
     height: 100%;
-    border: 0;
+    min-height: 520px;
+    background: #eef4f7;
+}
+#myMapsWebGIS .leaflet-container {
+    width: 100%;
+    height: 100%;
+    min-height: 520px;
+    font-family: "Vazirmatn", sans-serif !important;
+}
+#myMapsToolsColumn .dedicated-map-tools {
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 6px;
+}
+#myMapsToolsColumn .dedicated-map-tools button {
+    min-height: 34px;
 }
 
 
@@ -2026,19 +2041,22 @@ body.map-mode .map-section {
   </div>
 
   <div id="myMapsContainer" class="map-platform-host">
-    <iframe id="myMapsFrame" title="Google My Maps" src="https://www.google.com/maps/d/embed?mid=18GJ7jBoL2_MhwZpzE3sfbmIqwquXJwg&ehbc=2E312F" loading="lazy" allowfullscreen></iframe>
+    <div id="myMapsWebGIS"></div>
   </div>
   
 <div class="dedicated-map-panel" id="myMapsToolsColumn">
-  <div class="dedicated-map-title">Google My Maps — قابلیت‌های قابل‌کنترل</div>
+  <div class="dedicated-map-title">My Maps Web GIS — مرحله ۱: ترسیم</div>
   <div class="dedicated-map-tools">
-    <button type="button" onclick="sectionMyMapsOpen()">Open My Maps</button>
-    <button type="button" onclick="sectionMyMapsGoogleMaps()">Open in Google Maps</button>
-    <button type="button" onclick="sectionMyMapsShare()">Share</button>
-    <button type="button" onclick="sectionMyMapsCollaborate()">Collaborate</button>
-    <button type="button" onclick="sectionMyMapsEmbed()">Embed</button>
-    <button type="button" onclick="sectionMyMapsPrint()">Print</button>
-    <button type="button" onclick="sectionMyMapsExport()">Export KML/KMZ</button>
+    <button type="button" onclick="myMapsStartDraw('marker')">نقطه</button>
+    <button type="button" onclick="myMapsStartDraw('polyline')">خط</button>
+    <button type="button" onclick="myMapsStartDraw('polygon')">پلی‌گون</button>
+    <button type="button" onclick="myMapsStartDraw('rectangle')">مستطیل</button>
+    <button type="button" onclick="myMapsStartDraw('circle')">دایره</button>
+    <button type="button" onclick="myMapsEditDrawings()">ویرایش</button>
+    <button type="button" onclick="myMapsDeleteDrawings()">حذف</button>
+    <button type="button" onclick="myMapsUndo()">Undo</button>
+    <button type="button" onclick="myMapsRedo()">Redo</button>
+    <button type="button" onclick="myMapsClearDrawings()">پاک کردن همه</button>
   </div>
 </div>
 
@@ -2148,14 +2166,14 @@ body.map-mode .map-section {
  ["Marker","AdvancedMarker","CustomMarker","Polyline","Polygon","Circle","Rectangle","GroundOverlay","CustomOverlay","InfoWindow","DataLayer","GeoJSON","KML","GeoRSS","Traffic","Transit","Bicycling","Heatmap","OverlayTypes","ImageTypes","Places","Autocomplete","PlaceDetails","PlaceSearch","NearbySearch","Geocoding","ReverseGeocoding","Routes","Directions","DistanceMatrix","Elevation","StreetView","StreetViewMetadata","MaximumZoom","WebGL","3D","FeatureLayer","DDS","Boundaries","Geometry","Geolocation"].forEach(n=>window["sectionGoogle"+n]=()=>sectionMapStatus("این قابلیت Google Maps API در ستون اختصاصی قرار گرفت؛ برای اجرای واقعی باید library/service مربوطه و مجوز آن فعال باشد."));
  window.sectionGoogleReset=()=>googleMap&&googleMap.setOptions({center:{lat:37.1395,lng:45.9486},zoom:12,tilt:0,heading:0});
 
- /* My Maps: no fake API; only navigation to the real product/embed. */
+ /* My Maps Web GIS: local map actions. Google My Maps remains available separately. */
  window.sectionMyMapsOpen=()=>window.open("https://www.google.com/mymaps","_blank","noopener");
  window.sectionMyMapsGoogleMaps=()=>window.open("https://www.google.com/maps","_blank","noopener");
- window.sectionMyMapsShare=()=>sectionMapStatus("اشتراک‌گذاری My Maps باید از خود Google My Maps انجام شود.");
- window.sectionMyMapsCollaborate=()=>sectionMapStatus("همکاری/ویرایش My Maps باید از خود Google My Maps انجام شود.");
- window.sectionMyMapsEmbed=()=>sectionMapStatus("Embed همین نقشه در iframe موجود است.");
+ window.sectionMyMapsShare=()=>sectionMapStatus("اشتراک‌گذاری پروژه در مرحله ذخیره‌سازی اضافه می‌شود.");
+ window.sectionMyMapsCollaborate=()=>sectionMapStatus("همکاری آنلاین در مرحله ذخیره‌سازی/اشتراک‌گذاری اضافه می‌شود.");
+ window.sectionMyMapsEmbed=()=>sectionMapStatus("My Maps سایت اکنون نقشه Web GIS اختصاصی دارد.");
  window.sectionMyMapsPrint=()=>window.print();
- window.sectionMyMapsExport=()=>sectionMapStatus("Export KML/KMZ از داخل My Maps انجام می‌شود.");
+ window.sectionMyMapsExport=()=>sectionMapStatus("خروجی KML/KMZ در مرحله Import/Export اضافه می‌شود.");
 
  /* expose platform switching for the existing openMap() flow */
  window.addEventListener("dedicated-map-switch",e=>active(e.detail));
@@ -3591,12 +3609,178 @@ const MY_MAPS_URL =
     "https://www.google.com/maps/d/u/0/embed?mid=18GJ7jBoL2_MhwZpzE3sfbmIqwquXJwg&ehbc=2E312F&noprof=1";
 
 
+let myMapsWebGISMap = null;
+let myMapsDrawControl = null;
+let myMapsDrawItems = null;
+let myMapsUndoStack = [];
+let myMapsRedoStack = [];
+let myMapsRestoring = false;
+
+function myMapsSnapshot() {
+    if (!myMapsDrawItems) return null;
+    try {
+        return JSON.stringify(myMapsDrawItems.toGeoJSON());
+    } catch (e) {
+        return null;
+    }
+}
+
+function myMapsRestoreSnapshot(snapshot) {
+    if (!myMapsDrawItems || !snapshot) return;
+    myMapsRestoring = true;
+    myMapsDrawItems.clearLayers();
+    try {
+        const fc = JSON.parse(snapshot);
+        L.geoJSON(fc, {
+            onEachFeature: function(feature, layer) {
+                myMapsDrawItems.addLayer(layer);
+            }
+        });
+    } catch (e) {
+        console.error("My Maps restore:", e);
+    }
+    myMapsRestoring = false;
+}
+
+function myMapsRecordHistory() {
+    if (myMapsRestoring || !myMapsDrawItems) return;
+    const snap = myMapsSnapshot();
+    if (snap === null) return;
+    const last = myMapsUndoStack[myMapsUndoStack.length - 1];
+    if (last !== snap) myMapsUndoStack.push(snap);
+    if (myMapsUndoStack.length > 50) myMapsUndoStack.shift();
+    myMapsRedoStack = [];
+}
+
+function createMyMapsWebGIS() {
+    if (myMapsWebGISMap || typeof L === "undefined") {
+        if (myMapsWebGISMap) setTimeout(function(){ myMapsWebGISMap.invalidateSize(); }, 80);
+        return;
+    }
+
+    const host = document.getElementById("myMapsWebGIS");
+    if (!host) return;
+
+    myMapsWebGISMap = L.map("myMapsWebGIS", {
+        center: [37.1395, 45.9486],
+        zoom: 12,
+        zoomControl: true,
+        attributionControl: true
+    });
+
+    L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+            maxZoom: 20,
+            attribution: "&copy; OpenStreetMap contributors"
+        }
+    ).addTo(myMapsWebGISMap);
+
+    myMapsDrawItems = new L.FeatureGroup().addTo(myMapsWebGISMap);
+
+    if (L.Control && L.Control.Draw) {
+        myMapsDrawControl = new L.Control.Draw({
+            position: "topleft",
+            draw: {
+                polyline: { shapeOptions: { color: "#146c43", weight: 4 } },
+                polygon: { allowIntersection: false, showArea: true, shapeOptions: { color: "#146c43", fillOpacity: 0.22 } },
+                rectangle: { shapeOptions: { color: "#146c43", fillOpacity: 0.18 } },
+                circle: { shapeOptions: { color: "#146c43", fillOpacity: 0.18 } },
+                marker: true,
+                circlemarker: false
+            },
+            edit: {
+                featureGroup: myMapsDrawItems,
+                remove: true
+            }
+        });
+        myMapsWebGISMap.addControl(myMapsDrawControl);
+    }
+
+    myMapsWebGISMap.on("draw:created", function(e) {
+        myMapsDrawItems.addLayer(e.layer);
+        myMapsRecordHistory();
+        sectionMapStatus("عارضه جدید به My Maps اضافه شد.");
+    });
+
+    myMapsWebGISMap.on("draw:edited", function() {
+        myMapsRecordHistory();
+        sectionMapStatus("ترسیمات ویرایش شد.");
+    });
+
+    myMapsWebGISMap.on("draw:deleted", function() {
+        myMapsRecordHistory();
+        sectionMapStatus("عارضه حذف شد.");
+    });
+
+    myMapsUndoStack = [];
+    myMapsRedoStack = [];
+    myMapsRecordHistory();
+}
+
+function myMapsStartDraw(type) {
+    createMyMapsWebGIS();
+    if (!myMapsDrawControl) return;
+    const handlers = {
+        marker: L.Draw.Marker,
+        polyline: L.Draw.Polyline,
+        polygon: L.Draw.Polygon,
+        rectangle: L.Draw.Rectangle,
+        circle: L.Draw.Circle
+    };
+    const Handler = handlers[type];
+    if (!Handler) return;
+    new Handler(myMapsWebGISMap, myMapsDrawControl.options.draw[type] || {}).enable();
+}
+
+function myMapsEditDrawings() {
+    createMyMapsWebGIS();
+    if (!myMapsDrawItems || !L.EditToolbar.Edit) return;
+    new L.EditToolbar.Edit(myMapsWebGISMap, { featureGroup: myMapsDrawItems }).enable();
+}
+
+function myMapsDeleteDrawings() {
+    createMyMapsWebGIS();
+    if (!myMapsDrawItems || !L.EditToolbar.Delete) return;
+    new L.EditToolbar.Delete(myMapsWebGISMap, { featureGroup: myMapsDrawItems }).enable();
+}
+
+function myMapsUndo() {
+    if (myMapsUndoStack.length <= 1) {
+        sectionMapStatus("عملی برای Undo وجود ندارد.");
+        return;
+    }
+    const current = myMapsUndoStack.pop();
+    myMapsRedoStack.push(current);
+    const previous = myMapsUndoStack[myMapsUndoStack.length - 1];
+    myMapsRestoreSnapshot(previous);
+    sectionMapStatus("آخرین عملیات برگشت داده شد.");
+}
+
+function myMapsRedo() {
+    if (!myMapsRedoStack.length) {
+        sectionMapStatus("عملی برای Redo وجود ندارد.");
+        return;
+    }
+    const next = myMapsRedoStack.pop();
+    myMapsUndoStack.push(next);
+    myMapsRestoreSnapshot(next);
+    sectionMapStatus("عملیات دوباره اعمال شد.");
+}
+
+function myMapsClearDrawings() {
+    createMyMapsWebGIS();
+    if (!myMapsDrawItems || myMapsDrawItems.getLayers().length === 0) return;
+    myMapsDrawItems.clearLayers();
+    myMapsRecordHistory();
+    sectionMapStatus("تمام ترسیمات My Maps پاک شد.");
+}
+
 function openMyMaps() {
-
-    document.getElementById(
-        "myMapsFrame"
-    ).src = MY_MAPS_URL;
-
+    createMyMapsWebGIS();
+    setTimeout(function() {
+        if (myMapsWebGISMap) myMapsWebGISMap.invalidateSize();
+    }, 120);
 }
 
 
