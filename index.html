@@ -1159,6 +1159,23 @@ body.map-mode .container {
 
 body.map-mode .map-section {
     display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: var(--sidebar-width);
+    bottom: 0;
+    width: auto;
+    height: 100vh;
+    margin: 0;
+    z-index: 900;
+}
+
+body.map-mode .map-wrapper {
+    width: 100%;
+    height: 100vh;
+    min-height: 0;
+    border-radius: 0;
+    border: 0;
 }
 
 
