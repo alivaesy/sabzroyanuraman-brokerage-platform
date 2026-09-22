@@ -1141,6 +1141,7 @@ body {
 .my-maps-info-key{font-weight:800}
 .my-maps-info-value{direction:ltr;text-align:left}
 .my-maps-gis-status{margin-top:6px;padding:5px 7px;border-radius:6px;background:#eef7f3;color:#07573e;font-size:10px}
+.my-maps-selection-row{margin-top:5px;font-size:10px;color:#48627b}
 #myMapsToolsColumn .dedicated-map-tools button {
     min-height: 34px;
 }
@@ -2087,11 +2088,16 @@ body.map-mode .map-section {
     <button type="button" onclick="myMapsCentroid()">مرکز</button>
     <button type="button" onclick="myMapsBBox()">BBox</button>
     <button type="button" onclick="myMapsIntersectMode()">Intersect</button>
+    <button type="button" onclick="myMapsEditAttributes()">اطلاعات</button>
+    <button type="button" onclick="myMapsSelectMode()">انتخاب چندتایی</button>
+    <button type="button" onclick="myMapsClearSelection()">لغو انتخاب</button>
+    <button type="button" onclick="myMapsSelectionSummary()">محاسبه انتخاب</button>
   </div>
   <div class="my-maps-info-box">
     <div class="my-maps-info-title">اطلاعات و محاسبات عارضه</div>
     <div id="myMapsInfoBox">روی یک عارضه کلیک کنید.</div>
     <div id="myMapsGisStatus" class="my-maps-gis-status">ابزارهای GIS آماده‌اند.</div>
+    <div id="myMapsSelectionInfo" class="my-maps-selection-row">انتخاب: 0 عارضه</div>
   </div>
   <div class="my-maps-layer-box">
     <div class="my-maps-layer-head">لایه‌ها</div>
@@ -3873,6 +3879,86 @@ function myMapsInitImport() {
     });
 }
 
+let myMapsSelectionMode = false;
+let myMapsSelectedFeatures = [];
+
+function myMapsFeatureProperties(layer) {
+    if(!layer) return {};
+    if(!layer.feature) layer.feature={type:"Feature",properties:{}};
+    if(!layer.feature.properties) layer.feature.properties={};
+    return layer.feature.properties;
+}
+
+function myMapsEditAttributes() {
+    const layer=myMapsSelectedFeatures[0];
+    if(!layer){myMapsSetGisStatus("ابتدا یک عارضه را انتخاب کنید.");return;}
+    const p=myMapsFeatureProperties(layer);
+    const name=prompt("نام عارضه:",p.name||"");
+    if(name!==null)p.name=name;
+    const owner=prompt("نام مالک:",p.owner||"");
+    if(owner!==null)p.owner=owner;
+    const parcel=prompt("شماره پلاک/قطعه:",p.parcel||"");
+    if(parcel!==null)p.parcel=parcel;
+    const landuse=prompt("کاربری:",p.landuse||"");
+    if(landuse!==null)p.landuse=landuse;
+    const desc=prompt("توضیحات:",p.description||"");
+    if(desc!==null)p.description=desc;
+    myMapsShowMeasurement(layer);
+    myMapsRecordHistory();
+    myMapsSetGisStatus("اطلاعات عارضه ذخیره شد.");
+}
+
+function myMapsSelectMode() {
+    myMapsSelectionMode=true;
+    myMapsSpatialMode="";
+    myMapsSetGisStatus("برای انتخاب چندتایی روی عوارض کلیک کنید.");
+}
+
+function myMapsClearSelection() {
+    myMapsSelectedFeatures.forEach(function(layer){
+        if(layer.setStyle)try{layer.setStyle({weight:4});}catch(e){}
+        if(layer.setOpacity)try{layer.setOpacity(1);}catch(e){}
+    });
+    myMapsSelectedFeatures=[];
+    myMapsSelectionMode=false;
+    myMapsUpdateSelectionInfo();
+    myMapsSetGisStatus("انتخاب پاک شد.");
+}
+
+function myMapsUpdateSelectionInfo() {
+    const e=document.getElementById("myMapsSelectionInfo");
+    if(e)e.textContent="انتخاب: "+myMapsSelectedFeatures.length+" عارضه";
+}
+
+function myMapsToggleSelection(layer) {
+    const i=myMapsSelectedFeatures.indexOf(layer);
+    if(i>=0){
+        myMapsSelectedFeatures.splice(i,1);
+        if(layer.setStyle)try{layer.setStyle({weight:4});}catch(e){}
+        if(layer.setOpacity)try{layer.setOpacity(1);}catch(e){}
+    }else{
+        myMapsSelectedFeatures.push(layer);
+        if(layer.setStyle)try{layer.setStyle({weight:6});}catch(e){}
+        if(layer.setOpacity)try{layer.setOpacity(.9);}catch(e){}
+    }
+    myMapsUpdateSelectionInfo();
+}
+
+function myMapsSelectionSummary() {
+    if(!myMapsSelectedFeatures.length){myMapsSetGisStatus("هیچ عارضه‌ای انتخاب نشده است.");return;}
+    let length=0,area=0,count=0;
+    myMapsSelectedFeatures.forEach(function(layer){
+        const d=myMapsFeatureMeasurement(layer); if(!d)return;
+        count++;
+        if(d.length!=null)length+=d.length;
+        if(d.area!=null)area+=d.area;
+    });
+    let msg="تعداد: "+count;
+    if(length)msg+=" | مجموع طول: "+myMapsFormatMeters(length);
+    if(area)msg+=" | مجموع مساحت: "+(area/10000).toLocaleString("en-US",{maximumFractionDigits:4})+" ha";
+    myMapsSetGisStatus(msg);
+}
+
 let myMapsSpatialMode = "";
 let myMapsSpatialSelection = [];
 
@@ -4060,6 +4146,10 @@ function myMapsShowMeasurement(layer) {
         html+='<div class="my-maps-info-row"><span class="my-maps-info-key">Lat</span><span class="my-maps-info-value">'+d.center.lat.toFixed(6)+'</span></div>';
         html+='<div class="my-maps-info-row"><span class="my-maps-info-key">Lon</span><span class="my-maps-info-value">'+d.center.lng.toFixed(6)+'</span></div>';
     }
+    const p=layer.feature&&layer.feature.properties||{};
+    ["name","owner","parcel","landuse","description"].forEach(function(k){
+        if(p[k]) html+='<div class="my-maps-info-row"><span class="my-maps-info-key">'+({name:"نام",owner:"مالک",parcel:"پلاک/قطعه",landuse:"کاربری",description:"توضیحات"}[k])+'</span><span>'+String(p[k]).replace(/[&<>"]/g,"")+'</span></div>';
+    });
     if(d.utm) {
         html+='<div class="my-maps-info-row"><span class="my-maps-info-key">UTM Zone</span><span class="my-maps-info-value">'+d.utm.zone+d.utm.hemisphere+'</span></div>';
         html+='<div class="my-maps-info-row"><span class="my-maps-info-key">Easting</span><span class="my-maps-info-value">'+d.utm.easting.toFixed(2)+'</span></div>';
@@ -4259,6 +4349,11 @@ function createMyMapsWebGIS() {
             e.layer.__myMapsInfoBound = true;
             e.layer.on("click", function(ev) {
                 if (ev && ev.originalEvent) L.DomEvent.stopPropagation(ev);
+                if (myMapsSelectionMode) {
+                    myMapsToggleSelection(e.layer);
+                    myMapsShowMeasurement(e.layer);
+                    return;
+                }
                 if (myMapsSpatialMode) {
                     myMapsSpatialSelection.push(e.layer);
                     if (myMapsSpatialMode === "intersect" && myMapsSpatialSelection.length === 2) {
