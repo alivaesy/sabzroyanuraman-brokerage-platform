@@ -7798,7 +7798,7 @@ async function mdRunRouting(){
  if(!mdRouteStart||!mdRouteEnd){mdRouteStatus("هر دو نقطه شروع و پایان را انتخاب کنید.");return;}
  mdRouteStatus("در حال محاسبه مسیر...");
  try{
-   const u="/api/routing.php?start="+encodeURIComponent(mdRouteStart.lng+","+mdRouteStart.lat)+"&end="+encodeURIComponent(mdRouteEnd.lng+","+mdRouteEnd.lat);
+   const u="https://router.project-osrm.org/route/v1/driving/"+encodeURIComponent(mdRouteStart.lng+","+mdRouteStart.lat)+";"+encodeURIComponent(mdRouteEnd.lng+","+mdRouteEnd.lat)+"?overview=full&geometries=geojson";
    const res=await fetch(u); if(!res.ok)throw new Error("HTTP "+res.status);
    const data=await res.json(); if(data.code!=="Ok"||!data.routes.length)throw new Error("مسیر پیدا نشد");
    const route=data.routes[0], geo=route.geometry;
@@ -7839,7 +7839,7 @@ async function mdShowElevation(coords,totalDistance){
  ep.classList.add("open"); svg.innerHTML="";
  try{
    const locs=coords.map(c=>c[1]+","+c[0]).join("|");
-   const u="/api/elevation.php?locations="+encodeURIComponent(locs);
+   const u="https://api.open-elevation.com/api/v1/lookup?locations="+encodeURIComponent(locs);
    const res=await fetch(u); if(!res.ok)throw new Error("HTTP "+res.status);
    const data=await res.json(); const elev=(data.results||[]).map(x=>Number(x.elevation)||0);
    if(!elev.length)throw new Error("ارتفاعی دریافت نشد");
