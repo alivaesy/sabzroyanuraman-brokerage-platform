@@ -2627,21 +2627,21 @@ function leafletMeasure(layer){
     return null;
 }
 function hookLeaflet(){
-    if(!window.leafletMap||window.leafletMap.__measureFixed)return;
-    window.leafletMap.__measureFixed=true;
-    window.leafletMap.on("draw:created",e=>{const d=leafletMeasure(e.layer);if(d)render("leafletMeasurementPanel",d)});
-    window.leafletMap.on("draw:edited",e=>e.layers.eachLayer(l=>{const d=leafletMeasure(l);if(d)render("leafletMeasurementPanel",d)}));
+    if(!leafletMap||leafletMap.__measureFixed)return;
+    leafletMap.__measureFixed=true;
+    leafletMap.on("draw:created",e=>{const d=leafletMeasure(e.layer);if(d)render("leafletMeasurementPanel",d)});
+    leafletMap.on("draw:edited",e=>e.layers.eachLayer(l=>{const d=leafletMeasure(l);if(d)render("leafletMeasurementPanel",d)}));
 }
 
 /* MAPBOX */
 function hookMapbox(){
-    if(!window.mapboxMap||window.mapboxMap.__measureFixed)return;
-    window.mapboxMap.__measureFixed=true;
-    ["draw.create","draw.update","draw.selectionchange"].forEach(ev=>window.mapboxMap.on(ev,e=>{
+    if(!mapboxMap||mapboxMap.__measureFixed)return;
+    mapboxMap.__measureFixed=true;
+    ["draw.create","draw.update","draw.selectionchange"].forEach(ev=>mapboxMap.on(ev,e=>{
         let f=e&&e.features&&e.features[0];
-        if(!f&&window.mapboxDraw){
-            const ids=window.mapboxDraw.getSelectedIds();
-            if(ids.length)f=window.mapboxDraw.get(ids[ids.length-1]);
+        if(!f&&mapboxDraw){
+            const ids=mapboxDraw.getSelectedIds();
+            if(ids.length)f=mapboxDraw.get(ids[ids.length-1]);
         }
         const d=f&&geo(f.geometry);
         if(d)render("mapboxMeasurementPanel",d);
@@ -2674,18 +2674,18 @@ function googleMeasure(o){
     return null;
 }
 function hookGoogle(){
-    if(!window.googleMap||window.googleMap.__measureFixed)return;
-    window.googleMap.__measureFixed=true;
+    if(!googleMap||googleMap.__measureFixed)return;
+    googleMap.__measureFixed=true;
     const names=["sectionGooglePolyline","sectionGooglePolygon","sectionGoogleCircle","sectionGoogleRectangle"];
     names.forEach(name=>{
         const old=window[name];
         if(typeof old!=="function"||old.__measureWrapped)return;
         const fn=function(){
-            const before=window.googleObjects.length;
+            const before=googleObjects.length;
             const out=old.apply(this,arguments);
             setTimeout(()=>{
-                if(window.googleObjects.length>before){
-                    const d=googleMeasure(window.googleObjects[window.googleObjects.length-1]);
+                if(googleObjects.length>before){
+                    const d=googleMeasure(googleObjects[googleObjects.length-1]);
                     if(d)render("googleMeasurementPanel",d);
                 }
             },50);
@@ -2711,12 +2711,12 @@ function azureGeo(shape){
     return null;
 }
 function hookAzure(){
-    if(!window.azureMap||window.azureMap.__measureFixed)return;
-    window.azureMap.__measureFixed=true;
-    if(window.azureDrawingManager&&window.azureDrawingManager.events&&window.azureDrawingManager.events.add){
+    if(!azureMap||azureMap.__measureFixed)return;
+    azureMap.__measureFixed=true;
+    if(azureDrawingManager&&azureDrawingManager.events&&azureDrawingManager.events.add){
         ["drawingcomplete","drawingchanged"].forEach(ev=>{
             try{
-                window.azureDrawingManager.events.add(ev,e=>{
+                azureDrawingManager.events.add(ev,e=>{
                     const s=e&&e.shapes||[];
                     if(s.length){
                         const g=azureGeo(s[s.length-1]),d=geo(g);
@@ -2740,23 +2740,25 @@ function showPanel(type){
     if(type==="mapbox")hookMapbox();
 }
 
-const oldOpenMap=window.openMap;
-if(typeof oldOpenMap==="function"&&!oldOpenMap.__measureOpenWrapped){
+const oldOpenMap=typeof openMap==="function"?openMap:null;
+if(oldOpenMap&&!oldOpenMap.__measureOpenWrapped){
     const fn=function(type){
         const r=oldOpenMap.apply(this,arguments);
-        setTimeout(()=>showPanel(type),400);
+        setTimeout(()=>showPanel(type),150);
         return r;
     };
     fn.__measureOpenWrapped=true;
-    window.openMap=fn;
+    openMap=fn;
 }
 
-setInterval(()=>{
-    if(window.leafletMap)hookLeaflet();
-    if(window.mapboxMap)hookMapbox();
-    if(window.googleMap)hookGoogle();
-    if(window.azureMap)hookAzure();
-},1000);
+function measureBindAll(){
+    try{if(typeof leafletMap!=="undefined"&&leafletMap)hookLeaflet()}catch(e){}
+    try{if(typeof mapboxMap!=="undefined"&&mapboxMap)hookMapbox()}catch(e){}
+    try{if(typeof googleMap!=="undefined"&&googleMap)hookGoogle()}catch(e){}
+    try{if(typeof azureMap!=="undefined"&&azureMap)hookAzure()}catch(e){}
+}
+measureBindAll();
+setInterval(measureBindAll,250);
 
 })();
 </section>
