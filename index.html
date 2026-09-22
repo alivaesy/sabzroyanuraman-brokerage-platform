@@ -1132,6 +1132,14 @@ body {
 .my-maps-layer-row input[type=checkbox]{accent-color:#146c43}
 .my-maps-layer-actions{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px}
 .my-maps-layer-actions button{border:1px solid #c8d7d1;background:#fff;border-radius:6px;padding:5px;cursor:pointer;font-family:inherit;font-size:10px}
+.my-maps-info-box{
+    margin-top:8px;padding:8px;border:1px solid #d6e5de;border-radius:9px;background:#fff;
+    color:#29465f;font-size:10px;line-height:1.9;max-height:190px;overflow:auto;
+}
+.my-maps-info-title{font-size:11px;font-weight:800;color:#07573e;margin-bottom:4px}
+.my-maps-info-row{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid #edf2f5;padding:2px 0}
+.my-maps-info-key{font-weight:800}
+.my-maps-info-value{direction:ltr;text-align:left}
 #myMapsToolsColumn .dedicated-map-tools button {
     min-height: 34px;
 }
@@ -2068,6 +2076,10 @@ body.map-mode .map-section {
     <button type="button" onclick="myMapsUndo()">Undo</button>
     <button type="button" onclick="myMapsRedo()">Redo</button>
     <button type="button" onclick="myMapsClearDrawings()">پاک کردن همه</button>
+  </div>
+  <div class="my-maps-info-box">
+    <div class="my-maps-info-title">اطلاعات و محاسبات عارضه</div>
+    <div id="myMapsInfoBox">روی یک عارضه کلیک کنید.</div>
   </div>
   <div class="my-maps-layer-box">
     <div class="my-maps-layer-head">لایه‌ها</div>
@@ -3640,6 +3652,108 @@ let myMapsLayers = {};
 let myMapsCurrentLayer = "ترسیمات";
 let myMapsLayerId = 0;
 
+function myMapsDistance(a, b) {
+    const R = 6371008.8, d = Math.PI / 180;
+    const lat1 = a.lat * d, lat2 = b.lat * d;
+    const dLat = (b.lat - a.lat) * d, dLon = (b.lng - a.lng) * d;
+    const h = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+function myMapsLineLength(latlngs) {
+    let total = 0;
+    for (let i=1;i<latlngs.length;i++) total += myMapsDistance(latlngs[i-1],latlngs[i]);
+    return total;
+}
+
+function myMapsPolygonArea(latlngs) {
+    if (!latlngs || latlngs.length < 3) return 0;
+    const R = 6371008.8, d = Math.PI / 180;
+    let area = 0;
+    for (let i=0;i<latlngs.length;i++) {
+        const p1 = latlngs[i], p2 = latlngs[(i+1)%latlngs.length];
+        area += (p2.lng-p1.lng)*d * (2 + Math.sin(p1.lat*d) + Math.sin(p2.lat*d));
+    }
+    return Math.abs(area * R * R / 2);
+}
+
+function myMapsUtm(lat, lon) {
+    const a=6378137, eccSquared=0.00669438, k0=0.9996;
+    const eccPrimeSquared=eccSquared/(1-eccSquared);
+    const latRad=lat*Math.PI/180, lonRad=lon*Math.PI/180;
+    const zone=Math.floor((lon+180)/6)+1;
+    const lonOrigin=(zone-1)*6-180+3, lonOriginRad=lonOrigin*Math.PI/180;
+    const N=a/Math.sqrt(1-eccSquared*Math.sin(latRad)**2);
+    const T=Math.tan(latRad)**2;
+    const C=eccPrimeSquared*Math.cos(latRad)**2;
+    const A=Math.cos(latRad)*(lonRad-lonOriginRad);
+    const M=a*((1-eccSquared/4-3*eccSquared**2/64-5*eccSquared**3/256)*latRad
+        -(3*eccSquared/8+3*eccSquared**2/32+45*eccSquared**3/1024)*Math.sin(2*latRad)
+        +(15*eccSquared**2/256+45*eccSquared**3/1024)*Math.sin(4*latRad)
+        -(35*eccSquared**3/3072)*Math.sin(6*latRad));
+    let easting=k0*N*(A+(1-T+C)*A**3/6+(5-18*T+T*T+72*C-58*eccPrimeSquared)*A**5/120)+500000;
+    let northing=k0*(M+N*Math.tan(latRad)*(A*A/2+(5-T+9*C+4*C*C)*A**4/24+(61-58*T+T*T+600*C-330*eccPrimeSquared)*A**6/720));
+    let hemisphere=lat<0?"S":"N";
+    if(lat<0) northing+=10000000;
+    return {zone:zone,hemisphere:hemisphere,easting:easting,northing:northing};
+}
+
+function myMapsFormatMeters(v) {
+    return Number(v).toLocaleString("en-US",{maximumFractionDigits:2}) + " m";
+}
+
+function myMapsFeatureMeasurement(layer) {
+    if (!layer) return null;
+    if (layer instanceof L.Circle) {
+        const c=layer.getLatLng(), r=layer.getRadius();
+        const u=myMapsUtm(c.lat,c.lng);
+        return {type:"دایره",center:c,radius:r,area:Math.PI*r*r,perimeter:2*Math.PI*r,utm:u};
+    }
+    if (layer instanceof L.Marker || layer instanceof L.CircleMarker) {
+        const c=layer.getLatLng(), u=myMapsUtm(c.lat,c.lng);
+        return {type:"نقطه",center:c,utm:u};
+    }
+    if (layer instanceof L.Rectangle) {
+        const b=layer.getBounds();
+        const pts=[b.getSouthWest(),L.latLng(b.getSouthWest().lat,b.getNorthEast().lng),b.getNorthEast(),L.latLng(b.getNorthEast().lat,b.getSouthWest().lng)];
+        return {type:"مستطیل",center:b.getCenter(),area:myMapsPolygonArea(pts),perimeter:myMapsLineLength(pts.concat([pts[0]])),utm:myMapsUtm(b.getCenter().lat,b.getCenter().lng)};
+    }
+    if (layer instanceof L.Polygon) {
+        const raw=layer.getLatLngs();
+        const ring=Array.isArray(raw[0])?raw[0]:raw;
+        return {type:"پلی‌گون",center:layer.getBounds().getCenter(),area:myMapsPolygonArea(ring),perimeter:myMapsLineLength(ring.concat([ring[0]])),utm:myMapsUtm(layer.getBounds().getCenter().lat,layer.getBounds().getCenter().lng)};
+    }
+    if (layer instanceof L.Polyline) {
+        const pts=layer.getLatLngs();
+        return {type:"خط",center:layer.getBounds().getCenter(),length:myMapsLineLength(pts),utm:myMapsUtm(layer.getBounds().getCenter().lat,layer.getBounds().getCenter().lng)};
+    }
+    return null;
+}
+
+function myMapsShowMeasurement(layer) {
+    const box=document.getElementById("myMapsInfoBox");
+    if(!box)return;
+    const d=myMapsFeatureMeasurement(layer);
+    if(!d){box.textContent="اطلاعات عارضه قابل محاسبه نیست.";return;}
+    let html="";
+    html+='<div class="my-maps-info-row"><span class="my-maps-info-key">نوع</span><span>'+d.type+'</span></div>';
+    if(d.length!=null) html+='<div class="my-maps-info-row"><span class="my-maps-info-key">طول</span><span class="my-maps-info-value">'+myMapsFormatMeters(d.length)+'</span></div>';
+    if(d.area!=null) html+='<div class="my-maps-info-row"><span class="my-maps-info-key">مساحت</span><span class="my-maps-info-value">'+myMapsFormatMeters(d.area)+'</span></div>';
+    if(d.area!=null) html+='<div class="my-maps-info-row"><span class="my-maps-info-key">هکتار</span><span class="my-maps-info-value">'+(d.area/10000).toLocaleString("en-US",{maximumFractionDigits:4})+' ha</span></div>';
+    if(d.perimeter!=null) html+='<div class="my-maps-info-row"><span class="my-maps-info-key">محیط</span><span class="my-maps-info-value">'+myMapsFormatMeters(d.perimeter)+'</span></div>';
+    if(d.radius!=null) html+='<div class="my-maps-info-row"><span class="my-maps-info-key">شعاع</span><span class="my-maps-info-value">'+myMapsFormatMeters(d.radius)+'</span></div>';
+    if(d.center) {
+        html+='<div class="my-maps-info-row"><span class="my-maps-info-key">Lat</span><span class="my-maps-info-value">'+d.center.lat.toFixed(6)+'</span></div>';
+        html+='<div class="my-maps-info-row"><span class="my-maps-info-key">Lon</span><span class="my-maps-info-value">'+d.center.lng.toFixed(6)+'</span></div>';
+    }
+    if(d.utm) {
+        html+='<div class="my-maps-info-row"><span class="my-maps-info-key">UTM Zone</span><span class="my-maps-info-value">'+d.utm.zone+d.utm.hemisphere+'</span></div>';
+        html+='<div class="my-maps-info-row"><span class="my-maps-info-key">Easting</span><span class="my-maps-info-value">'+d.utm.easting.toFixed(2)+'</span></div>';
+        html+='<div class="my-maps-info-row"><span class="my-maps-info-key">Northing</span><span class="my-maps-info-value">'+d.utm.northing.toFixed(2)+'</span></div>';
+    }
+    box.innerHTML=html;
+}
+
 function myMapsEnsureLayer(name) {
     if (!myMapsWebGISMap) return null;
     if (myMapsLayers[name]) return myMapsLayers[name];
@@ -3822,6 +3936,20 @@ function createMyMapsWebGIS() {
         myMapsWebGISMap.addControl(myMapsDrawControl);
     }
 
+    myMapsWebGISMap.on("click", function(e) {
+        if (e.originalEvent && e.originalEvent.defaultPrevented) return;
+    });
+
+    myMapsWebGISMap.on("layeradd", function(e) {
+        if (e.layer && e.layer.on && !e.layer.__myMapsInfoBound) {
+            e.layer.__myMapsInfoBound = true;
+            e.layer.on("click", function(ev) {
+                if (ev && ev.originalEvent) L.DomEvent.stopPropagation(ev);
+                myMapsShowMeasurement(e.layer);
+            });
+        }
+    });
+
     myMapsWebGISMap.on("draw:created", function(e) {
         const group = myMapsEnsureLayer(myMapsCurrentLayer);
         if (e.layer.feature) e.layer.feature.properties = e.layer.feature.properties || {};
@@ -3829,6 +3957,13 @@ function createMyMapsWebGIS() {
         e.layer.feature.properties.__myMapsLayer = myMapsCurrentLayer;
         group.addLayer(e.layer);
         myMapsDrawItems.addLayer(e.layer);
+        if (e.layer && e.layer.on && !e.layer.__myMapsInfoBound) {
+            e.layer.__myMapsInfoBound = true;
+            e.layer.on("click", function(ev) {
+                if (ev && ev.originalEvent) L.DomEvent.stopPropagation(ev);
+                myMapsShowMeasurement(e.layer);
+            });
+        }
         myMapsRecordHistory();
         myMapsRefreshLayerPanel();
         sectionMapStatus("عارضه جدید به لایه «" + myMapsCurrentLayer + "» اضافه شد.");
