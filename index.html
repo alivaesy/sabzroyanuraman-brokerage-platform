@@ -1707,10 +1707,13 @@ body.map-mode .map-section {
 .map-platform-host.active{display:block}
 .dedicated-map-panel{
  display:none;
- position:absolute;top:10px;right:58px;z-index:999;width:285px;max-height:calc(100% - 20px);
+ position:absolute;top:10px;right:58px;z-index:1400;width:285px;max-height:calc(100% - 20px);
  overflow-y:auto;background:rgba(255,255,255,.96);border:1px solid #cbdbe2;border-radius:12px;
- padding:8px;box-shadow:0 5px 20px rgba(20,60,90,.18);direction:rtl
+ padding:8px;box-shadow:0 5px 20px rgba(20,60,90,.18);direction:rtl;
+ cursor:move;user-select:none
 }
+.dedicated-map-panel.md-panel-dragging{box-shadow:0 10px 28px rgba(20,60,90,.28);opacity:.96}
+.dedicated-map-panel .dedicated-map-tools button{cursor:pointer}
 .dedicated-map-title{font-weight:800;color:#07573e;text-align:center;padding:6px;border-bottom:1px solid #e6eef1;margin-bottom:6px}
 .dedicated-map-tools{display:grid;grid-template-columns:1fr 1fr;gap:5px}
 .dedicated-map-tools button{min-height:32px;border:1px solid #cbd8df;background:#fff;color:#173b58;border-radius:7px;padding:5px;font-family:Vazirmatn,sans-serif!important;font-size:10px;font-weight:700;cursor:pointer}
@@ -1721,6 +1724,45 @@ body.map-mode .map-section {
 #myMapsFrame{width:100%;height:100%;border:0}
 @media(max-width:900px){.dedicated-map-panel{right:8px;width:250px}.dedicated-map-tools{grid-template-columns:1fr}}
 </style>
+
+<script id="draggable-dedicated-map-panels">
+(function(){
+ function initDraggablePanels(){
+  document.querySelectorAll(".dedicated-map-panel").forEach(function(el){
+   if(el.dataset.draggable==="1")return;
+   el.dataset.draggable="1";
+   let dragging=false,startX=0,startY=0,startLeft=0,startTop=0;
+   function pos(e){const p=e.touches?e.touches[0]:e;return{x:p.clientX,y:p.clientY};}
+   function start(e){
+    if(e.type==="mousedown"&&e.button!==0)return;
+    if(e.target.closest("button"))return;
+    const p=pos(e),r=el.getBoundingClientRect(),host=el.parentElement.getBoundingClientRect();
+    dragging=true;startX=p.x;startY=p.y;startLeft=r.left-host.left;startTop=r.top-host.top;
+    el.style.setProperty("left",startLeft+"px","important");
+    el.style.setProperty("top",startTop+"px","important");
+    el.style.setProperty("right","auto","important");
+    el.classList.add("md-panel-dragging");e.preventDefault();
+   }
+   function move(e){
+    if(!dragging)return;
+    const p=pos(e),host=el.parentElement.getBoundingClientRect();
+    const left=Math.max(0,Math.min(host.width-el.offsetWidth,startLeft+p.x-startX));
+    const top=Math.max(0,Math.min(host.height-el.offsetHeight,startTop+p.y-startY));
+    el.style.setProperty("left",left+"px","important");
+    el.style.setProperty("top",top+"px","important");e.preventDefault();
+   }
+   function stop(){if(dragging){dragging=false;el.classList.remove("md-panel-dragging");}}
+   el.addEventListener("mousedown",start);
+   el.addEventListener("touchstart",start,{passive:false});
+   document.addEventListener("mousemove",move);
+   document.addEventListener("touchmove",move,{passive:false});
+   document.addEventListener("mouseup",stop);
+   document.addEventListener("touchend",stop);
+  });
+ }
+ setInterval(initDraggablePanels,700);setTimeout(initDraggablePanels,300);
+})();
+</script>
 
 <div class="map-wrapper" id="mapWrapper">
 
