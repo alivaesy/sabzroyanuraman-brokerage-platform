@@ -1121,6 +1121,17 @@ body {
     grid-template-columns: repeat(2,minmax(0,1fr));
     gap: 6px;
 }
+.my-maps-layer-box{
+    margin-top:8px;padding:7px;border:1px solid #d6e5de;border-radius:9px;background:#f8fcfa;
+}
+.my-maps-layer-head{font-size:11px;font-weight:800;color:#07573e;margin-bottom:6px}
+.my-maps-layer-list{max-height:170px;overflow:auto}
+.my-maps-layer-row{display:flex;align-items:center;gap:5px;padding:4px;border-bottom:1px solid #e8efec;font-size:10px}
+.my-maps-layer-row.active{background:#e1f1eb;border-radius:6px}
+.my-maps-layer-row label{flex:1;cursor:pointer}
+.my-maps-layer-row input[type=checkbox]{accent-color:#146c43}
+.my-maps-layer-actions{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px}
+.my-maps-layer-actions button{border:1px solid #c8d7d1;background:#fff;border-radius:6px;padding:5px;cursor:pointer;font-family:inherit;font-size:10px}
 #myMapsToolsColumn .dedicated-map-tools button {
     min-height: 34px;
 }
@@ -2057,6 +2068,16 @@ body.map-mode .map-section {
     <button type="button" onclick="myMapsUndo()">Undo</button>
     <button type="button" onclick="myMapsRedo()">Redo</button>
     <button type="button" onclick="myMapsClearDrawings()">پاک کردن همه</button>
+  </div>
+  <div class="my-maps-layer-box">
+    <div class="my-maps-layer-head">لایه‌ها</div>
+    <div id="myMapsLayerList" class="my-maps-layer-list"></div>
+    <div class="my-maps-layer-actions">
+      <button type="button" onclick="myMapsAddLayer()">+ لایه جدید</button>
+      <button type="button" onclick="myMapsRenameLayer()">تغییر نام</button>
+      <button type="button" onclick="myMapsDeleteLayer()">حذف لایه</button>
+      <button type="button" onclick="myMapsZoomLayer()">Zoom لایه</button>
+    </div>
   </div>
 </div>
 
@@ -3615,6 +3636,106 @@ let myMapsDrawItems = null;
 let myMapsUndoStack = [];
 let myMapsRedoStack = [];
 let myMapsRestoring = false;
+let myMapsLayers = {};
+let myMapsCurrentLayer = "ترسیمات";
+let myMapsLayerId = 0;
+
+function myMapsEnsureLayer(name) {
+    if (!myMapsWebGISMap) return null;
+    if (myMapsLayers[name]) return myMapsLayers[name];
+    const group = L.featureGroup().addTo(myMapsWebGISMap);
+    myMapsLayers[name] = group;
+    return group;
+}
+
+function myMapsRefreshLayerPanel() {
+    const box = document.getElementById("myMapsLayerList");
+    if (!box) return;
+    box.innerHTML = "";
+    Object.keys(myMapsLayers).forEach(function(name) {
+        const group = myMapsLayers[name];
+        const row = document.createElement("div");
+        row.className = "my-maps-layer-row" + (name === myMapsCurrentLayer ? " active" : "");
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = myMapsWebGISMap.hasLayer(group);
+        cb.title = "نمایش/مخفی";
+        cb.onchange = function() {
+            if (cb.checked) myMapsWebGISMap.addLayer(group);
+            else myMapsWebGISMap.removeLayer(group);
+        };
+        const label = document.createElement("label");
+        label.textContent = name + " (" + group.getLayers().length + ")";
+        label.onclick = function() {
+            myMapsCurrentLayer = name;
+            myMapsRefreshLayerPanel();
+        };
+        row.appendChild(cb);
+        row.appendChild(label);
+        box.appendChild(row);
+    });
+}
+
+function myMapsAddLayer() {
+    createMyMapsWebGIS();
+    const name = prompt("نام لایه جدید را وارد کنید:", "لایه جدید");
+    if (!name || !name.trim()) return;
+    let base = name.trim(), finalName = base, n = 2;
+    while (myMapsLayers[finalName]) finalName = base + " " + n++;
+    myMapsEnsureLayer(finalName);
+    myMapsCurrentLayer = finalName;
+    myMapsRefreshLayerPanel();
+    sectionMapStatus("لایه «" + finalName + "» ساخته شد.");
+}
+
+function myMapsRenameLayer() {
+    createMyMapsWebGIS();
+    const oldName = myMapsCurrentLayer;
+    if (!myMapsLayers[oldName]) return;
+    const name = prompt("نام جدید لایه:", oldName);
+    if (!name || !name.trim() || name.trim() === oldName) return;
+    let newName = name.trim();
+    if (myMapsLayers[newName]) {
+        alert("این نام لایه قبلاً وجود دارد.");
+        return;
+    }
+    myMapsLayers[newName] = myMapsLayers[oldName];
+    delete myMapsLayers[oldName];
+    myMapsCurrentLayer = newName;
+    myMapsRefreshLayerPanel();
+}
+
+function myMapsDeleteLayer() {
+    createMyMapsWebGIS();
+    const name = myMapsCurrentLayer;
+    if (!myMapsLayers[name]) return;
+    if (Object.keys(myMapsLayers).length <= 1) {
+        sectionMapStatus("حداقل یک لایه باید باقی بماند.");
+        return;
+    }
+    if (!confirm("لایه «" + name + "» و عوارض آن حذف شود؟")) return;
+    const group = myMapsLayers[name];
+    group.eachLayer(function(layer) {
+        myMapsDrawItems.removeLayer(layer);
+    });
+    group.clearLayers();
+    myMapsWebGISMap.removeLayer(group);
+    delete myMapsLayers[name];
+    myMapsCurrentLayer = Object.keys(myMapsLayers)[0];
+    myMapsRefreshLayerPanel();
+    myMapsRecordHistory();
+}
+
+function myMapsZoomLayer() {
+    createMyMapsWebGIS();
+    const group = myMapsLayers[myMapsCurrentLayer];
+    if (!group || !group.getLayers().length) {
+        sectionMapStatus("این لایه عارضه‌ای ندارد.");
+        return;
+    }
+    const b = group.getBounds();
+    if (b.isValid()) myMapsWebGISMap.fitBounds(b, {padding:[35,35]});
+}
 
 function myMapsSnapshot() {
     if (!myMapsDrawItems) return null;
@@ -3676,7 +3797,11 @@ function createMyMapsWebGIS() {
         }
     ).addTo(myMapsWebGISMap);
 
-    myMapsDrawItems = new L.FeatureGroup().addTo(myMapsWebGISMap);
+    myMapsDrawItems = new L.FeatureGroup();
+    myMapsLayers = {};
+    myMapsCurrentLayer = "ترسیمات";
+    myMapsEnsureLayer(myMapsCurrentLayer);
+    myMapsLayerId = 0;
 
     if (L.Control && L.Control.Draw) {
         myMapsDrawControl = new L.Control.Draw({
@@ -3698,9 +3823,15 @@ function createMyMapsWebGIS() {
     }
 
     myMapsWebGISMap.on("draw:created", function(e) {
+        const group = myMapsEnsureLayer(myMapsCurrentLayer);
+        if (e.layer.feature) e.layer.feature.properties = e.layer.feature.properties || {};
+        else e.layer.feature = {type:"Feature",properties:{}};
+        e.layer.feature.properties.__myMapsLayer = myMapsCurrentLayer;
+        group.addLayer(e.layer);
         myMapsDrawItems.addLayer(e.layer);
         myMapsRecordHistory();
-        sectionMapStatus("عارضه جدید به My Maps اضافه شد.");
+        myMapsRefreshLayerPanel();
+        sectionMapStatus("عارضه جدید به لایه «" + myMapsCurrentLayer + "» اضافه شد.");
     });
 
     myMapsWebGISMap.on("draw:edited", function() {
@@ -3771,13 +3902,16 @@ function myMapsRedo() {
 function myMapsClearDrawings() {
     createMyMapsWebGIS();
     if (!myMapsDrawItems || myMapsDrawItems.getLayers().length === 0) return;
+    Object.keys(myMapsLayers).forEach(function(name){ myMapsLayers[name].clearLayers(); });
     myMapsDrawItems.clearLayers();
     myMapsRecordHistory();
+    myMapsRefreshLayerPanel();
     sectionMapStatus("تمام ترسیمات My Maps پاک شد.");
 }
 
 function openMyMaps() {
     createMyMapsWebGIS();
+    myMapsRefreshLayerPanel();
     setTimeout(function() {
         if (myMapsWebGISMap) myMapsWebGISMap.invalidateSize();
     }, 120);
