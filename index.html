@@ -2109,6 +2109,9 @@ body.map-mode .map-section {
       <button type="button" onclick="myMapsZoomLayer()">Zoom لایه</button>
       <button type="button" onclick="myMapsAddXYZ()">Add XYZ</button>
       <button type="button" onclick="myMapsAddWMS()">Add WMS</button>
+      <button type="button" onclick="myMapsSaveProject()">ذخیره پروژه</button>
+      <button type="button" onclick="myMapsLoadProject()">بازیابی پروژه</button>
+      <button type="button" onclick="myMapsExportProject()">خروجی پروژه</button>
     </div>
   </div>
 </div>
@@ -4167,6 +4170,79 @@ function myMapsEnsureLayer(name) {
     const group = L.featureGroup().addTo(myMapsWebGISMap);
     myMapsLayers[name] = group;
     return group;
+}
+
+function myMapsProjectData() {
+    const layers={};
+    Object.keys(myMapsLayers).forEach(function(name){
+        layers[name]=[];
+        myMapsLayers[name].eachLayer(function(layer){
+            if(layer.toGeoJSON){
+                const f=layer.toGeoJSON();
+                if(f&&f.type==="Feature"){f.properties=f.properties||{};layers[name].push(f);}
+            }
+        });
+    });
+    const external={};
+    Object.keys(myMapsExternalLayers).forEach(function(name){
+        const layer=myMapsExternalLayers[name];
+        external[name]={
+            type:layer instanceof L.TileLayer.WMS?"wms":"xyz",
+            url:layer._url,
+            options:layer.wmsParams||{}
+        };
+    });
+    return {version:1,savedAt:new Date().toISOString(),currentLayer:myMapsCurrentLayer,layers:layers,external:external};
+}
+
+function myMapsSaveProject() {
+    createMyMapsWebGIS();
+    try{
+        const data=myMapsProjectData();
+        localStorage.setItem("sabzRoyanMyMapsProject",JSON.stringify(data));
+        myMapsSetGisStatus("پروژه در مرورگر ذخیره شد.");
+    }catch(e){myMapsSetGisStatus("خطا در ذخیره پروژه: "+e.message);}
+}
+
+function myMapsLoadProject() {
+    createMyMapsWebGIS();
+    const raw=localStorage.getItem("sabzRoyanMyMapsProject");
+    if(!raw){myMapsSetGisStatus("پروژه ذخیره‌شده‌ای پیدا نشد.");return;}
+    try{
+        const data=JSON.parse(raw);
+        Object.keys(myMapsLayers).forEach(name=>myMapsLayers[name].clearLayers());
+        myMapsDrawItems.clearLayers();
+        Object.keys(myMapsExternalLayers).forEach(name=>{
+            const layer=myMapsExternalLayers[name];
+            if(myMapsWebGISMap.hasLayer(layer))myMapsWebGISMap.removeLayer(layer);
+        });
+        myMapsExternalLayers={};
+        Object.keys(data.layers||{}).forEach(function(name){
+            myMapsEnsureLayer(name);
+            (data.layers[name]||[]).forEach(function(f){myMapsAddGeoJSONFeature(f,name);});
+        });
+        Object.keys(data.external||{}).forEach(function(name){
+            const x=data.external[name];
+            let layer;
+            if(x.type==="wms") layer=L.tileLayer.wms(x.url,x.options||{});
+            else layer=L.tileLayer(x.url,x.options||{});
+            myMapsExternalLayers[name]=layer;
+            layer.addTo(myMapsWebGISMap);
+        });
+        myMapsCurrentLayer=data.currentLayer&&myMapsLayers[data.currentLayer]?data.currentLayer:Object.keys(myMapsLayers)[0]||"ترسیمات";
+        myMapsEnsureLayer(myMapsCurrentLayer);
+        myMapsRefreshLayerPanel();
+        myMapsRecordHistory();
+        myMapsSetGisStatus("پروژه بازیابی شد.");
+    }catch(e){myMapsSetGisStatus("خطا در بازیابی پروژه: "+e.message);}
+}
+
+function myMapsExportProject() {
+    createMyMapsWebGIS();
+    const data=myMapsProjectData();
+    const stamp=new Date().toISOString().slice(0,19).replace(/[T:]/g,"-");
+    myMapsDownload(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),"sabz-royan-mymaps-project-"+stamp+".json");
+    myMapsSetGisStatus("فایل کامل پروژه آماده شد.");
 }
 
 function myMapsAddXYZ() {
