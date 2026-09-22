@@ -1418,7 +1418,14 @@ body.map-mode .map-section {
 .mapdraw-layer-btn{border:1px solid #c8d7d1;background:#f7faf9;border-radius:7px;padding:5px 7px;cursor:pointer;font-family:inherit;font-size:11px}
 .mapdraw-layer-btn:hover{background:#e4f2eb}
 .mapdraw-file-input{display:none}
-</style><script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script></head>
+</style><script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<style id="map-leaflet-control-fix">
+/* Keep Leaflet controls clear of the MapDraw layer panel. */
+#leafletMap .leaflet-control-layers { top: 58px !important; }
+#leafletMap .leaflet-top.leaflet-left { z-index: 1100; }
+#leafletMap .mapdraw-search-panel, #leafletMap .mapdraw-stage3-panel { z-index: 1200; }
+</style>
+</head>
 
 
 <body>
@@ -8001,9 +8008,3 @@ setTimeout(mdStage3Watch,700);
 })();
 </script></body>
 </html>
-<style id="map-leaflet-control-fix">
-/* Keep Leaflet controls clear of the MapDraw layer panel. */
-#leafletMap .leaflet-control-layers { top: 58px !important; }
-#leafletMap .leaflet-top.leaflet-left { z-index: 1100; }
-#leafletMap .mapdraw-search-panel, #leafletMap .mapdraw-stage3-panel { z-index: 1200; }
-</style>
