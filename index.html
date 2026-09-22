@@ -2406,23 +2406,25 @@ setInterval(()=>{
 <style>
 .map-measurement-panel{
     position:absolute;
-    left:12px;
-    bottom:12px;
-    z-index:10001;
-    width:315px;
-    max-height:46%;
+    top:72px;
+    left:14px;
+    z-index:999999!important;
+    width:330px;
+    max-width:calc(100% - 28px);
+    max-height:48%;
     overflow:auto;
     display:none;
     direction:rtl;
-    background:rgba(255,255,255,.97);
-    border:1px solid #b9d3c8;
+    background:rgba(255,255,255,.98);
+    border:2px solid #146c43;
     border-radius:12px;
     padding:10px;
-    box-shadow:0 6px 22px rgba(20,60,90,.20);
+    box-shadow:0 8px 24px rgba(0,0,0,.28);
     color:#173b58;
     font-size:11px;
+    pointer-events:auto;
 }
-.map-measurement-panel.active{display:block}
+.map-measurement-panel.active{display:block!important}
 .map-measurement-title{
     color:#07573e;
     font-size:13px;
@@ -2479,386 +2481,284 @@ setInterval(()=>{
     <div class="map-measurement-title">مشخصات عارضه — Leaflet</div>
     <div class="map-measurement-content"></div>
 </div>
-
 <div class="map-measurement-panel" id="googleMeasurementPanel">
     <div class="map-measurement-title">مشخصات عارضه — Google Maps</div>
     <div class="map-measurement-content"></div>
 </div>
-
 <div class="map-measurement-panel" id="azureMeasurementPanel">
     <div class="map-measurement-title">مشخصات عارضه — Azure Maps</div>
     <div class="map-measurement-content"></div>
 </div>
-
 <div class="map-measurement-panel" id="mapboxMeasurementPanel">
     <div class="map-measurement-title">مشخصات عارضه — Mapbox</div>
     <div class="map-measurement-content"></div>
 </div>
 
 <script>
-/* =========================================================
-   GEOGRAPHIC MEASUREMENT — WGS84 / SPHERICAL GEODESIC
-========================================================= */
 (function(){
-
 "use strict";
 
-const R = 6378137;
-
-function rad(v){ return v * Math.PI / 180; }
+const R=6378137;
+const rad=v=>v*Math.PI/180;
 
 function hav(a,b){
-    const p1=rad(a[1]), p2=rad(b[1]);
-    const dp=rad(b[1]-a[1]), dl=rad(b[0]-a[0]);
-    const x=Math.sin(dp/2)**2 +
-            Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
+    const p1=rad(a[1]),p2=rad(b[1]),dp=rad(b[1]-a[1]),dl=rad(b[0]-a[0]);
+    const x=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
     return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(Math.max(0,1-x)));
 }
-
-function lineLength(coords){
-    let total=0;
-    for(let i=1;i<coords.length;i++) total+=hav(coords[i-1],coords[i]);
-    return total;
+function lineLength(c){
+    let t=0;
+    for(let i=1;i<c.length;i++) t+=hav(c[i-1],c[i]);
+    return t;
 }
-
-function ringArea(coords){
-    if(!coords || coords.length<3) return 0;
-    const pts=coords.slice();
-    const first=pts[0], last=pts[pts.length-1];
-    if(first[0]!==last[0] || first[1]!==last[1]) pts.push(first);
-
-    let sum=0;
-    for(let i=0;i<pts.length-1;i++){
-        const a=pts[i], b=pts[i+1];
-        sum += rad(b[0]-a[0]) * (2 + Math.sin(rad(a[1])) + Math.sin(rad(b[1])));
+function ringArea(c){
+    if(!c||c.length<3)return 0;
+    const p=c.slice(),f=p[0],l=p[p.length-1];
+    if(f[0]!==l[0]||f[1]!==l[1])p.push(f);
+    let s=0;
+    for(let i=0;i<p.length-1;i++){
+        const a=p[i],b=p[i+1];
+        s+=rad(b[0]-a[0])*(2+Math.sin(rad(a[1]))+Math.sin(rad(b[1])));
     }
-    return Math.abs(sum * R * R / 2);
+    return Math.abs(s*R*R/2);
 }
-
-function polygonPerimeter(coords){
-    if(!coords || coords.length<2) return 0;
-    const pts=coords.slice();
-    const first=pts[0], last=pts[pts.length-1];
-    if(first[0]!==last[0] || first[1]!==last[1]) pts.push(first);
-    return lineLength(pts);
+function ringPerimeter(c){
+    if(!c||c.length<2)return 0;
+    const p=c.slice(),f=p[0],l=p[p.length-1];
+    if(f[0]!==l[0]||f[1]!==l[1])p.push(f);
+    return lineLength(p);
 }
-
-function fmtM(v){
-    if(!Number.isFinite(v)) return "—";
-    return v.toLocaleString("fa-IR",{maximumFractionDigits:2})+" متر";
-}
-
-function fmtKm(v){
-    if(!Number.isFinite(v)) return "—";
-    return (v/1000).toLocaleString("fa-IR",{maximumFractionDigits:3})+" کیلومتر";
-}
-
+function fmtM(v){return Number.isFinite(v)?v.toLocaleString("fa-IR",{maximumFractionDigits:2})+" متر":"—"}
+function fmtKm(v){return Number.isFinite(v)?(v/1000).toLocaleString("fa-IR",{maximumFractionDigits:3})+" کیلومتر":"—"}
 function fmtArea(v){
-    if(!Number.isFinite(v)) return "—";
-    const ha=v/10000;
-    return v.toLocaleString("fa-IR",{maximumFractionDigits:2})+" مترمربع<br>"+
-           ha.toLocaleString("fa-IR",{maximumFractionDigits:4})+" هکتار";
+    return Number.isFinite(v)
+      ?v.toLocaleString("fa-IR",{maximumFractionDigits:2})+" مترمربع<br>"+(v/10000).toLocaleString("fa-IR",{maximumFractionDigits:4})+" هکتار":"—";
 }
-
-function fmtCoord(c){
-    return Number(c[1]).toFixed(7)+", "+Number(c[0]).toFixed(7);
-}
-
-function centerOf(coords){
-    if(!coords || !coords.length) return null;
+function fmtCoord(c){return Number(c[1]).toFixed(7)+", "+Number(c[0]).toFixed(7)}
+function center(c){
+    if(!c||!c.length)return null;
     let x=0,y=0;
-    coords.forEach(c=>{x+=Number(c[0]);y+=Number(c[1]);});
-    return [x/coords.length,y/coords.length];
+    c.forEach(p=>{x+=Number(p[0]);y+=Number(p[1])});
+    return [x/c.length,y/c.length];
 }
+function esc(v){return String(v).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
 
-function escapeHtml(v){
-    return String(v).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
-}
-
-function render(id, data){
+function render(id,d){
     const p=document.getElementById(id);
-    if(!p) return;
-    const c=p.querySelector(".map-measurement-content");
+    if(!p)return;
     p.classList.add("active");
-
-    if(!data){
-        c.innerHTML='<div class="map-measurement-empty">هنوز عارضه قابل اندازه‌گیری انتخاب یا ترسیم نشده است.</div>';
-        return;
+    const c=p.querySelector(".map-measurement-content");
+    if(!d){c.innerHTML='<div class="map-measurement-empty">عارضه‌ای برای اندازه‌گیری وجود ندارد.</div>';return}
+    let h='<div class="map-measurement-grid">';
+    h+='<div class="map-measurement-item"><div class="map-measurement-label">نوع عارضه</div><div class="map-measurement-value">'+esc(d.type||"—")+'</div></div>';
+    if(d.length!=null){
+        h+='<div class="map-measurement-item"><div class="map-measurement-label">طول</div><div class="map-measurement-value">'+fmtM(d.length)+'</div></div>';
+        h+='<div class="map-measurement-item"><div class="map-measurement-label">طول کیلومتری</div><div class="map-measurement-value">'+fmtKm(d.length)+'</div></div>';
     }
-
-    let html='<div class="map-measurement-grid">';
-    html+='<div class="map-measurement-item"><div class="map-measurement-label">نوع عارضه</div><div class="map-measurement-value">'+escapeHtml(data.type||"—")+'</div></div>';
-
-    if(data.length!=null){
-        html+='<div class="map-measurement-item"><div class="map-measurement-label">طول</div><div class="map-measurement-value">'+fmtM(data.length)+'</div></div>';
-        html+='<div class="map-measurement-item"><div class="map-measurement-label">طول کیلومتری</div><div class="map-measurement-value">'+fmtKm(data.length)+'</div></div>';
+    if(d.area!=null)h+='<div class="map-measurement-item"><div class="map-measurement-label">مساحت</div><div class="map-measurement-value">'+fmtArea(d.area)+'</div></div>';
+    if(d.perimeter!=null)h+='<div class="map-measurement-item"><div class="map-measurement-label">محیط</div><div class="map-measurement-value">'+fmtM(d.perimeter)+'</div></div>';
+    if(d.radius!=null)h+='<div class="map-measurement-item"><div class="map-measurement-label">شعاع</div><div class="map-measurement-value">'+fmtM(d.radius)+'</div></div>';
+    if(d.vertices!=null)h+='<div class="map-measurement-item"><div class="map-measurement-label">تعداد رأس/نقطه</div><div class="map-measurement-value">'+Number(d.vertices).toLocaleString("fa-IR")+'</div></div>';
+    if(d.center)h+='<div class="map-measurement-item full"><div class="map-measurement-label">مرکز — Lat, Lng</div><div class="map-measurement-value">'+esc(fmtCoord(d.center))+'</div></div>';
+    if(d.start)h+='<div class="map-measurement-item"><div class="map-measurement-label">نقطه شروع</div><div class="map-measurement-value">'+esc(fmtCoord(d.start))+'</div></div>';
+    if(d.end)h+='<div class="map-measurement-item"><div class="map-measurement-label">نقطه پایان</div><div class="map-measurement-value">'+esc(fmtCoord(d.end))+'</div></div>';
+    if(d.coordinates&&d.coordinates.length){
+        h+='<div class="map-measurement-item full"><div class="map-measurement-label">مختصات — Lat, Lng</div><div class="map-measurement-coords">'+d.coordinates.slice(0,50).map((p,i)=>(i+1)+". "+esc(fmtCoord(p))).join("<br>")+(d.coordinates.length>50?"<br>...":"")+'</div></div>';
     }
-
-    if(data.area!=null){
-        html+='<div class="map-measurement-item"><div class="map-measurement-label">مساحت</div><div class="map-measurement-value">'+fmtArea(data.area)+'</div></div>';
-    }
-
-    if(data.perimeter!=null){
-        html+='<div class="map-measurement-item"><div class="map-measurement-label">محیط</div><div class="map-measurement-value">'+fmtM(data.perimeter)+'</div></div>';
-    }
-
-    if(data.radius!=null){
-        html+='<div class="map-measurement-item"><div class="map-measurement-label">شعاع</div><div class="map-measurement-value">'+fmtM(data.radius)+'</div></div>';
-    }
-
-    if(data.vertices!=null){
-        html+='<div class="map-measurement-item"><div class="map-measurement-label">تعداد رأس/نقطه</div><div class="map-measurement-value">'+Number(data.vertices).toLocaleString("fa-IR")+'</div></div>';
-    }
-
-    if(data.center){
-        html+='<div class="map-measurement-item full"><div class="map-measurement-label">مرکز / مختصات مرکزی (Lat, Lng)</div><div class="map-measurement-value">'+escapeHtml(fmtCoord(data.center))+'</div></div>';
-    }
-
-    if(data.start){
-        html+='<div class="map-measurement-item"><div class="map-measurement-label">نقطه شروع</div><div class="map-measurement-value">'+escapeHtml(fmtCoord(data.start))+'</div></div>';
-    }
-
-    if(data.end){
-        html+='<div class="map-measurement-item"><div class="map-measurement-label">نقطه پایان</div><div class="map-measurement-value">'+escapeHtml(fmtCoord(data.end))+'</div></div>';
-    }
-
-    if(data.coordinates && data.coordinates.length){
-        const shown=data.coordinates.slice(0,50);
-        html+='<div class="map-measurement-item full"><div class="map-measurement-label">مختصات رأس‌ها (Lat, Lng)</div><div class="map-measurement-coords">'+
-            shown.map((c,i)=>(i+1)+". "+escapeHtml(fmtCoord(c))).join("<br>")+
-            (data.coordinates.length>50 ? "<br>...":"")+
-            '</div></div>';
-    }
-
-    html+='</div>';
-    c.innerHTML=html;
+    h+='</div>';
+    c.innerHTML=h;
 }
 
-function fromGeoJSON(g){
-    if(!g || !g.type) return null;
+function geo(g){
+    if(!g||!g.type)return null;
     if(g.type==="Point"){
-        const c=g.coordinates;
-        return {type:"نقطه",center:c,coordinates:[c]};
+        return {type:"نقطه",center:g.coordinates,coordinates:[g.coordinates]};
     }
     if(g.type==="LineString"){
         return {type:"خط",length:lineLength(g.coordinates),vertices:g.coordinates.length,start:g.coordinates[0],end:g.coordinates[g.coordinates.length-1],coordinates:g.coordinates};
     }
     if(g.type==="Polygon"){
-        const ring=(g.coordinates&&g.coordinates[0])||[];
-        const area=ringArea(ring);
-        return {type:"پلیگون",area:area,perimeter:polygonPerimeter(ring),vertices:Math.max(0,ring.length-(ring.length>1&&ring[0][0]===ring[ring.length-1][0]&&ring[0][1]===ring[ring.length-1][1]?1:0)),center:centerOf(ring),coordinates:ring};
+        const outer=(g.coordinates&&g.coordinates[0])||[];
+        const closed=outer.length>1&&outer[0][0]===outer[outer.length-1][0]&&outer[0][1]===outer[outer.length-1][1];
+        return {type:"پلیگون",area:ringArea(outer),perimeter:ringPerimeter(outer),vertices:Math.max(0,outer.length-(closed?1:0)),center:center(outer),coordinates:outer};
     }
     if(g.type==="MultiLineString"){
-        let all=[];
-        g.coordinates.forEach(x=>all=all.concat(x));
-        return {type:"چندخطی",length:g.coordinates.reduce((a,x)=>a+lineLength(x),0),vertices:all.length,coordinates:all};
+        let all=[],len=0;
+        g.coordinates.forEach(x=>{all=all.concat(x);len+=lineLength(x)});
+        return {type:"چندخطی",length:len,vertices:all.length,coordinates:all};
     }
     if(g.type==="MultiPolygon"){
-        let area=0,per=0,all=[];
-        g.coordinates.forEach(p=>{const r=p[0]||[];area+=ringArea(r);per+=polygonPerimeter(r);all=all.concat(r);});
-        return {type:"چندپلیگون",area:area,perimeter:per,vertices:all.length,center:centerOf(all),coordinates:all};
+        let all=[],a=0,p=0;
+        g.coordinates.forEach(x=>{const r=x[0]||[];all=all.concat(r);a+=ringArea(r);p+=ringPerimeter(r)});
+        return {type:"چندپلیگون",area:a,perimeter:p,vertices:all.length,center:center(all),coordinates:all};
     }
     return null;
 }
 
-/* ---------------- LEAFLET ---------------- */
-function leafletCoords(layer){
-    if(!layer) return null;
-    if(layer.getLatLng) {
+/* LEAFLET */
+function leafletMeasure(layer){
+    if(!layer)return null;
+    if(layer instanceof L.Circle){
+        const c=layer.getLatLng(),r=layer.getRadius();
+        return {type:"دایره",radius:r,area:Math.PI*r*r,perimeter:2*Math.PI*r,center:[c.lng,c.lat]};
+    }
+    if(layer instanceof L.Marker||layer instanceof L.CircleMarker){
         const c=layer.getLatLng();
-        return [[c.lng,c.lat]];
+        return {type:"نقطه",center:[c.lng,c.lat],coordinates:[[c.lng,c.lat]]};
     }
-    if(layer.getLatLngs){
-        let a=layer.getLatLngs();
-        while(Array.isArray(a)&&a.length&&Array.isArray(a[0])&&!a[0].latlng&&!("lat" in a[0]||"lng" in a[0])) a=a[0];
-        return Array.isArray(a)?a.map(x=>Array.isArray(x)?[x.lng,x.lat]:[x.lng,x.lat]):null;
+    if(layer instanceof L.Rectangle){
+        const b=layer.getBounds(),ring=[
+            [b.getWest(),b.getSouth()],[b.getEast(),b.getSouth()],
+            [b.getEast(),b.getNorth()],[b.getWest(),b.getNorth()],
+            [b.getWest(),b.getSouth()]
+        ];
+        return geo({type:"Polygon",coordinates:[ring]});
+    }
+    if(layer instanceof L.Polygon){
+        const ll=layer.getLatLngs();
+        const ring=(Array.isArray(ll[0])?ll[0]:ll).map(p=>[p.lng,p.lat]);
+        return geo({type:"Polygon",coordinates:[ring]});
+    }
+    if(layer instanceof L.Polyline){
+        const ll=layer.getLatLngs();
+        const a=ll.map(p=>[p.lng,p.lat]);
+        return geo({type:"LineString",coordinates:a});
     }
     return null;
 }
-
-function measureLeaflet(layer){
-    if(!layer) return null;
-    if(layer.getRadius && layer.getLatLng){
-        const c=layer.getLatLng(), radius=layer.getRadius();
-        return {type:"دایره",radius:radius,area:Math.PI*radius*radius,perimeter:2*Math.PI*radius,center:[c.lng,c.lat]};
-    }
-    const g=leafletCoords(layer);
-    if(!g || !g.length) return null;
-    if(layer instanceof L.Marker || layer instanceof L.CircleMarker)
-        return {type:"نقطه",center:g[0],coordinates:g};
-    if(layer instanceof L.Polygon || (layer.options && layer.options.fill)){
-        return fromGeoJSON({type:"Polygon",coordinates:[g]});
-    }
-    return fromGeoJSON({type:"LineString",coordinates:g});
-}
-
 function hookLeaflet(){
-    if(!window.leafletMap || window.leafletMap.__measurementHook) return;
-    window.leafletMap.__measurementHook=true;
-    window.leafletMap.on("draw:created",e=>{
-        const m=measureLeaflet(e.layer);
-        if(m) render("leafletMeasurementPanel",m);
-    });
-    window.leafletMap.on("draw:edited",e=>{
-        e.layers.eachLayer(layer=>{
-            const m=measureLeaflet(layer);
-            if(m) render("leafletMeasurementPanel",m);
-        });
-    });
+    if(!window.leafletMap||window.leafletMap.__measureFixed)return;
+    window.leafletMap.__measureFixed=true;
+    window.leafletMap.on("draw:created",e=>{const d=leafletMeasure(e.layer);if(d)render("leafletMeasurementPanel",d)});
+    window.leafletMap.on("draw:edited",e=>e.layers.eachLayer(l=>{const d=leafletMeasure(l);if(d)render("leafletMeasurementPanel",d)}));
 }
 
-/* ---------------- MAPBOX ---------------- */
+/* MAPBOX */
 function hookMapbox(){
-    if(!window.mapboxMap || window.mapboxMap.__measurementHook) return;
-    window.mapboxMap.__measurementHook=true;
-    ["draw.create","draw.update","draw.selectionchange"].forEach(ev=>{
-        window.mapboxMap.on(ev,e=>{
-            let f=(e&&e.features&&e.features[0]) || null;
-            if(!f && window.mapboxDraw){
-                const ids=window.mapboxDraw.getSelectedIds();
-                if(ids&&ids.length) f=window.mapboxDraw.get(ids[ids.length-1]);
-            }
-            const m=f&&fromGeoJSON(f.geometry);
-            if(m) render("mapboxMeasurementPanel",m);
-        });
-    });
+    if(!window.mapboxMap||window.mapboxMap.__measureFixed)return;
+    window.mapboxMap.__measureFixed=true;
+    ["draw.create","draw.update","draw.selectionchange"].forEach(ev=>window.mapboxMap.on(ev,e=>{
+        let f=e&&e.features&&e.features[0];
+        if(!f&&window.mapboxDraw){
+            const ids=window.mapboxDraw.getSelectedIds();
+            if(ids.length)f=window.mapboxDraw.get(ids[ids.length-1]);
+        }
+        const d=f&&geo(f.geometry);
+        if(d)render("mapboxMeasurementPanel",d);
+    }));
 }
 
-/* ---------------- GOOGLE MAPS ---------------- */
-function measureGoogle(o){
-    if(!o || !window.google) return null;
-    if(o.getCenter && o.getRadius){
-        const c=o.getCenter();
-        const r=o.getRadius();
+/* GOOGLE */
+function googleMeasure(o){
+    if(!o||!window.google)return null;
+    if(o.getCenter&&o.getRadius){
+        const c=o.getCenter(),r=o.getRadius();
         return {type:"دایره",radius:r,area:Math.PI*r*r,perimeter:2*Math.PI*r,center:[c.lng(),c.lat()]};
     }
-    if(o.getBounds && !o.getPath && !o.getPaths){
-        const b=o.getBounds(), ne=b.getNorthEast(), sw=b.getSouthWest();
-        const ring=[[sw.lng(),sw.lat()],[ne.lng(),sw.lat()],[ne.lng(),ne.lat()],[sw.lng(),ne.lat()],[sw.lng(),sw.lat()]];
-        return fromGeoJSON({type:"Polygon",coordinates:[ring]});
+    if(o.getBounds&&!o.getPath&&!o.getPaths){
+        const b=o.getBounds(),ne=b.getNorthEast(),sw=b.getSouthWest();
+        return geo({type:"Polygon",coordinates:[[
+            [sw.lng(),sw.lat()],[ne.lng(),sw.lat()],[ne.lng(),ne.lat()],
+            [sw.lng(),ne.lat()],[sw.lng(),sw.lat()]
+        ]]});
     }
     if(o.getPaths){
-        const ring=[];
-        o.getPaths().forEach(path=>path.forEach(c=>ring.push([c.lng(),c.lat()])));
-        return fromGeoJSON({type:"Polygon",coordinates:[ring]});
+        const a=[];
+        o.getPaths().forEach(path=>path.forEach(p=>a.push([p.lng(),p.lat()])));
+        return geo({type:"Polygon",coordinates:[a]});
     }
     if(o.getPath){
-        const a=[];
-        o.getPath().forEach(c=>a.push([c.lng(),c.lat()]));
-        return fromGeoJSON({type:"LineString",coordinates:a});
+        const a=[];o.getPath().forEach(p=>a.push([p.lng(),p.lat()]));
+        return geo({type:"LineString",coordinates:a});
     }
     return null;
 }
-
 function hookGoogle(){
-    if(!window.googleMap || window.googleMap.__measurementHook) return;
-    window.googleMap.__measurementHook=true;
-
+    if(!window.googleMap||window.googleMap.__measureFixed)return;
+    window.googleMap.__measureFixed=true;
     const names=["sectionGooglePolyline","sectionGooglePolygon","sectionGoogleCircle","sectionGoogleRectangle"];
     names.forEach(name=>{
         const old=window[name];
-        if(typeof old!=="function" || old.__measurementWrapped) return;
-        const wrapped=function(){
+        if(typeof old!=="function"||old.__measureWrapped)return;
+        const fn=function(){
             const before=window.googleObjects.length;
             const out=old.apply(this,arguments);
             setTimeout(()=>{
-                const obj=window.googleObjects[window.googleObjects.length-1];
                 if(window.googleObjects.length>before){
-                    const m=measureGoogle(obj);
-                    if(m) render("googleMeasurementPanel",m);
+                    const d=googleMeasure(window.googleObjects[window.googleObjects.length-1]);
+                    if(d)render("googleMeasurementPanel",d);
                 }
-            },30);
+            },50);
             return out;
         };
-        wrapped.__measurementWrapped=true;
-        window[name]=wrapped;
-    });
-
-    window.googleObjects.forEach(o=>{
-        const m=measureGoogle(o);
-        if(m) render("googleMeasurementPanel",m);
+        fn.__measureWrapped=true;
+        window[name]=fn;
     });
 }
 
-/* ---------------- AZURE MAPS ---------------- */
-function azureGeometryToGeoJSON(shape){
+/* AZURE */
+function azureGeo(shape){
     try{
-        if(!shape) return null;
-        let g=null;
-        if(shape.toJson) g=shape.toJson().geometry || shape.toJson();
-        if(!g && shape.getGeometry) g=shape.getGeometry();
-        if(!g) return null;
-        if(g.type && g.coordinates) return g;
-        if(g.getType && g.getCoordinates) return {type:g.getType(),coordinates:g.getCoordinates()};
-        return null;
-    }catch(e){ return null; }
-}
-
-function hookAzure(){
-    if(!window.azureMap || window.azureMap.__measurementHook) return;
-    window.azureMap.__measurementHook=true;
-
-    if(window.azureDrawingManager && window.azureDrawingManager.events && window.azureDrawingManager.events.add){
-        ["drawingcomplete","drawingchanged"].forEach(ev=>{
-            try{
-                window.azureDrawingManager.events.add(ev,function(e){
-                    const shapes=(e&&e.shapes)||[];
-                    if(shapes.length){
-                        const m=azureGeometryToGeoJSON(shapes[shapes.length-1]);
-                        if(m) render("azureMeasurementPanel",fromGeoJSON(m));
-                    }
-                });
-            }catch(err){}
-        });
-    }
-
-    try{
-        if(window.azureDrawingManager && window.azureDrawingManager.getSource){
-            const source=window.azureDrawingManager.getSource();
-            if(source && source.getShapes){
-                source.getShapes().forEach(shape=>{
-                    const g=azureGeometryToGeoJSON(shape);
-                    if(g) render("azureMeasurementPanel",fromGeoJSON(g));
-                });
-            }
+        if(!shape)return null;
+        let g=shape.toJson?shape.toJson():null;
+        g=g&&g.geometry?g.geometry:g;
+        if(g&&g.type&&g.coordinates)return g;
+        if(shape.getGeometry){
+            g=shape.getGeometry();
+            if(g&&g.getType&&g.getCoordinates)return {type:g.getType(),coordinates:g.getCoordinates()};
         }
     }catch(e){}
+    return null;
+}
+function hookAzure(){
+    if(!window.azureMap||window.azureMap.__measureFixed)return;
+    window.azureMap.__measureFixed=true;
+    if(window.azureDrawingManager&&window.azureDrawingManager.events&&window.azureDrawingManager.events.add){
+        ["drawingcomplete","drawingchanged"].forEach(ev=>{
+            try{
+                window.azureDrawingManager.events.add(ev,e=>{
+                    const s=e&&e.shapes||[];
+                    if(s.length){
+                        const g=azureGeo(s[s.length-1]),d=geo(g);
+                        if(d)render("azureMeasurementPanel",d);
+                    }
+                });
+            }catch(x){}
+        });
+    }
 }
 
-/* ---------------- MAP PANEL STATE ---------------- */
-function showMeasurementPanel(type){
+/* PANEL */
+function showPanel(type){
     ["leaflet","google","azure","mapbox"].forEach(x=>{
         const p=document.getElementById(x+"MeasurementPanel");
-        if(p) p.classList.toggle("active",x===type);
+        if(p)p.classList.toggle("active",x===type);
     });
-    if(type==="leaflet") hookLeaflet();
-    if(type==="google") hookGoogle();
-    if(type==="azure") hookAzure();
-    if(type==="mapbox") hookMapbox();
+    if(type==="leaflet")hookLeaflet();
+    if(type==="google")hookGoogle();
+    if(type==="azure")hookAzure();
+    if(type==="mapbox")hookMapbox();
 }
 
-const originalOpenMap=window.openMap;
-if(typeof originalOpenMap==="function" && !originalOpenMap.__measurementWrapped){
-    const wrappedOpenMap=function(type){
-        const result=originalOpenMap.apply(this,arguments);
-        setTimeout(()=>showMeasurementPanel(type),250);
-        return result;
+const oldOpenMap=window.openMap;
+if(typeof oldOpenMap==="function"&&!oldOpenMap.__measureOpenWrapped){
+    const fn=function(type){
+        const r=oldOpenMap.apply(this,arguments);
+        setTimeout(()=>showPanel(type),400);
+        return r;
     };
-    wrappedOpenMap.__measurementWrapped=true;
-    window.openMap=wrappedOpenMap;
+    fn.__measureOpenWrapped=true;
+    window.openMap=fn;
 }
 
-/* Maps may already exist when this code runs. */
-setTimeout(()=>{
-    if(window.leafletMap) hookLeaflet();
-    if(window.googleMap) hookGoogle();
-    if(window.azureMap) hookAzure();
-    if(window.mapboxMap) hookMapbox();
-},500);
+setInterval(()=>{
+    if(window.leafletMap)hookLeaflet();
+    if(window.mapboxMap)hookMapbox();
+    if(window.googleMap)hookGoogle();
+    if(window.azureMap)hookAzure();
+},1000);
 
 })();
-</script>
-
 </section>
 
     <!-- =====================================================
