@@ -24,7 +24,7 @@ $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 $host = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
 if ($origin !== '') {
     $originHost = strtolower((string)parse_url($origin, PHP_URL_HOST));
-    if ($originHost === '' || $originHost !== preg_replace('/:\\d+$/', '', $host)) {
+    if ($originHost === '' || $originHost !== preg_replace('/:\d+$/', '', $host)) {
         gps_reply(403, ['ok'=>false,'error'=>'Origin rejected']);
     }
 }
