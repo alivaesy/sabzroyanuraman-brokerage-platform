@@ -1116,6 +1116,93 @@ body {
 
 
 /* =========================================================
+   GPS TRACKING - STAGE 1 (LOCAL ONLY; NO SERVER UPLOAD)
+   Independent Leaflet LayerGroup, separate from user drawings.
+========================================================= */
+let gpsTrackWatchId = null;
+let gpsTrackMarker = null;
+let gpsTrackAccuracy = null;
+let gpsTrackPoints = [];
+let gpsTrackLine = null;
+let gpsTrackStartedAt = null;
+let gpsTrackLastFixAt = null;
+let gpsTrackDistanceMeters = 0;
+let gpsTrackLayerGroup = null;
+
+function gpsTrackEnsurePanel(){
+    if(!leafletMap || document.getElementById("gpsTrackPanel")) return;
+    gpsTrackLayerGroup = L.layerGroup().addTo(leafletMap);
+    const panel=document.createElement("div");
+    panel.id="gpsTrackPanel";
+    panel.className="gps-track-panel";
+    panel.innerHTML='<div class="gps-track-title">📍 موقعیت و ردیابی GPS</div>'+ 
+      '<div class="gps-track-actions">'+
+      '<button type="button" class="gps-track-btn" id="gpsTrackLocateBtn">موقعیت من</button>'+
+      '<button type="button" class="gps-track-btn start" id="gpsTrackStartBtn">شروع ردیابی</button>'+ 
+      '<button type="button" class="gps-track-btn stop" id="gpsTrackStopBtn" disabled>توقف</button>'+ 
+      '<button type="button" class="gps-track-btn" id="gpsTrackClearBtn">پاک‌کردن Track</button>'+ 
+      '</div><div id="gpsTrackStats" class="gps-track-stats">وضعیت: آماده؛ هنوز موقعیتی دریافت نشده است.</div>'+ 
+      '<div class="gps-track-note">ردیابی فقط پس از اقدام و اجازه شما فعال می‌شود. در این مرحله مختصات فقط در همین صفحه نمایش داده می‌شود و به سرور ارسال یا ذخیره نمی‌شود.</div>';
+    leafletMap.getContainer().appendChild(panel);
+    gpsTrackLayerGroup.addTo(leafletMap);
+    document.getElementById("gpsTrackLocateBtn").addEventListener("click",gpsTrackLocateOnce);
+    document.getElementById("gpsTrackStartBtn").addEventListener("click",gpsTrackStart);
+    document.getElementById("gpsTrackStopBtn").addEventListener("click",gpsTrackStop);
+    document.getElementById("gpsTrackClearBtn").addEventListener("click",gpsTrackClear);
+}
+function gpsTrackStatus(message){const el=document.getElementById("gpsTrackStats");if(el)el.textContent=message;}
+function gpsTrackFormatDistance(m){return m>=1000?(m/1000).toFixed(2)+" کیلومتر":Math.round(m)+" متر";}
+function gpsTrackFormatDuration(ms){const sec=Math.max(0,Math.floor(ms/1000)),h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;return (h?String(h).padStart(2,"0")+":":"")+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");}
+function gpsTrackPositionText(p){const c=p.coords;const speed=c.speed==null?"نامشخص":(c.speed*3.6).toFixed(1)+" km/h";return "وضعیت: "+(gpsTrackWatchId===null?"موقعیت دریافت شد":"در حال ردیابی") +
+ "\nعرض: "+c.latitude.toFixed(6)+" | طول: "+c.longitude.toFixed(6)+
+ "\nدقت GPS: ±"+Math.round(c.accuracy)+" متر | سرعت: "+speed+
+ "\nمسافت: "+gpsTrackFormatDistance(gpsTrackDistanceMeters)+
+ "\nمدت: "+(gpsTrackStartedAt?gpsTrackFormatDuration(Date.now()-gpsTrackStartedAt):"—")+ 
+ "\nنقاط ثبت‌شده در این صفحه: "+gpsTrackPoints.length;}
+function gpsTrackOnPosition(position){
+    const c=position.coords,ll=[c.latitude,c.longitude],now=Date.now();
+    if(!gpsTrackLayerGroup)gpsTrackLayerGroup=L.layerGroup().addTo(leafletMap);
+    if(gpsTrackLastFixAt && gpsTrackPoints.length){
+      const prev=gpsTrackPoints[gpsTrackPoints.length-1];
+      const d=leafletMap.distance(prev,ll);
+      if(Number.isFinite(d)&&d>0&&d<10000)gpsTrackDistanceMeters+=d;
+    }
+    gpsTrackPoints.push(ll);gpsTrackLastFixAt=now;
+    if(!gpsTrackMarker){gpsTrackMarker=L.circleMarker(ll,{radius:8,color:"#fff",weight:3,fillColor:"#0878d1",fillOpacity:1}).bindPopup("موقعیت فعلی شما").addTo(gpsTrackLayerGroup);}
+    else gpsTrackMarker.setLatLng(ll);
+    if(gpsTrackAccuracy)gpsTrackLayerGroup.removeLayer(gpsTrackAccuracy);
+    gpsTrackAccuracy=L.circle(ll,{radius:Math.max(1,c.accuracy||0),color:"#0878d1",weight:1,fillColor:"#0878d1",fillOpacity:.08}).addTo(gpsTrackLayerGroup);
+    if(!gpsTrackLine)gpsTrackLine=L.polyline(gpsTrackPoints,{color:"#e65100",weight:5,opacity:.9}).addTo(gpsTrackLayerGroup);
+    else gpsTrackLine.setLatLngs(gpsTrackPoints);
+    gpsTrackStatus(gpsTrackPositionText(position));
+}
+function gpsTrackError(error){let msg="خطای دریافت موقعیت.";if(error&&error.code===1)msg="دسترسی به موقعیت رد شد؛ مجوز Location مرورگر را بررسی کنید.";else if(error&&error.code===2)msg="موقعیت فعلی در دسترس نیست؛ GPS و تنظیمات مکان‌یابی را بررسی کنید.";else if(error&&error.code===3)msg="مهلت دریافت GPS تمام شد؛ دوباره تلاش کنید.";gpsTrackStatus("وضعیت: "+msg);}
+function gpsTrackLocateOnce(){
+    if(!navigator.geolocation){gpsTrackStatus("این مرورگر از Geolocation پشتیبانی نمی‌کند.");return;}
+    gpsTrackStatus("در حال دریافت موقعیت فعلی…");
+    navigator.geolocation.getCurrentPosition(function(p){gpsTrackOnPosition(p);leafletMap.setView([p.coords.latitude,p.coords.longitude],17,{animate:true});if(gpsTrackMarker)gpsTrackMarker.openPopup();},gpsTrackError,{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+}
+function gpsTrackStart(){
+    if(!navigator.geolocation){gpsTrackStatus("این مرورگر از Geolocation پشتیبانی نمی‌کند.");return;}
+    if(gpsTrackWatchId!==null)return;
+    gpsTrackStartedAt=Date.now();
+    gpsTrackWatchId=navigator.geolocation.watchPosition(function(p){gpsTrackOnPosition(p);if(gpsTrackPoints.length===1)leafletMap.setView([p.coords.latitude,p.coords.longitude],17,{animate:true});},function(e){gpsTrackError(e);gpsTrackStop(false);},{enableHighAccuracy:true,timeout:25000,maximumAge:2000});
+    const stop=document.getElementById("gpsTrackStopBtn"),start=document.getElementById("gpsTrackStartBtn");if(stop)stop.disabled=false;if(start)start.disabled=true;
+    gpsTrackStatus("درخواست ردیابی ارسال شد؛ منتظر دریافت موقعیت GPS…");
+}
+function gpsTrackStop(showStatus=true){
+    if(gpsTrackWatchId!==null){navigator.geolocation.clearWatch(gpsTrackWatchId);gpsTrackWatchId=null;}
+    const stop=document.getElementById("gpsTrackStopBtn"),start=document.getElementById("gpsTrackStartBtn");if(stop)stop.disabled=true;if(start)start.disabled=false;
+    if(showStatus){const el=document.getElementById("gpsTrackStats");if(el)el.textContent="وضعیت: ردیابی متوقف شد.\nمسافت ثبت‌شده: "+gpsTrackFormatDistance(gpsTrackDistanceMeters)+"\nنقاط: "+gpsTrackPoints.length;}
+}
+function gpsTrackClear(){
+    gpsTrackStop(false);if(gpsTrackLayerGroup)gpsTrackLayerGroup.clearLayers();
+    gpsTrackMarker=null;gpsTrackAccuracy=null;gpsTrackLine=null;gpsTrackPoints=[];gpsTrackStartedAt=null;gpsTrackLastFixAt=null;gpsTrackDistanceMeters=0;
+    gpsTrackStatus("وضعیت: Track این صفحه پاک شد. برای شروع دوباره، «موقعیت من» یا «شروع ردیابی» را بزنید.");
+}
+
+
+/* =========================================================
    MY MAPS
 ========================================================= */
 
@@ -1474,6 +1561,18 @@ body.map-mode .map-wrapper {
     }
 }
 
+
+/* GPS TRACKING - Leaflet local-only stage 1 */
+.gps-track-panel{position:absolute;top:90px;right:12px;z-index:1400;width:285px;max-width:calc(100% - 24px);background:rgba(255,255,255,.97);border:1px solid #b8d7c9;border-radius:12px;box-shadow:0 5px 20px rgba(20,60,90,.18);padding:12px;direction:rtl;color:#29465f}
+.gps-track-title{font-size:14px;font-weight:800;color:#07573e;margin-bottom:8px}
+.gps-track-actions{display:flex;gap:6px;flex-wrap:wrap}
+.gps-track-btn{border:1px solid #b8cfc4;background:#f4faf7;color:#07573e;border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;cursor:pointer}
+.gps-track-btn:disabled{opacity:.45;cursor:not-allowed}
+.gps-track-btn.start{background:#146c43;color:#fff;border-color:#146c43}
+.gps-track-btn.stop{background:#fff1f0;color:#a12622;border-color:#e7b6b3}
+.gps-track-stats{margin-top:8px;font-size:11px;line-height:1.9;color:#405a70;white-space:pre-line}
+.gps-track-note{font-size:10px;line-height:1.7;color:#647b8c;margin-top:6px}
+@media(max-width:600px){.gps-track-panel{top:75px;right:8px;width:245px;padding:9px}.gps-track-btn{padding:6px 8px}}
 </style>
 
 <style>
@@ -3694,6 +3793,8 @@ function createLeafletMap() {
             position: "topright"
         }
     ).addTo(leafletMap);
+
+    gpsTrackEnsurePanel();
 
 }
 
