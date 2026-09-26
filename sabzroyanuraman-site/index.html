@@ -3742,7 +3742,7 @@ function gpsTrackUploadPosition(position){
   gpsTrackLastUploadAt=now;
   const c=position.coords,sid=gpsTrackSessionId;
   const payload={action:"point",session_id:sid,latitude:c.latitude,longitude:c.longitude,accuracy:c.accuracy,speed:c.speed,heading:c.heading,altitude:c.altitude,recorded_at:new Date(position.timestamp||now).toISOString()};
-  gpsTrackUploadQueue=gpsTrackUploadQueue.then(()=>gpsTrackSend(payload)).then(()=>{gpsTrackStatus(gpsTrackPositionText(position)+"\\nوضعیت ارسال: ذخیره در سرور");}).catch(err=>{gpsTrackStatus(gpsTrackPositionText(position)+"\\nخطای ارسال به سرور: "+err.message);});
+  gpsTrackUploadQueue=gpsTrackUploadQueue.then(()=>gpsTrackSend(payload)).then(()=>{gpsTrackStatus(gpsTrackPositionText(position)+"\nوضعیت ارسال: ذخیره در سرور");}).catch(err=>{gpsTrackStatus(gpsTrackPositionText(position)+"\nخطای ارسال به سرور: "+err.message);});
 }
 
 function gpsTrackEnsurePanel(){
