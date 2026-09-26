@@ -106,16 +106,7 @@
     <main class="wrap">
         <section class="hero">
             <h1>فرم تهیه نقشه و ثبت اطلاعات ملک</h1>
-            <p>فرم‌ها را مرحله‌به‌مرحله تکمیل کن؛ پیشرفت کار روی همین مرورگر نگه داشته می‌شود.</p>
         </section>
-        <aside class="local-warning">
-            <span aria-hidden="true">ⓘ</span>
-            <p><b>ذخیره‌سازی محلی:</b> اطلاعات و مدارک فقط در حافظه همین مرورگر می‌مانند و به کارگزاری، سرور یا سامانه کاتب فرستاده نمی‌شوند. این نسخه کد رهگیری رسمی صادر نمی‌کند. افراد دیگری که به همین مرورگر دسترسی دارند ممکن است پرونده‌های ذخیره‌شده را ببینند. از دستگاه عمومی یا مشترک برای مدارک محرمانه استفاده نکن.</p>
-        </aside>
-        <div class="storage-line">
-            <span id="localNumber">شماره محلی: هنوز ساخته نشده</span>
-            <span class="save-status"><i class="save-dot" id="saveDot"></i><span id="saveText">اطلاعات هنوز ذخیره نشده</span></span>
-        </div>
         <div class="layout">
             <nav class="steps-nav" id="stepsNav" aria-label="مراحل فرم">
                 <h2>مراحل پرونده</h2>
@@ -125,8 +116,8 @@
                 <form id="workflowForm" novalidate>
                     <section class="screen active" data-screen="0">
                         <h2>شروع یا ادامه‌ی پرونده</h2>
-                        <p class="subhead">درخواست تازه بساز یا پرونده‌ای را که قبلاً در همین مرورگر ذخیره کرده‌ای ادامه بده.</p>
-                        <div class="notice warn">پرونده در این مرحله فقط روی دستگاه شما ایجاد می‌شود. این کار درخواست نقشه را به سامانه کاتب ارسال نمی‌کند.</div>
+                        
+                        
                         <button class="btn btn-green" type="button" id="newRecord">＋ شروع درخواست جدید</button>
                         <div class="section-box">
                             <h3>پرونده‌های ذخیره‌شده در این مرورگر</h3>
@@ -136,7 +127,7 @@
 
                     <section class="screen" data-screen="1">
                         <h2>درخواست جدید تهیه نقشه</h2>
-                        <p class="subhead">مشخصات ملک و محل آن را وارد کن. فیلدهای ستاره‌دار لازم‌اند.</p>
+                        
                         <div class="form-grid">
                             <div class="field"><label for="propertySearchMode">روش پیدا کردن ملک</label><select id="propertySearchMode" data-bind="map.searchMode"><option value="">انتخاب کن</option><option>کدپستی</option><option>نشانی</option><option>پلاک ثبتی</option><option>انتخاب مستقیم روی نقشه</option></select></div>
                             <div class="field"><label for="propertySearchRef">پلاک ثبتی / نشانی کمکی</label><input id="propertySearchRef" data-bind="map.searchReference"></div>
@@ -160,7 +151,7 @@
 
                     <section class="screen" data-screen="2">
                         <h2>گروه نقشه‌برداری و افراد مجاز</h2>
-                        <p class="subhead">این اطلاعات را برای آماده‌سازی درخواست محلی وارد کن؛ هیچ نقشه‌برداری از این صفحه تخصیص داده نمی‌شود.</p>
+                        
                         <div class="form-grid">
                             <div class="field"><label for="surveyGroup">گروه نقشه‌برداری درخواستی</label><select id="surveyGroup" data-bind="map.surveyGroup"><option value="">انتخاب نشده</option><option>گروه اولویت‌دار</option><option>گروه عادی</option><option>فرقی ندارد</option></select></div>
                             <div class="field"><label for="mapPurpose">موضوع / نوع نقشه</label><select id="mapPurpose" data-bind="map.purpose"><option value="">انتخاب کن</option><option>نقشه حدنگار / کاداستر</option><option>نقشه UTM</option><option>سایر</option></select></div>
@@ -177,19 +168,19 @@
 
                     <section class="screen" data-screen="3">
                         <h2>ذخیره درخواست نقشه و کد رهگیری</h2>
-                        <p class="subhead">وقتی کد رهگیری واقعی نقشه را از سامانه کاتب گرفتی، می‌توانی آن را اینجا وارد کنی و ادامه فرم را تکمیل کنی.</p>
-                        <div class="notice warn">این فرم درخواست را به کاتب ثبت نمی‌کند و پیامک نقشه‌بردار نمی‌فرستد. کد رهگیری رسمی را باید از سامانه مربوط دریافت کرده باشی.</div>
+                        
+                        
                         <div class="form-grid">
                             <div class="field"><label for="mapTrackingCode">کد رهگیری نقشه (در صورت دریافت)</label><input id="mapTrackingCode" data-bind="claim.mapTrackingCode" autocomplete="off"></div>
                             <div class="field"><label for="mapReadyDate">تاریخ دریافت نقشه</label><input id="mapReadyDate" data-bind="claim.mapReadyDate" type="date"></div>
                         </div>
                         <div class="section-box"><h3>مرور محل انتخاب‌شده</h3><div id="mapLocationSummary" class="help">—</div></div>
-                        <div class="actions"><button class="btn btn-light" type="button" data-prev>مرحله قبل</button><button class="btn btn-green" type="button" id="saveMapAndContinue">ذخیره محلی و ادامه ثبت ادعا</button></div>
+                        <div class="actions"><button class="btn btn-light" type="button" data-prev>مرحله قبل</button><button class="btn btn-green" type="button" id="saveMapAndContinue">ادامه</button></div>
                     </section>
 
                     <section class="screen" data-screen="4">
                         <h2>شروع ثبت ادعا</h2>
-                        <p class="subhead">مشخص کن ادعا برای شخص حقیقی است یا نماینده یک شخص حقوقی هستی.</p>
+                        
                         <div class="choice-row">
                             <label class="choice"><input type="radio" name="legalRep" value="no" data-bind="claim.isLegalRepresentative"> شخص حقیقی / نماینده نیستم</label>
                             <label class="choice"><input type="radio" name="legalRep" value="yes" data-bind="claim.isLegalRepresentative"> نماینده شخص حقوقی هستم</label>
@@ -209,7 +200,7 @@
 
                     <section class="screen" data-screen="5">
                         <h2>تأیید نقشه و مشخصات ملک</h2>
-                        <p class="subhead">چون به سامانه کاتب وصل نیستیم، اطلاعات نتیجه نقشه‌بردار را خودت وارد و بازبینی کن.</p>
+                        
                         <div class="form-grid">
                             <div class="field"><label for="surveyorName">نام نقشه‌بردار (در صورت درج)</label><input id="surveyorName" data-bind="property.surveyorName"></div>
                             <div class="field"><label for="surveyParcel">شماره پلاک / شناسه ملک</label><input id="surveyParcel" data-bind="property.surveyParcel"></div>
@@ -229,7 +220,7 @@
 
                     <section class="screen" data-screen="6">
                         <h2>منضمات ملک</h2>
-                        <p class="subhead">اگر ملک آپارتمان است، پارکینگ، انباری یا منضمات دیگر را ثبت کن. در غیر این صورت از این مرحله عبور کن.</p>
+                        
                         <div id="annexList"></div>
                         <button class="btn btn-light" type="button" id="addAnnex">＋ افزودن منضم</button>
                         <div class="actions"><button class="btn btn-light" type="button" data-prev>مرحله قبل</button><button class="btn btn-primary" type="button" data-next>ادامه</button></div>
@@ -237,7 +228,7 @@
 
                     <section class="screen" data-screen="7">
                         <h2>اطلاعات مدعی و نماینده قانونی</h2>
-                        <p class="subhead">اطلاعات تماس و مشخصات فرد یا شرکتی را که ادعا به نام او ثبت می‌شود وارد کن.</p>
+                        
                         <div class="form-grid">
                             <div class="field"><label class="required" for="claimantName">نام و نام خانوادگی / نام شرکت</label><input id="claimantName" data-bind="claimant.name" required></div>
                             <div class="field"><label class="required" for="claimantId">کد ملی / شناسه ملی</label><input id="claimantId" data-bind="claimant.identifier" inputmode="numeric" required></div>
@@ -257,7 +248,7 @@
 
                     <section class="screen" data-screen="8">
                         <h2>سوابق اقدام و مستندات ادعا</h2>
-                        <p class="subhead">سوابق مرتبط را وارد و مستندات پشتیبان را انتخاب کن. چند فایل می‌توانی اضافه کنی.</p>
+                        
                         <div class="field"><label for="hasPriorActions">پیش از این برای ملک اقدامی انجام داده‌ای؟</label><select id="hasPriorActions" data-bind="evidence.hasPriorActions"><option value="no">خیر</option><option value="yes">بله</option></select></div>
                         <div id="priorActionsBox" class="section-box hidden">
                             <h3>شرح سوابق اقدام</h3>
@@ -294,17 +285,17 @@
                     </section>
 
                     <section class="screen" data-screen="9">
-                        <h2>بازبینی و ذخیره محلی اطلاعات ادعا</h2>
-                        <p class="subhead">اطلاعات را مرور کن. دکمه پایین فقط پرونده را در همین مرورگر نهایی می‌کند.</p>
+                        <h2>بازبینی اطلاعات ادعا</h2>
+                        
                         <div id="reviewContent"></div>
-                        <label class="checkline"><input id="reviewAccepted" type="checkbox"><span>اطلاعات واردشده را بازبینی کرده‌ام و می‌دانم این ذخیره‌سازی فقط در همین مرورگر است و به سامانه کاتب یا کارگزاری ارسال نمی‌شود.</span></label>
+                        
                         <div class="actions"><button class="btn btn-light" type="button" data-prev>مرحله قبل</button><button class="btn btn-green" type="button" id="finalizeLocal" disabled>ثبت نهایی در همین مرورگر</button></div>
                     </section>
 
                     <section class="screen" data-screen="10">
                         <h2>درج گواهی اقدام</h2>
-                        <p class="subhead">این بخش را بعد از انجام اقدام در مرجع مربوط تکمیل کن. گواهی فقط به پرونده محلی همین مرورگر پیوست می‌شود.</p>
-                        <div class="notice warn">این صفحه وضعیت واقعی ادعا را از کاتب نمی‌خواند و گواهی را به مرجع رسمی نمی‌فرستد. اطلاعات این مرحله هم فقط محلی ذخیره می‌شود.</div>
+                        
+                        
                         <div class="form-grid">
                             <div class="field"><label class="required" for="actionAuthority">مرجع اقدام</label><input id="actionAuthority" data-bind="certificate.authority" required></div>
                             <div class="field"><label class="required" for="actionDate">تاریخ اقدام</label><input id="actionDate" data-bind="certificate.date" type="date" required></div>
@@ -388,7 +379,7 @@
         function saveRecord() {
             if (!draft || !db) return Promise.resolve();
             draft.updatedAt = new Date().toISOString();
-            document.getElementById("localNumber").textContent = "شماره محلی: " + draft.localNumber;
+            
             setSaveStatus("در حال ذخیره…", false);
             return new Promise((resolve, reject) => {
                 const tx = db.transaction("drafts", "readwrite");
@@ -398,8 +389,10 @@
             });
         }
         function setSaveStatus(message, saved) {
-            document.getElementById("saveText").textContent = message;
-            document.getElementById("saveDot").classList.toggle("saved", !!saved);
+            const saveText = document.getElementById("saveText");
+            const saveDot = document.getElementById("saveDot");
+            if (saveText) saveText.textContent = message;
+            if (saveDot) saveDot.classList.toggle("saved", !!saved);
         }
         function blankDraft() {
             const id = crypto.randomUUID ? crypto.randomUUID() : "r" + Date.now() + Math.random().toString(16).slice(2);
@@ -417,8 +410,7 @@
                 const row = document.createElement("div"); row.className = "record-row";
                 const info = document.createElement("div");
                 const title = document.createElement("div"); title.className = "record-title"; title.textContent = record.data?.map?.address || "پرونده تهیه نقشه";
-                const meta = document.createElement("div"); meta.className = "record-meta"; meta.textContent = record.localNumber + " · آخرین ذخیره: " + new Date(record.updatedAt).toLocaleString("fa-IR");
-                info.append(title, meta);
+                info.append(title);
                 const buttons = document.createElement("div"); buttons.className = "toolbar";
                 const open = document.createElement("button"); open.type = "button"; open.className = "btn btn-light"; open.textContent = "ادامه"; open.addEventListener("click", () => openDraft(record));
                 const remove = document.createElement("button"); remove.type = "button"; remove.className = "btn btn-danger"; remove.textContent = "حذف"; remove.addEventListener("click", () => removeRecord(record.id));
@@ -470,9 +462,7 @@
             document.querySelectorAll("[data-evidence-type]").forEach(el => { el.checked = (draft.data.evidenceTypes || []).includes(el.dataset.evidenceType); });
             document.getElementById("companyFields").classList.toggle("hidden", getPath(draft.data,"claim.isLegalRepresentative") !== "yes");
             document.getElementById("priorActionsBox").classList.toggle("hidden", getPath(draft.data,"evidence.hasPriorActions") !== "yes");
-            document.getElementById("reviewAccepted").checked = false;
-            document.getElementById("finalizeLocal").disabled = !draft.claimFinalized;
-            document.getElementById("localNumber").textContent = "شماره محلی: " + draft.localNumber;
+            
         }
         function showStep(index) {
             if (index > 0 && !draft) index = 0;
@@ -610,17 +600,16 @@
             collectControls();
             const mapData=draft?.data?.map||{}, prop=draft?.data?.property||{}, claimant=draft?.data?.claimant||{}, evidence=draft?.data?.evidence||{};
             const rows=[["نشانی",mapData.address],["شهر / استان",[mapData.city,mapData.province].filter(Boolean).join("، ")],["مختصات",[mapData.latitude,mapData.longitude].filter(Boolean).join("، ")],["کد رهگیری نقشه",draft?.data?.claim?.mapTrackingCode],["نوع ملک",prop.type],["پلاک ثبتی",[prop.mainParcel,prop.subParcel].filter(Boolean).join(" / ")],["مدعی",claimant.name],["شماره همراه",claimant.mobile],["نوع مستندات",(evidence.evidenceTypes||draft?.data?.evidenceTypes||[]).join("، ")],["فایل‌های پیوست",Object.values(draft?.data?.files||{}).flat().map(file=>file.name).join("، ")]].map(([label,value])=>`<tr><th>${esc(label)}</th><td>${esc(value||"—")}</td></tr>`).join("");
-            document.getElementById("reviewContent").innerHTML=`<div class="section-box"><b>شماره محلی ${esc(draft?.localNumber)}</b><table class="review-table">${rows}</table></div>`;
+            document.getElementById("reviewContent").innerHTML=`<div class="section-box"><table class="review-table">${rows}</table></div>`;
             const finalizeButton = document.getElementById("finalizeLocal");
-            finalizeButton.textContent = draft?.claimFinalized ? "ادامه به درج گواهی اقدام" : "ثبت نهایی در همین مرورگر";
-            finalizeButton.disabled = !draft?.claimFinalized;
+            finalizeButton.textContent = draft?.claimFinalized ? "ادامه به درج گواهی اقدام" : "ثبت نهایی";
+            finalizeButton.disabled = false;
         }
         document.getElementById("newRecord").addEventListener("click",async()=>{if(!db){alert("ذخیره‌سازی مرورگر آماده نیست.");return;}draft=blankDraft();currentStep=1;await saveRecord();fillControls();renderAuthorized();renderAnnexes();renderAllFileLists();showStep(1);});
         document.getElementById("addAuthorized").addEventListener("click",()=>{draft.data.authorized ||= [];draft.data.authorized.push({type:"حقیقی",name:"",identifier:"",phone:""});renderAuthorized();saveRecord();});
         document.getElementById("addAnnex").addEventListener("click",()=>{draft.data.annexes ||= [];draft.data.annexes.push({type:"",title:"",detail:""});renderAnnexes();saveRecord();});
         document.getElementById("saveMapAndContinue").addEventListener("click",async()=>{collectControls();await saveRecord();showStep(4);});
-        document.getElementById("reviewAccepted").addEventListener("change",event=>{document.getElementById("finalizeLocal").disabled=!event.target.checked;});
-        document.getElementById("finalizeLocal").addEventListener("click",async()=>{if(draft.claimFinalized){showStep(10);return;}if(!document.getElementById("reviewAccepted").checked)return;collectControls();draft.claimFinalized=true;draft.currentStep=10;await saveRecord();showStep(10);});
+        document.getElementById("finalizeLocal").addEventListener("click",async()=>{if(draft.claimFinalized){showStep(10);return;}collectControls();draft.claimFinalized=true;draft.currentStep=10;await saveRecord();showStep(10);});
         document.getElementById("saveCertificate").addEventListener("click",async()=>{
             collectControls();
             for(const id of ["actionAuthority","actionDate","actionKind","actionDescription"]){const field=document.getElementById(id);if(!field.value.trim()){field.focus();field.reportValidity();return;}}
