@@ -3806,7 +3806,15 @@ function gpsTrackStart(){
     gpsTrackSessionId=(crypto&&crypto.randomUUID)?crypto.randomUUID():("trk-"+Date.now()+"-"+Math.random().toString(36).slice(2));
     gpsTrackLastUploadAt=0;
     gpsTrackUploadQueue=gpsTrackUploadQueue.then(()=>gpsTrackSend({action:"start",session_id:gpsTrackSessionId,started_at:new Date(gpsTrackStartedAt).toISOString()})).catch(()=>{});
-    gpsTrackWatchId=navigator.geolocation.watchPosition(function(p){gpsTrackOnPosition(p);if(gpsTrackPoints.length===1)leafletMap.setView([p.coords.latitude,p.coords.longitude],17,{animate:true});},function(e){gpsTrackError(e);gpsTrackStop(false);},{enableHighAccuracy:true,timeout:25000,maximumAge:2000});
+    let gpsTrackFirstFix=true;
+    gpsTrackWatchId=navigator.geolocation.watchPosition(function(p){
+        gpsTrackOnPosition(p);
+        if(gpsTrackFirstFix){
+            gpsTrackFirstFix=false;
+            leafletMap.setView([p.coords.latitude,p.coords.longitude],17,{animate:true});
+            if(gpsTrackMarker)gpsTrackMarker.openPopup();
+        }
+    },function(e){gpsTrackError(e);gpsTrackStop(false);},{enableHighAccuracy:true,timeout:25000,maximumAge:0});
     const stop=document.getElementById("gpsTrackStopBtn"),start=document.getElementById("gpsTrackStartBtn");if(stop)stop.disabled=false;if(start)start.disabled=true;
     gpsTrackStatus("درخواست ردیابی ارسال شد؛ منتظر دریافت موقعیت GPS…");
 }
