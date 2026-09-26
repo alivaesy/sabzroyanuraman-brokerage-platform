@@ -3753,7 +3753,7 @@ function gpsTrackEnsurePanel(){
     panel.className="gps-track-panel";
     panel.innerHTML='<div class="gps-track-title">📍 موقعیت و ردیابی GPS</div>'+ 
       '<div class="gps-track-actions">'+
-      '<button type="button" class="gps-track-btn" id="gpsTrackLocateBtn">موقعیت من</button>'+
+      '<button type="button" class="gps-track-btn start" id="gpsTrackLocateBtn" style="font-weight:800;min-width:150px">رفتن به مکان فعلی</button>'+
       '<button type="button" class="gps-track-btn start" id="gpsTrackStartBtn">شروع ردیابی</button>'+ 
       '<button type="button" class="gps-track-btn stop" id="gpsTrackStopBtn" disabled>توقف</button>'+ 
       '<button type="button" class="gps-track-btn" id="gpsTrackClearBtn">پاک‌کردن مسیر از نقشه</button>'+ 
@@ -3796,8 +3796,16 @@ function gpsTrackOnPosition(position){
 function gpsTrackError(error){let msg="خطای دریافت موقعیت.";if(error&&error.code===1)msg="دسترسی به موقعیت رد شد؛ مجوز Location مرورگر را بررسی کنید.";else if(error&&error.code===2)msg="موقعیت فعلی در دسترس نیست؛ GPS و تنظیمات مکان‌یابی را بررسی کنید.";else if(error&&error.code===3)msg="مهلت دریافت GPS تمام شد؛ دوباره تلاش کنید.";gpsTrackStatus("وضعیت: "+msg);}
 function gpsTrackLocateOnce(){
     if(!navigator.geolocation){gpsTrackStatus("این مرورگر از Geolocation پشتیبانی نمی‌کند.");return;}
-    gpsTrackStatus("در حال دریافت موقعیت فعلی…");
-    navigator.geolocation.getCurrentPosition(function(p){gpsTrackOnPosition(p);leafletMap.setView([p.coords.latitude,p.coords.longitude],17,{animate:true});if(gpsTrackMarker)gpsTrackMarker.openPopup();},gpsTrackError,{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+    if(!leafletMap){gpsTrackStatus("نقشه هنوز آماده نیست؛ ابتدا نقشه را باز کنید.");return;}
+    gpsTrackStatus("در حال دریافت موقعیت دقیق و انتقال نقشه…");
+    navigator.geolocation.getCurrentPosition(function(p){
+        const lat=Number(p.coords.latitude),lng=Number(p.coords.longitude);
+        if(!Number.isFinite(lat)||!Number.isFinite(lng)){gpsTrackStatus("مختصات دریافتی معتبر نیست.");return;}
+        gpsTrackOnPosition(p);
+        leafletMap.stop();
+        leafletMap.setView([lat,lng],18,{animate:false});
+        setTimeout(function(){leafletMap.invalidateSize({pan:false});leafletMap.setView([lat,lng],18,{animate:false});if(gpsTrackMarker)gpsTrackMarker.openPopup();},150);
+    },gpsTrackError,{enableHighAccuracy:true,timeout:30000,maximumAge:0});
 }
 function gpsTrackStart(){
     if(!navigator.geolocation){gpsTrackStatus("این مرورگر از Geolocation پشتیبانی نمی‌کند.");return;}
