@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="فرم مرحله‌ای تهیه نقشه و ثبت اطلاعات ملک؛ اطلاعات در مرورگر شما ذخیره می‌شود.">
+    <title>فرم تهیه نقشه | کارگزاری ثلاث باباجانی</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <style>
+        @font-face { font-family: Vazirmatn; src: url("/assets/fonts/Vazirmatn-Regular.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+        @font-face { font-family: Vazirmatn; src: url("/assets/fonts/Vazirmatn-Bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+        :root { --green:#087653; --dark:#07573e; --blue:#0967a8; --ink:#183348; --muted:#65798a; --line:#dbe6e2; --wash:#f4f8f7; --white:#fff; --warn:#fff8e8; }
+        * { box-sizing:border-box; }
+        body { margin:0; color:var(--ink); background:var(--wash); font-family:Vazirmatn,Tahoma,sans-serif; line-height:1.85; }
+        button,input,select,textarea { font:inherit; }
+        button,a { -webkit-tap-highlight-color:transparent; }
+        a { color:var(--green); }
+        .topbar { background:#fff; border-bottom:1px solid var(--line); }
+        .topbar-inner { width:min(1120px,calc(100% - 28px)); min-height:62px; margin:auto; display:flex; justify-content:space-between; align-items:center; gap:14px; }
+        .brand { color:var(--ink); text-decoration:none; font-weight:700; font-size:.94rem; }
+        .back { text-decoration:none; font-weight:700; font-size:.9rem; white-space:nowrap; }
+        .wrap { width:min(1120px,calc(100% - 28px)); margin:24px auto 60px; }
+        .hero { padding:22px 26px; border-radius:17px; background:linear-gradient(125deg,#07573e,#11805b); color:#fff; box-shadow:0 9px 26px #123f2b16; }
+        .hero h1 { margin:0 0 4px; font-size:clamp(1.35rem,3vw,1.9rem); }
+        .hero p { margin:0; color:#e3f5eb; }
+        .local-warning { display:flex; gap:10px; padding:13px 16px; margin:15px 0; border:1px solid #ecd9a7; border-right:4px solid #ca9732; border-radius:12px; background:var(--warn); color:#58471e; font-size:.88rem; }
+        .local-warning p { margin:0; }
+        .storage-line { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 2px; color:var(--muted); font-size:.82rem; }
+        .save-status { display:inline-flex; align-items:center; gap:7px; }
+        .save-dot { width:8px; height:8px; border-radius:50%; background:#c5a243; }
+        .save-dot.saved { background:#168057; }
+        .layout { display:grid; grid-template-columns:260px minmax(0,1fr); gap:18px; align-items:start; }
+        .steps-nav,.panel { border:1px solid var(--line); border-radius:15px; background:var(--white); box-shadow:0 7px 24px #18392f0a; }
+        .steps-nav { position:sticky; top:14px; padding:14px; }
+        .steps-nav h2 { margin:0 0 9px; font-size:1rem; }
+        .step-link { width:100%; display:flex; align-items:center; gap:10px; padding:8px 9px; border:0; border-radius:9px; background:transparent; color:#52687a; text-align:right; cursor:pointer; font-size:.85rem; }
+        .step-link:hover { background:#f0f7f4; }
+        .step-link.active { background:#eaf5ef; color:var(--dark); font-weight:700; }
+        .step-link:disabled { opacity:.48; cursor:not-allowed; }
+        .step-chip { display:inline-grid; place-items:center; flex:0 0 25px; width:25px; height:25px; border-radius:8px; background:#edf2f4; color:#596e7d; font-size:.78rem; }
+        .step-link.active .step-chip,.step-link.done .step-chip { background:var(--green); color:#fff; }
+        .panel { padding:clamp(17px,3vw,28px); min-height:490px; }
+        .screen { display:none; }
+        .screen.active { display:block; }
+        .screen h2 { margin:0 0 6px; font-size:clamp(1.2rem,2.5vw,1.55rem); }
+        .subhead { margin:0 0 20px; color:var(--muted); font-size:.92rem; }
+        .form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; }
+        .field { display:flex; flex-direction:column; gap:5px; min-width:0; }
+        .field.full { grid-column:1/-1; }
+        .field label,.field-label { color:#334d60; font-size:.88rem; font-weight:700; }
+        .required::after { content:" *"; color:#c03936; }
+        .field input,.field select,.field textarea { width:100%; min-height:43px; padding:8px 11px; border:1px solid #cbd9df; border-radius:8px; outline:0; color:var(--ink); background:#fff; }
+        .field textarea { min-height:92px; resize:vertical; }
+        .field input:focus,.field select:focus,.field textarea:focus { border-color:#55a58a; box-shadow:0 0 0 3px #08765315; }
+        .help { color:var(--muted); font-size:.78rem; }
+        .choice-row { display:flex; flex-wrap:wrap; gap:10px; margin:12px 0 16px; }
+        .choice { display:flex; align-items:center; gap:8px; padding:12px 14px; border:1px solid #d6e2e6; border-radius:11px; background:#fbfdfc; cursor:pointer; }
+        .choice:has(input:checked) { border-color:#3d9a78; background:#eef8f3; }
+        .choice input { accent-color:var(--green); }
+        .map-wrap { margin-top:14px; border:1px solid #d3e0e5; border-radius:11px; overflow:hidden; }
+        .map-head { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:9px 12px; background:#f2f7f5; font-size:.83rem; font-weight:700; }
+        #propertyMap { width:100%; height:320px; background:#e9f0ed; }
+        .map-foot { padding:8px 12px; color:var(--muted); font-size:.77rem; }
+        .section-box { margin-top:17px; padding:15px; border:1px solid #e0e9e6; border-radius:12px; background:#fcfefd; }
+        .section-box h3 { margin:0 0 8px; font-size:1rem; }
+        .toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:10px 0; }
+        .btn { display:inline-flex; justify-content:center; align-items:center; gap:7px; min-height:40px; padding:8px 15px; border:1px solid transparent; border-radius:8px; cursor:pointer; text-decoration:none; font-weight:700; font-size:.88rem; }
+        .btn-primary { background:var(--blue); color:#fff; }
+        .btn-primary:hover { background:#07568e; }
+        .btn-green { background:var(--green); color:#fff; }
+        .btn-light { border-color:#cbd9de; background:#fff; color:#355267; }
+        .btn-danger { border-color:#edcece; background:#fff6f6; color:#9a3333; }
+        .btn:disabled { opacity:.5; cursor:not-allowed; }
+        .actions { display:flex; justify-content:space-between; gap:10px; margin-top:24px; padding-top:16px; border-top:1px solid #e6eeeb; }
+        .repeat-card { position:relative; margin:10px 0; padding:14px; border:1px solid #dce7e3; border-radius:11px; background:#fff; }
+        .repeat-card h4 { margin:0 0 11px; }
+        .remove-item { position:absolute; left:10px; top:8px; }
+        .file-list { margin:7px 0 0; padding:0; list-style:none; }
+        .file-row { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:7px 9px; margin-top:5px; border-radius:8px; background:#f3f7f6; font-size:.82rem; }
+        .file-row button { border:0; background:none; color:#a53737; cursor:pointer; }
+        .notice { margin:13px 0; padding:11px 13px; border-right:3px solid #5a9dbb; border-radius:8px; background:#eff7fb; color:#33586c; font-size:.84rem; }
+        .notice.warn { border-color:#cc9b37; background:#fff8e8; color:#624d22; }
+        .record-list { display:grid; gap:9px; margin-top:13px; }
+        .record-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px; border:1px solid var(--line); border-radius:10px; background:#fff; }
+        .record-title { font-weight:700; }
+        .record-meta { color:var(--muted); font-size:.78rem; }
+        .review-table { width:100%; border-collapse:collapse; }
+        .review-table th,.review-table td { padding:9px; border-bottom:1px solid #e4ece8; text-align:right; vertical-align:top; }
+        .review-table th { width:31%; color:#496275; font-weight:700; }
+        .checkline { display:flex; align-items:flex-start; gap:9px; margin-top:16px; padding:13px; border:1px solid #dce8e3; border-radius:9px; background:#f8fcfa; }
+        .checkline input { margin-top:8px; accent-color:var(--green); }
+        .empty { padding:18px; border:1px dashed #bdcfc8; border-radius:10px; color:var(--muted); text-align:center; }
+        .footer-note { margin-top:17px; color:var(--muted); text-align:center; font-size:.79rem; }
+        .hidden { display:none !important; }
+        @media(max-width:820px) { .layout { grid-template-columns:1fr; } .steps-nav { position:static; } .nav-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:3px; } .panel { min-height:0; } }
+        @media(max-width:520px) { .wrap,.topbar-inner { width:calc(100% - 18px); } .hero { padding:17px; } .brand { max-width:60%; font-size:.8rem; line-height:1.5; } .back { font-size:.78rem; } .form-grid { grid-template-columns:1fr; } .field.full { grid-column:auto; } .nav-list { grid-template-columns:1fr; max-height:260px; overflow:auto; } #propertyMap { height:260px; } .actions { position:sticky; bottom:0; background:#fff; padding:12px 0 2px; } .btn { padding:8px 11px; font-size:.82rem; } .record-row { align-items:flex-start; flex-direction:column; } }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-inner">
+            <a class="brand" href="index.html">درگاه کارگزاری فنی مهندسی و حقوقی شهرستان ثلاث باباجانی</a>
+            <a class="back" href="index.html#brokerageServices">→ بازگشت به خدمات</a>
+        </div>
+    </header>
+    <main class="wrap">
+        <section class="hero">
+            <h1>فرم تهیه نقشه و ثبت اطلاعات ملک</h1>
+            <p>فرم‌ها را مرحله‌به‌مرحله تکمیل کن؛ پیشرفت کار روی همین مرورگر نگه داشته می‌شود.</p>
+        </section>
+        <aside class="local-warning">
+            <span aria-hidden="true">ⓘ</span>
+            <p><b>ذخیره‌سازی محلی:</b> اطلاعات و مدارک فقط در حافظه همین مرورگر می‌مانند و به کارگزاری، سرور یا سامانه کاتب فرستاده نمی‌شوند. این نسخه کد رهگیری رسمی صادر نمی‌کند. افراد دیگری که به همین مرورگر دسترسی دارند ممکن است پرونده‌های ذخیره‌شده را ببینند. از دستگاه عمومی یا مشترک برای مدارک محرمانه استفاده نکن.</p>
+        </aside>
+        <div class="storage-line">
+            <span id="localNumber">شماره محلی: هنوز ساخته نشده</span>
+            <span class="save-status"><i class="save-dot" id="saveDot"></i><span id="saveText">اطلاعات هنوز ذخیره نشده</span></span>
+        </div>
+        <div class="layout">
+            <nav class="steps-nav" id="stepsNav" aria-label="مراحل فرم">
+                <h2>مراحل پرونده</h2>
+                <div class="nav-list" id="navList"></div>
+            </nav>
+            <section class="panel">
+                <form id="workflowForm" novalidate>
+                    <section class="screen active" data-screen="0">
+                        <h2>شروع یا ادامه‌ی پرونده</h2>
+                        <p class="subhead">درخواست تازه بساز یا پرونده‌ای را که قبلاً در همین مرورگر ذخیره کرده‌ای ادامه بده.</p>
+                        <div class="notice warn">پرونده در این مرحله فقط روی دستگاه شما ایجاد می‌شود. این کار درخواست نقشه را به سامانه کاتب ارسال نمی‌کند.</div>
+                        <button class="btn btn-green" type="button" id="newRecord">＋ شروع درخواست جدید</button>
+                        <div class="section-box">
+                            <h3>پرونده‌های ذخیره‌شده در این مرورگر</h3>
+                            <div class="record-list" id="recordList"><div class="empty">در حال خواندن پرونده‌های محلی…</div></div>
+                        </div>
+                    </section>
+
+                    <section class="screen" data-screen="1">
+                        <h2>درخواست جدید تهیه نقشه</h2>
+                        <p class="subhead">مشخصات ملک و محل آن را وارد کن. فیلدهای ستاره‌دار لازم‌اند.</p>
+                        <div class="form-grid">
+                            <div class="field"><label for="propertySearchMode">روش پیدا کردن ملک</label><select id="propertySearchMode" data-bind="map.searchMode"><option value="">انتخاب کن</option><option>کدپستی</option><option>نشانی</option><option>پلاک ثبتی</option><option>انتخاب مستقیم روی نقشه</option></select></div>
+                            <div class="field"><label for="propertySearchRef">پلاک ثبتی / نشانی کمکی</label><input id="propertySearchRef" data-bind="map.searchReference"></div>
+                            <div class="field"><label class="required" for="postalCode">کدپستی ملک</label><input id="postalCode" data-bind="map.postalCode" inputmode="numeric" maxlength="10" autocomplete="postal-code" required></div>
+                            <div class="field"><label class="required" for="province">استان</label><input id="province" data-bind="map.province" required></div>
+                            <div class="field"><label class="required" for="city">شهرستان / شهر</label><input id="city" data-bind="map.city" required></div>
+                            <div class="field"><label for="village">بخش / روستا</label><input id="village" data-bind="map.village"></div>
+                            <div class="field full"><label class="required" for="address">نشانی ملک</label><textarea id="address" data-bind="map.address" required></textarea></div>
+                        </div>
+                        <div class="map-wrap">
+                            <div class="map-head"><span>موقعیت ملک روی نقشه</span><span id="coordinates">هنوز نقطه‌ای انتخاب نشده</span></div>
+                            <div id="propertyMap" aria-label="نقشه؛ برای انتخاب موقعیت ملک روی آن کلیک کنید"></div>
+                            <div class="map-foot">برای انتخاب نقطه روی نقشه کلیک کن یا نشانگر را جابه‌جا کن. زمینه نقشه از OpenStreetMap بارگیری می‌شود؛ سرویس نقشه محدوده‌ی در حال نمایش را می‌بیند.</div>
+                        </div>
+                        <div class="form-grid" style="margin-top:12px">
+                            <div class="field"><label class="required" for="latitude">عرض جغرافیایی</label><input id="latitude" data-bind="map.latitude" inputmode="decimal" required></div>
+                            <div class="field"><label class="required" for="longitude">طول جغرافیایی</label><input id="longitude" data-bind="map.longitude" inputmode="decimal" required></div>
+                        </div>
+                        <div class="actions"><button class="btn btn-light" type="button" data-prev>بازگشت</button><button class="btn btn-primary" type="button" data-next>ادامه</button></div>
+                    </section>
+
+                    <section class="screen" data-screen="2">
+                        <h2>گروه نقشه‌برداری و افراد مجاز</h2>
+                        <p class="subhead">این اطلاعات را برای آماده‌سازی درخواست محلی وارد کن؛ هیچ نقشه‌برداری از این صفحه تخصیص داده نمی‌شود.</p>
+                        <div class="form-grid">
+                            <div class="field"><label for="surveyGroup">گروه نقشه‌برداری درخواستی</label><select id="surveyGroup" data-bind="map.surveyGroup"><option value="">انتخاب نشده</option><option>گروه اولویت‌دار</option><option>گروه عادی</option><option>فرقی ندارد</option></select></div>
+                            <div class="field"><label for="mapPurpose">موضوع / نوع نقشه</label><select id="mapPurpose" data-bind="map.purpose"><option value="">انتخاب کن</option><option>نقشه حدنگار / کاداستر</option><option>نقشه UTM</option><option>سایر</option></select></div>
+                            <div class="field full"><label for="surveyorNotes">توضیحات برای نقشه‌بردار</label><textarea id="surveyorNotes" data-bind="map.notes"></textarea></div>
+                        </div>
+                        <div class="section-box">
+                            <h3>اشخاص مجاز برای استفاده از نقشه</h3>
+                            <p class="help">در صورت نیاز، اطلاعات اشخاص حقیقی یا حقوقی را اضافه کن.</p>
+                            <div id="authorizedList"></div>
+                            <button class="btn btn-light" type="button" id="addAuthorized">＋ افزودن شخص مجاز</button>
+                        </div>
+                        <div class="actions"><button class="btn btn-light" type="button" data-prev>مرحله قبل</button><button class="btn btn-primary" type="button" data-next>ادامه</button></div>
+                    </section>
+
+                    <section class="screen" data-screen="3">
+                        <h2>ذخیره درخواست نقشه و کد رهگیری</h2>
+                        <p class="subhead">وقتی کد رهگیری واقعی نقشه را از سامانه کاتب گرفتی، می‌توانی آن را اینجا وارد کنی و ادامه فرم را تکمیل کنی.</p>
+                        <div class="notice warn">این فرم درخواست را به کاتب ثبت نمی‌کند و پیامک نقشه‌بردار نمی‌فرستد. کد رهگیری رسمی را باید از سامانه مربوط دریافت کرده باشی.</div>
+                        <div class="form-grid">
+                            <div class="field"><label for="mapTrackingCode">کد رهگیری نقشه (در صورت دریافت)</label><input id="mapTrackingCode" data-bind="claim.mapTrackingCode" autocomplete="off"></div>
+                            <div class="field"><label for="mapReadyDate">تاریخ دریافت نقشه</label><input id="mapReadyDate" data-bind="claim.mapReadyDate" type="date"></div>
+                        </div>
+                        <div class="section-box"><h3>مرور محل انتخاب‌شده</h3><div id="mapLocationSummary" class="help">—</div></div>
+                        <div class="actions"><button class="btn btn-light" type="button" data-prev>مرحله قبل</button><button class="btn btn-green" type="button" id="saveMapAndContinue">ذخیره محلی و ادامه ثبت ادعا</button></div>
+                    </section>
+
+                    <section class="screen" data-screen="4">
+                        <h2>شروع ثبت ادعا</h2>
+                        <p class="subhead">مشخص کن ادعا برای شخص حقیقی است یا نماینده یک شخص حقوقی هستی.</p>
+                        <div class="choice-row">
+                            <label class="choice"><input type="radio" name="legalRep" value="no" data-bind="claim.isLegalRepresentative"> شخص حقیقی / نماینده نیستم</label>
+                            <label class="choice"><input type="radio" name="legalRep" value="yes" data-bind="claim.isLegalRepresentative"> نماینده شخص حقوقی هستم</label>
+                        </div>
+                        <div id="companyFields" class="form-grid hidden">
+                            <div class="field"><label class="required" for="companyName">نام شخص حقوقی</label><input id="companyName" data-bind="claim.companyName"></div>
+                            <div class="field"><label class="required" for="companyNationalId">شناسه ملی شخص حقوقی</label><input id="companyNationalId" data-bind="claim.companyNationalId" inputmode="numeric"></div>
+                            <div class="field"><label for="repName">نام نماینده</label><input id="repName" data-bind="claim.representativeName"></div>
+                            <div class="field"><label for="repNationalId">کد ملی نماینده</label><input id="repNationalId" data-bind="claim.representativeNationalId" inputmode="numeric"></div>
+                        </div>
+                        <div class="form-grid" style="margin-top:12px">
+                            <div class="field"><label for="claimMapCode">کد رهگیری نقشه</label><input id="claimMapCode" data-bind="claim.mapTrackingCode"></div>
+                            <div class="field"><label for="claimantPhone">شماره همراه پیگیری</label><input id="claimantPhone" data-bind="claim.phone" inputmode="tel" autocomplete="tel"></div>
+                        </div>
+                        <div class="actions"><button class="btn btn-light" type="button" data-prev>مرحله قبل</button><button class="btn btn-primary" type="button" data-next>ادامه</button></div>
+                    </section>
+
+                    <section class="screen" data-screen="5">
+                        <h2>تأیید نقشه و مشخصات ملک</h2>
+                        <p class="subhead">چون به سامانه کاتب وصل نیستیم، اطلاعات نتیجه نقشه‌بردار را خودت وارد و بازبینی کن.</p>
+                        <div class="form-grid">
+                            <div class="field"><label for="surveyorName">نام نقشه‌بردار (در صورت درج)</label><input id="surveyorName" data-bind="property.surveyorName"></div>
+                            <div class="field"><label for="surveyParcel">شماره پلاک / شناسه ملک</label><input id="surveyParcel" data-bind="property.surveyParcel"></div>
+                            <div class="field"><label class="required" for="propertyType">نوع ملک</label><select id="propertyType" data-bind="property.type" required><option value="">انتخاب کن</option><option>زمین</option><option>آپارتمان</option><option>ساختمان</option><option>سایر</option></select></div>
+                            <div class="field"><label for="propertyArea">مساحت اعلام‌شده</label><input id="propertyArea" data-bind="property.area" inputmode="decimal"></div>
+                            <div class="field"><label for="mainParcel">پلاک اصلی</label><input id="mainParcel" data-bind="property.mainParcel"></div>
+                            <div class="field"><label for="subParcel">پلاک فرعی</label><input id="subParcel" data-bind="property.subParcel"></div>
+                            <div class="field full"><label for="propertyDescription">توصیف ملک و نشانی تکمیلی</label><textarea id="propertyDescription" data-bind="property.description"></textarea></div>
+                            <div class="field"><label for="northBoundary">حد شمالی</label><input id="northBoundary" data-bind="property.boundaryNorth"></div>
+                            <div class="field"><label for="southBoundary">حد جنوبی</label><input id="southBoundary" data-bind="property.boundarySouth"></div>
+                            <div class="field"><label for="eastBoundary">حد شرقی</label><input id="eastBoundary" data-bind="property.boundaryEast"></div>
+                            <div class="field"><label for="westBoundary">حد غربی</label><input id="westBoundary" data-bind="property.boundaryWest"></div>
+                            <div class="field full"><label for="surveyCorrection">توضیح مغایرت یا درخواست اصلاح نقشه</label><textarea id="surveyCorrection" data-bind="property.correctionNotes"></textarea></div>
+                        </div>
+                        <div class="actions"><button class="btn btn-light" type="button" data-prev>مرحله قبل</button><button class="btn btn-primary" type="button" data-next>ادامه</button></div>
+                    </section>
+
+                    <section class="screen" data-screen="6">
+                        <h2>منضمات ملک</h2>
+                        <p class="subhead">اگر ملک آپارتمان است، پارکینگ، انباری یا منضمات دیگر را ثبت کن. در غیر این صورت از این مرحله عبور کن.</p>
+                        <div id="annexList"></div>
+                        <button class="btn btn-light" type="button" id="addAnnex">＋ افزودن منضم</button>
+                        <div class="actions"><button class="btn btn-light" type="button" data-prev>مرحله قبل</button><button class="btn btn-primary" type="button" data-next>ادامه</button></div>
+                    </section>
+
+                    <section class="screen" data-screen="7">
+                        <h2>اطلاعات مدعی و نماینده قانونی</h2>
+                        <p class="subhead">اطلاعات تماس و مشخصات فرد یا شرکتی را که ادعا به نام او ثبت می‌شود وارد کن.</p>
+                        <div class="form-grid">
+                            <div class="field"><label class="required" for="claimantName">نام و نام خانوادگی / نام شرکت</label><input id="claimantName" data-bind="claimant.name" required></div>
+                            <div class="field"><label class="required" for="claimantId">کد ملی / شناسه ملی</label><input id="claimantId" data-bind="claimant.identifier" inputmode="numeric" required></div>
+                            <div class="field"><label for="claimantBirth">تاریخ تولد (شخص حقیقی)</label><input id="claimantBirth" data-bind="claimant.birthDate" type="date"></div>
+                            <div class="field"><label class="required" for="claimantMobile">شماره همراه</label><input id="claimantMobile" data-bind="claimant.mobile" inputmode="tel" required></div>
+                            <div class="field"><label for="claimantRole">نقش شخص واردکننده</label><select id="claimantRole" data-bind="claimant.role"><option>خودم</option><option>نماینده قانونی</option><option>نماینده شخص حقوقی</option></select></div>
+                            <div class="field"><label for="relation">نحوه ارتباط با مدعی</label><input id="relation" data-bind="claimant.relation"></div>
+                            <div class="field full"><label for="claimantAddress">نشانی مدعی</label><textarea id="claimantAddress" data-bind="claimant.address"></textarea></div>
+                        </div>
+                        <div class="section-box">
+                            <h3>مدرک نمایندگی (در صورت نیاز)</h3>
+                            <label class="field"><span class="field-label">انتخاب فایل</span><input type="file" accept=".pdf,.jpg,.jpeg,.png" data-file="representation"></label>
+                            <ul class="file-list" id="files-representation"></ul>
+                        </div>
+                        <div class="actions"><button class="btn btn-light" type="button" data-prev>مرحله قبل</button><button class="btn btn-primary" type="button" data-next>ادامه</button></div>
+                    </section>
+
+                    <section class="screen" data-screen="8">
+                        <h2>سوابق اقدام و مستندات ادعا</h2>
+                        <p class="subhead">سوابق مرتبط را وارد و مستندات پشتیبان را انتخاب کن. چند فایل می‌توانی اضافه کنی.</p>
+                        <div class="field"><label for="hasPriorActions">پیش از این برای ملک اقدامی انجام داده‌ای؟</label><select id="hasPriorActions" data-bind="evidence.hasPriorActions"><option value="no">خیر</option><option value="yes">بله</option></select></div>
+                        <div id="priorActionsBox" class="section-box hidden">
+                            <h3>شرح سوابق اقدام</h3>
+                            <div class="form-grid">
+                                <div class="field"><label for="priorAuthority">مرجع اقدام</label><input id="priorAuthority" data-bind="evidence.priorAuthority"></div>
+                                <div class="field"><label for="priorDate">تاریخ اقدام</label><input id="priorDate" data-bind="evidence.priorDate" type="date"></div>
+                                <div class="field full"><label for="priorDescription">شرح اقدام قبلی</label><textarea id="priorDescription" data-bind="evidence.priorDescription"></textarea></div>
+                            </div>
+                        </div>
+                        <div class="section-box">
+                            <h3>نوع مستندات</h3>
+                            <div class="choice-row">
+                                <label class="choice"><input type="checkbox" data-evidence-type="مبایعه‌نامه / قولنامه"> مبایعه‌نامه / قولنامه</label>
+                                <label class="choice"><input type="checkbox" data-evidence-type="ارث / انحصار وراثت"> ارث / انحصار وراثت</label>
+                                <label class="choice"><input type="checkbox" data-evidence-type="هبه‌نامه"> هبه‌نامه</label>
+                                <label class="choice"><input type="checkbox" data-evidence-type="صلح‌نامه"> صلح‌نامه</label>
+                                <label class="choice"><input type="checkbox" data-evidence-type="وقف‌نامه"> وقف‌نامه</label>
+                                <label class="choice"><input type="checkbox" data-evidence-type="اجاره / حق انتفاع"> اجاره / حق انتفاع</label>
+                                <label class="choice"><input type="checkbox" data-evidence-type="سایر مستندات"> سایر</label>
+                            </div>
+                            <div class="field"><label for="evidenceNotes">توضیح مستندات</label><textarea id="evidenceNotes" data-bind="evidence.notes"></textarea></div>
+                            <label class="field" style="margin-top:12px"><span class="field-label">بارگذاری مدارک (PDF، JPG یا PNG؛ هر فایل حداکثر ۱۰ مگابایت)</span><input type="file" accept=".pdf,.jpg,.jpeg,.png" multiple data-file="evidence"></label>
+                            <ul class="file-list" id="files-evidence"></ul>
+                        </div>
+                        <div class="section-box">
+                            <h3>سابقه تصرف</h3>
+                            <div class="form-grid">
+                                <div class="field"><label for="possessionFrom">شروع تصرف (در صورت اطلاع)</label><input id="possessionFrom" data-bind="evidence.possessionFrom" type="date"></div>
+                                <div class="field"><label for="possessionType">نحوه تصرف</label><select id="possessionType" data-bind="evidence.possessionType"><option value="">انتخاب کن</option><option>شخصی</option><option>ارثی</option><option>واگذاری / معامله</option><option>سایر</option></select></div>
+                                <div class="field full"><label for="possessionDescription">توضیحات سابقه تصرف</label><textarea id="possessionDescription" data-bind="evidence.possessionDescription"></textarea></div>
+                            </div>
+                        </div>
+                        <div class="actions"><button class="btn btn-light" type="button" data-prev>مرحله قبل</button><button class="btn btn-primary" type="button" data-next>ادامه</button></div>
+                    </section>
+
+                    <section class="screen" data-screen="9">
+                        <h2>بازبینی و ذخیره محلی اطلاعات ادعا</h2>
+                        <p class="subhead">اطلاعات را مرور کن. دکمه پایین فقط پرونده را در همین مرورگر نهایی می‌کند.</p>
+                        <div id="reviewContent"></div>
+                        <label class="checkline"><input id="reviewAccepted" type="checkbox"><span>اطلاعات واردشده را بازبینی کرده‌ام و می‌دانم این ذخیره‌سازی فقط در همین مرورگر است و به سامانه کاتب یا کارگزاری ارسال نمی‌شود.</span></label>
+                        <div class="actions"><button class="btn btn-light" type="button" data-prev>مرحله قبل</button><button class="btn btn-green" type="button" id="finalizeLocal" disabled>ثبت نهایی در همین مرورگر</button></div>
+                    </section>
+
+                    <section class="screen" data-screen="10">
+                        <h2>درج گواهی اقدام</h2>
+                        <p class="subhead">این بخش را بعد از انجام اقدام در مرجع مربوط تکمیل کن. گواهی فقط به پرونده محلی همین مرورگر پیوست می‌شود.</p>
+                        <div class="notice warn">این صفحه وضعیت واقعی ادعا را از کاتب نمی‌خواند و گواهی را به مرجع رسمی نمی‌فرستد. اطلاعات این مرحله هم فقط محلی ذخیره می‌شود.</div>
+                        <div class="form-grid">
+                            <div class="field"><label class="required" for="actionAuthority">مرجع اقدام</label><input id="actionAuthority" data-bind="certificate.authority" required></div>
+                            <div class="field"><label class="required" for="actionDate">تاریخ اقدام</label><input id="actionDate" data-bind="certificate.date" type="date" required></div>
+                            <div class="field"><label for="actionNumber">شماره نامه / پیگیری</label><input id="actionNumber" data-bind="certificate.reference"></div>
+                            <div class="field"><label class="required" for="actionKind">نوع اقدام</label><select id="actionKind" data-bind="certificate.kind" required><option value="">انتخاب کن</option><option>مراجعه و تشکیل پرونده</option><option>ارائه مدرک</option><option>پیگیری اداری</option><option>سایر</option></select></div>
+                            <div class="field full"><label class="required" for="actionDescription">شرح اقدام انجام‌شده</label><textarea id="actionDescription" data-bind="certificate.description" required></textarea></div>
+                            <label class="field full"><span class="field-label">فایل گواهی اقدام (PDF، JPG یا PNG؛ حداکثر ۱۰ مگابایت)</span><input type="file" accept=".pdf,.jpg,.jpeg,.png" data-file="certificate"></label>
+                        </div>
+                        <ul class="file-list" id="files-certificate"></ul>
+                        <div class="actions"><button class="btn btn-light" type="button" data-prev>بازگشت</button><button class="btn btn-green" type="button" id="saveCertificate">ذخیره گواهی در مرورگر</button></div>
+                    </section>
+                </form>
+                <div class="footer-note">کد محلی این صفحه کد رهگیری رسمی نیست. برای پاک کردن پرونده، از گزینه حذف در فهرست پرونده‌های همین مرورگر استفاده کن.</div>
+            </section>
+        </div>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+    (() => {
+        "use strict";
+        const DB_NAME = "sabzroyanuraman-map-forms-v1";
+        const DB_VERSION = 1;
+        const FORM_STEPS = ["شروع / پرونده‌ها", "مشخصات و موقعیت ملک", "نقشه‌برداری و افراد مجاز", "کد رهگیری نقشه", "شروع ادعا", "تأیید نقشه و ملک", "منضمات ملک", "اطلاعات مدعی", "سوابق و مدارک", "بازبینی و ذخیره", "درج گواهی اقدام"];
+        const params = new URLSearchParams(location.search);
+        const navList = document.getElementById("navList");
+        const recordsEl = document.getElementById("recordList");
+        const screens = [...document.querySelectorAll(".screen")];
+        let db = null;
+        let draft = null;
+        let currentStep = 0;
+        let map = null;
+        let marker = null;
+        let saveTimer = 0;
+        let authorizedCounter = 0;
+        let annexCounter = 0;
+
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = () => {
+            const database = request.result;
+            if (!database.objectStoreNames.contains("drafts")) database.createObjectStore("drafts", { keyPath: "id" });
+            if (!database.objectStoreNames.contains("files")) database.createObjectStore("files", { keyPath: "id" });
+        };
+        request.onsuccess = async () => {
+            db = request.result;
+            db.onversionchange = () => db.close();
+            await renderRecords();
+            const id = params.get("id");
+            if (id) {
+                const saved = await getRecord(id);
+                if (saved) openDraft(saved);
+            }
+        };
+        request.onerror = () => setSaveStatus("ذخیره‌سازی مرورگر در دسترس نیست", false);
+
+        function transact(store, mode, operation) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(store, mode);
+                const result = operation(tx.objectStore(store));
+                tx.oncomplete = () => resolve(result?.result);
+                tx.onerror = () => reject(tx.error || result?.error || new Error("خطای ذخیره‌سازی"));
+                tx.onabort = () => reject(tx.error || new Error("ذخیره‌سازی لغو شد"));
+            });
+        }
+        function getRecord(id) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction("drafts", "readonly");
+                const req = tx.objectStore("drafts").get(id);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => reject(req.error);
+            });
+        }
+        function allRecords() {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction("drafts", "readonly");
+                const req = tx.objectStore("drafts").getAll();
+                req.onsuccess = () => resolve(req.result || []);
+                req.onerror = () => reject(req.error);
+            });
+        }
+        function saveRecord() {
+            if (!draft || !db) return Promise.resolve();
+            draft.updatedAt = new Date().toISOString();
+            document.getElementById("localNumber").textContent = "شماره محلی: " + draft.localNumber;
+            setSaveStatus("در حال ذخیره…", false);
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction("drafts", "readwrite");
+                tx.objectStore("drafts").put(draft);
+                tx.oncomplete = () => { setSaveStatus("در همین مرورگر ذخیره شد", true); renderRecords(); resolve(); };
+                tx.onerror = () => { setSaveStatus("ذخیره انجام نشد؛ فضای مرورگر را بررسی کن", false); reject(tx.error); };
+            });
+        }
+        function setSaveStatus(message, saved) {
+            document.getElementById("saveText").textContent = message;
+            document.getElementById("saveDot").classList.toggle("saved", !!saved);
+        }
+        function blankDraft() {
+            const id = crypto.randomUUID ? crypto.randomUUID() : "r" + Date.now() + Math.random().toString(16).slice(2);
+            const localNumber = "MAP-" + new Date().toISOString().slice(0, 10).replaceAll("-", "") + "-" + id.slice(0, 6).toUpperCase();
+            return { id, localNumber, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), currentStep: 1, claimFinalized: false, data: { authorized: [], annexes: [], evidenceTypes: [], files: {} } };
+        }
+        async function renderRecords() {
+            if (!db) return;
+            const records = (await allRecords()).sort((a,b) => b.updatedAt.localeCompare(a.updatedAt));
+            recordsEl.replaceChildren();
+            if (!records.length) {
+                const empty = document.createElement("div"); empty.className = "empty"; empty.textContent = "هنوز پرونده‌ای در این مرورگر ذخیره نشده است."; recordsEl.append(empty); return;
+            }
+            for (const record of records) {
+                const row = document.createElement("div"); row.className = "record-row";
+                const info = document.createElement("div");
+                const title = document.createElement("div"); title.className = "record-title"; title.textContent = record.data?.map?.address || "پرونده تهیه نقشه";
+                const meta = document.createElement("div"); meta.className = "record-meta"; meta.textContent = record.localNumber + " · آخرین ذخیره: " + new Date(record.updatedAt).toLocaleString("fa-IR");
+                info.append(title, meta);
+                const buttons = document.createElement("div"); buttons.className = "toolbar";
+                const open = document.createElement("button"); open.type = "button"; open.className = "btn btn-light"; open.textContent = "ادامه"; open.addEventListener("click", () => openDraft(record));
+                const remove = document.createElement("button"); remove.type = "button"; remove.className = "btn btn-danger"; remove.textContent = "حذف"; remove.addEventListener("click", () => removeRecord(record.id));
+                buttons.append(open, remove); row.append(info, buttons); recordsEl.append(row);
+            }
+        }
+        async function removeRecord(id) {
+            if (!confirm("این پرونده و فایل‌های وابسته از حافظه همین مرورگر حذف شوند؟")) return;
+            const files = await getAllFiles(id);
+            const tx = db.transaction(["drafts", "files"], "readwrite");
+            tx.objectStore("drafts").delete(id);
+            for (const file of files) tx.objectStore("files").delete(file.id);
+            tx.oncomplete = async () => { if (draft?.id === id) { draft = null; currentStep = 0; showStep(0); } await renderRecords(); setSaveStatus("پرونده از این مرورگر حذف شد", false); };
+        }
+        function getAllFiles(draftId) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction("files", "readonly");
+                const req = tx.objectStore("files").getAll();
+                req.onsuccess = () => resolve((req.result || []).filter(file => file.draftId === draftId));
+                req.onerror = () => reject(req.error);
+            });
+        }
+        function openDraft(record) {
+            draft = record;
+            draft.data ||= { authorized: [], annexes: [], evidenceTypes: [], files: {} };
+            draft.data.authorized ||= []; draft.data.annexes ||= []; draft.data.evidenceTypes ||= []; draft.data.files ||= {};
+            currentStep = Math.min(Number(record.currentStep || 1), record.claimFinalized ? 10 : 9);
+            fillControls(); renderAuthorized(); renderAnnexes(); renderEvidenceTypes(); renderAllFileLists(); showStep(currentStep);
+        }
+        function getPath(object, path) { return path.split(".").reduce((value,key) => value == null ? undefined : value[key], object); }
+        function setPath(object, path, value) { const keys = path.split("."); let target = object; for (const key of keys.slice(0,-1)) target = target[key] ||= {}; target[keys.at(-1)] = value; }
+        function collectControls() {
+            if (!draft) return;
+            document.querySelectorAll("[data-bind]").forEach(el => {
+                if (el.type === "radio") { if (el.checked) setPath(draft.data, el.dataset.bind, el.value); }
+                else if (el.type === "checkbox") setPath(draft.data, el.dataset.bind, el.checked);
+                else setPath(draft.data, el.dataset.bind, el.value);
+            });
+            draft.data.evidenceTypes = [...document.querySelectorAll("[data-evidence-type]:checked")].map(el => el.dataset.evidenceType);
+            draft.currentStep = currentStep;
+        }
+        function fillControls() {
+            document.querySelectorAll("[data-bind]").forEach(el => {
+                const value = getPath(draft.data, el.dataset.bind);
+                if (el.type === "radio") el.checked = String(value ?? "") === el.value;
+                else if (el.type === "checkbox") el.checked = !!value;
+                else el.value = value ?? "";
+            });
+            document.querySelectorAll("[data-evidence-type]").forEach(el => { el.checked = (draft.data.evidenceTypes || []).includes(el.dataset.evidenceType); });
+            document.getElementById("companyFields").classList.toggle("hidden", getPath(draft.data,"claim.isLegalRepresentative") !== "yes");
+            document.getElementById("priorActionsBox").classList.toggle("hidden", getPath(draft.data,"evidence.hasPriorActions") !== "yes");
+            document.getElementById("reviewAccepted").checked = false;
+            document.getElementById("finalizeLocal").disabled = !draft.claimFinalized;
+            document.getElementById("localNumber").textContent = "شماره محلی: " + draft.localNumber;
+        }
+        function showStep(index) {
+            if (index > 0 && !draft) index = 0;
+            if (index === 10 && !draft?.claimFinalized) index = 9;
+            currentStep = index;
+            screens.forEach(screen => screen.classList.toggle("active", Number(screen.dataset.screen) === index));
+            document.getElementById("stepsNav").classList.toggle("hidden", index === 0);
+            navList.replaceChildren();
+            if (index > 0) FORM_STEPS.slice(1).forEach((title, position) => {
+                const step = position + 1;
+                const button = document.createElement("button"); button.type = "button"; button.className = "step-link";
+                button.classList.toggle("active", step === index); button.classList.toggle("done", draft && step < (draft.claimFinalized ? 11 : Number(draft.currentStep || 1)));
+                button.disabled = step > (draft?.claimFinalized ? 10 : Math.max(Number(draft?.currentStep || 1), index));
+                const chip = document.createElement("span"); chip.className = "step-chip"; chip.textContent = String(position + 1);
+                const label = document.createElement("span"); label.textContent = title; button.append(chip,label);
+                button.addEventListener("click", () => { collectControls(); saveRecord().then(() => showStep(step)); }); navList.append(button);
+            });
+            if (draft) { draft.currentStep = index; collectControls(); saveRecord().catch(() => {}); }
+            if (index === 1) setTimeout(initMap, 80);
+            if (index === 3) updateLocationSummary();
+            if (index === 9) renderReview();
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+        function validateStep(index) {
+            if (index === 1) {
+                const required = ["postalCode","province","city","address","latitude","longitude"];
+                for (const id of required) { const el = document.getElementById(id); if (!el.value.trim()) { el.focus(); el.reportValidity(); return false; } }
+                if (!/^\d{10}$/.test(document.getElementById("postalCode").value.trim())) { document.getElementById("postalCode").setCustomValidity("کدپستی باید ۱۰ رقم باشد."); document.getElementById("postalCode").reportValidity(); document.getElementById("postalCode").setCustomValidity(""); return false; }
+            }
+            if (index === 4 && !["yes","no"].includes(getPath(draft.data,"claim.isLegalRepresentative"))) {
+                alert("مشخص کن نماینده شخص حقوقی هستی یا خیر."); return false;
+            }
+            if (index === 4 && getPath(draft.data,"claim.isLegalRepresentative") === "yes") {
+                for (const id of ["companyName","companyNationalId"]) { const el=document.getElementById(id); if(!el.value.trim()){el.focus();el.reportValidity();return false;} }
+            }
+            if (index === 5 && !document.getElementById("propertyType").value) { document.getElementById("propertyType").focus(); document.getElementById("propertyType").reportValidity(); return false; }
+            if (index === 7) {
+                for (const id of ["claimantName","claimantId","claimantMobile"]) { const el=document.getElementById(id); if(!el.value.trim()){el.focus();el.reportValidity();return false;} }
+            }
+            return true;
+        }
+        function updateLocationSummary() {
+            const m = draft?.data?.map || {};
+            document.getElementById("mapLocationSummary").textContent = [m.address,m.city,m.province,m.latitude && m.longitude ? `مختصات ${m.latitude}، ${m.longitude}` : ""].filter(Boolean).join(" · ") || "موقعیتی وارد نشده است.";
+        }
+        function initMap() {
+            if (!window.L || map || !document.getElementById("propertyMap")) return;
+            const savedLat = parseFloat(getPath(draft?.data || {}, "map.latitude"));
+            const savedLng = parseFloat(getPath(draft?.data || {}, "map.longitude"));
+            const center = Number.isFinite(savedLat) && Number.isFinite(savedLng) ? [savedLat,savedLng] : [34.8,46.2];
+            map = L.map("propertyMap", { scrollWheelZoom:true }).setView(center, Number.isFinite(savedLat) ? 15 : 7);
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom:19, attribution:"© OpenStreetMap contributors" }).addTo(map);
+            if (Number.isFinite(savedLat) && Number.isFinite(savedLng)) {
+                setMarker(savedLat,savedLng);
+                document.getElementById("coordinates").textContent = savedLat.toFixed(6) + " , " + savedLng.toFixed(6);
+            }
+            map.on("click", event => setMarker(event.latlng.lat,event.latlng.lng));
+            setTimeout(() => map.invalidateSize(), 120);
+        }
+        function setMarker(lat,lng) {
+            if (!draft) return;
+            if (!marker) marker = L.marker([lat,lng], { draggable:true }).addTo(map);
+            else marker.setLatLng([lat,lng]);
+            marker.off("dragend").on("dragend", event => setMarker(event.target.getLatLng().lat,event.target.getLatLng().lng));
+            const latitude = lat.toFixed(6), longitude = lng.toFixed(6);
+            document.getElementById("latitude").value = latitude; document.getElementById("longitude").value = longitude;
+            setPath(draft.data,"map.latitude",latitude); setPath(draft.data,"map.longitude",longitude);
+            document.getElementById("coordinates").textContent = latitude + " , " + longitude;
+            saveRecord().catch(() => {});
+        }
+        function renderAuthorized() {
+            const host = document.getElementById("authorizedList"); host.replaceChildren();
+            (draft?.data?.authorized || []).forEach((person,index) => {
+                const card = document.createElement("div"); card.className="repeat-card";
+                const title=document.createElement("h4"); title.textContent=`شخص مجاز ${index+1}`;
+                const remove=document.createElement("button"); remove.type="button"; remove.className="btn btn-danger remove-item"; remove.textContent="حذف"; remove.addEventListener("click",()=>{draft.data.authorized.splice(index,1);renderAuthorized();saveRecord();});
+                const grid=document.createElement("div"); grid.className="form-grid";
+                const type=makeInput("نوع شخص", "select", person.type || "حقیقی", [["حقیقی","شخص حقیقی"],["حقوقی","شخص حقوقی"]]);
+                const name=makeInput("نام / نام شرکت", "text", person.name || "");
+                const identifier=makeInput("کد ملی / شناسه ملی", "text", person.identifier || "");
+                const phone=makeInput("شماره همراه", "tel", person.phone || "");
+                [type,name,identifier,phone].forEach((entry,fieldIndex)=>{entry.wrap.classList.toggle("full",fieldIndex===1);entry.input.addEventListener("input",()=>{person[["type","name","identifier","phone"][fieldIndex]]=entry.input.value;saveSoon();});grid.append(entry.wrap);});
+                card.append(title,remove,grid); host.append(card);
+            });
+        }
+        function makeInput(labelText,kind,value,options) {
+            const wrap=document.createElement("div");wrap.className="field";
+            const label=document.createElement("label");label.textContent=labelText;
+            let input;
+            if(kind==="select"){input=document.createElement("select");for(const [val,text] of options){const opt=document.createElement("option");opt.value=val;opt.textContent=text;input.append(opt);}}
+            else {input=document.createElement("input");input.type=kind;}
+            input.value=value;wrap.append(label,input);return {wrap,input};
+        }
+        function renderAnnexes() {
+            const host=document.getElementById("annexList");host.replaceChildren();
+            (draft?.data?.annexes||[]).forEach((annex,index)=>{
+                const card=document.createElement("div");card.className="repeat-card";
+                const title=document.createElement("h4");title.textContent=`منضم ${index+1}`;
+                const remove=document.createElement("button");remove.type="button";remove.className="btn btn-danger remove-item";remove.textContent="حذف";remove.addEventListener("click",()=>{draft.data.annexes.splice(index,1);renderAnnexes();saveRecord();});
+                const grid=document.createElement("div");grid.className="form-grid";
+                const type=makeInput("نوع منضم","select",annex.type||"",[["پارکینگ","پارکینگ"],["انباری","انباری"],["سایر","سایر"]]);
+                const titleInput=makeInput("شماره / عنوان", "text", annex.title||"");
+                const detail=makeInput("توضیحات", "text", annex.detail||"");
+                [[type,"type"],[titleInput,"title"],[detail,"detail"]].forEach(([entry,key])=>{entry.input.addEventListener("input",()=>{annex[key]=entry.input.value;saveSoon();});grid.append(entry.wrap);});
+                card.append(title,remove,grid);host.append(card);
+            });
+        }
+        function renderEvidenceTypes() { document.querySelectorAll("[data-evidence-type]").forEach(el=>el.checked=(draft?.data?.evidenceTypes||[]).includes(el.dataset.evidenceType)); }
+        function saveSoon() { clearTimeout(saveTimer); saveTimer=setTimeout(()=>{collectControls();saveRecord().catch(()=>{});},450); }
+        async function saveLocalFile(file,category) {
+            if(!draft) return;
+            const allowed=["application/pdf","image/jpeg","image/png"];
+            if(!allowed.includes(file.type)){alert("فقط PDF، JPG یا PNG قابل افزودن است.");return;}
+            if(file.size>10*1024*1024){alert("حجم هر فایل نباید بیشتر از ۱۰ مگابایت باشد.");return;}
+            const fileId=(crypto.randomUUID?crypto.randomUUID():"f"+Date.now()+Math.random().toString(16).slice(2));
+            const record={id:fileId,draftId:draft.id,category,name:file.name,type:file.type,size:file.size,blob:file,createdAt:new Date().toISOString()};
+            try { await transact("files","readwrite",store=>store.put(record)); draft.data.files[category] ||= []; draft.data.files[category].push({id:fileId,name:file.name,type:file.type,size:file.size}); await saveRecord(); renderFileList(category); }
+            catch { alert("ذخیره فایل در مرورگر انجام نشد. ممکن است فضای ذخیره‌سازی کافی نباشد."); }
+        }
+        function filesForCategory(category) { return (draft?.data?.files?.[category]||[]); }
+        function renderFileList(category) {
+            const host=document.getElementById("files-"+category); if(!host)return; host.replaceChildren();
+            filesForCategory(category).forEach(file=>{
+                const row=document.createElement("li");row.className="file-row";
+                const label=document.createElement("span");label.textContent=file.name+" · "+(file.size/1024/1024).toFixed(2)+" مگابایت";
+                const remove=document.createElement("button");remove.type="button";remove.textContent="حذف فایل";remove.addEventListener("click",async()=>{
+                    await transact("files","readwrite",store=>store.delete(file.id));
+                    draft.data.files[category]=filesForCategory(category).filter(item=>item.id!==file.id);await saveRecord();renderFileList(category);
+                }); row.append(label,remove);host.append(row);
+            });
+        }
+        function renderAllFileLists(){["representation","evidence","certificate"].forEach(renderFileList);}
+        function esc(value) { return String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[char])); }
+        function renderReview() {
+            collectControls();
+            const mapData=draft?.data?.map||{}, prop=draft?.data?.property||{}, claimant=draft?.data?.claimant||{}, evidence=draft?.data?.evidence||{};
+            const rows=[["نشانی",mapData.address],["شهر / استان",[mapData.city,mapData.province].filter(Boolean).join("، ")],["مختصات",[mapData.latitude,mapData.longitude].filter(Boolean).join("، ")],["کد رهگیری نقشه",draft?.data?.claim?.mapTrackingCode],["نوع ملک",prop.type],["پلاک ثبتی",[prop.mainParcel,prop.subParcel].filter(Boolean).join(" / ")],["مدعی",claimant.name],["شماره همراه",claimant.mobile],["نوع مستندات",(evidence.evidenceTypes||draft?.data?.evidenceTypes||[]).join("، ")],["فایل‌های پیوست",Object.values(draft?.data?.files||{}).flat().map(file=>file.name).join("، ")]].map(([label,value])=>`<tr><th>${esc(label)}</th><td>${esc(value||"—")}</td></tr>`).join("");
+            document.getElementById("reviewContent").innerHTML=`<div class="section-box"><b>شماره محلی ${esc(draft?.localNumber)}</b><table class="review-table">${rows}</table></div>`;
+            const finalizeButton = document.getElementById("finalizeLocal");
+            finalizeButton.textContent = draft?.claimFinalized ? "ادامه به درج گواهی اقدام" : "ثبت نهایی در همین مرورگر";
+            finalizeButton.disabled = !draft?.claimFinalized;
+        }
+        document.getElementById("newRecord").addEventListener("click",async()=>{if(!db){alert("ذخیره‌سازی مرورگر آماده نیست.");return;}draft=blankDraft();currentStep=1;await saveRecord();fillControls();renderAuthorized();renderAnnexes();renderAllFileLists();showStep(1);});
+        document.getElementById("addAuthorized").addEventListener("click",()=>{draft.data.authorized ||= [];draft.data.authorized.push({type:"حقیقی",name:"",identifier:"",phone:""});renderAuthorized();saveRecord();});
+        document.getElementById("addAnnex").addEventListener("click",()=>{draft.data.annexes ||= [];draft.data.annexes.push({type:"",title:"",detail:""});renderAnnexes();saveRecord();});
+        document.getElementById("saveMapAndContinue").addEventListener("click",async()=>{collectControls();await saveRecord();showStep(4);});
+        document.getElementById("reviewAccepted").addEventListener("change",event=>{document.getElementById("finalizeLocal").disabled=!event.target.checked;});
+        document.getElementById("finalizeLocal").addEventListener("click",async()=>{if(draft.claimFinalized){showStep(10);return;}if(!document.getElementById("reviewAccepted").checked)return;collectControls();draft.claimFinalized=true;draft.currentStep=10;await saveRecord();showStep(10);});
+        document.getElementById("saveCertificate").addEventListener("click",async()=>{
+            collectControls();
+            for(const id of ["actionAuthority","actionDate","actionKind","actionDescription"]){const field=document.getElementById(id);if(!field.value.trim()){field.focus();field.reportValidity();return;}}
+            if(!filesForCategory("certificate").length){alert("فایل گواهی اقدام را هم انتخاب کن.");return;}
+            draft.certificateSavedAt=new Date().toISOString();await saveRecord();alert("گواهی در همین مرورگر ذخیره شد. به سامانه کاتب ارسال نشده است.");
+        });
+        document.querySelectorAll("[data-next]").forEach(button=>button.addEventListener("click",async()=>{if(!validateStep(currentStep))return;collectControls();await saveRecord();showStep(Math.min(currentStep+1,9));}));
+        document.querySelectorAll("[data-prev]").forEach(button=>button.addEventListener("click",()=>showStep(Math.max(currentStep-1,1))));
+        document.querySelectorAll("[data-bind]").forEach(el=>el.addEventListener("input",()=>{if(el.id==="postalCode")el.value=el.value.replace(/\D/g,"").slice(0,10);collectControls();saveSoon();if(el.name==="legalRep")fillControls();if(el.id==="hasPriorActions")document.getElementById("priorActionsBox").classList.toggle("hidden",el.value!=="yes");}));
+        document.querySelectorAll("[data-bind]").forEach(el=>el.addEventListener("change",()=>{collectControls();saveSoon();if(el.name==="legalRep")document.getElementById("companyFields").classList.toggle("hidden",el.value!=="yes");if(el.id==="hasPriorActions")document.getElementById("priorActionsBox").classList.toggle("hidden",el.value!=="yes");}));
+        document.querySelectorAll("[data-evidence-type]").forEach(el=>el.addEventListener("change",()=>{collectControls();saveSoon();}));
+        document.querySelectorAll("[data-file]").forEach(el=>el.addEventListener("change",async()=>{for(const file of el.files)await saveLocalFile(file,el.dataset.file);el.value="";}));
+        document.getElementById("latitude").addEventListener("change",()=>{const lat=parseFloat(document.getElementById("latitude").value),lng=parseFloat(document.getElementById("longitude").value);if(Number.isFinite(lat)&&Number.isFinite(lng)&&map){map.setView([lat,lng],15);setMarker(lat,lng);}});
+        document.getElementById("longitude").addEventListener("change",()=>{const lat=parseFloat(document.getElementById("latitude").value),lng=parseFloat(document.getElementById("longitude").value);if(Number.isFinite(lat)&&Number.isFinite(lng)&&map){map.setView([lat,lng],15);setMarker(lat,lng);}});
+        window.addEventListener("beforeunload",()=>{if(draft){collectControls();saveRecord().catch(()=>{});}});
+        showStep(0);
+    })();
+    </script>
+</body>
+</html>
+
