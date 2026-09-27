@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>درج گواهی اقدام | کارگزاری ثلاث باباجانی</title>
+    <style>
+        @font-face { font-family: Vazirmatn; src: url("/assets/fonts/Vazirmatn-Regular.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+        @font-face { font-family: Vazirmatn; src: url("/assets/fonts/Vazirmatn-Bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+        :root { --green:#087653; --blue:#0967a8; --ink:#183348; --muted:#65798a; --line:#dbe6e2; --wash:#f4f8f7; --white:#fff; }
+        * { box-sizing:border-box; }
+        body { margin:0; background:var(--wash); color:var(--ink); font-family:Vazirmatn,Tahoma,sans-serif; line-height:1.8; }
+        button,input,select,textarea { font:inherit; }
+        .topbar { background:#fff; border-bottom:1px solid var(--line); }
+        .topbar-inner,.wrap { width:min(1050px,calc(100% - 24px)); margin:auto; }
+        .topbar-inner { min-height:62px; display:flex; align-items:center; justify-content:space-between; gap:14px; }
+        .brand,.back { color:var(--ink); text-decoration:none; font-weight:700; }
+        .brand { font-size:.9rem; }
+        .back { color:var(--green); font-size:.85rem; white-space:nowrap; }
+        .wrap { margin-top:25px; margin-bottom:55px; }
+        .title { margin:0 0 17px; font-size:1.5rem; }
+        .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px; }
+        .step { padding:9px 12px; border:1px solid var(--line); border-radius:9px; background:#fff; color:var(--muted); text-align:center; font-size:.85rem; }
+        .step.active { border-color:#91c7ad; background:#eaf5ef; color:#07573e; font-weight:700; }
+        .panel { padding:clamp(16px,3vw,26px); border:1px solid var(--line); border-radius:14px; background:#fff; box-shadow:0 7px 24px #18392f0a; }
+        .screen { display:none; }
+        .screen.active { display:block; }
+        h2 { margin:0 0 16px; font-size:1.2rem; }
+        h3 { margin:0 0 10px; font-size:1rem; }
+        .list { display:grid; gap:10px; }
+        .request,.certificate { padding:14px; border:1px solid var(--line); border-radius:10px; background:#fff; }
+        .request { display:flex; align-items:center; justify-content:space-between; gap:14px; }
+        .request-title { font-weight:700; }
+        .request-meta,.muted { color:var(--muted); font-size:.84rem; }
+        .certificate { margin-top:9px; }
+        .certificate-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 16px; }
+        .certificate-grid span { color:var(--muted); }
+        .form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; }
+        .field { display:flex; flex-direction:column; gap:5px; }
+        .field.full { grid-column:1/-1; }
+        .field label { font-size:.88rem; font-weight:700; color:#334d60; }
+        .required::after { content:" *"; color:#c03936; }
+        .field input,.field select,.field textarea { width:100%; min-height:43px; padding:8px 11px; border:1px solid #cbd9df; border-radius:8px; color:var(--ink); background:#fff; outline:0; }
+        .field textarea { min-height:90px; resize:vertical; }
+        .field input:focus,.field select:focus,.field textarea:focus { border-color:#55a58a; box-shadow:0 0 0 3px #08765315; }
+        .actions { display:flex; justify-content:space-between; gap:10px; margin-top:23px; padding-top:15px; border-top:1px solid #e6eeeb; }
+        .buttons { display:flex; flex-wrap:wrap; gap:8px; }
+        .btn { display:inline-flex; justify-content:center; align-items:center; min-height:40px; padding:8px 15px; border:1px solid transparent; border-radius:8px; cursor:pointer; text-decoration:none; font-weight:700; font-size:.87rem; }
+        .btn-primary { background:var(--blue); color:#fff; }
+        .btn-green { background:var(--green); color:#fff; }
+        .btn-light { border-color:#cbd9de; background:#fff; color:#355267; }
+        .empty { padding:18px; border:1px dashed #bdcfc8; border-radius:10px; color:var(--muted); text-align:center; }
+        .hidden { display:none !important; }
+        @media(max-width:600px) { .topbar-inner,.wrap { width:calc(100% - 18px); } .brand { max-width:60%; font-size:.78rem; line-height:1.5; } .back { font-size:.76rem; } .steps { grid-template-columns:1fr; gap:5px; } .form-grid,.certificate-grid { grid-template-columns:1fr; } .field.full { grid-column:auto; } .request { align-items:flex-start; flex-direction:column; } .actions { flex-wrap:wrap; } }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-inner">
+            <a class="brand" href="index.html">درگاه کارگزاری فنی مهندسی و حقوقی شهرستان ثلاث باباجانی</a>
+            <a class="back" href="index.html#brokerageServices">→ بازگشت به خدمات</a>
+        </div>
+    </header>
+    <main class="wrap">
+        <h1 class="title">درج گواهی اقدام</h1>
+        <div class="steps" aria-label="مراحل">
+            <div class="step active" data-step-label="0">۱. پیگیری ادعا</div>
+            <div class="step" data-step-label="1">۲. گواهی اقدام</div>
+            <div class="step" data-step-label="2">۳. درج گواهی</div>
+        </div>
+        <div class="panel">
+            <section class="screen active" data-screen="0">
+                <h2>پیگیری ادعاهای ثبت‌شده</h2>
+                <div class="list" id="claimsList"><div class="empty">در حال دریافت پرونده‌ها…</div></div>
+            </section>
+            <section class="screen" data-screen="1">
+                <h2>گواهی اقدام</h2>
+                <div id="claimDetails" class="request"></div>
+                <div class="section-box">
+                    <h3>گواهی‌های اقدام درج‌شده</h3>
+                    <div id="certificatesList"></div>
+                </div>
+                <div class="actions">
+                    <button class="btn btn-light" type="button" id="backToClaims">بازگشت</button>
+                    <button class="btn btn-primary" type="button" id="addCertificate">درج گواهی اقدام</button>
+                </div>
+            </section>
+            <section class="screen" data-screen="2">
+                <h2>درج اطلاعات گواهی اقدام</h2>
+                <form id="certificateForm">
+                    <div class="form-grid">
+                        <div class="field">
+                            <label class="required" for="legalReference">مرجع قانونی</label>
+                            <select id="legalReference" required>
+                                <option value="">انتخاب کنید</option>
+                                <option>قانون تعیین تکلیف وضعیت ثبتی اراضی و ساختمان‌های فاقد سند رسمی</option>
+                                <option>قانون ساماندهی و حمایت از تولید و عرضه مسکن</option>
+                                <option>مراجع قضایی</option>
+                                <option>سایر</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label class="required" for="caseNumber">شماره پرونده</label>
+                            <input id="caseNumber" required>
+                        </div>
+                        <div class="field">
+                            <label class="required" for="caseDate">تاریخ تشکیل پرونده</label>
+                            <input id="caseDate" type="text" inputmode="numeric" placeholder="۱۴۰۴/۰۱/۰۱" required>
+                        </div>
+                        <div class="field">
+                            <label class="required" for="certificateDate">تاریخ گواهی</label>
+                            <input id="certificateDate" type="text" inputmode="numeric" placeholder="۱۴۰۴/۰۱/۰۱" required>
+                        </div>
+                        <div class="field">
+                            <label class="required" for="certificateNumber">شماره گواهی</label>
+                            <input id="certificateNumber" required>
+                        </div>
+                        <div class="field full">
+                            <label class="required" for="actionAddress">نشانی کامل محل اقدام</label>
+                            <textarea id="actionAddress" required></textarea>
+                        </div>
+                        <div class="field full">
+                            <label for="notes">توضیحات</label>
+                            <textarea id="notes"></textarea>
+                        </div>
+                        <div class="field full">
+                            <label for="supportingFiles">مستندات</label>
+                            <input id="supportingFiles" type="file" accept=".pdf,.jpg,.jpeg,.png" multiple>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-light" type="button" id="backToCertificate">مرحله قبل</button>
+                        <button class="btn btn-green" type="submit">ثبت</button>
+                    </div>
+                </form>
+            </section>
+        </div>
+    </main>
+    <script>
+    (() => {
+        "use strict";
+        const DB_NAME = "sabzroyanuraman-map-forms-v1";
+        const DB_VERSION = 1;
+        const dbRequest = indexedDB.open(DB_NAME, DB_VERSION);
+        const screens = Array.from(document.querySelectorAll("[data-screen]"));
+        const stepLabels = Array.from(document.querySelectorAll("[data-step-label]"));
+        const claimsList = document.getElementById("claimsList");
+        let db = null;
+        let claims = [];
+        let selected = null;
+
+        function showScreen(index) {
+            screens.forEach((screen) => screen.classList.toggle("active", Number(screen.dataset.screen) === index));
+            stepLabels.forEach((step) => step.classList.toggle("active", Number(step.dataset.stepLabel) === index));
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+        function displayDate(value) {
+            if (!value) return "—";
+            const date = new Date(value);
+            return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("fa-IR");
+        }
+        function loadClaims() {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction("drafts", "readonly");
+                const req = tx.objectStore("drafts").getAll();
+                req.onsuccess = () => resolve(req.result || []);
+                req.onerror = () => reject(req.error);
+            });
+        }
+        function saveClaim(record) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction("drafts", "readwrite");
+                tx.objectStore("drafts").put(record);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+                tx.onabort = () => reject(tx.error);
+            });
+        }
+        function getFiles(draftId) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction("files", "readonly");
+                const req = tx.objectStore("files").getAll();
+                req.onsuccess = () => resolve((req.result || []).filter((file) => file.draftId === draftId));
+                req.onerror = () => reject(req.error);
+            });
+        }
+        function esc(value) {
+            return String(value == null ? "" : value).replace(/[&<>"']/g, (char) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[char]));
+        }
+        function claimLabel(record) {
+            const map = record.data && record.data.map || {};
+            const property = record.data && record.data.property || {};
+            return map.address || property.address || property.type || "پرونده ثبت ادعا";
+        }
+        function renderClaims() {
+            claimsList.replaceChildren();
+            if (!claims.length) {
+                const empty = document.createElement("div");
+                empty.className = "empty";
+                empty.textContent = "پرونده نهایی‌شده‌ای برای نمایش وجود ندارد.";
+                claimsList.append(empty);
+                return;
+            }
+            claims.forEach((record) => {
+                const row = document.createElement("article");
+                row.className = "request";
+                const info = document.createElement("div");
+                const name = document.createElement("div");
+                name.className = "request-title";
+                name.textContent = claimLabel(record);
+                const meta = document.createElement("div");
+                meta.className = "request-meta";
+                const map = record.data && record.data.map || {};
+                meta.textContent = [map.city, map.province, record.data && record.data.claim && record.data.claim.mapTrackingCode].filter(Boolean).join(" · ");
+                info.append(name, meta);
+                const action = document.createElement("button");
+                action.className = "btn btn-primary";
+                action.type = "button";
+                action.textContent = "گواهی اقدام";
+                action.addEventListener("click", () => selectClaim(record.id));
+                row.append(info, action);
+                claimsList.append(row);
+            });
+        }
+        async function selectClaim(id) {
+            selected = claims.find((record) => record.id === id) || null;
+            if (!selected) return;
+            document.getElementById("claimDetails").innerHTML = "<div><strong>" + esc(claimLabel(selected)) + "</strong><div class=\"request-meta\">" + esc([selected.data && selected.data.map && selected.data.map.city, selected.data && selected.data.map && selected.data.map.province].filter(Boolean).join(" · ")) + "</div></div>";
+            await renderCertificates();
+            showScreen(1);
+        }
+        async function renderCertificates() {
+            const host = document.getElementById("certificatesList");
+            host.replaceChildren();
+            const entries = selected && selected.data && selected.data.certificateEntries || [];
+            const legacy = selected && selected.data && selected.data.certificate;
+            if (legacy && selected.certificateSavedAt) entries.unshift(Object.assign({ savedAt:selected.certificateSavedAt }, legacy));
+            if (!entries.length) {
+                const empty = document.createElement("div");
+                empty.className = "empty";
+                empty.textContent = "گواهی اقدامی ثبت نشده است.";
+                host.append(empty);
+                return;
+            }
+            entries.forEach((entry) => {
+                const card = document.createElement("div");
+                card.className = "certificate";
+                const grid = document.createElement("div");
+                grid.className = "certificate-grid";
+                const items = [["مرجع قانونی",entry.legalReference],["شماره پرونده",entry.caseNumber],["تاریخ گواهی",entry.certificateDate],["شماره گواهی",entry.certificateNumber]];
+                items.forEach(([label,value]) => {
+                    const line = document.createElement("div");
+                    line.innerHTML = "<span>" + esc(label) + ":</span> " + esc(value || "—");
+                    grid.append(line);
+                });
+                card.append(grid);
+                host.append(card);
+            });
+        }
+        function selectOnlyFinalized(records) {
+            return records.filter((record) => record.claimFinalized === true);
+        }
+        document.getElementById("backToClaims").addEventListener("click", () => showScreen(0));
+        document.getElementById("addCertificate").addEventListener("click", () => {
+            document.getElementById("certificateForm").reset();
+            showScreen(2);
+        });
+        document.getElementById("backToCertificate").addEventListener("click", () => showScreen(1));
+        document.getElementById("certificateForm").addEventListener("submit", async (event) => {
+            event.preventDefault();
+            if (!selected || !document.getElementById("certificateForm").reportValidity()) return;
+            const fileInput = document.getElementById("supportingFiles");
+            const files = Array.from(fileInput.files || []);
+            if (files.some((file) => file.size > 10 * 1024 * 1024)) {
+                alert("حجم هر فایل نباید بیشتر از ۱۰ مگابایت باشد.");
+                return;
+            }
+            const record = selected;
+            const entryId = crypto.randomUUID ? crypto.randomUUID() : "certificate-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+            const certificate = {
+                id: entryId,
+                legalReference: document.getElementById("legalReference").value,
+                caseNumber: document.getElementById("caseNumber").value.trim(),
+                caseDate: document.getElementById("caseDate").value.trim(),
+                certificateDate: document.getElementById("certificateDate").value.trim(),
+                certificateNumber: document.getElementById("certificateNumber").value.trim(),
+                actionAddress: document.getElementById("actionAddress").value.trim(),
+                notes: document.getElementById("notes").value.trim(),
+                files: files.map((file) => ({ name:file.name, size:file.size, type:file.type }))
+            };
+            const tx = db.transaction(["drafts","files"], "readwrite");
+            const filesStore = tx.objectStore("files");
+            files.forEach((file) => {
+                const id = (crypto.randomUUID ? crypto.randomUUID() : "f-" + Date.now() + Math.random().toString(16).slice(2));
+                filesStore.put({ id, draftId:record.id, category:"action-certificate", certificateId:entryId, name:file.name, size:file.size, type:file.type, blob:file, createdAt:new Date().toISOString() });
+            });
+            record.data.certificateEntries ||= [];
+            record.data.certificateEntries.push(certificate);
+            record.updatedAt = new Date().toISOString();
+            tx.objectStore("drafts").put(record);
+            tx.oncomplete = async () => {
+                selected = record;
+                await renderCertificates();
+                document.getElementById("certificateForm").reset();
+                showScreen(1);
+            };
+            tx.onerror = () => alert("ثبت انجام نشد.");
+            tx.onabort = () => alert("ثبت انجام نشد.");
+        });
+        dbRequest.onupgradeneeded = () => {
+            const database = dbRequest.result;
+            if (!database.objectStoreNames.contains("drafts")) database.createObjectStore("drafts", { keyPath:"id" });
+            if (!database.objectStoreNames.contains("files")) database.createObjectStore("files", { keyPath:"id" });
+        };
+        dbRequest.onsuccess = async () => {
+            db = dbRequest.result;
+            try {
+                claims = selectOnlyFinalized(await loadClaims());
+                renderClaims();
+            } catch {
+                claimsList.innerHTML = '<div class="empty">پرونده‌ای برای نمایش وجود ندارد.</div>';
+            }
+        };
+        dbRequest.onerror = () => {
+            claimsList.innerHTML = '<div class="empty">پرونده‌ای برای نمایش وجود ندارد.</div>';
+        };
+    })();
+    </script>
+</body>
+</html>
