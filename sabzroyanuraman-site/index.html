@@ -8366,9 +8366,6 @@ function resetMapboxView() {
 const WAYBACK_CONFIG_URL =
     "https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json";
 
-const WAYBACK_WMTS_CAPABILITIES_URL =
-    "https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/WMTS/1.0.0/WMTSCapabilities.xml";
-
 function waybackSatelliteStatus(message) {
     const el = document.getElementById("waybackSatelliteStatus");
     if (el) el.textContent = message;
@@ -8412,61 +8409,6 @@ function waybackSatelliteNormalizeItems(data) {
         });
 }
 
-function waybackSatelliteParseCapabilities(xmlText) {
-    const xml = new DOMParser().parseFromString(xmlText, "application/xml");
-    if (!xml || xml.querySelector("parsererror")) {
-        throw new Error("WMTS capabilities XML قابل خواندن نیست.");
-    }
-
-    const items = [];
-    xml.querySelectorAll("Layer").forEach(function(layer) {
-        const titleNode = layer.querySelector("Title");
-        const identifierNode = layer.querySelector("Identifier");
-        const resourceNode = layer.querySelector("ResourceURL[resourceType='tile'], ResourceURL");
-
-        const title = titleNode ? titleNode.textContent.trim() : "";
-        const identifier = identifierNode ? identifierNode.textContent.trim() : "";
-        const template = resourceNode ? resourceNode.getAttribute("template") : "";
-
-        const dateMatch =
-            title.match(/Wayback\\s+(\\d{4}-\\d{2}-\\d{2})/i) ||
-            identifier.match(/(\\d{4}-\\d{2}-\\d{2})/);
-
-        const releaseMatch =
-            template.match(/\\/tile\\/(\\d+)\\//i);
-
-        if (!dateMatch || !releaseMatch || !template) {
-            return;
-        }
-
-        const releaseDateLabel = dateMatch[1];
-        const releaseNum = Number(releaseMatch[1]);
-
-        let itemURL = template
-            .replace(/\\{TileMatrix\\}/gi, "{level}")
-            .replace(/\\{TileRow\\}/gi, "{row}")
-            .replace(/\\{TileCol\\}/gi, "{col}");
-
-        items.push({
-            releaseNum: releaseNum,
-            releaseDateLabel: releaseDateLabel,
-            releaseDatetime: Date.parse(releaseDateLabel + "T00:00:00Z"),
-            itemTitle: title,
-            itemURL: itemURL,
-            metadataLayerUrl: ""
-        });
-    });
-
-    const unique = new Map();
-    items.forEach(function(item) {
-        unique.set(item.releaseNum, item);
-    });
-
-    return Array.from(unique.values()).sort(function(a, b) {
-        return a.releaseDatetime - b.releaseDatetime;
-    });
-}
-
 async function waybackSatelliteLoadItems() {
     if (waybackSatelliteItems.length || waybackSatelliteLoading) {
         return;
@@ -8476,127 +8418,47 @@ async function waybackSatelliteLoadItems() {
     waybackSatelliteStatus("در حال دریافت فهرست نسخه‌های تاریخی Esri...");
 
     try {
-        let normalized = [];
+        const response = await fetch(WAYBACK_CONFIG_URL, {
+            cache: "no-store"
+        });
 
-        // Primary source: Esri's official Wayback configuration.
-        try {
-            const response = await fetch(WAYBACK_CONFIG_URL, {
-                cache: "no-store",
-                mode: "cors"
-            });
-
-            if (!response.ok) {
-                throw new Error("HTTP " + response.status);
-            }
-
-            normalized = waybackSatelliteNormalizeItems(
-                await response.json()
-            );
-        } catch (configError) {
-            console.warn(
-                "Wayback config request failed; trying official WMTS capabilities.",
-                configError
-            );
+        if (!response.ok) {
+            throw new Error("HTTP " + response.status);
         }
 
-        // Fallback: the official production WMTS capabilities document.
-        // This avoids making the historical viewer depend solely on the S3
-        // configuration file being reachable from the browser.
-        if (!normalized.length) {
-            const capabilitiesResponse = await fetch(
-                WAYBACK_WMTS_CAPABILITIES_URL,
-                {
-                    cache: "no-store",
-                    mode: "cors"
-                }
-            );
+        const data = await response.json();
+        waybackSatelliteItems = waybackSatelliteNormalizeItems(data);
 
-            if (!capabilitiesResponse.ok) {
-                throw new Error(
-                    "WMTS capabilities HTTP " +
-                    capabilitiesResponse.status
-                );
-            }
-
-            const capabilitiesText =
-                await capabilitiesResponse.text();
-
-            normalized =
-                waybackSatelliteParseCapabilities(
-                    capabilitiesText
-                );
+        if (!waybackSatelliteItems.length) {
+            throw new Error("فهرست نسخه‌های Wayback پیدا نشد.");
         }
 
-        if (!normalized.length) {
-            throw new Error(
-                "فهرست نسخه‌های Wayback از منابع رسمی Esri پیدا نشد."
-            );
-        }
-
-        waybackSatelliteItems = normalized;
-
-        const slider =
-            document.getElementById(
-                "waybackSatelliteSlider"
-            );
-
-        const select =
-            document.getElementById(
-                "waybackSatelliteDate"
-            );
-
-        if (!slider || !select) {
-            throw new Error(
-                "کنترل‌های خط زمان تصاویر تاریخی پیدا نشدند."
-            );
-        }
+        const slider = document.getElementById("waybackSatelliteSlider");
+        const select = document.getElementById("waybackSatelliteDate");
 
         slider.min = "0";
-        slider.max =
-            String(
-                waybackSatelliteItems.length - 1
-            );
-        slider.value =
-            String(
-                waybackSatelliteItems.length - 1
-            );
+        slider.max = String(waybackSatelliteItems.length - 1);
+        slider.value = String(waybackSatelliteItems.length - 1);
         slider.disabled = false;
 
         select.innerHTML = "";
-
-        waybackSatelliteItems.forEach(
-            function(item, index) {
-                const option =
-                    document.createElement("option");
-
-                option.value =
-                    String(index);
-
-                option.textContent =
-                    item.releaseDateLabel;
-
-                select.appendChild(option);
-            }
-        );
+        waybackSatelliteItems.forEach(function(item, index) {
+            const option = document.createElement("option");
+            option.value = String(index);
+            option.textContent = item.releaseDateLabel;
+            select.appendChild(option);
+        });
 
         select.disabled = false;
-
-        waybackSatelliteIndex =
-            waybackSatelliteItems.length - 1;
-
-        select.value =
-            String(waybackSatelliteIndex);
+        waybackSatelliteIndex = waybackSatelliteItems.length - 1;
+        select.value = String(waybackSatelliteIndex);
 
         slider.oninput = function() {
-            waybackSatelliteSetIndex(
-                Number(this.value)
-            );
+            waybackSatelliteSetIndex(Number(this.value));
         };
 
         select.onchange = function() {
-            waybackSatelliteSetIndex(
-                Number(this.value)
-            );
+            waybackSatelliteSetIndex(Number(this.value));
         };
 
         waybackSatelliteStatus(
@@ -8606,13 +8468,9 @@ async function waybackSatelliteLoadItems() {
 
         waybackSatelliteApplyLayer();
     } catch (error) {
-        console.error(
-            "Wayback imagery:",
-            error
-        );
-
+        console.error("Wayback imagery:", error);
         waybackSatelliteStatus(
-            "بارگذاری آرشیو تصاویر تاریخی انجام نشد. سرویس رسمی Esri در دسترس نیست یا مرورگر دسترسی آن را مسدود کرده است."
+            "بارگذاری آرشیو تصاویر تاریخی انجام نشد. صفحه را دوباره باز کنید."
         );
     } finally {
         waybackSatelliteLoading = false;
