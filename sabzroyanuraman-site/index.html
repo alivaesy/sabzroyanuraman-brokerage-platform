@@ -8396,6 +8396,7 @@ function waybackSatelliteNormalizeItems(data) {
                     new Date(item.releaseDatetime).toISOString().slice(0, 10),
                 releaseDatetime: Number(item.releaseDatetime || 0),
                 itemTitle: item.itemTitle || "",
+                itemURL: item.itemURL || "",
                 metadataLayerUrl: item.metadataLayerUrl || ""
             };
         })
@@ -8541,14 +8542,21 @@ function waybackSatelliteApplyLayer() {
         waybackSatelliteMap.removeLayer(waybackSatelliteLayer);
     }
 
-    const tileUrl =
-        "https://wayback.maptiles.arcgis.com/arcgis/rest/services/" +
-        "World_Imagery/MapServer/tile/" +
-        item.releaseNum +
-        "/{z}/{y}/{x}";
+    const tileUrl = item.itemURL
+        ? item.itemURL
+            .replace("{level}", "{z}")
+            .replace("{row}", "{y}")
+            .replace("{col}", "{x}")
+        : (
+            "https://wayback.maptiles.arcgis.com/arcgis/rest/services/" +
+            "World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/" +
+            item.releaseNum +
+            "/{z}/{y}/{x}"
+        );
 
     waybackSatelliteLayer = L.tileLayer(tileUrl, {
         maxZoom: 19,
+        maxNativeZoom: 19,
         attribution: "Tiles © Esri"
     }).addTo(waybackSatelliteMap);
 
