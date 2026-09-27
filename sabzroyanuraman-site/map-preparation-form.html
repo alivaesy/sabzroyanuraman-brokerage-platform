@@ -115,13 +115,15 @@
             <section class="panel">
                 <form id="workflowForm" novalidate>
                     <section class="screen active" data-screen="0">
-                        <h2>شروع یا ادامه‌ی پرونده</h2>
-                        
-                        
-                        <button class="btn btn-green" type="button" id="newRecord">＋ شروع درخواست جدید</button>
-                        <div class="section-box">
-                            <h3>پرونده‌های ذخیره‌شده در این مرورگر</h3>
-                            <div class="record-list" id="recordList"><div class="empty">در حال خواندن پرونده‌های محلی…</div></div>
+                        <h2>درخواست تهیه نقشه</h2>
+                        <div class="toolbar">
+                            <button class="btn btn-green" type="button" id="newRecord">＋ ثبت درخواست جدید</button>
+                            <button class="btn btn-light" type="button" id="showFollow">پیگیری درخواست نقشه</button>
+                        </div>
+                        <div class="section-box hidden" id="followPanel">
+                            <h3>پیگیری درخواست نقشه</h3>
+                            <div class="record-list" id="recordList"><div class="empty">در حال دریافت درخواست‌ها…</div></div>
+                            <button class="btn btn-light" type="button" id="hideFollow">بازگشت</button>
                         </div>
                     </section>
 
@@ -404,7 +406,7 @@
             const records = (await allRecords()).sort((a,b) => b.updatedAt.localeCompare(a.updatedAt));
             recordsEl.replaceChildren();
             if (!records.length) {
-                const empty = document.createElement("div"); empty.className = "empty"; empty.textContent = "هنوز پرونده‌ای در این مرورگر ذخیره نشده است."; recordsEl.append(empty); return;
+                const empty = document.createElement("div"); empty.className = "empty"; empty.textContent = "درخواستی برای پیگیری پیدا نشد."; recordsEl.append(empty); return;
             }
             for (const record of records) {
                 const row = document.createElement("div"); row.className = "record-row";
@@ -605,6 +607,8 @@
             finalizeButton.textContent = draft?.claimFinalized ? "ادامه به درج گواهی اقدام" : "ثبت نهایی";
             finalizeButton.disabled = false;
         }
+        document.getElementById("showFollow").addEventListener("click",async()=>{document.getElementById("followPanel").classList.remove("hidden");await renderRecords();document.getElementById("followPanel").scrollIntoView({behavior:"smooth",block:"nearest"});});
+        document.getElementById("hideFollow").addEventListener("click",()=>document.getElementById("followPanel").classList.add("hidden"));
         document.getElementById("newRecord").addEventListener("click",async()=>{if(!db){alert("ذخیره‌سازی مرورگر آماده نیست.");return;}draft=blankDraft();currentStep=1;await saveRecord();fillControls();renderAuthorized();renderAnnexes();renderAllFileLists();showStep(1);});
         document.getElementById("addAuthorized").addEventListener("click",()=>{draft.data.authorized ||= [];draft.data.authorized.push({type:"حقیقی",name:"",identifier:"",phone:""});renderAuthorized();saveRecord();});
         document.getElementById("addAnnex").addEventListener("click",()=>{draft.data.annexes ||= [];draft.data.annexes.push({type:"",title:"",detail:""});renderAnnexes();saveRecord();});
