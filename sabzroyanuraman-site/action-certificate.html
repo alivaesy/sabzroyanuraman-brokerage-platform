@@ -33,6 +33,7 @@
         .request-title { font-weight:700; }
         .request-meta,.muted { color:var(--muted); font-size:.84rem; }
         .certificate { margin-top:9px; }
+        .section-box { margin-top:17px; padding:15px; border:1px solid #e0e9e6; border-radius:12px; background:#fcfefd; }
         .certificate-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 16px; }
         .certificate-grid span { color:var(--muted); }
         .form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; }
@@ -232,7 +233,7 @@
         async function renderCertificates() {
             const host = document.getElementById("certificatesList");
             host.replaceChildren();
-            const entries = selected && selected.data && selected.data.certificateEntries || [];
+            const entries = Array.from(selected && selected.data && selected.data.certificateEntries || []);
             const legacy = selected && selected.data && selected.data.certificate;
             if (legacy && selected.certificateSavedAt) entries.unshift(Object.assign({ savedAt:selected.certificateSavedAt }, legacy));
             if (!entries.length) {
