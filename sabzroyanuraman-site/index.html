@@ -1132,6 +1132,117 @@ body {
     position: relative;
 }
 
+#waybackSatelliteContainer {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    background: #eef4f7;
+}
+
+#waybackSatelliteMap {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+#waybackSatellitePanel {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 1500;
+    width: min(390px, calc(100% - 24px));
+    max-height: calc(100% - 24px);
+    overflow: auto;
+    background: rgba(255,255,255,.96);
+    border: 1px solid #cbd8d3;
+    border-radius: 12px;
+    box-shadow: 0 6px 22px rgba(20,60,90,.18);
+    padding: 12px;
+    direction: rtl;
+    font-family: Vazirmatn, sans-serif;
+}
+
+#waybackSatellitePanel h3 {
+    margin: 0 0 5px;
+    color: #07573e;
+    font-size: 15px;
+}
+
+#waybackSatellitePanel .wayback-subtitle {
+    color: #617584;
+    font-size: 10px;
+    line-height: 1.8;
+    margin-bottom: 10px;
+}
+
+.wayback-timeline-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+#waybackSatelliteSlider {
+    flex: 1;
+    min-width: 0;
+    accent-color: #087653;
+}
+
+#waybackSatelliteDate {
+    min-width: 105px;
+    padding: 6px 8px;
+    border: 1px solid #cbd8df;
+    border-radius: 7px;
+    background: #fff;
+    color: #173b58;
+    font-family: inherit;
+    font-size: 11px;
+}
+
+.wayback-actions {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.wayback-actions button {
+    border: 1px solid #c8d7d1;
+    background: #f7faf9;
+    color: #29465f;
+    border-radius: 7px;
+    padding: 6px 9px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.wayback-actions button:hover {
+    background: #e4f2eb;
+}
+
+#waybackSatelliteStatus {
+    margin-top: 8px;
+    color: #48627b;
+    font-size: 10px;
+    line-height: 1.7;
+}
+
+#waybackSatelliteAttribution {
+    position: absolute;
+    left: 8px;
+    bottom: 7px;
+    z-index: 1450;
+    background: rgba(255,255,255,.88);
+    border: 1px solid rgba(210,220,218,.9);
+    border-radius: 5px;
+    padding: 2px 6px;
+    color: #4d626f;
+    font-size: 9px;
+    direction: ltr;
+}
+
 #myMapsWebGIS {
     width: 100%;
     height: 100%;
@@ -1719,6 +1830,16 @@ body.map-mode .map-wrapper {
                 <span>My Maps</span>
             </button>
 
+            <button
+                type="button"
+                class="map-menu-item"
+                id="waybackSatelliteMenuItem"
+                onclick="openMap('satellite')"
+            >
+                <span class="map-menu-icon" aria-hidden="true"></span>
+                <span>تصاویر ماهواره‌ای</span>
+            </button>
+
         </div>
 
         <div class="sidebar-divider"></div>
@@ -2156,6 +2277,36 @@ body.map-mode .map-wrapper {
   <div id="myMapsContainer" class="map-platform-host">
     <div id="myMapsWebGIS"></div>
     <input id="myMapsImportFile" type="file" accept=".geojson,.json,.kml,.kmz,.gpx" style="display:none">
+  </div>
+
+  <div id="waybackSatelliteContainer" class="map-platform-host">
+    <div id="waybackSatelliteMap"></div>
+
+    <div id="waybackSatellitePanel">
+      <h3>تصاویر ماهواره‌ای تاریخی</h3>
+      <div class="wayback-subtitle">
+        آرشیو Esri World Imagery Wayback؛ نسخه‌های تاریخی از ۲۰۱۴ به بعد.
+        با خط زمان، تصویر زیرین نقشه را به نسخه‌های گذشته تغییر دهید.
+      </div>
+
+      <div class="wayback-timeline-row">
+        <input id="waybackSatelliteSlider" type="range" min="0" max="0" value="0" step="1" disabled>
+        <select id="waybackSatelliteDate" disabled>
+          <option>در حال بارگذاری...</option>
+        </select>
+      </div>
+
+      <div class="wayback-actions">
+        <button type="button" onclick="waybackSatellitePrevious()">قبلی</button>
+        <button type="button" onclick="waybackSatelliteNext()">بعدی</button>
+        <button type="button" id="waybackSatellitePlayButton" onclick="waybackSatelliteTogglePlay()">▶ پخش</button>
+        <button type="button" onclick="waybackSatelliteLatest()">جدیدترین</button>
+      </div>
+
+      <div id="waybackSatelliteStatus">در حال آماده‌سازی آرشیو تصاویر...</div>
+    </div>
+
+    <div id="waybackSatelliteAttribution">Historical imagery © Esri</div>
   </div>
   
 <div class="dedicated-map-panel" id="myMapsToolsColumn">
@@ -3604,6 +3755,13 @@ let mapboxGeocoder = null;
 let mapboxSearchMarker = null;
 
 let currentMapType = "";
+
+let waybackSatelliteMap = null;
+let waybackSatelliteLayer = null;
+let waybackSatelliteItems = [];
+let waybackSatelliteIndex = 0;
+let waybackSatellitePlayTimer = null;
+let waybackSatelliteLoading = false;
 
 let mapboxTerrainEnabled = false;
 let mapbox3DBuildingsEnabled = false;
@@ -8187,8 +8345,237 @@ function resetMapboxView() {
 
 
 /* =========================================================
+   HISTORICAL SATELLITE IMAGERY — ESRI WAYBACK
+========================================================= */
+
+const WAYBACK_CONFIG_URL =
+    "https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json";
+
+function waybackSatelliteStatus(message) {
+    const el = document.getElementById("waybackSatelliteStatus");
+    if (el) el.textContent = message;
+}
+
+function waybackSatelliteNormalizeItems(data) {
+    const source = Array.isArray(data)
+        ? data
+        : Object.keys(data || {}).map(function(key) {
+            const value = data[key];
+            if (value && typeof value === "object") {
+                return Object.assign({ releaseNum: Number(key) }, value);
+            }
+            return null;
+        });
+
+    return source
+        .filter(function(item) {
+            return item &&
+                item.releaseNum !== undefined &&
+                item.releaseNum !== null &&
+                (item.releaseDateLabel || item.releaseDatetime);
+        })
+        .map(function(item) {
+            return {
+                releaseNum: Number(item.releaseNum),
+                releaseDateLabel: item.releaseDateLabel ||
+                    new Date(item.releaseDatetime).toISOString().slice(0, 10),
+                releaseDatetime: Number(item.releaseDatetime || 0),
+                itemTitle: item.itemTitle || "",
+                metadataLayerUrl: item.metadataLayerUrl || ""
+            };
+        })
+        .filter(function(item) {
+            return Number.isFinite(item.releaseNum);
+        })
+        .sort(function(a, b) {
+            return a.releaseDatetime - b.releaseDatetime;
+        });
+}
+
+async function waybackSatelliteLoadItems() {
+    if (waybackSatelliteItems.length || waybackSatelliteLoading) {
+        return;
+    }
+
+    waybackSatelliteLoading = true;
+    waybackSatelliteStatus("در حال دریافت فهرست نسخه‌های تاریخی Esri...");
+
+    try {
+        const response = await fetch(WAYBACK_CONFIG_URL, {
+            cache: "no-store"
+        });
+
+        if (!response.ok) {
+            throw new Error("HTTP " + response.status);
+        }
+
+        const data = await response.json();
+        waybackSatelliteItems = waybackSatelliteNormalizeItems(data);
+
+        if (!waybackSatelliteItems.length) {
+            throw new Error("فهرست نسخه‌های Wayback پیدا نشد.");
+        }
+
+        const slider = document.getElementById("waybackSatelliteSlider");
+        const select = document.getElementById("waybackSatelliteDate");
+
+        slider.min = "0";
+        slider.max = String(waybackSatelliteItems.length - 1);
+        slider.value = String(waybackSatelliteItems.length - 1);
+        slider.disabled = false;
+
+        select.innerHTML = "";
+        waybackSatelliteItems.forEach(function(item, index) {
+            const option = document.createElement("option");
+            option.value = String(index);
+            option.textContent = item.releaseDateLabel;
+            select.appendChild(option);
+        });
+
+        select.disabled = false;
+        waybackSatelliteIndex = waybackSatelliteItems.length - 1;
+        select.value = String(waybackSatelliteIndex);
+
+        slider.oninput = function() {
+            waybackSatelliteSetIndex(Number(this.value));
+        };
+
+        select.onchange = function() {
+            waybackSatelliteSetIndex(Number(this.value));
+        };
+
+        waybackSatelliteStatus(
+            waybackSatelliteItems.length +
+            " نسخه تاریخی در آرشیو موجود است. جدیدترین نسخه انتخاب شد."
+        );
+
+        waybackSatelliteApplyLayer();
+    } catch (error) {
+        console.error("Wayback imagery:", error);
+        waybackSatelliteStatus(
+            "بارگذاری آرشیو تصاویر تاریخی انجام نشد. صفحه را دوباره باز کنید."
+        );
+    } finally {
+        waybackSatelliteLoading = false;
+    }
+}
+
+function waybackSatelliteCreateMap() {
+    if (waybackSatelliteMap) {
+        waybackSatelliteMap.invalidateSize();
+        return;
+    }
+
+    if (typeof L === "undefined") {
+        waybackSatelliteStatus("Leaflet بارگذاری نشده است.");
+        return;
+    }
+
+    waybackSatelliteMap = L.map("waybackSatelliteMap", {
+        center: [37.1395, 45.9486],
+        zoom: 12,
+        zoomControl: true
+    });
+
+    waybackSatelliteLoadItems();
+}
+
+function waybackSatelliteApplyLayer() {
+    if (!waybackSatelliteMap || !waybackSatelliteItems.length) {
+        return;
+    }
+
+    const item = waybackSatelliteItems[waybackSatelliteIndex];
+    if (!item) return;
+
+    if (waybackSatelliteLayer) {
+        waybackSatelliteMap.removeLayer(waybackSatelliteLayer);
+    }
+
+    const tileUrl =
+        "https://wayback.maptiles.arcgis.com/arcgis/rest/services/" +
+        "World_Imagery/MapServer/tile/" +
+        item.releaseNum +
+        "/{z}/{y}/{x}";
+
+    waybackSatelliteLayer = L.tileLayer(tileUrl, {
+        maxZoom: 19,
+        attribution: "Tiles © Esri"
+    }).addTo(waybackSatelliteMap);
+
+    const slider = document.getElementById("waybackSatelliteSlider");
+    const select = document.getElementById("waybackSatelliteDate");
+
+    if (slider) slider.value = String(waybackSatelliteIndex);
+    if (select) select.value = String(waybackSatelliteIndex);
+
+    waybackSatelliteStatus(
+        "تصویر انتخاب‌شده: " +
+        item.releaseDateLabel +
+        " — تاریخ نمایش، تاریخ انتشار نسخه در آرشیو Wayback است؛ " +
+        "ممکن است با تاریخ برداشت واقعی تصویر متفاوت باشد."
+    );
+}
+
+function waybackSatelliteSetIndex(index) {
+    if (!waybackSatelliteItems.length) return;
+
+    waybackSatelliteIndex = Math.max(
+        0,
+        Math.min(index, waybackSatelliteItems.length - 1)
+    );
+
+    waybackSatelliteApplyLayer();
+}
+
+function waybackSatellitePrevious() {
+    waybackSatelliteSetIndex(waybackSatelliteIndex - 1);
+}
+
+function waybackSatelliteNext() {
+    waybackSatelliteSetIndex(waybackSatelliteIndex + 1);
+}
+
+function waybackSatelliteLatest() {
+    waybackSatelliteSetIndex(waybackSatelliteItems.length - 1);
+}
+
+function waybackSatelliteTogglePlay() {
+    const button = document.getElementById("waybackSatellitePlayButton");
+
+    if (waybackSatellitePlayTimer) {
+        clearInterval(waybackSatellitePlayTimer);
+        waybackSatellitePlayTimer = null;
+        if (button) button.textContent = "▶ پخش";
+        return;
+    }
+
+    if (!waybackSatelliteItems.length) return;
+
+    if (waybackSatelliteIndex >= waybackSatelliteItems.length - 1) {
+        waybackSatelliteSetIndex(0);
+    }
+
+    if (button) button.textContent = "⏸ توقف";
+
+    waybackSatellitePlayTimer = setInterval(function() {
+        if (waybackSatelliteIndex >= waybackSatelliteItems.length - 1) {
+            clearInterval(waybackSatellitePlayTimer);
+            waybackSatellitePlayTimer = null;
+            if (button) button.textContent = "▶ پخش";
+            return;
+        }
+
+        waybackSatelliteNext();
+    }, 1200);
+}
+
+
+/* =========================================================
    OPEN MAP
 ========================================================= */
+
+
 
 function openMap(type) {
 
@@ -8227,6 +8614,11 @@ function openMap(type) {
 
     document.getElementById(
         "myMapsContainer"
+    ).style.display =
+        "none";
+
+    document.getElementById(
+        "waybackSatelliteContainer"
     ).style.display =
         "none";
 
@@ -8398,6 +8790,42 @@ function openMap(type) {
                         MAP_CENTER
                     );
 
+                }
+
+            },
+            100
+        );
+
+    }
+
+
+    else if (
+        type ===
+        "satellite"
+    ) {
+
+        document.getElementById(
+            "waybackSatelliteContainer"
+        ).style.display =
+            "block";
+
+
+        document
+            .getElementById(
+                "waybackSatelliteMenuItem"
+            )
+            .classList.add(
+                "active"
+            );
+
+
+        setTimeout(
+            function() {
+
+                waybackSatelliteCreateMap();
+
+                if (waybackSatelliteMap) {
+                    waybackSatelliteMap.invalidateSize();
                 }
 
             },
