@@ -349,16 +349,18 @@ body {
 }
 
 .map-menu-icon {
-    width: 27px;
-    height: 27px;
-    flex: 0 0 27px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 7px;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    display: block;
+    border-radius: 4px;
     background: #ffffff;
-    color: #086344;
-    border: 1px solid #d7e7df;
+    border: 1px solid #b9cbc3;
+}
+
+.map-menu-item.active .map-menu-icon {
+    background: #086344;
+    border-color: #086344;
 }
 
 
@@ -1673,7 +1675,7 @@ body.map-mode .map-wrapper {
                 id="googleMapMenuItem"
                 onclick="openMap('google')"
             >
-                <span class="map-menu-icon">G</span>
+                <span class="map-menu-icon" aria-hidden="true"></span>
                 <span>Google Maps JavaScript API</span>
             </button>
 
@@ -1683,7 +1685,7 @@ body.map-mode .map-wrapper {
                 id="leafletMapMenuItem"
                 onclick="openMap('leaflet')"
             >
-                <span class="map-menu-icon">L</span>
+                <span class="map-menu-icon" aria-hidden="true"></span>
                 <span>Leaflet</span>
             </button>
 
@@ -1693,7 +1695,7 @@ body.map-mode .map-wrapper {
                 id="azureMapMenuItem"
                 onclick="openMap('azure')"
             >
-                <span class="map-menu-icon">A</span>
+                <span class="map-menu-icon" aria-hidden="true"></span>
                 <span>Azure Maps</span>
             </button>
 
@@ -1703,7 +1705,7 @@ body.map-mode .map-wrapper {
                 id="mapboxMapMenuItem"
                 onclick="openMap('mapbox')"
             >
-                <span class="map-menu-icon">MB</span>
+                <span class="map-menu-icon" aria-hidden="true"></span>
                 <span>Mapbox</span>
             </button>
 
@@ -1713,7 +1715,7 @@ body.map-mode .map-wrapper {
                 id="myMapsMenuItem"
                 onclick="openMap('mymaps')"
             >
-                <span class="map-menu-icon">M</span>
+                <span class="map-menu-icon" aria-hidden="true"></span>
                 <span>My Maps</span>
             </button>
 
