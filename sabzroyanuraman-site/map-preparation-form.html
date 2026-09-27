@@ -31,10 +31,10 @@
         .save-dot.saved { background:#168057; }
         .layout { display:block; }
         .steps-nav,.panel { border:1px solid var(--line); border-radius:15px; background:var(--white); box-shadow:0 7px 24px #18392f0a; }
-        .steps-nav { position:static; padding:14px; margin-bottom:18px; }
-        .steps-nav h2 { margin:0 0 9px; font-size:1rem; }
-        .nav-list { display:flex; flex-wrap:wrap; gap:4px; }
-        .step-link { width:auto; flex:1 1 180px; display:flex; align-items:center; gap:10px; padding:8px 9px; border:0; border-radius:9px; background:transparent; color:#52687a; text-align:right; cursor:pointer; font-size:.85rem; }
+        .steps-nav { position:static; width:fit-content; max-width:100%; margin:0 auto 18px; padding:14px; }
+        .steps-nav h2 { margin:0 0 9px; font-size:1rem; text-align:center; }
+        .nav-list { display:flex; flex-wrap:wrap; justify-content:center; gap:4px; }
+        .step-link { width:auto; flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:8px 9px; border:0; border-radius:9px; background:transparent; color:#52687a; text-align:right; cursor:pointer; font-size:.85rem; }
         .step-link:hover { background:#f0f7f4; }
         .step-link.active { background:#eaf5ef; color:var(--dark); font-weight:700; }
         .step-link:disabled { opacity:.48; cursor:not-allowed; }
@@ -64,7 +64,7 @@
         .map-foot { padding:8px 12px; color:var(--muted); font-size:.77rem; }
         .section-box { margin-top:17px; padding:15px; border:1px solid #e0e9e6; border-radius:12px; background:#fcfefd; }
         .section-box h3 { margin:0 0 8px; font-size:1rem; }
-        .toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:10px 0; }
+        .toolbar { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; align-items:center; margin:10px 0; }
         .btn { display:inline-flex; justify-content:center; align-items:center; gap:7px; min-height:40px; padding:8px 15px; border:1px solid transparent; border-radius:8px; cursor:pointer; text-decoration:none; font-weight:700; font-size:.88rem; }
         .btn-primary { background:var(--blue); color:#fff; }
         .btn-primary:hover { background:#07568e; }
