@@ -8387,7 +8387,8 @@ function waybackSatelliteNormalizeItems(data) {
             return item &&
                 item.releaseNum !== undefined &&
                 item.releaseNum !== null &&
-                (item.releaseDateLabel || item.releaseDatetime);
+                (item.releaseDateLabel || item.releaseDatetime) &&
+                (item.itemURL || item.releaseNum !== undefined);
         })
         .map(function(item) {
             return {
@@ -8542,14 +8543,26 @@ function waybackSatelliteApplyLayer() {
         waybackSatelliteMap.removeLayer(waybackSatelliteLayer);
     }
 
-    const tileUrl =
-        "https://wayback.maptiles.arcgis.com/arcgis/rest/services/" +
-        "World_Imagery/MapServer/tile/" +
-        item.releaseNum +
-        "/{z}/{y}/{x}";
+    // Use Esri's exact WMTS tile template for this release.
+    // wayback-core documents itemURL with {level}/{row}/{col};
+    // Leaflet XYZ expects {z}/{y}/{x}.
+    const tileUrl = item.itemURL
+        ? item.itemURL
+            .replace("{level}", "{z}")
+            .replace("{row}", "{y}")
+            .replace("{col}", "{x}")
+        : "";
+
+    if (!tileUrl) {
+        waybackSatelliteStatus(
+            "آدرس کاشی برای این نسخه از آرشیو Esri دریافت نشد."
+        );
+        return;
+    }
 
     waybackSatelliteLayer = L.tileLayer(tileUrl, {
         maxZoom: 19,
+        maxNativeZoom: 18,
         attribution: "Tiles © Esri"
     })
         .on("tileerror", function() {
