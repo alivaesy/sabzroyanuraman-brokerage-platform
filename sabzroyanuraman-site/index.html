@@ -8544,11 +8544,15 @@ function waybackSatelliteApplyLayer() {
 
     const tileUrl = item.itemURL
         ? item.itemURL
+            .replace(
+                "https://wayback.maptiles.arcgis.com",
+                "https://wayback-a.maptiles.arcgis.com"
+            )
             .replace("{level}", "{z}")
             .replace("{row}", "{y}")
             .replace("{col}", "{x}")
         : (
-            "https://wayback.maptiles.arcgis.com/arcgis/rest/services/" +
+            "https://wayback-a.maptiles.arcgis.com/arcgis/rest/services/" +
             "World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/" +
             item.releaseNum +
             "/{z}/{y}/{x}"
@@ -8556,9 +8560,13 @@ function waybackSatelliteApplyLayer() {
 
     waybackSatelliteLayer = L.tileLayer(tileUrl, {
         maxZoom: 19,
-        maxNativeZoom: 19,
+        maxNativeZoom: 18,
         attribution: "Tiles © Esri"
     }).addTo(waybackSatelliteMap);
+
+    waybackSatelliteLayer.on("tileerror", function(event) {
+        console.warn("Esri Wayback tile failed:", event && event.tile && event.tile.src);
+    });
 
     const slider = document.getElementById("waybackSatelliteSlider");
     const select = document.getElementById("waybackSatelliteDate");
