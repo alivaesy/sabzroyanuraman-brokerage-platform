@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>موضوع قانون تعیین تکلیف | کارگزاری سبز رویان اورامان</title>
+<style>
+@font-face{font-family:Vazirmatn;src:url("/assets/fonts/Vazirmatn-Regular.woff2") format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:Vazirmatn;src:url("/assets/fonts/Vazirmatn-Bold.woff2") format("woff2");font-weight:700;font-display:swap}
+*{box-sizing:border-box;font-family:Vazirmatn,Tahoma,sans-serif}
+body{margin:0;background:#f1f3f4;color:#333;font-size:13px}
+.page{width:min(1180px,96%);margin:18px auto}
+.header{background:#fff;border:1px solid #d7dadd;border-radius:5px 5px 0 0;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:15px}
+.brand{display:flex;align-items:center;gap:10px;color:#07573e;font-weight:700}.brand img{width:48px;height:48px;object-fit:contain}
+.header-title{font-size:17px}.header-sub{font-size:11px;color:#777;margin-top:2px}
+.notice{background:#fff;border:1px solid #ddd;padding:18px;line-height:2;margin-top:12px}
+.notice h1{font-size:18px;margin:0 0 12px;color:#333}
+.notice h2{font-size:14px;margin:16px 0 5px;color:#07573e}
+.notice ol,.notice ul{margin:5px 0;padding-right:25px}
+.notice .warn{background:#fff8e8;border:1px solid #ead7a4;padding:10px 12px;margin-top:14px}
+.actions{display:flex;gap:8px;justify-content:flex-start;margin-top:18px}
+.btn{border:1px solid #1682bd;border-radius:4px;background:#fff;color:#0877b5;padding:8px 15px;cursor:pointer;font-size:12px}
+.btn.primary{background:#0781bd;color:#fff;border-color:#0781bd}.btn.green{background:#087653;border-color:#087653;color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.app{display:none;margin-top:12px;background:#fff;border:1px solid #ddd;border-radius:5px;overflow:hidden}
+.app.active{display:block}
+.topbar{background:#f5f6f7;border-bottom:1px solid #d9d9d9;padding:9px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.entry{font-size:11px;color:#555}.entry strong{color:#07573e}
+.tabs{display:flex;flex-wrap:wrap;background:#eee;border-bottom:1px solid #d5d5d5;padding:0 8px}
+.tab{border:0;border-left:1px solid #d5d5d5;background:#eee;color:#555;padding:10px 15px;cursor:pointer;font-size:12px}
+.tab.active{background:#fff;color:#0877b5;font-weight:700;border-top:3px solid #0877b5;padding-top:7px}
+.tab.locked{color:#aaa}
+.panel{display:none;padding:18px}.panel.active{display:block}
+.section-head{font-size:15px;font-weight:700;color:#333;background:#f4f4f4;border:1px solid #ddd;padding:9px 12px;margin-bottom:12px}
+.help{float:left;border:1px solid #aaa;border-radius:50%;width:21px;height:21px;background:#fff;cursor:pointer;color:#666}
+.form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 15px}
+.field{display:flex;flex-direction:column;gap:5px}.field.full{grid-column:1/-1}
+label{font-weight:700;font-size:11px;color:#444}.req:after{content:" *";color:#d22}
+input,select,textarea{width:100%;height:36px;border:1px solid #cfd3d6;border-radius:3px;padding:6px 9px;background:#fff;font-size:12px}
+textarea{height:78px;resize:vertical}.radio-row{display:flex;gap:18px;align-items:center;height:36px}
+.radio-row label{font-weight:400;display:flex;align-items:center;gap:5px}.radio-row input{width:auto;height:auto}
+.hint{font-size:10px;color:#777;line-height:1.8}
+.hidden{display:none!important}
+.subsection{border:1px solid #ddd;margin:14px 0;padding:12px;background:#fafafa}.subsection-title{font-weight:700;color:#07573e;margin-bottom:10px}
+.table-wrap{overflow:auto;border:1px solid #d5d5d5}
+table{width:100%;border-collapse:collapse;min-width:820px;font-size:11px}
+th,td{border:1px solid #d5d5d5;padding:7px;text-align:center}th{background:#f2f2f2;font-weight:700}
+.doc-list{display:flex;flex-direction:column;gap:8px}.doc-row{display:grid;grid-template-columns:1fr 250px 90px;gap:8px;align-items:center;border:1px solid #ddd;padding:8px;background:#fafafa}.doc-row small{color:#666}
+.status{font-size:11px;color:#777}.ok{color:#287b45;font-weight:700}
+.summary{border:1px solid #d8d8d8;background:#fafafa;padding:12px;line-height:2}
+.summary-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:0 20px}.summary-grid div{border-bottom:1px solid #e5e5e5;padding:5px}
+.print-area{background:#fff;border:1px solid #aaa;padding:25px;line-height:2.1}
+.print-title{text-align:center;font-weight:700;font-size:17px;margin-bottom:15px}.print-box{border:1px solid #555;padding:12px;margin:10px 0}
+.final{background:#edf8f1;border:1px solid #b8dcc5;padding:14px;line-height:2}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:3000;align-items:center;justify-content:center;padding:15px}.modal.open{display:flex}
+.modal-box{background:#fff;width:min(650px,100%);max-height:85vh;overflow:auto;border-radius:6px;padding:18px}.modal-box h3{margin-top:0;color:#07573e}
+@media(max-width:800px){.form{grid-template-columns:1fr 1fr}.field.full{grid-column:1/-1}.doc-row{grid-template-columns:1fr}.summary-grid{grid-template-columns:1fr}}
+@media(max-width:500px){.form{grid-template-columns:1fr}.field.full{grid-column:auto}.tabs{overflow:auto;flex-wrap:nowrap}.tab{white-space:nowrap}.header-title{font-size:14px}}
+@media print{body{background:#fff}.page>header,.topbar,.tabs,.actions,.notice{display:none!important}.app{display:block!important;border:0;margin:0}.panel{display:none!important}.panel[data-panel="print"]{display:block!important}.print-area{border:0}}
+</style>
+</head>
+<body>
+<div class="page">
+<header class="header">
+<div class="brand"><img src="images/logo.png" alt="سبز رویان اورامان"><div><div class="header-title">سامانه پذیرش درخواست صدور سند مالکیت</div><div class="header-sub">موضوع قانون تعیین تکلیف وضعیت ثبتی اراضی و ساختمان‌های فاقد سند رسمی</div></div></div>
+<a class="btn" href="index.html">بازگشت</a>
+</header>
+
+<section id="agreement" class="notice">
+<h1>متقاضی محترم</h1>
+<p>لطفاً قبل از تکمیل فرم مطالب زیر را به دقت مطالعه نمائید.</p>
+<h2>الف- املاکی که متقاضی می‌تواند به استناد قانون تعیین تکلیف وضعیت ثبتی اراضی و ساختمان‌های فاقد سند رسمی تقاضای صدور سند مالکیت نماید:</h2>
+<ol>
+<li>اراضی کشاورزی، باغات و ساختمان‌هایی که دارای سابقه ثبت به نام اشخاص است و متقاضی همه یا قسمتی از آن را به صورت عادی خریداری نموده و موفق به اخذ سند مالکیت نشده است.</li>
+<li>املاکی که دارای سابقه ثبت است و متقاضی مالک رسمی مشاعی است و تصرفات وی در محل مجزا شده و به دلیل عدم دسترسی به سایر مالکین مشاعی موفق به اخذ سند مالکیت شش دانگ نشده است.</li>
+<li>املاکی که عرصه آن وقف است و متقاضی عرصه را با حق احداث اعیانی اجاره نموده و موفق به اخذ سند مالکیت اعیانی نشده است.</li>
+</ol>
+<h2>ب- اراضی و املاکی که مشمول قانون مذکور نمی‌باشند:</h2>
+<ol>
+<li>اراضی ملی، موات و اراضی و املاک متعلق به دولت و مؤسسات دولتی.</li>
+<li>اراضی و املاکی که فاقد سابقه ثبت هستند.</li>
+<li>املاک فاقد بنا، اعم از اینکه محصور یا غیرمحصور باشد.</li>
+<li>اراضی و املاکی که مالک رسمی آن در قید حیات است و امکان دسترسی به وی جهت تنظیم سند رسمی وجود دارد.</li>
+<li>اراضی و املاکی که مالک رسمی آن فوت نموده و متقاضی جهت انتقال رسمی ملک به ورثه دسترسی داشته و امکان انتقال رسمی از طریق دفتر اسناد رسمی وجود دارد.</li>
+</ol>
+<h2>ج-</h2><p>این تقاضانامه منحصراً متعلق به متقاضی است و قابلیت واگذاری به غیر را ندارد.</p>
+<div class="warn">توجه: این صفحه یک فرم راهنما و جمع‌آوری اطلاعات در وب‌سایت کارگزاری است و به سامانه سازمان ثبت متصل نیست. ثبت نهایی رسمی باید مطابق فرایند و درگاه‌های رسمی سازمان ثبت انجام شود.</div>
+<div class="actions"><label style="display:flex;align-items:center;gap:7px;font-weight:700"><input id="agree" type="checkbox" style="width:auto;height:auto"> حائز شرایط درج شده می‌باشم و مطالب فوق را مطالعه و تأیید کرده‌ام.</label><button id="startBtn" class="btn primary" disabled>ادامه و شروع تقاضانامه</button></div>
+</section>
+
+<section id="app" class="app">
+<div class="topbar"><div class="entry">شماره ورود به سامانه: <strong id="entryNo">---</strong></div><div class="entry">وضعیت: <strong id="statusText">در حال تکمیل</strong></div><button class="btn" id="saveBtn">ذخیره پیش‌نویس</button></div>
+<nav class="tabs">
+<button class="tab active" data-tab="application">تقاضانامه</button>
+<button class="tab locked" data-tab="representative">نماینده</button>
+<button class="tab locked" data-tab="documents">مدارک</button>
+<button class="tab locked" data-tab="payment">پرداخت</button>
+<button class="tab locked" data-tab="print">چاپ</button>
+<button class="tab locked" data-tab="postal">مرسوله پستی</button>
+</nav>
+
+<section class="panel active" data-panel="application">
+<div class="section-head">مشخصات متقاضی <button class="help" data-help="متقاضی">؟</button></div>
+<div class="radio-row" style="margin-bottom:12px"><label><input type="radio" name="personType" value="natural" checked> شخص حقیقی</label><label><input type="radio" name="personType" value="legal"> شخص حقوقی</label></div>
+
+<div id="naturalBox" class="form">
+<div class="field"><label class="req">نام</label><input name="firstName" required></div>
+<div class="field"><label class="req">نام خانوادگی</label><input name="lastName" required></div>
+<div class="field"><label class="req">نام پدر</label><input name="fatherName" required></div>
+<div class="field"><label class="req">جنسیت</label><select name="gender" required><option value="">انتخاب کنید</option><option>مرد</option><option>زن</option></select></div>
+<div class="field"><label class="req">شماره ملی</label><input name="nationalId" inputmode="numeric" maxlength="10" required></div>
+<div class="field"><label class="req">شماره شناسنامه</label><input name="birthCertNo" required></div>
+<div class="field"><label class="req">سریال شناسنامه</label><input name="birthSerial" required></div>
+<div class="field"><label>سری شناسنامه</label><input name="birthSeries"></div>
+<div class="field"><label class="req">تاریخ تولد</label><input name="birthDate" placeholder="مثال: ۱۳۶۰/۰۱/۰۱" required></div>
+<div class="field"><label class="req">محل صدور</label><input name="issuePlace" required></div>
+<div class="field"><label>محل تولد</label><input name="birthPlace"></div>
+<div class="field"><label>رایانامه (Email)</label><input name="email" type="email"></div>
+<div class="field"><label class="req">کدپستی محل اقامت</label><input name="residencePostal" inputmode="numeric" maxlength="10" required></div>
+<div class="field"><label class="req">تلفن همراه</label><input name="mobile" inputmode="tel" required></div>
+<div class="field"><label class="req">تلفن ثابت (به همراه کد)</label><input name="landline" required></div>
+<div class="field full"><label class="req">نشانی محل اقامت</label><textarea name="residenceAddress" required></textarea></div>
+</div>
+
+<div id="legalBox" class="form hidden">
+<div class="field full"><label class="req">نام کامل شخص حقوقی</label><input name="legalName"></div>
+<div class="field"><label class="req">شناسه ملی</label><input name="legalNationalId"></div>
+<div class="field"><label class="req">شماره ثبت</label><input name="registrationNo"></div>
+<div class="field"><label class="req">سمت نماینده</label><select name="legalRole"><option value="">انتخاب کنید</option><option>مدیر عامل</option><option>عضو هیأت مدیره</option><option>وکیل</option><option>نماینده شخص حقوقی</option></select></div>
+<div class="field"><label>شماره معرفی نامه</label><input name="introNo"></div>
+<div class="field"><label>تاریخ نمایندگی</label><input name="representationDate" placeholder="مثال: ۱۴۰۴/۰۱/۰۱"></div>
+<div class="field full"><label class="req">نشانی محل اقامت قانونی</label><textarea name="legalAddress"></textarea></div>
+<div class="field"><label class="req">کدپستی</label><input name="legalPostal" maxlength="10"></div>
+<div class="field"><label class="req">تلفن</label><input name="legalPhone"></div>
+<div class="field"><label>رایانامه</label><input name="legalEmail" type="email"></div>
+</div>
+
+<div class="section-head" style="margin-top:18px">محل وقوع و مشخصات ثبتی ملک <button class="help" data-help="ملک">؟</button></div>
+<div class="form">
+<div class="field"><label class="req">استان</label><select name="province" required><option value="">انتخاب استان</option><option>کرمانشاه</option><option>ایلام</option><option>تهران</option><option>سایر</option></select></div>
+<div class="field"><label class="req">واحد ثبتی</label><input name="registrationUnit" required></div>
+<div class="field"><label>بخش ثبتی</label><input name="registrationSection"></div>
+<div class="field"><label>ناحیه ثبتی</label><input name="registrationDistrict"></div>
+<div class="field"><label>حوزه ثبت ملک</label><input name="registrationDomain"></div>
+<div class="field"><label>پلاک اصلی</label><input name="mainParcel"></div>
+<div class="field"><label>پلاک فرعی</label><input name="subParcel"></div>
+<div class="field"><label class="req">نوع ملک</label><select name="propertyType" required><option value="">انتخاب کنید</option><option>زمین مزروعی</option><option>باغ</option><option>ساختمان</option></select></div>
+<div class="field"><label>شماره دفتر</label><input name="bookNo"></div>
+<div class="field"><label>شماره صفحه</label><input name="pageNo"></div>
+<div class="field"><label class="req">متن و میزان سهم</label><input name="shareText" placeholder="مثال: سه سهم از شش سهم یک قطعه زمین مزروعی" required></div>
+<div class="field"><label class="req">مساحت طبق نقشه (مترمربع)</label><input name="area" inputmode="decimal" required></div>
+<div class="field"><label>کدپستی ملک</label><input name="propertyPostal" maxlength="10"></div>
+<div class="field full"><label class="req">نشانی ملک</label><textarea name="propertyAddress" required></textarea></div>
+<div class="field"><label class="req">طول جغرافیایی بر حسب درجه (λ)</label><input name="longitude" inputmode="decimal" placeholder="مثال: 51.354788" required></div>
+<div class="field"><label class="req">عرض جغرافیایی بر حسب درجه (φ)</label><input name="latitude" inputmode="decimal" placeholder="مثال: 34.254687" required></div>
+</div>
+<div class="hint">توجه: در راهنماهای سامانه، اطلاعات استان، واحد ثبتی، بخش و ناحیه به ترتیب تکمیل می‌شوند و اطلاعات مساحت و مختصات باید با نقشه ملک منطبق باشد. </div>
+
+<div class="section-head" style="margin-top:18px">موضوع مورد درخواست <button class="help" data-help="موضوع">؟</button></div>
+<div class="form">
+<div class="field"><label class="req">موضوع درخواست</label><select name="requestSubject" required><option value="">انتخاب کنید</option><option>عرصه</option><option>اعیان</option><option>عرصه و اعیان</option></select></div>
+<div class="field"><label class="req">مستند مالکیت</label><select name="ownershipDocument" required><option value="">انتخاب کنید</option><option>خریدار عادی</option><option>مالکیت رسمی مشاعی</option></select></div>
+<div class="field"><label class="req">مالک عرصه</label><select name="landOwnerType" required><option value="">انتخاب کنید</option><option>شخص</option><option>مؤسسه غیر دولتی</option></select></div>
+<div class="field" id="ownerNameField"><label>نام شخص</label><input name="landOwnerName"></div>
+<div class="field hidden" id="institutionField"><label>عنوان مؤسسه غیر دولتی</label><input name="institutionName"></div>
+<div class="field"><label>شماره قرارداد</label><input name="contractNo"></div>
+<div class="field"><label>تاریخ قرارداد / مبایعه‌نامه</label><input name="contractDate" placeholder="مثال: ۱۴۰۴/۰۱/۰۱"></div>
+<div class="field full"><label class="req">آیا از طریق ماده ۱۴۷ اصلاحی قانون ثبت سابق درخواست صدور سند مالکیت شده است؟</label><div class="radio-row"><label><input type="radio" name="article147" value="no" checked> خیر</label><label><input type="radio" name="article147" value="yes"> بلی</label></div></div>
+<div class="field hidden" id="caseClassField"><label>کلاسه پرونده ماده ۱۴۷</label><input name="article147Case"></div>
+</div>
+
+<div class="section-head" style="margin-top:18px">مشخصات دفترخانه ثبت کننده</div>
+<div class="form">
+<div class="field"><label>محل دفترخانه</label><input name="notaryPlace"></div>
+<div class="field"><label>شماره دفترخانه</label><input name="notaryNo"></div>
+<div class="field"><label>نام دفترخانه</label><input name="notaryName"></div>
+<div class="field"><label class="req">کد امنیتی</label><input name="securityCode" maxlength="5" placeholder="کد ۵ رقمی را وارد نمایید" required></div>
+</div>
+<div class="actions"><button class="btn primary" id="submitApplication">ثبت و ادامه</button></div>
+</section>
+
+<section class="panel" data-panel="representative">
+<div class="section-head">نماینده</div>
+<p>در صورتی که تقاضانامه توسط نماینده شخص حقیقی یا حقوقی تکمیل شده باشد، مشخصات نماینده در این قسمت درج می‌گردد. اگر خود متقاضی تقاضا را ثبت می‌کند، تکمیل این قسمت ضروری نیست.</p>
+<div class="form">
+<div class="field"><label>نام</label><input name="repFirstName"></div><div class="field"><label>نام خانوادگی</label><input name="repLastName"></div><div class="field"><label>شماره ملی</label><input name="repNationalId"></div>
+<div class="field"><label>سمت</label><select name="repRole"><option value="">انتخاب کنید</option><option>وکیل</option><option>نماینده</option><option>ولی</option><option>قیم</option></select></div>
+<div class="field"><label>شماره معرفی‌نامه / وکالت‌نامه</label><input name="repDocNo"></div><div class="field"><label>تاریخ</label><input name="repDate"></div>
+<div class="field full"><label>توضیحات</label><textarea name="repNotes"></textarea></div>
+</div>
+<div class="actions"><button class="btn primary" data-next="documents">ثبت نماینده و ادامه</button></div>
+</section>
+
+<section class="panel" data-panel="documents">
+<div class="section-head">مدارک</div>
+<p>مدارک مورد نیاز را مطابق وضعیت پرونده انتخاب و بارگذاری کنید. در راهنمای سامانه، تصویر مدارک هویتی، مبایعه‌نامه در مالکیت عادی، سند مالکیت مشاعی و مدرک نمایندگی از جمله مدارک ذکر شده‌اند. citeturn4view2</p>
+<div class="doc-list">
+<div class="doc-row"><div><b>تصویر صفحه اول شناسنامه و کارت ملی متقاضی</b><small> برای شخص حقیقی؛ برای شخص حقوقی، مدارک نماینده</small></div><input type="file" accept=".jpg,.jpeg,.png,.pdf" data-doc="identity"><span class="status" data-status="identity">انتخاب نشده</span></div>
+<div class="doc-row"><div><b>تصویر مبایعه‌نامه</b><small> در صورت نوع مالکیت خریداری عادی</small></div><input type="file" accept=".jpg,.jpeg,.png,.pdf" data-doc="sale"><span class="status" data-status="sale">انتخاب نشده</span></div>
+<div class="doc-row"><div><b>تصویر سند مالکیت مشاعی</b><small> صفحات ۲ و ۳، صفحه ۴ و در صورت انتقال آخرین صفحه نقل و انتقالات</small></div><input type="file" accept=".jpg,.jpeg,.png,.pdf" data-doc="shared"><span class="status" data-status="shared">انتخاب نشده</span></div>
+<div class="doc-row"><div><b>مدرک نمایندگی</b><small> در صورت وجود نماینده</small></div><input type="file" accept=".jpg,.jpeg,.png,.pdf" data-doc="representative"><span class="status" data-status="representative">انتخاب نشده</span></div>
+<div class="doc-row"><div><b>نقشه UTM و گواهی تعیین مختصات ملک</b><small> مطابق الزامات نقشه و فایل مختصات</small></div><input type="file" accept=".jpg,.jpeg,.png,.pdf,.xls,.xlsx" data-doc="utm"><span class="status" data-status="utm">انتخاب نشده</span></div>
+</div>
+<div class="actions"><button class="btn primary" data-next="payment">ذخیره مدارک و ادامه</button></div>
+</section>
+
+<section class="panel" data-panel="payment">
+<div class="section-head">پرداخت</div>
+<div class="summary"><b>هزینه تقاضانامه:</b> مبلغ درج‌شده در راهنمای قدیمی سامانه ۵۰۰٬۰۰۰ ریال بوده است؛ مبلغ و روش پرداخت فعلی را قبل از استفاده نهایی با مرجع رسمی کنترل کنید. در راهنمای سامانه، فیش پرداخت، تاریخ فیش و نام شعبه پرداختی به عنوان اطلاعات پرداخت ذکر شده است. citeturn4view2</div>
+<div class="form" style="margin-top:14px">
+<div class="field"><label class="req">نوع پرداخت</label><select name="paymentType" required><option value="">انتخاب کنید</option><option>پرداخت اینترنتی</option><option>فیش بانکی</option></select></div>
+<div class="field"><label>شماره فیش</label><input name="receiptNo"></div><div class="field"><label>تاریخ فیش</label><input name="receiptDate"></div>
+<div class="field"><label>نام شعبه پرداختی</label><input name="bankBranch"></div>
+</div>
+<div class="actions"><button class="btn primary" data-next="print">ثبت اطلاعات پرداخت و ادامه</button></div>
+</section>
+
+<section class="panel" data-panel="print">
+<div class="section-head">چاپ</div>
+<p>اطلاعات واردشده را بررسی کنید. نسخه چاپی تقاضانامه باید پس از کنترل، امضا و اثر انگشت شده و مطابق دستورالعمل رسمی همراه مدارک ارسال شود. citeturn4view2</p>
+<div class="print-area" id="printArea">
+<div class="print-title">تقاضانامه صدور سند مالکیت<br>موضوع قانون تعیین تکلیف وضعیت ثبتی اراضی و ساختمان‌های فاقد سند رسمی</div>
+<div class="print-box" id="printSummary"></div>
+<div class="print-box"><b>شماره ورود به سامانه:</b> <span id="printEntry"></span></div>
+<div style="margin-top:35px;display:flex;justify-content:space-between"><span>امضاء و اثر انگشت متقاضی</span><span>تاریخ: ....................</span></div>
+</div>
+<div class="actions"><button class="btn green" id="printBtn">چاپ تقاضانامه</button><button class="btn primary" data-next="postal">تأیید و ادامه به مرسوله پستی</button></div>
+</section>
+
+<section class="panel" data-panel="postal">
+<div class="section-head">مرسوله پستی</div>
+<div class="final" id="postalIntro">پس از ارسال مدارک به واحد ثبتی مورد نظر، اطلاعات مرسوله را در این بخش ثبت کنید. راهنمای سامانه ثبت شماره ۲۰ رقمی مرسوله و تاریخ تحویل به اداره پست را پیش‌بینی کرده است. citeturn4view2</div>
+<div class="form" style="margin-top:14px">
+<div class="field"><label class="req">شماره ۲۰ رقمی مرسوله پستی</label><input name="postalTracking" inputmode="numeric" maxlength="20" required></div>
+<div class="field"><label class="req">تاریخ تحویل به اداره پست</label><input name="postalDate" placeholder="مثال: ۱۴۰۴/۰۱/۰۱" required></div>
+<div class="field"><label>واحد ثبتی مقصد</label><input name="postalOffice"></div>
+</div>
+<div class="actions"><button class="btn green" id="finalizeBtn">ثبت نهایی و دریافت شماره پرونده</button></div>
+<div id="finalResult" class="final hidden" style="margin-top:15px"></div>
+</section>
+</section>
+</div>
+
+<div id="modal" class="modal"><div class="modal-box"><h3 id="modalTitle"></h3><div id="modalBody"></div><div class="actions"><button class="btn" id="closeModal">بستن</button></div></div></div>
+
+<script>
+(function(){
+"use strict";
+const app=document.getElementById("app"), agreement=document.getElementById("agreement");
+const fields=()=>Array.from(app.querySelectorAll("input[name],select[name],textarea[name]"));
+const key="sr_determination_draft_v1";
+let entry=localStorage.getItem(key+"_entry");
+if(!entry) entry=String(Math.floor(1000000000+Math.random()*8999999999));
+document.getElementById("entryNo").textContent=entry;
+document.getElementById("printEntry").textContent=entry;
+const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+function save(){
+ const data={}; fields().forEach(el=>{if(el.type==="file")return;if(el.type==="radio"){if(el.checked)data[el.name]=el.value}else data[el.name]=el.value});
+ localStorage.setItem(key,JSON.stringify(data));localStorage.setItem(key+"_entry",entry);
+}
+function load(){
+ const data=JSON.parse(localStorage.getItem(key)||"{}");
+ fields().forEach(el=>{if(el.type==="radio")el.checked=data[el.name]===el.value;else if(el.type!=="file"&&data[el.name]!=null)el.value=data[el.name]});
+ togglePerson();toggleOwner();toggle147();renderPrint();
+}
+function togglePerson(){
+ const type=$('input[name="personType"]:checked')?.value||"natural";
+ $("#naturalBox").classList.toggle("hidden",type!=="natural");$("#legalBox").classList.toggle("hidden",type!=="legal");
+}
+function toggleOwner(){
+ const v=$('select[name="landOwnerType"]')?.value;
+ $("#institutionField").classList.toggle("hidden",v!=="مؤسسه غیر دولتی" && v!=="مؤسسه غیر دولتی");
+ $("#ownerNameField").classList.toggle("hidden",v==="مؤسسه غیر دولتی");
+}
+function toggle147(){
+ const v=$('input[name="article147"]:checked')?.value;
+ $("#caseClassField").classList.toggle("hidden",v!=="yes");
+}
+function renderPrint(){
+ const d={};fields().forEach(el=>{if(el.type==="radio"){if(el.checked)d[el.name]=el.value}else if(el.type!=="file")d[el.name]=el.value});
+ const name=d.personType==="legal"?d.legalName:[d.firstName,d.lastName].filter(Boolean).join(" ");
+ $("#printSummary").innerHTML="<b>متقاضی:</b> "+(name||"—")+"<br><b>شماره ملی/شناسه ملی:</b> "+(d.personType==="legal"?d.legalNationalId:d.nationalId||"—")+"<br><b>ملک:</b> "+(d.propertyAddress||"—")+"<br><b>پلاک:</b> "+(d.mainParcel||"—")+" / "+(d.subParcel||"—")+"<br><b>مساحت:</b> "+(d.area||"—")+" مترمربع<br><b>موضوع درخواست:</b> "+(d.requestSubject||"—");
+}
+function unlock(name){
+ $$(".tab").forEach(t=>{if(t.dataset.tab===name){t.classList.remove("locked")}});
+}
+function show(name){
+ const tab=$('.tab[data-tab="'+name+'"]'); if(tab?.classList.contains("locked"))return;
+ $$(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===name));
+ $$(".panel").forEach(p=>p.classList.toggle("active",p.dataset.panel===name));
+ if(name==="print")renderPrint();window.scrollTo({top:0,behavior:"smooth"});
+}
+$$(".tab").forEach(t=>t.addEventListener("click",()=>show(t.dataset.tab)));
+$$("[data-next]").forEach(b=>b.addEventListener("click",()=>{save();unlock(b.dataset.next);show(b.dataset.next)}));
+$$('input[name="personType"]').forEach(r=>r.addEventListener("change",()=>{togglePerson();save()}));
+$('select[name="landOwnerType"]').addEventListener("change",()=>{toggleOwner();save()});
+$$('input[name="article147"]').forEach(r=>r.addEventListener("change",()=>{toggle147();save()}));
+$("#agree").addEventListener("change",e=>$("#startBtn").disabled=!e.target.checked);
+$("#startBtn").addEventListener("click",()=>{agreement.style.display="none";app.classList.add("active");load()});
+$("#saveBtn").addEventListener("click",()=>{save();alert("پیش‌نویس اطلاعات در همین مرورگر ذخیره شد.")});
+$("#submitApplication").addEventListener("click",()=>{
+ const required=$$('.panel[data-panel="application"] [required]');
+ const bad=required.find(el=>!el.value.trim());
+ if(bad){bad.focus();alert("لطفاً همه فیلدهای الزامی دارای علامت * را تکمیل کنید.");return}
+ save();unlock("representative");unlock("documents");unlock("payment");unlock("print");unlock("postal");show("representative");$("#statusText").textContent="تقاضانامه ثبت اولیه شد";
+});
+$$("[data-doc]").forEach(input=>input.addEventListener("change",()=>{const s=$('[data-status="'+input.dataset.doc+'"]');if(input.files.length){s.textContent=input.files[0].name;s.classList.add("ok")}else{s.textContent="انتخاب نشده";s.classList.remove("ok")}}));
+$("#printBtn").addEventListener("click",()=>window.print());
+$("#finalizeBtn").addEventListener("click",()=>{
+ const tr=$('input[name="postalTracking"]').value.trim(),dt=$('input[name="postalDate"]').value.trim();
+ if(tr.length!==20||!dt){alert("شماره مرسوله باید ۲۰ رقمی باشد و تاریخ تحویل نیز وارد شود.");return}
+ save();const caseNo=String(Math.floor(100000000000000000000+Math.random()*899999999999999999999)).slice(0,19);
+ const result=$("#finalResult");result.classList.remove("hidden");result.innerHTML="<b>ثبت نهایی پیش‌نویس انجام شد.</b><br>شماره پرونده نمونه: <strong>"+caseNo+"</strong><br><small>این شماره در وب‌سایت کارگزاری تولید شده و شماره پرونده واقعی سازمان ثبت نیست.</small>";
+$("#statusText").textContent="تکمیل اطلاعات و ثبت مرسوله";
+});
+const help={
+"متقاضی":"فرم متقاضی برای شخص حقیقی و حقوقی در نظر گرفته شده است. موارد ستاره‌دار اجباری هستند.",
+"ملک":"استان، واحد ثبتی، بخش و ناحیه به ترتیب انتخاب می‌شوند. پلاک، نوع ملک، سهم، نشانی، مساحت و مختصات را مطابق مدارک و نقشه وارد کنید.",
+"موضوع":"موضوع درخواست شامل عرصه، اعیان یا عرصه و اعیان است. در صورت اعیان، نوع مالک عرصه و اطلاعات مربوط به شخص یا مؤسسه درج می‌شود."
+};
+$$("[data-help]").forEach(b=>b.addEventListener("click",()=>{ $("#modalTitle").textContent="راهنمای "+b.dataset.help;$("#modalBody").textContent=help[b.dataset.help]||"";$("#modal").classList.add("open")}));
+$("#closeModal").addEventListener("click",()=>$("#modal").classList.remove("open"));
+load();
+})();
+</script>
+</body>
+</html>
