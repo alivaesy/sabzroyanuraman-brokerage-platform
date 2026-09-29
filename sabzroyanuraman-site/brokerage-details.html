@@ -803,6 +803,12 @@ const serviceId =
     params.get("service");
 
 
+/* خدمت قانون تعیین تکلیف مستقیماً وارد فرم جدید شود */
+if (serviceId === "6") {
+    window.location.replace("determination-form.html");
+}
+
+
 const data =
     services[serviceId] || services[1];
 
