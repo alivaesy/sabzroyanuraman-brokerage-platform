@@ -1700,6 +1700,13 @@ function runGisTool(tool){
  if(tool.id==="addBookmark"){addBookmark();return;}
  if(tool.id==="showBookmarks"){showBookmarks();return;}
  if(tool.id==="spatialFilter"){spatialFilter();return;}
+ if(tool.id==="measureDistanceTool"){measureDistanceTool();return;}
+ if(tool.id==="measureAreaTool"){measureAreaTool();return;}
+ if(tool.id==="identifyTool"){identifyTool();return;}
+ if(tool.id==="nearestMatchTool"){nearestMatchTool();return;}
+ if(tool.id==="transferAttributesTool"){transferAttributesTool();return;}
+ if(tool.id==="networkQaTool"){networkQaTool();return;}
+ if(tool.id==="snapTool"){snapTool();return;}
  if(tool.id==="attachmentsTool"){attachmentsTool();return;}
  if(tool.id==="chartStats"){chartStats();return;}
  
@@ -1853,7 +1860,7 @@ function refreshAll(){
 }
 
 /* محاسبه دقیق‌تر طول/مساحت در CRS پروژه */
-$("measureDistanceTool").onclick=()=>{
+function measureDistanceTool(){
   const item=selectedLayer?{name:"انتخاب",layer:selectedLayer}:getLayerBySelectValue("attributeLayer");
   const v=vectorFeatures(item?.layer);
   const target=selectedOverlay?.feature||v[0]?.feature;
@@ -1862,7 +1869,7 @@ $("measureDistanceTool").onclick=()=>{
   $("professionalToolOutput").textContent="طول: "+fmtMeters(m.length)+" | CRS: "+currentCRS;
   status("طول عارضه محاسبه شد.");
 };
-$("measureAreaTool").onclick=()=>{
+function measureAreaTool(){
   const item=selectedLayer?{name:"انتخاب",layer:selectedLayer}:getLayerBySelectValue("attributeLayer");
   const v=vectorFeatures(item?.layer);
   const target=selectedOverlay?.feature||v[0]?.feature;
@@ -1873,7 +1880,7 @@ $("measureAreaTool").onclick=()=>{
 };
 
 /* شناسایی عارضه */
-$("identifyTool").onclick=()=>{
+function identifyTool(){
   if(!selectedOverlay?.feature){status("ابتدا روی عارضه کلیک کن.");return;}
   const f=selectedOverlay.feature;
   const p=f.properties||{};
@@ -1884,7 +1891,7 @@ $("identifyTool").onclick=()=>{
 };
 
 /* تطبیق نزدیک‌ترین نقطه؛ مناسب منهول قدیم/جدید */
-$("nearestMatchTool").onclick=()=>{
+function nearestMatchTool(){
   const layers=getAllVectorItems().filter(x=>vectorFeatures(x.layer).some(v=>v.feature.geometry.type==="Point"));
   if(layers.length<2){status("حداقل دو لایه نقطه‌ای لازم است.");return;}
   const source=layers[0], target=layers[1];
@@ -1912,7 +1919,7 @@ $("nearestMatchTool").onclick=()=>{
 };
 
 /* انتقال Attribute از نزدیک‌ترین عارضه */
-$("transferAttributesTool").onclick=()=>{
+function transferAttributesTool(){
   const layers=getAllVectorItems();
   if(layers.length<2){status("حداقل دو لایه لازم است.");return;}
   const source=layers[0],target=layers[1];
@@ -1940,7 +1947,7 @@ $("transferAttributesTool").onclick=()=>{
 };
 
 /* کنترل شبکه آب و فاضلاب: نقاط انتهایی خط که نزدیک منهول نیستند */
-$("networkQaTool").onclick=()=>{
+function networkQaTool(){
   const items=getAllVectorItems();
   const pointItems=items.filter(x=>vectorFeatures(x.layer).some(v=>v.feature.geometry.type==="Point"));
   const lineItems=items.filter(x=>vectorFeatures(x.layer).some(v=>/LineString/i.test(v.feature.geometry.type)));
@@ -1967,7 +1974,7 @@ $("networkQaTool").onclick=()=>{
 };
 
 /* Snap ساده برای نزدیک‌کردن نقاط به نزدیک‌ترین نقطه/رأس خط */
-$("snapTool").onclick=()=>{
+function snapTool(){
   const items=getAllVectorItems();
   const points=items.flatMap(it=>vectorFeatures(it.layer).filter(v=>v.feature.geometry.type==="Point"));
   const lines=items.flatMap(it=>vectorFeatures(it.layer).filter(v=>v.feature.geometry.type==="LineString"));
