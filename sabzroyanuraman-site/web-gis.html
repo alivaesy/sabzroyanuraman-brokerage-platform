@@ -78,9 +78,25 @@ body{background:#dfe5e8;color:#173b57}
 .arc-dropdown button:hover{background:#e6f0f5}
 .arc-menu-title{font-size:10px;color:#607684;padding:5px 9px;font-weight:700}
 .arc-sep{height:1px;background:#d9e1e5;margin:4px 0}
-.panel{display:none!important}
-.workspace{direction:ltr}
-#map{background:#cfd9de}
+.workspace{direction:ltr;display:flex;min-height:0;position:relative}
+#map{background:#cfd9de;flex:1;min-width:0}
+.panel{display:flex!important;flex-direction:column;width:290px;min-width:290px;height:100%;overflow:auto;background:#f4f6f7;border-right:1px solid #8f9da5;box-shadow:1px 0 5px rgba(0,0,0,.10);direction:rtl;z-index:1000}
+.panel .section{margin:0 7px 6px}
+.panel .section:first-child{margin-top:7px}
+.panel .section h3{font-size:11px;margin:0;padding:7px 8px;background:#e3e8eb;border:1px solid #bcc7cd;border-bottom:0;color:#263f50}
+.panel #layers{background:#fff;border:1px solid #bcc7cd;min-height:120px;max-height:300px;overflow:auto}
+.layer-tree-title{font-weight:700;font-size:11px;padding:8px 9px;background:#dfe5e8;border:1px solid #9ba9b1;color:#263f50}
+.layer-row{display:flex;align-items:center;gap:5px;border-bottom:1px solid #e5eaed;padding:5px 6px;font-size:11px;min-height:28px;cursor:pointer;background:#fff}
+.layer-row:hover{background:#eaf1f5}
+.layer-row.layer-active{background:#dcebf5;outline:1px solid #8fb1c6}
+.layer-row .layer-name{cursor:default}
+.layer-row .layer-icon{width:17px;text-align:center;color:#416b7f}
+.layer-row .layer-menu{margin-right:auto;border:0;background:transparent;color:#536c79;font-size:14px;cursor:pointer;padding:0 4px}
+.arc-context-menu{position:fixed;display:none;min-width:210px;background:#fff;border:1px solid #7f8d95;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:10000;padding:3px;direction:rtl}
+.arc-context-menu.show{display:block}
+.arc-context-menu button{display:block;width:100%;border:0;background:#fff;text-align:right;padding:7px 9px;font-size:11px;color:#243e50;cursor:pointer}
+.arc-context-menu button:hover{background:#e5eef3}
+.arc-context-sep{height:1px;background:#d9e1e5;margin:3px 0}
 .leaflet-control-layers{display:none}
 #basemap{display:none}
 .webgis-draw-control{background:#fff;border:1px solid #7f8d95;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.22);padding:4px;display:flex;flex-direction:column;gap:3px;direction:rtl}.webgis-draw-control button{min-width:78px;height:29px;border:1px solid #b5c1c7;background:#f8fafb;color:#173b57;border-radius:3px;font-size:10px;cursor:pointer}.webgis-draw-control button:hover{background:#e6f2ed;border-color:#146c43}.webgis-draw-control button.active{background:#146c43;color:#fff}</style></head>
@@ -350,6 +366,14 @@ body{background:#dfe5e8;color:#173b57}
     </div>
   </aside>
 </div>
+<div id="layerContextMenu" class="arc-context-menu">
+  <button type="button" data-action="table">📋 باز کردن Open Attribute Table</button>
+  <button type="button" data-action="zoom">🔍 Zoom To Layer</button>
+  <button type="button" data-action="show">👁 نمایش لایه</button>
+  <button type="button" data-action="hide">🚫 مخفی کردن لایه</button>
+  <div class="arc-context-sep"></div>
+  <button type="button" data-action="remove">🗑 حذف لایه از پروژه</button>
+</div>
 <div id="projectManager"><div class="pm-card"><div style="font-size:18px;font-weight:800;color:#07573e">🗺️ مدیریت پروژه Web GIS</div><div class="small" style="margin:5px 0 14px">برای شروع کار یک پروژه ایجاد یا پروژه قبلی را باز کن. پروژه‌ها فقط در همین مرورگر ذخیره می‌شوند.</div><div class="section"><h3>➕ پروژه جدید</h3><div class="pm-grid"><input id="newProjectName" placeholder="نام پروژه، مثلاً شبکه فاضلاب تازه‌آباد"><select id="newProjectCrs"><option value="EPSG:32638">WGS 84 / UTM 38N — EPSG:32638</option><option value="EPSG:32637">WGS 84 / UTM 37N — EPSG:32637</option><option value="EPSG:32639">WGS 84 / UTM 39N — EPSG:32639</option><option value="EPSG:32640">WGS 84 / UTM 40N — EPSG:32640</option></select><textarea id="newProjectDescription" class="full" placeholder="توضیح پروژه (اختیاری)"></textarea></div><div class="pm-actions"><button class="action" id="createProjectBtn">ایجاد و ورود به پروژه</button><button class="action secondary" id="closeProjectManager">ادامه بدون پروژه</button></div></div><div class="pm-list"><h3>📂 پروژه‌های اخیر</h3><div id="projectList">در حال بارگذاری...</div></div></div></div><div class="coord" id="coord">طول: — | عرض: —</div>
 <div class="status" id="status">Web GIS آماده است.</div>
 </div>
@@ -476,21 +500,51 @@ function addNamedLayer(name,layer,zoom){
     map.fitBounds(layer.getBounds(),{padding:[25,25],maxZoom:18});
   }
 }
+let contextLayerItem=null;
+function hideLayerContextMenu(){
+  const m=$("layerContextMenu");if(m)m.classList.remove("show");contextLayerItem=null;
+}
+function showLayerContextMenu(item,x,y){
+  contextLayerItem=item;
+  const m=$("layerContextMenu");if(!m)return;
+  m.classList.add("show");
+  m.style.left=Math.min(x,window.innerWidth-220)+"px";
+  m.style.top=Math.min(y,window.innerHeight-230)+"px";
+}
+function openLayerAttributeTable(item){
+  const idx=namedLayers.indexOf(item);
+  if(idx>=0){
+    $("attributeLayer").value=String(idx);
+    renderEditableTable();
+  }else if(item.layer===drawn){
+    status("«ترسیمات من» را انتخاب کن؛ جدول آن از منوی جدول صفات باز می‌شود.");
+    const items=vectorFeatures(drawn);
+    if(items.length){
+      renderEditableTableForItems(items,"ترسیمات من");
+    }
+  }
+}
 function renderLayerList(){
-  const el=$("layers");
+  const el=$("layers"); if(!el)return;
   el.innerHTML="";
-  const all=[{name:"ترسیمات من",layer:drawn}].concat(namedLayers);
+  const title=document.createElement("div");title.className="layer-tree-title";title.textContent="📑 Table of Contents — لایه‌ها";el.appendChild(title);
+  const all=[{name:"ترسیمات من",layer:drawn,isDrawn:true}].concat(namedLayers.map(x=>({...x,isDrawn:false})));
   all.forEach((x,i)=>{
     const row=document.createElement("div");row.className="layer-row";
+    if(selectedOverlay===x.layer)row.classList.add("layer-active");
     const cb=document.createElement("input");cb.type="checkbox";cb.checked=map.hasLayer(x.layer);
-    cb.onchange=()=>cb.checked?map.addLayer(x.layer):map.removeLayer(x.layer);
+    cb.title="نمایش/مخفی";
+    cb.onchange=()=>{if(cb.checked)map.addLayer(x.layer);else map.removeLayer(x.layer);};
+    const icon=document.createElement("span");icon.className="layer-icon";
+    icon.textContent=x.layer instanceof L.TileLayer?"▧":(x.isDrawn?"✏":"▦");
     const nm=document.createElement("span");nm.className="layer-name";nm.textContent=x.name;
-    row.append(cb,nm);
-    if(i>0){
-      const del=document.createElement("button");del.textContent="×";del.title="حذف لایه";
-      del.onclick=()=>{map.removeLayer(x.layer);layerControl.removeLayer(x.layer);const idx=namedLayers.indexOf(x);if(idx>=0)namedLayers.splice(idx,1);renderLayerList();};
-      row.appendChild(del);
-    }
+    nm.ondblclick=()=>{if(x.layer.getBounds&&x.layer.getBounds().isValid())map.fitBounds(x.layer.getBounds(),{padding:[25,25],maxZoom:18});};
+    row.append(cb,icon,nm);
+    row.onclick=()=>{selectedOverlay=x.layer;selectedLayer=null;renderLayerList();};
+    row.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();selectedOverlay=x.layer;renderLayerList();showLayerContextMenu(x,e.clientX,e.clientY);};
+    const more=document.createElement("button");more.className="layer-menu";more.textContent="⋮";more.title="منوی لایه";
+    more.onclick=e=>{e.stopPropagation();selectedOverlay=x.layer;renderLayerList();showLayerContextMenu(x,e.clientX,e.clientY);};
+    row.appendChild(more);
     el.appendChild(row);
   });
 }
@@ -751,6 +805,22 @@ function renderEditableTable(){
  status(rows.length+" ردیف نمایش داده شد.");
 }
 $("openTable").onclick=renderEditableTable;
+document.addEventListener("click",e=>{if(!e.target.closest("#layerContextMenu"))hideLayerContextMenu();});
+$("layerContextMenu").querySelectorAll("button[data-action]").forEach(btn=>btn.onclick=e=>{
+  e.stopPropagation();
+  const item=contextLayerItem;if(!item){hideLayerContextMenu();return;}
+  const action=btn.dataset.action;
+  if(action==="table")openLayerAttributeTable(item);
+  else if(action==="zoom"&&item.layer.getBounds&&item.layer.getBounds().isValid())map.fitBounds(item.layer.getBounds(),{padding:[25,25],maxZoom:18});
+  else if(action==="show")map.addLayer(item.layer);
+  else if(action==="hide")map.removeLayer(item.layer);
+  else if(action==="remove"&&item.layer!==drawn){
+    map.removeLayer(item.layer);layerControl.removeLayer(item.layer);
+    const idx=namedLayers.indexOf(item);if(idx>=0)namedLayers.splice(idx,1);
+    refreshAttributeLayers();renderLayerList();status("لایه «"+item.name+"» حذف شد.");
+  }
+  renderLayerList();hideLayerContextMenu();
+});
 $("selectFiltered").onclick=()=>{
  const idx=$("attributeLayer").value;if(idx===""){status("لایه را انتخاب کن.");return}
  const filter=$("attributeFilter").value.trim().toLowerCase(), items=vectorFeatures(namedLayers[Number(idx)].layer);
