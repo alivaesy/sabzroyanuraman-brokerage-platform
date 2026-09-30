@@ -102,6 +102,24 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
       <div class="row"><button class="action secondary" id="measureSelected">محاسبه مساحت/طول</button></div>
     </div>
 
+
+    <div class="section">
+      <h3>⚙️ عملیات GIS</h3>
+      <div class="small">عملیات روی عوارض انتخاب‌شده انجام می‌شود. کلیک عادی = عارضه اول؛ Shift+کلیک = عارضه دوم. نتیجه به‌صورت لایه جدید ساخته می‌شود.</div>
+      <select id="gisOperation" style="margin-top:6px">
+        <option value="buffer">Buffer — حریم</option>
+        <option value="clip">Clip — برش با عارضه دوم</option>
+        <option value="intersection">Intersection — اشتراک</option>
+        <option value="split">Split — تقسیم خط</option>
+        <option value="merge">Merge — ادغام</option>
+      </select>
+      <input id="bufferDistance" type="number" step="0.1" min="0" value="5" placeholder="فاصله Buffer (متر)" style="margin-top:6px">
+      <div class="row">
+        <button class="action" id="runGisOperation">اجرای عملیات</button>
+        <button class="action secondary" id="clearGisSelection">لغو انتخاب</button>
+      </div>
+      <div id="gisSelectionInfo" class="small">عارضه اول: —<br>عارضه دوم: —</div>
+    </div>
     <div class="section">
       <h3>خروجی</h3>
       <div class="row">
@@ -146,6 +164,8 @@ let currentBase=base.osm;
 const drawn=new L.FeatureGroup().addTo(map);
 const namedLayers=[];
 let selectedLayer=null;
+let selectedOverlay=null;
+let selectionVersion=0;
 proj4.defs("EPSG:32638","+proj=utm +zone=38 +datum=WGS84 +units=m +no_defs");
 const layerControl=L.control.layers(null,null,{collapsed:true,position:"topleft"}).addTo(map);
 new L.Control.Draw({
@@ -190,7 +210,7 @@ renderLayerList();
 
 map.on(L.Draw.Event.CREATED,e=>{
   drawn.addLayer(e.layer);
-  e.layer.on("click",()=>{selectedLayer=e.layer;showUTM(e.layer);calcMeasure(e.layer)});
+  attachFeatureSelection(e.layer);
   e.layer.feature={type:"Feature",properties:{},geometry:e.layer.toGeoJSON().geometry};
   status("عارضه جدید به «ترسیمات من» اضافه شد.");
   renderLayerList();
@@ -201,7 +221,95 @@ map.on("mousemove",e=>{
   const utm=proj4("EPSG:4326","EPSG:32638",[e.latlng.lng,e.latlng.lat]);
   $("coord").textContent="UTM 38N: E "+utm[0].toFixed(2)+" | N "+utm[1].toFixed(2);
 });
-function showUTM(layer){
+function setGisSelection(layer,second){
+  if(second){
+    selectedOverlay=layer;
+  }else{
+    selectedLayer=layer;
+  }
+  const a=selectedLayer?featureLabel(selectedLayer):"—";
+  const b=selectedOverlay?featureLabel(selectedOverlay):"—";
+  const el=$("gisSelectionInfo");
+  if(el)el.innerHTML="عارضه اول: "+esc(a)+"<br>عارضه دوم: "+esc(b);
+}
+function featureLabel(layer){
+  try{
+    const p=layer.feature&&layer.feature.properties||{};
+    if(p.name)return String(p.name);
+    const keys=Object.keys(p);
+    if(keys.length)return String(p[keys[0]]);
+  }catch(e){}
+  return "عارضه انتخاب‌شده";
+}
+function attachFeatureSelection(layer){
+  if(!layer||!layer.on)return;
+  layer.on("click",ev=>{
+    if(ev.originalEvent&&ev.originalEvent.shiftKey){
+      setGisSelection(layer,true);
+      status("عارضه دوم انتخاب شد.");
+    }else{
+      setGisSelection(layer,false);
+      showUTM(layer);
+      calcMeasure(layer);
+      status("عارضه اول انتخاب شد؛ برای عارضه دوم Shift+کلیک کن.");
+    }
+  });
+}
+function asFeature(layer){
+  if(!layer||!layer.toGeoJSON)return null;
+  const f=layer.toGeoJSON();
+  if(f.type==="FeatureCollection")return f.features[0]||null;
+  return f;
+}
+function resultLayerFromFeature(feature,name){
+  if(!feature)return null;
+  const fc=feature.type==="FeatureCollection"?feature:{type:"FeatureCollection",features:[feature]};
+  geoJsonLayer(fc,name);
+  return namedLayers[namedLayers.length-1].layer;
+}
+function runGisOperation(){
+  const op=$("gisOperation").value;
+  if(!selectedLayer){status("ابتدا عارضه اول را انتخاب کن.");return;}
+  try{
+    const f1=asFeature(selectedLayer);
+    if(!f1||!f1.geometry){status("هندسه عارضه اول معتبر نیست.");return;}
+    let result=null,name="عملیات GIS";
+    if(op==="buffer"){
+      const d=Number($("bufferDistance").value);
+      if(!(d>0)){status("فاصله Buffer باید بیشتر از صفر باشد.");return;}
+      result=turf.buffer(f1,d,{units:"meters"});
+      name="Buffer "+d+"m";
+    }else{
+      if(!selectedOverlay){status("برای این عملیات، عارضه دوم را با Shift+کلیک انتخاب کن.");return;}
+      const f2=asFeature(selectedOverlay);
+      if(!f2||!f2.geometry){status("هندسه عارضه دوم معتبر نیست.");return;}
+      if(op==="clip"){
+        result=turf.intersect(turf.featureCollection([f1,f2]));
+        name="Clip نتیجه";
+      }else if(op==="intersection"){
+        result=turf.intersect(turf.featureCollection([f1,f2]));
+        name="Intersection نتیجه";
+      }else if(op==="split"){
+        if(f1.geometry.type!=="LineString"||f2.geometry.type!=="LineString"){
+          status("Split فعلاً نیاز به دو LineString دارد.");return;
+        }
+        result=turf.lineSplit(f1,f2);
+        name="Split نتیجه";
+      }else if(op==="merge"){
+        result=turf.union(turf.featureCollection([f1,f2]));
+        if(!result&&f1.geometry.type===f2.geometry.type)result=turf.combine(turf.featureCollection([f1,f2]));
+        name="Merge نتیجه";
+      }
+    }
+    if(!result){status("این دو عارضه نتیجه‌ای ایجاد نکردند.");return;}
+    resultLayerFromFeature(result,name);
+    status(name+" ایجاد شد و به لایه‌های جدید اضافه شد.");
+  }catch(err){
+    console.error(err);
+    status("خطا در عملیات GIS: "+err.message);
+  }
+}
+
   const c=layer.getLatLng?layer.getLatLng():null;
   if(c){const u=proj4("EPSG:4326","EPSG:32638",[c.lng,c.lat]);$("utmInfo").innerHTML="E: "+u[0].toFixed(3)+" m<br>N: "+u[1].toFixed(3)+" m";return}
   if(layer.getBounds){const b=layer.getBounds();if(b.isValid()){const c=b.getCenter(),u=proj4("EPSG:4326","EPSG:32638",[c.lng,c.lat]);$("utmInfo").innerHTML="مرکز عارضه — E: "+u[0].toFixed(3)+" m | N: "+u[1].toFixed(3)+" m";}}
@@ -235,6 +343,12 @@ $("selectFiltered").onclick=()=>{
  let n=0;items.forEach(x=>{const hit=!filter||Object.values(x.feature.properties||{}).some(v=>String(v).toLowerCase().includes(filter));if(hit){x.layer.setStyle&&x.layer.setStyle({color:"#d26a00",weight:4,fillOpacity:.28});x.layer.openPopup&&x.layer.openPopup();n++}});
  status(n+" عارضه انتخاب/برجسته شد.");
 };
+$("runGisOperation").onclick=runGisOperation;
+$("clearGisSelection").onclick=()=>{
+  selectedLayer=null;selectedOverlay=null;
+  $("gisSelectionInfo").innerHTML="عارضه اول: —<br>عارضه دوم: —";
+  status("انتخاب عوارض لغو شد.");
+};
 $("measureSelected").onclick=()=>{if(selectedLayer)calcMeasure(selectedLayer);else status("ابتدا یک عارضه را روی نقشه انتخاب کن.");};
 $("basemap").onchange=e=>{
   map.removeLayer(currentBase);currentBase=base[e.target.value];currentBase.addTo(map);
@@ -261,7 +375,7 @@ function geoJsonLayer(data,name){
     }
   });
   addNamedLayer(name,layer,true);
-  layer.eachLayer&&layer.eachLayer(l=>{l.on&&l.on("click",()=>{selectedLayer=l;showUTM(l);calcMeasure(l)})});
+  layer.eachLayer&&layer.eachLayer(l=>attachFeatureSelection(l));
   status(name+" وارد شد.");
 }
 function parseKML(text){
