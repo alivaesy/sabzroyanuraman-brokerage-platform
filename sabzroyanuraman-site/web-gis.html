@@ -103,6 +103,13 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
     </div>
 
 
+
+    <div class="section">
+      <h3>✏️ ویرایش Attribute</h3>
+      <div class="small">ابتدا یک عارضه را انتخاب کن، سپس اطلاعات توصیفی آن را ویرایش یا فیلد جدید اضافه کن.</div>
+      <div class="row"><button class="action" id="editAttributes">ویرایش عارضه انتخاب‌شده</button></div>
+      <div id="attributeEditor" style="display:none"></div>
+    </div>
     <div class="section">
       <h3>⚙️ عملیات GIS</h3>
       <div class="small">عملیات روی عوارض انتخاب‌شده انجام می‌شود. کلیک عادی = عارضه اول؛ Shift+کلیک = عارضه دوم. نتیجه به‌صورت لایه جدید ساخته می‌شود.</div>
@@ -221,11 +228,75 @@ map.on("mousemove",e=>{
   const utm=proj4("EPSG:4326","EPSG:32638",[e.latlng.lng,e.latlng.lat]);
   $("coord").textContent="UTM 38N: E "+utm[0].toFixed(2)+" | N "+utm[1].toFixed(2);
 });
+
+function ensureFeatureProperties(layer){
+  if(!layer)return null;
+  if(!layer.feature)layer.feature={type:"Feature",properties:{},geometry:layer.toGeoJSON().geometry};
+  if(!layer.feature.properties)layer.feature.properties={};
+  return layer.feature.properties;
+}
+function renderAttributeEditor(){
+  const box=$("attributeEditor");
+  if(!box)return;
+  if(!selectedLayer){
+    box.style.display="none";
+    status("ابتدا یک عارضه را انتخاب کن.");
+    return;
+  }
+  const props=ensureFeatureProperties(selectedLayer);
+  const keys=Object.keys(props);
+  let html="<div id='attributeRows'>";
+  keys.forEach((k,i)=>{
+    html += "<div class='row attr-edit-row' data-key='"+esc(k)+"' style='align-items:flex-start'>"+
+      "<input class='attr-key' value='"+esc(k)+"' title='نام فیلد' style='width:42%'>"+
+      "<input class='attr-value' value='"+esc(props[k])+'" title="مقدار" style="width:48%">'+
+      "<button class='action danger attr-delete' type='button' title='حذف فیلد'>×</button></div>";
+  });
+  if(!keys.length)html+="<div class='small'>این عارضه هنوز Attribute ندارد.</div>";
+  html += "</div><div class='row'><button class='action secondary' id='addAttributeField' type='button'>+ افزودن فیلد</button><button class='action' id='saveAttributes' type='button'>ذخیره Attribute</button></div>";
+  box.innerHTML=html;
+  box.style.display="block";
+  box.querySelectorAll(".attr-delete").forEach(btn=>btn.onclick=()=>btn.closest(".attr-edit-row").remove());
+  $("addAttributeField").onclick=()=>{
+    const row=document.createElement("div");
+    row.className="row attr-edit-row";
+    row.style.alignItems="flex-start";
+    row.innerHTML="<input class='attr-key' placeholder='نام فیلد' style='width:42%'><input class='attr-value' placeholder='مقدار' style='width:48%'><button class='action danger attr-delete' type='button'>×</button>";
+    row.querySelector(".attr-delete").onclick=()=>row.remove();
+    $("attributeRows").appendChild(row);
+  };
+  $("saveAttributes").onclick=saveAttributes;
+}
+function saveAttributes(){
+  if(!selectedLayer){status("عارضه‌ای برای ذخیره انتخاب نشده است.");return;}
+  const props={};
+  let invalid=false;
+  $("attributeRows").querySelectorAll(".attr-edit-row").forEach(row=>{
+    const key=row.querySelector(".attr-key").value.trim();
+    const value=row.querySelector(".attr-value").value;
+    if(!key)return;
+    if(Object.prototype.hasOwnProperty.call(props,key)){invalid=true;return;}
+    props[key]=value;
+  });
+  if(invalid){status("نام فیلد تکراری است؛ نام‌ها را اصلاح کن.");return;}
+  ensureFeatureProperties(selectedLayer);
+  selectedLayer.feature.properties=props;
+  selectedLayer.feature.geometry=selectedLayer.toGeoJSON().geometry;
+  if(selectedLayer.getPopup){
+    const rows=Object.keys(props).map(k=>"<b>"+esc(k)+"</b>: "+esc(props[k])).join("<br>");
+    if(selectedLayer.setPopupContent&&selectedLayer.getPopup())selectedLayer.setPopupContent(rows||"بدون اطلاعات توصیفی");
+    else if(selectedLayer.bindPopup)selectedLayer.bindPopup(rows||"بدون اطلاعات توصیفی");
+  }
+  status("Attributeهای عارضه ذخیره شد.");
+  renderAttributeEditor();
+  if($("attributeLayer").value!=="")$("openTable").click();
+}
 function setGisSelection(layer,second){
   if(second){
     selectedOverlay=layer;
   }else{
     selectedLayer=layer;
+    renderAttributeEditor();
   }
   const a=selectedLayer?featureLabel(selectedLayer):"—";
   const b=selectedOverlay?featureLabel(selectedOverlay):"—";
@@ -343,6 +414,7 @@ $("selectFiltered").onclick=()=>{
  let n=0;items.forEach(x=>{const hit=!filter||Object.values(x.feature.properties||{}).some(v=>String(v).toLowerCase().includes(filter));if(hit){x.layer.setStyle&&x.layer.setStyle({color:"#d26a00",weight:4,fillOpacity:.28});x.layer.openPopup&&x.layer.openPopup();n++}});
  status(n+" عارضه انتخاب/برجسته شد.");
 };
+$("editAttributes").onclick=renderAttributeEditor;
 $("runGisOperation").onclick=runGisOperation;
 $("clearGisSelection").onclick=()=>{
   selectedLayer=null;selectedOverlay=null;
