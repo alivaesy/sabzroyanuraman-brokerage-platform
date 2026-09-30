@@ -88,6 +88,21 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
     </div>
 
     <div class="section">
+      <h3>جدول صفات و انتخاب</h3>
+      <select id="attributeLayer"><option value="">انتخاب لایه برداری...</option></select>
+      <input id="attributeFilter" placeholder="فیلتر متن/مقدار" style="margin-top:6px">
+      <div class="row"><button class="action" id="openTable">باز کردن جدول</button><button class="action secondary" id="selectFiltered">انتخاب فیلترشده</button></div>
+      <div id="attributeTableWrap" style="display:none;max-height:230px;overflow:auto;font-size:10px"></div>
+    </div>
+
+    <div class="section">
+      <h3>مختصات و اندازه‌گیری</h3>
+      <div class="small">مختصات UTM برای منطقه 38 شمالی (EPSG:32638) محاسبه می‌شود.</div>
+      <div id="utmInfo" class="small" style="margin-top:5px">روی یک عارضه کلیک کن.</div>
+      <div class="row"><button class="action secondary" id="measureSelected">محاسبه مساحت/طول</button></div>
+    </div>
+
+    <div class="section">
       <h3>خروجی</h3>
       <div class="row">
         <button class="action" id="exportGeoJSON">GeoJSON</button>
@@ -115,6 +130,8 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 <script src="https://unpkg.com/shpjs@6.1.0/dist/shp.js"></script>
+<script src="https://unpkg.com/proj4@2.9.2/dist/proj4.js"></script>
+<script src="https://unpkg.com/@turf/turf@7.2.0/turf.min.js"></script>
 <script>
 (function(){
 "use strict";
@@ -128,6 +145,8 @@ base.osm.addTo(map);
 let currentBase=base.osm;
 const drawn=new L.FeatureGroup().addTo(map);
 const namedLayers=[];
+let selectedLayer=null;
+proj4.defs("EPSG:32638","+proj=utm +zone=38 +datum=WGS84 +units=m +no_defs");
 const layerControl=L.control.layers(null,null,{collapsed:true,position:"topleft"}).addTo(map);
 new L.Control.Draw({
  edit:{featureGroup:drawn},
@@ -138,12 +157,16 @@ const $=id=>document.getElementById(id);
 function status(s){$("status").textContent=s}
 function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",""":"&quot;","'":"&#039;"}[m]))}
 
+function isVectorLayer(layer){return !!(layer && typeof layer.eachLayer==="function" && !(layer instanceof L.TileLayer));}
+function vectorFeatures(layer){const out=[];if(!layer)return out;if(layer instanceof L.GeoJSON){layer.eachLayer(l=>{const f=l.feature||l.toGeoJSON();if(f&&f.geometry)out.push({feature:f,layer:l})});}else if(layer instanceof L.FeatureGroup){layer.eachLayer(l=>{const f=l.toGeoJSON();if(f&&f.geometry)out.push({feature:f,layer:l})});}return out;}
+function refreshAttributeLayers(){const s=$("attributeLayer");if(!s)return;const old=s.value;s.innerHTML="<option value=\"\">انتخاب لایه برداری...</option>";namedLayers.forEach((x,i)=>{if(isVectorLayer(x.layer)&&vectorFeatures(x.layer).length){const o=document.createElement("option");o.value=String(i);o.textContent=x.name;s.appendChild(o)}});if(s.querySelector("option[value=\""+old+"\"]"))s.value=old;}
 function addNamedLayer(name,layer,zoom){
   const item={name,layer};
   namedLayers.push(item);
   layerControl.addOverlay(layer,name);
   if(zoom && layer.getBounds && layer.getBounds().isValid()) map.fitBounds(layer.getBounds(),{padding:[25,25]});
   renderLayerList();
+  refreshAttributeLayers();
 }
 function renderLayerList(){
   const el=$("layers");
@@ -167,13 +190,51 @@ renderLayerList();
 
 map.on(L.Draw.Event.CREATED,e=>{
   drawn.addLayer(e.layer);
+  e.layer.feature={type:"Feature",properties:{},geometry:e.layer.toGeoJSON().geometry};
   status("عارضه جدید به «ترسیمات من» اضافه شد.");
   renderLayerList();
 });
 map.on(L.Draw.Event.EDITED,e=>status("ویرایش عوارض انجام شد."));
 map.on(L.Draw.Event.DELETED,e=>{status("عارضه حذف شد.");renderLayerList()});
-map.on("mousemove",e=>$("coord").textContent="طول: "+e.latlng.lng.toFixed(6)+" | عرض: "+e.latlng.lat.toFixed(6));
+map.on("mousemove",e=>{
+  const utm=proj4("EPSG:4326","EPSG:32638",[e.latlng.lng,e.latlng.lat]);
+  $("coord").textContent="UTM 38N: E "+utm[0].toFixed(2)+" | N "+utm[1].toFixed(2);
+});
+function showUTM(layer){
+  const c=layer.getLatLng?layer.getLatLng():null;
+  if(c){const u=proj4("EPSG:4326","EPSG:32638",[c.lng,c.lat]);$("utmInfo").innerHTML="E: "+u[0].toFixed(3)+" m<br>N: "+u[1].toFixed(3)+" m";return}
+  if(layer.getBounds){const b=layer.getBounds();if(b.isValid()){const c=b.getCenter(),u=proj4("EPSG:4326","EPSG:32638",[c.lng,c.lat]);$("utmInfo").innerHTML="مرکز عارضه — E: "+u[0].toFixed(3)+" m | N: "+u[1].toFixed(3)+" m";}}
+}
+function calcMeasure(layer){
+  try{
+    const f=layer.toGeoJSON(),g=f.geometry;
+    if(g.type==="Polygon"||g.type==="MultiPolygon"){const a=turf.area(f);$("utmInfo").innerHTML+="<br>مساحت: "+a.toLocaleString("fa-IR",{maximumFractionDigits:2})+" m²";return}
+    if(g.type==="LineString"||g.type==="MultiLineString"){const d=turf.length(f,{units:"meters"});$("utmInfo").innerHTML+="<br>طول: "+d.toLocaleString("fa-IR",{maximumFractionDigits:2})+" m";return}
+    if(g.type==="Point"){showUTM(layer)}
+  }catch(e){status("خطا در محاسبه: "+e.message)}
+}
+map.on("click",e=>{
+  let found=null;
+  map.eachLayer(l=>{if(l===base.osm||l===base.topo||l===base.sat||l===drawn||l instanceof L.TileLayer)return;if(l.getLayers){l.getLayers().forEach(x=>{if(x.getBounds&&x.getBounds().contains(e.latlng))found=x})}});
+  if(found){selectedLayer=found;showUTM(found);calcMeasure(found)}
+});
 
+$("attributeLayer").onchange=()=>{selectedLayer=null;$("attributeTableWrap").style.display="none";};
+$("openTable").onclick=()=>{
+ const idx=$("attributeLayer").value;if(idx===""){status("ابتدا یک لایه برداری انتخاب کن.");return}
+ const items=vectorFeatures(namedLayers[Number(idx)].layer), filter=$("attributeFilter").value.trim().toLowerCase();
+ const rows=items.filter(x=>!filter||Object.values(x.feature.properties||{}).some(v=>String(v).toLowerCase().includes(filter)));
+ const keys=[...new Set(items.flatMap(x=>Object.keys(x.feature.properties||{})))];let html="<table style='width:100%;border-collapse:collapse;direction:rtl'><thead><tr><th style='border-bottom:1px solid #ccd9df;padding:4px'>#</th>"+keys.map(k=>"<th style='border-bottom:1px solid #ccd9df;padding:4px'>"+esc(k)+"</th>").join("")+"</tr></thead><tbody>";
+ rows.forEach((x,i)=>{html+="<tr data-row='"+i+"'><td style='padding:4px'>"+(i+1)+"</td>"+keys.map(k=>"<td style='padding:4px;border-bottom:1px solid #eef2f4'>"+esc((x.feature.properties||{})[k])+"</td>").join("")+"</tr>"});
+ $("attributeTableWrap").innerHTML=html+"</tbody></table>";$("attributeTableWrap").style.display="block";status(rows.length+" عارضه در جدول نمایش داده شد.");
+};
+$("selectFiltered").onclick=()=>{
+ const idx=$("attributeLayer").value;if(idx===""){status("لایه را انتخاب کن.");return}
+ const filter=$("attributeFilter").value.trim().toLowerCase(), items=vectorFeatures(namedLayers[Number(idx)].layer);
+ let n=0;items.forEach(x=>{const hit=!filter||Object.values(x.feature.properties||{}).some(v=>String(v).toLowerCase().includes(filter));if(hit){x.layer.setStyle&&x.layer.setStyle({color:"#d26a00",weight:4,fillOpacity:.28});x.layer.openPopup&&x.layer.openPopup();n++}});
+ status(n+" عارضه انتخاب/برجسته شد.");
+};
+$("measureSelected").onclick=()=>{if(selectedLayer)calcMeasure(selectedLayer);else status("ابتدا یک عارضه را روی نقشه انتخاب کن.");};
 $("basemap").onchange=e=>{
   map.removeLayer(currentBase);currentBase=base[e.target.value];currentBase.addTo(map);
 };
@@ -199,6 +260,7 @@ function geoJsonLayer(data,name){
     }
   });
   addNamedLayer(name,layer,true);
+  layer.eachLayer&&layer.eachLayer(l=>{l.on&&l.on("click",()=>{selectedLayer=l;showUTM(l);calcMeasure(l)})});
   status(name+" وارد شد.");
 }
 function parseKML(text){
