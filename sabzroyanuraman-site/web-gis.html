@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Web GIS | سبز رویان اورامان</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
+<style>
+@font-face{font-family:Vazirmatn;src:url("/assets/fonts/Vazirmatn-Regular.woff2") format("woff2");font-weight:400}
+@font-face{font-family:Vazirmatn;src:url("/assets/fonts/Vazirmatn-Bold.woff2") format("woff2");font-weight:700}
+*{box-sizing:border-box;font-family:Vazirmatn,sans-serif}
+html,body{height:100%;margin:0}
+body{background:#eef3f5;color:#173b57;overflow:hidden}
+#app{height:100%;display:flex;flex-direction:column}
+.topbar{height:58px;background:#fff;border-bottom:1px solid #ccd9e0;display:flex;align-items:center;gap:10px;padding:0 14px;z-index:2000}
+.brand{font-weight:800;color:#07573e;white-space:nowrap}
+.tool-title{font-size:14px;color:#36556d;margin-right:auto}
+.top-btn{border:1px solid #c7d6dd;background:#f8fbfc;border-radius:8px;padding:7px 11px;cursor:pointer;color:#173b57}
+.top-btn:hover{background:#e6f2ed}
+.workspace{flex:1;min-height:0;display:flex;direction:ltr}
+#map{flex:1;min-width:0}
+.panel{width:310px;background:#fff;border-left:1px solid #cbd9e0;overflow:auto;direction:rtl;padding:12px;box-shadow:-4px 0 16px rgba(20,60,90,.08);z-index:1500}
+.panel h3{font-size:14px;margin:3px 0 9px;color:#07573e}
+.section{border:1px solid #d9e4e9;border-radius:10px;padding:9px;margin-bottom:10px;background:#fbfdfe}
+.row{display:flex;gap:6px;align-items:center;margin:6px 0}
+.row>*{min-width:0}
+input,select{width:100%;height:34px;border:1px solid #cbd9df;border-radius:7px;padding:0 8px;background:#fff;color:#173b57}
+button.action{border:1px solid #146c43;background:#146c43;color:#fff;border-radius:7px;padding:7px 9px;cursor:pointer;font-weight:700}
+button.action.secondary{background:#f5f9f8;color:#146c43}
+button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
+.small{font-size:10px;color:#667f91;line-height:1.7}
+.layer-row{display:flex;align-items:center;gap:6px;border-bottom:1px solid #edf2f5;padding:7px 2px;font-size:11px}
+.layer-row:last-child{border-bottom:0}
+.layer-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.layer-row button{border:0;background:transparent;cursor:pointer;color:#486b7e;padding:2px 5px}
+.status{position:absolute;bottom:12px;left:12px;background:rgba(255,255,255,.94);border:1px solid #cbd9df;border-radius:8px;padding:6px 9px;font-size:10px;z-index:1200;direction:rtl}
+.coord{position:absolute;bottom:12px;right:330px;background:rgba(255,255,255,.94);border:1px solid #cbd9df;border-radius:8px;padding:6px 9px;font-size:10px;z-index:1200;direction:rtl}
+.file-label{display:block;border:1px dashed #9db5c1;border-radius:8px;padding:9px;text-align:center;cursor:pointer;background:#f7fafb;font-size:11px}
+.file-label:hover{background:#eef7f3}
+#fileInput{display:none}
+.leaflet-control-layers{direction:rtl}
+@media(max-width:850px){.panel{width:270px}.coord{right:290px}.tool-title{display:none}}
+@media(max-width:650px){.workspace{position:relative}.panel{position:absolute;right:0;top:0;bottom:0;width:285px;transform:translateX(100%);transition:.2s}.panel.open{transform:translateX(0)}.coord{right:12px;bottom:48px}.topbar .top-btn{padding:6px 8px}.brand{font-size:12px}}
+</style>
+</head>
+<body>
+<div id="app">
+<header class="topbar">
+  <div class="brand">سبز رویان اورامان</div>
+  <div class="tool-title">🗺️ Web GIS — نمایش، ترسیم و ویرایش داده‌های مکانی</div>
+  <button class="top-btn" id="backBtn">بازگشت</button>
+  <button class="top-btn" id="panelBtn">☰ ابزارها</button>
+</header>
+<div class="workspace">
+  <div id="map"></div>
+  <aside class="panel" id="panel">
+    <div class="section">
+      <h3>نقشه پایه</h3>
+      <select id="basemap">
+        <option value="osm">OpenStreetMap</option>
+        <option value="topo">OpenTopoMap</option>
+        <option value="sat">تصویر ماهواره‌ای Esri</option>
+      </select>
+    </div>
+
+    <div class="section">
+      <h3>ترسیم و ویرایش</h3>
+      <div class="small">از ابزارهای ترسیم روی خود نقشه استفاده کن. عوارض در لایه «ترسیمات من» قرار می‌گیرند.</div>
+      <div class="row">
+        <button class="action secondary" id="clearDraw">پاک‌کردن ترسیمات</button>
+        <button class="action secondary" id="fitDraw">نمایش همه</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>ورود داده</h3>
+      <label class="file-label" for="fileInput">📥 SHP / ZIP / GeoJSON / KML را انتخاب کن</label>
+      <input id="fileInput" type="file" accept=".geojson,.json,.kml,.zip,.shp">
+      <div class="small" style="margin-top:6px">SHP را بهتر است به‌صورت ZIP شامل shp/shx/dbf/prj وارد کنی.</div>
+    </div>
+
+    <div class="section">
+      <h3>لایه WMS</h3>
+      <input id="wmsUrl" placeholder="https://server/.../wms">
+      <input id="wmsLayer" placeholder="نام لایه (LAYERS)" style="margin-top:6px">
+      <div class="row"><button class="action" id="addWms">افزودن WMS</button></div>
+    </div>
+
+    <div class="section">
+      <h3>خروجی</h3>
+      <div class="row">
+        <button class="action" id="exportGeoJSON">GeoJSON</button>
+        <button class="action" id="exportKML">KML</button>
+        <button class="action" id="exportGPX">GPX</button>
+      </div>
+      <div class="small">خروجی فعلی شامل عوارض برداری ترسیم‌شده و لایه‌های واردشده است.</div>
+    </div>
+
+    <div class="section">
+      <h3>لایه‌ها</h3>
+      <div id="layers"></div>
+    </div>
+
+    <div class="section">
+      <h3>مختصات</h3>
+      <div class="small">با حرکت موس روی نقشه مختصات جغرافیایی نمایش داده می‌شود. تبدیل دقیق UTM Zone 38N را در مرحله بعد به همین پنل اضافه می‌کنیم.</div>
+    </div>
+  </aside>
+</div>
+<div class="coord" id="coord">طول: — | عرض: —</div>
+<div class="status" id="status">Web GIS آماده است.</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script src="https://unpkg.com/shpjs@6.1.0/dist/shp.js"></script>
+<script>
+(function(){
+"use strict";
+const map=L.map("map",{preferCanvas:true}).setView([34.5,46.5],8);
+const base={
+ osm:L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"}),
+ topo:L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",{maxZoom:17,attribution:"© OpenTopoMap contributors"}),
+ sat:L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"© Esri"})
+};
+base.osm.addTo(map);
+let currentBase=base.osm;
+const drawn=new L.FeatureGroup().addTo(map);
+const namedLayers=[];
+const layerControl=L.control.layers(null,null,{collapsed:true,position:"topleft"}).addTo(map);
+new L.Control.Draw({
+ edit:{featureGroup:drawn},
+ draw:{polyline:{shapeOptions:{color:"#146c43",weight:3}},polygon:{allowIntersection:false,showArea:true,shapeOptions:{color:"#146c43",weight:3}},rectangle:{shapeOptions:{color:"#146c43",weight:3}},circle:{shapeOptions:{color:"#146c43",weight:3}},marker:true,circlemarker:true}
+}).addTo(map);
+
+const $=id=>document.getElementById(id);
+function status(s){$("status").textContent=s}
+function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",""":"&quot;","'":"&#039;"}[m]))}
+
+function addNamedLayer(name,layer,zoom){
+  const item={name,layer};
+  namedLayers.push(item);
+  layerControl.addOverlay(layer,name);
+  if(zoom && layer.getBounds && layer.getBounds().isValid()) map.fitBounds(layer.getBounds(),{padding:[25,25]});
+  renderLayerList();
+}
+function renderLayerList(){
+  const el=$("layers");
+  el.innerHTML="";
+  const all=[{name:"ترسیمات من",layer:drawn}].concat(namedLayers);
+  all.forEach((x,i)=>{
+    const row=document.createElement("div");row.className="layer-row";
+    const cb=document.createElement("input");cb.type="checkbox";cb.checked=map.hasLayer(x.layer);
+    cb.onchange=()=>cb.checked?map.addLayer(x.layer):map.removeLayer(x.layer);
+    const nm=document.createElement("span");nm.className="layer-name";nm.textContent=x.name;
+    row.append(cb,nm);
+    if(i>0){
+      const del=document.createElement("button");del.textContent="×";del.title="حذف لایه";
+      del.onclick=()=>{map.removeLayer(x.layer);layerControl.removeLayer(x.layer);const idx=namedLayers.indexOf(x);if(idx>=0)namedLayers.splice(idx,1);renderLayerList();};
+      row.appendChild(del);
+    }
+    el.appendChild(row);
+  });
+}
+renderLayerList();
+
+map.on(L.Draw.Event.CREATED,e=>{
+  drawn.addLayer(e.layer);
+  status("عارضه جدید به «ترسیمات من» اضافه شد.");
+  renderLayerList();
+});
+map.on(L.Draw.Event.EDITED,e=>status("ویرایش عوارض انجام شد."));
+map.on(L.Draw.Event.DELETED,e=>{status("عارضه حذف شد.");renderLayerList()});
+map.on("mousemove",e=>$("coord").textContent="طول: "+e.latlng.lng.toFixed(6)+" | عرض: "+e.latlng.lat.toFixed(6));
+
+$("basemap").onchange=e=>{
+  map.removeLayer(currentBase);currentBase=base[e.target.value];currentBase.addTo(map);
+};
+$("clearDraw").onclick=()=>{
+  if(!drawn.getLayers().length){status("ترسیمی برای پاک‌کردن وجود ندارد.");return}
+  if(confirm("همه ترسیمات حذف شوند؟")){drawn.clearLayers();renderLayerList();status("ترسیمات پاک شد.")}
+};
+$("fitDraw").onclick=()=>{
+  const layers=drawn.getLayers();
+  if(!layers.length){status("ترسیمی وجود ندارد.");return}
+  map.fitBounds(drawn.getBounds(),{padding:[30,30]});
+};
+$("backBtn").onclick=()=>{location.href="index.html#mapView"};
+$("panelBtn").onclick=()=>$("panel").classList.toggle("open");
+
+function geoJsonLayer(data,name){
+  const layer=L.geoJSON(data,{
+    style:{color:"#146c43",weight:3,fillOpacity:.16},
+    pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:6,color:"#146c43",fillColor:"#fff",fillOpacity:.9,weight:2}),
+    onEachFeature:(f,l)=>{
+      const p=f.properties||{}, rows=Object.keys(p).map(k=>"<b>"+esc(k)+"</b>: "+esc(p[k])).join("<br>");
+      l.bindPopup(rows||"بدون اطلاعات توصیفی");
+    }
+  });
+  addNamedLayer(name,layer,true);
+  status(name+" وارد شد.");
+}
+function parseKML(text){
+  const doc=new DOMParser().parseFromString(text,"application/xml");
+  const placemarks=[...doc.getElementsByTagNameNS("*","Placemark")];
+  const features=[];
+  function coords(s){return s.trim().split(/s+/).map(x=>{const a=x.split(",").map(Number);return [a[0],a[1]]})}
+  placemarks.forEach(pm=>{
+    const name=pm.getElementsByTagNameNS("*","name")[0]?.textContent||"";
+    const props={name};
+    const point=pm.getElementsByTagNameNS("*","Point")[0];
+    const line=pm.getElementsByTagNameNS("*","LineString")[0];
+    const poly=pm.getElementsByTagNameNS("*","Polygon")[0];
+    if(point){
+      const c=point.getElementsByTagNameNS("*","coordinates")[0]?.textContent;
+      if(c)features.push({type:"Feature",properties:props,geometry:{type:"Point",coordinates:coords(c)[0]}});
+    }else if(line){
+      const c=line.getElementsByTagNameNS("*","coordinates")[0]?.textContent;
+      if(c)features.push({type:"Feature",properties:props,geometry:{type:"LineString",coordinates:coords(c)}});
+    }else if(poly){
+      const rings=[...poly.getElementsByTagNameNS("*","outerBoundaryIs"),...poly.getElementsByTagNameNS("*","innerBoundaryIs")].map(r=>r.getElementsByTagNameNS("*","coordinates")[0]?.textContent).filter(Boolean).map(coords);
+      if(rings.length)features.push({type:"Feature",properties:props,geometry:{type:"Polygon",coordinates:rings}});
+    }
+  });
+  return {type:"FeatureCollection",features};
+}
+$("fileInput").onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    const ext=f.name.toLowerCase().split(".").pop();
+    if(ext==="zip"||ext==="shp"){
+      const buf=await f.arrayBuffer();
+      const data=await shp(buf);
+      geoJsonLayer(data,f.name);
+    }else if(ext==="kml"){
+      geoJsonLayer(parseKML(await f.text()),f.name);
+    }else{
+      geoJsonLayer(JSON.parse(await f.text()),f.name);
+    }
+  }catch(err){console.error(err);status("خطا در ورود فایل: "+err.message)}
+  e.target.value="";
+};
+$("addWms").onclick=()=>{
+  const url=$("wmsUrl").value.trim(),name=$("wmsLayer").value.trim();
+  if(!url||!name){status("آدرس WMS و نام LAYERS را وارد کن.");return}
+  try{
+    const l=L.tileLayer.wms(url,{layers:name,format:"image/png",transparent:true,version:"1.3.0"});
+    addNamedLayer("WMS: "+name,l,false);l.addTo(map);status("لایه WMS اضافه شد.");
+  }catch(e){status("خطا در WMS: "+e.message)}
+};
+function collectGeoJSON(){
+  const features=[];
+  drawn.eachLayer(l=>{try{const f=l.toGeoJSON();f.properties=f.properties||{};features.push(f)}catch(e){}});
+  namedLayers.forEach(x=>{
+    if(!x.layer.eachLayer)return;
+    x.layer.eachLayer(l=>{try{const f=l.toGeoJSON();if(f&&f.features)features.push(...f.features);else if(f&&f.geometry)features.push(f)}catch(e){}});
+  });
+  return {type:"FeatureCollection",features};
+}
+function download(text,name,type){
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();a.remove();
+}
+function kmlFromFC(fc){
+  const out=[];
+  (fc.features||[]).forEach((f,i)=>{
+    const g=f.geometry;if(!g)return;const name=esc((f.properties||{}).name||("Feature "+(i+1)));
+    function cs(a){return a.map(c=>c[0]+","+c[1]+",0").join(" ")}
+    let geom="";
+    if(g.type==="Point")geom="<Point><coordinates>"+g.coordinates[0]+","+g.coordinates[1]+",0</coordinates></Point>";
+    else if(g.type==="LineString")geom="<LineString><coordinates>"+cs(g.coordinates)+"</coordinates></LineString>";
+    else if(g.type==="Polygon")geom="<Polygon><outerBoundaryIs><LinearRing><coordinates>"+cs(g.coordinates[0])+"</coordinates></LinearRing></outerBoundaryIs></Polygon>";
+    if(geom)out.push("<Placemark><name>"+name+"</name>"+geom+"</Placemark>");
+  });
+  return '<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document>'+out.join("")+"</Document></kml>";
+}
+function gpxFromFC(fc){
+  let out='<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="Sabz Royan GIS" xmlns="http://www.topografix.com/GPX/1/1">';
+  (fc.features||[]).forEach((f,i)=>{
+    const g=f.geometry,name=esc((f.properties||{}).name||("Feature "+(i+1)));if(!g)return;
+    if(g.type==="Point")out+='<wpt lat="'+g.coordinates[1]+'" lon="'+g.coordinates[0]+'"><name>'+name+"</name></wpt>";
+    const lines=g.type==="LineString"? [g.coordinates] : g.type==="Polygon"? [g.coordinates[0]] : [];
+    lines.forEach(line=>{out+="<trk><name>"+name+"</name><trkseg>"+line.map(c=>'<trkpt lat="'+c[1]+'" lon="'+c[0]+'"></trkpt>').join("")+"</trkseg></trk>"});
+  });
+  return out+"</gpx>";
+}
+$("exportGeoJSON").onclick=()=>download(JSON.stringify(collectGeoJSON(),null,2),"sabz-royan-webgis.geojson","application/geo+json");
+$("exportKML").onclick=()=>download(kmlFromFC(collectGeoJSON()),"sabz-royan-webgis.kml","application/vnd.google-earth.kml+xml");
+$("exportGPX").onclick=()=>download(gpxFromFC(collectGeoJSON()),"sabz-royan-webgis.gpx","application/gpx+xml");
+})();
+</script>
+</body>
+</html>
