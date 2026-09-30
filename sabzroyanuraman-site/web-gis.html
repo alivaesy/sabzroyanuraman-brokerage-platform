@@ -981,6 +981,7 @@ function downloadProject(){
   download(JSON.stringify(project,null,2),"sabz-royan-project.json","application/json");
 }
 $("saveProject").onclick=saveProject;
+initProjectManager();
 $("loadProject").onclick=loadProject;
 $("downloadProject").onclick=downloadProject;
 $("projectFile").onchange=async e=>{
