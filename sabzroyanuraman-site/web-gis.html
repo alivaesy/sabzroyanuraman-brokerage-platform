@@ -44,7 +44,9 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
 @media(max-width:650px){.workspace{position:relative}.panel{position:absolute;right:0;top:0;bottom:0;width:285px;transform:translateX(100%);transition:.2s}.panel.open{transform:translateX(0)}.coord{right:12px;bottom:48px}.topbar .top-btn{padding:6px 8px}.brand{font-size:12px}}
 
 <style>
-#attributeTableWrap table input.cell-edit{width:100%;height:28px;border:1px solid #cbd9df;border-radius:5px;padding:2px 5px;font-size:10px}
+#attributeTableWrap table input.cell-edit{width:100%;height:28px;border:1px solid #cbd9df;border-radius:5px;padding:2px 5px;font-size:10px}.multi-selected-feature{filter:drop-shadow(0 0 5px #ff9800);stroke-width:5!important}
+#multiFeatureEditor{display:none;margin-top:8px;padding:8px;border:1px solid #cbd9df;border-radius:8px;background:#f8fbfc}
+#multiFeatureEditor input{min-width:0}
 .attr-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px}
 .attr-toolbar button{font-size:10px}
 .attr-check{width:16px!important;height:16px!important}
@@ -125,6 +127,19 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
       <div class="small">ابتدا یک عارضه را انتخاب کن، سپس اطلاعات توصیفی آن را ویرایش یا فیلد جدید اضافه کن.</div>
       <div class="row"><button class="action" id="editAttributes">ویرایش عارضه انتخاب‌شده</button></div>
       <div id="attributeEditor" style="display:none"></div>
+      <div id="multiFeatureEditor">
+        <div class="small" id="multiSelectionInfo">۰ عارضه انتخاب شده</div>
+        <div class="row">
+          <input id="multiFieldName" placeholder="نام فیلد">
+          <input id="multiFieldValue" placeholder="مقدار جدید">
+        </div>
+        <div class="row">
+          <button class="action" id="applyMultiAttribute" type="button">اعمال روی انتخاب‌ها</button>
+          <button class="action danger" id="deleteMultiSelected" type="button">حذف انتخاب‌ها</button>
+          <button class="action secondary" id="clearMultiSelected" type="button">لغو انتخاب</button>
+        </div>
+        <div class="small">Ctrl+کلیک یا Shift+کلیک برای انتخاب/لغو چند عارضه. کلیک معمولی انتخاب قبلی را پاک می‌کند.</div>
+      </div>
     </div>
     <div class="section">
       <h3>⚙️ عملیات GIS</h3>
@@ -204,6 +219,7 @@ const drawn=new L.FeatureGroup().addTo(map);
 const namedLayers=[];
 let selectedLayer=null;
 let selectedOverlay=null;
+let selectedFeatures=new Set();
 let selectionVersion=0;
 proj4.defs("EPSG:32638","+proj=utm +zone=38 +datum=WGS84 +units=m +no_defs");
 const layerControl=L.control.layers(null,null,{collapsed:true,position:"topleft"}).addTo(map);
@@ -326,10 +342,32 @@ function saveAttributes(){
   renderAttributeEditor();
   if($("attributeLayer").value!=="")$("openTable").click();
 }
+function updateMultiSelectionUI(){
+  document.querySelectorAll(".multi-selected-feature").forEach(el=>el.classList.remove("multi-selected-feature"));
+  selectedFeatures.forEach(l=>{
+    if(l&&l._path)L.DomUtil.addClass(l._path,"multi-selected-feature");
+  });
+  const box=$("multiFeatureEditor"),info=$("multiSelectionInfo");
+  if(info)info.textContent=selectedFeatures.size+" عارضه انتخاب شده";
+  if(box)box.style.display=selectedFeatures.size?"block":"none";
+}
+function clearMultiSelection(){
+  selectedFeatures.forEach(l=>{if(l&&l._path)L.DomUtil.removeClass(l._path,"multi-selected-feature")});
+  selectedFeatures.clear();
+  updateMultiSelectionUI();
+}
+function toggleMultiSelection(layer){
+  if(selectedFeatures.has(layer))selectedFeatures.delete(layer);
+  else selectedFeatures.add(layer);
+  selectedLayer=layer;
+  updateMultiSelectionUI();
+  renderAttributeEditor();
+}
 function setGisSelection(layer,second){
   if(second){
     selectedOverlay=layer;
   }else{
+    selectedOverlay=null;
     selectedLayer=layer;
     renderAttributeEditor();
   }
@@ -350,14 +388,23 @@ function featureLabel(layer){
 function attachFeatureSelection(layer){
   if(!layer||!layer.on)return;
   layer.on("click",ev=>{
-    if(ev.originalEvent&&ev.originalEvent.shiftKey){
-      setGisSelection(layer,true);
-      status("عارضه دوم انتخاب شد.");
+    const multi=!!(ev.originalEvent&&(ev.originalEvent.ctrlKey||ev.originalEvent.metaKey||ev.originalEvent.shiftKey));
+    if(multi){
+      toggleMultiSelection(layer);
+      if(ev.originalEvent.shiftKey&&!ev.originalEvent.ctrlKey&&!ev.originalEvent.metaKey){
+        selectedOverlay=layer;
+        status(selectedFeatures.size+" عارضه انتخاب شده؛ این عارضه به‌عنوان عارضه دوم عملیات GIS نیز در نظر گرفته شد.");
+      }else{
+        status(selectedFeatures.size+" عارضه انتخاب شده.");
+      }
     }else{
+      clearMultiSelection();
       setGisSelection(layer,false);
+      selectedFeatures.add(layer);
+      updateMultiSelectionUI();
       showUTM(layer);
       calcMeasure(layer);
-      status("عارضه اول انتخاب شد؛ برای عارضه دوم Shift+کلیک کن.");
+      status("یک عارضه انتخاب شد؛ برای انتخاب چند عارضه Ctrl+کلیک یا Shift+کلیک کن.");
     }
   });
 }
@@ -465,6 +512,33 @@ $("selectFiltered").onclick=()=>{
  status(n+" عارضه انتخاب/برجسته شد.");
 };
 $("editAttributes").onclick=renderAttributeEditor;
+$("applyMultiAttribute").onclick=()=>{
+  const key=$("multiFieldName").value.trim(),value=$("multiFieldValue").value;
+  if(!selectedFeatures.size){status("ابتدا چند عارضه را انتخاب کن.");return}
+  if(!key){status("نام فیلد را وارد کن.");return}
+  selectedFeatures.forEach(layer=>{
+    const p=ensureFeatureProperties(layer);p[key]=value;
+    layer.feature.geometry=layer.toGeoJSON().geometry;
+    const rows=Object.keys(p).map(k=>"<b>"+esc(k)+"</b>: "+esc(p[k])).join("<br>");
+    if(layer.setPopupContent&&layer.getPopup())layer.setPopupContent(rows||"بدون اطلاعات توصیفی");
+    else if(layer.bindPopup)layer.bindPopup(rows||"بدون اطلاعات توصیفی");
+  });
+  renderAttributeEditor();scheduleAutoSave();
+  status("فیلد «"+key+"» روی "+selectedFeatures.size+" عارضه اعمال شد.");
+};
+$("deleteMultiSelected").onclick=()=>{
+  if(!selectedFeatures.size)return;
+  const n=selectedFeatures.size;
+  selectedFeatures.forEach(layer=>{
+    if(drawn.hasLayer(layer))drawn.removeLayer(layer);
+    namedLayers.forEach(x=>{if(x.layer.hasLayer&&x.layer.hasLayer(layer))x.layer.removeLayer(layer)});
+    if(layer._map)map.removeLayer(layer);
+  });
+  clearMultiSelection();selectedLayer=null;selectedOverlay=null;
+  renderLayerList();refreshAttributeLayers();scheduleAutoSave();
+  status(n+" عارضه حذف شد.");
+};
+$("clearMultiSelected").onclick=()=>{clearMultiSelection();selectedLayer=null;selectedOverlay=null;renderAttributeEditor();status("انتخاب چندگانه لغو شد.")};
 $("runGisOperation").onclick=runGisOperation;
 $("clearGisSelection").onclick=()=>{
   selectedLayer=null;selectedOverlay=null;
