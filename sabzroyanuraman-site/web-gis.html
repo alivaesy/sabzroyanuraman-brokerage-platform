@@ -1643,7 +1643,7 @@ function attachmentsTool(){
   const r=selectedRecords()[0];if(!r){status("یک عارضه انتخاب کن.");return;}const i=document.createElement("input");i.type="file";i.multiple=true;i.onchange=()=>{r.feature.properties=r.feature.properties||{};r.feature.properties._attachments=[...i.files].map(f=>({name:f.name,type:f.type,size:f.size}));refreshAll();status(i.files.length+" پیوست ثبت شد.");};i.click();
 }
 function chartStats(){
-  const rs=getFeatureRecords();const vals=rs.map(r=>Object.values(r.feature.properties||{}).filter(v=>!isNaN(Number(v))).map(Number)).flat();if(!vals.length){status("Attribute عددی پیدا نشد.");return;}const sum=vals.reduce((a,b)=>a+b,0),avg=sum/vals.length;$(\"professionalToolOutput\").textContent="Statistics — Count: "+vals.length+" | Sum: "+sum+" | Mean: "+avg.toFixed(3)+" | Min: "+Math.min(...vals)+" | Max: "+Math.max(...vals);
+  const rs=getFeatureRecords();const vals=rs.map(r=>Object.values(r.feature.properties||{}).filter(v=>!isNaN(Number(v))).map(Number)).flat();if(!vals.length){status("Attribute عددی پیدا نشد.");return;}const sum=vals.reduce((a,b)=>a+b,0),avg=sum/vals.length;$("professionalToolOutput").textContent="Statistics — Count: "+vals.length+" | Sum: "+sum+" | Mean: "+avg.toFixed(3)+" | Min: "+Math.min(...vals)+" | Max: "+Math.max(...vals);
 }
 
 function runGisTool(tool){
