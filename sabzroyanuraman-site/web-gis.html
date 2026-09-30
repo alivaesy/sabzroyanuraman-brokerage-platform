@@ -1145,8 +1145,120 @@ function renderGisToolbox(query=""){
    });
  });
 }
+
+function allSelectableFeatureLayers(){
+  return [{name:"ترسیمات من",layer:drawn}].concat(namedLayers)
+    .filter(x=>isVectorLayer(x.layer));
+}
+function applySelectionVisual(){
+  allSelectableFeatureLayers().forEach(x=>vectorFeatures(x.layer).forEach(v=>{
+    if(!v.layer||!v.layer.getElement)return;
+    const el=v.layer.getElement();
+    if(el)el.classList.toggle("multi-selected-feature",selectedFeatures.has(v.layer));
+  }));
+  updateMultiSelectionUI();
+}
+function selectFeatureLayerObj(v,add=true){
+  if(!add)selectedFeatures.clear();
+  if(v?.layer)selectedFeatures.add(v.layer);
+}
+function clearSelection(){
+  selectedFeatures.clear();
+  selectedOverlay=null;
+  applySelectionVisual();
+  $("professionalToolOutput").textContent="انتخاب‌ها پاک شدند.";
+  status("انتخاب‌ها پاک شدند.");
+}
+function featureCenterLatLng(layer){
+  try{
+    if(layer.getLatLng)return layer.getLatLng();
+    const b=layer.getBounds(); if(b&&b.isValid())return b.getCenter();
+  }catch(e){}
+  return null;
+}
+function selectByRectangle(){
+  status("روی نقشه یک مستطیل رسم کن؛ ابزار ترسیم مستطیل را فعال کن.");
+  const handler=new L.Draw.Rectangle(map,{shapeOptions:{color:"#ff9800",weight:2,dashArray:"5,4"}});
+  handler.enable();
+  const once=e=>{
+    map.off(L.Draw.Event.CREATED,once);
+    map.removeLayer(e.layer);
+    const b=e.layer.getBounds();
+    selectedFeatures.clear();
+    allSelectableFeatureLayers().forEach(x=>vectorFeatures(x.layer).forEach(v=>{
+      const ll=featureCenterLatLng(v.layer);
+      if(ll&&b.contains(ll))selectedFeatures.add(v.layer);
+    }));
+    applySelectionVisual();
+    status(selectedFeatures.size+" عارضه با مستطیل انتخاب شد.");
+  };
+  map.on(L.Draw.Event.CREATED,once);
+}
+function selectByPolygon(){
+  status("پلیگون انتخاب را روی نقشه رسم کن.");
+  const handler=new L.Draw.Polygon(map,{allowIntersection:false,shapeOptions:{color:"#ff9800",weight:2,dashArray:"5,4"}});
+  handler.enable();
+  const once=e=>{
+    map.off(L.Draw.Event.CREATED,once);
+    map.removeLayer(e.layer);
+    const poly=e.layer.toGeoJSON();
+    selectedFeatures.clear();
+    allSelectableFeatureLayers().forEach(x=>vectorFeatures(x.layer).forEach(v=>{
+      try{
+        const center=featureCenterLatLng(v.layer);
+        if(center&&turf.booleanPointInPolygon(turf.point([center.lng,center.lat]),poly))selectedFeatures.add(v.layer);
+      }catch(err){}
+    }));
+    applySelectionVisual();
+    status(selectedFeatures.size+" عارضه با پلیگون انتخاب شد.");
+  };
+  map.on(L.Draw.Event.CREATED,once);
+}
+function selectByLocation(){
+  const first=prompt("نوع رابطه را وارد کن: within / intersects / contains","intersects");
+  if(!first)return;
+  const a=prompt("شماره لایه مبدأ را وارد کن (از فهرست لایه‌ها)","");
+  if(a===null)return;
+  const b=prompt("شماره لایه مرجع را وارد کن","");
+  if(b===null)return;
+  const ai=Number(a)-1,bi=Number(b)-1,items=namedLayers;
+  if(!items[ai]||!items[bi]){status("شماره لایه نامعتبر است.");return;}
+  const ref=vectorFeatures(items[bi].layer).map(v=>v.feature).filter(Boolean);
+  selectedFeatures.clear();
+  vectorFeatures(items[ai].layer).forEach(v=>{
+    let ok=false;
+    ref.forEach(r=>{
+      try{
+        const f=v.feature;
+        if(first==="within")ok=ok||turf.booleanWithin(f,r);
+        else if(first==="contains")ok=ok||turf.booleanContains(f,r);
+        else ok=ok||turf.booleanIntersects(f,r);
+      }catch(e){}
+    });
+    if(ok)selectedFeatures.add(v.layer);
+  });
+  applySelectionVisual();
+  status(selectedFeatures.size+" عارضه بر اساس رابطه مکانی انتخاب شد.");
+}
+function selectWithinDistance(){
+  const meters=Number(prompt("فاصله انتخاب (متر):","5"));
+  if(!Number.isFinite(meters)||meters<0)return;
+  const ref=selectedOverlay?.feature;
+  if(!ref){status("ابتدا یک عارضه مرجع را انتخاب کن.");return;}
+  selectedFeatures.clear();
+  const refGeom=turf.feature(ref.geometry);
+  allSelectableFeatureLayers().forEach(x=>vectorFeatures(x.layer).forEach(v=>{
+    try{
+      const d=turf.distance(turf.centroid(v.feature),turf.centroid(refGeom),{units:"meters"});
+      if(d<=meters)selectedFeatures.add(v.layer);
+    }catch(e){}
+  }));
+  applySelectionVisual();
+  status(selectedFeatures.size+" عارضه در شعاع "+meters+" متر انتخاب شد.");
+}
+
 function runGisTool(tool){
- if(tool.id==="runGisOperation"){
+ if(tool.id==="selectRectangle"){selectByRectangle();return;}\n if(tool.id==="selectPolygon"){selectByPolygon();return;}\n if(tool.id==="selectLocation"){selectByLocation();return;}\n if(tool.id==="selectDistance"){selectWithinDistance();return;}\n if(tool.id==="clearSelection"){clearSelection();return;}\n if(tool.id==="runGisOperation"){
    const op=tool.title.split("—")[0].trim().toLowerCase();
    $("gisOperation").value=op==="buffer"?"buffer":op==="clip"?"clip":op==="intersection"?"intersection":op==="split"?"split":"merge";
    $("runGisOperation").click(); return;
