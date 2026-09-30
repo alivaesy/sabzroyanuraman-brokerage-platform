@@ -83,7 +83,7 @@ body{background:#dfe5e8;color:#173b57}
 #map{background:#cfd9de}
 .leaflet-control-layers{display:none}
 #basemap{display:none}
-</style></head>
+.webgis-draw-control{background:#fff;border:1px solid #7f8d95;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.22);padding:4px;display:flex;flex-direction:column;gap:3px;direction:rtl}.webgis-draw-control button{min-width:78px;height:29px;border:1px solid #b5c1c7;background:#f8fafb;color:#173b57;border-radius:3px;font-size:10px;cursor:pointer}.webgis-draw-control button:hover{background:#e6f2ed;border-color:#146c43}.webgis-draw-control button.active{background:#146c43;color:#fff}</style></head>
 <body>
 <div id="app">
 <header class="topbar arcmap-topbar">
@@ -417,6 +417,33 @@ function setCRS(epsg){
 function getCRS(){return currentCRS;}
 
 const layerControl=L.control.layers(null,null,{collapsed:true,position:"topleft"}).addTo(map);
+let activeDrawHandler=null;
+function stopActiveDraw(){
+  if(activeDrawHandler){try{activeDrawHandler.disable()}catch(_){} activeDrawHandler=null;}
+  document.querySelectorAll(".webgis-draw-control button").forEach(b=>b.classList.remove("active"));
+}
+function startDraw(type,button){
+  stopActiveDraw();
+  if(!L.Draw||!L.Draw[type]){status("ابزار ترسیم Leaflet Draw بارگذاری نشده است.");return;}
+  const opts={shapeOptions:{color:"#146c43",weight:3}};
+  activeDrawHandler=new L.Draw[type](map,opts);
+  button?.classList.add("active");
+  activeDrawHandler.enable();
+}
+const drawControl=L.Control.extend({
+  options:{position:"topleft"},
+  onAdd:function(){
+    const d=L.DomUtil.create("div","webgis-draw-control");
+    L.DomEvent.disableClickPropagation(d);
+    [["Point","نقطه"],["Polyline","خط"],["Polygon","پلیگون"],["Rectangle","مستطیل"],["Circle","دایره"]].forEach(([type,label])=>{
+      const b=document.createElement("button");b.type="button";b.textContent=label;
+      b.onclick=()=>startDraw(type,b);d.appendChild(b);
+    });
+    const stop=document.createElement("button");stop.type="button";stop.textContent="پایان ترسیم";stop.onclick=stopActiveDraw;d.appendChild(stop);
+    return d;
+  }
+});
+map.addControl(new drawControl());
 if(L.Control&&L.Control.Draw){
  new L.Control.Draw({
   edit:{featureGroup:drawn},
@@ -437,7 +464,8 @@ function addNamedLayer(name,layer,zoom){
   const item={name,layer};
   namedLayers.push(item);
   layerControl.addOverlay(layer,name);
-  if(zoom && layer.getBounds && layer.getBounds().isValid()) map.fitBounds(layer.getBounds(),{padding:[25,25]});
+  if(layer.eachLayer)layer.eachLayer(x=>{if(x.bringToFront)x.bringToFront()});
+   if(zoom && layer.getBounds && layer.getBounds().isValid()) map.fitBounds(layer.getBounds(),{padding:[25,25],maxZoom:18});
   renderLayerList();
   refreshAttributeLayers();
 }
@@ -852,26 +880,31 @@ function geoJsonLayer(data,name){
 }
 function parseKML(text){
   const doc=new DOMParser().parseFromString(text,"application/xml");
-  const placemarks=[...doc.getElementsByTagNameNS("*","Placemark")];
+  const parserError=doc.getElementsByTagName("parsererror")[0];
+  if(parserError)throw new Error("ساختار XML فایل KML معتبر نیست.");
   const features=[];
-  function coords(s){return s.trim().split(/\s+/).map(x=>{const a=x.split(",").map(Number);return [a[0],a[1]]})}
-  placemarks.forEach(pm=>{
-    const name=pm.getElementsByTagNameNS("*","name")[0]?.textContent||"";
-    const props={name};
-    const point=pm.getElementsByTagNameNS("*","Point")[0];
-    const line=pm.getElementsByTagNameNS("*","LineString")[0];
-    const poly=pm.getElementsByTagNameNS("*","Polygon")[0];
-    if(point){
-      const c=point.getElementsByTagNameNS("*","coordinates")[0]?.textContent;
-      if(c)features.push({type:"Feature",properties:props,geometry:{type:"Point",coordinates:coords(c)[0]}});
-    }else if(line){
-      const c=line.getElementsByTagNameNS("*","coordinates")[0]?.textContent;
-      if(c)features.push({type:"Feature",properties:props,geometry:{type:"LineString",coordinates:coords(c)}});
-    }else if(poly){
-      const rings=[...poly.getElementsByTagNameNS("*","outerBoundaryIs"),...poly.getElementsByTagNameNS("*","innerBoundaryIs")].map(r=>r.getElementsByTagNameNS("*","coordinates")[0]?.textContent).filter(Boolean).map(coords);
-      if(rings.length)features.push({type:"Feature",properties:props,geometry:{type:"Polygon",coordinates:rings}});
-    }
-  });
+  const coordList=s=>s.trim().split(/\s+/).map(x=>x.split(",").slice(0,2).map(Number)).filter(a=>a.length===2&&a.every(Number.isFinite));
+  const descendants=(el,tag)=>[...el.getElementsByTagNameNS("*",tag)];
+  const properties=pm=>{
+    const p={name:descendants(pm,"name")[0]?.textContent?.trim()||""};
+    descendants(pm,"SimpleData").forEach(x=>{const n=x.getAttribute("name");if(n)p[n]=x.textContent.trim()});
+    descendants(pm,"Data").forEach(x=>{const n=x.getAttribute("name"),v=descendants(x,"value")[0];if(n)p[n]=v?v.textContent.trim():""});
+    return p;
+  };
+  const addGeometry=(pm,props,container)=>{
+    const points=descendants(container,"Point");
+    const lines=descendants(container,"LineString");
+    const polys=descendants(container,"Polygon");
+    points.forEach(g=>{const c=descendants(g,"coordinates")[0]?.textContent;if(c){const a=coordList(c);if(a[0])features.push({type:"Feature",properties:{...props},geometry:{type:"Point",coordinates:a[0]}})}});
+    lines.forEach(g=>{const c=descendants(g,"coordinates")[0]?.textContent;const a=c?coordList(c):[];if(a.length>=2)features.push({type:"Feature",properties:{...props},geometry:{type:"LineString",coordinates:a}})});
+    polys.forEach(g=>{
+      const rings=[];
+      descendants(g,"outerBoundaryIs").forEach(r=>{const c=descendants(r,"coordinates")[0]?.textContent;const a=c?coordList(c):[];if(a.length>=4)rings.push(a)});
+      descendants(g,"innerBoundaryIs").forEach(r=>{const c=descendants(r,"coordinates")[0]?.textContent;const a=c?coordList(c):[];if(a.length>=4)rings.push(a)});
+      if(rings.length)features.push({type:"Feature",properties:{...props},geometry:{type:"Polygon",coordinates:rings}});
+    });
+  };
+  descendants(doc,"Placemark").forEach(pm=>addGeometry(pm,properties(pm),pm));
   return {type:"FeatureCollection",features};
 }
 let gdalBrowser=null;
