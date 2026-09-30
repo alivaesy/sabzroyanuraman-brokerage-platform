@@ -59,15 +59,135 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
 .gis-tool-empty{font-size:10px;color:#7b8f9b;padding:8px 2px}
 </style>
 <style>#projectManager{position:fixed;inset:0;background:rgba(10,35,50,.45);z-index:5000;display:none;align-items:center;justify-content:center;padding:18px}#projectManager.show{display:flex}.pm-card{width:min(680px,96vw);max-height:88vh;overflow:auto;background:#fff;border-radius:14px;padding:18px;direction:rtl;box-shadow:0 18px 55px rgba(0,0,0,.22)}.pm-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.pm-grid .full{grid-column:1/-1}.pm-card textarea{width:100%;min-height:70px;border:1px solid #cbd9df;border-radius:7px;padding:8px}.pm-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.pm-list{border-top:1px solid #e2eaee;margin-top:14px;padding-top:10px}.pm-item{display:flex;align-items:center;gap:8px;border:1px solid #d9e4e9;border-radius:8px;padding:8px;margin:5px 0}.pm-item-info{flex:1}.pm-item-name{font-weight:700;font-size:11px}.pm-item-meta{font-size:9px;color:#718796}</style>
-</head>
+<style id="arcmap-ui-css">
+body{background:#dfe5e8;color:#173b57}
+.arcmap-topbar{height:48px;background:#f5f6f7;border-bottom:1px solid #9ba9b1;padding:0 8px;gap:8px;direction:rtl}
+.arcmap-topbar .brand{font-size:13px;padding:0 8px}
+.arc-menu{display:flex;align-items:stretch;height:100%;gap:0;direction:rtl}
+.arc-menu-btn{border:0;background:transparent;padding:0 12px;color:#263f50;font-size:12px;cursor:pointer}
+.arc-menu-btn:hover,.arc-menu-btn.active{background:#d9e7f0}
+.arc-search{position:relative;width:270px;margin-right:auto;direction:ltr}
+.arc-search input{height:30px;margin-top:9px;border:1px solid #9eabb2;border-radius:3px;padding:0 9px 0 26px;font-size:11px}
+.arc-search>span{position:absolute;left:8px;top:16px;z-index:2;font-size:11px}
+#topToolResults{position:absolute;top:42px;left:0;right:0;background:#fff;border:1px solid #9eabb2;box-shadow:0 5px 16px rgba(0,0,0,.18);z-index:6000;display:none;max-height:330px;overflow:auto;direction:rtl}
+#topToolResults.show{display:block}
+.top-tool-item{display:block;width:100%;border:0;background:#fff;text-align:right;padding:8px 10px;font-size:11px;cursor:pointer}
+.top-tool-item:hover{background:#e8f2f7}
+#arcMenus{position:fixed;top:48px;right:0;z-index:5500}
+.arc-dropdown{display:none;position:absolute;top:0;background:#fff;border:1px solid #8f9da5;box-shadow:0 5px 18px rgba(0,0,0,.2);min-width:220px;padding:4px;direction:rtl}
+.arc-dropdown.show{display:block}
+.arc-dropdown button{display:block;width:100%;border:0;background:#fff;text-align:right;padding:7px 10px;font-size:11px;color:#243e50;cursor:pointer;border-radius:2px}
+.arc-dropdown button:hover{background:#e6f0f5}
+.arc-menu-title{font-size:10px;color:#607684;padding:5px 9px;font-weight:700}
+.arc-sep{height:1px;background:#d9e1e5;margin:4px 0}
+.panel{display:none!important}
+.workspace{direction:ltr}
+#map{background:#cfd9de}
+.leaflet-control-layers{display:none}
+#basemap{display:none}
+</style></head>
 <body>
 <div id="app">
-<header class="topbar">
+<header class="topbar arcmap-topbar">
   <div class="brand">سبز رویان اورامان</div>
-  <div class="tool-title">🗺️ Web GIS — نمایش، ترسیم و ویرایش داده‌های مکانی</div>
+  <div class="arc-menu">
+    <button class="arc-menu-btn" data-menu="fileMenu">پرونده</button>
+    <button class="arc-menu-btn" data-menu="projectMenu">پروژه</button>
+    <button class="arc-menu-btn" data-menu="mapMenu">نقشه</button>
+    <button class="arc-menu-btn" data-menu="selectionMenu">انتخاب</button>
+    <button class="arc-menu-btn" data-menu="editMenu">ویرایش</button>
+    <button class="arc-menu-btn" data-menu="layerMenu">لایه</button>
+    <button class="arc-menu-btn" data-menu="analysisMenu">تحلیل</button>
+    <button class="arc-menu-btn" data-menu="viewMenu">نمایش</button>
+    <button class="arc-menu-btn" data-menu="settingsMenu">تنظیمات</button>
+  </div>
+  <div class="arc-search"><span>🔎</span><input id="topToolSearch" placeholder="جستجوی ابزار GIS..." autocomplete="off"><div id="topToolResults"></div></div>
   <button class="top-btn" id="backBtn">بازگشت</button>
-  <button class="top-btn" id="panelBtn">☰ ابزارها</button>
 </header>
+<div id="arcMenus">
+  <div class="arc-dropdown" id="fileMenu">
+    <div class="arc-menu-title">ورود و خروجی داده</div>
+    <button data-action="importSHP">📥 SHP / ZIP</button>
+    <button data-action="importGeoJSON">📥 GeoJSON</button>
+    <button data-action="importKML">📥 KML</button>
+    <button data-action="importGDB">📥 File Geodatabase</button>
+    <button data-action="importCSV">📥 CSV</button>
+    <button data-action="importExcel">📥 Excel</button>
+    <div class="arc-sep"></div>
+    <button data-action="exportGeoJSON">📤 GeoJSON</button>
+    <button data-action="exportKML">📤 KML</button>
+    <button data-action="exportGPX">📤 GPX</button>
+    <button data-action="exportSHP">📤 SHP / ZIP</button>
+    <button data-action="exportGDB">📤 File Geodatabase / ZIP</button>
+    <button data-action="exportDXF">📤 DXF</button>
+  </div>
+  <div class="arc-dropdown" id="projectMenu">
+    <button data-action="openProjectManager">📂 مدیریت پروژه</button>
+    <button data-action="saveProject">💾 ذخیره پروژه</button>
+    <button data-action="loadProject">بازکردن پروژه ذخیره‌شده</button>
+    <button data-action="downloadProject">خروجی پروژه</button>
+  </div>
+  <div class="arc-dropdown" id="mapMenu">
+    <button data-action="fitDraw">نمایش همه ترسیمات</button>
+    <button data-action="clearDraw">پاک‌کردن ترسیمات</button>
+    <button data-action="wms">افزودن WMS</button>
+  </div>
+  <div class="arc-dropdown" id="selectionMenu">
+    <button data-tool="selectLasso">انتخاب آزاد (Lasso)</button>
+    <button data-tool="selectRectangle">انتخاب مستطیلی</button>
+    <button data-tool="selectPolygon">انتخاب چندضلعی</button>
+    <button data-tool="selectAttribute">انتخاب بر اساس Attribute</button>
+    <button data-tool="selectLocation">انتخاب مکانی</button>
+    <button data-tool="selectDistance">انتخاب در فاصله</button>
+    <button data-tool="invertSelection">معکوس انتخاب</button>
+    <button data-tool="zoomSelection">بزرگنمایی انتخاب</button>
+    <button data-tool="newLayerSelection">لایه جدید از انتخاب</button>
+    <button data-tool="clearSelection">پاک‌کردن انتخاب</button>
+  </div>
+  <div class="arc-dropdown" id="editMenu">
+    <button data-action="startDraw">شروع ترسیم</button>
+    <button data-tool="moveFeatures">جابجایی</button>
+    <button data-tool="rotateFeatures">چرخش</button>
+    <button data-tool="scaleFeatures">مقیاس</button>
+    <button data-tool="reshapeFeatures">Reshape</button>
+    <button data-tool="vertexEdit">ویرایش رأس‌ها</button>
+    <button data-tool="cloneFeatures">Clone / Duplicate</button>
+    <button data-tool="advancedSnap">Snap پیشرفته</button>
+    <button data-tool="gridToggle">Grid</button>
+    <button data-tool="constraintTool">Editing Constraints</button>
+  </div>
+  <div class="arc-dropdown" id="layerMenu">
+    <button data-action="showLayers">فهرست لایه‌ها</button>
+    <button data-tool="styleLayer">Style / Symbology</button>
+    <button data-tool="labelLayer">Labels</button>
+    <button data-tool="layerTransparency">شفافیت</button>
+    <button data-tool="groupLayers">گروه‌بندی لایه‌ها</button>
+  </div>
+  <div class="arc-dropdown" id="analysisMenu">
+    <button data-tool="spatialFilter">Spatial Filter</button>
+    <button data-action="buffer">Buffer</button>
+    <button data-action="measure">اندازه‌گیری</button>
+    <button data-tool="joinWizard">Join</button>
+    <button data-tool="chartStats">Statistics</button>
+    <button data-tool="nearestMatchTool">تطبیق نزدیک‌ترین عوارض</button>
+    <button data-tool="transferAttributesTool">انتقال Attribute</button>
+    <button data-tool="networkQaTool">کنترل شبکه</button>
+  </div>
+  <div class="arc-dropdown" id="viewMenu">
+    <div class="arc-menu-title">نقشه پایه</div>
+    <button data-base="osm">OpenStreetMap</button>
+    <button data-base="topo">OpenTopoMap</button>
+    <button data-base="sat">تصویر ماهواره‌ای Esri</button>
+    <div class="arc-sep"></div>
+    <button data-action="searchFeature">جستجوی عارضه</button>
+    <button data-action="addBookmark">ذخیره Bookmark</button>
+    <button data-action="showBookmarks">Bookmarks</button>
+  </div>
+  <div class="arc-dropdown" id="settingsMenu">
+    <button data-action="crs">سیستم مختصات / CRS</button>
+    <button data-action="attachments">پیوست فایل/عکس</button>
+  </div>
+</div>
 <div class="workspace">
   <div id="map"></div>
   <aside class="panel" id="panel">
@@ -656,7 +776,10 @@ $("fillSelected").onclick=()=>{
 };
 \n$("measureSelected").onclick=()=>{if(selectedLayer)calcMeasure(selectedLayer);else status("ابتدا یک عارضه را روی نقشه انتخاب کن.");};
 $("basemap").onchange=e=>{
-  map.removeLayer(currentBase);currentBase=base[e.target.value];currentBase.addTo(map);
+  if(currentBase)map.removeLayer(currentBase);
+currentBase=base[e.target.value]||base.osm;
+currentBase.addTo(map);
+status("نقشه پایه: "+(e.target.value==="sat"?"تصویر ماهواره‌ای Esri":e.target.value==="topo"?"OpenTopoMap":"OpenStreetMap"));
 };
 $("clearDraw").onclick=()=>{
   if(!drawn.getLayers().length){status("ترسیمی برای پاک‌کردن وجود ندارد.");return}
@@ -670,6 +793,14 @@ $("fitDraw").onclick=()=>{
 $("backBtn").onclick=()=>{location.href="index.html#mapView"};
 $("panelBtn").onclick=()=>$("panel").classList.toggle("open");
 
+function bindFeature(l,f){
+  if(!l||!f)return;
+  l.feature=f;
+  const p=f.properties||{};
+  const rows=Object.keys(p).map(k=>"<b>"+esc(k)+"</b>: "+esc(p[k])).join("<br>");
+  if(l.bindPopup)l.bindPopup(rows||"بدون اطلاعات توصیفی");
+  attachFeatureSelection(l);
+}
 function geoJsonLayer(data,name){
   const layer=L.geoJSON(data,{
     style:{color:"#146c43",weight:3,fillOpacity:.16},
@@ -1547,6 +1678,68 @@ function runGisTool(tool){
  else el.focus();
 }
 $("gisToolSearch").oninput=e=>renderGisToolbox(e.target.value);
+
+// ArcMap-like top menus
+(function(){
+  const menus=[...document.querySelectorAll(".arc-menu-btn")];
+  const drops=[...document.querySelectorAll(".arc-dropdown")];
+  function closeMenus(){drops.forEach(x=>x.classList.remove("show"));menus.forEach(x=>x.classList.remove("active"))}
+  menus.forEach(b=>b.onclick=ev=>{
+    ev.stopPropagation(); const d=document.getElementById(b.dataset.menu);
+    const open=d.classList.contains("show"); closeMenus(); if(!open){d.classList.add("show");b.classList.add("active");}
+  });
+  document.addEventListener("click",e=>{if(!e.target.closest(".arc-menu")&&!e.target.closest(".arc-dropdown"))closeMenus()});
+  document.querySelectorAll(".arc-dropdown button[data-tool]").forEach(b=>b.onclick=()=>{
+    const t=(typeof GIS_TOOLS!=="undefined")?GIS_TOOLS.find(x=>x.id===b.dataset.tool):null;
+    if(t)runGisTool(t); closeMenus();
+  });
+  document.querySelectorAll(".arc-dropdown button[data-base]").forEach(b=>b.onclick=()=>{
+    const key=b.dataset.base; const sel=document.getElementById("basemap"); if(sel){sel.value=key;sel.dispatchEvent(new Event("change"))} closeMenus();
+  });
+  document.querySelectorAll(".arc-dropdown button[data-action]").forEach(b=>b.onclick=()=>{
+    const a=b.dataset.action;
+    const mapActions={
+      importSHP:()=>document.getElementById("fileInput")?.click(),
+      importGeoJSON:()=>{const x=document.getElementById("fileInput");x.accept=".geojson,.json";x.click()},
+      importKML:()=>{const x=document.getElementById("fileInput");x.accept=".kml";x.click()},
+      importGDB:()=>document.getElementById("gdbInput")?.click(),
+      importCSV:()=>csvImport(),
+      importExcel:()=>excelImport(),
+      exportGeoJSON:()=>document.getElementById("exportGeoJSON")?.click(),
+      exportKML:()=>document.getElementById("exportKML")?.click(),
+      exportGPX:()=>document.getElementById("exportGPX")?.click(),
+      exportSHP:()=>document.getElementById("exportSHP")?.click(),
+      exportGDB:()=>document.getElementById("exportGDB")?.click(),
+      exportDXF:()=>document.getElementById("exportDXF")?.click(),
+      openProjectManager:()=>openProjectManager(),
+      saveProject:()=>document.getElementById("saveProject")?.click(),
+      loadProject:()=>document.getElementById("loadProject")?.click(),
+      downloadProject:()=>document.getElementById("downloadProject")?.click(),
+      fitDraw:()=>document.getElementById("fitDraw")?.click(),
+      clearDraw:()=>document.getElementById("clearDraw")?.click(),
+      startDraw:()=>status("ابزارهای ترسیم از نوار Draw روی نقشه فعال می‌شوند."),
+      showLayers:()=>{const x=document.getElementById("layers");if(x){const names=[...x.querySelectorAll(".layer-name")].map(n=>n.textContent);alert(names.length?names.join("\n"):"لایه‌ای وجود ندارد.")}},
+      wms:()=>document.getElementById("addWms")?.click(),
+      buffer:()=>{document.getElementById("gisOperation").value="buffer";document.getElementById("runGisOperation").click()},
+      measure:()=>document.getElementById("measureSelected")?.click(),
+      searchFeature:()=>searchFeature(),
+      addBookmark:()=>addBookmark(),
+      showBookmarks:()=>showBookmarks(),
+      crs:()=>document.getElementById("crsPreset")?.focus(),
+      attachments:()=>attachmentsTool()
+    };
+    if(mapActions[a])mapActions[a](); closeMenus();
+  });
+  const si=document.getElementById("topToolSearch"), out=document.getElementById("topToolResults");
+  function search(q){
+    if(!q){out.classList.remove("show");out.innerHTML="";return}
+    const arr=(typeof GIS_TOOLS!=="undefined"?GIS_TOOLS:[]).filter(t=>(t.title+" "+t.category+" "+t.keys).toLowerCase().includes(q.toLowerCase())).slice(0,20);
+    out.innerHTML=arr.length?arr.map(t=>'<button class="top-tool-item" data-id="'+t.id+'">'+esc(t.title)+" — "+esc(t.category)+"</button>").join(""):'<div class="top-tool-item">ابزار پیدا نشد.</div>';
+    out.classList.add("show");
+    out.querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>{const t=GIS_TOOLS.find(x=>x.id===b.dataset.id);if(t)runGisTool(t);out.classList.remove("show");si.value=""});
+  }
+  si.oninput=e=>search(e.target.value);
+})();
 renderGisToolbox("");
 
 /* =========================
