@@ -777,7 +777,7 @@ $("fillSelected").onclick=()=>{
  inds.forEach(i=>{ensureFeatureProperties(items[i].x.layer);items[i].x.feature.properties[key]=value});
  renderEditableTable();status("فیلد «"+key+"» برای "+inds.length+" ردیف پر شد.");
 };
-\n$("measureSelected").onclick=()=>{if(selectedLayer)calcMeasure(selectedLayer);else status("ابتدا یک عارضه را روی نقشه انتخاب کن.");};
+$("measureSelected").onclick=()=>{if(selectedLayer)calcMeasure(selectedLayer);else status("ابتدا یک عارضه را روی نقشه انتخاب کن.");};
 $("basemap").onchange=e=>{
   if(currentBase)map.removeLayer(currentBase);
 currentBase=base[e.target.value]||base.osm;
@@ -1670,7 +1670,12 @@ function runGisTool(tool){
  if(tool.id==="attachmentsTool"){attachmentsTool();return;}
  if(tool.id==="chartStats"){chartStats();return;}
  
- if(tool.id==="selectRectangle"){selectByRectangle();return;}\n if(tool.id==="selectPolygon"){selectByPolygon();return;}\n if(tool.id==="selectLocation"){selectByLocation();return;}\n if(tool.id==="selectDistance"){selectWithinDistance();return;}\n if(tool.id==="clearSelection"){clearSelection();return;}\n if(tool.id==="runGisOperation"){
+ if(tool.id==="selectRectangle"){selectByRectangle();return;}
+ if(tool.id==="selectPolygon"){selectByPolygon();return;}
+ if(tool.id==="selectLocation"){selectByLocation();return;}
+ if(tool.id==="selectDistance"){selectWithinDistance();return;}
+ if(tool.id==="clearSelection"){clearSelection();return;}
+ if(tool.id==="runGisOperation"){
    const op=tool.title.split("—")[0].trim().toLowerCase();
    $("gisOperation").value=op==="buffer"?"buffer":op==="clip"?"clip":op==="intersection"?"intersection":op==="split"?"split":"merge";
    $("runGisOperation").click(); return;
