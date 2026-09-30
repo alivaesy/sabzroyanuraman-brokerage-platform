@@ -387,12 +387,28 @@ let currentCRS="EPSG:32638";
 function utmEpsg(zone,north=true){return "EPSG:"+(north?32600:32700)+zone}
 function defineUTM(zone,north=true){
   const epsg=utmEpsg(zone,north);
-  proj4.defs(epsg,"+proj=utm +zone="+zone+(north?"":"+south")+" +datum=WGS84 +units=m +no_defs");
+  if(!proj4.defs(epsg)){
+    proj4.defs(epsg,"+proj=utm +zone="+zone+(north?"":"+south")+" +datum=WGS84 +units=m +no_defs +type=crs");
+  }
   return epsg;
 }
 for(let z=1;z<=60;z++){defineUTM(z,true);defineUTM(z,false);}
-function setCRS(epsg){
+function ensureCRSDefinition(epsg){
   if(!/^EPSG:\d+$/.test(epsg))throw new Error("کد EPSG نامعتبر است.");
+  if(!proj4.defs(epsg)){
+    const n=Number(epsg.slice(5));
+    if(n>=32601&&n<=32660)defineUTM(n-32600,true);
+    else if(n>=32701&&n<=32760)defineUTM(n-32700,false);
+    else throw new Error("تعریف "+epsg+" در Proj4 پیدا نشد.");
+  }
+  return epsg;
+}
+function projectCoords(from,to,coords){
+  ensureCRSDefinition(to);
+  return proj4(from,to,coords);
+}
+function setCRS(epsg){
+  ensureCRSDefinition(epsg);
   currentCRS=epsg;
   $("crsStatus").textContent="CRS فعلی: "+epsg;
   status("سیستم مختصات به "+epsg+" تغییر کرد.");
@@ -458,7 +474,7 @@ map.on(L.Draw.Event.CREATED,e=>{
 map.on(L.Draw.Event.EDITED,e=>{status("ویرایش عوارض انجام شد.");scheduleAutoSave()});
 map.on(L.Draw.Event.DELETED,e=>{status("عارضه حذف شد.");renderLayerList();scheduleAutoSave()});
 map.on("mousemove",e=>{
-  const utm=proj4("EPSG:4326","EPSG:32638",[e.latlng.lng,e.latlng.lat]);
+  const utm=projectCoords("EPSG:4326","EPSG:32638",[e.latlng.lng,e.latlng.lat]);
   $("coord").textContent="UTM 38N: E "+utm[0].toFixed(2)+" | N "+utm[1].toFixed(2);
 });
 
@@ -649,14 +665,14 @@ function showUTM(layer){
   try{
     const c=layer&&layer.getLatLng?layer.getLatLng():null;
     if(c){
-      const u=proj4("EPSG:4326","EPSG:32638",[c.lng,c.lat]);
+      const u=projectCoords("EPSG:4326","EPSG:32638",[c.lng,c.lat]);
       $("utmInfo").innerHTML="E: "+u[0].toFixed(3)+" m<br>N: "+u[1].toFixed(3)+" m";
       return;
     }
     if(layer&&layer.getBounds){
       const b=layer.getBounds();
       if(b.isValid()){
-        const center=b.getCenter(),u=proj4("EPSG:4326","EPSG:32638",[center.lng,center.lat]);
+        const center=b.getCenter(),u=projectCoords("EPSG:4326","EPSG:32638",[center.lng,center.lat]);
         $("utmInfo").innerHTML="مرکز عارضه — E: "+u[0].toFixed(3)+" m | N: "+u[1].toFixed(3)+" m";
       }
     }
@@ -811,7 +827,7 @@ $("fitDraw").onclick=()=>{
   map.fitBounds(drawn.getBounds(),{padding:[30,30]});
 };
 $("backBtn").onclick=()=>{location.href="index.html#mapView"};
-$("panelBtn").onclick=()=>$("panel").classList.toggle("open");
+$("panelBtn")?.addEventListener("click",()=>$("panel")?.classList.toggle("open"));
 
 function bindFeature(l,f){
   if(!l||!f)return;
@@ -1183,7 +1199,7 @@ function projectGeometry(feature){
   const g=feature&&feature.geometry;if(!g)return null;
   const tx=coords=>{
     if(typeof coords[0]==="number"){
-      const u=proj4("EPSG:4326",currentCRS,coords);
+      const u=projectCoords("EPSG:4326",currentCRS,coords);
       return [u[0],u[1]];
     }
     return coords.map(tx);
@@ -1545,7 +1561,7 @@ function moveSelected(){
   const rs=selectedRecords(); if(!rs.length){status("ابتدا انتخاب کن.");return;}
   const dx=Number(prompt("جابجایی شرقی X (متر):","0")),dy=Number(prompt("جابجایی شمالی Y (متر):","0"));
   if(!Number.isFinite(dx)||!Number.isFinite(dy))return;
-  const moveCoord=c=>{const p=proj4("EPSG:4326",currentCRS,c);const q=[p[0]+dx,p[1]+dy];return proj4(currentCRS,"EPSG:4326",q);};
+  const moveCoord=c=>{const p=projectCoords("EPSG:4326",currentCRS,c);const q=[p[0]+dx,p[1]+dy];return proj4(currentCRS,"EPSG:4326",q);};
   rs.forEach(r=>{const walk=c=>Array.isArray(c[0])?c.map(walk):moveCoord(c);r.feature.geometry.coordinates=walk(r.feature.geometry.coordinates);});
   rebuildVectorLayerGeometry(rs); refreshAll(); status("جابجایی انجام شد.");
 }
