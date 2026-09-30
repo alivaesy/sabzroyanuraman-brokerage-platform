@@ -7,8 +7,6 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
 <style>
-@font-face{font-family:Vazirmatn;src:url("/assets/fonts/Vazirmatn-Regular.woff2") format("woff2");font-weight:400}
-@font-face{font-family:Vazirmatn;src:url("/assets/fonts/Vazirmatn-Bold.woff2") format("woff2");font-weight:700}
 *{box-sizing:border-box;font-family:Vazirmatn,sans-serif}
 html,body{height:100%;margin:0}
 body{background:#eef3f5;color:#173b57;overflow:hidden}
@@ -647,7 +645,24 @@ function runGisOperation(){
   }
 }
 
-  const c=layer.getLatLng?layer.getLatLng():null;
+function showUTM(layer){
+  try{
+    const c=layer&&layer.getLatLng?layer.getLatLng():null;
+    if(c){
+      const u=proj4("EPSG:4326","EPSG:32638",[c.lng,c.lat]);
+      $("utmInfo").innerHTML="E: "+u[0].toFixed(3)+" m<br>N: "+u[1].toFixed(3)+" m";
+      return;
+    }
+    if(layer&&layer.getBounds){
+      const b=layer.getBounds();
+      if(b.isValid()){
+        const center=b.getCenter(),u=proj4("EPSG:4326","EPSG:32638",[center.lng,center.lat]);
+        $("utmInfo").innerHTML="مرکز عارضه — E: "+u[0].toFixed(3)+" m | N: "+u[1].toFixed(3)+" m";
+      }
+    }
+  }catch(e){status("خطا در محاسبه مختصات: "+e.message)}
+}
+
   if(c){const u=proj4("EPSG:4326","EPSG:32638",[c.lng,c.lat]);$("utmInfo").innerHTML="E: "+u[0].toFixed(3)+" m<br>N: "+u[1].toFixed(3)+" m";return}
   if(layer.getBounds){const b=layer.getBounds();if(b.isValid()){const c=b.getCenter(),u=proj4("EPSG:4326","EPSG:32638",[c.lng,c.lat]);$("utmInfo").innerHTML="مرکز عارضه — E: "+u[0].toFixed(3)+" m | N: "+u[1].toFixed(3)+" m";}}
 }
