@@ -178,6 +178,7 @@ body{background:#dfe5e8;color:#173b57}
     <button data-base="osm">OpenStreetMap</button>
     <button data-base="topo">OpenTopoMap</button>
     <button data-base="sat">تصویر ماهواره‌ای Esri</button>
+    <button data-base="giscloud">GIS Cloud / MapTiler Streets</button>
     <div class="arc-sep"></div>
     <button data-action="searchFeature">جستجوی عارضه</button>
     <button data-action="addBookmark">ذخیره Bookmark</button>
@@ -196,7 +197,7 @@ body{background:#dfe5e8;color:#173b57}
       <select id="basemap">
         <option value="osm">OpenStreetMap</option>
         <option value="topo">OpenTopoMap</option>
-        <option value="sat">تصویر ماهواره‌ای Esri</option>
+        <option value="sat">تصویر ماهواره‌ای Esri</option><option value="giscloud">GIS Cloud / MapTiler Streets</option>
       </select>
     </div>
 
@@ -370,7 +371,8 @@ const map=L.map("map",{preferCanvas:true}).setView([34.5,46.5],8);
 const base={
  osm:L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"}),
  topo:L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",{maxZoom:17,attribution:"© OpenTopoMap contributors"}),
- sat:L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"© Esri"})
+ sat:L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"© Esri"}),
+ giscloud:L.tileLayer("https://maps.tilehosting.com/styles/streets/{z}/{x}/{y}@2x.png?key=YorAZF63uBWqKs6t27lY",{maxZoom:19,attribution:"© OpenStreetMap contributors © MapTiler"})
 };
 Object.entries(base).forEach(([key,layer])=>{
   layer.on("tileerror",()=>status("خطا در دریافت نقشه پایه "+key+"؛ دسترسی اینترنت یا سرویس Tile را بررسی کن."));
@@ -401,10 +403,14 @@ function setCRS(epsg){
 function getCRS(){return currentCRS;}
 
 const layerControl=L.control.layers(null,null,{collapsed:true,position:"topleft"}).addTo(map);
-new L.Control.Draw({
- edit:{featureGroup:drawn},
- draw:{polyline:{shapeOptions:{color:"#146c43",weight:3}},polygon:{allowIntersection:false,showArea:true,shapeOptions:{color:"#146c43",weight:3}},rectangle:{shapeOptions:{color:"#146c43",weight:3}},circle:{shapeOptions:{color:"#146c43",weight:3}},marker:true,circlemarker:true}
-}).addTo(map);
+if(L.Control&&L.Control.Draw){
+ new L.Control.Draw({
+  edit:{featureGroup:drawn},
+  draw:{polyline:{shapeOptions:{color:"#146c43",weight:3}},polygon:{allowIntersection:false,showArea:true,shapeOptions:{color:"#146c43",weight:3}},rectangle:{shapeOptions:{color:"#146c43",weight:3}},circle:{shapeOptions:{color:"#146c43",weight:3}},marker:true,circlemarker:true}
+ }).addTo(map);
+}else{
+ console.warn("Leaflet Draw is not available; map core remains active.");
+}
 
 const $=id=>document.getElementById(id);
 function status(s){$("status").textContent=s}
@@ -782,7 +788,7 @@ $("basemap").onchange=e=>{
   if(currentBase)map.removeLayer(currentBase);
 currentBase=base[e.target.value]||base.osm;
 currentBase.addTo(map);
-status("نقشه پایه: "+(e.target.value==="sat"?"تصویر ماهواره‌ای Esri":e.target.value==="topo"?"OpenTopoMap":"OpenStreetMap"));
+status("نقشه پایه: "+(e.target.value==="sat"?"تصویر ماهواره‌ای Esri":e.target.value==="topo"?"OpenTopoMap":e.target.value==="giscloud"?"GIS Cloud / MapTiler Streets":"OpenStreetMap"));
 };
 $("clearDraw").onclick=()=>{
   if(!drawn.getLayers().length){status("ترسیمی برای پاک‌کردن وجود ندارد.");return}
@@ -1676,8 +1682,8 @@ function runGisTool(tool){
  if(tool.id==="selectDistance"){selectWithinDistance();return;}
  if(tool.id==="clearSelection"){clearSelection();return;}
  if(tool.id==="runGisOperation"){
-   const op=tool.title.split("—")[0].trim().toLowerCase();
-   $("gisOperation").value=op==="buffer"?"buffer":op==="clip"?"clip":op==="intersection"?"intersection":op==="split"?"split":"merge";
+   const op=tool.op||tool.title.split("—")[0].trim().toLowerCase();
+   $("gisOperation").value=op;
    $("runGisOperation").click(); return;
  }
  const el=$(tool.id);
