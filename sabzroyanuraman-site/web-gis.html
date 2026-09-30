@@ -517,11 +517,8 @@ function openLayerAttributeTable(item){
     $("attributeLayer").value=String(idx);
     renderEditableTable();
   }else if(item.layer===drawn){
-    status("«ترسیمات من» را انتخاب کن؛ جدول آن از منوی جدول صفات باز می‌شود.");
-    const items=vectorFeatures(drawn);
-    if(items.length){
-      renderEditableTableForItems(items,"ترسیمات من");
-    }
+    status("برای «ترسیمات من» از بخش جدول صفات استفاده کن.");
+    $("attributeTableWrap").style.display="none";
   }
 }
 function renderLayerList(){
