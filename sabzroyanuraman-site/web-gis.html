@@ -960,7 +960,7 @@ async function listProjects(){
   const db=await openProjectDB();
   return new Promise((resolve,reject)=>{
     const tx=db.transaction(PROJECT_STORE,"readonly"),req=tx.objectStore(PROJECT_STORE).getAll();
-    req.onsuccess=()=>{db.close();resolve((req.result||[]).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt)))};
+    req.onsuccess=()=>{db.close();resolve((req.result||[]).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt))));};
     req.onerror=()=>{db.close();reject(req.error)};
   });
 }
