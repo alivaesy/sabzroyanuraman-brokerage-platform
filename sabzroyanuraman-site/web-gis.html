@@ -155,7 +155,7 @@ new L.Control.Draw({
 
 const $=id=>document.getElementById(id);
 function status(s){$("status").textContent=s}
-function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",""":"&quot;","'":"&#039;"}[m]))}
+function esc(s){return String(s??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[m]))}
 
 function isVectorLayer(layer){return !!(layer && typeof layer.eachLayer==="function" && !(layer instanceof L.TileLayer));}
 function vectorFeatures(layer){const out=[];if(!layer)return out;if(layer instanceof L.GeoJSON){layer.eachLayer(l=>{const f=l.feature||l.toGeoJSON();if(f&&f.geometry)out.push({feature:f,layer:l})});}else if(layer instanceof L.FeatureGroup){layer.eachLayer(l=>{const f=l.toGeoJSON();if(f&&f.geometry)out.push({feature:f,layer:l})});}return out;}
