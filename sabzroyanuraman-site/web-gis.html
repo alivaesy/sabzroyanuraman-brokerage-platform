@@ -99,7 +99,31 @@ body{background:#dfe5e8;color:#173b57}
 .arc-context-sep{height:1px;background:#d9e1e5;margin:3px 0}
 .leaflet-control-layers{display:none}
 #basemap{display:none}
-.webgis-draw-control{background:#fff;border:1px solid #7f8d95;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.22);padding:4px;display:flex;flex-direction:column;gap:3px;direction:rtl}.webgis-draw-control button{min-width:78px;height:29px;border:1px solid #b5c1c7;background:#f8fafb;color:#173b57;border-radius:3px;font-size:10px;cursor:pointer}.webgis-draw-control button:hover{background:#e6f2ed;border-color:#146c43}.webgis-draw-control button.active{background:#146c43;color:#fff}</style></head>
+.webgis-draw-control{background:#fff;border:1px solid #7f8d95;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.22);padding:4px;display:flex;flex-direction:column;gap:3px;direction:rtl}.webgis-draw-control button{min-width:78px;height:29px;border:1px solid #b5c1c7;background:#f8fafb;color:#173b57;border-radius:3px;font-size:10px;cursor:pointer}.webgis-draw-control button:hover{background:#e6f2ed;border-color:#146c43}.webgis-draw-control button.active{background:#146c43;color:#fff}
+<style id="arcmap-panel-accordion-css">
+.panel{padding:6px!important;gap:4px}
+.panel-toolbar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;padding:4px;background:#e1e7ea;border:1px solid #9ba9b1;border-radius:3px;position:sticky;top:0;z-index:20}
+.panel-toolbar button{height:30px;border:1px solid #a9b6bd;background:#f8fafb;color:#263f50;border-radius:3px;font-size:10px;font-weight:700;cursor:pointer}
+.panel-toolbar button:hover{background:#e5eef3;border-color:#6f8998}
+.panel .layer-section{margin:0!important}
+.panel .layer-section h3{margin:0!important;border:1px solid #9ba9b1;border-bottom:0}
+.panel .layer-section #layers{max-height:calc(100vh - 220px);min-height:150px}
+.accordion-section{margin:0 1px 4px;border:1px solid #b8c4ca;background:#fff;border-radius:3px;overflow:hidden}
+.accordion-head{width:100%;height:34px;border:0;background:#e5eaed;color:#263f50;display:flex;align-items:center;justify-content:space-between;padding:0 9px;direction:rtl;font-size:11px;font-weight:700;cursor:pointer}
+.accordion-head:hover{background:#dbe7ed}
+.accordion-section.open .accordion-head{background:#d5e4ec}
+.accordion-arrow{font-size:12px;transition:transform .15s}
+.accordion-section.open .accordion-arrow{transform:rotate(180deg)}
+.accordion-body{display:none;padding:7px;background:#f8fafb}
+.accordion-section.open .accordion-body{display:block}
+.compact-block{border-bottom:1px solid #e0e7ea;padding-bottom:7px;margin-bottom:7px}
+.compact-block:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
+.compact-label{display:block;font-size:10px;font-weight:700;color:#486474;margin-bottom:5px}
+.panel .row{margin:5px 0}
+.panel input,.panel select{height:30px;font-size:10px}
+.panel button.action{font-size:10px;padding:6px 7px}
+.panel .attr-toolbar{grid-template-columns:1fr 1fr}
+</style></style></head>
 <body>
 <div id="app">
 <header class="topbar arcmap-topbar">
@@ -206,163 +230,166 @@ body{background:#dfe5e8;color:#173b57}
 <div class="workspace">
   <div id="map"></div>
   <aside class="panel" id="panel">
-    <div class="section">
-      <h3>نقشه پایه</h3>
-      <select id="basemap">
-        <option value="osm">OpenStreetMap</option>
-        <option value="topo">OpenTopoMap</option>
-        <option value="sat">تصویر ماهواره‌ای Esri</option><option value="giscloud">GIS Cloud / MapTiler Streets</option>
-      </select>
+    <div class="panel-toolbar">
+      <button type="button" id="panelImportBtn" title="ورود داده">📥 ورود داده</button>
+      <button type="button" id="panelExportBtn" title="خروجی داده">📤 خروجی داده</button>
+      <button type="button" id="panelWmsBtn" title="افزودن WMS">🌐 WMS</button>
     </div>
 
-    <div class="section">
-      <h3>ترسیم و ویرایش</h3>
-      <div class="small">از ابزارهای ترسیم روی خود نقشه استفاده کن. عوارض در لایه «ترسیمات من» قرار می‌گیرند.</div>
-      <div class="row">
-        <button class="action secondary" id="clearDraw">پاک‌کردن ترسیمات</button>
-        <button class="action secondary" id="fitDraw">نمایش همه</button>
-      </div>
-    </div>
-
-    <div class="section">
-      <h3>ورود داده</h3>
-      <label class="file-label" for="fileInput">📥 SHP / ZIP / GeoJSON / KML را انتخاب کن</label>
-      <input id="fileInput" type="file" accept=".geojson,.json,.kml,.zip,.shp">
-      <label class="file-label" for="gdbInput" style="margin-top:6px">🗃️ File Geodatabase (.gdb) — انتخاب پوشه</label>
-      <input id="gdbInput" type="file" webkitdirectory directory multiple style="display:none">
-      <div class="small" style="margin-top:6px">پوشه اصلی .gdb را انتخاب کن؛ Feature Classهای داخل آن به‌صورت لایه‌های جداگانه وارد می‌شوند. فایل‌ها روی سرور آپلود نمی‌شوند.</div>
-      <div class="small" style="margin-top:6px">SHP را بهتر است به‌صورت ZIP شامل shp/shx/dbf/prj وارد کنی.</div>
-    </div>
-
-    <div class="section">
-      <h3>لایه WMS</h3>
-      <input id="wmsUrl" placeholder="https://server/.../wms">
-      <input id="wmsLayer" placeholder="نام لایه (LAYERS)" style="margin-top:6px">
-      <div class="row"><button class="action" id="addWms">افزودن WMS</button></div>
-    </div>
-
-    <div class="section">
-      <h3>جدول صفات و انتخاب</h3>
-      <select id="attributeLayer"><option value="">انتخاب لایه برداری...</option></select>
-      <input id="attributeFilter" placeholder="فیلتر متن/مقدار" style="margin-top:6px">
-      <div class="row"><button class="action" id="openTable">باز کردن جدول</button><button class="action secondary" id="selectFiltered">انتخاب فیلترشده</button></div>
-      <div class="attr-toolbar">
-        <button class="action secondary" id="addTableField">+ فیلد</button>
-        <button class="action secondary" id="deleteSelectedRows">حذف انتخاب‌شده</button>
-        <button class="action secondary" id="copySelectedRows">کپی ردیف‌ها</button>
-        <button class="action secondary" id="pasteRows">چسباندن</button>
-        <button class="action secondary" id="fillSelected">پر کردن انتخاب‌شده</button>
-        <button class="action" id="saveTableEdits">ذخیره تغییرات جدول</button>
-      </div>
-      <input id="fillValue" placeholder="مقدار برای پر کردن ردیف‌های انتخاب‌شده" style="margin-top:6px">
-      <div id="attributeTableWrap" style="display:none;max-height:230px;overflow:auto;font-size:10px"></div>
-    </div>
-
-    <div class="section">
-      <h3>مختصات و اندازه‌گیری</h3>
-      <div class="small">مختصات UTM برای منطقه 38 شمالی (EPSG:32638) محاسبه می‌شود.</div>
-      <div id="utmInfo" class="small" style="margin-top:5px">روی یک عارضه کلیک کن.</div>
-      <div class="row"><button class="action secondary" id="measureSelected">محاسبه مساحت/طول</button></div>
-    </div>
-
-
-
-    <div class="section">
-      <h3>✏️ ویرایش Attribute</h3>
-      <div class="small">ابتدا یک عارضه را انتخاب کن، سپس اطلاعات توصیفی آن را ویرایش یا فیلد جدید اضافه کن.</div>
-      <div class="row"><button class="action" id="editAttributes">ویرایش عارضه انتخاب‌شده</button></div>
-      <div id="attributeEditor" style="display:none"></div>
-      <div id="multiFeatureEditor">
-        <div class="small" id="multiSelectionInfo">۰ عارضه انتخاب شده</div>
-        <div class="row">
-          <input id="multiFieldName" placeholder="نام فیلد">
-          <input id="multiFieldValue" placeholder="مقدار جدید">
-        </div>
-        <div class="row">
-          <button class="action" id="applyMultiAttribute" type="button">اعمال روی انتخاب‌ها</button>
-          <button class="action danger" id="deleteMultiSelected" type="button">حذف انتخاب‌ها</button>
-          <button class="action secondary" id="clearMultiSelected" type="button">لغو انتخاب</button>
-        </div>
-        <div class="small">Ctrl+کلیک یا Shift+کلیک برای انتخاب/لغو چند عارضه. کلیک معمولی انتخاب قبلی را پاک می‌کند.</div>
-      </div>
-    </div>
-    <div class="section">
-      <h3>🧰 جعبه‌ابزار GIS</h3>
-      <input id="gisToolSearch" placeholder="جستجو: انتخاب، منهول، Buffer، Clip..." autocomplete="off">
-      <div id="gisToolResults" style="margin-top:7px"></div>
-      <div id="professionalToolOutput" class="small" style="margin-top:7px">برای یافتن ابزار، نام فارسی یا انگلیسی آن را جستجو کن.</div>
-    </div>
-
-    <div class="section">
-      <h3>⚙️ عملیات GIS</h3>
-      <div class="small">عملیات روی عوارض انتخاب‌شده انجام می‌شود. کلیک عادی = عارضه اول؛ Shift+کلیک = عارضه دوم. نتیجه به‌صورت لایه جدید ساخته می‌شود.</div>
-      <select id="gisOperation" style="margin-top:6px">
-        <option value="buffer">Buffer — حریم</option>
-        <option value="clip">Clip — برش با عارضه دوم</option>
-        <option value="intersection">Intersection — اشتراک</option>
-        <option value="split">Split — تقسیم خط</option>
-        <option value="merge">Merge — ادغام</option>
-      </select>
-      <input id="bufferDistance" type="number" step="0.1" min="0" value="5" placeholder="فاصله Buffer (متر)" style="margin-top:6px">
-      <div class="row">
-        <button class="action" id="runGisOperation">اجرای عملیات</button>
-        <button class="action secondary" id="clearGisSelection">لغو انتخاب</button>
-      </div>
-      <div id="gisSelectionInfo" class="small">عارضه اول: —<br>عارضه دوم: —</div>
-    </div>
-
-    <div class="section">
-      <h3>💾 پروژه‌های محلی</h3>
-      <input id="projectName" placeholder="نام پروژه" value="پروژه جدید">
-      <div class="row">
-        <button class="action" id="saveProject">ذخیره پروژه</button>
-        <button class="action secondary" id="loadProject">بازیابی پروژه</button>
-      </div>
-      <div class="small">پروژه‌ها فقط در حافظه همین مرورگر/دستگاه ذخیره می‌شوند و به هاست ارسال نمی‌شوند.</div>
-      <div class="row">
-        <button class="action secondary" id="downloadProject">خروجی پروژه</button>
-        <label class="action secondary" for="projectFile" style="text-align:center;cursor:pointer">ورود پروژه</label>
-        <input id="projectFile" type="file" accept=".json" style="display:none">
-      </div>
-      <div class="small" id="projectStatus">هنوز پروژه‌ای ذخیره نشده است.</div>
-    </div>
-    <div class="section">
-      <h3>خروجی</h3>
-      <div class="row">
-        <button class="action" id="exportGeoJSON">GeoJSON</button>
-        <button class="action" id="exportKML">KML</button>
-        <button class="action" id="exportGPX">GPX</button>
-        <button class="action" id="exportSHP">SHP واقعی (ZIP)</button><button class="action" id="exportGDB">🗃️ GDB واقعی (ZIP)</button>
-        <button class="action" id="exportDXF">DXF واقعی</button>
-        <div class="small" style="margin-top:6px">SHP و DXF خروجی واقعی بر اساس CRS انتخاب‌شده هستند.</div>
-      </div>
-      <div class="small">خروجی فعلی شامل عوارض برداری ترسیم‌شده و لایه‌های واردشده است.</div>
-    </div>
-
-    <div class="section">
-      <h3>لایه‌ها</h3>
+    <div class="section layer-section">
+      <h3>📑 Table of Contents — لایه‌ها</h3>
       <div id="layers"></div>
     </div>
 
-    <div class="section">
-      <h3>🌐 سیستم مختصات</h3>
-      <div class="small">سیستم مختصات پروژه برای نمایش UTM و خروجی SHP/DXF</div>
-      <select id="crsPreset" style="margin-top:6px">
-        <option value="32638">WGS 84 / UTM 38N — EPSG:32638</option>
-        <option value="32637">WGS 84 / UTM 37N — EPSG:32637</option>
-        <option value="32639">WGS 84 / UTM 39N — EPSG:32639</option>
-        <option value="32640">WGS 84 / UTM 40N — EPSG:32640</option>
-        <option value="custom">EPSG سفارشی</option>
-      </select>
-      <div class="row" id="customCrsRow" style="display:none">
-        <input id="customEpsg" placeholder="مثلاً 32641">
-        <button class="action secondary" id="applyCrs" type="button">اعمال</button>
+    <div class="accordion-section" data-accordion="display">
+      <button type="button" class="accordion-head"><span>🗺️ نمایش داده‌ها</span><span class="accordion-arrow">▾</span></button>
+      <div class="accordion-body">
+        <div class="compact-block">
+          <label class="compact-label">نقشه پایه</label>
+          <select id="basemap">
+            <option value="osm">OpenStreetMap</option>
+            <option value="topo">OpenTopoMap</option>
+            <option value="sat">تصویر ماهواره‌ای Esri</option>
+            <option value="giscloud">GIS Cloud / MapTiler Streets</option>
+          </select>
+        </div>
+        <div class="compact-block">
+          <label class="compact-label">WMS</label>
+          <input id="wmsUrl" placeholder="https://server/.../wms">
+          <input id="wmsLayer" placeholder="نام لایه (LAYERS)" style="margin-top:6px">
+          <div class="row"><button class="action" id="addWms">افزودن WMS</button></div>
+        </div>
+        <div class="compact-block">
+          <label class="compact-label">مختصات</label>
+          <div class="small">با حرکت موس روی نقشه مختصات جغرافیایی و UTM بر اساس CRS انتخاب‌شده نمایش داده می‌شود.</div>
+        </div>
       </div>
-      <div class="small" id="crsStatus" style="margin-top:6px">CRS فعلی: EPSG:32638</div>
     </div>
-    <div class="section">
-      <h3>مختصات</h3>
-      <div class="small">با حرکت موس روی نقشه مختصات جغرافیایی و UTM بر اساس CRS انتخاب‌شده نمایش داده می‌شود.</div>
+
+    <div class="accordion-section" data-accordion="analysis">
+      <button type="button" class="accordion-head"><span>📐 تحلیل مکانی</span><span class="accordion-arrow">▾</span></button>
+      <div class="accordion-body">
+        <div class="compact-block">
+          <input id="gisToolSearch" placeholder="جستجوی ابزار: Buffer، Clip، منهول..." autocomplete="off">
+          <div id="gisToolResults" style="margin-top:7px"></div>
+          <div id="professionalToolOutput" class="small" style="margin-top:7px">برای یافتن ابزار، نام فارسی یا انگلیسی آن را جستجو کن.</div>
+        </div>
+        <div class="compact-block">
+          <label class="compact-label">عملیات GIS</label>
+          <div class="small">کلیک عادی = عارضه اول؛ Shift+کلیک = عارضه دوم.</div>
+          <select id="gisOperation" style="margin-top:6px">
+            <option value="buffer">Buffer — حریم</option>
+            <option value="clip">Clip — برش با عارضه دوم</option>
+            <option value="intersection">Intersection — اشتراک</option>
+            <option value="split">Split — تقسیم خط</option>
+            <option value="merge">Merge — ادغام</option>
+          </select>
+          <input id="bufferDistance" type="number" step="0.1" min="0" value="5" placeholder="فاصله Buffer (متر)" style="margin-top:6px">
+          <div class="row">
+            <button class="action" id="runGisOperation">اجرای عملیات</button>
+            <button class="action secondary" id="clearGisSelection">لغو انتخاب</button>
+          </div>
+          <div id="gisSelectionInfo" class="small">عارضه اول: —<br>عارضه دوم: —</div>
+        </div>
+        <div class="compact-block">
+          <label class="compact-label">اندازه‌گیری</label>
+          <div id="utmInfo" class="small">روی یک عارضه کلیک کن.</div>
+          <div class="row"><button class="action secondary" id="measureSelected">محاسبه مساحت/طول</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-section" data-accordion="attribute">
+      <button type="button" class="accordion-head"><span>📋 Attribute — جدول صفات</span><span class="accordion-arrow">▾</span></button>
+      <div class="accordion-body">
+        <select id="attributeLayer"><option value="">انتخاب لایه برداری...</option></select>
+        <input id="attributeFilter" placeholder="فیلتر متن/مقدار" style="margin-top:6px">
+        <div class="row"><button class="action" id="openTable">باز کردن جدول</button><button class="action secondary" id="selectFiltered">انتخاب فیلترشده</button></div>
+        <div class="attr-toolbar">
+          <button class="action secondary" id="addTableField">+ فیلد</button>
+          <button class="action secondary" id="deleteSelectedRows">حذف انتخاب‌شده</button>
+          <button class="action secondary" id="copySelectedRows">کپی ردیف‌ها</button>
+          <button class="action secondary" id="pasteRows">چسباندن</button>
+          <button class="action secondary" id="fillSelected">پر کردن انتخاب‌شده</button>
+          <button class="action" id="saveTableEdits">ذخیره تغییرات جدول</button>
+        </div>
+        <input id="fillValue" placeholder="مقدار برای پر کردن ردیف‌های انتخاب‌شده" style="margin-top:6px">
+        <div id="attributeTableWrap" style="display:none;max-height:230px;overflow:auto;font-size:10px"></div>
+      </div>
+    </div>
+
+    <div class="accordion-section" data-accordion="edit">
+      <button type="button" class="accordion-head"><span>✏️ ویرایش</span><span class="accordion-arrow">▾</span></button>
+      <div class="accordion-body">
+        <div class="small">ابزارهای ترسیم روی خود نقشه فعال می‌شوند. عوارض در «ترسیمات من» قرار می‌گیرند.</div>
+        <div class="row">
+          <button class="action secondary" id="clearDraw">پاک‌کردن ترسیمات</button>
+          <button class="action secondary" id="fitDraw">نمایش همه</button>
+        </div>
+        <div class="compact-block">
+          <div class="row"><button class="action" id="editAttributes">ویرایش عارضه انتخاب‌شده</button></div>
+          <div id="attributeEditor" style="display:none"></div>
+          <div id="multiFeatureEditor">
+            <div class="small" id="multiSelectionInfo">۰ عارضه انتخاب شده</div>
+            <div class="row">
+              <input id="multiFieldName" placeholder="نام فیلد">
+              <input id="multiFieldValue" placeholder="مقدار جدید">
+            </div>
+            <div class="row">
+              <button class="action" id="applyMultiAttribute" type="button">اعمال روی انتخاب‌ها</button>
+              <button class="action danger" id="deleteMultiSelected" type="button">حذف انتخاب‌ها</button>
+              <button class="action secondary" id="clearMultiSelected" type="button">لغو انتخاب</button>
+            </div>
+            <div class="small">Ctrl+کلیک یا Shift+کلیک برای انتخاب/لغو چند عارضه.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-section" data-accordion="project">
+      <button type="button" class="accordion-head"><span>💾 پروژه و تنظیمات</span><span class="accordion-arrow">▾</span></button>
+      <div class="accordion-body">
+        <div class="compact-block">
+          <input id="projectName" placeholder="نام پروژه" value="پروژه جدید">
+          <div class="row">
+            <button class="action" id="saveProject">ذخیره پروژه</button>
+            <button class="action secondary" id="loadProject">بازیابی پروژه</button>
+          </div>
+          <div class="small">پروژه‌ها فقط در حافظه همین مرورگر/دستگاه ذخیره می‌شوند.</div>
+          <div class="row">
+            <button class="action secondary" id="downloadProject">خروجی پروژه</button>
+            <label class="action secondary" for="projectFile" style="text-align:center;cursor:pointer">ورود پروژه</label>
+            <input id="projectFile" type="file" accept=".json" style="display:none">
+          </div>
+          <div class="small" id="projectStatus">هنوز پروژه‌ای ذخیره نشده است.</div>
+        </div>
+        <div class="compact-block">
+          <label class="compact-label">سیستم مختصات</label>
+          <select id="crsPreset">
+            <option value="32638">WGS 84 / UTM 38N — EPSG:32638</option>
+            <option value="32637">WGS 84 / UTM 37N — EPSG:32637</option>
+            <option value="32639">WGS 84 / UTM 39N — EPSG:32639</option>
+            <option value="32640">WGS 84 / UTM 40N — EPSG:32640</option>
+            <option value="custom">EPSG سفارشی</option>
+          </select>
+          <div class="row" id="customCrsRow" style="display:none">
+            <input id="customEpsg" placeholder="مثلاً 32641">
+            <button class="action secondary" id="applyCrs" type="button">اعمال</button>
+          </div>
+          <div class="small" id="crsStatus" style="margin-top:6px">CRS فعلی: EPSG:32638</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:none">
+      <input id="fileInput" type="file" accept=".geojson,.json,.kml,.zip,.shp">
+      <input id="gdbInput" type="file" webkitdirectory directory multiple>
+      <button id="exportGeoJSON" type="button"></button>
+      <button id="exportKML" type="button"></button>
+      <button id="exportGPX" type="button"></button>
+      <button id="exportSHP" type="button"></button>
+      <button id="exportGDB" type="button"></button>
+      <button id="exportDXF" type="button"></button>
     </div>
   </aside>
 </div>
@@ -2118,6 +2145,39 @@ $("applyCrs").onclick=()=>{
   const v=$("customEpsg").value.trim();
   try{setCRS("EPSG:"+v.replace(/^EPSG:/i,""))}catch(e){status(e.message)}
 };
+})();
+</script>
+<script>
+(function(){
+  const sections=[...document.querySelectorAll(".accordion-section")];
+  sections.forEach(sec=>{
+    const head=sec.querySelector(".accordion-head");
+    head?.addEventListener("click",()=>{
+      const wasOpen=sec.classList.contains("open");
+      sections.forEach(x=>x.classList.remove("open"));
+      if(!wasOpen)sec.classList.add("open");
+    });
+  });
+  const openSection=name=>{
+    const sec=document.querySelector('.accordion-section[data-accordion="'+name+'"]');
+    if(sec){sections.forEach(x=>x.classList.remove("open"));sec.classList.add("open");sec.scrollIntoView({block:"nearest"});}
+  };
+  document.getElementById("panelImportBtn")?.addEventListener("click",()=>document.getElementById("fileInput")?.click());
+  document.getElementById("panelWmsBtn")?.addEventListener("click",()=>openSection("display"));
+  document.getElementById("panelExportBtn")?.addEventListener("click",()=>{
+    const b=document.getElementById("exportMenuProxy");
+    if(b){b.click();return;}
+    const ids=["exportGeoJSON","exportKML","exportGPX","exportSHP","exportGDB","exportDXF"];
+    const names=["GeoJSON","KML","GPX","SHP / ZIP","GDB / ZIP","DXF"];
+    const choice=prompt("شماره خروجی را وارد کن:\n"+names.map((n,i)=>(i+1)+") "+n).join("\n"),"1");
+    const i=Number(choice)-1;
+    if(i>=0&&i<ids.length)document.getElementById(ids[i])?.click();
+  });
+  document.querySelectorAll(".arc-dropdown button[data-action]").forEach(b=>{
+    const a=b.dataset.action;
+    if(a==="importSHP"||a==="importGeoJSON"||a==="importKML"||a==="importGDB"||a==="importCSV"||a==="importExcel") b.addEventListener("click",()=>openSection("display"));
+  });
+  window.openWebGisPanelSection=openSection;
 })();
 </script>
 </body>
