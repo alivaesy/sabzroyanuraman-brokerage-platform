@@ -123,6 +123,10 @@ body{background:#dfe5e8;color:#173b57}
 .panel input,.panel select{height:30px;font-size:10px}
 .panel button.action{font-size:10px;padding:6px 7px}
 .panel .attr-toolbar{grid-template-columns:1fr 1fr}
+</style><style id="draw-fix-css">
+.webgis-draw-control{z-index:2000!important}
+.webgis-draw-control button{font-family:inherit!important;user-select:none}
+.leaflet-draw-toolbar{margin-top:0!important}
 </style></style></head>
 <body>
 <div id="app">
@@ -475,33 +479,59 @@ function stopActiveDraw(){
 }
 function startDraw(type,button){
   stopActiveDraw();
-  if(!L.Draw||!L.Draw[type]){status("ابزار ترسیم Leaflet Draw بارگذاری نشده است.");return;}
-  const opts={shapeOptions:{color:"#146c43",weight:3}};
-  activeDrawHandler=new L.Draw[type](map,opts);
-  button?.classList.add("active");
-  activeDrawHandler.enable();
+  if(!window.L||!L.Draw){status("کتابخانه Leaflet Draw بارگذاری نشده است.");return;}
+  const Ctor=L.Draw[type];
+  if(typeof Ctor!=="function"){status("ابزار ترسیم «"+type+"» در Leaflet Draw موجود نیست.");console.error("Missing draw tool:",type,Object.keys(L.Draw||{}));return;}
+  const opts={shapeOptions:{color:"#146c43",weight:3,fillOpacity:.18}};
+  try{
+    activeDrawHandler=new Ctor(map,opts);
+    button?.classList.add("active");
+    activeDrawHandler.enable();
+    status("ابزار "+(button?.dataset.label||type)+" فعال شد؛ روی نقشه کلیک کن.");
+  }catch(err){
+    console.error("Draw start error",err);
+    activeDrawHandler=null;
+    status("شروع ابزار ترسیم خطا داد: "+err.message);
+  }
 }
 const drawControl=L.Control.extend({
   options:{position:"topleft"},
   onAdd:function(){
     const d=L.DomUtil.create("div","webgis-draw-control");
     L.DomEvent.disableClickPropagation(d);
-    [["Point","نقطه"],["Polyline","خط"],["Polygon","پلیگون"],["Rectangle","مستطیل"],["Circle","دایره"]].forEach(([type,label])=>{
-      const b=document.createElement("button");b.type="button";b.textContent=label;
-      b.onclick=()=>startDraw(type,b);d.appendChild(b);
+    L.DomEvent.disableScrollPropagation(d);
+    [
+      ["Marker","📍 نقطه"],
+      ["Polyline","╱ خط"],
+      ["Polygon","⬟ پلیگون"],
+      ["Rectangle","▣ مستطیل"],
+      ["Circle","◯ دایره"]
+    ].forEach(([type,label])=>{
+      const b=document.createElement("button");
+      b.type="button";b.dataset.label=label;b.title=label;
+      b.textContent=label;
+      b.onclick=e=>{e.preventDefault();e.stopPropagation();startDraw(type,b)};
+      d.appendChild(b);
     });
-    const stop=document.createElement("button");stop.type="button";stop.textContent="پایان ترسیم";stop.onclick=stopActiveDraw;d.appendChild(stop);
+    const stop=document.createElement("button");
+    stop.type="button";stop.textContent="✖ پایان ترسیم";stop.title="لغو ابزار ترسیم";
+    stop.onclick=e=>{e.preventDefault();e.stopPropagation();stopActiveDraw();status("ابزار ترسیم متوقف شد.")};
+    d.appendChild(stop);
     return d;
   }
 });
 map.addControl(new drawControl());
+
+/* کنترل رسمی Leaflet Draw فقط برای Edit/Delete؛ ابزارهای ترسیم بالا کنترل می‌شوند. */
 if(L.Control&&L.Control.Draw){
- new L.Control.Draw({
-  edit:{featureGroup:drawn},
-  draw:{polyline:{shapeOptions:{color:"#146c43",weight:3}},polygon:{allowIntersection:false,showArea:true,shapeOptions:{color:"#146c43",weight:3}},rectangle:{shapeOptions:{color:"#146c43",weight:3}},circle:{shapeOptions:{color:"#146c43",weight:3}},marker:true,circlemarker:true}
- }).addTo(map);
+  try{
+    new L.Control.Draw({
+      edit:{featureGroup:drawn},
+      draw:false
+    }).addTo(map);
+  }catch(err){console.warn("Leaflet Draw edit control unavailable",err)}
 }else{
- console.warn("Leaflet Draw is not available; map core remains active.");
+  console.warn("Leaflet Draw is not available; map core remains active.");
 }
 
 const $=id=>document.getElementById(id);
