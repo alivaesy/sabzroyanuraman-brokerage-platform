@@ -86,6 +86,9 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
       <h3>ورود داده</h3>
       <label class="file-label" for="fileInput">📥 SHP / ZIP / GeoJSON / KML را انتخاب کن</label>
       <input id="fileInput" type="file" accept=".geojson,.json,.kml,.zip,.shp">
+      <label class="file-label" for="gdbInput" style="margin-top:6px">🗃️ File Geodatabase (.gdb) — انتخاب پوشه</label>
+      <input id="gdbInput" type="file" webkitdirectory directory multiple style="display:none">
+      <div class="small" style="margin-top:6px">پوشه اصلی .gdb را انتخاب کن؛ Feature Classهای داخل آن به‌صورت لایه‌های جداگانه وارد می‌شوند. فایل‌ها روی سرور آپلود نمی‌شوند.</div>
       <div class="small" style="margin-top:6px">SHP را بهتر است به‌صورت ZIP شامل shp/shx/dbf/prj وارد کنی.</div>
     </div>
 
@@ -224,6 +227,7 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
 <script src="https://unpkg.com/shpjs@6.1.0/dist/shp.js"></script>
 <script src="https://unpkg.com/proj4@2.9.2/dist/proj4.js"></script>
 <script src="https://unpkg.com/@turf/turf@7.2.0/turf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gdal3.js@2.8.1/dist/package/gdal3.js" crossorigin="anonymous"></script>
 <script>
 (function(){
 "use strict";
@@ -688,6 +692,56 @@ function parseKML(text){
   });
   return {type:"FeatureCollection",features};
 }
+let gdalBrowser=null;
+let gdalLoading=null;
+async function getGdalBrowser(){
+  if(gdalBrowser)return gdalBrowser;
+  if(!gdalLoading){
+    if(typeof initGdalJs!=="function")throw new Error("GDAL WebAssembly بارگذاری نشده است.");
+    gdalLoading=initGdalJs({path:"https://cdn.jsdelivr.net/npm/gdal3.js@2.8.1/dist/package",useWorker:false});
+  }
+  gdalBrowser=await gdalLoading;
+  return gdalBrowser;
+}
+async function importGDBFiles(fileList){
+  const files=Array.from(fileList||[]);
+  if(!files.length){status("هیچ فایلی از GDB انتخاب نشد.");return}
+  const gdbRoot=(files[0].webkitRelativePath||"").split("/")[0]||"selected.gdb";
+  if(!/\.gdb$/i.test(gdbRoot)){status("لطفاً خود پوشه File Geodatabase با پسوند .gdb را انتخاب کن.");return}
+  try{
+    status("در حال راه‌اندازی موتور GDAL و خواندن File Geodatabase...");
+    const Gdal=await getGdalBrowser();
+    const opened=await Gdal.open(files);
+    const datasets=opened.datasets||[];
+    if(!datasets.length)throw new Error("هیچ Feature Class یا Dataset قابل خواندنی در GDB پیدا نشد.");
+    let imported=0;
+    for(const ds of datasets){
+      try{
+        const out=await Gdal.ogr2ogr(ds,["-f","GeoJSON","-t_srs","EPSG:4326"]);
+        const bytes=await Gdal.getFileBytes(out);
+        const json=new TextDecoder().decode(bytes);
+        const fc=JSON.parse(json);
+        if(fc&&fc.type==="FeatureCollection"&&fc.features?.length){
+          const layerName=(ds.info?.name||ds.info?.layerName||("GDB_"+(imported+1))).replace(/.*[\\/]/,"");
+          geoJsonLayer(fc,layerName);
+          imported++;
+        }
+        try{Gdal.close(out)}catch(_){}
+      }catch(err){console.warn("GDB layer import:",err)}
+      try{Gdal.close(ds)}catch(_){}
+    }
+    if(imported)status("File Geodatabase با موفقیت وارد شد؛ "+imported+" لایه/Feature Class اضافه شد.");
+    else status("GDB باز شد اما Feature Class قابل نمایش پیدا نشد.");
+  }catch(err){
+    console.error(err);
+    status("خطا در ورود GDB: "+(err.message||err));
+  }
+}
+$("gdbInput").onchange=async e=>{
+  await importGDBFiles(e.target.files);
+  e.target.value="";
+};
+
 $("fileInput").onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
   try{
