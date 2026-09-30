@@ -58,7 +58,7 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
 .gis-tool-cat{font-size:9px;color:#146c43;margin:8px 2px 3px;font-weight:700}
 .gis-tool-empty{font-size:10px;color:#7b8f9b;padding:8px 2px}
 </style>
-</style>
+<style>#projectManager{position:fixed;inset:0;background:rgba(10,35,50,.45);z-index:5000;display:none;align-items:center;justify-content:center;padding:18px}#projectManager.show{display:flex}.pm-card{width:min(680px,96vw);max-height:88vh;overflow:auto;background:#fff;border-radius:14px;padding:18px;direction:rtl;box-shadow:0 18px 55px rgba(0,0,0,.22)}.pm-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.pm-grid .full{grid-column:1/-1}.pm-card textarea{width:100%;min-height:70px;border:1px solid #cbd9df;border-radius:7px;padding:8px}.pm-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.pm-list{border-top:1px solid #e2eaee;margin-top:14px;padding-top:10px}.pm-item{display:flex;align-items:center;gap:8px;border:1px solid #d9e4e9;border-radius:8px;padding:8px;margin:5px 0}.pm-item-info{flex:1}.pm-item-name{font-weight:700;font-size:11px}.pm-item-meta{font-size:9px;color:#718796}</style>
 </head>
 <body>
 <div id="app">
@@ -231,7 +231,7 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
     </div>
   </aside>
 </div>
-<div class="coord" id="coord">طول: — | عرض: —</div>
+<div id="projectManager"><div class="pm-card"><div style="font-size:18px;font-weight:800;color:#07573e">🗺️ مدیریت پروژه Web GIS</div><div class="small" style="margin:5px 0 14px">برای شروع کار یک پروژه ایجاد یا پروژه قبلی را باز کن. پروژه‌ها فقط در همین مرورگر ذخیره می‌شوند.</div><div class="section"><h3>➕ پروژه جدید</h3><div class="pm-grid"><input id="newProjectName" placeholder="نام پروژه، مثلاً شبکه فاضلاب تازه‌آباد"><select id="newProjectCrs"><option value="EPSG:32638">WGS 84 / UTM 38N — EPSG:32638</option><option value="EPSG:32637">WGS 84 / UTM 37N — EPSG:32637</option><option value="EPSG:32639">WGS 84 / UTM 39N — EPSG:32639</option><option value="EPSG:32640">WGS 84 / UTM 40N — EPSG:32640</option></select><textarea id="newProjectDescription" class="full" placeholder="توضیح پروژه (اختیاری)"></textarea></div><div class="pm-actions"><button class="action" id="createProjectBtn">ایجاد و ورود به پروژه</button><button class="action secondary" id="closeProjectManager">ادامه بدون پروژه</button></div></div><div class="pm-list"><h3>📂 پروژه‌های اخیر</h3><div id="projectList">در حال بارگذاری...</div></div></div></div><div class="coord" id="coord">طول: — | عرض: —</div>
 <div class="status" id="status">Web GIS آماده است.</div>
 </div>
 
