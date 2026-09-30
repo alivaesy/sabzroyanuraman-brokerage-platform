@@ -1064,7 +1064,7 @@ function restoreProject(project){
   $("projectStatus").textContent="پروژه بازیابی شد: "+(project.savedAt?new Date(project.savedAt).toLocaleString("fa-IR"):"—");
   status("پروژه با موفقیت بازیابی شد.");
 }
-async async function saveProject(){
+async function saveProject(){
   try{
     const project=serializeProject();
     project.id=projectId();project.updatedAt=new Date().toISOString();
