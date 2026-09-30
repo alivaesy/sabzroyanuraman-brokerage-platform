@@ -42,6 +42,13 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
 .leaflet-control-layers{direction:rtl}
 @media(max-width:850px){.panel{width:270px}.coord{right:290px}.tool-title{display:none}}
 @media(max-width:650px){.workspace{position:relative}.panel{position:absolute;right:0;top:0;bottom:0;width:285px;transform:translateX(100%);transition:.2s}.panel.open{transform:translateX(0)}.coord{right:12px;bottom:48px}.topbar .top-btn{padding:6px 8px}.brand{font-size:12px}}
+
+<style>
+#attributeTableWrap table input.cell-edit{width:100%;height:28px;border:1px solid #cbd9df;border-radius:5px;padding:2px 5px;font-size:10px}
+.attr-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px}
+.attr-toolbar button{font-size:10px}
+.attr-check{width:16px!important;height:16px!important}
+</style>
 </style>
 </head>
 <body>
@@ -92,6 +99,15 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
       <select id="attributeLayer"><option value="">انتخاب لایه برداری...</option></select>
       <input id="attributeFilter" placeholder="فیلتر متن/مقدار" style="margin-top:6px">
       <div class="row"><button class="action" id="openTable">باز کردن جدول</button><button class="action secondary" id="selectFiltered">انتخاب فیلترشده</button></div>
+      <div class="attr-toolbar">
+        <button class="action secondary" id="addTableField">+ فیلد</button>
+        <button class="action secondary" id="deleteSelectedRows">حذف انتخاب‌شده</button>
+        <button class="action secondary" id="copySelectedRows">کپی ردیف‌ها</button>
+        <button class="action secondary" id="pasteRows">چسباندن</button>
+        <button class="action secondary" id="fillSelected">پر کردن انتخاب‌شده</button>
+        <button class="action" id="saveTableEdits">ذخیره تغییرات جدول</button>
+      </div>
+      <input id="fillValue" placeholder="مقدار برای پر کردن ردیف‌های انتخاب‌شده" style="margin-top:6px">
       <div id="attributeTableWrap" style="display:none;max-height:230px;overflow:auto;font-size:10px"></div>
     </div>
 
@@ -400,14 +416,29 @@ map.on("click",e=>{
 });
 
 $("attributeLayer").onchange=()=>{selectedLayer=null;$("attributeTableWrap").style.display="none";};
-$("openTable").onclick=()=>{
- const idx=$("attributeLayer").value;if(idx===""){status("ابتدا یک لایه برداری انتخاب کن.");return}
- const items=vectorFeatures(namedLayers[Number(idx)].layer), filter=$("attributeFilter").value.trim().toLowerCase();
- const rows=items.filter(x=>!filter||Object.values(x.feature.properties||{}).some(v=>String(v).toLowerCase().includes(filter)));
- const keys=[...new Set(items.flatMap(x=>Object.keys(x.feature.properties||{})))];let html="<table style='width:100%;border-collapse:collapse;direction:rtl'><thead><tr><th style='border-bottom:1px solid #ccd9df;padding:4px'>#</th>"+keys.map(k=>"<th style='border-bottom:1px solid #ccd9df;padding:4px'>"+esc(k)+"</th>").join("")+"</tr></thead><tbody>";
- rows.forEach((x,i)=>{html+="<tr data-row='"+i+"'><td style='padding:4px'>"+(i+1)+"</td>"+keys.map(k=>"<td style='padding:4px;border-bottom:1px solid #eef2f4'>"+esc((x.feature.properties||{})[k])+"</td>").join("")+"</tr>"});
- $("attributeTableWrap").innerHTML=html+"</tbody></table>";$("attributeTableWrap").style.display="block";status(rows.length+" عارضه در جدول نمایش داده شد.");
-};
+let attributeClipboard=null;
+function currentAttributeItems(){
+ const idx=$("attributeLayer").value;
+ return idx===""?[]:vectorFeatures(namedLayers[Number(idx)].layer);
+}
+function tableKeys(items){
+ return [...new Set(items.flatMap(x=>Object.keys(x.feature.properties||{})))];
+}
+function renderEditableTable(){
+ const idx=$("attributeLayer").value;if(idx===""){status("لایه را انتخاب کن.");return}
+ const items=currentAttributeItems(),filter=$("attributeFilter").value.trim().toLowerCase();
+ const rows=items.map((x,i)=>({x,i})).filter(o=>!filter||Object.values(o.x.feature.properties||{}).some(v=>String(v).toLowerCase().includes(filter)));
+ const keys=tableKeys(items);
+ let html="<table style='width:100%;border-collapse:collapse;direction:rtl'><thead><tr><th><input type='checkbox' class='attr-check' id='checkAllRows'></th><th>#</th>"+
+ keys.map(k=>"<th style='padding:3px;border-bottom:1px solid #ccd9df;white-space:nowrap'>"+esc(k)+"</th>").join("")+"</tr></thead><tbody>";
+ rows.forEach(o=>{html+="<tr data-index='"+o.i+"'><td><input type='checkbox' class='row-check attr-check'></td><td>"+(o.i+1)+"</td>"+
+ keys.map(k=>"<td style='padding:2px'><input class='cell-edit' data-key='"+esc(k)+"' value='"+esc((o.x.feature.properties||{})[k]) +"'></td>").join("")+"</tr>"});
+ $("attributeTableWrap").innerHTML=html+"</tbody></table>";$("attributeTableWrap").style.display="block";
+ const all=$("checkAllRows");if(all)all.onchange=()=>$("attributeTableWrap").querySelectorAll(".row-check").forEach(x=>x.checked=all.checked);
+ $("attributeTableWrap").querySelectorAll(".row-check").forEach(ch=>ch.onchange=()=>{});
+ status(rows.length+" ردیف نمایش داده شد.");
+}
+$("openTable").onclick=renderEditableTable;
 $("selectFiltered").onclick=()=>{
  const idx=$("attributeLayer").value;if(idx===""){status("لایه را انتخاب کن.");return}
  const filter=$("attributeFilter").value.trim().toLowerCase(), items=vectorFeatures(namedLayers[Number(idx)].layer);
@@ -421,7 +452,61 @@ $("clearGisSelection").onclick=()=>{
   $("gisSelectionInfo").innerHTML="عارضه اول: —<br>عارضه دوم: —";
   status("انتخاب عوارض لغو شد.");
 };
-$("measureSelected").onclick=()=>{if(selectedLayer)calcMeasure(selectedLayer);else status("ابتدا یک عارضه را روی نقشه انتخاب کن.");};
+
+$("addTableField").onclick=()=>{
+ const idx=$("attributeLayer").value;if(idx===""){status("لایه را انتخاب کن.");return}
+ const name=prompt("نام فیلد جدید:");if(!name||!name.trim())return;
+ const key=name.trim();const items=currentAttributeItems();
+ if(items.some(x=>Object.prototype.hasOwnProperty.call(x.feature.properties||{},key))){status("این فیلد از قبل وجود دارد.");return}
+ items.forEach(x=>{ensureFeatureProperties(x.layer);x.feature.properties[key]="";});
+ renderEditableTable();status("فیلد «"+key+"» اضافه شد.");
+};
+$("saveTableEdits").onclick=()=>{
+ const idx=$("attributeLayer").value;if(idx===""){status("لایه را انتخاب کن.");return}
+ const items=currentAttributeItems(), table=$("attributeTableWrap");
+ table.querySelectorAll("tbody tr").forEach(row=>{
+   const item=items[Number(row.dataset.index)];if(!item)return;
+   ensureFeatureProperties(item.layer);
+   row.querySelectorAll(".cell-edit").forEach(inp=>item.feature.properties[inp.dataset.key]=inp.value);
+   item.feature.geometry=item.layer.toGeoJSON().geometry;
+ });
+ renderEditableTable();status("تغییرات جدول ذخیره شد.");
+};
+function selectedTableIndexes(){
+ return [...$("attributeTableWrap").querySelectorAll("tbody tr")].filter(r=>r.querySelector(".row-check")?.checked).map(r=>Number(r.dataset.index));
+}
+$("deleteSelectedRows").onclick=()=>{
+ const items=currentAttributeItems(),inds=selectedTableIndexes().sort((a,b)=>b-a);
+ if(!inds.length){status("هیچ ردیفی انتخاب نشده است.");return}
+ if(!confirm(inds.length+" عارضه حذف شود؟"))return;
+ const layer=namedLayers[Number($("attributeLayer").value)].layer;
+ const targets=new Set(inds);
+ if(layer.clearLayers){let i=0;layer.eachLayer(l=>{if(targets.has(i))layer.removeLayer(l);i++})}
+ else if(layer.removeLayer){let i=0;layer.eachLayer(l=>{if(targets.has(i))layer.removeLayer(l);i++})}
+ renderEditableTable();renderLayerList();refreshAttributeLayers();status(inds.length+" عارضه حذف شد.");
+};
+$("copySelectedRows").onclick=()=>{
+ const items=currentAttributeItems(),inds=selectedTableIndexes();
+ if(!inds.length){status("ردیفی انتخاب نشده است.");return}
+ const keys=tableKeys(items);
+ attributeClipboard=inds.map(i=>{const p=items[i].x.feature.properties||{};return keys.map(k=>p[k]??"")});
+ status(attributeClipboard.length+" ردیف در حافظه کپی شد.");
+};
+$("pasteRows").onclick=()=>{
+ if(!attributeClipboard?.length){status("ابتدا ردیف‌ها را کپی کن.");return}
+ const items=currentAttributeItems(),inds=selectedTableIndexes(),keys=tableKeys(items);
+ if(!inds.length){status("ردیف مقصد را انتخاب کن.");return}
+ inds.forEach((idx,n)=>{const item=items[idx];ensureFeatureProperties(item.x.layer);const src=attributeClipboard[n%attributeClipboard.length];keys.forEach((k,j)=>item.x.feature.properties[k]=src[j]??"");});
+ renderEditableTable();status("اطلاعات روی "+inds.length+" ردیف چسبانده شد.");
+};
+$("fillSelected").onclick=()=>{
+ const value=$("fillValue").value,items=currentAttributeItems(),inds=selectedTableIndexes();
+ const layerKeys=tableKeys(items),key=prompt("نام فیلدی که مقدار آن پر شود:\n"+layerKeys.join(", "));
+ if(!key||!layerKeys.includes(key)){status("فیلد معتبر انتخاب نشد.");return}
+ inds.forEach(i=>{ensureFeatureProperties(items[i].x.layer);items[i].x.feature.properties[key]=value});
+ renderEditableTable();status("فیلد «"+key+"» برای "+inds.length+" ردیف پر شد.");
+};
+\n$("measureSelected").onclick=()=>{if(selectedLayer)calcMeasure(selectedLayer);else status("ابتدا یک عارضه را روی نقشه انتخاب کن.");};
 $("basemap").onchange=e=>{
   map.removeLayer(currentBase);currentBase=base[e.target.value];currentBase.addTo(map);
 };
