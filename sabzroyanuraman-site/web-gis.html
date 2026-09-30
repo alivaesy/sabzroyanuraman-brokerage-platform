@@ -145,6 +145,24 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
       </div>
     </div>
     <div class="section">
+      <h3>📐 ابزارهای حرفه‌ای</h3>
+      <div class="row">
+        <button class="action secondary" id="measureDistanceTool">فاصله</button>
+        <button class="action secondary" id="measureAreaTool">مساحت</button>
+        <button class="action secondary" id="identifyTool">اطلاعات عارضه</button>
+      </div>
+      <div class="row">
+        <button class="action secondary" id="nearestMatchTool">تطبیق نزدیک‌ترین</button>
+        <button class="action secondary" id="transferAttributesTool">انتقال Attribute</button>
+      </div>
+      <div class="row">
+        <button class="action secondary" id="networkQaTool">کنترل شبکه</button>
+        <button class="action secondary" id="snapTool">Snap / اتصال</button>
+      </div>
+      <div id="professionalToolOutput" class="small" style="margin-top:7px">ابزار حرفه‌ای را انتخاب کن.</div>
+    </div>
+
+    <div class="section">
       <h3>⚙️ عملیات GIS</h3>
       <div class="small">عملیات روی عوارض انتخاب‌شده انجام می‌شود. کلیک عادی = عارضه اول؛ Shift+کلیک = عارضه دوم. نتیجه به‌صورت لایه جدید ساخته می‌شود.</div>
       <select id="gisOperation" style="margin-top:6px">
@@ -989,7 +1007,7 @@ function collectUTMFeatureCollection(){
     geometry:projectGeometry(f)
   })).filter(f=>f.geometry)};
 }
-async async function exportRealSHP(){
+async function exportRealSHP(){
   const fc=collectUTMFeatureCollection();
   if(!fc.features.length){status("هیچ عارضه‌ای برای خروجی SHP وجود ندارد.");return}
   if(typeof shpwrite==="undefined"){status("کتابخانه SHP بارگذاری نشده است.");return}
@@ -997,11 +1015,11 @@ async async function exportRealSHP(){
     const zip=await shpwrite.zip(fc,{
       folder:"sabz-royan-webgis",
       types:{point:"points",polygon:"polygons",polyline:"lines"},
-      prj:"+proj=utm +zone=38 +datum=WGS84 +units=m +no_defs",
+      prj:proj4ToPrj(currentCRS),
       outputType:"blob",
       compression:"DEFLATE"
     });
-    download(zip,"sabz-royan-webgis-utm38n.zip","application/zip");
+    download(zip,"sabz-royan-webgis-"+currentCRS.replace("EPSG:","")+".zip","application/zip");
     status("SHP واقعی ساخته شد: SHP + SHX + DBF + PRJ در ZIP.");
   }catch(e){console.error(e);status("خطا در ساخت SHP: "+e.message)}
 }
@@ -1034,8 +1052,8 @@ function exportRealDXF(){
       });
     });
     const dxf=d.toDxfString();
-    download(dxf,"sabz-royan-webgis-utm38n.dxf","application/dxf");
-    status("DXF واقعی ساخته شد؛ مختصات بر حسب متر و UTM Zone 38N است.");
+    download(dxf,"sabz-royan-webgis-"+currentCRS.replace("EPSG:","")+".dxf","application/dxf");
+    status("DXF واقعی ساخته شد؛ مختصات بر اساس "+currentCRS+" است.");
   }catch(e){console.error(e);status("خطا در ساخت DXF: "+e.message)}
 }
 async function exportRealGDB(){
@@ -1083,6 +1101,215 @@ async function exportRealGDB(){
     status("خطا در ساخت GDB: "+(e.message||e));
   }
 }
+/* =========================
+   ابزارهای حرفه‌ای Web GIS
+   ========================= */
+function proj4ToPrj(epsg){
+  const def=proj4.defs(epsg);
+  if(!def) return "";
+  return String(def);
+}
+function geometryProjected(g){
+  if(!g)return null;
+  const tx=coords=>{
+    if(typeof coords[0]==="number"){
+      const p=proj4("EPSG:4326",currentCRS,coords);
+      return [p[0],p[1]];
+    }
+    return coords.map(tx);
+  };
+  return {type:g.type,coordinates:tx(g.coordinates)};
+}
+function planarDistance(coords){
+  let d=0;
+  for(let i=1;i<coords.length;i++)d+=Math.hypot(coords[i][0]-coords[i-1][0],coords[i][1]-coords[i-1][1]);
+  return d;
+}
+function ringArea(r){
+  let a=0;
+  for(let i=0;i<r.length-1;i++)a+=(r[i][0]*r[i+1][1])-(r[i+1][0]*r[i][1]);
+  return Math.abs(a/2);
+}
+function geometryMetrics(g){
+  const p=geometryProjected(g); if(!p)return {length:0,area:0};
+  let length=0,area=0;
+  function walk(type,c){
+    if(type==="LineString")length+=planarDistance(c);
+    else if(type==="PolygonRing")area+=ringArea(c);
+  }
+  eachGeometryPart(p,(type,coords)=>walk(type,coords));
+  if(p.type==="Polygon")area=p.coordinates.reduce((s,r)=>s+ringArea(r),0);
+  if(p.type==="MultiPolygon")area=p.coordinates.reduce((s,poly)=>s+poly.reduce((a,r)=>a+ringArea(r),0),0);
+  if(p.type==="MultiLineString")length=p.coordinates.reduce((s,l)=>s+planarDistance(l),0);
+  return {length,area};
+}
+function fmtMeters(v){return Number(v||0).toLocaleString("fa-IR",{maximumFractionDigits:3})+" متر";}
+function fmtArea(v){return Number(v||0).toLocaleString("fa-IR",{maximumFractionDigits:3})+" مترمربع";}
+
+function getAllVectorItems(){
+  const arr=[{name:"ترسیمات من",layer:drawn}];
+  namedLayers.forEach(x=>arr.push(x));
+  return arr.filter(x=>isVectorLayer(x.layer)&&vectorFeatures(x.layer).length);
+}
+function getLayerBySelectValue(id){
+  const i=Number($(id).value);
+  return Number.isInteger(i)&&namedLayers[i]?namedLayers[i]:null;
+}
+function firstFeatureFromLayer(item){
+  const v=vectorFeatures(item?.layer);
+  return v.length?v[0]:null;
+}
+function ensureFeatureId(f){
+  f.properties=f.properties||{};
+  if(!f.properties._webgis_id) f.properties._webgis_id=(crypto.randomUUID?crypto.randomUUID():"fid-"+Date.now()+"-"+Math.random().toString(36).slice(2));
+  return f.properties._webgis_id;
+}
+function refreshAll(){
+  renderLayerList();
+  refreshAttributeLayers();
+  scheduleAutoSave();
+}
+
+/* محاسبه دقیق‌تر طول/مساحت در CRS پروژه */
+$("measureDistanceTool").onclick=()=>{
+  const item=selectedLayer?{name:"انتخاب",layer:selectedLayer}:getLayerBySelectValue("attributeLayer");
+  const v=vectorFeatures(item?.layer);
+  const target=selectedOverlay?.feature||v[0]?.feature;
+  if(!target){status("ابتدا یک عارضه خطی انتخاب کن.");return;}
+  const m=geometryMetrics(target.geometry);
+  $("professionalToolOutput").textContent="طول: "+fmtMeters(m.length)+" | CRS: "+currentCRS;
+  status("طول عارضه محاسبه شد.");
+};
+$("measureAreaTool").onclick=()=>{
+  const item=selectedLayer?{name:"انتخاب",layer:selectedLayer}:getLayerBySelectValue("attributeLayer");
+  const v=vectorFeatures(item?.layer);
+  const target=selectedOverlay?.feature||v[0]?.feature;
+  if(!target){status("ابتدا یک عارضه سطحی انتخاب کن.");return;}
+  const m=geometryMetrics(target.geometry);
+  $("professionalToolOutput").textContent="مساحت: "+fmtArea(m.area)+" | CRS: "+currentCRS;
+  status("مساحت عارضه محاسبه شد.");
+};
+
+/* شناسایی عارضه */
+$("identifyTool").onclick=()=>{
+  if(!selectedOverlay?.feature){status("ابتدا روی عارضه کلیک کن.");return;}
+  const f=selectedOverlay.feature;
+  const p=f.properties||{};
+  const m=geometryMetrics(f.geometry);
+  const rows=Object.keys(p).map(k=>esc(k)+" = "+esc(p[k])).join(" | ");
+  $("professionalToolOutput").innerHTML="<b>Geometry:</b> "+esc(f.geometry.type)+" | <b>Length:</b> "+fmtMeters(m.length)+" | <b>Area:</b> "+fmtArea(m.area)+"<br>"+(rows||"بدون Attribute");
+  status("اطلاعات عارضه نمایش داده شد.");
+};
+
+/* تطبیق نزدیک‌ترین نقطه؛ مناسب منهول قدیم/جدید */
+$("nearestMatchTool").onclick=()=>{
+  const layers=getAllVectorItems().filter(x=>vectorFeatures(x.layer).some(v=>v.feature.geometry.type==="Point"));
+  if(layers.length<2){status("حداقل دو لایه نقطه‌ای لازم است.");return;}
+  const source=layers[0], target=layers[1];
+  let count=0,bestRows=[];
+  vectorFeatures(source.layer).forEach(s=>{
+    if(s.feature.geometry.type!=="Point")return;
+    let best=null,bestD=Infinity;
+    vectorFeatures(target.layer).forEach(t=>{
+      if(t.feature.geometry.type!=="Point")return;
+      const d=turf.distance(turf.point(s.feature.geometry.coordinates),turf.point(t.feature.geometry.coordinates),{units:"meters"});
+      if(d<bestD){bestD=d;best=t.feature;}
+    });
+    if(best){
+      ensureFeatureId(s.feature); ensureFeatureId(best);
+      s.feature.properties.nearest_id=best.properties._webgis_id;
+      s.feature.properties.nearest_distance_m=Number(bestD.toFixed(3));
+      bestRows.push(bestD);
+      count++;
+    }
+  });
+  refreshAll();
+  const max=Math.max(...bestRows,0);
+  $("professionalToolOutput").textContent="تطبیق انجام شد: "+count+" نقطه | بیشترین فاصله: "+fmtMeters(max)+" | مبنا: "+source.name+" → "+target.name;
+  status("تطبیق نزدیک‌ترین عوارض انجام شد.");
+};
+
+/* انتقال Attribute از نزدیک‌ترین عارضه */
+$("transferAttributesTool").onclick=()=>{
+  const layers=getAllVectorItems();
+  if(layers.length<2){status("حداقل دو لایه لازم است.");return;}
+  const source=layers[0],target=layers[1];
+  const srcFields=Object.keys((vectorFeatures(source.layer)[0]?.feature.properties)||{}).filter(k=>!k.startsWith("_"));
+  if(!srcFields.length){status("لایه مبدأ Attribute ندارد.");return;}
+  let count=0;
+  vectorFeatures(target.layer).forEach(t=>{
+    if(t.feature.geometry.type!=="Point")return;
+    let best=null,bestD=Infinity;
+    vectorFeatures(source.layer).forEach(s=>{
+      if(s.feature.geometry.type!=="Point")return;
+      const d=turf.distance(turf.point(t.feature.geometry.coordinates),turf.point(s.feature.geometry.coordinates),{units:"meters"});
+      if(d<bestD){bestD=d;best=s.feature;}
+    });
+    if(best&&bestD<=50){
+      t.feature.properties=t.feature.properties||{};
+      srcFields.forEach(k=>{if(t.feature.properties[k]===undefined)t.feature.properties[k]=best.properties?.[k]??"";});
+      t.feature.properties.source_distance_m=Number(bestD.toFixed(3));
+      count++;
+    }
+  });
+  refreshAll();
+  $("professionalToolOutput").textContent="انتقال Attribute انجام شد: "+count+" عارضه با آستانه ۵۰ متر.";
+  status("Attributeها منتقل شدند.");
+};
+
+/* کنترل شبکه آب و فاضلاب: نقاط انتهایی خط که نزدیک منهول نیستند */
+$("networkQaTool").onclick=()=>{
+  const items=getAllVectorItems();
+  const pointItems=items.filter(x=>vectorFeatures(x.layer).some(v=>v.feature.geometry.type==="Point"));
+  const lineItems=items.filter(x=>vectorFeatures(x.layer).some(v=>/LineString/i.test(v.feature.geometry.type)));
+  if(!pointItems.length||!lineItems.length){status("یک لایه نقطه‌ای منهول و یک لایه خط لوله لازم است.");return;}
+  const points=[];
+  pointItems.forEach(it=>vectorFeatures(it.layer).forEach(v=>{
+    if(v.feature.geometry.type==="Point")points.push(v.feature.geometry.coordinates);
+  }));
+  let dangling=0,totalEnds=0;
+  lineItems.forEach(it=>vectorFeatures(it.layer).forEach(v=>{
+    const g=v.feature.geometry;
+    const lines=g.type==="LineString"? [g.coordinates] : g.type==="MultiLineString"?g.coordinates:[];
+    lines.forEach(line=>{
+      if(line.length<2)return;
+      [line[0],line[line.length-1]].forEach(end=>{
+        totalEnds++;
+        const d=points.length?Math.min(...points.map(p=>turf.distance(turf.point(end),turf.point(p),{units:"meters"}))):Infinity;
+        if(d>0.6)dangling++;
+      });
+    });
+  }));
+  $("professionalToolOutput").textContent="کنترل شبکه: "+totalEnds+" انتهای خط بررسی شد؛ "+dangling+" انتها با فاصله بیش از ۰٫۶ متر از نزدیک‌ترین نقطه.";
+  status("کنترل اتصال شبکه انجام شد.");
+};
+
+/* Snap ساده برای نزدیک‌کردن نقاط به نزدیک‌ترین نقطه/رأس خط */
+$("snapTool").onclick=()=>{
+  const items=getAllVectorItems();
+  const points=items.flatMap(it=>vectorFeatures(it.layer).filter(v=>v.feature.geometry.type==="Point"));
+  const lines=items.flatMap(it=>vectorFeatures(it.layer).filter(v=>v.feature.geometry.type==="LineString"));
+  if(!points.length||!lines.length){status("برای Snap یک لایه نقطه و یک لایه خط لازم است.");return;}
+  let changed=0;
+  points.forEach(p=>{
+    let best=null,bestD=Infinity;
+    lines.forEach(l=>{
+      l.feature.geometry.coordinates.forEach(c=>{
+        const d=turf.distance(turf.point(p.feature.geometry.coordinates),turf.point(c),{units:"meters"});
+        if(d<bestD){bestD=d;best=c;}
+      });
+    });
+    if(best&&bestD<=0.6){
+      p.feature.geometry.coordinates=[best[0],best[1]];
+      if(p.layer&&p.layer.setLatLng)p.layer.setLatLng([best[1],best[0]]);
+      changed++;
+    }
+  });
+  refreshAll();
+  $("professionalToolOutput").textContent="Snap انجام شد: "+changed+" نقطه در آستانه ۰٫۶ متر.";
+  status("Snap انجام شد.");
+};
+
 $("exportSHP").onclick=exportRealSHP;
 $("exportGDB").onclick=exportRealGDB;
 $("exportDXF").onclick=exportRealDXF;
