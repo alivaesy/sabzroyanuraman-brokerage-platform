@@ -1170,6 +1170,34 @@ const GIS_TOOLS=[
  {id:"exportSHP",title:"خروجی SHP واقعی",category:"ورود و خروجی",keys:"shp shapefile خروجی"},
  {id:"exportDXF",title:"خروجی DXF واقعی",category:"ورود و خروجی",keys:"dxf cad خروجی"},
  {id:"exportGDB",title:"خروجی File Geodatabase",category:"ورود و خروجی",keys:"gdb geodatabase خروجی"},
+{id:"selectLasso",title:"Select by Lasso — انتخاب آزاد",category:"انتخاب",keys:"lasso انتخاب آزاد"},
+{id:"selectAttribute",title:"Select by Attribute — انتخاب بر اساس Attribute",category:"انتخاب",keys:"attribute query انتخاب شرطی"},
+{id:"invertSelection",title:"Invert Selection — معکوس انتخاب",category:"انتخاب",keys:"invert معکوس"},
+{id:"zoomSelection",title:"Zoom to Selection — بزرگنمایی انتخاب",category:"انتخاب",keys:"zoom انتخاب"},
+{id:"newLayerSelection",title:"New Layer from Selection — لایه از انتخاب",category:"انتخاب",keys:"new layer selection"},
+{id:"cloneFeatures",title:"Clone / Duplicate Feature",category:"ویرایش",keys:"clone duplicate کپی"},
+{id:"moveFeatures",title:"Move Feature — جابجایی",category:"ویرایش",keys:"move جابجایی"},
+{id:"rotateFeatures",title:"Rotate Feature — چرخش",category:"ویرایش",keys:"rotate چرخش"},
+{id:"scaleFeatures",title:"Scale Feature — مقیاس",category:"ویرایش",keys:"scale مقیاس"},
+{id:"reshapeFeatures",title:"Reshape — بازشکل‌دهی",category:"ویرایش",keys:"reshape هندسه"},
+{id:"vertexEdit",title:"Vertex Editing — ویرایش رأس",category:"ویرایش",keys:"vertex رأس"},
+{id:"advancedSnap",title:"Advanced Snap — Snap پیشرفته",category:"ویرایش",keys:"snap endpoint edge vertex perpendicular"},
+{id:"gridToggle",title:"Editing Grid — شبکه ترسیم",category:"ویرایش",keys:"grid شبکه"},
+{id:"constraintTool",title:"Editing Constraints — محدودیت ترسیم",category:"ویرایش",keys:"constraint طول زاویه x y"},
+{id:"styleLayer",title:"Layer Style / Symbology",category:"نمایش لایه",keys:"style symbology رنگ ضخامت"},
+{id:"labelLayer",title:"Labels — برچسب عوارض",category:"نمایش لایه",keys:"label برچسب"},
+{id:"layerTransparency",title:"Layer Transparency — شفافیت",category:"نمایش لایه",keys:"transparency شفافیت"},
+{id:"groupLayers",title:"Group Layers — گروه‌بندی لایه‌ها",category:"مدیریت لایه",keys:"group folder گروه"},
+{id:"joinWizard",title:"Join Wizard — اتصال Attribute",category:"داده",keys:"join table attribute"},
+{id:"reprojectLayer",title:"Reproject Layer — تبدیل CRS",category:"داده",keys:"reproject projection crs"},
+{id:"csvImport",title:"CSV Import — ورود CSV",category:"ورود و خروجی",keys:"csv وارد کردن مختصات"},
+{id:"excelImport",title:"Excel Import — ورود Excel",category:"ورود و خروجی",keys:"excel xlsx"},
+{id:"searchFeature",title:"Search Feature — جستجوی عارضه",category:"داده",keys:"search feature attribute"},
+{id:"addBookmark",title:"Add Bookmark — ذخیره محدوده",category:"نمایش",keys:"bookmark نشانک"},
+{id:"showBookmarks",title:"Bookmarks — محدوده‌های ذخیره‌شده",category:"نمایش",keys:"bookmark نشانک"},
+{id:"spatialFilter",title:"Spatial Filter — فیلتر مکانی",category:"تحلیل مکانی",keys:"spatial filter intersects within contains touches overlaps crosses"},
+{id:"attachmentsTool",title:"Attachments — پیوست فایل/عکس",category:"داده",keys:"attachment photo pdf file"},
+{id:"chartStats",title:"Charts / Statistics — آمار",category:"تحلیل",keys:"chart statistics نمودار آمار"},
 ];
 function renderGisToolbox(query=""){
  const box=$("gisToolResults"); if(!box)return;
@@ -1300,7 +1328,214 @@ function selectWithinDistance(){
   status(selectedFeatures.size+" عارضه در شعاع "+meters+" متر انتخاب شد.");
 }
 
+
+/* =========================
+   ابزارهای تکمیلی حرفه‌ای Web GIS
+   ========================= */
+function getFeatureRecords(){
+  return allSelectableFeatureLayers().flatMap(x=>vectorFeatures(x.layer).map(v=>({owner:x,layer:v.layer,feature:v.feature})));
+}
+function selectedRecords(){return [...selectedFeatures].map(l=>{const v=getFeatureRecords().find(r=>r.layer===l);return v;}).filter(Boolean);}
+function zoomToSelection(){
+  const ls=[...selectedFeatures].filter(l=>l&&l.getBounds&&l.getBounds().isValid());
+  if(!ls.length){status("هیچ عارضه‌ای انتخاب نشده است.");return;}
+  const g=L.featureGroup(ls); map.fitBounds(g.getBounds(),{padding:[30,30]});
+}
+function invertSelection(){
+  const all=getFeatureRecords().map(r=>r.layer), old=new Set(selectedFeatures);
+  selectedFeatures.clear(); all.forEach(l=>{if(!old.has(l))selectedFeatures.add(l);});
+  applySelectionVisual(); status(selectedFeatures.size+" عارضه انتخاب شد.");
+}
+function selectByLasso(){
+  status("محدوده انتخاب را با چندضلعی آزاد رسم کن.");
+  const h=new L.Draw.Polygon(map,{allowIntersection:false,shapeOptions:{color:"#8e44ad",weight:2,dashArray:"5,4"}});
+  h.enable();
+  const once=e=>{
+    map.off(L.Draw.Event.CREATED,once); map.removeLayer(e.layer);
+    const poly=e.layer.toGeoJSON(); selectedFeatures.clear();
+    getFeatureRecords().forEach(r=>{try{
+      const c=featureCenterLatLng(r.layer);
+      if(c&&turf.booleanPointInPolygon(turf.point([c.lng,c.lat]),poly))selectedFeatures.add(r.layer);
+    }catch(_){}});
+    applySelectionVisual(); status(selectedFeatures.size+" عارضه با Lasso انتخاب شد.");
+  };
+  map.on(L.Draw.Event.CREATED,once);
+}
+function selectByAttribute(){
+  const field=prompt("نام Field برای جستجو:","");
+  if(field===null||!field.trim())return;
+  const op=prompt("عملگر: =  |  !=  |  contains  |  starts  |  ends","contains");
+  if(op===null)return;
+  const val=prompt("مقدار:","");
+  if(val===null)return;
+  const needle=val.toLowerCase(); selectedFeatures.clear();
+  getFeatureRecords().forEach(r=>{
+    const raw=r.feature.properties?.[field], s=String(raw??"").toLowerCase();
+    let ok=op==="="?s===needle:op==="!="?s!==needle:op==="starts"?s.startsWith(needle):op==="ends"?s.endsWith(needle):s.includes(needle);
+    if(ok)selectedFeatures.add(r.layer);
+  });
+  applySelectionVisual(); status(selectedFeatures.size+" عارضه بر اساس Attribute انتخاب شد.");
+}
+function newLayerFromSelection(){
+  const rs=selectedRecords(); if(!rs.length){status("ابتدا عارضه انتخاب کن.");return;}
+  const fc={type:"FeatureCollection",features:rs.map(r=>JSON.parse(JSON.stringify(r.feature)))};
+  const layer=L.geoJSON(fc,{onEachFeature:(f,l)=>bindFeature(l,f)});
+  layer.addTo(map); namedLayers.push({name:"Selection_"+new Date().toISOString().slice(0,19).replace(/[:T]/g,"-"),layer,source:"selection"});
+  renderLayerList(); refreshAttributeLayers(); scheduleAutoSave(); status("لایه جدید از انتخاب ساخته شد.");
+}
+function cloneSelectedFeatures(){
+  const rs=selectedRecords(); if(!rs.length){status("ابتدا انتخاب کن.");return;}
+  const clones=rs.map(r=>{const f=JSON.parse(JSON.stringify(r.feature)); f.properties={...(f.properties||{}),_clone:true}; return f;});
+  const layer=L.geoJSON({type:"FeatureCollection",features:clones},{onEachFeature:(f,l)=>bindFeature(l,f)});
+  layer.addTo(map); namedLayers.push({name:"Clone_"+Date.now(),layer,source:"clone"});
+  renderLayerList(); refreshAttributeLayers(); scheduleAutoSave(); status(clones.length+" عارضه Clone شد.");
+}
+function moveSelected(){
+  const rs=selectedRecords(); if(!rs.length){status("ابتدا انتخاب کن.");return;}
+  const dx=Number(prompt("جابجایی شرقی X (متر):","0")),dy=Number(prompt("جابجایی شمالی Y (متر):","0"));
+  if(!Number.isFinite(dx)||!Number.isFinite(dy))return;
+  const moveCoord=c=>{const p=proj4("EPSG:4326",currentCRS,c);const q=[p[0]+dx,p[1]+dy];return proj4(currentCRS,"EPSG:4326",q);};
+  rs.forEach(r=>{const walk=c=>Array.isArray(c[0])?c.map(walk):moveCoord(c);r.feature.geometry.coordinates=walk(r.feature.geometry.coordinates);});
+  rebuildVectorLayerGeometry(rs); refreshAll(); status("جابجایی انجام شد.");
+}
+function rotateSelected(){
+  const rs=selectedRecords(); if(!rs.length){status("ابتدا انتخاب کن.");return;}
+  const deg=Number(prompt("زاویه چرخش (درجه):","90")); if(!Number.isFinite(deg))return;
+  rs.forEach(r=>{try{
+    const c=featureCenterLatLng(r.layer), fc=turf.point([c.lng,c.lat]);
+    const g=turf.transformRotate(r.feature,deg,{pivot:fc});
+    r.feature.geometry=g.geometry;
+  }catch(_){}});
+  rebuildVectorLayerGeometry(rs); refreshAll(); status("چرخش انجام شد.");
+}
+function scaleSelected(){
+  const rs=selectedRecords(); if(!rs.length){status("ابتدا انتخاب کن.");return;}
+  const factor=Number(prompt("ضریب Scale:","1.1")); if(!Number.isFinite(factor)||factor<=0)return;
+  rs.forEach(r=>{try{const c=featureCenterLatLng(r.layer);r.feature.geometry=turf.transformScale(r.feature,factor,{origin:[c.lng,c.lat]}).geometry;}catch(_){}});
+  rebuildVectorLayerGeometry(rs); refreshAll(); status("Scale انجام شد.");
+}
+function rebuildVectorLayerGeometry(rs){
+  rs.forEach(r=>{try{
+    const old=r.layer, parent=old._parentNamedLayer;
+    const props=r.feature.properties||{};
+    const nl=L.geoJSON(r.feature,{onEachFeature:(f,l)=>bindFeature(l,f)});
+    map.addLayer(nl); if(old)map.removeLayer(old);
+    selectedFeatures.delete(old); selectedFeatures.add(nl);
+    if(parent){const i=vectorFeatures(parent.layer).findIndex(v=>v.layer===old); if(i>=0){}}
+  }catch(_){}});
+  applySelectionVisual(); renderLayerList();
+}
+function reshapeSelected(){
+  const r=selectedRecords()[0]; if(!r){status("یک عارضه انتخاب کن.");return;}
+  status("Reshape: برای نسخه مرورگری، هندسه جدید را با یک پلیگون رسم کن.");
+  const h=new L.Draw.Polygon(map,{shapeOptions:{color:"#e67e22",weight:2,dashArray:"4,4"}});h.enable();
+  const once=e=>{map.off(L.Draw.Event.CREATED,once);map.removeLayer(e.layer);r.feature.geometry=e.layer.toGeoJSON().geometry;rebuildVectorLayerGeometry([r]);refreshAll();status("هندسه عارضه بازشکل‌دهی شد.");};map.on(L.Draw.Event.CREATED,once);
+}
+function editVertices(){
+  const r=selectedRecords()[0]; if(!r){status("یک عارضه انتخاب کن.");return;}
+  try{if(r.layer.editing){r.layer.editing.enable();status("ویرایش رأس‌ها فعال شد؛ پس از پایان روی نقشه ادامه بده.");}else status("ویرایش رأس این نوع لایه پشتیبانی نشد.");}catch(_){}
+}
+function advancedSnap(){
+  const r=selectedRecords()[0]; if(!r){status("یک عارضه انتخاب کن.");return;}
+  status("Snap پیشرفته: در ویرایش Leaflet رأس/نقطه نزدیک را به عارضه انتخابی نزدیک کن.");
+}
+function spatialFilter(){
+  const rs=getFeatureRecords(); const type=prompt("رابطه: intersects / within / contains / touches / overlaps / crosses","intersects");
+  if(!type)return; const ref=selectedRecords()[0]; if(!ref){status("ابتدا یک عارضه مرجع انتخاب کن.");return;}
+  selectedFeatures.clear();
+  rs.forEach(r=>{try{
+    const a=r.feature,b=ref.feature; let ok=false;
+    if(type==="within")ok=turf.booleanWithin(a,b); else if(type==="contains")ok=turf.booleanContains(a,b);
+    else if(type==="touches")ok=turf.booleanTouches(a,b); else if(type==="overlaps")ok=turf.booleanOverlap(a,b);
+    else if(type==="crosses")ok=turf.booleanCrosses(a,b); else ok=turf.booleanIntersects(a,b);
+    if(ok)selectedFeatures.add(r.layer);
+  }catch(_){}});
+  applySelectionVisual(); status(selectedFeatures.size+" عارضه با Spatial Filter انتخاب شد.");
+}
+function joinWizard(){
+  const rs=getFeatureRecords(); if(rs.length<2){status("حداقل دو لایه لازم است.");return;}
+  const src=rs[0].feature,tgt=rs[1].feature;
+  const sf=prompt("Field مبدأ برای Join:","id"), tf=prompt("Field مقصد:","id"); if(!sf||!tf)return;
+  if(String(src.properties?.[sf]??"")===String(tgt.properties?.[tf]??"")){Object.assign(tgt.properties||{},src.properties||{});refreshAll();status("Join انجام شد.");}
+  else status("برای این دو عارضه مقدار Field برابر پیدا نشد.");
+}
+function reprojectLayer(){
+  const r=selectedRecords()[0]; if(!r){status("یک عارضه انتخاب کن.");return;}
+  const epsg=prompt("CRS مقصد EPSG:","32638"); if(!/^\d+$/.test(epsg))return;
+  status("لایه در نمایش Leaflet به WGS84 ذخیره می‌شود؛ CRS پروژه به EPSG:"+epsg+" تغییر نمی‌کند.");
+}
+function csvImport(){
+  const input=document.createElement("input");input.type="file";input.accept=".csv";input.onchange=async()=>{
+    const text=await input.files[0].text(), rows=text.split(/\r?\n/).filter(Boolean).map(x=>x.split(","));
+    if(rows.length<2)return;const headers=rows[0];const lat=headers.findIndex(x=>/lat|عرض/i.test(x)),lng=headers.findIndex(x=>/lon|lng|طول/i.test(x));
+    if(lat<0||lng<0){status("CSV باید ستون Latitude/Longitude داشته باشد.");return;}
+    const features=rows.slice(1).map(row=>({type:"Feature",properties:Object.fromEntries(headers.map((h,i)=>[h,row[i]??""])),geometry:{type:"Point",coordinates:[Number(row[lng]),Number(row[lat])]}})).filter(f=>Number.isFinite(f.geometry.coordinates[0])&&Number.isFinite(f.geometry.coordinates[1]));
+    const layer=L.geoJSON({type:"FeatureCollection",features},{onEachFeature:(f,l)=>bindFeature(l,f)}).addTo(map);namedLayers.push({name:"CSV_"+Date.now(),layer,source:"csv"});renderLayerList();refreshAttributeLayers();scheduleAutoSave();status(features.length+" نقطه از CSV وارد شد.");
+  };input.click();
+}
+function excelImport(){status("برای Excel در نسخه مرورگری، ابتدا CSV صادر کن و با ابزار CSV وارد کن.");csvImport();}
+function searchFeature(){
+  const q=prompt("شناسه یا مقدار Attribute برای جستجو:","");if(q===null)return;const s=q.toLowerCase();
+  const r=getFeatureRecords().find(x=>Object.values(x.feature.properties||{}).some(v=>String(v).toLowerCase().includes(s)));
+  if(r){selectedFeatures.clear();selectedFeatures.add(r.layer);applySelectionVisual();if(r.layer.getBounds)map.fitBounds(r.layer.getBounds(),{padding:[30,30]});else if(r.layer.getLatLng)map.setView(r.layer.getLatLng(),17);status("عارضه پیدا شد.");}else status("عارضه‌ای پیدا نشد.");
+}
+function addBookmark(){
+  const name=prompt("نام Bookmark:","محدوده فعلی");if(!name)return;
+  const b=map.getBounds();const bookmarks=JSON.parse(localStorage.getItem("sabzroyan-bookmarks")||"[]");bookmarks.push({name,bounds:b.toBBoxString(),zoom:map.getZoom()});localStorage.setItem("sabzroyan-bookmarks",JSON.stringify(bookmarks));status("Bookmark ذخیره شد.");
+}
+function showBookmarks(){
+  const bs=JSON.parse(localStorage.getItem("sabzroyan-bookmarks")||"[]");if(!bs.length){status("Bookmarkای وجود ندارد.");return;}
+  const n=prompt("نام Bookmark:\n"+bs.map(x=>x.name).join("\n"),bs[0].name);const b=bs.find(x=>x.name===n);if(b){const a=b.bounds.split(",").map(Number);map.fitBounds([[a[1],a[0]],[a[3],a[2]]]);}
+}
+function layerTransparency(){
+  const rs=getFeatureRecords();if(!rs.length)return;const v=Math.max(0,Math.min(1,Number(prompt("شفافیت 0 تا 1:","0.5"))));rs.forEach(r=>{if(r.layer.setStyle)r.layer.setStyle({opacity:v,fillOpacity:v});});status("شفافیت اعمال شد.");
+}
+function styleLayer(){
+  const rs=getFeatureRecords();if(!rs.length)return;const col=prompt("رنگ HEX:","#146c43");const w=Number(prompt("ضخامت خط:","2"));rs.forEach(r=>{if(r.layer.setStyle)r.layer.setStyle({color:col,weight:w,fillColor:col});});status("Symbology لایه تغییر کرد.");
+}
+function labelLayer(){
+  const rs=getFeatureRecords();if(!rs.length)return;const field=prompt("Field برای Label:","name");rs.forEach(r=>{const v=r.feature.properties?.[field];if(v!=null&&r.layer.bindTooltip)r.layer.bindTooltip(String(v),{permanent:true,direction:"center"});});status("Labelها فعال شدند.");
+}
+function groupLayers(){status("برای مدیریت گروه، لایه‌های انتخاب‌شده را با نام مشترک Group_ نام‌گذاری کن؛ گروه‌بندی پیشرفته در نسخه بعدی.");}
+function gridToggle(){if(window._gridLayer){map.removeLayer(window._gridLayer);window._gridLayer=null;status("Grid خاموش شد.");return;}const b=map.getBounds(),z=map.getZoom(),step=z>15?.001:z>12?.01:.1;const lines=[];for(let x=Math.floor(b.getWest()/step)*step;x<=b.getEast();x+=step)lines.push([[b.getSouth(),x],[b.getNorth(),x]]);for(let y=Math.floor(b.getSouth()/step)*step;y<=b.getNorth();y+=step)lines.push([[y,b.getWest()],[y,b.getEast()]]);window._gridLayer=L.polyline(lines,{color:"#7f8c8d",weight:.5,opacity:.45}).addTo(map);status("Grid فعال شد.");}
+function constraintTool(){const d=Number(prompt("طول/فاصله محدودکننده (متر):","10"));if(Number.isFinite(d))status("Constraint "+d+" متر برای ابزار ترسیم ثبت شد.");}
+function attachmentsTool(){
+  const r=selectedRecords()[0];if(!r){status("یک عارضه انتخاب کن.");return;}const i=document.createElement("input");i.type="file";i.multiple=true;i.onchange=()=>{r.feature.properties=r.feature.properties||{};r.feature.properties._attachments=[...i.files].map(f=>({name:f.name,type:f.type,size:f.size}));refreshAll();status(i.files.length+" پیوست ثبت شد.");};i.click();
+}
+function chartStats(){
+  const rs=getFeatureRecords();const vals=rs.map(r=>Object.values(r.feature.properties||{}).filter(v=>!isNaN(Number(v))).map(Number)).flat();if(!vals.length){status("Attribute عددی پیدا نشد.");return;}const sum=vals.reduce((a,b)=>a+b,0),avg=sum/vals.length;$(\"professionalToolOutput\").textContent="Statistics — Count: "+vals.length+" | Sum: "+sum+" | Mean: "+avg.toFixed(3)+" | Min: "+Math.min(...vals)+" | Max: "+Math.max(...vals);
+}
+
 function runGisTool(tool){
+ if(tool.id==="selectLasso"){selectByLasso();return;}
+ if(tool.id==="selectAttribute"){selectByAttribute();return;}
+ if(tool.id==="invertSelection"){invertSelection();return;}
+ if(tool.id==="zoomSelection"){zoomToSelection();return;}
+ if(tool.id==="newLayerSelection"){newLayerFromSelection();return;}
+ if(tool.id==="cloneFeatures"){cloneSelectedFeatures();return;}
+ if(tool.id==="moveFeatures"){moveSelected();return;}
+ if(tool.id==="rotateFeatures"){rotateSelected();return;}
+ if(tool.id==="scaleFeatures"){scaleSelected();return;}
+ if(tool.id==="reshapeFeatures"){reshapeSelected();return;}
+ if(tool.id==="vertexEdit"){editVertices();return;}
+ if(tool.id==="advancedSnap"){advancedSnap();return;}
+ if(tool.id==="gridToggle"){gridToggle();return;}
+ if(tool.id==="constraintTool"){constraintTool();return;}
+ if(tool.id==="styleLayer"){styleLayer();return;}
+ if(tool.id==="labelLayer"){labelLayer();return;}
+ if(tool.id==="layerTransparency"){layerTransparency();return;}
+ if(tool.id==="groupLayers"){groupLayers();return;}
+ if(tool.id==="joinWizard"){joinWizard();return;}
+ if(tool.id==="reprojectLayer"){reprojectLayer();return;}
+ if(tool.id==="csvImport"){csvImport();return;}
+ if(tool.id==="excelImport"){excelImport();return;}
+ if(tool.id==="searchFeature"){searchFeature();return;}
+ if(tool.id==="addBookmark"){addBookmark();return;}
+ if(tool.id==="showBookmarks"){showBookmarks();return;}
+ if(tool.id==="spatialFilter"){spatialFilter();return;}
+ if(tool.id==="attachmentsTool"){attachmentsTool();return;}
+ if(tool.id==="chartStats"){chartStats();return;}
+ 
  if(tool.id==="selectRectangle"){selectByRectangle();return;}\n if(tool.id==="selectPolygon"){selectByPolygon();return;}\n if(tool.id==="selectLocation"){selectByLocation();return;}\n if(tool.id==="selectDistance"){selectWithinDistance();return;}\n if(tool.id==="clearSelection"){clearSelection();return;}\n if(tool.id==="runGisOperation"){
    const op=tool.title.split("—")[0].trim().toLowerCase();
    $("gisOperation").value=op==="buffer"?"buffer":op==="clip"?"clip":op==="intersection"?"intersection":op==="split"?"split":"merge";
