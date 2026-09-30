@@ -849,8 +849,10 @@ function layerToProjectItem(item){
 }
 function serializeProject(){
   const project={
-    version:1,
+    version:2,
     app:"Sabz Royan Web GIS",
+    description:window.currentProjectDescription||"",
+    crs:currentCRS,
     savedAt:new Date().toISOString(),
     name:$("projectName").value.trim()||"پروژه بدون نام",
     center:[map.getCenter().lat,map.getCenter().lng],
@@ -879,7 +881,9 @@ function projectFeatureLayer(features,name){
   return layer;
 }
 function restoreProject(project){
-  if(!project||project.version!==1){status("فرمت پروژه پشتیبانی نمی‌شود.");return}
+  if(!project||![1,2].includes(project.version)){status("فرمت پروژه پشتیبانی نمی‌شود.");return}
+  window.currentProjectDescription=project.description||"";
+  if(project.crs)try{setCRS(project.crs)}catch(e){}
   drawn.clearLayers();
   namedLayers.slice().forEach(x=>{map.removeLayer(x.layer);layerControl.removeLayer(x.layer)});
   namedLayers.length=0;
@@ -909,7 +913,7 @@ function restoreProject(project){
   $("projectStatus").textContent="پروژه بازیابی شد: "+(project.savedAt?new Date(project.savedAt).toLocaleString("fa-IR"):"—");
   status("پروژه با موفقیت بازیابی شد.");
 }
-async function saveProject(){
+async async function saveProject(){
   try{
     const project=serializeProject();
     project.id=projectId();project.updatedAt=new Date().toISOString();
@@ -933,6 +937,44 @@ async function loadProject(){
     currentProjectId=choice.id;
     restoreProject(choice);
   }catch(e){status("خطا در بازیابی پروژه: "+e.message)}
+}
+function closeProjectManager(){document.getElementById("projectManager").classList.remove("show")}
+function openProjectManager(){document.getElementById("projectManager").classList.add("show");renderProjectManagerList()}
+async function renderProjectManagerList(){
+  const el=$("projectList");if(!el)return;
+  try{
+    const ps=await listProjects();
+    if(!ps.length){el.innerHTML="<div class='small'>هنوز پروژه‌ای ساخته نشده است.</div>";return}
+    el.innerHTML="";
+    ps.forEach(p=>{
+      const row=document.createElement("div");row.className="pm-item";
+      const info=document.createElement("div");info.className="pm-item-info";
+      info.innerHTML="<div class='pm-item-name'>"+esc(p.name||"پروژه بدون نام")+"</div><div class='pm-item-meta'>"+esc(p.crs||"EPSG:32638")+" — "+new Date(p.updatedAt||p.savedAt).toLocaleString("fa-IR")+"</div>";
+      const b=document.createElement("button");b.className="action secondary";b.textContent="باز کردن";
+      b.onclick=async()=>{currentProjectId=p.id;restoreProject(p);$("projectName").value=p.name||"پروژه بدون نام";window.currentProjectDescription=p.description||"";closeProjectManager();status("پروژه باز شد.")};
+      row.append(info,b);el.appendChild(row);
+    });
+  }catch(e){el.innerHTML="<div class='small'>خطا در خواندن پروژه‌ها.</div>"}
+}
+async function createNewProject(){
+  const name=$("newProjectName").value.trim()||"پروژه جدید";
+  window.currentProjectDescription=$("newProjectDescription").value.trim();
+  const crs=$("newProjectCrs").value;
+  drawn.clearLayers();
+  namedLayers.slice().forEach(x=>{map.removeLayer(x.layer);layerControl.removeLayer(x.layer)});
+  namedLayers.length=0;
+  currentProjectId=crypto.randomUUID?crypto.randomUUID():("p-"+Date.now());
+  $("projectName").value=name;
+  setCRS(crs);
+  renderLayerList();refreshAttributeLayers();
+  await saveProject();
+  closeProjectManager();
+  status("پروژه جدید «"+name+"» ایجاد شد.");
+}
+function initProjectManager(){
+  $("createProjectBtn").onclick=createNewProject;
+  $("closeProjectManager").onclick=closeProjectManager;
+  openProjectManager();
 }
 function downloadProject(){
   const project=serializeProject();
