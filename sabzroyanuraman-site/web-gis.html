@@ -662,10 +662,6 @@ function showUTM(layer){
     }
   }catch(e){status("خطا در محاسبه مختصات: "+e.message)}
 }
-
-  if(c){const u=proj4("EPSG:4326","EPSG:32638",[c.lng,c.lat]);$("utmInfo").innerHTML="E: "+u[0].toFixed(3)+" m<br>N: "+u[1].toFixed(3)+" m";return}
-  if(layer.getBounds){const b=layer.getBounds();if(b.isValid()){const c=b.getCenter(),u=proj4("EPSG:4326","EPSG:32638",[c.lng,c.lat]);$("utmInfo").innerHTML="مرکز عارضه — E: "+u[0].toFixed(3)+" m | N: "+u[1].toFixed(3)+" m";}}
-}
 function calcMeasure(layer){
   try{
     const f=layer.toGeoJSON(),g=f.geometry;
