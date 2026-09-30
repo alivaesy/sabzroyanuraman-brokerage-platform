@@ -190,6 +190,7 @@ renderLayerList();
 
 map.on(L.Draw.Event.CREATED,e=>{
   drawn.addLayer(e.layer);
+  e.layer.on("click",()=>{selectedLayer=e.layer;showUTM(e.layer);calcMeasure(e.layer)});
   e.layer.feature={type:"Feature",properties:{},geometry:e.layer.toGeoJSON().geometry};
   status("عارضه جدید به «ترسیمات من» اضافه شد.");
   renderLayerList();
@@ -267,7 +268,7 @@ function parseKML(text){
   const doc=new DOMParser().parseFromString(text,"application/xml");
   const placemarks=[...doc.getElementsByTagNameNS("*","Placemark")];
   const features=[];
-  function coords(s){return s.trim().split(/s+/).map(x=>{const a=x.split(",").map(Number);return [a[0],a[1]]})}
+  function coords(s){return s.trim().split(/\s+/).map(x=>{const a=x.split(",").map(Number);return [a[0],a[1]]})}
   placemarks.forEach(pm=>{
     const name=pm.getElementsByTagNameNS("*","name")[0]?.textContent||"";
     const props={name};
