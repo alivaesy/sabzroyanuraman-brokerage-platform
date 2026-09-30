@@ -461,13 +461,20 @@ function isVectorLayer(layer){return !!(layer && typeof layer.eachLayer==="funct
 function vectorFeatures(layer){const out=[];if(!layer)return out;if(layer instanceof L.GeoJSON){layer.eachLayer(l=>{const f=l.feature||l.toGeoJSON();if(f&&f.geometry)out.push({feature:f,layer:l})});}else if(layer instanceof L.FeatureGroup){layer.eachLayer(l=>{const f=l.toGeoJSON();if(f&&f.geometry)out.push({feature:f,layer:l})});}return out;}
 function refreshAttributeLayers(){const s=$("attributeLayer");if(!s)return;const old=s.value;s.innerHTML="<option value=\"\">انتخاب لایه برداری...</option>";namedLayers.forEach((x,i)=>{if(isVectorLayer(x.layer)&&vectorFeatures(x.layer).length){const o=document.createElement("option");o.value=String(i);o.textContent=x.name;s.appendChild(o)}});if(s.querySelector("option[value=\""+old+"\"]"))s.value=old;}
 function addNamedLayer(name,layer,zoom){
+  if(!layer)throw new Error("لایه خالی است.");
   const item={name,layer};
   namedLayers.push(item);
+  // هر لایه‌ای که از KML/GDB/GeoJSON/SHP وارد می‌شود باید واقعاً روی نقشه اضافه شود.
+  // قبلاً فقط در Layer Control ثبت می‌شد و به همین دلیل لایه وارد می‌شد و نقشه روی محدوده می‌رفت،
+  // اما خود عارضه قابل مشاهده نبود.
+  if(!map.hasLayer(layer))map.addLayer(layer);
   layerControl.addOverlay(layer,name);
   if(layer.eachLayer)layer.eachLayer(x=>{if(x.bringToFront)x.bringToFront()});
-   if(zoom && layer.getBounds && layer.getBounds().isValid()) map.fitBounds(layer.getBounds(),{padding:[25,25],maxZoom:18});
   renderLayerList();
   refreshAttributeLayers();
+  if(zoom && layer.getBounds && layer.getBounds().isValid()){
+    map.fitBounds(layer.getBounds(),{padding:[25,25],maxZoom:18});
+  }
 }
 function renderLayerList(){
   const el=$("layers");
