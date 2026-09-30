@@ -145,12 +145,13 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
     </div>
 
     <div class="section">
-      <h3>💾 پروژه</h3>
+      <h3>💾 پروژه‌های محلی</h3>
       <input id="projectName" placeholder="نام پروژه" value="پروژه جدید">
       <div class="row">
         <button class="action" id="saveProject">ذخیره پروژه</button>
-        <button class="action secondary" id="loadProject">بازیابی</button>
+        <button class="action secondary" id="loadProject">بازیابی پروژه</button>
       </div>
+      <div class="small">پروژه‌ها فقط در حافظه همین مرورگر/دستگاه ذخیره می‌شوند و به هاست ارسال نمی‌شوند.</div>
       <div class="row">
         <button class="action secondary" id="downloadProject">خروجی پروژه</button>
         <label class="action secondary" for="projectFile" style="text-align:center;cursor:pointer">ورود پروژه</label>
@@ -245,7 +246,9 @@ function renderLayerList(){
   });
 }
 renderLayerList();
-try{if(localStorage.getItem(PROJECT_STORAGE_KEY)){$("projectStatus").textContent="پروژه ذخیره‌شده در این مرورگر موجود است."}}catch(e){}
+openProjectDB().then(()=>listProjects()).then(ps=>{
+  if(ps.length)$("projectStatus").textContent=ps.length+" پروژه محلی در این مرورگر موجود است.";
+}).catch(()=>{});
 
 map.on(L.Draw.Event.CREATED,e=>{
   drawn.addLayer(e.layer);
@@ -600,11 +603,48 @@ $("addWms").onclick=()=>{
   }catch(e){status("خطا در WMS: "+e.message)}
 };
 
-const PROJECT_STORAGE_KEY="sabzroyan-webgis-project-v1";
+const PROJECT_DB_NAME="sabzroyan-webgis";
+const PROJECT_DB_VERSION=1;
+const PROJECT_STORE="projects";
 let autoSaveTimer=null;
-function scheduleAutoSave(){
+let currentProjectId=null;
+function openProjectDB(){
+  return new Promise((resolve,reject)=>{
+    if(!("indexedDB" in window)){reject(new Error("IndexedDB پشتیبانی نمی‌شود"));return}
+    const req=indexedDB.open(PROJECT_DB_NAME,PROJECT_DB_VERSION);
+    req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(PROJECT_STORE)){const s=db.createObjectStore(PROJECT_STORE,{keyPath:"id"});s.createIndex("updatedAt","updatedAt")}};
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error||new Error("خطا در IndexedDB"));
+  });
+}
+async function putProject(project){
+  const db=await openProjectDB();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(PROJECT_STORE,"readwrite");
+    tx.objectStore(PROJECT_STORE).put(project);
+    tx.oncomplete=()=>{db.close();resolve(project)};
+    tx.onerror=()=>{db.close();reject(tx.error)};
+  });
+}
+async function listProjects(){
+  const db=await openProjectDB();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(PROJECT_STORE,"readonly"),req=tx.objectStore(PROJECT_STORE).getAll();
+    req.onsuccess=()=>{db.close();resolve((req.result||[]).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt)))};
+    req.onerror=()=>{db.close();reject(req.error)};
+  });
+}
+function projectId(){return currentProjectId||(crypto.randomUUID?crypto.randomUUID():"p-"+Date.now()+"-"+Math.random().toString(36).slice(2))}
+async function scheduleAutoSave(){
   clearTimeout(autoSaveTimer);
-  autoSaveTimer=setTimeout(()=>{try{localStorage.setItem(PROJECT_STORAGE_KEY,JSON.stringify(serializeProject()));$("projectStatus").textContent="ذخیره خودکار: "+new Date().toLocaleString("fa-IR")}catch(e){}},700);
+  autoSaveTimer=setTimeout(async()=>{
+    try{
+      const p=serializeProject();
+      p.id=projectId();p.updatedAt=new Date().toISOString();
+      await putProject(p);currentProjectId=p.id;
+      $("projectStatus").textContent="ذخیره خودکار محلی: "+new Date().toLocaleString("fa-IR");
+    }catch(e){console.warn("IndexedDB autosave:",e)}
+  },700);
 }
 
 function layerToProjectItem(item){
@@ -690,19 +730,29 @@ function restoreProject(project){
   $("projectStatus").textContent="پروژه بازیابی شد: "+(project.savedAt?new Date(project.savedAt).toLocaleString("fa-IR"):"—");
   status("پروژه با موفقیت بازیابی شد.");
 }
-function saveProject(){
+async function saveProject(){
   try{
     const project=serializeProject();
-    localStorage.setItem(PROJECT_STORAGE_KEY,JSON.stringify(project));
-    $("projectStatus").textContent="ذخیره محلی: "+new Date().toLocaleString("fa-IR");
-    status("پروژه به‌صورت دائمی در این مرورگر ذخیره شد.");
+    project.id=projectId();project.updatedAt=new Date().toISOString();
+    await putProject(project);currentProjectId=project.id;
+    $("projectStatus").textContent="پروژه محلی ذخیره شد: "+new Date().toLocaleString("fa-IR");
+    status("پروژه در حافظه مرورگر ذخیره شد؛ هیچ فایلی روی هاست ذخیره نمی‌شود.");
   }catch(e){status("خطا در ذخیره پروژه: "+e.message)}
 }
-function loadProject(){
+async function loadProject(){
   try{
-    const raw=localStorage.getItem(PROJECT_STORAGE_KEY);
-    if(!raw){status("پروژه ذخیره‌شده‌ای در این مرورگر وجود ندارد.");return}
-    restoreProject(JSON.parse(raw));
+    const projects=await listProjects();
+    if(!projects.length){status("پروژه ذخیره‌شده‌ای در این مرورگر وجود ندارد.");return}
+    let choice=projects.find(p=>p.id===currentProjectId);
+    if(!choice){
+      const names=projects.map((p,i)=>(i+1)+". "+(p.name||"بدون نام")+" — "+new Date(p.updatedAt||p.savedAt).toLocaleString("fa-IR")).join("\n");
+      const answer=prompt("شماره پروژه برای بازیابی را وارد کن:\n"+names,"1");
+      const n=Number(answer);
+      if(!n||!projects[n-1])return;
+      choice=projects[n-1];
+    }
+    currentProjectId=choice.id;
+    restoreProject(choice);
   }catch(e){status("خطا در بازیابی پروژه: "+e.message)}
 }
 function downloadProject(){
