@@ -51,6 +51,13 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
 .attr-toolbar button{font-size:10px}
 .attr-check{width:16px!important;height:16px!important}
 </style>
+
+<style>
+.gis-tool-item{display:flex;align-items:center;gap:7px;width:100%;text-align:right;border:1px solid #d9e4e9;background:#fff;color:#173b57;border-radius:7px;padding:7px 8px;margin:4px 0;cursor:pointer;font-size:10px}
+.gis-tool-item:hover{background:#eef7f3;border-color:#9db5c1}
+.gis-tool-cat{font-size:9px;color:#146c43;margin:8px 2px 3px;font-weight:700}
+.gis-tool-empty{font-size:10px;color:#7b8f9b;padding:8px 2px}
+</style>
 </style>
 </head>
 <body>
@@ -145,21 +152,10 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
       </div>
     </div>
     <div class="section">
-      <h3>📐 ابزارهای حرفه‌ای</h3>
-      <div class="row">
-        <button class="action secondary" id="measureDistanceTool">فاصله</button>
-        <button class="action secondary" id="measureAreaTool">مساحت</button>
-        <button class="action secondary" id="identifyTool">اطلاعات عارضه</button>
-      </div>
-      <div class="row">
-        <button class="action secondary" id="nearestMatchTool">تطبیق نزدیک‌ترین</button>
-        <button class="action secondary" id="transferAttributesTool">انتقال Attribute</button>
-      </div>
-      <div class="row">
-        <button class="action secondary" id="networkQaTool">کنترل شبکه</button>
-        <button class="action secondary" id="snapTool">Snap / اتصال</button>
-      </div>
-      <div id="professionalToolOutput" class="small" style="margin-top:7px">ابزار حرفه‌ای را انتخاب کن.</div>
+      <h3>🧰 جعبه‌ابزار GIS</h3>
+      <input id="gisToolSearch" placeholder="جستجو: انتخاب، منهول، Buffer، Clip..." autocomplete="off">
+      <div id="gisToolResults" style="margin-top:7px"></div>
+      <div id="professionalToolOutput" class="small" style="margin-top:7px">برای یافتن ابزار، نام فارسی یا انگلیسی آن را جستجو کن.</div>
     </div>
 
     <div class="section">
@@ -1101,6 +1097,68 @@ async function exportRealGDB(){
     status("خطا در ساخت GDB: "+(e.message||e));
   }
 }
+
+/* =========================
+   GIS TOOLBOX — ابزارهای قابل جستجو
+   ========================= */
+const GIS_TOOLS=[
+ {id:"measureDistanceTool",title:"محاسبه فاصله / طول",category:"اندازه‌گیری",keys:"فاصله طول distance length measure خط"},
+ {id:"measureAreaTool",title:"محاسبه مساحت",category:"اندازه‌گیری",keys:"مساحت area measure polygon پلیگون"},
+ {id:"identifyTool",title:"اطلاعات عارضه",category:"انتخاب و اطلاعات",keys:"identify اطلاعات عارضه attribute مشخصات"},
+ {id:"selectRectangle",title:"Select by Rectangle — انتخاب با مستطیل",category:"انتخاب",keys:"انتخاب مستطیل rectangle select"},
+ {id:"selectPolygon",title:"Select by Polygon — انتخاب با پلیگون",category:"انتخاب",keys:"انتخاب پلیگون polygon select"},
+ {id:"selectLocation",title:"Select by Location — انتخاب مکانی",category:"انتخاب",keys:"انتخاب مکانی location spatial select"},
+ {id:"selectDistance",title:"Select within Distance — انتخاب در شعاع",category:"انتخاب",keys:"انتخاب فاصله شعاع distance radius buffer select"},
+ {id:"clearSelection",title:"Clear Selection — پاک‌کردن انتخاب",category:"انتخاب",keys:"پاک انتخاب clear selection"},
+ {id:"nearestMatchTool",title:"تطبیق نزدیک‌ترین عوارض / منهول",category:"آب و فاضلاب",keys:"منهول manhole نزدیک nearest match تطبیق"},
+ {id:"transferAttributesTool",title:"انتقال Attribute",category:"آب و فاضلاب",keys:"attribute انتقال اطلاعات منهول manhole transfer"},
+ {id:"networkQaTool",title:"کنترل اتصال شبکه",category:"آب و فاضلاب",keys:"شبکه network qa لوله pipe pipeline فاضلاب آب"},
+ {id:"snapTool",title:"Snap / اتصال نقطه به خط",category:"ویرایش",keys:"snap اتصال نقطه خط لوله pipe"},
+ {id:"runGisOperation",title:"Buffer — حریم",category:"تحلیل مکانی",keys:"buffer حریم فاصله"},
+ {id:"runGisOperation",title:"Clip — برش",category:"تحلیل مکانی",keys:"clip برش"},
+ {id:"runGisOperation",title:"Intersection — اشتراک",category:"تحلیل مکانی",keys:"intersection اشتراک"},
+ {id:"runGisOperation",title:"Split — تقسیم",category:"ویرایش",keys:"split تقسیم"},
+ {id:"runGisOperation",title:"Merge — ادغام",category:"ویرایش",keys:"merge ادغام"},
+ {id:"addTableField",title:"افزودن Field",category:"Attribute",keys:"field فیلد attribute ستون"},
+ {id:"deleteSelectedRows",title:"حذف عوارض انتخاب‌شده",category:"Attribute",keys:"حذف delete attribute جدول"},
+ {id:"saveTableEdits",title:"ذخیره ویرایش Attribute",category:"Attribute",keys:"ذخیره save edit attribute"},
+ {id:"exportGeoJSON",title:"خروجی GeoJSON",category:"ورود و خروجی",keys:"geojson export خروجی"},
+ {id:"exportKML",title:"خروجی KML",category:"ورود و خروجی",keys:"kml export خروجی"},
+ {id:"exportSHP",title:"خروجی SHP واقعی",category:"ورود و خروجی",keys:"shp shapefile خروجی"},
+ {id:"exportDXF",title:"خروجی DXF واقعی",category:"ورود و خروجی",keys:"dxf cad خروجی"},
+ {id:"exportGDB",title:"خروجی File Geodatabase",category:"ورود و خروجی",keys:"gdb geodatabase خروجی"},
+];
+function renderGisToolbox(query=""){
+ const box=$("gisToolResults"); if(!box)return;
+ const q=query.trim().toLowerCase();
+ const matches=GIS_TOOLS.filter(t=>(t.title+" "+t.category+" "+t.keys).toLowerCase().includes(q));
+ if(!matches.length){box.innerHTML='<div class="gis-tool-empty">ابزاری با این عبارت پیدا نشد.</div>';return;}
+ const groups={};
+ matches.forEach(t=>(groups[t.category]??=[]).push(t));
+ box.innerHTML="";
+ Object.keys(groups).forEach(cat=>{
+   const h=document.createElement("div");h.className="gis-tool-cat";h.textContent=cat;box.appendChild(h);
+   groups[cat].forEach(t=>{
+     const b=document.createElement("button");b.type="button";b.className="gis-tool-item";b.textContent=t.title;
+     b.onclick=()=>runGisTool(t);
+     box.appendChild(b);
+   });
+ });
+}
+function runGisTool(tool){
+ if(tool.id==="runGisOperation"){
+   const op=tool.title.split("—")[0].trim().toLowerCase();
+   $("gisOperation").value=op==="buffer"?"buffer":op==="clip"?"clip":op==="intersection"?"intersection":op==="split"?"split":"merge";
+   $("runGisOperation").click(); return;
+ }
+ const el=$(tool.id);
+ if(!el){status("ابزار هنوز پیاده‌سازی نشده است: "+tool.title);return;}
+ if(el.tagName==="BUTTON")el.click();
+ else el.focus();
+}
+$("gisToolSearch").oninput=e=>renderGisToolbox(e.target.value);
+renderGisToolbox("");
+
 /* =========================
    ابزارهای حرفه‌ای Web GIS
    ========================= */
