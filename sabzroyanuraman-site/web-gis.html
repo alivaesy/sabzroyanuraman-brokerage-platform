@@ -372,6 +372,9 @@ const base={
  topo:L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",{maxZoom:17,attribution:"© OpenTopoMap contributors"}),
  sat:L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"© Esri"})
 };
+Object.entries(base).forEach(([key,layer])=>{
+  layer.on("tileerror",()=>status("خطا در دریافت نقشه پایه "+key+"؛ دسترسی اینترنت یا سرویس Tile را بررسی کن."));
+});
 base.osm.addTo(map);
 let currentBase=base.osm;
 const drawn=new L.FeatureGroup().addTo(map);
