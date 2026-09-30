@@ -182,7 +182,7 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
         <button class="action" id="exportGPX">GPX</button>
         <button class="action" id="exportSHP">SHP واقعی (ZIP)</button>
         <button class="action" id="exportDXF">DXF واقعی</button>
-        <div class="small" style="margin-top:6px">SHP و DXF خروجی واقعی با مختصات UTM Zone 38N / EPSG:32638 هستند.</div>
+        <div class="small" style="margin-top:6px">SHP و DXF خروجی واقعی بر اساس CRS انتخاب‌شده هستند.</div>
       </div>
       <div class="small">خروجی فعلی شامل عوارض برداری ترسیم‌شده و لایه‌های واردشده است.</div>
     </div>
@@ -193,8 +193,24 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
     </div>
 
     <div class="section">
+      <h3>🌐 سیستم مختصات</h3>
+      <div class="small">سیستم مختصات پروژه برای نمایش UTM و خروجی SHP/DXF</div>
+      <select id="crsPreset" style="margin-top:6px">
+        <option value="32638">WGS 84 / UTM 38N — EPSG:32638</option>
+        <option value="32637">WGS 84 / UTM 37N — EPSG:32637</option>
+        <option value="32639">WGS 84 / UTM 39N — EPSG:32639</option>
+        <option value="32640">WGS 84 / UTM 40N — EPSG:32640</option>
+        <option value="custom">EPSG سفارشی</option>
+      </select>
+      <div class="row" id="customCrsRow" style="display:none">
+        <input id="customEpsg" placeholder="مثلاً 32641">
+        <button class="action secondary" id="applyCrs" type="button">اعمال</button>
+      </div>
+      <div class="small" id="crsStatus" style="margin-top:6px">CRS فعلی: EPSG:32638</div>
+    </div>
+    <div class="section">
       <h3>مختصات</h3>
-      <div class="small">با حرکت موس روی نقشه مختصات جغرافیایی نمایش داده می‌شود. تبدیل دقیق UTM Zone 38N را در مرحله بعد به همین پنل اضافه می‌کنیم.</div>
+      <div class="small">با حرکت موس روی نقشه مختصات جغرافیایی و UTM بر اساس CRS انتخاب‌شده نمایش داده می‌شود.</div>
     </div>
   </aside>
 </div>
@@ -225,7 +241,23 @@ let selectedLayer=null;
 let selectedOverlay=null;
 let selectedFeatures=new Set();
 let selectionVersion=0;
-proj4.defs("EPSG:32638","+proj=utm +zone=38 +datum=WGS84 +units=m +no_defs");
+let currentCRS="EPSG:32638";
+function utmEpsg(zone,north=true){return "EPSG:"+(north?32600:32700)+zone}
+function defineUTM(zone,north=true){
+  const epsg=utmEpsg(zone,north);
+  proj4.defs(epsg,"+proj=utm +zone="+zone+(north?"":"+south")+" +datum=WGS84 +units=m +no_defs");
+  return epsg;
+}
+for(let z=1;z<=60;z++){defineUTM(z,true);defineUTM(z,false);}
+function setCRS(epsg){
+  if(!/^EPSG:\d+$/.test(epsg))throw new Error("کد EPSG نامعتبر است.");
+  currentCRS=epsg;
+  $("crsStatus").textContent="CRS فعلی: "+epsg;
+  status("سیستم مختصات به "+epsg+" تغییر کرد.");
+  scheduleAutoSave();
+}
+function getCRS(){return currentCRS;}
+
 const layerControl=L.control.layers(null,null,{collapsed:true,position:"topleft"}).addTo(map);
 new L.Control.Draw({
  edit:{featureGroup:drawn},
@@ -884,11 +916,11 @@ $("exportGeoJSON").onclick=()=>download(JSON.stringify(collectGeoJSON(),null,2),
 $("exportKML").onclick=()=>download(kmlFromFC(collectGeoJSON()),"sabz-royan-webgis.kml","application/vnd.google-earth.kml+xml");
 $("exportGPX").onclick=()=>download(gpxFromFC(collectGeoJSON()),"sabz-royan-webgis.gpx","application/gpx+xml");
 
-function utm38Geometry(feature){
+function projectGeometry(feature){
   const g=feature&&feature.geometry;if(!g)return null;
   const tx=coords=>{
     if(typeof coords[0]==="number"){
-      const u=proj4("EPSG:4326","EPSG:32638",coords);
+      const u=proj4("EPSG:4326",currentCRS,coords);
       return [u[0],u[1]];
     }
     return coords.map(tx);
@@ -899,7 +931,7 @@ function collectUTMFeatureCollection(){
   return {type:"FeatureCollection",features:collectGeoJSON().features.map(f=>({
     type:"Feature",
     properties:f.properties||{},
-    geometry:utm38Geometry(f)
+    geometry:projectGeometry(f)
   })).filter(f=>f.geometry)};
 }
 async function exportRealSHP(){
@@ -953,6 +985,15 @@ function exportRealDXF(){
 }
 $("exportSHP").onclick=exportRealSHP;
 $("exportDXF").onclick=exportRealDXF;
+$("crsPreset").onchange=e=>{
+  const v=e.target.value;
+  $("customCrsRow").style.display=v==="custom"?"flex":"none";
+  if(v!=="custom")setCRS("EPSG:"+v);
+};
+$("applyCrs").onclick=()=>{
+  const v=$("customEpsg").value.trim();
+  try{setCRS("EPSG:"+v.replace(/^EPSG:/i,""))}catch(e){status(e.message)}
+};
 })();
 </script>
 </body>
