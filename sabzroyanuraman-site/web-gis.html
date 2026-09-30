@@ -183,7 +183,7 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
         <button class="action" id="exportGeoJSON">GeoJSON</button>
         <button class="action" id="exportKML">KML</button>
         <button class="action" id="exportGPX">GPX</button>
-        <button class="action" id="exportSHP">SHP واقعی (ZIP)</button>
+        <button class="action" id="exportSHP">SHP واقعی (ZIP)</button><button class="action" id="exportGDB">🗃️ GDB واقعی (ZIP)</button>
         <button class="action" id="exportDXF">DXF واقعی</button>
         <div class="small" style="margin-top:6px">SHP و DXF خروجی واقعی بر اساس CRS انتخاب‌شده هستند.</div>
       </div>
@@ -228,6 +228,7 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
 <script src="https://unpkg.com/proj4@2.9.2/dist/proj4.js"></script>
 <script src="https://unpkg.com/@turf/turf@7.2.0/turf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gdal3.js@2.8.1/dist/package/gdal3.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script>
 (function(){
 "use strict";
@@ -988,7 +989,7 @@ function collectUTMFeatureCollection(){
     geometry:projectGeometry(f)
   })).filter(f=>f.geometry)};
 }
-async function exportRealSHP(){
+async async function exportRealSHP(){
   const fc=collectUTMFeatureCollection();
   if(!fc.features.length){status("هیچ عارضه‌ای برای خروجی SHP وجود ندارد.");return}
   if(typeof shpwrite==="undefined"){status("کتابخانه SHP بارگذاری نشده است.");return}
@@ -1037,7 +1038,53 @@ function exportRealDXF(){
     status("DXF واقعی ساخته شد؛ مختصات بر حسب متر و UTM Zone 38N است.");
   }catch(e){console.error(e);status("خطا در ساخت DXF: "+e.message)}
 }
+async function exportRealGDB(){
+  const layers=[];
+  drawn.eachLayer(l=>{try{const f=l.toGeoJSON();if(f&&f.geometry)layers.push({name:"drawings",fc:{type:"FeatureCollection",features:[f]}})}catch(e){}});
+  namedLayers.forEach((x,i)=>{
+    try{
+      const fs=[];x.layer.eachLayer(l=>{const f=l.feature||l.toGeoJSON();if(f&&f.geometry)fs.push(f)});
+      if(fs.length)layers.push({name:x.name||("layer_"+(i+1)),fc:{type:"FeatureCollection",features:fs}});
+    }catch(e){}
+  });
+  if(!layers.length){status("هیچ عارضه‌ای برای خروجی GDB وجود ندارد.");return}
+  if(typeof initGdalJs!=="function"){status("موتور GDAL بارگذاری نشده است.");return}
+  if(typeof JSZip==="undefined"){status("کتابخانه ZIP بارگذاری نشده است.");return}
+  let gdal=null;
+  try{
+    status("در حال ساخت File Geodatabase واقعی...");
+    gdal=await getGdalBrowser();
+    const zip=new JSZip();
+    let added=0;
+    for(const item of layers){
+      const safe=(item.name||"layer").replace(/[^A-Za-z0-9_]+/g,"_").replace(/^\d/,"_").slice(0,60)||"layer";
+      const src=new File([JSON.stringify(item.fc)],safe+".geojson",{type:"application/geo+json"});
+      const opened=await gdal.open([src]);
+      const ds=opened.datasets&&opened.datasets[0];
+      if(!ds)continue;
+      const outputs=await gdal.ogr2ogr(ds,["-f","OpenFileGDB","-nln",safe,"-t_srs",currentCRS]);
+      try{await gdal.close(ds)}catch(_){}
+      const files=await gdal.getOutputFiles();
+      for(const ofile of (files||[])){
+        const path=typeof ofile==="string"?ofile:ofile.path;
+        if(!path)continue;
+        const bytes=await gdal.getFileBytes(path);
+        const rel=path.split("/output/").pop()||path.split("/").pop();
+        zip.file("sabz-royan-webgis.gdb/"+rel,new Uint8Array(bytes));
+        added++;
+      }
+    }
+    if(!added)throw new Error("GDAL خروجی FileGDB تولید نکرد. نسخه GDAL مرورگر باید OpenFileGDB با قابلیت Write داشته باشد.");
+    const blob=await zip.generateAsync({type:"blob",compression:"DEFLATE"});
+    download(blob,"sabz-royan-webgis.gdb.zip","application/zip");
+    status("File Geodatabase واقعی ساخته شد. فایل ZIP را Extract کن تا پوشه .gdb را داشته باشی.");
+  }catch(e){
+    console.error(e);
+    status("خطا در ساخت GDB: "+(e.message||e));
+  }
+}
 $("exportSHP").onclick=exportRealSHP;
+$("exportGDB").onclick=exportRealGDB;
 $("exportDXF").onclick=exportRealDXF;
 $("crsPreset").onchange=e=>{
   const v=e.target.value;
