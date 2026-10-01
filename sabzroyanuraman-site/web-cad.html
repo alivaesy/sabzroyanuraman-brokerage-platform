@@ -123,6 +123,7 @@ textarea{min-height:64px;resize:vertical}
 <script>
 const canvas=document.getElementById("cad"),ctx=canvas.getContext("2d");
 let orthoEnabled=true;
+let gridStep=10;
 let snapEnabled=true,gridSnapEnabled=false,snapModes={endpoint:true,midpoint:true,center:true,intersection:true,nearest:true,perpendicular:true,quadrant:true,tangent:true,grid:true};
 let snapInfo={point:null,type:""};
 let entities=[],mode="select",grid=true,selected=-1,selectedSet=new Set(),layers=new Map(),activeLayer="0";
@@ -210,7 +211,7 @@ function snapPoint(p){
   }
  }
  if(gridSnapEnabled&&snapModes.grid&&grid){
-  const step=gridStep||1,gx=Math.round(p[0]/step)*step,gy=Math.round(p[1]/step)*step;
+  const step=(Number.isFinite(gridStep)&&gridStep>0)?gridStep:10,gx=Math.round(p[0]/step)*step,gy=Math.round(p[1]/step)*step;
   test(gx,gy,"Grid",20);
  }
  snapInfo={point:best,type:btype};
