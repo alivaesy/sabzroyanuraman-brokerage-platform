@@ -514,7 +514,7 @@ function runPointDivision(cmd){
  const ids=selectedIndices();
  if(ids.length!==1){setStatus(cmd+" — Select one line/polyline/arc/circle first");return}
  const e=entities[ids[0]];
- if(!["LINE","LWPOLYLINE","POLYLINE","POLYLINE3D","SPLINE","CIRCLE","ARC"].includes(e.type)){setStatus(cmd+" —   object  ‌");return}
+ if(!["LINE","LWPOLYLINE","POLYLINE","POLYLINE3D","SPLINE","CIRCLE","ARC"].includes(e.type)){setStatus(cmd+" — Select a supported object.");return}
  if(cmd==="DIVIDE"){
   const n=parseInt(prompt("Enter number of segments:","10"),10);
   if(!Number.isFinite(n)||n<2){setStatus("DIVIDE canceled; number of segments must be at least 2.");return}
@@ -563,14 +563,14 @@ function commandClick(p){
   else if(s.cmd==="ERASE"){const targets=s.ids.slice().sort((a,b)=>b-a);targets.forEach(i=>entities.splice(i,1));selectedSet.clear();selected=-1;finishCommand("ERASE completed")}
   else if(s.cmd==="TRIM"){
     const target=findNearest(p);
-    if(target<0){finishCommand("TRIM — object‌   Select ");return true}
+    if(target<0){finishCommand("TRIM — Select cutting edges.");return true}
     const changed=trimEntityAt(target,p,s.ids);
     if(changed){selectedSet.clear();selectedSet.add(target);finishCommand("TRIM completed")}
-    else finishCommand("TRIM —  object   ‌ Select‌  Trim ")
+    else finishCommand("TRIM — Select cutting edges.")
   }
   else if(s.cmd==="EXTEND"){
     const target=findNearest(p);
-    if(target<0){finishCommand("EXTEND — object‌   Select ");return true}
+    if(target<0){finishCommand("EXTEND — Select boundary edges.");return true}
     const changed=extendEntityAt(target,p,s.ids);
     if(changed){selectedSet.clear();selectedSet.add(target);finishCommand("EXTEND completed")}
     else finishCommand("EXTEND — Could not extend to the selected boundary")
