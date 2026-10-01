@@ -536,7 +536,7 @@ function startManualDraw(type,button){
   const onClick=e=>{
     if(type==="Polygon"){
       st.points.push([e.latlng.lat,e.latlng.lng]);
-      status("رأس "+st.points.length+" ثبت شد؛ برای پایان «Start / Stop» را بزن یا Enter.");
+      status("رأس "+st.points.length+" ثبت شد؛ برای پایان «شروع ترسیم / توقف» را بزن یا Enter.");
     }else if(type==="Rectangle"){
       if(!st.first){
         st.first=e.latlng;
@@ -565,7 +565,7 @@ function startManualDraw(type,button){
   };
   button?.classList.add("active");
   const help={
-    Polygon:"پلیگون: رأس‌ها را کلیک کن، سپس Start / Stop را بزن.",
+    Polygon:"پلیگون: رأس‌ها را کلیک کن، سپس «شروع ترسیم / توقف» را بزن.",
     Rectangle:"مستطیل: یک گوشه را کلیک کن، سپس گوشه مقابل را کلیک کن.",
     Circle:"دایره: مرکز را کلیک کن، سپس نقطه شعاع را کلیک کن."
   };
@@ -640,7 +640,7 @@ const drawControl=L.Control.extend({
       d.appendChild(b);
     });
     const stop=document.createElement("button");
-    stop.type="button";stop.textContent="Start / Stop";stop.title="شروع یا پایان ابزار ترسیم";
+    stop.type="button";stop.textContent="شروع ترسیم / توقف";stop.title="شروع ترسیم یا توقف ابزار ترسیم";
     stop.onclick=e=>{
       e.preventDefault();e.stopPropagation();
       if(!activeDrawHandler){
