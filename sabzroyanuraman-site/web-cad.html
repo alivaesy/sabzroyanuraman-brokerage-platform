@@ -385,6 +385,7 @@ function dxfText(){
  return s+"0\nENDSEC\n0\nEOF\n"
 }
 function download(text,name,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+$("dxfFile").onclick=()=>{$("dxfFile").value="";};
 $("dxfFile").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{
  const buf=await f.arrayBuffer();let t;
  try{t=new TextDecoder("utf-8").decode(buf)}catch(_){t=await f.text()}
