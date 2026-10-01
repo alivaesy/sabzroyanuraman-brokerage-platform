@@ -364,7 +364,26 @@ function commandClick(p){
   if(s.cmd==="MOVE"){const dx=p[0]-s.base[0],dy=p[1]-s.base[1];s.ids.forEach(i=>entities[i]=transformEntity(entities[i],dx,dy));finishCommand("MOVE انجام شد")}
   else if(s.cmd==="COPY"){const dx=p[0]-s.base[0],dy=p[1]-s.base[1];const copies=s.ids.map(i=>{const q=transformEntity(entities[i],dx,dy);return q});entities.push(...copies);selectedSet=new Set(copies.map((_,k)=>entities.length-copies.length+k));finishCommand("COPY انجام شد")}
   else if(s.cmd==="ROTATE"){const a=Math.atan2(p[1]-s.base[1],p[0]-s.base[0]);s.ids.forEach(i=>entities[i]=transformEntity(entities[i],0,0,a,s.base));finishCommand("ROTATE انجام شد")}
-  else if(s.cmd==="OFFSET"){const d=Math.hypot(p[0]-s.base[0],p[1]-s.base[1]),side=(p[0]-s.base[0])+(p[1]-s.base[1])>=0?1:-1;for(const i of s.ids){const e=entities[i];if(e.type==="LINE"){const dx=e.x2-e.x1,dy=e.y2-e.y1,L=Math.hypot(dx,dy)||1,nx=-dy/L*d*side,ny=dx/L*d*side;entities.push({...cloneEntity(e),x1:e.x1+nx,y1:e.y1+ny,x2:e.x2+nx,y2:e.y2+ny})}else if(e.type==="CIRCLE"){const rr=Math.max(.000001,e.r+d*side);entities.push({...cloneEntity(e),r:rr})}else if(e.pts){const q=cloneEntity(e);q.pts=q.pts.map(v=>[v[0]+(p[0]-s.base[0]),v[1]+(p[1]-s.base[1])]);entities.push(q)}}finishCommand("OFFSET انجام شد")}
+  else if(s.cmd==="OFFSET"){
+    const d=Math.hypot(p[0]-s.base[0],p[1]-s.base[1]);
+    for(const i of s.ids){
+      const e=entities[i];
+      if(e.type==="LINE"){
+        const dx=e.x2-e.x1,dy=e.y2-e.y1,L=Math.hypot(dx,dy)||1;
+        const side=((p[0]-e.x1)*(-dy)+(p[1]-e.y1)*dx)>=0?1:-1;
+        const nx=-dy/L*d*side,ny=dx/L*d*side;
+        entities.push({...cloneEntity(e),x1:e.x1+nx,y1:e.y1+ny,x2:e.x2+nx,y2:e.y2+ny});
+      }else if(e.type==="CIRCLE"){
+        const side=Math.hypot(p[0]-e.x,p[1]-e.y)>=e.r?1:-1;
+        const rr=Math.max(.000001,e.r+d*side);
+        entities.push({...cloneEntity(e),r:rr});
+      }else if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"||e.type==="POLYLINE3D"){
+        const q=offsetPolyline(e,d,p);
+        if(q)entities.push(q);
+      }
+    }
+    finishCommand("OFFSET انجام شد")
+  }
   else if(s.cmd==="ERASE"){const targets=s.ids.slice().sort((a,b)=>b-a);targets.forEach(i=>entities.splice(i,1));selectedSet.clear();selected=-1;finishCommand("ERASE انجام شد")}
   else if(s.cmd==="TRIM"){
     const target=findNearest(p);
@@ -383,6 +402,38 @@ function commandClick(p){
   return true;
  }
  return false;
+}
+function offsetPolyline(e,d,pick){
+ if(!e.pts||e.pts.length<2)return null;
+ const pts=e.pts,closed=!!e.closed,segs=[];
+ let bestSide=1,bestDist=Infinity;
+ const count=closed?pts.length:pts.length-1;
+ for(let i=0;i<count;i++){
+  const a=pts[i],b=pts[(i+1)%pts.length],dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy);
+  if(!L)continue;
+  const cross=(pick[0]-a[0])*dy-(pick[1]-a[1])*dx;
+  const dist=Math.abs(cross)/L;
+  if(dist<bestDist){bestDist=dist;bestSide=cross>=0?-1:1}
+  const nx=-dy/L*d*bestSide,ny=dx/L*d*bestSide;
+  segs.push([[a[0]+nx,a[1]+ny],[b[0]+nx,b[1]+ny]]);
+ }
+ if(!segs.length)return null;
+ const out=[];
+ if(closed){
+  for(let i=0;i<segs.length;i++){
+   const prev=segs[(i-1+segs.length)%segs.length],cur=segs[i];
+   const q=lineIntersection(prev[0],prev[1],cur[0],cur[1]);
+   out.push(q?q.p:cur[0]);
+  }
+ }else{
+  out.push(segs[0][0]);
+  for(let i=1;i<segs.length;i++){
+   const q=lineIntersection(segs[i-1][0],segs[i-1][1],segs[i][0],segs[i][1]);
+   out.push(q?q.p:segs[i][0]);
+  }
+  out.push(segs[segs.length-1][1]);
+ }
+ return {...cloneEntity(e),pts:out};
 }
 function lineIntersection(a,b,c,d){
  const den=(a[0]-b[0])*(c[1]-d[1])-(a[1]-b[1])*(c[0]-d[0]);
