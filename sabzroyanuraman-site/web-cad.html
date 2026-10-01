@@ -178,7 +178,6 @@ function draw(){
   ctx.save();ctx.fillStyle="#d35400";
   for(const p of drawPoints){const q=worldToScreen(p[0],p[1]);ctx.beginPath();ctx.arc(q[0],q[1],4,0,Math.PI*2);ctx.fill()}
   ctx.restore();
- }
 }
 function drawEntityFast(e){
  if(e.type==="LINE"){const a=worldToScreen(e.x1,e.y1),b=worldToScreen(e.x2,e.y2);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()}
@@ -286,6 +285,8 @@ window.addEventListener("keydown",e=>{
  else if(k==="P"){setMode("polyline");e.preventDefault()}
 });
 $("gridStatus").onclick=()=>{$("gridBtn").click();$("gridStatus").classList.toggle("active",grid)};
+$("snapStatus").onclick=()=>{snapEnabled=!snapEnabled;$("snapStatus").classList.toggle("active",snapEnabled);setStatus(snapEnabled?"OSNAP روشن شد":"OSNAP خاموش شد")};
+$("osnapStatus").onclick=()=>{snapEnabled=!snapEnabled;$("osnapStatus").classList.toggle("active",snapEnabled);$("snapStatus").classList.toggle("active",snapEnabled);setStatus(snapEnabled?"Object Snap روشن شد":"Object Snap خاموش شد")};
 
 resize();rebuildLayers();fit();
 </script>
