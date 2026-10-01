@@ -122,7 +122,8 @@ textarea{min-height:64px;resize:vertical}
 
 <script>
 const canvas=document.getElementById("cad"),ctx=canvas.getContext("2d");
-let snapEnabled=true,gridSnapEnabled=false,snapModes={endpoint:true,midpoint:true,center:true,intersection:true,nearest:true,grid:false};
+let orthoEnabled=true;
+let snapEnabled=true,gridSnapEnabled=false,snapModes={endpoint:true,midpoint:true,center:true,intersection:true,nearest:true,grid:true};
 let entities=[],mode="select",grid=true,selected=-1,selectedSet=new Set(),layers=new Map(),activeLayer="0";
 let commandState=null;
 let view={cx:0,cy:0,scale:1};
@@ -276,7 +277,7 @@ $("newBtn").onclick=()=>{entities=[];selected=-1;selectedSet.clear();rebuildLaye
 $("backBtn").onclick=()=>location.href="index.html";
 document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
 document.querySelectorAll("[data-cmd]").forEach(b=>b.onclick=()=>beginEditCommand(b.dataset.cmd));
-canvas.addEventListener("mousemove",e=>{const r=canvas.getBoundingClientRect(),rawP=screenToWorld(e.clientX-r.left,e.clientY-r.top),p=snapPoint(rawP);$("coord").textContent="X: "+p[0].toFixed(3)+" | Y: "+p[1].toFixed(3);previewPoint=(mode==="line"||mode==="circle"||mode==="polyline")?p:null;if(drag){view.cx=drag.cx-(e.clientX-drag.x)/view.scale;view.cy=drag.cy+(e.clientY-drag.y)/view.scale}else if(selectionBox&&mode==="select"){selectionBox.x2=p[0];selectionBox.y2=p[1];selectionBox.crossing=p[0]<selectionBox.x1;draw()};draw()});
+canvas.addEventListener("mousemove",e=>{const r=canvas.getBoundingClientRect();let rawP=screenToWorld(e.clientX-r.left,e.clientY-r.top);if(orthoEnabled&&drawPoints.length&&(mode==="line"||mode==="polyline")){const b=drawPoints[drawPoints.length-1],dx=rawP[0]-b[0],dy=rawP[1]-b[1];if(Math.abs(dx)>=Math.abs(dy))rawP=[rawP[0],b[1]];else rawP=[b[0],rawP[1]]}const p=snapPoint(rawP);$("coord").textContent="X: "+p[0].toFixed(3)+" | Y: "+p[1].toFixed(3);previewPoint=(mode==="line"||mode==="circle"||mode==="polyline")?p:null;if(drag){view.cx=drag.cx-(e.clientX-drag.x)/view.scale;view.cy=drag.cy+(e.clientY-drag.y)/view.scale}else if(selectionBox&&mode==="select"){selectionBox.x2=p[0];selectionBox.y2=p[1];selectionBox.crossing=p[0]<selectionBox.x1;draw()};draw()});
 canvas.addEventListener("mousedown",e=>{if(e.button===1||e.button===2){drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy};e.preventDefault();return}if(e.button!==0)return;const r=canvas.getBoundingClientRect(),rawP=screenToWorld(e.clientX-r.left,e.clientY-r.top),p=snapPoint(rawP);
  if(commandClick(p))return;
  if(mode==="line"){drawPoints.push(p);if(drawPoints.length===2){entities.push({type:"LINE",layer:activeLayer,x1:drawPoints[0][0],y1:drawPoints[0][1],x2:p[0],y2:p[1]});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("خط ایجاد شد")}}
@@ -361,6 +362,7 @@ function commandClick(p){
   else if(s.cmd==="COPY"){const dx=p[0]-s.base[0],dy=p[1]-s.base[1];const copies=s.ids.map(i=>{const q=transformEntity(entities[i],dx,dy);return q});entities.push(...copies);selectedSet=new Set(copies.map((_,k)=>entities.length-copies.length+k));finishCommand("COPY انجام شد")}
   else if(s.cmd==="ROTATE"){const a=Math.atan2(p[1]-s.base[1],p[0]-s.base[0]);s.ids.forEach(i=>entities[i]=transformEntity(entities[i],0,0,a,s.base));finishCommand("ROTATE انجام شد")}
   else if(s.cmd==="OFFSET"){const d=Math.hypot(p[0]-s.base[0],p[1]-s.base[1]),side=(p[0]-s.base[0])+(p[1]-s.base[1])>=0?1:-1;for(const i of s.ids){const e=entities[i];if(e.type==="LINE"){const dx=e.x2-e.x1,dy=e.y2-e.y1,L=Math.hypot(dx,dy)||1,nx=-dy/L*d*side,ny=dx/L*d*side;entities.push({...cloneEntity(e),x1:e.x1+nx,y1:e.y1+ny,x2:e.x2+nx,y2:e.y2+ny})}else if(e.type==="CIRCLE"){const rr=Math.max(.000001,e.r+d*side);entities.push({...cloneEntity(e),r:rr})}else if(e.pts){const q=cloneEntity(e);q.pts=q.pts.map(v=>[v[0]+(p[0]-s.base[0]),v[1]+(p[1]-s.base[1])]);entities.push(q)}}finishCommand("OFFSET انجام شد")}
+  else if(s.cmd==="ERASE"){const targets=s.ids.slice().sort((a,b)=>b-a);targets.forEach(i=>entities.splice(i,1));selectedSet.clear();selected=-1;finishCommand("ERASE انجام شد")}
   else if(s.cmd==="TRIM"){const target=findNearest(p);if(target>=0&&s.ids.includes(target)){entities.splice(target,1);selectedSet.clear();finishCommand("TRIM — عارضه حذف/Trim شد")}else finishCommand("TRIM: عارضه انتخاب‌شده قابل Trim نبود")}
   else if(s.cmd==="EXTEND"){finishCommand("EXTEND: نقطه مقصد ثبت شد؛ نسخه فعلی فقط انتخاب/ویرایش پایه را انجام می‌دهد")}
   return true;
@@ -394,7 +396,8 @@ function runMenuAction(a){
   if(a==="select")return setMode("select");
   if(a==="line"||a==="polyline"||a==="circle")return setMode(a);
   if(a==="point"){mode="point";drawPoints=[];setStatus("POINT — برای درج نقطه کلیک کن");return}
-  if(["move","copy","offset","trim","extend","rotate","erase"].includes(a))return beginEditCommand(a.toUpperCase());
+  if(["move","copy","offset","trim","extend","rotate"].includes(a))return beginEditCommand(a.toUpperCase());
+  if(a==="erase"){const ids=selectedIndices();if(!ids.length)return setStatus("ERASE — ابتدا عارضه را انتخاب کن");entities=entities.filter((_,i)=>!selectedSet.has(i));selectedSet.clear();selected=-1;rebuildLayers();draw();return setStatus("ERASE انجام شد")}
   if(a==="divide")return runPointDivision("DIVIDE");
   if(a==="measure")return runPointDivision("MEASURE");
   if(a==="undo")return setStatus("Undo در نسخه فعلی هنوز پیاده‌سازی نشده است");
@@ -439,6 +442,7 @@ $("newLayerBtn").onclick=()=>{const n=prompt("نام لایه جدید:","0");if
 $("activeLayerBtn").onclick=()=>{const names=[...layers.keys()];if(!names.length)return;const idx=Math.max(0,names.indexOf(activeLayer));activeLayer=names[(idx+1)%names.length];$("activeLayerInfo").textContent="لایه فعال: "+activeLayer;setStatus("لایه فعال: "+activeLayer)};
 document.querySelectorAll(".view-tab").forEach(tab=>tab.onclick=()=>{document.querySelectorAll(".view-tab").forEach(t=>t.classList.remove("active"));tab.classList.add("active");setStatus(tab.textContent.trim()+" فعال شد")});
 $("gridStatus").onclick=()=>{$("gridBtn").click();$("gridStatus").classList.toggle("active",grid)};
+$("orthoStatus").onclick=()=>{orthoEnabled=!orthoEnabled;$("orthoStatus").classList.toggle("active",orthoEnabled);setStatus(orthoEnabled?"ORTHO روشن شد":"ORTHO خاموش شد")};
 $("snapStatus").onclick=()=>{gridSnapEnabled=!gridSnapEnabled;$("snapStatus").classList.toggle("active",gridSnapEnabled);setStatus(gridSnapEnabled?"SNAP شبکه روشن شد":"SNAP شبکه خاموش شد")};
 $("osnapStatus").onclick=()=>{snapEnabled=!snapEnabled;$("osnapStatus").classList.toggle("active",snapEnabled);setStatus(snapEnabled?"OSNAP روشن شد — Endpoint / Midpoint / Center / Intersection / Nearest":"OSNAP خاموش شد")};
 
