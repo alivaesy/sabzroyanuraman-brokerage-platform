@@ -50,7 +50,7 @@ textarea{min-height:64px;resize:vertical}
   <div class="menu-wrap"><span class="menu" data-menu="view">View</span><div class="menu-dropdown"><button data-menu-action="fit">Zoom Extents</button><button data-menu-action="grid">Grid</button><button data-menu-action="snap">SNAP</button><button data-menu-action="osnap">OSNAP</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="insert">Insert</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button><button data-menu-action="point">Point</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="format">Format</span><div class="menu-dropdown"><button data-menu-action="layerproperties">Layer Properties</button><button data-menu-action="newlayer">New Layer</button><button data-menu-action="activelayer">Current Layer</button></div></div>
-  <div class="menu-wrap"><span class="menu" data-menu="tools">Tools</span><div class="menu-dropdown"><button data-menu-action="snap">Grid SNAP</button><button data-menu-action="osnap">Object OSNAP</button><button data-snap-mode="endpoint">OSNAP Endpoint</button><button data-snap-mode="midpoint">OSNAP Midpoint</button><button data-snap-mode="center">OSNAP Center</button><button data-snap-mode="intersection">OSNAP Intersection</button><button data-snap-mode="nearest">OSNAP Nearest</button><button data-snap-mode="perpendicular">OSNAP Perpendicular</button><button data-snap-mode="quadrant">OSNAP Quadrant</button><button data-snap-mode="tangent">OSNAP Tangent</button><button data-menu-action="distance">Distance (DIST)</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="tools">Tools</span><div class="menu-dropdown"><button data-menu-action="snap">Grid SNAP</button><button data-menu-action="osnap">Object OSNAP</button><button data-snap-mode="endpoint">OSNAP Endpoint</button><button data-snap-mode="midpoint">OSNAP Midpoint</button><button data-snap-mode="center">OSNAP Center</button><button data-snap-mode="intersection">OSNAP Intersection</button><button data-snap-mode="nearest">OSNAP Nearest</button><button data-snap-mode="perpendicular">OSNAP Perpendicular</button><button data-snap-mode="quadrant">OSNAP Quadrant</button><button data-snap-mode="tangent">OSNAP Tangent</button><button data-menu-action="distance">Distance (DIST)</button><button data-menu-action="area">Area</button><button data-menu-action="id">ID</button><button data-menu-action="list">List</button><button data-menu-action="qselect">Quick Select</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="draw">Draw</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button><button data-menu-action="point">Point</button><button data-menu-action="xline">Construction Line (XLINE)</button><button data-menu-action="ray">Ray (RAY)</button><button data-menu-action="divide">Divide</button><button data-menu-action="measure">Measure</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="modify">Modify</span><div class="menu-dropdown"><button data-menu-action="move">Move</button><button data-menu-action="copy">Copy</button><button data-menu-action="offset">Offset</button><button data-menu-action="trim">Trim</button><button data-menu-action="extend">Extend</button><button data-menu-action="rotate">Rotate</button><button data-menu-action="break">Break</button><button data-menu-action="closepoly">Close Polyline</button><button data-menu-action="editvertex">Edit Vertex</button><button data-menu-action="erase">Erase</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="window">Window</span><div class="menu-dropdown"><button data-menu-action="model">Model</button><button data-menu-action="layout1">Layout1</button><button data-menu-action="layout2">Layout2</button></div></div>
@@ -621,7 +621,26 @@ function commandClick(p){
   return false;
  }
  const s=commandState;
- if(s.cmd==="DIST"&&s.step==="dist1"){
+ 
+if(s.cmd==="ID"&&s.step==="idPoint"){
+  const x=p[0],y=p[1];
+  setStatus("ID — X = "+formatCadNumber(x)+"   Y = "+formatCadNumber(y));
+  s.step="idPoint"; return true;
+}
+if(s.cmd==="LIST"&&s.step==="listSelect"){
+  const i=findNearest(p); if(i>=0){showEntityProperties(i);setStatus("LIST — Object information shown in Properties.");s.step="listSelect";return true}
+  setStatus("LIST — Select one object:"); return true;
+}
+if(s.cmd==="AREA"&&s.step==="areaSelect"){
+  const i=findNearest(p);
+  if(i>=0){
+    const e=entities[i],a=entityArea(e);
+    if(a>0){setStatus("Area = "+formatCadNumber(a)+"   Perimeter = "+formatCadNumber(entityLength(e)));s.step="areaSelect";return true}
+  }
+  setStatus("AREA — Select a closed object or specify points:"); return true;
+}
+
+if(s.cmd==="DIST"&&s.step==="dist1"){
   s.p1=p;s.step="dist2";
   setStatus("DIST — Specify second point:");
   return true;
@@ -823,6 +842,82 @@ document.querySelectorAll(".menu[data-menu]").forEach(menu=>{
   });
 });
 document.addEventListener("click",()=>document.querySelectorAll(".menu-wrap.open").forEach(w=>w.classList.remove("open")));
+
+function entityVertices(e){
+  if(!e)return [];
+  if(e.type==="LINE")return [[e.x1,e.y1],[e.x2,e.y2]];
+  if(e.pts&&e.pts.length)return e.pts.slice();
+  if(e.type==="POINT")return [[e.x,e.y]];
+  return [];
+}
+function polylineArea(e){
+  if(!e||!e.pts||e.pts.length<3||!e.closed)return 0;
+  let a=0;
+  for(let i=0;i<e.pts.length;i++){const p=e.pts[i],q=e.pts[(i+1)%e.pts.length];a+=p[0]*q[1]-q[0]*p[1]}
+  return Math.abs(a)/2;
+}
+function entityLength(e){
+  if(!e)return 0;
+  if(e.type==="LINE")return Math.hypot(e.x2-e.x1,e.y2-e.y1);
+  if(e.type==="CIRCLE")return 2*Math.PI*Math.abs(e.r||0);
+  if(e.type==="ARC"){
+    const da=Math.abs(normAngle((e.endAngle||0)-(e.startAngle||0)));
+    return Math.abs(e.r||0)*da;
+  }
+  if(e.pts&&e.pts.length>1){
+    let s=0;for(let i=1;i<e.pts.length;i++)s+=Math.hypot(e.pts[i][0]-e.pts[i-1][0],e.pts[i][1]-e.pts[i-1][1]);
+    if(e.closed)s+=Math.hypot(e.pts[0][0]-e.pts.at(-1)[0],e.pts[0][1]-e.pts.at(-1)[1]);
+    return s;
+  }
+  return 0;
+}
+function formatCadNumber(v){return Number(v).toFixed(4).replace(/\.?(0+)$/,"").replace(/\.$/,"")}
+function runAreaCommand(){
+  const ids=selectedIndices();
+  if(ids.length===1){
+    const e=entities[ids[0]];
+    let area=0;
+    if(e.type==="CIRCLE")area=Math.PI*Math.abs(e.r||0)**2;
+    else if(e.type==="ELLIPSE")area=Math.PI*Math.abs(e.rx||0)*Math.abs(e.ry||0);
+    else if(e.type==="HATCH"&&Number.isFinite(e.area))area=e.area;
+    else area=polylineArea(e);
+    if(area>0){setStatus("AREA = "+formatCadNumber(area)+"   Perimeter = "+formatCadNumber(entityLength(e)));return}
+  }
+  commandState={cmd:"AREA",step:"areaSelect"};
+  setMode("select");
+  setStatus("AREA — Select a closed object or specify points:");
+}
+function runIdCommand(){
+  commandState={cmd:"ID",step:"idPoint"};
+  setMode("select");
+  setStatus("ID — Specify point:");
+}
+function runListCommand(){
+  const ids=selectedIndices();
+  if(ids.length!==1){setStatus("LIST — Select one object:");commandState={cmd:"LIST",step:"listSelect"};setMode("select");return}
+  showEntityProperties(ids[0]);
+  setStatus("LIST — Object information shown in Properties.");
+}
+function runQSelectCommand(){
+  const types=[...new Set(entities.map(e=>e.type).filter(Boolean))];
+  const layerNames=[...new Set(entities.map(e=>e.layer||"0"))];
+  const type=prompt("Quick Select — Object type (leave blank for any):\\n"+types.join(", "),"");
+  if(type===null)return;
+  const layer=prompt("Quick Select — Layer (leave blank for any):\\n"+layerNames.join(", "),"");
+  if(layer===null)return;
+  const t=type.trim().toUpperCase(),l=layer.trim();
+  selectedSet.clear();
+  entities.forEach((e,i)=>{if((!t||e.type===t)&&(!l||(e.layer||"0")===l)&&isLayerVisible(e))selectedSet.add(i)});
+  selected=selectedSet.size?[...selectedSet][0]:-1;
+  draw();
+  setStatus("QSELECT — "+selectedSet.size+" object(s) selected.");
+}
+function entityArea(e){
+  if(e.type==="CIRCLE")return Math.PI*Math.abs(e.r||0)**2;
+  if(e.type==="ELLIPSE")return Math.PI*Math.abs(e.rx||0)*Math.abs(e.ry||0);
+  return polylineArea(e);
+}
+
 function runMenuAction(a){
   if(a==="new")return $("newBtn").click();
   if(a==="open")return $("dxfFile").click();
@@ -832,6 +927,10 @@ function runMenuAction(a){
   if(a==="snap")return $("snapStatus").click();
   if(a==="osnap")return $("osnapStatus").click();
   if(a==="distance")return runCadCommand("DIST");
+  if(a==="area")return runAreaCommand();
+  if(a==="id")return runIdCommand();
+  if(a==="list")return runListCommand();
+  if(a==="qselect")return runQSelectCommand();
   if(a==="layerproperties"){const name=activeLayer||layers.keys().next().value;if(name)showLayerProperties(name);return}
   if(a==="newlayer")return $("newLayerBtn").click();
   if(a==="activelayer")return $("activeLayerBtn").click();
@@ -854,7 +953,7 @@ function runMenuAction(a){
   if(a==="measure")return runPointDivision("MEASURE");
   if(a==="undo")return undo();
   if(a==="model"||a==="layout1"||a==="layout2"){document.querySelectorAll(".view-tab").forEach(x=>x.classList.toggle("active",x.textContent.trim().toLowerCase()===a));return setStatus(a==="model"?"Model":"Layout active")}
-  if(a==="help")return setStatus("L=LINE | PL=PLINE | C=CIRCLE | P=POINT | M=MOVE | CO=COPY | O=OFFSET | TR=TRIM | EX=EXTEND | RO=ROTATE | BR=BREAK | DIV=DIVIDE | ME=MEASURE | DI=DIST | E=ERASE | Z=ZOOM | G=GRID | F3=OSNAP | Esc=CANCEL");
+  if(a==="help")return setStatus("L=LINE | PL=PLINE | C=CIRCLE | P=POINT | M=MOVE | CO=COPY | O=OFFSET | TR=TRIM | EX=EXTEND | RO=ROTATE | BR=BREAK | DIV=DIVIDE | ME=MEASURE | DI=DIST | AA=AREA | ID=ID | LI=LIST | QS=QSELECT | E=ERASE | Z=ZOOM | G=GRID | F3=OSNAP | Esc=CANCEL");
   if(a==="about")return setStatus("Web CAD    — extended base version");
 }
 document.querySelectorAll("[data-menu-action]").forEach(btn=>btn.addEventListener("click",e=>{e.stopPropagation();btn.closest(".menu-wrap").classList.remove("open");runMenuAction(btn.dataset.menuAction)}));
@@ -887,6 +986,10 @@ function runCadCommand(raw){
  else if(q==="EX"||q==="EXTEND")beginEditCommand("EXTEND");
  else if(q==="RO"||q==="ROTATE")beginEditCommand("ROTATE");
  else if(q==="BR"||q==="BREAK")beginEditCommand("BREAK");
+ else if(q==="AREA"||q==="AA"){runAreaCommand();}
+ else if(q==="ID"){runIdCommand();}
+ else if(q==="LIST"||q==="LI"){runListCommand();}
+ else if(q==="QSELECT"||q==="QS"){runQSelectCommand();}
  else if(q==="DIST"||q==="DI"||q==="DISTANCE"){commandState={cmd:"DIST",step:"dist1",p1:null};setMode("select");setStatus("DIST — Specify first point:");}
  else if(q==="DIVIDE"||q==="DIV")runPointDivision("DIVIDE");
  else if(q==="MEASURE"||q==="ME")runPointDivision("MEASURE");
