@@ -165,6 +165,11 @@ function snapPoint(p){
   if(e.type==="CIRCLE"||e.type==="ARC"||e.type==="ELLIPSE"){
    curves.push(e);
    if(snapEnabled&&snapModes.center)test(e.x,e.y,"Center",105);
+   if(snapEnabled&&snapModes.endpoint&&e.type==="ARC"&&Number.isFinite(e.r)){
+    const sa=(e.startAngle||0)*Math.PI/180,ea=(e.endAngle||0)*Math.PI/180;
+    test(e.x+e.r*Math.cos(sa),e.y+e.r*Math.sin(sa),"Endpoint",110);
+    test(e.x+e.r*Math.cos(ea),e.y+e.r*Math.sin(ea),"Endpoint",110);
+   }
   }
  }
  const inArc=(e,x,y)=>{
@@ -187,6 +192,30 @@ function snapPoint(p){
    test(q[0],q[1],"Nearest",70);
   }
  };
+ const lineCircleIntersections=(a,b,c)=>{
+  const dx=b[0]-a[0],dy=b[1]-a[1],fx=a[0]-c.x,fy=a[1]-c.y;
+  const A=dx*dx+dy*dy;
+  if(A<1e-12)return[];
+  const B=2*(fx*dx+fy*dy),C=fx*fx+fy*fy-c.r*c.r,disc=B*B-4*A*C;
+  if(disc<-1e-10)return[];
+  const root=Math.sqrt(Math.max(0,disc)),out=[];
+  for(const t of [(-B-root)/(2*A),(-B+root)/(2*A)]){
+   if(t>=-1e-9&&t<=1+1e-9){
+    const q=[a[0]+t*dx,a[1]+t*dy];
+    if(!out.some(v=>Math.hypot(v[0]-q[0],v[1]-q[1])<1e-9))out.push(q);
+   }
+  }
+  return out;
+ };
+ const circleCircleIntersections=(a,b)=>{
+  const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);
+  if(d<1e-12||d>a.r+b.r+1e-10||d<Math.abs(a.r-b.r)-1e-10)return[];
+  const aa=(a.r*a.r-b.r*b.r+d*d)/(2*d),hh2=a.r*a.r-aa*aa;
+  if(hh2<-1e-10)return[];
+  const hh=Math.sqrt(Math.max(0,hh2)),ux=dx/d,uy=dy/d,px=a.x+aa*ux,py=a.y+aa*uy;
+  const q1=[px-hh*uy,py+hh*ux],q2=[px+hh*uy,py-hh*ux];
+  return Math.hypot(q1[0]-q2[0],q1[1]-q2[1])<1e-9?[q1]:[q1,q2];
+ };
  const cross=(a,b,c,d)=>{
   const den=(a[0]-b[0])*(c[1]-d[1])-(a[1]-b[1])*(c[0]-d[0]);
   if(Math.abs(den)<1e-12)return null;
@@ -195,7 +224,21 @@ function snapPoint(p){
   if(t>=-1e-9&&t<=1+1e-9&&u>=-1e-9&&u<=1+1e-9)return[a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1])];
   return null;
  };
- if(snapEnabled&&snapModes.intersection)for(let i=0;i<segments.length;i++)for(let j=i+1;j<segments.length;j++){const q=cross(segments[i][0],segments[i][1],segments[j][0],segments[j][1]);if(q)test(q[0],q[1],"Intersection",120)}
+ if(snapEnabled&&snapModes.intersection){
+  for(let i=0;i<segments.length;i++)for(let j=i+1;j<segments.length;j++){
+   const q=cross(segments[i][0],segments[i][1],segments[j][0],segments[j][1]);
+   if(q)test(q[0],q[1],"Intersection",120);
+  }
+  for(const s of segments)for(const e of curves)if((e.type==="CIRCLE"||e.type==="ARC")&&e.r>0){
+   for(const q of lineCircleIntersections(s[0],s[1],e))if(inArc(e,q[0],q[1]))test(q[0],q[1],"Intersection",125);
+  }
+  for(let i=0;i<curves.length;i++)for(let j=i+1;j<curves.length;j++){
+   const a=curves[i],b=curves[j];
+   if((a.type==="CIRCLE"||a.type==="ARC")&&(b.type==="CIRCLE"||b.type==="ARC")){
+    for(const q of circleCircleIntersections(a,b))if(inArc(a,q[0],q[1])&&inArc(b,q[0],q[1]))test(q[0],q[1],"Intersection",125);
+   }
+  }
+ }
  if(snapEnabled&&snapModes.nearest)for(const s of segments){const x=s[0][0],y=s[0][1],dx=s[1][0]-x,dy=s[1][1]-y,l=dx*dx+dy*dy;if(l){let t=((p[0]-x)*dx+(p[1]-y)*dy)/l;t=Math.max(0,Math.min(1,t));test(x+t*dx,y+t*dy,"Nearest",70)}}
  if(snapEnabled&&snapModes.perpendicular)for(const s of segments){const a=s[0],b=s[1],dx=b[0]-a[0],dy=b[1]-a[1],l=dx*dx+dy*dy;if(!l)continue;const t=((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l;if(t>=0&&t<=1){const q=[a[0]+t*dx,a[1]+t*dy];test(q[0],q[1],"Perpendicular",90)}}
  if(snapEnabled&&snapModes.nearest)curves.forEach(addCurveNearest);
@@ -624,7 +667,16 @@ function runCadCommand(raw){
  else if(q==="MEASURE"||q==="ME")runPointDivision("MEASURE");
  else if(q==="Z"||q==="ZOOM"||q==="ZE"||q==="ZOOM E"){fit();}
  else if(q==="G"||q==="GRID"){grid=!grid;draw();$("gridStatus").classList.toggle("active",grid);}
- else if(q==="ESC"){commandState=null;setMode("select");selectedSet.clear();selected=-1;draw();setStatus("Command: *Cancel*");}
+ else if(q==="F3"||q==="OSNAP"){snapEnabled=!snapEnabled;$("osnapStatus").classList.toggle("active",snapEnabled);snapInfo={point:null,type:""};draw();setStatus(snapEnabled?"OSNAP روشن شد":"OSNAP خاموش شد");}
+ else if(q==="END"){snapModes.endpoint=!snapModes.endpoint;setStatus("OSNAP Endpoint "+(snapModes.endpoint?"روشن":"خاموش"));}
+ else if(q==="MID"){snapModes.midpoint=!snapModes.midpoint;setStatus("OSNAP Midpoint "+(snapModes.midpoint?"روشن":"خاموش"));}
+ else if(q==="CEN"){snapModes.center=!snapModes.center;setStatus("OSNAP Center "+(snapModes.center?"روشن":"خاموش"));}
+ else if(q==="INT"){snapModes.intersection=!snapModes.intersection;setStatus("OSNAP Intersection "+(snapModes.intersection?"روشن":"خاموش"));}
+ else if(q==="NEA"){snapModes.nearest=!snapModes.nearest;setStatus("OSNAP Nearest "+(snapModes.nearest?"روشن":"خاموش"));}
+ else if(q==="PER"){snapModes.perpendicular=!snapModes.perpendicular;setStatus("OSNAP Perpendicular "+(snapModes.perpendicular?"روشن":"خاموش"));}
+ else if(q==="QUA"){snapModes.quadrant=!snapModes.quadrant;setStatus("OSNAP Quadrant "+(snapModes.quadrant?"روشن":"خاموش"));}
+ else if(q==="TAN"){snapModes.tangent=!snapModes.tangent;setStatus("OSNAP Tangent "+(snapModes.tangent?"روشن":"خاموش"));}
+ else if(q==="ESC"){commandState=null;setMode("select");selectedSet.clear();selected=-1;snapInfo={point:null,type:""};draw();setStatus("Command: *Cancel*");}
  else {setStatus("Unknown command: "+raw);}
  commandInput.value="";
 }
@@ -634,7 +686,15 @@ window.addEventListener("keydown",e=>{
  if(e.key==="Escape"){runCadCommand("ESC");return}
  if((e.ctrlKey||e.metaKey)&&k==="Z"){undo();e.preventDefault();return}
  const k=e.key.toUpperCase();
- if(k==="L"){setMode("line");e.preventDefault()}
+ if(k==="F3"){
+  snapEnabled=!snapEnabled;
+  $("osnapStatus").classList.toggle("active",snapEnabled);
+  snapInfo={point:null,type:""};
+  draw();
+  setStatus(snapEnabled?"OSNAP روشن شد — F3":"OSNAP خاموش شد — F3");
+  e.preventDefault();
+ }
+ else if(k==="L"){setMode("line");e.preventDefault()}
  else if(k==="C"){setMode("circle");e.preventDefault()}
  else if(k==="P"){setMode("polyline");e.preventDefault()}
 });
