@@ -541,8 +541,16 @@ const drawControl=L.Control.extend({
       d.appendChild(b);
     });
     const stop=document.createElement("button");
-    stop.type="button";stop.textContent="✖ پایان ترسیم";stop.title="لغو ابزار ترسیم";
-    stop.onclick=e=>{e.preventDefault();e.stopPropagation();stopActiveDraw();status("ابزار ترسیم متوقف شد.")};
+    stop.type="button";stop.textContent="✓ پایان / لغو";stop.title="پایان خط یا پلیگون؛ در صورت نبودن ترسیم، لغو ابزار";
+    stop.onclick=e=>{
+      e.preventDefault();e.stopPropagation();
+      const h=activeDrawHandler;
+      if(h&&typeof h.completeShape==="function"&&(h.__webgisType==="Polyline"||h.__webgisType==="Polygon")){
+        try{h.completeShape();return}catch(err){console.warn("completeShape failed",err)}
+      }
+      stopActiveDraw();
+      status("ابزار ترسیم متوقف شد.");
+    };
     d.appendChild(stop);
     return d;
   }
@@ -638,6 +646,7 @@ map.on(L.Draw.Event.CREATED,e=>{
   drawn.addLayer(e.layer);
   attachFeatureSelection(e.layer);
   e.layer.feature={type:"Feature",properties:{},geometry:e.layer.toGeoJSON().geometry};
+  stopActiveDraw();
   status("عارضه جدید به «ترسیمات من» اضافه شد.");scheduleAutoSave();
   renderLayerList();
 });
