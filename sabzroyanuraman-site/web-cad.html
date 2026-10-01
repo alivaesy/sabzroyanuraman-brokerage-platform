@@ -15,7 +15,7 @@ button,input,textarea{font-family:inherit}
 .classic-title{height:28px;background:#171717;color:#eee;display:flex;align-items:center;padding:0 9px;border-bottom:1px solid #343434;font-size:12px;direction:rtl}
 .classic-title .brand{font-weight:700;margin-left:auto}.classic-title .file-title{color:#bdbdbd;margin-right:14px}
 .menu-bar{height:27px;background:#2a2a2a;display:flex;align-items:center;padding:0 7px;border-bottom:1px solid #111;direction:rtl}
-.menu{padding:4px 11px;color:#eee;cursor:pointer}.menu:hover{background:#3b3b3b}
+.menu{padding:4px 11px;color:#eee;cursor:pointer}.menu:hover{background:#3b3b3b}.menu-wrap{position:relative;height:27px;display:flex;align-items:center}.menu-dropdown{display:none;position:absolute;top:27px;right:0;min-width:175px;background:#292929;border:1px solid #555;box-shadow:0 4px 12px rgba(0,0,0,.55);z-index:1000;padding:3px 0}.menu-wrap.open .menu-dropdown{display:block}.menu-dropdown button{display:block;width:100%;border:0;background:transparent;color:#eee;text-align:right;padding:7px 12px;font-size:10px;cursor:pointer;white-space:nowrap}.menu-dropdown button:hover{background:#3b3b3b}.menu-wrap.open>.menu{background:#3b3b3b}
 .ribbon-lite{height:48px;background:#303030;border-bottom:1px solid #111;display:flex;align-items:stretch;direction:rtl}
 .rgroup{display:flex;align-items:center;gap:4px;padding:4px 7px;border-left:1px solid #444}
 .rbutton{min-width:48px;border:1px solid transparent;background:transparent;color:#eee;border-radius:2px;padding:2px 5px;font-size:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px}
@@ -43,8 +43,17 @@ textarea{min-height:64px;resize:vertical}
 <body>
 <div class="app">
 <div class="classic-title"><div class="brand">سبز رویان اورامان — Web CAD</div><div class="file-title" id="windowTitle">Drawing1.dxf</div></div>
-<div class="menu-bar">
-  <span class="menu">فایل</span><span class="menu">ویرایش</span><span class="menu">نما</span><span class="menu">درج</span><span class="menu">فرمت</span><span class="menu">ابزارها</span><span class="menu">ترسیم</span><span class="menu">تغییر</span><span class="menu">پنجره</span><span class="menu">راهنما</span>
+<div class="menu-bar" id="mainMenuBar">
+  <div class="menu-wrap"><span class="menu" data-menu="file">فایل</span><div class="menu-dropdown"><button data-menu-action="new">جدید</button><button data-menu-action="open">باز کردن DXF</button><button data-menu-action="save">ذخیره DXF</button><button data-menu-action="fit">Zoom Extents</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="edit">ویرایش</span><div class="menu-dropdown"><button data-menu-action="undo">بازگشت</button><button data-menu-action="erase">حذف</button><button data-menu-action="select">انتخاب</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="view">نما</span><div class="menu-dropdown"><button data-menu-action="fit">Zoom Extents</button><button data-menu-action="grid">Grid</button><button data-menu-action="snap">SNAP</button><button data-menu-action="osnap">OSNAP</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="insert">درج</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button><button data-menu-action="point">Point</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="format">فرمت</span><div class="menu-dropdown"><button data-menu-action="newlayer">لایه جدید</button><button data-menu-action="activelayer">لایه فعال</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="tools">ابزارها</span><div class="menu-dropdown"><button data-menu-action="divide">Divide</button><button data-menu-action="measure">Measure</button><button data-menu-action="snap">SNAP شبکه</button><button data-menu-action="osnap">OSNAP اشیا</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="draw">ترسیم</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="modify">تغییر</span><div class="menu-dropdown"><button data-menu-action="move">Move</button><button data-menu-action="copy">Copy</button><button data-menu-action="offset">Offset</button><button data-menu-action="trim">Trim</button><button data-menu-action="extend">Extend</button><button data-menu-action="rotate">Rotate</button><button data-menu-action="erase">Erase</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="window">پنجره</span><div class="menu-dropdown"><button data-menu-action="model">Model</button><button data-menu-action="layout1">Layout1</button><button data-menu-action="layout2">Layout2</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="help">راهنما</span><div class="menu-dropdown"><button data-menu-action="help">راهنمای میانبرها</button><button data-menu-action="about">درباره Web CAD</button></div></div>
 </div>
 <div class="ribbon-lite">
   <div class="rgroup">
@@ -272,6 +281,7 @@ canvas.addEventListener("mousedown",e=>{if(e.button===1||e.button===2){drag={x:e
  if(commandClick(p))return;
  if(mode==="line"){drawPoints.push(p);if(drawPoints.length===2){entities.push({type:"LINE",layer:activeLayer,x1:drawPoints[0][0],y1:drawPoints[0][1],x2:p[0],y2:p[1]});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("خط ایجاد شد")}}
  else if(mode==="circle"){if(!drawPoints.length){drawPoints=[p];setStatus("نقطه دوم را برای شعاع انتخاب کن")}else{const q=drawPoints[0],r=Math.hypot(p[0]-q[0],p[1]-q[1]);entities.push({type:"CIRCLE",layer:activeLayer,x:q[0],y:q[1],r});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("دایره ایجاد شد")}}
+ else if(mode==="point"){entities.push({type:"POINT",layer:activeLayer,x:p[0],y:p[1],r:0});rebuildLayers();draw();setStatus("نقطه ایجاد شد")}
  else if(mode==="polyline"){if(e.detail===2){if(drawPoints.length>=2)entities.push({type:"LWPOLYLINE",layer:activeLayer,pts:drawPoints.slice(),closed:false});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("پلی‌لاین پایان یافت")}else{drawPoints.push(p);draw()}}
  else {
   if(mode==="select"){selectionBox={x1:p[0],y1:p[1],x2:p[0],y2:p[1],crossing:false};draw();return}
@@ -362,6 +372,38 @@ function findNearest(p){let best=-1,bd=Infinity;entities.forEach((e,i)=>{let d=I
 function segDist(px,py,x1,y1,x2,y2){const dx=x2-x1,dy=y2-y1;if(!dx&&!dy)return Math.hypot(px-x1,py-y1);let t=((px-x1)*dx+(py-y1)*dy)/(dx*dx+dy*dy);t=Math.max(0,Math.min(1,t));return Math.hypot(px-(x1+t*dx),py-(y1+t*dy))}
 $("aiRun").onclick=()=>{const q=$("aiCommand").value.trim().toLowerCase();if(!q){$("aiResult").textContent="فرمان را وارد کن.";return}if(q.includes("تمام")||q.includes("zoom")||q.includes("fit")){fit();$("aiResult").textContent="نمایش کامل نقشه اجرا شد."}else if(q.includes("شبکه")&&(q.includes("خاموش")||q.includes("off"))){grid=false;draw();$("aiResult").textContent="شبکه خاموش شد."}else if(q.includes("شبکه")){grid=true;draw();$("aiResult").textContent="شبکه روشن شد."}else{$("aiResult").textContent="این فرمان در نسخه پایه هنوز به AI متصل نیست؛ هسته اتصال AI در مرحله بعد اضافه می‌شود."}};
 
+document.querySelectorAll(".menu[data-menu]").forEach(menu=>{
+  menu.addEventListener("click",e=>{
+    e.stopPropagation();
+    const wrap=menu.parentElement;
+    document.querySelectorAll(".menu-wrap.open").forEach(w=>{if(w!==wrap)w.classList.remove("open")});
+    wrap.classList.toggle("open");
+  });
+});
+document.addEventListener("click",()=>document.querySelectorAll(".menu-wrap.open").forEach(w=>w.classList.remove("open")));
+function runMenuAction(a){
+  if(a==="new")return $("newBtn").click();
+  if(a==="open")return $("dxfFile").click();
+  if(a==="save")return $("saveBtn").click();
+  if(a==="fit")return $("fitBtn").click();
+  if(a==="grid")return $("gridBtn").click();
+  if(a==="snap")return $("snapStatus").click();
+  if(a==="osnap")return $("osnapStatus").click();
+  if(a==="newlayer")return $("newLayerBtn").click();
+  if(a==="activelayer")return $("activeLayerBtn").click();
+  if(a==="select")return setMode("select");
+  if(a==="line"||a==="polyline"||a==="circle")return setMode(a);
+  if(a==="point"){mode="point";drawPoints=[];setStatus("POINT — برای درج نقطه کلیک کن");return}
+  if(["move","copy","offset","trim","extend","rotate","erase"].includes(a))return beginEditCommand(a.toUpperCase());
+  if(a==="divide")return runPointDivision("DIVIDE");
+  if(a==="measure")return runPointDivision("MEASURE");
+  if(a==="undo")return setStatus("Undo در نسخه فعلی هنوز پیاده‌سازی نشده است");
+  if(a==="model"||a==="layout1"||a==="layout2"){document.querySelectorAll(".view-tab").forEach(x=>x.classList.toggle("active",x.textContent.trim().toLowerCase()===a));return setStatus(a==="model"?"Model فعال شد":"این Layout فعلاً نمای کاری است")}
+  if(a==="help")return setStatus("L=Line | P=Polyline | C=Circle | M=Move | CO=Copy | O=Offset | TR=Trim | EX=Extend | RO=Rotate | E=Erase | Z=Zoom | G=Grid | Esc=لغو");
+  if(a==="about")return setStatus("Web CAD سبز رویان اورامان — نسخه پایه توسعه‌یافته");
+}
+document.querySelectorAll("[data-menu-action]").forEach(btn=>btn.addEventListener("click",e=>{e.stopPropagation();btn.closest(".menu-wrap").classList.remove("open");runMenuAction(btn.dataset.menuAction)}));
+
 const commandInput=$("commandInput");
 function runCadCommand(raw){
  const q=(raw||"").trim().toUpperCase();
@@ -395,6 +437,7 @@ window.addEventListener("keydown",e=>{
 });
 $("newLayerBtn").onclick=()=>{const n=prompt("نام لایه جدید:","0");if(n&&n.trim()){const name=n.trim();if(!layers.has(name))layers.set(name,{visible:true,count:0});activeLayer=name;$("activeLayerInfo").textContent="لایه فعال: "+activeLayer;renderLayers();setStatus("لایه فعال: "+activeLayer)}};
 $("activeLayerBtn").onclick=()=>{const names=[...layers.keys()];if(!names.length)return;const idx=Math.max(0,names.indexOf(activeLayer));activeLayer=names[(idx+1)%names.length];$("activeLayerInfo").textContent="لایه فعال: "+activeLayer;setStatus("لایه فعال: "+activeLayer)};
+document.querySelectorAll(".view-tab").forEach(tab=>tab.onclick=()=>{document.querySelectorAll(".view-tab").forEach(t=>t.classList.remove("active"));tab.classList.add("active");setStatus(tab.textContent.trim()+" فعال شد")});
 $("gridStatus").onclick=()=>{$("gridBtn").click();$("gridStatus").classList.toggle("active",grid)};
 $("snapStatus").onclick=()=>{gridSnapEnabled=!gridSnapEnabled;$("snapStatus").classList.toggle("active",gridSnapEnabled);setStatus(gridSnapEnabled?"SNAP شبکه روشن شد":"SNAP شبکه خاموش شد")};
 $("osnapStatus").onclick=()=>{snapEnabled=!snapEnabled;$("osnapStatus").classList.toggle("active",snapEnabled);setStatus(snapEnabled?"OSNAP روشن شد — Endpoint / Midpoint / Center / Intersection / Nearest":"OSNAP خاموش شد")};
