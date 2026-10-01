@@ -413,7 +413,8 @@ $("backBtn").onclick=()=>location.href="index.html";
 document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
 document.querySelectorAll("[data-cmd]").forEach(b=>b.onclick=()=>beginEditCommand(b.dataset.cmd));
 canvas.addEventListener("mousemove",e=>{const r=canvas.getBoundingClientRect();let rawP=screenToWorld(e.clientX-r.left,e.clientY-r.top);if(orthoEnabled&&drawPoints.length&&(mode==="line"||mode==="polyline")){const b=drawPoints[drawPoints.length-1],dx=rawP[0]-b[0],dy=rawP[1]-b[1];if(Math.abs(dx)>=Math.abs(dy))rawP=[rawP[0],b[1]];else rawP=[b[0],rawP[1]]}const p=snapPoint(rawP);$("coord").textContent="X: "+p[0].toFixed(3)+" | Y: "+p[1].toFixed(3);previewPoint=(mode==="line"||mode==="circle"||mode==="polyline")?p:null;if(drag){view.cx=drag.cx-(e.clientX-drag.x)/view.scale;view.cy=drag.cy+(e.clientY-drag.y)/view.scale}else if(selectionBox&&mode==="select"){selectionBox.x2=p[0];selectionBox.y2=p[1];selectionBox.crossing=p[0]<selectionBox.x1;draw()};draw()});
-canvas.addEventListener("mousedown",e=>{if(e.button===1){drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy};e.preventDefault();return}if(e.button===2){e.preventDefault();return}if(e.button!==0)return;const r=canvas.getBoundingClientRect(),rawP=screenToWorld(e.clientX-r.left,e.clientY-r.top),p=snapPoint(rawP);
+function openEntityContextAt(clientX,clientY){const r=canvas.getBoundingClientRect(),p=screenToWorld(clientX-r.left,clientY-r.top);contextEntityIndex=selectedEntityForContext(p);if(contextEntityIndex<0){closeEntityContext();return false}const menu=$("entityContextMenu");menu.style.left=Math.max(4,Math.min(clientX,window.innerWidth-174))+"px";menu.style.top=Math.max(4,Math.min(clientY,window.innerHeight-130))+"px";menu.classList.add("open");return true}
+canvas.addEventListener("mousedown",e=>{if(e.button===1){drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy};e.preventDefault();return}if(e.button===2){e.preventDefault();e.stopPropagation();openEntityContextAt(e.clientX,e.clientY);return}if(e.button!==0)return;const r=canvas.getBoundingClientRect(),rawP=screenToWorld(e.clientX-r.left,e.clientY-r.top),p=snapPoint(rawP);
  if(commandClick(p))return;
  if(mode==="line"){drawPoints.push(p);if(drawPoints.length===2){saveHistory();entities.push({type:"LINE",layer:activeLayer,x1:drawPoints[0][0],y1:drawPoints[0][1],x2:p[0],y2:p[1]});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("خط ایجاد شد")}}
  else if(mode==="circle"){if(!drawPoints.length){drawPoints=[p];setStatus("نقطه دوم را برای شعاع انتخاب کن")}else{const q=drawPoints[0],r=Math.hypot(p[0]-q[0],p[1]-q[1]);saveHistory();entities.push({type:"CIRCLE",layer:activeLayer,x:q[0],y:q[1],r});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("دایره ایجاد شد")}}
@@ -479,16 +480,7 @@ function showEntityProperties(index){
 }
 function closeEntityProperties(){$("entityProperties").classList.remove("open")}
 let contextEntityIndex=-1;
-canvas.addEventListener("contextmenu",e=>{
- e.preventDefault();
- const r=canvas.getBoundingClientRect(),p=screenToWorld(e.clientX-r.left,e.clientY-r.top);
- contextEntityIndex=selectedEntityForContext(p);
- if(contextEntityIndex<0){closeEntityContext();return}
- const menu=$("entityContextMenu");
- menu.style.left=Math.min(e.clientX,window.innerWidth-170)+"px";
- menu.style.top=Math.min(e.clientY,window.innerHeight-125)+"px";
- menu.classList.add("open");
-});
+canvas.addEventListener("contextmenu",e=>{e.preventDefault();e.stopPropagation();openEntityContextAt(e.clientX,e.clientY)});
 function closeEntityContext(){const m=$("entityContextMenu");if(m)m.classList.remove("open")}
 document.addEventListener("click",e=>{if(!e.target.closest("#entityContextMenu"))closeEntityContext()});
 document.addEventListener("scroll",closeEntityContext,true);
