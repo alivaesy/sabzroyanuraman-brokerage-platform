@@ -595,7 +595,7 @@ function selectedIndices(){return [...selectedSet].filter(i=>entities[i]&&isLaye
 function beginEditCommand(cmd){
  const ids=selectedIndices();
  if(!ids.length){setMode("select");commandState={cmd,ids:[],step:"select",before:JSON.stringify(entities)};setStatus(cmd+" — Select objects:");return}
- commandState={cmd,ids,step:cmd==="BREAK"?"break1":"base",before:JSON.stringify(entities)};setMode("select");
+ commandState={cmd,ids,step:cmd==="BREAK"?"break1":(cmd==="TRIM"||cmd==="EXTEND"?"cutting":"base"),before:JSON.stringify(entities)};setMode("select");
  setStatus(cmd==="BREAK"?"BREAK — Specify first break point:":cmd+" — Specify base point:")
 }
 function polylineGripHit(e,p){
@@ -667,7 +667,21 @@ if(s.cmd==="DIST"&&s.step==="dist1"){
   s.p1=null;s.step="dist1";
   return true;
  }
- if(s.step==="vertex"){
+ if((s.cmd==="TRIM"||s.cmd==="EXTEND")&&s.step==="cutting"){
+ const hit=findNearest(p);
+ if(hit<0){setStatus(s.cmd+" — Select cutting edges:");return true}
+ if(!s.ids.includes(hit))s.ids.push(hit);
+ s.step="target";setStatus(s.cmd+" — Select object to modify:");draw();return true;
+}
+if((s.cmd==="TRIM"||s.cmd==="EXTEND")&&s.step==="target"){
+ const target=findNearest(p);
+ if(target<0||s.ids.includes(target)){setStatus(s.cmd+" — Select object to modify:");return true}
+ const changed=s.cmd==="TRIM"?trimEntityAt(target,p,s.ids):extendEntityAt(target,p,s.ids);
+ if(changed){selectedSet.clear();selectedSet.add(target);selected=target;setStatus(s.cmd+" completed — Select another object or press Enter.");draw();}
+ else setStatus(s.cmd+" — No valid intersection.");
+ return true;
+}
+if(s.step==="vertex"){
   const e=entities[s.ids[0]];if(e&&e.pts&&e.pts[s.vertexIndex]){e.pts[s.vertexIndex]=p;finishCommand("PEDIT — Vertex moved");}else{commandState=null;setMode("select");}
   return true;
  }
@@ -1131,8 +1145,8 @@ function runCadCommand(raw){
  else if(q==="M"||q==="MOVE")beginEditCommand("MOVE");
  else if(q==="CO"||q==="COPY")beginEditCommand("COPY");
  else if(q==="O"||q==="OFFSET")beginEditCommand("OFFSET");
- else if(q==="TR"||q==="TRIM")beginEditCommand("TRIM");
- else if(q==="EX"||q==="EXTEND")beginEditCommand("EXTEND");
+ else if(q==="TR"||q==="TRIM"){beginEditCommand("TRIM");}
+ else if(q==="EX"||q==="EXTEND"){beginEditCommand("EXTEND");}
  else if(q==="RO"||q==="ROTATE")beginEditCommand("ROTATE");
  else if(q==="BR"||q==="BREAK")beginEditCommand("BREAK");
  else if(q==="AREA"||q==="AA"){runAreaCommand();}
