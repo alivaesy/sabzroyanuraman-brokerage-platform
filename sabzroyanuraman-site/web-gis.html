@@ -473,13 +473,114 @@ function getCRS(){return currentCRS;}
 
 const layerControl=L.control.layers(null,null,{collapsed:true,position:"topleft"}).addTo(map);
 let activeDrawHandler=null;
+let manualDrawState=null;
+
 function stopActiveDraw(){
-  if(activeDrawHandler){try{activeDrawHandler.disable()}catch(_){} activeDrawHandler=null;}
+  if(activeDrawHandler){
+    try{if(typeof activeDrawHandler.disable==="function")activeDrawHandler.disable();}catch(_){}
+  }
+  activeDrawHandler=null;
+  if(manualDrawState){
+    map.off("click",manualDrawState.onClick);
+    map.off("mousemove",manualDrawState.onMove);
+    if(manualDrawState.preview&&map.hasLayer(manualDrawState.preview))map.removeLayer(manualDrawState.preview);
+    manualDrawState=null;
+  }
+  try{map.doubleClickZoom.enable();}catch(_){}
   document.querySelectorAll(".webgis-draw-control button").forEach(b=>b.classList.remove("active"));
 }
+
+function finishManualDraw(){
+  const st=manualDrawState;
+  if(!st)return;
+  let layer=null;
+  if(st.type==="Polygon"){
+    if(st.points.length<3){status("پلیگون حداقل به ۳ رأس نیاز دارد.");return;}
+    layer=L.polygon(st.points,{color:"#146c43",weight:3,fillOpacity:.18});
+  }else if(st.type==="Rectangle"){
+    if(!st.first||!st.second){status("برای مستطیل گوشه اول و گوشه دوم را روی نقشه کلیک کن.");return;}
+    layer=L.rectangle(L.latLngBounds(st.first,st.second),{color:"#146c43",weight:3,fillOpacity:.18});
+  }else if(st.type==="Circle"){
+    if(!st.center||!st.radiusPoint){status("برای دایره ابتدا مرکز و سپس نقطه شعاع را کلیک کن.");return;}
+    const radius=map.distance(st.center,st.radiusPoint);
+    if(radius<0.1){status("شعاع دایره خیلی کوچک است.");return;}
+    layer=L.circle(st.center,{radius,color:"#146c43",weight:3,fillOpacity:.18});
+  }
+  if(layer){
+    stopActiveDraw();
+    map.fire(L.Draw.Event.CREATED,{layer,layerType:st.type.toLowerCase()});
+  }
+}
+
+function startManualDraw(type,button){
+  stopActiveDraw();
+  try{map.doubleClickZoom.disable();}catch(_){}
+  const st={type,points:[],first:null,second:null,center:null,radiusPoint:null,preview:null};
+  manualDrawState=st;
+
+  const onMove=e=>{
+    if(type==="Polygon"&&st.points.length){
+      const pts=st.points.concat([[e.latlng.lat,e.latlng.lng]]);
+      if(st.preview)map.removeLayer(st.preview);
+      st.preview=L.polygon(pts,{color:"#146c43",weight:2,dashArray:"5,5",fillOpacity:.10}).addTo(map);
+    }else if(type==="Rectangle"&&st.first){
+      if(st.preview)map.removeLayer(st.preview);
+      st.preview=L.rectangle(L.latLngBounds(st.first,e.latlng),{color:"#146c43",weight:2,dashArray:"5,5",fillOpacity:.10}).addTo(map);
+    }else if(type==="Circle"&&st.center){
+      const radius=map.distance(st.center,e.latlng);
+      if(st.preview)map.removeLayer(st.preview);
+      st.preview=L.circle(st.center,{radius,color:"#146c43",weight:2,dashArray:"5,5",fillOpacity:.10}).addTo(map);
+    }
+  };
+
+  const onClick=e=>{
+    if(type==="Polygon"){
+      st.points.push([e.latlng.lat,e.latlng.lng]);
+      status("رأس "+st.points.length+" ثبت شد؛ برای پایان «Start / Stop» را بزن یا Enter.");
+    }else if(type==="Rectangle"){
+      if(!st.first){
+        st.first=e.latlng;
+        status("گوشه اول مستطیل ثبت شد؛ حالا روی گوشه مقابل کلیک کن.");
+      }else{
+        st.second=e.latlng;
+        finishManualDraw();
+      }
+    }else if(type==="Circle"){
+      if(!st.center){
+        st.center=e.latlng;
+        status("مرکز دایره ثبت شد؛ حالا روی نقطه تعیین شعاع کلیک کن.");
+      }else{
+        st.radiusPoint=e.latlng;
+        finishManualDraw();
+      }
+    }
+  };
+
+  st.onClick=onClick;st.onMove=onMove;
+  map.on("click",onClick);map.on("mousemove",onMove);
+  activeDrawHandler={
+    __webgisType:type,
+    disable:()=>{},
+    completeShape:finishManualDraw
+  };
+  button?.classList.add("active");
+  const help={
+    Polygon:"پلیگون: رأس‌ها را کلیک کن، سپس Start / Stop را بزن.",
+    Rectangle:"مستطیل: یک گوشه را کلیک کن، سپس گوشه مقابل را کلیک کن.",
+    Circle:"دایره: مرکز را کلیک کن، سپس نقطه شعاع را کلیک کن."
+  };
+  status(help[type]);
+}
+
 function startDraw(type,button){
   stopActiveDraw();
   if(!window.L||!L.Draw){status("کتابخانه Leaflet Draw بارگذاری نشده است.");return;}
+
+  if(type==="Polygon"||type==="Rectangle"||type==="Circle"){
+    startManualDraw(type,button);
+    return;
+  }
+
   const Ctor=L.Draw[type];
   if(typeof Ctor!=="function"){
     status("ابزار ترسیم «"+type+"» در Leaflet Draw موجود نیست.");
@@ -493,11 +594,8 @@ function startDraw(type,button){
     button?.classList.add("active");
     activeDrawHandler.enable();
     const help={
-      Marker:"برای ایجاد نقطه روی نقشه کلیک کن.",
-      Polyline:"برای خط چند نقطه کلیک کن؛ با دوبارکلیک یا Enter خط را تمام کن.",
-      Polygon:"رئوس را یکی‌یکی کلیک کن؛ روی رأس اول کلیک کن یا Enter بزن تا پلیگون بسته شود.",
-      Rectangle:"گوشه اول را کلیک و نگه دار، سپس تا گوشه مقابل بکش و رها کن.",
-      Circle:"مرکز را کلیک و نگه دار، سپس شعاع را با کشیدن مشخص کن و رها کن."
+      Marker:"نقطه: روی نقشه کلیک کن.",
+      Polyline:"خط: نقاط را کلیک کن؛ سپس Start / Stop یا Enter."
     };
     status(help[type]||("ابزار "+(button?.dataset.label||type)+" فعال شد."));
   }catch(err){
@@ -517,10 +615,11 @@ document.addEventListener("keydown",e=>{
     const h=activeDrawHandler;
     if(h && typeof h.completeShape==="function"){
       e.preventDefault();
-      try{h.completeShape()}catch(err){console.warn("completeShape failed",err)}
+      try{h.completeShape();}catch(err){console.warn("completeShape failed",err)}
     }
   }
 });
+
 const drawControl=L.Control.extend({
   options:{position:"topleft"},
   onAdd:function(){
@@ -541,12 +640,16 @@ const drawControl=L.Control.extend({
       d.appendChild(b);
     });
     const stop=document.createElement("button");
-    stop.type="button";stop.textContent="✓ پایان / لغو";stop.title="پایان خط یا پلیگون؛ در صورت نبودن ترسیم، لغو ابزار";
+    stop.type="button";stop.textContent="Start / Stop";stop.title="شروع یا پایان ابزار ترسیم";
     stop.onclick=e=>{
       e.preventDefault();e.stopPropagation();
-      const h=activeDrawHandler;
-      if(h&&typeof h.completeShape==="function"&&(h.__webgisType==="Polyline"||h.__webgisType==="Polygon")){
-        try{h.completeShape();return}catch(err){console.warn("completeShape failed",err)}
+      if(!activeDrawHandler){
+        const first=d.querySelector("button[data-label='📍 نقطه']");
+        if(first)startDraw("Marker",first);
+        return;
+      }
+      if(typeof activeDrawHandler.completeShape==="function"){
+        try{activeDrawHandler.completeShape();return}catch(_){}
       }
       stopActiveDraw();
       status("ابزار ترسیم متوقف شد.");
@@ -557,13 +660,9 @@ const drawControl=L.Control.extend({
 });
 map.addControl(new drawControl());
 
-/* کنترل رسمی Leaflet Draw فقط برای Edit/Delete؛ ابزارهای ترسیم بالا کنترل می‌شوند. */
 if(L.Control&&L.Control.Draw){
   try{
-    new L.Control.Draw({
-      edit:{featureGroup:drawn},
-      draw:false
-    }).addTo(map);
+    new L.Control.Draw({edit:{featureGroup:drawn},draw:false}).addTo(map);
   }catch(err){console.warn("Leaflet Draw edit control unavailable",err)}
 }else{
   console.warn("Leaflet Draw is not available; map core remains active.");
