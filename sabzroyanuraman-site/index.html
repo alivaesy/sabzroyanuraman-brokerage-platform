@@ -1300,16 +1300,12 @@ body.map-mode .container {
     padding-bottom: 12px;
 }
 
-body.map-mode .sidebar {
-    width: calc(var(--sidebar-width) / 2);
-}
-
 body.map-mode .map-section {
     display: block;
     position: fixed;
     top: 0;
     left: 0;
-    right: calc(var(--sidebar-width) / 2);
+    right: var(--sidebar-width);
     bottom: 0;
     width: auto;
     height: 100vh;
