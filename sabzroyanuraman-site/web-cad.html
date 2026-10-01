@@ -81,7 +81,7 @@ textarea{min-height:64px;resize:vertical}
         <button class="btn primary" data-mode="select">انتخاب</button>
         <button class="btn" data-mode="line">خط</button>
         <button class="btn" data-mode="polyline">پلی‌لاین</button>
-        <button class="btn" data-mode="circle">دایره</button><button class="btn" data-cmd="MOVE">Move</button><button class="btn" data-cmd="COPY">Copy</button><button class="btn" data-cmd="OFFSET">Offset</button><button class="btn" data-cmd="TRIM">Trim</button><button class="btn" data-cmd="EXTEND">Extend</button><button class="btn" data-cmd="ROTATE">Rotate</button>
+        <button class="btn" data-mode="circle">دایره</button><button class="btn" data-cmd="MOVE">Move</button><button class="btn" data-cmd="COPY">Copy</button><button class="btn" data-cmd="OFFSET">Offset</button><button class="btn" data-cmd="TRIM">Trim</button><button class="btn" data-cmd="EXTEND">Extend</button><button class="btn" data-cmd="ROTATE">Rotate</button><button class="btn" data-cmd="DIVIDE">Divide</button><button class="btn" data-cmd="MEASURE">Measure</button>
       </div>
       <div class="small" style="margin-top:9px">برای خط و دایره روی بوم کلیک کن. برای پایان پلی‌لاین دوبار کلیک کن. در حالت انتخاب، با کشیدن پنجره‌ای چند عارضه را انتخاب کن. چرخ ماوس Zoom و دکمه وسط Pan است.</div>
     </section>
@@ -249,6 +249,7 @@ function dxfText(){
  for(const e of entities){
   if(e.type==="LINE")s+=`0\nLINE\n8\n0\n10\n${e.x1}\n20\n${e.y1}\n11\n${e.x2}\n21\n${e.y2}\n`;
   else if(e.type==="CIRCLE")s+=`0\nCIRCLE\n8\n0\n10\n${e.x}\n20\n${e.y}\n40\n${e.r}\n`;
+  else if(e.type==="POINT")s+=`0\nPOINT\n8\n${e.layer||"0"}\n10\n${e.x}\n20\n${e.y}\n`;
   else if(e.type==="LWPOLYLINE"){s+=`0\nLWPOLYLINE\n8\n0\n90\n${e.pts.length}\n70\n${e.closed?1:0}\n`;e.pts.forEach(p=>s+=`10\n${p[0]}\n20\n${p[1]}\n`)}
  }
  return s+"0\nENDSEC\n0\nEOF\n"
@@ -298,6 +299,47 @@ function transformEntity(e,dx,dy,angle=0,base=null){
  else if(q.type==="DIMENSION"){[q.x1,q.y1]=tr(q.x1,q.y1);[q.x2,q.y2]=tr(q.x2,q.y2);[q.tx,q.ty]=tr(q.tx,q.ty)}
  return q;
 }
+function entityPathLength(e){
+ if(e.type==="LINE")return Math.hypot(e.x2-e.x1,e.y2-e.y1);
+ if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"||e.type==="POLYLINE3D"||e.type==="SPLINE"){
+  let L=0;if(!e.pts||e.pts.length<2)return 0;
+  for(let i=1;i<e.pts.length;i++)L+=Math.hypot(e.pts[i][0]-e.pts[i-1][0],e.pts[i][1]-e.pts[i-1][1]);
+  if(e.closed&&e.pts.length>2)L+=Math.hypot(e.pts[0][0]-e.pts[e.pts.length-1][0],e.pts[0][1]-e.pts[e.pts.length-1][1]);
+  return L;
+ }
+ if(e.type==="CIRCLE")return Math.PI*2*Math.abs(e.r);
+ if(e.type==="ARC"){let sw=e.a2-e.a1;while(sw<0)sw+=360;while(sw>360)sw-=360;return Math.abs(e.r)*sw*Math.PI/180}
+ return 0;
+}
+function pointAtDistance(e,d){
+ if(e.type==="LINE"){const L=entityPathLength(e);if(!L)return null;const t=Math.max(0,Math.min(1,d/L));return[e.x1+(e.x2-e.x1)*t,e.y1+(e.y2-e.y1)*t]}
+ if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"||e.type==="POLYLINE3D"||e.type==="SPLINE"){
+  if(!e.pts||e.pts.length<2)return null;let rem=d;
+  for(let i=1;i<e.pts.length;i++){const a=e.pts[i-1],b=e.pts[i],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(rem<=L&&L>0)return[a[0]+(b[0]-a[0])*(rem/L),a[1]+(b[1]-a[1])*(rem/L)];rem-=L}
+  if(e.closed&&e.pts.length>2){const a=e.pts[e.pts.length-1],b=e.pts[0],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(rem<=L&&L>0)return[a[0]+(b[0]-a[0])*(rem/L),a[1]+(b[1]-a[1])*(rem/L)]}
+  return null;
+ }
+ if(e.type==="CIRCLE"){if(!e.r)return null;const a=d/Math.abs(e.r);return[e.x+e.r*Math.cos(a),e.y+e.r*Math.sin(a)]}
+ if(e.type==="ARC"){const sw=(e.a2-e.a1)*Math.PI/180,L=Math.abs(e.r*sw);if(!L)return null;const a=e.a1*Math.PI/180+d/Math.abs(e.r);return[e.x+e.r*Math.cos(a),e.y+e.r*Math.sin(a)]}
+ return null;
+}
+function addDividePoints(e,count){const L=entityPathLength(e);if(L<=0||count<2)return 0;let n=0;for(let i=1;i<count;i++){const p=pointAtDistance(e,L*i/count);if(p){entities.push({type:"POINT",layer:e.layer||activeLayer,x:p[0],y:p[1],r:0});n++}}return n}
+function addMeasurePoints(e,step){const L=entityPathLength(e);if(L<=0||step<=0)return 0;let n=0;for(let d=step;d<L-1e-9;d+=step){const p=pointAtDistance(e,d);if(p){entities.push({type:"POINT",layer:e.layer||activeLayer,x:p[0],y:p[1],r:0});n++}}return n}
+function runPointDivision(cmd){
+ const ids=selectedIndices();
+ if(ids.length!==1){setStatus(cmd+" — ابتدا فقط یک خط/پلی‌لاین/قوس/دایره را انتخاب کن");return}
+ const e=entities[ids[0]];
+ if(!["LINE","LWPOLYLINE","POLYLINE","POLYLINE3D","SPLINE","CIRCLE","ARC"].includes(e.type)){setStatus(cmd+" — این نوع عارضه پشتیبانی نمی‌شود");return}
+ if(cmd==="DIVIDE"){
+  const n=parseInt(prompt("تعداد قسمت‌های مساوی را وارد کن:","10"),10);
+  if(!Number.isFinite(n)||n<2){setStatus("DIVIDE لغو شد؛ تعداد باید حداقل 2 باشد");return}
+  const added=addDividePoints(e,n);rebuildLayers();draw();setStatus("DIVIDE انجام شد — "+added+" نقطه ایجاد شد");
+ }else{
+  const d=parseFloat(prompt("فاصله بین نقاط را وارد کن:","10"));
+  if(!Number.isFinite(d)||d<=0){setStatus("MEASURE لغو شد؛ فاصله باید بزرگ‌تر از صفر باشد");return}
+  const added=addMeasurePoints(e,d);rebuildLayers();draw();setStatus("MEASURE انجام شد — "+added+" نقطه با فاصله "+d+" ایجاد شد");
+ }
+}
 function finishCommand(msg){commandState=null;setMode("select");rebuildLayers();draw();setStatus(msg)}
 function selectedIndices(){return [...selectedSet].filter(i=>entities[i]&&isLayerVisible(entities[i]))}
 function beginEditCommand(cmd){
@@ -339,6 +381,8 @@ function runCadCommand(raw){
  else if(q==="TR"||q==="TRIM")beginEditCommand("TRIM");
  else if(q==="EX"||q==="EXTEND")beginEditCommand("EXTEND");
  else if(q==="RO"||q==="ROTATE")beginEditCommand("ROTATE");
+ else if(q==="DIVIDE"||q==="DIV")runPointDivision("DIVIDE");
+ else if(q==="MEASURE"||q==="ME")runPointDivision("MEASURE");
  else if(q==="Z"||q==="ZOOM"||q==="ZE"||q==="ZOOM E"){fit();}
  else if(q==="G"||q==="GRID"){grid=!grid;draw();$("gridStatus").classList.toggle("active",grid);}
  else if(q==="ESC"){commandState=null;setMode("select");selectedSet.clear();selected=-1;draw();setStatus("Command: *Cancel*");}
