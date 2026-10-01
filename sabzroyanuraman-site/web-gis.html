@@ -481,19 +481,46 @@ function startDraw(type,button){
   stopActiveDraw();
   if(!window.L||!L.Draw){status("کتابخانه Leaflet Draw بارگذاری نشده است.");return;}
   const Ctor=L.Draw[type];
-  if(typeof Ctor!=="function"){status("ابزار ترسیم «"+type+"» در Leaflet Draw موجود نیست.");console.error("Missing draw tool:",type,Object.keys(L.Draw||{}));return;}
+  if(typeof Ctor!=="function"){
+    status("ابزار ترسیم «"+type+"» در Leaflet Draw موجود نیست.");
+    console.error("Missing draw tool:",type,Object.keys(L.Draw||{}));
+    return;
+  }
   const opts={shapeOptions:{color:"#146c43",weight:3,fillOpacity:.18}};
   try{
     activeDrawHandler=new Ctor(map,opts);
+    activeDrawHandler.__webgisType=type;
     button?.classList.add("active");
     activeDrawHandler.enable();
-    status("ابزار "+(button?.dataset.label||type)+" فعال شد؛ روی نقشه کلیک کن.");
+    const help={
+      Marker:"برای ایجاد نقطه روی نقشه کلیک کن.",
+      Polyline:"برای خط چند نقطه کلیک کن؛ با دوبارکلیک یا Enter خط را تمام کن.",
+      Polygon:"رئوس را یکی‌یکی کلیک کن؛ روی رأس اول کلیک کن یا Enter بزن تا پلیگون بسته شود.",
+      Rectangle:"گوشه اول را کلیک و نگه دار، سپس تا گوشه مقابل بکش و رها کن.",
+      Circle:"مرکز را کلیک و نگه دار، سپس شعاع را با کشیدن مشخص کن و رها کن."
+    };
+    status(help[type]||("ابزار "+(button?.dataset.label||type)+" فعال شد."));
   }catch(err){
     console.error("Draw start error",err);
     activeDrawHandler=null;
     status("شروع ابزار ترسیم خطا داد: "+err.message);
   }
 }
+
+document.addEventListener("keydown",e=>{
+  if(!activeDrawHandler)return;
+  if(e.key==="Escape"){
+    e.preventDefault();
+    stopActiveDraw();
+    status("ترسیم لغو شد.");
+  }else if(e.key==="Enter"){
+    const h=activeDrawHandler;
+    if(h && typeof h.completeShape==="function"){
+      e.preventDefault();
+      try{h.completeShape()}catch(err){console.warn("completeShape failed",err)}
+    }
+  }
+});
 const drawControl=L.Control.extend({
   options:{position:"topleft"},
   onAdd:function(){
@@ -1929,7 +1956,10 @@ $("gisToolSearch").oninput=e=>renderGisToolbox(e.target.value);
       downloadProject:()=>document.getElementById("downloadProject")?.click(),
       fitDraw:()=>document.getElementById("fitDraw")?.click(),
       clearDraw:()=>document.getElementById("clearDraw")?.click(),
-      startDraw:()=>status("ابزارهای ترسیم از نوار Draw روی نقشه فعال می‌شوند."),
+      startDraw:()=>{
+  const first=document.querySelector(".webgis-draw-control button");
+  if(first){first.click();}else{status("نوار ابزار ترسیم روی نقشه پیدا نشد.");}
+},
       showLayers:()=>{const x=document.getElementById("layers");if(x){const names=[...x.querySelectorAll(".layer-name")].map(n=>n.textContent);alert(names.length?names.join("\n"):"لایه‌ای وجود ندارد.")}},
       wms:()=>document.getElementById("addWms")?.click(),
       buffer:()=>{document.getElementById("gisOperation").value="buffer";document.getElementById("runGisOperation").click()},
