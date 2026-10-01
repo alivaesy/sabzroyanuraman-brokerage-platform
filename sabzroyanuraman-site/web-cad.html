@@ -76,12 +76,12 @@ textarea{min-height:64px;resize:vertical}
   </div>
   <aside class="side">
     <section class="panel">
-      <h3>ابزار ترسیم</h3>
+      <h3>ابزار ترسیم و ویرایش</h3>
       <div class="actions">
         <button class="btn primary" data-mode="select">انتخاب</button>
         <button class="btn" data-mode="line">خط</button>
         <button class="btn" data-mode="polyline">پلی‌لاین</button>
-        <button class="btn" data-mode="circle">دایره</button>
+        <button class="btn" data-mode="circle">دایره</button><button class="btn" data-cmd="MOVE">Move</button><button class="btn" data-cmd="COPY">Copy</button><button class="btn" data-cmd="OFFSET">Offset</button><button class="btn" data-cmd="TRIM">Trim</button><button class="btn" data-cmd="EXTEND">Extend</button><button class="btn" data-cmd="ROTATE">Rotate</button>
       </div>
       <div class="small" style="margin-top:9px">برای خط و دایره روی بوم کلیک کن. برای پایان پلی‌لاین دوبار کلیک کن. چرخ ماوس Zoom و کشیدن با دکمه وسط Pan است.</div>
     </section>
@@ -117,7 +117,8 @@ textarea{min-height:64px;resize:vertical}
 <script>
 const canvas=document.getElementById("cad"),ctx=canvas.getContext("2d");
 let snapEnabled=false,snapModes={endpoint:true,midpoint:true,center:true,intersection:true,nearest:true,grid:false};
-let entities=[],mode="select",grid=true,selected=-1,selectedSet=new Set(),layers=new Map();
+let entities=[],mode="select",grid=true,selected=-1,selectedSet=new Set(),layers=new Map(),activeLayer="0";
+let commandState=null;
 let view={cx:0,cy:0,scale:1};
 let drag=null,drawPoints=[],previewPoint=null;
 const $=id=>document.getElementById(id);
@@ -127,7 +128,30 @@ function setStatus(s){$("status").textContent=s}
 function setMode(m){mode=m;drawPoints=[];document.querySelectorAll("[data-mode]").forEach(b=>b.classList.toggle("primary",b.dataset.mode===m));setStatus("ابزار: "+m)}
 function worldToScreen(x,y){const w=canvas.clientWidth,h=canvas.clientHeight;return [w/2+(x-view.cx)*view.scale,h/2-(y-view.cy)*view.scale]}
 function screenToWorld(sx,sy){const w=canvas.clientWidth,h=canvas.clientHeight;return [(sx-w/2)/view.scale+view.cx,(h/2-sy)/view.scale+view.cy]}
-function snapPoint(p){if(!snapEnabled)return p;let best=null,bd=Infinity,limit=18/view.scale;const test=(x,y)=>{const d=Math.hypot(p[0]-x,p[1]-y);if(d<bd&&d<limit){bd=d;best=[x,y]}};for(const e of entities){if(snapModes.endpoint){if(e.type==="LINE"){test(e.x1,e.y1);test(e.x2,e.y2)}else if(e.pts){test(e.pts[0][0],e.pts[0][1]);test(e.pts.at(-1)[0],e.pts.at(-1)[1])}}if(snapModes.midpoint&&e.type==="LINE")test((e.x1+e.x2)/2,(e.y1+e.y2)/2);if(snapModes.center&&(e.type==="CIRCLE"||e.type==="ARC"||e.type==="ELLIPSE"))test(e.x,e.y)}return best||p}
+function snapPoint(p){
+ if(!snapEnabled)return p;
+ let best=null,bd=Infinity,limit=18/view.scale;
+ const test=(x,y)=>{const d=Math.hypot(p[0]-x,p[1]-y);if(d<bd&&d<limit){bd=d;best=[x,y]}};
+ const segments=[];
+ for(const e of entities){
+  if(!isLayerVisible(e))continue;
+  if(snapModes.endpoint){
+   if(e.type==="LINE"){test(e.x1,e.y1);test(e.x2,e.y2)}
+   else if(e.pts){e.pts.forEach(v=>test(v[0],v[1]))}
+  }
+  if(snapModes.midpoint&&e.type==="LINE")test((e.x1+e.x2)/2,(e.y1+e.y2)/2);
+  if(snapModes.center&&(e.type==="CIRCLE"||e.type==="ARC"||e.type==="ELLIPSE"))test(e.x,e.y);
+  if(e.type==="LINE")segments.push([[e.x1,e.y1],[e.x2,e.y2]]);
+  else if(e.pts)for(let i=1;i<e.pts.length;i++)segments.push([e.pts[i-1],e.pts[i]]);
+ }
+ if(snapModes.intersection){
+  const cross=(a,b,c,d)=>{const den=(a[0]-b[0])*(c[1]-d[1])-(a[1]-b[1])*(c[0]-d[0]);if(Math.abs(den)<1e-12)return null;const t=((a[0]-c[0])*(c[1]-d[1])-(a[1]-c[1])*(c[0]-d[0]))/den;const u=-((a[0]-b[0])*(a[1]-c[1])-(a[1]-b[1])*(a[0]-c[0]))/den;if(t>=0&&t<=1&&u>=0&&u<=1)return[a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1])];return null};
+  for(let i=0;i<segments.length;i++)for(let j=i+1;j<segments.length;j++){const q=cross(segments[i][0],segments[i][1],segments[j][0],segments[j][1]);if(q)test(q[0],q[1])}
+ }
+ if(snapModes.nearest)for(const s of segments){const x=s[0][0],y=s[0][1],dx=s[1][0]-x,dy=s[1][1]-y,l=dx*dx+dy*dy;if(l){let t=((p[0]-x)*dx+(p[1]-y)*dy)/l;t=Math.max(0,Math.min(1,t));test(x+t*dx,y+t*dy)}}
+ if(snapModes.grid&&grid){const step=niceStep(70/view.scale);test(Math.round(p[0]/step)*step,Math.round(p[1]/step)*step)}
+ return best||p;
+}
 function layerOf(e){return e.layer||"0"}
 function rebuildLayers(){layers=new Map();for(const e of entities){const n=layerOf(e);if(!layers.has(n))layers.set(n,{visible:true,count:0});layers.get(n).count++}renderLayers()}
 function renderLayers(){const box=$("layerList");if(!box)return;box.innerHTML="";for(const [name,info] of layers){const row=document.createElement("label");row.className="layer-row";row.innerHTML='<input type="checkbox" '+(info.visible?"checked":"")+'><span class="layer-name"></span><span class="layer-count"></span>';row.querySelector(".layer-name").textContent=name;row.querySelector(".layer-count").textContent=info.count;row.querySelector("input").onchange=()=>{info.visible=row.querySelector("input").checked;draw()};box.appendChild(row)}}
@@ -242,11 +266,13 @@ $("gridBtn").onclick=()=>{grid=!grid;draw();setStatus(grid?"شبکه روشن ش
 $("newBtn").onclick=()=>{entities=[];selected=-1;selectedSet.clear();rebuildLayers();fit();$("fileInfo").textContent="فایل جدید";setStatus("نقشه جدید ایجاد شد")};
 $("backBtn").onclick=()=>location.href="index.html";
 document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+document.querySelectorAll("[data-cmd]").forEach(b=>b.onclick=()=>beginEditCommand(b.dataset.cmd));
 canvas.addEventListener("mousemove",e=>{const r=canvas.getBoundingClientRect(),rawP=screenToWorld(e.clientX-r.left,e.clientY-r.top),p=snapPoint(rawP);$("coord").textContent="X: "+p[0].toFixed(3)+" | Y: "+p[1].toFixed(3);previewPoint=(mode==="line"||mode==="circle"||mode==="polyline")?p:null;if(drag){view.cx=drag.cx-(e.clientX-drag.x)/view.scale;view.cy=drag.cy+(e.clientY-drag.y)/view.scale}draw()});
-canvas.addEventListener("mousedown",e=>{if(e.button===1||e.button===2){drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy};e.preventDefault();return}if(e.button!==0)return;const r=canvas.getBoundingClientRect(),p=screenToWorld(e.clientX-r.left,e.clientY-r.top);
- if(mode==="line"){drawPoints.push(p);if(drawPoints.length===2){entities.push({type:"LINE",layer:"0",x1:drawPoints[0][0],y1:drawPoints[0][1],x2:p[0],y2:p[1]});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("خط ایجاد شد")}}
- else if(mode==="circle"){if(!drawPoints.length){drawPoints=[p];setStatus("نقطه دوم را برای شعاع انتخاب کن")}else{const q=drawPoints[0],r=Math.hypot(p[0]-q[0],p[1]-q[1]);entities.push({type:"CIRCLE",layer:"0",x:q[0],y:q[1],r});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("دایره ایجاد شد")}}
- else if(mode==="polyline"){if(e.detail===2){if(drawPoints.length>=2)entities.push({type:"LWPOLYLINE",layer:"0",pts:drawPoints.slice(),closed:false});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("پلی‌لاین پایان یافت")}else{drawPoints.push(p);draw()}}
+canvas.addEventListener("mousedown",e=>{if(e.button===1||e.button===2){drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy};e.preventDefault();return}if(e.button!==0)return;const r=canvas.getBoundingClientRect(),rawP=screenToWorld(e.clientX-r.left,e.clientY-r.top),p=snapPoint(rawP);
+ if(commandClick(p))return;
+ if(mode==="line"){drawPoints.push(p);if(drawPoints.length===2){entities.push({type:"LINE",layer:activeLayer,x1:drawPoints[0][0],y1:drawPoints[0][1],x2:p[0],y2:p[1]});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("خط ایجاد شد")}}
+ else if(mode==="circle"){if(!drawPoints.length){drawPoints=[p];setStatus("نقطه دوم را برای شعاع انتخاب کن")}else{const q=drawPoints[0],r=Math.hypot(p[0]-q[0],p[1]-q[1]);entities.push({type:"CIRCLE",layer:activeLayer,x:q[0],y:q[1],r});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("دایره ایجاد شد")}}
+ else if(mode==="polyline"){if(e.detail===2){if(drawPoints.length>=2)entities.push({type:"LWPOLYLINE",layer:activeLayer,pts:drawPoints.slice(),closed:false});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("پلی‌لاین پایان یافت")}else{drawPoints.push(p);draw()}}
  else {
   const hit=findNearest(p);
   if(e.ctrlKey&&hit>=0){selectedSet.has(hit)?selectedSet.delete(hit):selectedSet.add(hit);selected=hit}
@@ -257,6 +283,38 @@ canvas.addEventListener("mousedown",e=>{if(e.button===1||e.button===2){drag={x:e
 canvas.addEventListener("mouseup",()=>drag=null);
 canvas.addEventListener("mouseleave",()=>drag=null);
 canvas.addEventListener("wheel",e=>{e.preventDefault();const r=canvas.getBoundingClientRect(),before=screenToWorld(e.clientX-r.left,e.clientY-r.top),factor=e.deltaY<0?1.15:.87;view.scale=Math.max(.0001,Math.min(1e9,view.scale*factor));const after=screenToWorld(e.clientX-r.left,e.clientY-r.top);view.cx+=before[0]-after[0];view.cy+=before[1]-after[1];draw()},{passive:false});
+function cloneEntity(e){return JSON.parse(JSON.stringify(e))}
+function transformEntity(e,dx,dy,angle=0,base=null){
+ const q=cloneEntity(e),b=base||[0,0],co=Math.cos(angle),si=Math.sin(angle);
+ const tr=(x,y)=>{const X=x-b[0],Y=y-b[1];return[b[0]+X*co-Y*si+dx,b[1]+X*si+Y*co+dy]};
+ if(q.type==="LINE"){[q.x1,q.y1]=tr(q.x1,q.y1);[q.x2,q.y2]=tr(q.x2,q.y2)}
+ else if(["CIRCLE","ARC","POINT","TEXT","MTEXT","ELLIPSE"].includes(q.type)){[q.x,q.y]=tr(q.x,q.y);if(q.type==="ARC"){q.a1+=angle*180/Math.PI;q.a2+=angle*180/Math.PI}}
+ else if(q.pts)q.pts=q.pts.map(p=>tr(p[0],p[1]));
+ else if(q.type==="DIMENSION"){[q.x1,q.y1]=tr(q.x1,q.y1);[q.x2,q.y2]=tr(q.x2,q.y2);[q.tx,q.ty]=tr(q.tx,q.ty)}
+ return q;
+}
+function finishCommand(msg){commandState=null;setMode("select");rebuildLayers();draw();setStatus(msg)}
+function selectedIndices(){return [...selectedSet].filter(i=>entities[i]&&isLayerVisible(entities[i]))}
+function beginEditCommand(cmd){
+ const ids=selectedIndices();
+ if(!ids.length){setStatus(cmd+" — ابتدا عارضه را انتخاب کن");return}
+ commandState={cmd,ids,step:"base"};setMode("select");setStatus(cmd+" — نقطه مبنا را انتخاب کن")
+}
+function commandClick(p){
+ if(!commandState)return false;
+ const s=commandState;
+ if(s.step==="base"){s.base=p;s.step="target";setStatus(s.cmd+" — نقطه مقصد/جهت را انتخاب کن");return true}
+ if(s.step==="target"){
+  if(s.cmd==="MOVE"){const dx=p[0]-s.base[0],dy=p[1]-s.base[1];s.ids.forEach(i=>entities[i]=transformEntity(entities[i],dx,dy));finishCommand("MOVE انجام شد")}
+  else if(s.cmd==="COPY"){const dx=p[0]-s.base[0],dy=p[1]-s.base[1];const copies=s.ids.map(i=>{const q=transformEntity(entities[i],dx,dy);return q});entities.push(...copies);selectedSet=new Set(copies.map((_,k)=>entities.length-copies.length+k));finishCommand("COPY انجام شد")}
+  else if(s.cmd==="ROTATE"){const a=Math.atan2(p[1]-s.base[1],p[0]-s.base[0]);s.ids.forEach(i=>entities[i]=transformEntity(entities[i],0,0,a,s.base));finishCommand("ROTATE انجام شد")}
+  else if(s.cmd==="OFFSET"){const d=Math.hypot(p[0]-s.base[0],p[1]-s.base[1]),side=(p[0]-s.base[0])+(p[1]-s.base[1])>=0?1:-1;for(const i of s.ids){const e=entities[i];if(e.type==="LINE"){const dx=e.x2-e.x1,dy=e.y2-e.y1,L=Math.hypot(dx,dy)||1,nx=-dy/L*d*side,ny=dx/L*d*side;entities.push({...cloneEntity(e),x1:e.x1+nx,y1:e.y1+ny,x2:e.x2+nx,y2:e.y2+ny})}else if(e.type==="CIRCLE"){const rr=Math.max(.000001,e.r+d*side);entities.push({...cloneEntity(e),r:rr})}else if(e.pts){const q=cloneEntity(e);q.pts=q.pts.map(v=>[v[0]+(p[0]-s.base[0]),v[1]+(p[1]-s.base[1])]);entities.push(q)}}finishCommand("OFFSET انجام شد")}
+  else if(s.cmd==="TRIM"){const target=findNearest(p);if(target>=0&&s.ids.includes(target)){entities.splice(target,1);selectedSet.clear();finishCommand("TRIM — عارضه حذف/Trim شد")}else finishCommand("TRIM: عارضه انتخاب‌شده قابل Trim نبود")}
+  else if(s.cmd==="EXTEND"){finishCommand("EXTEND: نقطه مقصد ثبت شد؛ نسخه فعلی فقط انتخاب/ویرایش پایه را انجام می‌دهد")}
+  return true;
+ }
+ return false;
+}
 function findNearest(p){let best=-1,bd=Infinity;entities.forEach((e,i)=>{let d=Infinity;if(e.type==="POINT"||e.type==="CIRCLE")d=Math.hypot(p[0]-e.x,p[1]-e.y);else if(e.type==="LINE"){d=segDist(p[0],p[1],e.x1,e.y1,e.x2,e.y2)}else if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"||e.type==="POLYLINE3D"||e.type==="SPLINE"){for(let j=1;j<e.pts.length;j++)d=Math.min(d,segDist(p[0],p[1],e.pts[j-1][0],e.pts[j-1][1],e.pts[j][0],e.pts[j][1]));if(e.closed&&e.pts.length>2)d=Math.min(d,segDist(p[0],p[1],e.pts.at(-1)[0],e.pts.at(-1)[1],e.pts[0][0],e.pts[0][1]))}if(d<bd){bd=d;best=i}});return bd<25/view.scale?best:-1}
 function segDist(px,py,x1,y1,x2,y2){const dx=x2-x1,dy=y2-y1;if(!dx&&!dy)return Math.hypot(px-x1,py-y1);let t=((px-x1)*dx+(py-y1)*dy)/(dx*dx+dy*dy);t=Math.max(0,Math.min(1,t));return Math.hypot(px-(x1+t*dx),py-(y1+t*dy))}
 $("aiRun").onclick=()=>{const q=$("aiCommand").value.trim().toLowerCase();if(!q){$("aiResult").textContent="فرمان را وارد کن.";return}if(q.includes("تمام")||q.includes("zoom")||q.includes("fit")){fit();$("aiResult").textContent="نمایش کامل نقشه اجرا شد."}else if(q.includes("شبکه")&&(q.includes("خاموش")||q.includes("off"))){grid=false;draw();$("aiResult").textContent="شبکه خاموش شد."}else if(q.includes("شبکه")){grid=true;draw();$("aiResult").textContent="شبکه روشن شد."}else{$("aiResult").textContent="این فرمان در نسخه پایه هنوز به AI متصل نیست؛ هسته اتصال AI در مرحله بعد اضافه می‌شود."}};
@@ -268,10 +326,16 @@ function runCadCommand(raw){
  if(q==="L"||q==="LINE"){setMode("line");setStatus("LINE — Specify first point");}
  else if(q==="PL"||q==="PLINE"){setMode("polyline");setStatus("PLINE — Specify first point");}
  else if(q==="C"||q==="CIRCLE"){setMode("circle");setStatus("CIRCLE — Specify center point");}
- else if(q==="E"||q==="ERASE"){selectedSet.clear();selected=-1;draw();setStatus("ERASE — انتخاب عارضه برای حذف");}
+ else if(q==="E"||q==="ERASE"){const ids=selectedIndices();if(ids.length){entities=entities.filter((_,i)=>!selectedSet.has(i));selectedSet.clear();selected=-1;rebuildLayers();draw();setStatus("ERASE انجام شد")}else setStatus("ERASE — ابتدا عارضه را انتخاب کن");}
+ else if(q==="M"||q==="MOVE")beginEditCommand("MOVE");
+ else if(q==="CO"||q==="COPY")beginEditCommand("COPY");
+ else if(q==="O"||q==="OFFSET")beginEditCommand("OFFSET");
+ else if(q==="TR"||q==="TRIM")beginEditCommand("TRIM");
+ else if(q==="EX"||q==="EXTEND")beginEditCommand("EXTEND");
+ else if(q==="RO"||q==="ROTATE")beginEditCommand("ROTATE");
  else if(q==="Z"||q==="ZOOM"||q==="ZE"||q==="ZOOM E"){fit();}
  else if(q==="G"||q==="GRID"){grid=!grid;draw();$("gridStatus").classList.toggle("active",grid);}
- else if(q==="ESC"){setMode("select");selectedSet.clear();selected=-1;draw();setStatus("Command: *Cancel*");}
+ else if(q==="ESC"){commandState=null;setMode("select");selectedSet.clear();selected=-1;draw();setStatus("Command: *Cancel*");}
  else {setStatus("Unknown command: "+raw);}
  commandInput.value="";
 }
@@ -284,6 +348,8 @@ window.addEventListener("keydown",e=>{
  else if(k==="C"){setMode("circle");e.preventDefault()}
  else if(k==="P"){setMode("polyline");e.preventDefault()}
 });
+$("newLayerBtn").onclick=()=>{const n=prompt("نام لایه جدید:","0");if(n&&n.trim()){const name=n.trim();if(!layers.has(name))layers.set(name,{visible:true,count:0});activeLayer=name;$("activeLayerInfo").textContent="لایه فعال: "+activeLayer;renderLayers();setStatus("لایه فعال: "+activeLayer)}};
+$("activeLayerBtn").onclick=()=>{const names=[...layers.keys()];if(!names.length)return;const idx=Math.max(0,names.indexOf(activeLayer));activeLayer=names[(idx+1)%names.length];$("activeLayerInfo").textContent="لایه فعال: "+activeLayer;setStatus("لایه فعال: "+activeLayer)};
 $("gridStatus").onclick=()=>{$("gridBtn").click();$("gridStatus").classList.toggle("active",grid)};
 $("snapStatus").onclick=()=>{snapEnabled=!snapEnabled;$("snapStatus").classList.toggle("active",snapEnabled);setStatus(snapEnabled?"OSNAP روشن شد":"OSNAP خاموش شد")};
 $("osnapStatus").onclick=()=>{snapEnabled=!snapEnabled;$("osnapStatus").classList.toggle("active",snapEnabled);$("snapStatus").classList.toggle("active",snapEnabled);setStatus(snapEnabled?"Object Snap روشن شد":"Object Snap خاموش شد")};
