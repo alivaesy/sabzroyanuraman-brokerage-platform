@@ -48,12 +48,12 @@ textarea{min-height:64px;resize:vertical}
   <div class="menu-wrap"><span class="menu" data-menu="edit">Edit</span><div class="menu-dropdown"><button data-menu-action="undo">Undo</button><button data-menu-action="erase">Erase</button><button data-menu-action="select">Select</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="view">View</span><div class="menu-dropdown"><button data-menu-action="fit">Zoom Extents</button><button data-menu-action="grid">Grid</button><button data-menu-action="snap">SNAP</button><button data-menu-action="osnap">OSNAP</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="insert">Insert</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button><button data-menu-action="point">Point</button></div></div>
-  <div class="menu-wrap"><span class="menu" data-menu="format">Format</span><div class="menu-dropdown"><button data-menu-action="newlayer">لایه New</button><button data-menu-action="activelayer">Current Layer</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="format">Format</span><div class="menu-dropdown"><button data-menu-action="newlayer">New Layer</button><button data-menu-action="activelayer">Current Layer</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="tools">Tools</span><div class="menu-dropdown"><button data-menu-action="divide">Divide</button><button data-menu-action="measure">Measure</button><button data-menu-action="snap">Grid SNAP</button><button data-menu-action="osnap">Object OSNAP</button><button data-snap-mode="endpoint">OSNAP Endpoint</button><button data-snap-mode="midpoint">OSNAP Midpoint</button><button data-snap-mode="center">OSNAP Center</button><button data-snap-mode="intersection">OSNAP Intersection</button><button data-snap-mode="nearest">OSNAP Nearest</button><button data-snap-mode="perpendicular">OSNAP Perpendicular</button><button data-snap-mode="quadrant">OSNAP Quadrant</button><button data-snap-mode="tangent">OSNAP Tangent</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="draw">Draw</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="modify">Modify</span><div class="menu-dropdown"><button data-menu-action="move">Move</button><button data-menu-action="copy">Copy</button><button data-menu-action="offset">Offset</button><button data-menu-action="trim">Trim</button><button data-menu-action="extend">Extend</button><button data-menu-action="rotate">Rotate</button><button data-menu-action="erase">Erase</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="window">Window</span><div class="menu-dropdown"><button data-menu-action="model">Model</button><button data-menu-action="layout1">Layout1</button><button data-menu-action="layout2">Layout2</button></div></div>
-  <div class="menu-wrap"><span class="menu" data-menu="help">راهView</span><div class="menu-dropdown"><button data-menu-action="help">راهViewی میانبرها</button><button data-menu-action="about">About Web CAD</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="help">Help</span><div class="menu-dropdown"><button data-menu-action="help">Help </button><button data-menu-action="about">About Web CAD</button></div></div>
 </div>
 <div class="ribbon-lite">
   <div class="rgroup">
@@ -85,29 +85,29 @@ textarea{min-height:64px;resize:vertical}
   <aside class="side">
     <section class="panel">
       <h3>Layer Management</h3>
-      <div class="actions" style="margin-bottom:7px"><button class="btn" id="newLayerBtn">لایه New</button><button class="btn" id="activeLayerBtn">Current Layer</button></div>
+      <div class="actions" style="margin-bottom:7px"><button class="btn" id="newLayerBtn">New Layer</button><button class="btn" id="activeLayerBtn">Current Layer</button></div>
       <div id="activeLayerInfo" class="small" style="margin-bottom:6px">Current Layer: 0</div>
       <div id="layerList"></div>
-      <div class="small" style="margin-top:7px">لایه‌ها از کد 8 File DXF خوانده می‌شوند. با برداشتن تیک، لایه مخفی می‌شود.</div>
+      <div class="small" style="margin-top:7px">Layers are read from DXF group code 8. Uncheck a layer to hide it.</div>
     </section>
     <section class="panel">
       <h3>CAD Assistant</h3>
       <div class="small" style="margin-bottom:8px">The AI integration core is ready. Basic commands currently run locally.</div>
-      <textarea id="aiCommand" placeholder="مثلاً: تمام نقشه را Viewیش بده"></textarea>
+      <textarea id="aiCommand" placeholder="Example: show the entire drawing"></textarea>
       <button class="btn primary" id="aiRun" style="width:100%;margin-top:7px">Run Command</button>
       <div id="aiResult" class="small" style="margin-top:7px"></div>
     </section>
     <section class="panel">
-      <h3>وضعیت File</h3>
-      <div id="fileInfo" class="small">Fileی بارگذاری نشده است.</div>
+      <h3>File Status</h3>
+      <div id="fileInfo" class="small">No file loaded.</div>
     </section>
     <section class="panel">
       <h3>Development Roadmap</h3>
-      <div class="small">DXF → Edit حرفه‌ای → اتصال AI → پشتیبانی DWG با ODA. این نسخه عمداً مستقل از AutoCAD Web است.</div>
+      <div class="small">DXF → advanced editing → AI integration → DWG support with ODA. This version is intentionally independent of AutoCAD Web.</div>
     </section>
   </aside>
 </div>
-<div id="layerProperties" class="layer-properties"><div class="layer-properties-card"><div class="layer-properties-head"><span id="layerPropertiesTitle">Properties — Layer</span><button class="layer-properties-close" id="layerPropertiesClose">×</button></div><div class="layer-properties-body"><div id="layerPropertiesBody"></div></div><div class="layer-properties-foot"><button id="layerPropertiesSetCurrent">قرار دادن به‌عنوان Current Layer</button><button id="layerPropertiesHide">مخفی/Viewیش</button><button id="layerPropertiesDone">Close</button></div></div></div><div id="entityContextMenu" class="entity-context-menu"><div class="context-caption" id="entityContextCaption">Object</div><button id="entityPropertiesAction">Properties</button><div class="context-separator"></div><button id="entityRepeatAction">Repeat Last Command</button><button id="entitySetLayerAction">Make Layer Current</button><button id="entityMoveAction">Move</button><button id="entityCopyAction">Copy</button><button id="entityRotateAction">Rotate</button><div class="context-separator"></div><button id="entityEraseAction" class="danger">Erase</button></div><div id="entityProperties" class="layer-properties"><div class="layer-properties-card entity-properties-card"><div class="layer-properties-head"><span id="entityPropertiesTitle">Properties — Entity</span><button class="layer-properties-close" id="entityPropertiesClose">×</button></div><div class="layer-properties-body"><div id="entityPropertiesBody"></div></div><div class="layer-properties-foot"><button id="entityPropertiesDone">Close</button></div></div></div><div class="bottom-bar"><div class="command-label">Command:</div><input id="commandInput" class="command-input" autocomplete="off" placeholder="LINE, PLINE, CIRCLE, ZOOM..."><div class="view-tabs"><div class="view-tab active">Model</div><div class="view-tab">Layout1</div><div class="view-tab">Layout2</div></div><div class="statusbar"><span class="status-item active" id="orthoStatus">ORT</span><span class="status-item" id="snapStatus">SNAP</span><span class="status-item" id="gridStatus">GRID</span><span class="status-item active" id="osnapStatus">OSNAP</span><span class="status-item">LWT</span><span class="status-item">MODEL</span><span class="status-spacer"></span><span class="status-item">UTM 38N</span><span class="status-item" id="statusScale">1:1</span></div></div>
+<div id="layerProperties" class="layer-properties"><div class="layer-properties-card"><div class="layer-properties-head"><span id="layerPropertiesTitle">Properties — Layer</span><button class="layer-properties-close" id="layerPropertiesClose">×</button></div><div class="layer-properties-body"><div id="layerPropertiesBody"></div></div><div class="layer-properties-foot"><button id="layerPropertiesSetCurrent">Set Current Layer</button><button id="layerPropertiesHide">Hide/Show</button><button id="layerPropertiesDone">Close</button></div></div></div><div id="entityContextMenu" class="entity-context-menu"><div class="context-caption" id="entityContextCaption">Object</div><button id="entityPropertiesAction">Properties</button><div class="context-separator"></div><button id="entityRepeatAction">Repeat Last Command</button><button id="entitySetLayerAction">Make Layer Current</button><button id="entityMoveAction">Move</button><button id="entityCopyAction">Copy</button><button id="entityRotateAction">Rotate</button><div class="context-separator"></div><button id="entityEraseAction" class="danger">Erase</button></div><div id="entityProperties" class="layer-properties"><div class="layer-properties-card entity-properties-card"><div class="layer-properties-head"><span id="entityPropertiesTitle">Properties — Entity</span><button class="layer-properties-close" id="entityPropertiesClose">×</button></div><div class="layer-properties-body"><div id="entityPropertiesBody"></div></div><div class="layer-properties-foot"><button id="entityPropertiesDone">Close</button></div></div></div><div class="bottom-bar"><div class="command-label">Command:</div><input id="commandInput" class="command-input" autocomplete="off" placeholder="LINE, PLINE, CIRCLE, ZOOM..."><div class="view-tabs"><div class="view-tab active">Model</div><div class="view-tab">Layout1</div><div class="view-tab">Layout2</div></div><div class="statusbar"><span class="status-item active" id="orthoStatus">ORT</span><span class="status-item" id="snapStatus">SNAP</span><span class="status-item" id="gridStatus">GRID</span><span class="status-item active" id="osnapStatus">OSNAP</span><span class="status-item">LWT</span><span class="status-item">MODEL</span><span class="status-spacer"></span><span class="status-item">UTM 38N</span><span class="status-item" id="statusScale">1:1</span></div></div>
 </div>
 
 <script>
@@ -119,7 +119,7 @@ let snapInfo={point:null,type:""};
 let entities=[],mode="select",grid=true,selected=-1,selectedSet=new Set(),layers=new Map(),activeLayer="0";
 let history=[],historyLimit=30;
 function saveHistory(){history.push(JSON.stringify(entities));if(history.length>historyLimit)history.shift()}
-function undo(){if(!history.length){setStatus("Undo — سابقه‌ای برای Undo وجود ندارد");return}entities=JSON.parse(history.pop());selectedSet.clear();selected=-1;commandState=null;drawPoints=[];previewPoint=null;rebuildLayers();fit();setStatus("Undo completed")}
+function undo(){if(!history.length){setStatus("Undo — No undo history available");return}entities=JSON.parse(history.pop());selectedSet.clear();selected=-1;commandState=null;drawPoints=[];previewPoint=null;rebuildLayers();fit();setStatus("Undo completed")}
 let commandState=null;
 let view={cx:0,cy:0,scale:1};
 let drag=null,drawPoints=[],previewPoint=null,selectionBox=null;
@@ -267,8 +267,8 @@ function drawSnapMarker(){
 }
 function layerOf(e){return e.layer||"0"}
 function rebuildLayers(){const old=layers;layers=new Map();for(const e of entities){const n=layerOf(e);if(!layers.has(n)){const prev=old.get(n);layers.set(n,{visible:prev?prev.visible:true,count:0})}layers.get(n).count++}renderLayers();if(!layers.has(activeLayer)){activeLayer=layers.keys().next().value||"0"}$("activeLayerInfo").textContent="Current Layer: "+activeLayer}
-function renderLayers(){const box=$("layerList");if(!box)return;box.innerHTML="";for(const [name,info] of layers){const row=document.createElement("label");row.className="layer-row";row.title="کلیک راست: Properties / مشخصات لایه";row.innerHTML='<input type="checkbox" '+(info.visible?"checked":"")+'><span class="layer-name"></span><span class="layer-count"></span>';row.querySelector(".layer-name").textContent=name;row.querySelector(".layer-count").textContent=info.count;row.querySelector("input").onchange=()=>{info.visible=row.querySelector("input").checked;draw()};row.addEventListener("contextmenu",e=>{e.preventDefault();e.stopPropagation();showLayerProperties(name)});row.addEventListener("dblclick",()=>{activeLayer=name;$("activeLayerInfo").textContent="Current Layer: "+activeLayer;setStatus("Current Layer: "+activeLayer);renderLayers()});box.appendChild(row)}}
-let propertiesLayerName="";function showLayerProperties(name){const info=layers.get(name);if(!info)return;propertiesLayerName=name;const list=entities.filter(e=>layerOf(e)===name),types={};let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;const add=(x,y)=>{if(Number.isFinite(x)&&Number.isFinite(y)){minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y)}};for(const e of list){types[e.type]=(types[e.type]||0)+1;const b=entityBounds(e);if(b){add(b[0],b[1]);add(b[2],b[3])}}const typeText=Object.entries(types).map(([t,n])=>t+" × "+n).join(", ")||"—",extent=Number.isFinite(minX)?"X "+minX.toFixed(3)+" … "+maxX.toFixed(3)+" | Y "+minY.toFixed(3)+" … "+maxY.toFixed(3):"—";$("layerPropertiesTitle").textContent="Properties — "+name;$("layerPropertiesBody").innerHTML='<div class="layer-prop-grid"><div class="layer-prop-label">نام لایه</div><div class="layer-prop-value">'+name+'</div><div class="layer-prop-label">وضعیت</div><div class="layer-prop-value">'+(info.visible?"Visible / Viewیش":"Hidden / مخفی")+'</div><div class="layer-prop-label">Current Layer</div><div class="layer-prop-value">'+(name===activeLayer?"بله":"خیر")+'</div><div class="layer-prop-label">تعداد عوارض</div><div class="layer-prop-value">'+list.length+'</div><div class="layer-prop-label">انواع عوارض</div><div class="layer-prop-value">'+typeText+'</div><div class="layer-prop-label">محدوده</div><div class="layer-prop-value">'+extent+'</div></div>';$("layerProperties").classList.add("open")}function closeLayerProperties(){$("layerProperties").classList.remove("open");propertiesLayerName=""}function isLayerVisible(e){const l=layers.get(layerOf(e));return !l||l.visible}
+function renderLayers(){const box=$("layerList");if(!box)return;box.innerHTML="";for(const [name,info] of layers){const row=document.createElement("label");row.className="layer-row";row.title="Right-click: Layer Properties";row.innerHTML='<input type="checkbox" '+(info.visible?"checked":"")+'><span class="layer-name"></span><span class="layer-count"></span>';row.querySelector(".layer-name").textContent=name;row.querySelector(".layer-count").textContent=info.count;row.querySelector("input").onchange=()=>{info.visible=row.querySelector("input").checked;draw()};row.addEventListener("contextmenu",e=>{e.preventDefault();e.stopPropagation();showLayerProperties(name)});row.addEventListener("dblclick",()=>{activeLayer=name;$("activeLayerInfo").textContent="Current Layer: "+activeLayer;setStatus("Current Layer: "+activeLayer);renderLayers()});box.appendChild(row)}}
+let propertiesLayerName="";function showLayerProperties(name){const info=layers.get(name);if(!info)return;propertiesLayerName=name;const list=entities.filter(e=>layerOf(e)===name),types={};let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;const add=(x,y)=>{if(Number.isFinite(x)&&Number.isFinite(y)){minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y)}};for(const e of list){types[e.type]=(types[e.type]||0)+1;const b=entityBounds(e);if(b){add(b[0],b[1]);add(b[2],b[3])}}const typeText=Object.entries(types).map(([t,n])=>t+" × "+n).join(", ")||"—",extent=Number.isFinite(minX)?"X "+minX.toFixed(3)+" … "+maxX.toFixed(3)+" | Y "+minY.toFixed(3)+" … "+maxY.toFixed(3):"—";$("layerPropertiesTitle").textContent="Properties — "+name;$("layerPropertiesBody").innerHTML='<div class="layer-prop-grid"><div class="layer-prop-label">Layer Name</div><div class="layer-prop-value">'+name+'</div><div class="layer-prop-label">Status</div><div class="layer-prop-value">'+(info.visible?"Visible":"Hidden")+'</div><div class="layer-prop-label">Current Layer</div><div class="layer-prop-value">'+(name===activeLayer?"Yes":"No")+'</div><div class="layer-prop-label">Object Count</div><div class="layer-prop-value">'+list.length+'</div><div class="layer-prop-label">Object Types</div><div class="layer-prop-value">'+typeText+'</div><div class="layer-prop-label">Extents</div><div class="layer-prop-value">'+extent+'</div></div>';$("layerProperties").classList.add("open")}function closeLayerProperties(){$("layerProperties").classList.remove("open");propertiesLayerName=""}function isLayerVisible(e){const l=layers.get(layerOf(e));return !l||l.visible}
 function bounds(){
  if(!entities.length)return null;
  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
@@ -285,7 +285,7 @@ function bounds(){
  }
  return {minX,minY,maxX,maxY};
 }
-function fit(){const b=bounds();if(!b){view={cx:0,cy:0,scale:1};draw();return}view.cx=(b.minX+b.maxX)/2;view.cy=(b.minY+b.maxY)/2;const bw=Math.max(1,b.maxX-b.minX),bh=Math.max(1,b.maxY-b.minY);const fitScale=Math.min((canvas.clientWidth-80)/bw,(canvas.clientHeight-80)/bh);view.scale=Math.max(.02,Math.min(20,fitScale));draw();setStatus("Viewیش کامل نقشه")}
+function fit(){const b=bounds();if(!b){view={cx:0,cy:0,scale:1};draw();return}view.cx=(b.minX+b.maxX)/2;view.cy=(b.minY+b.maxY)/2;const bw=Math.max(1,b.maxX-b.minX),bh=Math.max(1,b.maxY-b.minY);const fitScale=Math.min((canvas.clientWidth-80)/bw,(canvas.clientHeight-80)/bh);view.scale=Math.max(.02,Math.min(20,fitScale));draw();setStatus("Zoom Extents")}
 function drawGrid(){
  if(!grid)return;
  const step=niceStep(70/view.scale);const tl=screenToWorld(0,0),br=screenToWorld(canvas.clientWidth,canvas.clientHeight);
@@ -390,25 +390,25 @@ async function openDXFFile(f){
    t=await f.text();
    t=t.replace(/^\uFEFF/,"");
   }
-  if(!/^\s*0\s*\n\s*SECTION/i.test(t))throw new Error("File DXF معتبر نیست یا متن آن قابل خواندن نیست");
+  if(!/^\s*0\s*\n\s*SECTION/i.test(t))throw new Error("Invalid DXF file or unreadable content");
   const loaded=parseDXF(t);
-  if(!loaded.length)throw new Error("هیچ عارضه پشتیبانی‌شده‌ای در File پیدا نشد");
+  if(!loaded.length)throw new Error("No supported objects found in the file");
   entities=loaded;selected=-1;selectedSet.clear();rebuildLayers();
   if(entities.length>5000)grid=false;
   fit();
-  $("fileInfo").textContent=f.name+" — "+entities.length+" عارضه";
+  $("fileInfo").textContent=f.name+" — "+entities.length+" object";
   $("windowTitle").textContent=f.name;
-  setStatus("DXF بارگذاری شد — "+entities.length+" entities");
+  setStatus("DXF loaded — "+entities.length+" entities");
  }catch(err){
-  $("fileInfo").textContent="خطا: "+(err.message||"File باز نشد");
-  setStatus("خطا در Open DXF: "+(err.message||"File باز نشد"));
+  $("fileInfo").textContent="Error: "+(err.message||"File could not be opened");
+  setStatus("Error  Open DXF: "+(err.message||"File could not be opened"));
  }
 }
 $("dxfFile").onchange=e=>openDXFFile(e.target.files[0]);
-$("saveBtn").onclick=()=>{download(dxfText(),"sabz-royan-web-cad.dxf","application/dxf");setStatus("File DXF ذخیره شد")};
+$("saveBtn").onclick=()=>{download(dxfText(),"sabz-royan-web-cad.dxf","application/dxf");setStatus("File DXF No ")};
 $("fitBtn").onclick=fit;
-$("gridBtn").onclick=()=>{grid=!grid;draw();setStatus(grid?"شبکه enabled":"شبکه disabled")};
-$("newBtn").onclick=()=>{entities=[];selected=-1;selectedSet.clear();rebuildLayers();fit();$("fileInfo").textContent="File New";setStatus("نقشه New ایجاد شد")};
+$("gridBtn").onclick=()=>{grid=!grid;draw();setStatus(grid?"Grid enabled":"Grid disabled")};
+$("newBtn").onclick=()=>{entities=[];selected=-1;selectedSet.clear();rebuildLayers();fit();$("fileInfo").textContent="File New";setStatus("New drawing created")};
 $("backBtn").onclick=()=>location.href="index.html";
 document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
 document.querySelectorAll("[data-cmd]").forEach(b=>b.onclick=()=>beginEditCommand(b.dataset.cmd));
@@ -416,19 +416,19 @@ canvas.addEventListener("mousemove",e=>{const r=canvas.getBoundingClientRect();l
 function openEntityContextAt(clientX,clientY){const r=canvas.getBoundingClientRect(),p=screenToWorld(clientX-r.left,clientY-r.top);contextEntityIndex=selectedEntityForContext(p);if(contextEntityIndex<0){closeEntityContext();return false}const e=entities[contextEntityIndex],menu=$("entityContextMenu");$("entityContextCaption").textContent=(e.type||"Object")+"  •  "+(layerOf(e)||"0");menu.style.left=Math.max(4,Math.min(clientX,window.innerWidth-212))+"px";menu.style.top=Math.max(4,Math.min(clientY,window.innerHeight-250))+"px";menu.classList.add("open");return true}
 canvas.addEventListener("mousedown",e=>{if(e.button===1){drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy};e.preventDefault();return}if(e.button===2){e.preventDefault();e.stopPropagation();openEntityContextAt(e.clientX,e.clientY);return}if(e.button!==0)return;const r=canvas.getBoundingClientRect(),rawP=screenToWorld(e.clientX-r.left,e.clientY-r.top),p=snapPoint(rawP);
  if(commandClick(p))return;
- if(mode==="line"){drawPoints.push(p);if(drawPoints.length===2){saveHistory();entities.push({type:"LINE",layer:activeLayer,x1:drawPoints[0][0],y1:drawPoints[0][1],x2:p[0],y2:p[1]});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("خط ایجاد شد")}}
- else if(mode==="circle"){if(!drawPoints.length){drawPoints=[p];setStatus("نقطه دوم را برای شعاع Select کن")}else{const q=drawPoints[0],r=Math.hypot(p[0]-q[0],p[1]-q[1]);saveHistory();entities.push({type:"CIRCLE",layer:activeLayer,x:q[0],y:q[1],r});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("دایره ایجاد شد")}}
- else if(mode==="point"){saveHistory();entities.push({type:"POINT",layer:activeLayer,x:p[0],y:p[1],r:0});rebuildLayers();draw();setStatus("نقطه ایجاد شد")}
- else if(mode==="polyline"){if(e.detail===2){if(drawPoints.length>=2){saveHistory();entities.push({type:"LWPOLYLINE",layer:activeLayer,pts:drawPoints.slice(),closed:false});}drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("پلی‌لاین پایان یافت")}else{drawPoints.push(p);draw()}}
+ if(mode==="line"){drawPoints.push(p);if(drawPoints.length===2){saveHistory();entities.push({type:"LINE",layer:activeLayer,x1:drawPoints[0][0],y1:drawPoints[0][1],x2:p[0],y2:p[1]});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("Line created")}}
+ else if(mode==="circle"){if(!drawPoints.length){drawPoints=[p];setStatus("Select the second point for radius")}else{const q=drawPoints[0],r=Math.hypot(p[0]-q[0],p[1]-q[1]);saveHistory();entities.push({type:"CIRCLE",layer:activeLayer,x:q[0],y:q[1],r});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("Circle created")}}
+ else if(mode==="point"){saveHistory();entities.push({type:"POINT",layer:activeLayer,x:p[0],y:p[1],r:0});rebuildLayers();draw();setStatus("Point created")}
+ else if(mode==="polyline"){if(e.detail===2){if(drawPoints.length>=2){saveHistory();entities.push({type:"LWPOLYLINE",layer:activeLayer,pts:drawPoints.slice(),closed:false});}drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("Polyline finished")}else{drawPoints.push(p);draw()}}
  else {
   if(mode==="select"){selectionBox={x1:p[0],y1:p[1],x2:p[0],y2:p[1],crossing:false};draw();return}
   const hit=findNearest(p);
   if(e.ctrlKey&&hit>=0){selectedSet.has(hit)?selectedSet.delete(hit):selectedSet.add(hit);selected=hit}
   else {selectedSet.clear();if(hit>=0)selectedSet.add(hit);selected=hit}
-  draw();setStatus(selectedSet.size?(selectedSet.size+" عارضه Select شده"):"هیچ عارضه‌ای در محدوده Select نبود")
+  draw();setStatus(selectedSet.size?(selectedSet.size+" object Select "):" object‌  Extents Select ")
  }
 });
-canvas.addEventListener("mouseup",e=>{if(selectionBox&&mode==="select"){const b=selectionBox;const x1=Math.min(b.x1,b.x2),x2=Math.max(b.x1,b.x2),y1=Math.min(b.y1,b.y2),y2=Math.max(b.y1,b.y2);const hit=[];entities.forEach((ent,i)=>{if(!isLayerVisible(ent))return;const eb=entityBounds(ent);if(!eb)return;const inside=b.crossing?(eb.maxX>=x1&&eb.minX<=x2&&eb.maxY>=y1&&eb.minY<=y2):(eb.minX>=x1&&eb.maxX<=x2&&eb.minY>=y1&&eb.maxY<=y2);if(inside)hit.push(i)});if(!e.ctrlKey)selectedSet.clear();hit.forEach(i=>selectedSet.add(i));selected=hit.length?hit[hit.length-1]:-1;setStatus(selectedSet.size?selectedSet.size+" عارضه Select شده":"هیچ عارضه‌ای در Window Select نبود");selectionBox=null;draw()}drag=null});function selectedEntityForContext(p){
+canvas.addEventListener("mouseup",e=>{if(selectionBox&&mode==="select"){const b=selectionBox;const x1=Math.min(b.x1,b.x2),x2=Math.max(b.x1,b.x2),y1=Math.min(b.y1,b.y2),y2=Math.max(b.y1,b.y2);const hit=[];entities.forEach((ent,i)=>{if(!isLayerVisible(ent))return;const eb=entityBounds(ent);if(!eb)return;const inside=b.crossing?(eb.maxX>=x1&&eb.minX<=x2&&eb.maxY>=y1&&eb.minY<=y2):(eb.minX>=x1&&eb.maxX<=x2&&eb.minY>=y1&&eb.maxY<=y2);if(inside)hit.push(i)});if(!e.ctrlKey)selectedSet.clear();hit.forEach(i=>selectedSet.add(i));selected=hit.length?hit[hit.length-1]:-1;setStatus(selectedSet.size?selectedSet.size+" object Select ":" object‌  Window Select ");selectionBox=null;draw()}drag=null});function selectedEntityForContext(p){
  const hit=findNearest(p);
  if(hit>=0){
   if(!selectedSet.has(hit)){selectedSet.clear();selectedSet.add(hit);selected=hit;draw()}
@@ -453,7 +453,7 @@ function showEntityProperties(index){
  else if(e.type==="ELLIPSE"){add("Center",coord(e.x,e.y));add("Semi-axis X",fmt(e.rx));add("Semi-axis Y",fmt(e.ry));}
  else if(e.type==="DIMENSION"){add("Point 1",coord(e.x1,e.y1));add("Point 2",coord(e.x2,e.y2));add("Text position",coord(e.tx,e.ty));add("Text",String(e.text||"—"));}
  const b=entityBounds(e);rows.push('<div class="entity-prop-section">Extents</div>');if(b){add("Min X",fmt(b.minX));add("Min Y",fmt(b.minY));add("Max X",fmt(b.maxX));add("Max Y",fmt(b.maxY));}else add("Bounds","—");
- rows.push('<div class="entity-prop-note">ساختار Properties به سبک کلاسیک CAD است. Color / Linetype / Lineweight فعلاً ByLayer هستند.</div>');
+ rows.push('<div class="entity-prop-note">Properties uses a classic CAD layout. Color / Linetype / Lineweight are currently ByLayer.</div>');
  $("entityPropertiesTitle").textContent="Properties — "+e.type+" ["+(index+1)+"]";$("entityPropertiesBody").innerHTML='<div class="layer-prop-grid">'+rows.join("")+'</div>';$("entityProperties").classList.add("open");
 }
 function closeEntityProperties(){$("entityProperties").classList.remove("open")}
@@ -512,30 +512,30 @@ function addDividePoints(e,count){const L=entityPathLength(e);if(L<=0||count<2)r
 function addMeasurePoints(e,step){const L=entityPathLength(e);if(L<=0||step<=0)return 0;let n=0;for(let d=step;d<L-1e-9;d+=step){const p=pointAtDistance(e,d);if(p){entities.push({type:"POINT",layer:e.layer||activeLayer,x:p[0],y:p[1],r:0});n++}}return n}
 function runPointDivision(cmd){
  const ids=selectedIndices();
- if(ids.length!==1){setStatus(cmd+" — ابتدا فقط یک خط/پلی‌لاین/قوس/دایره را Select کن");return}
+ if(ids.length!==1){setStatus(cmd+" — Select exactly one line/polyline/arc/circle first");return}
  const e=entities[ids[0]];
- if(!["LINE","LWPOLYLINE","POLYLINE","POLYLINE3D","SPLINE","CIRCLE","ARC"].includes(e.type)){setStatus(cmd+" — این نوع عارضه پشتیبانی نمی‌شود");return}
+ if(!["LINE","LWPOLYLINE","POLYLINE","POLYLINE3D","SPLINE","CIRCLE","ARC"].includes(e.type)){setStatus(cmd+" —   object  ‌");return}
  if(cmd==="DIVIDE"){
-  const n=parseInt(prompt("تعداد قسمت‌های مساوی را وارد کن:","10"),10);
-  if(!Number.isFinite(n)||n<2){setStatus("DIVIDE لغو شد؛ تعداد باید حداقل 2 باشد");return}
-  const added=addDividePoints(e,n);rebuildLayers();draw();setStatus("DIVIDE completed — "+added+" نقطه ایجاد شد");
+  const n=parseInt(prompt("Enter the number of equal segments:","10"),10);
+  if(!Number.isFinite(n)||n<2){setStatus("DIVIDE canceled; count must be at least 2");return}
+  const added=addDividePoints(e,n);rebuildLayers();draw();setStatus("DIVIDE completed — "+added+" Point created");
  }else{
-  const d=parseFloat(prompt("فاصله بین نقاط را وارد کن:","10"));
-  if(!Number.isFinite(d)||d<=0){setStatus("MEASURE لغو شد؛ فاصله باید بزرگ‌تر از صفر باشد");return}
-  const added=addMeasurePoints(e,d);rebuildLayers();draw();setStatus("MEASURE completed — "+added+" نقطه با فاصله "+d+" ایجاد شد");
+  const d=parseFloat(prompt("Enter the distance between points:","10"));
+  if(!Number.isFinite(d)||d<=0){setStatus("MEASURE canceled; distance must be greater than zero");return}
+  const added=addMeasurePoints(e,d);rebuildLayers();draw();setStatus("MEASURE completed — "+added+" points at spacing "+d+"  ");
  }
 }
 function finishCommand(msg){const s=commandState;if(s&&s.before){const now=JSON.stringify(entities);if(now!==s.before){history.push(s.before);if(history.length>historyLimit)history.shift()}}commandState=null;setMode("select");rebuildLayers();draw();setStatus(msg)}
 function selectedIndices(){return [...selectedSet].filter(i=>entities[i]&&isLayerVisible(entities[i]))}
 function beginEditCommand(cmd){
  const ids=selectedIndices();
- if(!ids.length){setStatus(cmd+" — ابتدا عارضه را Select کن");return}
- commandState={cmd,ids,step:"base",before:JSON.stringify(entities)};setMode("select");setStatus(cmd+" — نقطه مبنا را Select کن")
+ if(!ids.length){setStatus(cmd+" —  object  Select ");return}
+ commandState={cmd,ids,step:"base",before:JSON.stringify(entities)};setMode("select");setStatus(cmd+" — Specify base point")
 }
 function commandClick(p){
  if(!commandState)return false;
  const s=commandState;
- if(s.step==="base"){s.base=p;s.step="target";setStatus(s.cmd+" — نقطه مقصد/جهت را Select کن");return true}
+ if(s.step==="base"){s.base=p;s.step="target";setStatus(s.cmd+" — Specify destination/direction");return true}
  if(s.step==="target"){
   if(s.cmd==="MOVE"){const dx=p[0]-s.base[0],dy=p[1]-s.base[1];s.ids.forEach(i=>entities[i]=transformEntity(entities[i],dx,dy));finishCommand("MOVE completed")}
   else if(s.cmd==="COPY"){const dx=p[0]-s.base[0],dy=p[1]-s.base[1];const copies=s.ids.map(i=>{const q=transformEntity(entities[i],dx,dy);return q});entities.push(...copies);selectedSet=new Set(copies.map((_,k)=>entities.length-copies.length+k));finishCommand("COPY completed")}
@@ -563,17 +563,17 @@ function commandClick(p){
   else if(s.cmd==="ERASE"){const targets=s.ids.slice().sort((a,b)=>b-a);targets.forEach(i=>entities.splice(i,1));selectedSet.clear();selected=-1;finishCommand("ERASE completed")}
   else if(s.cmd==="TRIM"){
     const target=findNearest(p);
-    if(target<0){finishCommand("TRIM — عارضه‌ای نزدیک نقطه Select نشد");return true}
+    if(target<0){finishCommand("TRIM — object‌   Select ");return true}
     const changed=trimEntityAt(target,p,s.ids);
     if(changed){selectedSet.clear();selectedSet.add(target);finishCommand("TRIM completed")}
-    else finishCommand("TRIM — این عارضه نسبت به برش‌های Select‌شده قابل Trim نبود")
+    else finishCommand("TRIM —  object   ‌ Select‌  Trim ")
   }
   else if(s.cmd==="EXTEND"){
     const target=findNearest(p);
-    if(target<0){finishCommand("EXTEND — عارضه‌ای نزدیک نقطه Select نشد");return true}
+    if(target<0){finishCommand("EXTEND — object‌   Select ");return true}
     const changed=extendEntityAt(target,p,s.ids);
     if(changed){selectedSet.clear();selectedSet.add(target);finishCommand("EXTEND completed")}
-    else finishCommand("EXTEND — امتداد به مرز Select‌شده ممکن نبود")
+    else finishCommand("EXTEND — Could not extend to the selected boundary")
   }
   return true;
  }
@@ -675,7 +675,7 @@ function extendEntityAt(target,p,cuts){return entities[target]?.type==="LINE"?ex
 function entityBounds(e){let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;const add=(x,y)=>{minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y)};if(e.type==="LINE"){add(e.x1,e.y1);add(e.x2,e.y2)}else if(e.type==="CIRCLE"||e.type==="ARC"||e.type==="POINT"){add(e.x-e.r,e.y-e.r);add(e.x+e.r,e.y+e.r)}else if(e.pts&&e.pts.length)e.pts.forEach(p=>add(p[0],p[1]));else if(e.type==="ELLIPSE"){add(e.x-e.rx,e.y-e.ry);add(e.x+e.rx,e.y+e.ry)}else if(e.type==="TEXT"||e.type==="MTEXT"||e.type==="HATCH"){add(e.x,e.y)}else if(e.type==="DIMENSION"){add(e.x1,e.y1);add(e.x2,e.y2);add(e.tx,e.ty)}return isFinite(minX)?{minX,minY,maxX,maxY}:null}
 function findNearest(p){let best=-1,bd=Infinity;entities.forEach((e,i)=>{if(!isLayerVisible(e))return;let d=Infinity;if(e.type==="POINT"||e.type==="CIRCLE"||e.type==="ARC"||e.type==="ELLIPSE")d=Math.hypot(p[0]-e.x,p[1]-e.y);else if(e.type==="LINE"){d=segDist(p[0],p[1],e.x1,e.y1,e.x2,e.y2)}else if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"||e.type==="POLYLINE3D"||e.type==="SPLINE"){for(let j=1;j<e.pts.length;j++)d=Math.min(d,segDist(p[0],p[1],e.pts[j-1][0],e.pts[j-1][1],e.pts[j][0],e.pts[j][1]));if(e.closed&&e.pts.length>2)d=Math.min(d,segDist(p[0],p[1],e.pts.at(-1)[0],e.pts.at(-1)[1],e.pts[0][0],e.pts[0][1]))}else if(e.type==="TEXT"||e.type==="MTEXT"||e.type==="HATCH")d=Math.hypot(p[0]-e.x,p[1]-e.y);else if(e.type==="DIMENSION")d=Math.min(segDist(p[0],p[1],e.x1,e.y1,e.x2,e.y2),Math.hypot(p[0]-e.tx,p[1]-e.ty));if(d<bd){bd=d;best=i}});return bd<25/view.scale?best:-1}
 function segDist(px,py,x1,y1,x2,y2){const dx=x2-x1,dy=y2-y1;if(!dx&&!dy)return Math.hypot(px-x1,py-y1);let t=((px-x1)*dx+(py-y1)*dy)/(dx*dx+dy*dy);t=Math.max(0,Math.min(1,t));return Math.hypot(px-(x1+t*dx),py-(y1+t*dy))}
-$("aiRun").onclick=()=>{const q=$("aiCommand").value.trim().toLowerCase();if(!q){$("aiResult").textContent="Enter a command.";return}if(q.includes("تمام")||q.includes("zoom")||q.includes("fit")){fit();$("aiResult").textContent="Viewیش کامل نقشه اجرا شد."}else if(q.includes("شبکه")&&(q.includes("OFF")||q.includes("off"))){grid=false;draw();$("aiResult").textContent="Grid turned off."}else if(q.includes("شبکه")){grid=true;draw();$("aiResult").textContent="Grid turned on."}else{$("aiResult").textContent="This command is not connected to AI yet; AI integration will be added later."}};
+$("aiRun").onclick=()=>{const q=$("aiCommand").value.trim().toLowerCase();if(!q){$("aiResult").textContent="Enter a command.";return}if(q.includes("")||q.includes("zoom")||q.includes("fit")){fit();$("aiResult").textContent="Zoom Extents  ."}else if(q.includes("")&&(q.includes("OFF")||q.includes("off"))){grid=false;draw();$("aiResult").textContent="Grid turned off."}else if(q.includes("")){grid=true;draw();$("aiResult").textContent="Grid turned on."}else{$("aiResult").textContent="This command is not connected to AI yet; AI integration will be added later."}};
 
 document.querySelectorAll(".menu[data-menu]").forEach(menu=>{
   menu.addEventListener("click",e=>{
@@ -698,18 +698,18 @@ function runMenuAction(a){
   if(a==="activelayer")return $("activeLayerBtn").click();
   if(a==="select")return setMode("select");
   if(a==="line"||a==="polyline"||a==="circle")return setMode(a);
-  if(a==="point"){mode="point";drawPoints=[];setStatus("POINT — برای Insert نقطه کلیک کن");return}
+  if(a==="point"){mode="point";drawPoints=[];setStatus("POINT — Click to place a point");return}
   if(["move","copy","offset","trim","extend","rotate"].includes(a))return beginEditCommand(a.toUpperCase());
-  if(a==="erase"){const ids=selectedIndices();if(!ids.length)return setStatus("ERASE — ابتدا عارضه را Select کن");saveHistory();entities=entities.filter((_,i)=>!selectedSet.has(i));selectedSet.clear();selected=-1;rebuildLayers();draw();return setStatus("ERASE completed")}
+  if(a==="erase"){const ids=selectedIndices();if(!ids.length)return setStatus("ERASE —  object  Select ");saveHistory();entities=entities.filter((_,i)=>!selectedSet.has(i));selectedSet.clear();selected=-1;rebuildLayers();draw();return setStatus("ERASE completed")}
   if(a==="divide")return runPointDivision("DIVIDE");
   if(a==="measure")return runPointDivision("MEASURE");
   if(a==="undo")return undo();
-  if(a==="model"||a==="layout1"||a==="layout2"){document.querySelectorAll(".view-tab").forEach(x=>x.classList.toggle("active",x.textContent.trim().toLowerCase()===a));return setStatus(a==="model"?"Model active شد":"این Layout فعلاً Viewی کاری است")}
-  if(a==="help")return setStatus("L=Line | P=Polyline | C=Circle | M=Move | CO=Copy | O=Offset | TR=Trim | EX=Extend | RO=Rotate | E=Erase | Z=Zoom | G=Grid | Esc=لغو");
-  if(a==="about")return setStatus("Web CAD سبز رویان اورامان — extended base version");
+  if(a==="model"||a==="layout1"||a==="layout2"){document.querySelectorAll(".view-tab").forEach(x=>x.classList.toggle("active",x.textContent.trim().toLowerCase()===a));return setStatus(a==="model"?"Model activated":"This Layout is currently a work view")}
+  if(a==="help")return setStatus("L=Line | P=Polyline | C=Circle | M=Move | CO=Copy | O=Offset | TR=Trim | EX=Extend | RO=Rotate | E=Erase | Z=Zoom | G=Grid | Esc=Cancel");
+  if(a==="about")return setStatus("Web CAD    — extended base version");
 }
 document.querySelectorAll("[data-menu-action]").forEach(btn=>btn.addEventListener("click",e=>{e.stopPropagation();btn.closest(".menu-wrap").classList.remove("open");runMenuAction(btn.dataset.menuAction)}));
-document.querySelectorAll("[data-snap-mode]").forEach(btn=>{btn.addEventListener("click",e=>{e.stopPropagation();const key=btn.dataset.snapMode;snapModes[key]=!snapModes[key];btn.classList.toggle("active",snapModes[key]);setStatus("OSNAP "+key+" "+(snapModes[key]?"ON":"OFF")+" شد");});});
+document.querySelectorAll("[data-snap-mode]").forEach(btn=>{btn.addEventListener("click",e=>{e.stopPropagation();const key=btn.dataset.snapMode;snapModes[key]=!snapModes[key];btn.classList.toggle("active",snapModes[key]);setStatus("OSNAP "+key+" "+(snapModes[key]?"ON":"OFF")+" ");});});
 
 const commandInput=$("commandInput");
 function runCadCommand(raw){
@@ -718,7 +718,7 @@ function runCadCommand(raw){
  if(q==="L"||q==="LINE"){setMode("line");setStatus("LINE — Specify first point");}
  else if(q==="PL"||q==="PLINE"){setMode("polyline");setStatus("PLINE — Specify first point");}
  else if(q==="C"||q==="CIRCLE"){setMode("circle");setStatus("CIRCLE — Specify center point");}
- else if(q==="E"||q==="ERASE"){const ids=selectedIndices();if(ids.length){saveHistory();entities=entities.filter((_,i)=>!selectedSet.has(i));selectedSet.clear();selected=-1;rebuildLayers();draw();setStatus("ERASE completed")}else setStatus("ERASE — ابتدا عارضه را Select کن");}
+ else if(q==="E"||q==="ERASE"){const ids=selectedIndices();if(ids.length){saveHistory();entities=entities.filter((_,i)=>!selectedSet.has(i));selectedSet.clear();selected=-1;rebuildLayers();draw();setStatus("ERASE completed")}else setStatus("ERASE —  object  Select ");}
  else if(q==="M"||q==="MOVE")beginEditCommand("MOVE");
  else if(q==="CO"||q==="COPY")beginEditCommand("COPY");
  else if(q==="O"||q==="OFFSET")beginEditCommand("OFFSET");
@@ -760,9 +760,9 @@ window.addEventListener("keydown",e=>{
  else if(k==="C"){setMode("circle");e.preventDefault()}
  else if(k==="P"){setMode("polyline");e.preventDefault()}
 });
-$("newLayerBtn").onclick=()=>{const n=prompt("نام لایه New:","0");if(n&&n.trim()){const name=n.trim();if(!layers.has(name))layers.set(name,{visible:true,count:0});activeLayer=name;$("activeLayerInfo").textContent="Current Layer: "+activeLayer;renderLayers();setStatus("Current Layer: "+activeLayer)}};
+$("newLayerBtn").onclick=()=>{const n=prompt(" New Layer:","0");if(n&&n.trim()){const name=n.trim();if(!layers.has(name))layers.set(name,{visible:true,count:0});activeLayer=name;$("activeLayerInfo").textContent="Current Layer: "+activeLayer;renderLayers();setStatus("Current Layer: "+activeLayer)}};
 $("activeLayerBtn").onclick=()=>{const names=[...layers.keys()];if(!names.length)return;const idx=Math.max(0,names.indexOf(activeLayer));activeLayer=names[(idx+1)%names.length];$("activeLayerInfo").textContent="Current Layer: "+activeLayer;setStatus("Current Layer: "+activeLayer)};
-document.querySelectorAll(".view-tab").forEach(tab=>tab.onclick=()=>{document.querySelectorAll(".view-tab").forEach(t=>t.classList.remove("active"));tab.classList.add("active");setStatus(tab.textContent.trim()+" active شد")});
+document.querySelectorAll(".view-tab").forEach(tab=>tab.onclick=()=>{document.querySelectorAll(".view-tab").forEach(t=>t.classList.remove("active"));tab.classList.add("active");setStatus(tab.textContent.trim()+" active ")});
 $("gridStatus").onclick=()=>{$("gridBtn").click();$("gridStatus").classList.toggle("active",grid)};
 $("orthoStatus").onclick=()=>{orthoEnabled=!orthoEnabled;$("orthoStatus").classList.toggle("active",orthoEnabled);setStatus(orthoEnabled?"ORTHO enabled":"ORTHO disabled")};
 $("snapStatus").onclick=()=>{gridSnapEnabled=!gridSnapEnabled;$("snapStatus").classList.toggle("active",gridSnapEnabled);setStatus(gridSnapEnabled?"Grid SNAP enabled":"Grid SNAP disabled")};
