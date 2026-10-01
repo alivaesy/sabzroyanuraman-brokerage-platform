@@ -681,6 +681,30 @@ if((s.cmd==="TRIM"||s.cmd==="EXTEND")&&s.step==="target"){
  else setStatus(s.cmd+" — No valid intersection.");
  return true;
 }
+if(s.cmd==="OFFSET"&&s.step==="select"){
+ const hit=findNearest(p);if(hit<0){setStatus("OFFSET — Select object:");return true}
+ s.ids=[hit];selectedSet.clear();selectedSet.add(hit);selected=hit;s.step="offsetDistance";
+ const d=prompt("OFFSET — Specify offset distance:","10");
+ if(d===null){commandState=null;setMode("select");return true}
+ const n=Number(d);if(!Number.isFinite(n)||n<=0){setStatus("OFFSET — Invalid distance.");return true}
+ s.offsetDistance=n;s.step="offsetSide";setStatus("OFFSET — Specify point on side to offset:");draw();return true;
+}
+if(s.cmd==="OFFSET"&&s.step==="offsetSide"){
+ const d=s.offsetDistance;
+ for(const i of s.ids){
+  const e=entities[i];
+  if(e.type==="LINE"){
+   const dx=e.x2-e.x1,dy=e.y2-e.y1,L=Math.hypot(dx,dy)||1,side=((p[0]-e.x1)*(-dy)+(p[1]-e.y1)*dx)>=0?1:-1,nx=-dy/L*d*side,ny=dx/L*d*side;
+   entities.push({...cloneEntity(e),x1:e.x1+nx,y1:e.y1+ny,x2:e.x2+nx,y2:e.y2+ny});
+  }else if(e.type==="CIRCLE"){
+   const side=Math.hypot(p[0]-e.x,p[1]-e.y)>=e.r?1:-1,rr=e.r+d*side;
+   if(rr>1e-9)entities.push({...cloneEntity(e),r:rr});
+  }else if(e.pts){
+   const q=offsetPolyline(e,d,p);if(q)entities.push(q);
+  }
+ }
+ rebuildLayers();finishCommand("OFFSET completed");return true;
+}
 if(s.step==="vertex"){
   const e=entities[s.ids[0]];if(e&&e.pts&&e.pts[s.vertexIndex]){e.pts[s.vertexIndex]=p;finishCommand("PEDIT — Vertex moved");}else{commandState=null;setMode("select");}
   return true;
@@ -1144,7 +1168,7 @@ function runCadCommand(raw){
  else if(q==="E"||q==="ERASE"){const ids=selectedIndices();if(ids.length){saveHistory();entities=entities.filter((_,i)=>!selectedSet.has(i));selectedSet.clear();selected=-1;rebuildLayers();draw();setStatus("ERASE completed")}else setStatus("ERASE — Select objects:");}
  else if(q==="M"||q==="MOVE")beginEditCommand("MOVE");
  else if(q==="CO"||q==="COPY")beginEditCommand("COPY");
- else if(q==="O"||q==="OFFSET")beginEditCommand("OFFSET");
+ else if(q==="O"||q==="OFFSET"){commandState={cmd:"OFFSET",ids:[],step:"select",before:JSON.stringify(entities)};setMode("select");setStatus("OFFSET — Select object:");}
  else if(q==="TR"||q==="TRIM"){beginEditCommand("TRIM");}
  else if(q==="EX"||q==="EXTEND"){beginEditCommand("EXTEND");}
  else if(q==="RO"||q==="ROTATE")beginEditCommand("ROTATE");
