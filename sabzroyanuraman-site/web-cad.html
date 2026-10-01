@@ -33,7 +33,7 @@ input[type=text],textarea{width:100%;border:1px solid #c9d5da;border-radius:7px;
 textarea{min-height:72px;resize:vertical}
 .status{position:absolute;bottom:12px;right:12px;background:rgba(255,255,255,.94);border:1px solid #cbd8df;border-radius:8px;padding:6px 9px;font-size:10px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
 .coord{position:absolute;bottom:12px;left:12px;background:rgba(255,255,255,.94);border:1px solid #cbd8df;border-radius:8px;padding:6px 9px;font-size:10px;direction:ltr}
-.layer-row{display:flex;align-items:center;gap:7px;font-size:11px;margin:6px 0}
+.layer-row{display:flex;align-items:center;gap:7px;font-size:11px;margin:6px 0;padding:5px;border-radius:6px}.layer-row:hover{background:#f3f7f8}.layer-row input{margin:0}.layer-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.layer-count{font-size:9px;color:#81909a}
 .layer-dot{width:10px;height:10px;border-radius:50%;background:#146c43}
 .small{font-size:10px;color:#667b88;line-height:1.7}
 @media(max-width:800px){.side{width:260px}.brand{font-size:14px}.tool{padding:6px}}
@@ -70,9 +70,9 @@ textarea{min-height:72px;resize:vertical}
       <div class="small" style="margin-top:9px">برای خط و دایره روی بوم کلیک کن. برای پایان پلی‌لاین دوبار کلیک کن. چرخ ماوس Zoom و کشیدن با دکمه وسط Pan است.</div>
     </section>
     <section class="panel">
-      <h3>لایه</h3>
-      <div class="layer-row"><span class="layer-dot"></span><span>0 — لایه پیش‌فرض</span></div>
-      <div class="small">در نسخه بعدی، مدیریت کامل Layerهای DXF و رنگ/نوع خط اضافه می‌شود.</div>
+      <h3>مدیریت لایه‌ها</h3>
+      <div id="layerList"></div>
+      <div class="small" style="margin-top:7px">لایه‌ها از کد 8 فایل DXF خوانده می‌شوند. با برداشتن تیک، لایه مخفی می‌شود.</div>
     </section>
     <section class="panel">
       <h3>دستیار CAD</h3>
@@ -95,7 +95,7 @@ textarea{min-height:72px;resize:vertical}
 
 <script>
 const canvas=document.getElementById("cad"),ctx=canvas.getContext("2d");
-let entities=[],mode="select",grid=true,selected=-1;
+let entities=[],mode="select",grid=true,selected=-1,selectedSet=new Set(),layers=new Map();
 let view={cx:0,cy:0,scale:1};
 let drag=null,drawPoints=[];
 const $=id=>document.getElementById(id);
@@ -105,6 +105,10 @@ function setStatus(s){$("status").textContent=s}
 function setMode(m){mode=m;drawPoints=[];document.querySelectorAll("[data-mode]").forEach(b=>b.classList.toggle("primary",b.dataset.mode===m));setStatus("ابزار: "+m)}
 function worldToScreen(x,y){const w=canvas.clientWidth,h=canvas.clientHeight;return [w/2+(x-view.cx)*view.scale,h/2-(y-view.cy)*view.scale]}
 function screenToWorld(sx,sy){const w=canvas.clientWidth,h=canvas.clientHeight;return [(sx-w/2)/view.scale+view.cx,(h/2-sy)/view.scale+view.cy]}
+function layerOf(e){return e.layer||"0"}
+function rebuildLayers(){layers=new Map();for(const e of entities){const n=layerOf(e);if(!layers.has(n))layers.set(n,{visible:true,count:0});layers.get(n).count++}renderLayers()}
+function renderLayers(){const box=$("layerList");if(!box)return;box.innerHTML="";for(const [name,info] of layers){const row=document.createElement("label");row.className="layer-row";row.innerHTML='<input type="checkbox" '+(info.visible?"checked":"")+'><span class="layer-name"></span><span class="layer-count"></span>';row.querySelector(".layer-name").textContent=name;row.querySelector(".layer-count").textContent=info.count;row.querySelector("input").onchange=()=>{info.visible=row.querySelector("input").checked;draw()};box.appendChild(row)}}
+function isLayerVisible(e){const l=layers.get(layerOf(e));return !l||l.visible}
 function bounds(){
  if(!entities.length)return null;
  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
@@ -133,11 +137,11 @@ function draw(){
  ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
  ctx.fillStyle="#fff";ctx.fillRect(0,0,canvas.clientWidth,canvas.clientHeight);
  drawGrid();
- const normal=entities, picked=selected>=0?[entities[selected]]:[];
+ const normal=entities, picked=[...selectedSet].map(i=>entities[i]).filter(Boolean);
  ctx.save();ctx.strokeStyle="#146c43";ctx.fillStyle="#146c43";ctx.lineWidth=1.25;
- for(let i=0;i<normal.length;i++)if(i!==selected)drawEntityFast(normal[i]);
+ for(let i=0;i<normal.length;i++)if(i!==selected&&!selectedSet.has(i)&&isLayerVisible(normal[i]))drawEntityFast(normal[i]);
  ctx.strokeStyle="#d35400";ctx.fillStyle="#d35400";ctx.lineWidth=3;
- for(const e of picked) drawEntityFast(e);
+ for(const e of picked) if(isLayerVisible(e)) drawEntityFast(e);
  ctx.restore();
  if(drawPoints.length){
   ctx.save();ctx.fillStyle="#d35400";
@@ -178,25 +182,25 @@ function parseDXF(text){
   const m=new Map(),pts=[],vertices=[];
   while(i<pairs.length&&pairs[i][0]!=="0"){
    const c=pairs[i][0],v=pairs[i][1];i++;
-   if(c==="10"||c==="11"||c==="12"||c==="13"||c==="20"||c==="21"||c==="22"||c==="23"||c==="30"||c==="31"||c==="32"||c==="40"||c==="41"||c==="42"||c==="50"||c==="51"||c==="70"||c==="71"||c==="90"||c==="100"||c==="1"||c==="2")m.set(c,v);
+   if(c==="8"||c==="10"||c==="11"||c==="12"||c==="13"||c==="20"||c==="21"||c==="22"||c==="23"||c==="30"||c==="31"||c==="32"||c==="40"||c==="41"||c==="42"||c==="50"||c==="51"||c==="70"||c==="71"||c==="90"||c==="100"||c==="1"||c==="2")m.set(c,v);
    if(type==="LWPOLYLINE"&&c==="10"){pts.push([num(v),0]);}
    else if(type==="LWPOLYLINE"&&c==="20"&&pts.length){pts[pts.length-1][1]=num(v);}
   }
   if(type==="LINE"&&m.has("10")&&m.has("20")&&m.has("11")&&m.has("21"))
-   return {type:"LINE",x1:num(m.get("10")),y1:num(m.get("20")),x2:num(m.get("11")),y2:num(m.get("21"))};
+   return {type:"LINE",layer:m.get("8")||"0",x1:num(m.get("10")),y1:num(m.get("20")),x2:num(m.get("11")),y2:num(m.get("21"))};
   if(type==="CIRCLE"&&m.has("10")&&m.has("20")&&m.has("40"))
-   return {type:"CIRCLE",x:num(m.get("10")),y:num(m.get("20")),r:Math.abs(num(m.get("40")))};
+   return {type:"CIRCLE",layer:m.get("8")||"0",x:num(m.get("10")),y:num(m.get("20")),r:Math.abs(num(m.get("40")))};
   if(type==="ARC"&&m.has("10")&&m.has("20")&&m.has("40"))
-   return {type:"ARC",x:num(m.get("10")),y:num(m.get("20")),r:Math.abs(num(m.get("40"))),a1:num(m.get("50")||0),a2:num(m.get("51")||360)};
+   return {type:"ARC",layer:m.get("8")||"0",x:num(m.get("10")),y:num(m.get("20")),r:Math.abs(num(m.get("40"))),a1:num(m.get("50")||0),a2:num(m.get("51")||360)};
   if(type==="POINT"&&m.has("10")&&m.has("20"))
-   return {type:"POINT",x:num(m.get("10")),y:num(m.get("20")),r:0};
+   return {type:"POINT",layer:m.get("8")||"0",x:num(m.get("10")),y:num(m.get("20")),r:0};
   if(type==="LWPOLYLINE"&&pts.length>=2)
-   return {type:"LWPOLYLINE",pts,closed:(num(m.get("70")||0)&1)===1};
+   return {type:"LWPOLYLINE",layer:m.get("8")||"0",pts,closed:(num(m.get("70")||0)&1)===1};
   if((type==="TEXT"||type==="MTEXT")&&m.has("10")&&m.has("20"))
    return {type,type,x:num(m.get("10")),y:num(m.get("20")),text:m.get("1")||"",r:0};
   if(type==="ELLIPSE"&&m.has("10")&&m.has("20")&&m.has("11")&&m.has("21")){
    const mx=num(m.get("11")),my=num(m.get("21"));const major=Math.hypot(mx,my),ratio=Math.abs(num(m.get("40")||1));
-   return {type:"ELLIPSE",x:num(m.get("10")),y:num(m.get("20")),rx:major,ry:major*ratio};
+   return {type:"ELLIPSE",layer:m.get("8")||"0",x:num(m.get("10")),y:num(m.get("20")),rx:major,ry:major*ratio};
   }
   return null;
  };
@@ -223,7 +227,7 @@ $("dxfFile").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{
  const buf=await f.arrayBuffer();let t;
  try{t=new TextDecoder("utf-8").decode(buf)}catch(_){t=await f.text()}
  if(t.indexOf("SECTION")<0&&t.indexOf("SECTION".toLowerCase())<0){try{t=new TextDecoder("windows-1252").decode(buf)}catch(_){}}
- entities=parseDXF(t);selected=-1;
+ entities=parseDXF(t);selected=-1;selectedSet.clear();rebuildLayers();
  if(entities.length>5000)grid=false;
  fit();
  $("fileInfo").textContent=f.name+" — "+entities.length+" عارضه";
@@ -232,7 +236,7 @@ $("dxfFile").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{
 $("saveBtn").onclick=()=>{download(dxfText(),"sabz-royan-web-cad.dxf","application/dxf");setStatus("فایل DXF ذخیره شد")};
 $("fitBtn").onclick=fit;
 $("gridBtn").onclick=()=>{grid=!grid;draw();setStatus(grid?"شبکه روشن شد":"شبکه خاموش شد")};
-$("newBtn").onclick=()=>{entities=[];selected=-1;fit();$("fileInfo").textContent="فایل جدید";setStatus("نقشه جدید ایجاد شد")};
+$("newBtn").onclick=()=>{entities=[];selected=-1;selectedSet.clear();rebuildLayers();fit();$("fileInfo").textContent="فایل جدید";setStatus("نقشه جدید ایجاد شد")};
 $("backBtn").onclick=()=>location.href="index.html";
 document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
 canvas.addEventListener("mousemove",e=>{const r=canvas.getBoundingClientRect(),p=screenToWorld(e.clientX-r.left,e.clientY-r.top);$("coord").textContent="X: "+p[0].toFixed(3)+" | Y: "+p[1].toFixed(3);if(drag){view.cx=drag.cx-(e.clientX-drag.x)/view.scale;view.cy=drag.cy+(e.clientY-drag.y)/view.scale;draw()}});
@@ -248,7 +252,7 @@ canvas.addEventListener("wheel",e=>{e.preventDefault();const r=canvas.getBoundin
 function findNearest(p){let best=-1,bd=Infinity;entities.forEach((e,i)=>{let d=Infinity;if(e.type==="POINT"||e.type==="CIRCLE")d=Math.hypot(p[0]-e.x,p[1]-e.y);else if(e.type==="LINE"){d=segDist(p[0],p[1],e.x1,e.y1,e.x2,e.y2)}else if(e.type==="LWPOLYLINE"){for(let j=1;j<e.pts.length;j++)d=Math.min(d,segDist(p[0],p[1],e.pts[j-1][0],e.pts[j-1][1],e.pts[j][0],e.pts[j][1]))}if(d<bd){bd=d;best=i}});return bd<25/view.scale?best:-1}
 function segDist(px,py,x1,y1,x2,y2){const dx=x2-x1,dy=y2-y1;if(!dx&&!dy)return Math.hypot(px-x1,py-y1);let t=((px-x1)*dx+(py-y1)*dy)/(dx*dx+dy*dy);t=Math.max(0,Math.min(1,t));return Math.hypot(px-(x1+t*dx),py-(y1+t*dy))}
 $("aiRun").onclick=()=>{const q=$("aiCommand").value.trim().toLowerCase();if(!q){$("aiResult").textContent="فرمان را وارد کن.";return}if(q.includes("تمام")||q.includes("zoom")||q.includes("fit")){fit();$("aiResult").textContent="نمایش کامل نقشه اجرا شد."}else if(q.includes("شبکه")&&(q.includes("خاموش")||q.includes("off"))){grid=false;draw();$("aiResult").textContent="شبکه خاموش شد."}else if(q.includes("شبکه")){grid=true;draw();$("aiResult").textContent="شبکه روشن شد."}else{$("aiResult").textContent="این فرمان در نسخه پایه هنوز به AI متصل نیست؛ هسته اتصال AI در مرحله بعد اضافه می‌شود."}};
-resize();fit();
+resize();rebuildLayers();fit();
 </script>
 </body>
 </html>
