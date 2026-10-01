@@ -153,7 +153,11 @@ function snapPoint(p){
    if(snapEnabled&&snapModes.endpoint)e.pts.forEach(v=>test(v[0],v[1],"Endpoint",110));
    if(snapEnabled&&snapModes.midpoint)for(let i=1;i<e.pts.length;i++){const a=e.pts[i-1],b=e.pts[i];test((a[0]+b[0])/2,(a[1]+b[1])/2,"Midpoint",95)}
    for(let i=1;i<e.pts.length;i++)segments.push([e.pts[i-1],e.pts[i]]);
-   if(e.closed&&e.pts.length>2)segments.push([e.pts.at(-1),e.pts[0]]);
+   if(e.closed&&e.pts.length>2){
+    const a=e.pts.at(-1),b=e.pts[0];
+    segments.push([a,b]);
+    if(snapEnabled&&snapModes.midpoint)test((a[0]+b[0])/2,(a[1]+b[1])/2,"Midpoint",95);
+   }
   }
   if(e.type==="CIRCLE"||e.type==="ARC"||e.type==="ELLIPSE"){
    curves.push(e);
@@ -168,8 +172,10 @@ function snapPoint(p){
  const inArc=(e,x,y)=>{
   if(e.type!=="ARC")return true;
   const a=(Math.atan2(y-e.y,x-e.x)*180/Math.PI+360)%360;
-  const s=((e.startAngle||0)%360+360)%360, f=((e.endAngle||360)%360+360)%360;
-  return s<=f?a>=s&&a<=f:a>=s||a<=f;
+  const s=(((e.a1??0)%360)+360)%360, f=(((e.a2??360)%360)+360)%360;
+  const span=(f-s+360)%360;
+  if(span<1e-9)return Math.abs(((a-s+540)%360)-180)<1e-7;
+  return span>=359.999999 || (s<=f?a>=s&&a<=f:a>=s||a<=f);
  };
  const addCurveNearest=e=>{
   if(e.type==="CIRCLE"||e.type==="ARC"){
