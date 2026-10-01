@@ -9,53 +9,69 @@
 @font-face{font-family:Vazirmatn;src:url("/assets/fonts/Vazirmatn-Bold.woff2") format("woff2");font-weight:700}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
-body{font-family:Vazirmatn,sans-serif;background:#eef3f2;color:#173b57;overflow:hidden}
-.app{height:100%;display:flex;flex-direction:column}
-.topbar{height:62px;background:#355a78;color:#fff;display:flex;align-items:center;gap:10px;padding:8px 14px;box-shadow:0 2px 10px rgba(0,0,0,.18);z-index:10}
-.brand{font-weight:800;font-size:17px;margin-left:auto}
-.badge{font-size:11px;background:#e7f3ed;color:#086344;border-radius:14px;padding:5px 9px}
-.tool{border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.08);color:#fff;border-radius:7px;padding:7px 10px;font:inherit;font-size:11px;cursor:pointer}
-.tool:hover{background:rgba(255,255,255,.18)}
+body{font-family:Vazirmatn,Tahoma,sans-serif;background:#202020;color:#e7e7e7;overflow:hidden;font-size:12px}
+button,input,textarea{font-family:inherit}
+.app{height:100%;display:flex;flex-direction:column;background:#202020}
+.classic-title{height:28px;background:#171717;color:#eee;display:flex;align-items:center;padding:0 9px;border-bottom:1px solid #343434;font-size:12px;direction:rtl}
+.classic-title .brand{font-weight:700;margin-left:auto}.classic-title .file-title{color:#bdbdbd;margin-right:14px}
+.menu-bar{height:27px;background:#2a2a2a;display:flex;align-items:center;padding:0 7px;border-bottom:1px solid #111;direction:rtl}
+.menu{padding:4px 11px;color:#eee;cursor:pointer}.menu:hover{background:#3b3b3b}
+.ribbon-lite{height:48px;background:#303030;border-bottom:1px solid #111;display:flex;align-items:stretch;direction:rtl}
+.rgroup{display:flex;align-items:center;gap:4px;padding:4px 7px;border-left:1px solid #444}
+.rbutton{min-width:48px;border:1px solid transparent;background:transparent;color:#eee;border-radius:2px;padding:2px 5px;font-size:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px}
+.rbutton:hover{background:#414141;border-color:#555}.rbutton .ico{font-size:17px;line-height:18px}
+.workspace{min-height:0;flex:1;display:flex;direction:ltr}
+.canvas-wrap{position:relative;min-width:0;flex:1;background:#050505;overflow:hidden}
+#cad{width:100%;height:100%;display:block;cursor:crosshair;background:#050505}
+.side{width:292px;background:#252525;border-left:1px solid #111;display:flex;flex-direction:column;overflow:auto;direction:rtl}
+.panel{padding:9px;border-bottom:1px solid #3a3a3a}.panel h3{margin:0 0 7px;color:#f0f0f0;font-size:12px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:3px}.btn{border:1px solid #4b4b4b;background:#303030;color:#eee;border-radius:2px;padding:6px 5px;font-size:10px;cursor:pointer}.btn:hover{background:#414141}.btn.primary{background:#4b4b4b;border-color:#777;color:#fff}.btn.danger{color:#ffb4a8}
+input[type=text],textarea{width:100%;border:1px solid #555;background:#1e1e1e;color:#eee;border-radius:2px;padding:6px;font-size:10px;direction:rtl}
+textarea{min-height:64px;resize:vertical}
+.layer-row{display:flex;align-items:center;gap:6px;font-size:10px;margin:2px 0;padding:4px;border-radius:2px}.layer-row:hover{background:#333}.layer-row input{margin:0}.layer-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.layer-count{font-size:9px;color:#999}
+.layer-dot{width:9px;height:9px;border-radius:1px;background:#f4f4f4}
+.small{font-size:9px;color:#aaa;line-height:1.65}
+.status{position:absolute;bottom:34px;right:10px;background:rgba(35,35,35,.92);border:1px solid #555;border-radius:2px;padding:4px 7px;font-size:9px;color:#ddd;box-shadow:none;direction:rtl}
+.coord{position:absolute;bottom:34px;left:10px;background:rgba(25,25,25,.92);border:1px solid #555;border-radius:2px;padding:4px 7px;font-size:9px;color:#ddd;direction:ltr}
+.ucs{position:absolute;left:15px;top:15px;width:55px;height:55px;pointer-events:none;opacity:.9}.ucs:before{content:"";position:absolute;left:25px;top:8px;height:37px;border-left:1px solid #ddd}.ucs:after{content:"";position:absolute;left:8px;top:27px;width:37px;border-top:1px solid #ddd}.ucs .x{position:absolute;left:45px;top:23px;color:#e25d4d;font-size:10px}.ucs .y{position:absolute;left:27px;top:0;color:#6fb6e9;font-size:10px}
+.view-tabs{height:26px;background:#282828;border-top:1px solid #111;display:flex;align-items:stretch;direction:ltr}.view-tab{padding:5px 13px;border-right:1px solid #111;color:#bbb;font-size:10px}.view-tab.active{background:#353535;color:#fff}
+.statusbar{height:27px;background:#242424;border-top:1px solid #111;display:flex;align-items:center;gap:2px;padding:2px 5px;direction:ltr;color:#aaa;font-size:9px}.status-item{padding:4px 7px;border:1px solid transparent}.status-item.active{background:#3a3a3a;color:#fff;border-color:#4b4b4b}.status-spacer{flex:1}.commandbar{height:31px;background:#1b1b1b;border-top:1px solid #444;display:flex;align-items:center;direction:ltr}.command-label{width:78px;color:#ddd;padding:0 8px;font-size:10px}.command-input{flex:1;height:25px;border:0;border-left:1px solid #444;background:#101010;color:#fff;padding:3px 7px;outline:none;font-family:Consolas,monospace;font-size:11px;direction:ltr}
 .file{display:none}
-.workspace{min-height:0;flex:1;display:flex}
-.canvas-wrap{position:relative;min-width:0;flex:1;background:#fff}
-#cad{width:100%;height:100%;display:block;cursor:crosshair;background:#fff}
-.side{width:315px;background:#fff;border-left:1px solid #cbd8df;display:flex;flex-direction:column;overflow:auto}
-.panel{padding:14px;border-bottom:1px solid #e1e8eb}
-.panel h3{margin:0 0 9px;color:#07573e;font-size:14px}
-.help{font-size:11px;line-height:1.9;color:#526876}
-.actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}
-.btn{border:1px solid #c4d0d6;background:#f7fafb;color:#29465c;border-radius:7px;padding:8px;font:inherit;font-size:11px;cursor:pointer}
-.btn:hover{background:#e7f2ed;border-color:#79a892}
-.btn.primary{background:#146c43;color:#fff;border-color:#146c43}
-.btn.danger{color:#a43b32}
-input[type=text],textarea{width:100%;border:1px solid #c9d5da;border-radius:7px;padding:8px;font:inherit;font-size:11px;direction:rtl}
-textarea{min-height:72px;resize:vertical}
-.status{position:absolute;bottom:12px;right:12px;background:rgba(255,255,255,.94);border:1px solid #cbd8df;border-radius:8px;padding:6px 9px;font-size:10px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
-.coord{position:absolute;bottom:12px;left:12px;background:rgba(255,255,255,.94);border:1px solid #cbd8df;border-radius:8px;padding:6px 9px;font-size:10px;direction:ltr}
-.layer-row{display:flex;align-items:center;gap:7px;font-size:11px;margin:6px 0;padding:5px;border-radius:6px}.layer-row:hover{background:#f3f7f8}.layer-row input{margin:0}.layer-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.layer-count{font-size:9px;color:#81909a}
-.layer-dot{width:10px;height:10px;border-radius:50%;background:#146c43}
-.small{font-size:10px;color:#667b88;line-height:1.7}
-@media(max-width:800px){.side{width:260px}.brand{font-size:14px}.tool{padding:6px}}
+#layerList{max-height:180px;overflow:auto}
+@media(max-width:900px){.side{width:250px}.menu{padding:4px 6px}.rbutton{min-width:38px}}
 </style>
 </head>
 <body>
 <div class="app">
-<header class="topbar">
-  <div class="brand">📐 طراحی آنلاین Web CAD — سبز رویان اورامان</div>
-  <span class="badge">DXF v1</span>
-  <label class="tool" for="dxfFile">📂 باز کردن DXF</label>
+<div class="classic-title"><div class="brand">سبز رویان اورامان — Web CAD</div><div class="file-title" id="windowTitle">Drawing1.dxf</div></div>
+<div class="menu-bar">
+  <span class="menu">فایل</span><span class="menu">ویرایش</span><span class="menu">نما</span><span class="menu">درج</span><span class="menu">فرمت</span><span class="menu">ابزارها</span><span class="menu">ترسیم</span><span class="menu">تغییر</span><span class="menu">پنجره</span><span class="menu">راهنما</span>
+</div>
+<div class="ribbon-lite">
+  <div class="rgroup">
+    <label class="rbutton" for="dxfFile"><span class="ico">📂</span>باز کردن</label>
+    <button class="rbutton" id="newBtn"><span class="ico">📄</span>جدید</button>
+    <button class="rbutton" id="saveBtn"><span class="ico">💾</span>ذخیره DXF</button>
+  </div>
+  <div class="rgroup">
+    <button class="rbutton" id="fitBtn"><span class="ico">⌗</span>Zoom Extents</button>
+    <button class="rbutton" id="gridBtn"><span class="ico">▦</span>Grid</button>
+  </div>
+  <div class="rgroup">
+    <button class="rbutton" data-mode="select"><span class="ico">↖</span>Select</button>
+    <button class="rbutton" data-mode="line"><span class="ico">╱</span>Line</button>
+    <button class="rbutton" data-mode="polyline"><span class="ico">⌁</span>Polyline</button>
+    <button class="rbutton" data-mode="circle"><span class="ico">○</span>Circle</button>
+  </div>
+  <div class="rgroup">
+    <button class="rbutton" id="backBtn"><span class="ico">↩</span>نقشه سایت</button>
+  </div>
   <input id="dxfFile" class="file" type="file" accept=".dxf,.txt">
-  <button class="tool" id="newBtn">نقشه جدید</button>
-  <button class="tool" id="saveBtn">💾 خروجی DXF</button>
-  <button class="tool" id="fitBtn">⌗ تمام نقشه</button>
-  <button class="tool" id="gridBtn">شبکه</button>
-  <button class="tool" id="backBtn">← نمایش نقشه</button>
-</header>
+</div>
 <div class="workspace">
   <div class="canvas-wrap">
-    <canvas id="cad"></canvas>
-    <div id="status" class="status">Web CAD آماده است؛ یک فایل DXF باز کن یا ترسیم را شروع کن.</div>
+    <canvas id="cad"></canvas><div class="ucs"><span class="x">X</span><span class="y">Y</span></div>
+    <div id="status" class="status">Command: Type a command or select a tool</div>
     <div id="coord" class="coord">X: — | Y: —</div>
   </div>
   <aside class="side">
@@ -90,6 +106,11 @@ textarea{min-height:72px;resize:vertical}
       <div class="small">DXF → ویرایش حرفه‌ای → اتصال AI → پشتیبانی DWG با ODA. این نسخه عمداً مستقل از AutoCAD Web است.</div>
     </section>
   </aside>
+</div>
+<div class="commandbar"><div class="command-label">Command:</div><input id="commandInput" class="command-input" autocomplete="off" placeholder="Type a command: LINE, PLINE, CIRCLE, ZOOM..."></div>
+<div class="view-tabs"><div class="view-tab active">Model</div><div class="view-tab">Layout1</div><div class="view-tab">Layout2</div></div>
+<div class="statusbar">
+  <span class="status-item active" id="orthoStatus">ORT</span><span class="status-item" id="snapStatus">SNAP</span><span class="status-item" id="gridStatus">GRID</span><span class="status-item" id="osnapStatus">OSNAP</span><span class="status-item">LWT</span><span class="status-item">MODEL</span><span class="status-spacer"></span><span class="status-item">UTM 38N</span><span class="status-item" id="statusScale">1:1</span>
 </div>
 </div>
 
@@ -127,7 +148,7 @@ function fit(){const b=bounds();if(!b){view={cx:0,cy:0,scale:1};draw();return}vi
 function drawGrid(){
  if(!grid)return;
  const step=niceStep(70/view.scale);const tl=screenToWorld(0,0),br=screenToWorld(canvas.clientWidth,canvas.clientHeight);
- ctx.save();ctx.strokeStyle="#e7edef";ctx.lineWidth=1;
+ ctx.save();ctx.strokeStyle="#1b1b1b";ctx.lineWidth=1;
  for(let x=Math.floor(tl[0]/step)*step;x<=br[0];x+=step){const a=worldToScreen(x,tl[1]),b=worldToScreen(x,br[1]);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()}
  for(let y=Math.floor(br[1]/step)*step;y<=tl[1];y+=step){const a=worldToScreen(tl[0],y),b=worldToScreen(br[0],y);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()}
  ctx.restore()
@@ -135,10 +156,10 @@ function drawGrid(){
 function niceStep(v){const p=Math.pow(10,Math.floor(Math.log10(v)));const n=v/p;return (n<2?1:n<5?2:5)*p}
 function draw(){
  ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
- ctx.fillStyle="#fff";ctx.fillRect(0,0,canvas.clientWidth,canvas.clientHeight);
+ ctx.fillStyle="#050505";ctx.fillRect(0,0,canvas.clientWidth,canvas.clientHeight);
  drawGrid();
  const normal=entities, picked=[...selectedSet].map(i=>entities[i]).filter(Boolean);
- ctx.save();ctx.strokeStyle="#146c43";ctx.fillStyle="#146c43";ctx.lineWidth=1.25;
+ ctx.save();ctx.strokeStyle="#d7d7d7";ctx.fillStyle="#d7d7d7";ctx.lineWidth=1.05;
  for(let i=0;i<normal.length;i++)if(i!==selected&&!selectedSet.has(i)&&isLayerVisible(normal[i]))drawEntityFast(normal[i]);
  ctx.strokeStyle="#d35400";ctx.fillStyle="#d35400";ctx.lineWidth=3;
  for(const e of picked) if(isLayerVisible(e)) drawEntityFast(e);
@@ -230,8 +251,8 @@ $("dxfFile").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{
  entities=parseDXF(t);selected=-1;selectedSet.clear();rebuildLayers();
  if(entities.length>5000)grid=false;
  fit();
- $("fileInfo").textContent=f.name+" — "+entities.length+" عارضه";
- setStatus(entities.length?"DXF بارگذاری شد: "+entities.length+" عارضه":"DXF خوانده شد اما Entity پشتیبانی‌شده‌ای پیدا نشد؛ احتمالاً فایل شامل INSERT/BLOCK یا فرمت دیگری است.");
+ $("fileInfo").textContent=f.name+" — "+entities.length+" عارضه";$("windowTitle").textContent=f.name;
+ setStatus(entities.length?"Command: DXF loaded — "+entities.length+" entities":"DXF خوانده شد اما Entity پشتیبانی‌شده‌ای پیدا نشد؛ احتمالاً فایل شامل INSERT/BLOCK یا فرمت دیگری است.");
 }catch(err){setStatus("خطا در خواندن DXF: "+err.message)}};
 $("saveBtn").onclick=()=>{download(dxfText(),"sabz-royan-web-cad.dxf","application/dxf");setStatus("فایل DXF ذخیره شد")};
 $("fitBtn").onclick=fit;
@@ -257,6 +278,32 @@ canvas.addEventListener("wheel",e=>{e.preventDefault();const r=canvas.getBoundin
 function findNearest(p){let best=-1,bd=Infinity;entities.forEach((e,i)=>{let d=Infinity;if(e.type==="POINT"||e.type==="CIRCLE")d=Math.hypot(p[0]-e.x,p[1]-e.y);else if(e.type==="LINE"){d=segDist(p[0],p[1],e.x1,e.y1,e.x2,e.y2)}else if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"){for(let j=1;j<e.pts.length;j++)d=Math.min(d,segDist(p[0],p[1],e.pts[j-1][0],e.pts[j-1][1],e.pts[j][0],e.pts[j][1]));if(e.closed&&e.pts.length>2)d=Math.min(d,segDist(p[0],p[1],e.pts.at(-1)[0],e.pts.at(-1)[1],e.pts[0][0],e.pts[0][1]))}if(d<bd){bd=d;best=i}});return bd<25/view.scale?best:-1}
 function segDist(px,py,x1,y1,x2,y2){const dx=x2-x1,dy=y2-y1;if(!dx&&!dy)return Math.hypot(px-x1,py-y1);let t=((px-x1)*dx+(py-y1)*dy)/(dx*dx+dy*dy);t=Math.max(0,Math.min(1,t));return Math.hypot(px-(x1+t*dx),py-(y1+t*dy))}
 $("aiRun").onclick=()=>{const q=$("aiCommand").value.trim().toLowerCase();if(!q){$("aiResult").textContent="فرمان را وارد کن.";return}if(q.includes("تمام")||q.includes("zoom")||q.includes("fit")){fit();$("aiResult").textContent="نمایش کامل نقشه اجرا شد."}else if(q.includes("شبکه")&&(q.includes("خاموش")||q.includes("off"))){grid=false;draw();$("aiResult").textContent="شبکه خاموش شد."}else if(q.includes("شبکه")){grid=true;draw();$("aiResult").textContent="شبکه روشن شد."}else{$("aiResult").textContent="این فرمان در نسخه پایه هنوز به AI متصل نیست؛ هسته اتصال AI در مرحله بعد اضافه می‌شود."}};
+
+const commandInput=$("commandInput");
+function runCadCommand(raw){
+ const q=(raw||"").trim().toUpperCase();
+ if(!q)return;
+ if(q==="L"||q==="LINE"){setMode("line");setStatus("LINE — Specify first point");}
+ else if(q==="PL"||q==="PLINE"){setMode("polyline");setStatus("PLINE — Specify first point");}
+ else if(q==="C"||q==="CIRCLE"){setMode("circle");setStatus("CIRCLE — Specify center point");}
+ else if(q==="E"||q==="ERASE"){selectedSet.clear();selected=-1;draw();setStatus("ERASE — انتخاب عارضه برای حذف");}
+ else if(q==="Z"||q==="ZOOM"||q==="ZE"||q==="ZOOM E"){fit();}
+ else if(q==="G"||q==="GRID"){grid=!grid;draw();$("gridStatus").classList.toggle("active",grid);}
+ else if(q==="ESC"){setMode("select");selectedSet.clear();selected=-1;draw();setStatus("Command: *Cancel*");}
+ else {setStatus("Unknown command: "+raw);}
+ commandInput.value="";
+}
+commandInput.addEventListener("keydown",e=>{if(e.key==="Enter"){runCadCommand(commandInput.value);e.preventDefault()}});
+window.addEventListener("keydown",e=>{
+ if(e.target===commandInput||e.target.tagName==="TEXTAREA"||e.target.tagName==="INPUT")return;
+ if(e.key==="Escape"){runCadCommand("ESC");return}
+ const k=e.key.toUpperCase();
+ if(k==="L"){setMode("line");e.preventDefault()}
+ else if(k==="C"){setMode("circle");e.preventDefault()}
+ else if(k==="P"){setMode("polyline");e.preventDefault()}
+});
+$("gridStatus").onclick=()=>{$("gridBtn").click();$("gridStatus").classList.toggle("active",grid)};
+
 resize();rebuildLayers();fit();
 </script>
 </body>
