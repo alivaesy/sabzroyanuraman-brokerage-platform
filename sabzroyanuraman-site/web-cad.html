@@ -113,7 +113,9 @@ function bounds(){
   if(e.type==="LINE"){add(e.x1,e.y1);add(e.x2,e.y2)}
   else if(e.type==="CIRCLE"||e.type==="POINT"){add(e.x-e.r,e.y-e.r);add(e.x+e.r,e.y+e.r)}
   else if(e.type==="ARC"){add(e.x-e.r,e.y-e.r);add(e.x+e.r,e.y+e.r)}
-  else if(e.type==="LWPOLYLINE"){e.pts.forEach(p=>add(p[0],p[1]))}
+  else if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"){e.pts.forEach(p=>add(p[0],p[1]))}
+  else if(e.type==="TEXT"||e.type==="MTEXT"){add(e.x,e.y)}
+  else if(e.type==="ELLIPSE"){add(e.x-e.rx,e.y-e.ry);add(e.x+e.rx,e.y+e.ry)}
  }
  return {minX,minY,maxX,maxY};
 }
@@ -128,39 +130,84 @@ function drawGrid(){
 }
 function niceStep(v){const p=Math.pow(10,Math.floor(Math.log10(v)));const n=v/p;return (n<2?1:n<5?2:5)*p}
 function draw(){
- ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);ctx.fillStyle="#fff";ctx.fillRect(0,0,canvas.clientWidth,canvas.clientHeight);drawGrid();
- entities.forEach((e,i)=>drawEntity(e,i===selected));
- if(drawPoints.length){ctx.save();ctx.fillStyle="#d35400";drawPoints.forEach(p=>{const s=worldToScreen(p[0],p[1]);ctx.beginPath();ctx.arc(s[0],s[1],4,0,Math.PI*2);ctx.fill()});ctx.restore()}
+ ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
+ ctx.fillStyle="#fff";ctx.fillRect(0,0,canvas.clientWidth,canvas.clientHeight);
+ drawGrid();
+ const normal=entities, picked=selected>=0?[entities[selected]]:[];
+ ctx.save();ctx.strokeStyle="#146c43";ctx.fillStyle="#146c43";ctx.lineWidth=1.25;
+ for(let i=0;i<normal.length;i++)if(i!==selected)drawEntityFast(normal[i]);
+ ctx.strokeStyle="#d35400";ctx.fillStyle="#d35400";ctx.lineWidth=3;
+ for(const e of picked) drawEntityFast(e);
+ ctx.restore();
+ if(drawPoints.length){
+  ctx.save();ctx.fillStyle="#d35400";
+  for(const p of drawPoints){const q=worldToScreen(p[0],p[1]);ctx.beginPath();ctx.arc(q[0],q[1],4,0,Math.PI*2);ctx.fill()}
+  ctx.restore();
+ }
 }
-function drawEntity(e,sel){
- ctx.save();ctx.strokeStyle=sel?"#d35400":"#146c43";ctx.fillStyle=sel?"#d35400":"#146c43";ctx.lineWidth=sel?3:1.5;
- if(e.type==="LINE"){const a=worldToScreen(e.x1,e.y1),b=worldToScreen(e.x2,e.y2);ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke()}
- else if(e.type==="CIRCLE"){const c=worldToScreen(e.x,e.y);ctx.beginPath();ctx.arc(c[0],c[1],Math.abs(e.r*view.scale),0,Math.PI*2);ctx.stroke()}
- else if(e.type==="ARC"){const c=worldToScreen(e.x,e.y);ctx.beginPath();ctx.arc(c[0],c[1],Math.abs(e.r*view.scale),-e.a2*Math.PI/180,-e.a1*Math.PI/180,true);ctx.stroke()}
- else if(e.type==="POINT"){const c=worldToScreen(e.x,e.y);ctx.beginPath();ctx.arc(c[0],c[1],3,0,Math.PI*2);ctx.fill()}
- else if(e.type==="LWPOLYLINE"){ctx.beginPath();e.pts.forEach((p,j)=>{const s=worldToScreen(p[0],p[1]);j?ctx.lineTo(...s):ctx.moveTo(...s)});if(e.closed)ctx.closePath();ctx.stroke()}
- ctx.restore()
+function drawEntityFast(e){
+ if(e.type==="LINE"){
+  const a=worldToScreen(e.x1,e.y1),b=worldToScreen(e.x2,e.y2);
+  ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();
+ }else if(e.type==="CIRCLE"){
+  const c=worldToScreen(e.x,e.y);ctx.beginPath();ctx.arc(c[0],c[1],Math.abs(e.r*view.scale),0,Math.PI*2);ctx.stroke();
+ }else if(e.type==="ARC"){
+  const c=worldToScreen(e.x,e.y),r=Math.abs(e.r*view.scale);
+  ctx.beginPath();ctx.arc(c[0],c[1],r,-e.a2*Math.PI/180,-e.a1*Math.PI/180,true);ctx.stroke();
+ }else if(e.type==="POINT"){
+  const c=worldToScreen(e.x,e.y);ctx.beginPath();ctx.arc(c[0],c[1],3,0,Math.PI*2);ctx.fill();
+ }else if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"){
+  if(!e.pts.length)return;
+  ctx.beginPath();
+  for(let j=0;j<e.pts.length;j++){const q=worldToScreen(e.pts[j][0],e.pts[j][1]);j?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])}
+  if(e.closed)ctx.closePath();ctx.stroke();
+ }else if(e.type==="TEXT"||e.type==="MTEXT"){
+  const q=worldToScreen(e.x,e.y);ctx.fillText(e.text||"",q[0],q[1]);
+ }else if(e.type==="ELLIPSE"){
+  const c=worldToScreen(e.x,e.y),rx=Math.abs(e.rx*view.scale),ry=Math.abs(e.ry*view.scale);
+  ctx.save();ctx.translate(c[0],c[1]);ctx.scale(rx||1,ry||1);ctx.beginPath();ctx.arc(0,0,1,0,Math.PI*2);ctx.restore();ctx.stroke();
+ }
 }
 function parseDXF(text){
- const lines=text.replace(/\r/g,"").split("\n").map(x=>x.trimEnd()),out=[];let i=0;
- while(i<lines.length-1){
-  if(lines[i].trim()!=="0"){i+=2;continue}
-  const type=lines[i+1].trim().toUpperCase();i+=2;
-  if(type==="EOF")break;
-  const m={},pts=[];
-  while(i<lines.length-1 && lines[i].trim()!=="0"){
-   const c=lines[i].trim(),v=lines[i+1].trim();i+=2;
-   if(type==="LWPOLYLINE"&&c==="10"){pts.push([Number(v),0]);continue}
-   if(type==="LWPOLYLINE"&&c==="20"){if(pts.length)pts[pts.length-1][1]=Number(v);continue}
-   if(c==="10"||c==="11"||c==="20"||c==="21"||c==="40"||c==="50"||c==="51"||c==="70")m[c]=v;
+ const raw=text.replace(/^\\uFEFF/,"").replace(/\\r/g,"").split("\\n");
+ const pairs=[];for(let i=0;i+1<raw.length;i+=2){pairs.push([raw[i].trim(),raw[i+1].trim()])}
+ let section="",inEntities=false;const out=[];let i=0;
+ const num=v=>Number(v);
+ const readEntity=()=>{
+  const type=pairs[i][1].toUpperCase();i++;
+  const m=new Map(),pts=[],vertices=[];
+  while(i<pairs.length&&pairs[i][0]!=="0"){
+   const c=pairs[i][0],v=pairs[i][1];i++;
+   if(c==="10"||c==="11"||c==="12"||c==="13"||c==="20"||c==="21"||c==="22"||c==="23"||c==="30"||c==="31"||c==="32"||c==="40"||c==="41"||c==="42"||c==="50"||c==="51"||c==="70"||c==="71"||c==="90"||c==="100"||c==="1"||c==="2")m.set(c,v);
+   if(type==="LWPOLYLINE"&&c==="10"){pts.push([num(v),0]);}
+   else if(type==="LWPOLYLINE"&&c==="20"&&pts.length){pts[pts.length-1][1]=num(v);}
   }
-  if(type==="LINE"&&m[10]!=null&&m[20]!=null&&m[11]!=null&&m[21]!=null)out.push({type:"LINE",x1:+m[10],y1:+m[20],x2:+m[11],y2:+m[21]});
-  else if(type==="CIRCLE"&&m[10]!=null&&m[20]!=null&&m[40]!=null)out.push({type:"CIRCLE",x:+m[10],y:+m[20],r:+m[40]});
-  else if(type==="ARC"&&m[10]!=null&&m[20]!=null&&m[40]!=null)out.push({type:"ARC",x:+m[10],y:+m[20],r:+m[40],a1:+(m[50]||0),a2:+(m[51]||360)});
-  else if(type==="POINT"&&m[10]!=null&&m[20]!=null)out.push({type:"POINT",x:+m[10],y:+m[20],r:0});
-  else if(type==="LWPOLYLINE"&&pts.length>=2)out.push({type:"LWPOLYLINE",pts,closed:(Number(m[70]||0)&1)===1});
+  if(type==="LINE"&&m.has("10")&&m.has("20")&&m.has("11")&&m.has("21"))
+   return {type:"LINE",x1:num(m.get("10")),y1:num(m.get("20")),x2:num(m.get("11")),y2:num(m.get("21"))};
+  if(type==="CIRCLE"&&m.has("10")&&m.has("20")&&m.has("40"))
+   return {type:"CIRCLE",x:num(m.get("10")),y:num(m.get("20")),r:Math.abs(num(m.get("40")))};
+  if(type==="ARC"&&m.has("10")&&m.has("20")&&m.has("40"))
+   return {type:"ARC",x:num(m.get("10")),y:num(m.get("20")),r:Math.abs(num(m.get("40"))),a1:num(m.get("50")||0),a2:num(m.get("51")||360)};
+  if(type==="POINT"&&m.has("10")&&m.has("20"))
+   return {type:"POINT",x:num(m.get("10")),y:num(m.get("20")),r:0};
+  if(type==="LWPOLYLINE"&&pts.length>=2)
+   return {type:"LWPOLYLINE",pts,closed:(num(m.get("70")||0)&1)===1};
+  if((type==="TEXT"||type==="MTEXT")&&m.has("10")&&m.has("20"))
+   return {type,type,x:num(m.get("10")),y:num(m.get("20")),text:m.get("1")||"",r:0};
+  if(type==="ELLIPSE"&&m.has("10")&&m.has("20")&&m.has("11")&&m.has("21")){
+   const mx=num(m.get("11")),my=num(m.get("21"));const major=Math.hypot(mx,my),ratio=Math.abs(num(m.get("40")||1));
+   return {type:"ELLIPSE",x:num(m.get("10")),y:num(m.get("20")),rx:major,ry:major*ratio};
+  }
+  return null;
+ };
+ while(i<pairs.length){
+  const code=pairs[i][0],value=pairs[i][1];
+  if(code==="0"&&value==="SECTION"){i++;if(i<pairs.length&&pairs[i][0]==="2"){section=pairs[i][1].toUpperCase();inEntities=section==="ENTITIES";i++;}continue}
+  if(code==="0"&&value==="ENDSEC"){inEntities=false;i++;continue}
+  if(inEntities&&code==="0"){const e=readEntity();if(e)out.push(e);else if(i<pairs.length&&pairs[i][0]==="0"){}continue}
+  i++;
  }
- return out
+ return out;
 }
 function dxfText(){
  let s="0\nSECTION\n2\nHEADER\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n";
@@ -172,7 +219,16 @@ function dxfText(){
  return s+"0\nENDSEC\n0\nEOF\n"
 }
 function download(text,name,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-$("dxfFile").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const t=await f.text();entities=parseDXF(t);selected=-1;fit();$("fileInfo").textContent=f.name+" — "+entities.length+" عارضه";setStatus("DXF بارگذاری شد: "+entities.length+" عارضه")}catch(err){setStatus("خطا در خواندن DXF: "+err.message)}};
+$("dxfFile").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{
+ const buf=await f.arrayBuffer();let t;
+ try{t=new TextDecoder("utf-8").decode(buf)}catch(_){t=await f.text()}
+ if(t.indexOf("SECTION")<0&&t.indexOf("SECTION".toLowerCase())<0){try{t=new TextDecoder("windows-1252").decode(buf)}catch(_){}}
+ entities=parseDXF(t);selected=-1;
+ if(entities.length>5000)grid=false;
+ fit();
+ $("fileInfo").textContent=f.name+" — "+entities.length+" عارضه";
+ setStatus(entities.length?"DXF بارگذاری شد: "+entities.length+" عارضه":"DXF خوانده شد اما Entity پشتیبانی‌شده‌ای پیدا نشد؛ احتمالاً فایل شامل INSERT/BLOCK یا فرمت دیگری است.");
+}catch(err){setStatus("خطا در خواندن DXF: "+err.message)}};
 $("saveBtn").onclick=()=>{download(dxfText(),"sabz-royan-web-cad.dxf","application/dxf");setStatus("فایل DXF ذخیره شد")};
 $("fitBtn").onclick=fit;
 $("gridBtn").onclick=()=>{grid=!grid;draw();setStatus(grid?"شبکه روشن شد":"شبکه خاموش شد")};
