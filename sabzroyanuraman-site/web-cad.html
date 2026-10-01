@@ -386,16 +386,35 @@ function dxfText(){
 }
 function download(text,name,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 $("dxfFile").onclick=()=>{$("dxfFile").value="";};
-$("dxfFile").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{
- const buf=await f.arrayBuffer();let t;
- try{t=new TextDecoder("utf-8").decode(buf)}catch(_){t=await f.text()}
- if(t.indexOf("SECTION")<0&&t.indexOf("SECTION".toLowerCase())<0){try{t=new TextDecoder("windows-1252").decode(buf)}catch(_){}}
- entities=parseDXF(t);selected=-1;selectedSet.clear();rebuildLayers();
- if(entities.length>5000)grid=false;
- fit();
- $("fileInfo").textContent=f.name+" — "+entities.length+" عارضه";$("windowTitle").textContent=f.name;
- setStatus(entities.length?"Command: DXF loaded — "+entities.length+" entities":"DXF خوانده شد اما Entity پشتیبانی‌شده‌ای پیدا نشد؛ احتمالاً فایل شامل INSERT/BLOCK یا فرمت دیگری است.");
-}catch(err){setStatus("خطا در خواندن DXF: "+err.message)}};
+async function openDXFFile(f){
+ if(!f)return;
+ try{
+  let t="";
+  if(f.arrayBuffer&&typeof TextDecoder!=="undefined"){
+   const buf=await f.arrayBuffer();
+   t=new TextDecoder("utf-8").decode(buf).replace(/^\uFEFF/,"");
+   if(!/^\s*0\s*\n\s*SECTION/i.test(t)){
+    try{t=new TextDecoder("windows-1252").decode(buf).replace(/^\uFEFF/,"")}catch(_){}
+   }
+  }else{
+   t=await f.text();
+   t=t.replace(/^\uFEFF/,"");
+  }
+  if(!/^\s*0\s*\n\s*SECTION/i.test(t))throw new Error("فایل DXF معتبر نیست یا متن آن قابل خواندن نیست");
+  const loaded=parseDXF(t);
+  if(!loaded.length)throw new Error("هیچ عارضه پشتیبانی‌شده‌ای در فایل پیدا نشد");
+  entities=loaded;selected=-1;selectedSet.clear();rebuildLayers();
+  if(entities.length>5000)grid=false;
+  fit();
+  $("fileInfo").textContent=f.name+" — "+entities.length+" عارضه";
+  $("windowTitle").textContent=f.name;
+  setStatus("DXF بارگذاری شد — "+entities.length+" entities");
+ }catch(err){
+  $("fileInfo").textContent="خطا: "+(err.message||"فایل باز نشد");
+  setStatus("خطا در باز کردن DXF: "+(err.message||"فایل باز نشد"));
+ }
+}
+$("dxfFile").onchange=e=>openDXFFile(e.target.files[0]);
 $("saveBtn").onclick=()=>{download(dxfText(),"sabz-royan-web-cad.dxf","application/dxf");setStatus("فایل DXF ذخیره شد")};
 $("fitBtn").onclick=fit;
 $("gridBtn").onclick=()=>{grid=!grid;draw();setStatus(grid?"شبکه روشن شد":"شبکه خاموش شد")};
