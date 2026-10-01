@@ -200,45 +200,30 @@ function drawEntityFast(e){
  }
 }
 function parseDXF(text){
- const raw=text.replace(/^\uFEFF/,"").replace(/\r/g,"").split("\n");
- const pairs=[];for(let i=0;i+1<raw.length;i+=2){pairs.push([raw[i].trim(),raw[i+1].trim()])}
- let section="",inEntities=false;const out=[];let i=0;
- const num=v=>Number(v);
- const readEntity=()=>{
-  const type=pairs[i][1].toUpperCase();i++;
-  const m=new Map(),pts=[],vertices=[];
-  while(i<pairs.length&&pairs[i][0]!=="0"){
-   const c=pairs[i][0],v=pairs[i][1];i++;
-   if(c==="8"||c==="10"||c==="11"||c==="12"||c==="13"||c==="20"||c==="21"||c==="22"||c==="23"||c==="30"||c==="31"||c==="32"||c==="40"||c==="41"||c==="42"||c==="50"||c==="51"||c==="70"||c==="71"||c==="90"||c==="100"||c==="1"||c==="2")m.set(c,v);
-   if(type==="LWPOLYLINE"&&c==="10"){pts.push([num(v),0]);}
-   else if(type==="LWPOLYLINE"&&c==="20"&&pts.length){pts[pts.length-1][1]=num(v);}
-  }
-  if(type==="LINE"&&m.has("10")&&m.has("20")&&m.has("11")&&m.has("21"))
-   return {type:"LINE",layer:m.get("8")||"0",x1:num(m.get("10")),y1:num(m.get("20")),x2:num(m.get("11")),y2:num(m.get("21"))};
-  if(type==="CIRCLE"&&m.has("10")&&m.has("20")&&m.has("40"))
-   return {type:"CIRCLE",layer:m.get("8")||"0",x:num(m.get("10")),y:num(m.get("20")),r:Math.abs(num(m.get("40")))};
-  if(type==="ARC"&&m.has("10")&&m.has("20")&&m.has("40"))
-   return {type:"ARC",layer:m.get("8")||"0",x:num(m.get("10")),y:num(m.get("20")),r:Math.abs(num(m.get("40"))),a1:num(m.get("50")||0),a2:num(m.get("51")||360)};
-  if(type==="POINT"&&m.has("10")&&m.has("20"))
-   return {type:"POINT",layer:m.get("8")||"0",x:num(m.get("10")),y:num(m.get("20")),r:0};
-  if(type==="LWPOLYLINE"&&pts.length>=2)
-   return {type:"LWPOLYLINE",layer:m.get("8")||"0",pts,closed:(num(m.get("70")||0)&1)===1};
-  if((type==="TEXT"||type==="MTEXT")&&m.has("10")&&m.has("20"))
-   return {type,type,x:num(m.get("10")),y:num(m.get("20")),text:m.get("1")||"",r:0};
-  if(type==="ELLIPSE"&&m.has("10")&&m.has("20")&&m.has("11")&&m.has("21")){
-   const mx=num(m.get("11")),my=num(m.get("21"));const major=Math.hypot(mx,my),ratio=Math.abs(num(m.get("40")||1));
-   return {type:"ELLIPSE",layer:m.get("8")||"0",x:num(m.get("10")),y:num(m.get("20")),rx:major,ry:major*ratio};
-  }
-  return null;
- };
- while(i<pairs.length){
-  const code=pairs[i][0],value=pairs[i][1];
-  if(code==="0"&&value==="SECTION"){i++;if(i<pairs.length&&pairs[i][0]==="2"){section=pairs[i][1].toUpperCase();inEntities=section==="ENTITIES";i++;}continue}
-  if(code==="0"&&value==="ENDSEC"){inEntities=false;i++;continue}
-  if(inEntities&&code==="0"){const e=readEntity();if(e)out.push(e);else if(i<pairs.length&&pairs[i][0]==="0"){}continue}
-  i++;
- }
- return out;
+ const raw=text.replace(/^\uFEFF/,"").replace(/\r/g,"").split("\n"),pairs=[];for(let i=0;i+1<raw.length;i+=2)pairs.push([raw[i].trim(),raw[i+1].trim()]);
+ const sections={BLOCKS:[],ENTITIES:[]};let i=0,sec="";
+ while(i<pairs.length){if(pairs[i][0]==="0"&&pairs[i][1].toUpperCase()==="SECTION"){i++;if(i<pairs.length&&pairs[i][0]==="2"){sec=pairs[i][1].toUpperCase();i++}while(i<pairs.length&&!(pairs[i][0]==="0"&&pairs[i][1].toUpperCase()==="ENDSEC")){if(sections[sec])sections[sec].push(pairs[i]);i++}if(i<pairs.length)i++;sec=""}else i++}
+ const num=v=>Number(v),props=a=>{const m=new Map();for(const [c,v] of a)if(!m.has(c))m.set(c,v);return m},take=(a,p)=>{const type=a[p][1].toUpperCase(),d=[];let j=p+1;while(j<a.length&&a[j][0]!=="0"){d.push(a[j]);j++}return{type,data:d,next:j}};
+ const simple=(type,d)=>{const m=props(d),n=num,layer=m.get("8")||"0";
+  if(type==="LINE"&&m.has("10")&&m.has("20")&&m.has("11")&&m.has("21"))return{type:"LINE",layer,x1:n(m.get("10")),y1:n(m.get("20")),x2:n(m.get("11")),y2:n(m.get("21"))};
+  if(type==="CIRCLE"&&m.has("10")&&m.has("20")&&m.has("40"))return{type:"CIRCLE",layer,x:n(m.get("10")),y:n(m.get("20")),r:Math.abs(n(m.get("40")))};
+  if(type==="ARC"&&m.has("10")&&m.has("20")&&m.has("40"))return{type:"ARC",layer,x:n(m.get("10")),y:n(m.get("20")),r:Math.abs(n(m.get("40"))),a1:n(m.get("50")||0),a2:n(m.get("51")||360)};
+  if(type==="POINT"&&m.has("10")&&m.has("20"))return{type:"POINT",layer,x:n(m.get("10")),y:n(m.get("20")),r:0};
+  if((type==="TEXT"||type==="MTEXT")&&m.has("10")&&m.has("20"))return{type,layer,x:n(m.get("10")),y:n(m.get("20")),text:m.get("1")||"",r:0};
+  if(type==="ELLIPSE"&&m.has("10")&&m.has("20")&&m.has("11")&&m.has("21")){const major=Math.hypot(n(m.get("11")),n(m.get("21")));return{type:"ELLIPSE",layer,x:n(m.get("10")),y:n(m.get("20")),rx:major,ry:major*Math.abs(n(m.get("40")||1))}}
+  return null};
+ const parseArray=a=>{const out=[];let j=0;while(j<a.length){if(a[j][0]!=="0"){j++;continue}const type=a[j][1].toUpperCase();
+  if(type==="POLYLINE"){const h=take(a,j),hm=props(h.data),pts=[];j=h.next;while(j<a.length&&a[j][0]==="0"&&a[j][1].toUpperCase()==="VERTEX"){const v=take(a,j),vm=props(v.data);if(vm.has("10")&&vm.has("20"))pts.push([num(vm.get("10")),num(vm.get("20"))]);j=v.next}if(j<a.length&&a[j][0]==="0"&&a[j][1].toUpperCase()==="SEQEND")j++;if(pts.length>=2)out.push({type:(num(hm.get("70")||0)&8)?"POLYLINE3D":"POLYLINE",layer:hm.get("8")||"0",pts,closed:(num(hm.get("70")||0)&1)===1});continue}
+  if(type==="VERTEX"||type==="SEQEND"){j++;continue}const p=take(a,j),m=props(p.data);
+  if(type==="LWPOLYLINE"){const pts=[];for(const [c,v] of p.data){if(c==="10")pts.push([num(v),0]);else if(c==="20"&&pts.length)pts[pts.length-1][1]=num(v)}if(pts.length>=2)out.push({type:"LWPOLYLINE",layer:m.get("8")||"0",pts,closed:(num(m.get("70")||0)&1)===1})}
+  else if(type==="INSERT"&&m.get("2"))out.push({type:"INSERT",layer:m.get("8")||"0",block:m.get("2"),x:num(m.get("10")||0),y:num(m.get("20")||0),sx:num(m.get("41")||1),sy:num(m.get("42")||1),sz:num(m.get("43")||1),rot:num(m.get("50")||0)});
+  else if(type==="SPLINE"){const pts=[];for(let k=0;k<p.data.length;k++)if(p.data[k][0]==="10"&&p.data[k+1]&&p.data[k+1][0]==="20")pts.push([num(p.data[k][1]),num(p.data[k+1][1])]);if(pts.length>=2)out.push({type:"SPLINE",layer:m.get("8")||"0",pts})}
+  else if(type==="HATCH")out.push({type:"HATCH",layer:m.get("8")||"0",x:num(m.get("10")||0),y:num(m.get("20")||0),pattern:m.get("2")||"SOLID"});
+  else if(type==="DIMENSION"&&m.has("13")&&m.has("23"))out.push({type:"DIMENSION",layer:m.get("8")||"0",x1:num(m.get("13")),y1:num(m.get("23")),x2:num(m.get("14")||m.get("11")||m.get("13")),y2:num(m.get("24")||m.get("21")||m.get("23")),tx:num(m.get("10")||0),ty:num(m.get("20")||0),text:m.get("1")||""});
+  else{const e=simple(type,p.data);if(e)out.push(e)}j=p.next}return out};
+ const blocks={};let b=sections.BLOCKS,j=0;while(j<b.length){if(b[j][0]==="0"&&b[j][1].toUpperCase()==="BLOCK"){const h=take(b,j),hm=props(h.data),name=hm.get("2")||"";j=h.next;const body=[];while(j<b.length&&!(b[j][0]==="0"&&b[j][1].toUpperCase()==="ENDBLK")){body.push(b[j]);j++}if(j<b.length)j++;if(name)blocks[name]={baseX:num(hm.get("10")||0),baseY:num(hm.get("20")||0),entities:parseArray(body)}}else j++}
+ const expand=(ins,depth=0)=>{if(depth>6||!blocks[ins.block])return[];const b=blocks[ins.block],a=ins.rot*Math.PI/180,c=Math.cos(a),s=Math.sin(a),out=[],xf=(x,y)=>{const xx=x*ins.sx,yy=y*ins.sy;return[ins.x+(xx*c-yy*s)-b.baseX,ins.y+(xx*s+yy*c)-b.baseY]};for(const src of b.entities){const q=JSON.parse(JSON.stringify(src));q.layer=ins.layer||q.layer||"0";if(q.type==="LINE"){[q.x1,q.y1]=xf(q.x1,q.y1);[q.x2,q.y2]=xf(q.x2,q.y2)}else if(["CIRCLE","POINT","TEXT","MTEXT"].includes(q.type)){[q.x,q.y]=xf(q.x,q.y);if(q.r)q.r*=Math.abs(ins.sx)}else if(q.type==="ARC"){[q.x,q.y]=xf(q.x,q.y);q.r*=Math.abs(ins.sx);q.a1+=ins.rot;q.a2+=ins.rot}else if(["LWPOLYLINE","POLYLINE","POLYLINE3D","SPLINE"].includes(q.type))q.pts=q.pts.map(p=>xf(p[0],p[1]));else if(q.type==="ELLIPSE"){[q.x,q.y]=xf(q.x,q.y);q.rx*=Math.abs(ins.sx);q.ry*=Math.abs(ins.sy)}else if(q.type==="INSERT"){[q.x,q.y]=xf(q.x,q.y);q.rot+=ins.rot}out.push(...(q.type==="INSERT"?expand(q,depth+1):[q]))}return out};
+ const base=parseArray(sections.ENTITIES),out=[];for(const e of base)out.push(...(e.type==="INSERT"?expand(e):[e]));return out;
 }
 function dxfText(){
  let s="0\nSECTION\n2\nHEADER\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n";
