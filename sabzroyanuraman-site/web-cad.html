@@ -34,8 +34,7 @@ textarea{min-height:64px;resize:vertical}
 .status{position:absolute;bottom:34px;right:10px;background:rgba(35,35,35,.92);border:1px solid #555;border-radius:2px;padding:4px 7px;font-size:9px;color:#ddd;box-shadow:none;direction:rtl}
 .coord{position:absolute;bottom:34px;left:10px;background:rgba(25,25,25,.92);border:1px solid #555;border-radius:2px;padding:4px 7px;font-size:9px;color:#ddd;direction:ltr}
 .ucs{position:absolute;left:15px;top:15px;width:55px;height:55px;pointer-events:none;opacity:.9}.ucs:before{content:"";position:absolute;left:25px;top:8px;height:37px;border-left:1px solid #ddd}.ucs:after{content:"";position:absolute;left:8px;top:27px;width:37px;border-top:1px solid #ddd}.ucs .x{position:absolute;left:45px;top:23px;color:#e25d4d;font-size:10px}.ucs .y{position:absolute;left:27px;top:0;color:#6fb6e9;font-size:10px}
-.view-tabs{height:26px;background:#282828;border-top:1px solid #111;display:flex;align-items:stretch;direction:ltr}.view-tab{padding:5px 13px;border-right:1px solid #111;color:#bbb;font-size:10px}.view-tab.active{background:#353535;color:#fff}
-.statusbar{height:27px;background:#242424;border-top:1px solid #111;display:flex;align-items:center;gap:2px;padding:2px 5px;direction:ltr;color:#aaa;font-size:9px}.status-item{padding:4px 7px;border:1px solid transparent}.status-item.active{background:#3a3a3a;color:#fff;border-color:#4b4b4b}.status-spacer{flex:1}.commandbar{height:31px;background:#1b1b1b;border-top:1px solid #444;display:flex;align-items:center;direction:ltr}.command-label{width:78px;color:#ddd;padding:0 8px;font-size:10px}.command-input{flex:1;height:25px;border:0;border-left:1px solid #444;background:#101010;color:#fff;padding:3px 7px;outline:none;font-family:Consolas,monospace;font-size:11px;direction:ltr}
+.bottom-bar{height:31px;background:#242424;border-top:1px solid #444;display:flex;align-items:center;direction:ltr;gap:0;overflow:hidden}.command-label{width:68px;flex:0 0 68px;color:#ddd;padding:0 7px;font-size:10px}.command-input{width:240px;flex:0 1 240px;height:25px;border:0;border-left:1px solid #444;background:#101010;color:#fff;padding:3px 7px;outline:none;font-family:Consolas,monospace;font-size:11px;direction:ltr}.view-tabs{height:31px;display:flex;align-items:stretch;direction:ltr}.view-tab{padding:8px 12px;border-left:1px solid #111;color:#bbb;font-size:10px;cursor:pointer}.view-tab.active{background:#353535;color:#fff}.statusbar{height:31px;display:flex;align-items:center;gap:1px;padding:0 3px;direction:ltr;color:#aaa;font-size:9px;margin-left:auto}.status-item{padding:5px 7px;border:1px solid transparent;cursor:pointer}.status-item.active{background:#3a3a3a;color:#fff;border-color:#4b4b4b}.status-spacer{flex:1}
 .file{display:none}
 #layerList{max-height:180px;overflow:auto}
 @media(max-width:900px){.side{width:250px}.menu{padding:4px 6px}.rbutton{min-width:38px}}
@@ -109,16 +108,12 @@ textarea{min-height:64px;resize:vertical}
     </section>
   </aside>
 </div>
-<div class="commandbar"><div class="command-label">Command:</div><input id="commandInput" class="command-input" autocomplete="off" placeholder="Type a command: LINE, PLINE, CIRCLE, ZOOM..."></div>
-<div class="view-tabs"><div class="view-tab active">Model</div><div class="view-tab">Layout1</div><div class="view-tab">Layout2</div></div>
-<div class="statusbar">
-  <span class="status-item active" id="orthoStatus">ORT</span><span class="status-item" id="snapStatus">SNAP</span><span class="status-item" id="gridStatus">GRID</span><span class="status-item" id="osnapStatus">OSNAP</span><span class="status-item">LWT</span><span class="status-item">MODEL</span><span class="status-spacer"></span><span class="status-item">UTM 38N</span><span class="status-item" id="statusScale">1:1</span>
-</div>
+<div class="bottom-bar"><div class="command-label">Command:</div><input id="commandInput" class="command-input" autocomplete="off" placeholder="LINE, PLINE, CIRCLE, ZOOM..."><div class="view-tabs"><div class="view-tab active">Model</div><div class="view-tab">Layout1</div><div class="view-tab">Layout2</div></div><div class="statusbar"><span class="status-item active" id="orthoStatus">ORT</span><span class="status-item" id="snapStatus">SNAP</span><span class="status-item" id="gridStatus">GRID</span><span class="status-item active" id="osnapStatus">OSNAP</span><span class="status-item">LWT</span><span class="status-item">MODEL</span><span class="status-spacer"></span><span class="status-item">UTM 38N</span><span class="status-item" id="statusScale">1:1</span></div></div>
 </div>
 
 <script>
 const canvas=document.getElementById("cad"),ctx=canvas.getContext("2d");
-let snapEnabled=false,snapModes={endpoint:true,midpoint:true,center:true,intersection:true,nearest:true,grid:false};
+let snapEnabled=true,gridSnapEnabled=false,snapModes={endpoint:true,midpoint:true,center:true,intersection:true,nearest:true,grid:false};
 let entities=[],mode="select",grid=true,selected=-1,selectedSet=new Set(),layers=new Map(),activeLayer="0";
 let commandState=null;
 let view={cx:0,cy:0,scale:1};
@@ -131,27 +126,27 @@ function setMode(m){mode=m;drawPoints=[];document.querySelectorAll("[data-mode]"
 function worldToScreen(x,y){const w=canvas.clientWidth,h=canvas.clientHeight;return [w/2+(x-view.cx)*view.scale,h/2-(y-view.cy)*view.scale]}
 function screenToWorld(sx,sy){const w=canvas.clientWidth,h=canvas.clientHeight;return [(sx-w/2)/view.scale+view.cx,(h/2-sy)/view.scale+view.cy]}
 function snapPoint(p){
- if(!snapEnabled)return p;
+ if(!snapEnabled&& !gridSnapEnabled)return p;
  let best=null,bd=Infinity,limit=18/view.scale;
  const test=(x,y)=>{const d=Math.hypot(p[0]-x,p[1]-y);if(d<bd&&d<limit){bd=d;best=[x,y]}};
  const segments=[];
  for(const e of entities){
   if(!isLayerVisible(e))continue;
-  if(snapModes.endpoint){
+  if(snapEnabled&&snapModes.endpoint){
    if(e.type==="LINE"){test(e.x1,e.y1);test(e.x2,e.y2)}
    else if(e.pts){e.pts.forEach(v=>test(v[0],v[1]))}
   }
-  if(snapModes.midpoint&&e.type==="LINE")test((e.x1+e.x2)/2,(e.y1+e.y2)/2);
-  if(snapModes.center&&(e.type==="CIRCLE"||e.type==="ARC"||e.type==="ELLIPSE"))test(e.x,e.y);
+  if(snapEnabled&&snapModes.midpoint&&e.type==="LINE")test((e.x1+e.x2)/2,(e.y1+e.y2)/2);
+  if(snapEnabled&&snapModes.center&&(e.type==="CIRCLE"||e.type==="ARC"||e.type==="ELLIPSE"))test(e.x,e.y);
   if(e.type==="LINE")segments.push([[e.x1,e.y1],[e.x2,e.y2]]);
   else if(e.pts)for(let i=1;i<e.pts.length;i++)segments.push([e.pts[i-1],e.pts[i]]);
  }
- if(snapModes.intersection){
+ if(snapEnabled&&snapModes.intersection){
   const cross=(a,b,c,d)=>{const den=(a[0]-b[0])*(c[1]-d[1])-(a[1]-b[1])*(c[0]-d[0]);if(Math.abs(den)<1e-12)return null;const t=((a[0]-c[0])*(c[1]-d[1])-(a[1]-c[1])*(c[0]-d[0]))/den;const u=-((a[0]-b[0])*(a[1]-c[1])-(a[1]-b[1])*(a[0]-c[0]))/den;if(t>=0&&t<=1&&u>=0&&u<=1)return[a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1])];return null};
   for(let i=0;i<segments.length;i++)for(let j=i+1;j<segments.length;j++){const q=cross(segments[i][0],segments[i][1],segments[j][0],segments[j][1]);if(q)test(q[0],q[1])}
  }
- if(snapModes.nearest)for(const s of segments){const x=s[0][0],y=s[0][1],dx=s[1][0]-x,dy=s[1][1]-y,l=dx*dx+dy*dy;if(l){let t=((p[0]-x)*dx+(p[1]-y)*dy)/l;t=Math.max(0,Math.min(1,t));test(x+t*dx,y+t*dy)}}
- if(snapModes.grid&&grid){const step=niceStep(70/view.scale);test(Math.round(p[0]/step)*step,Math.round(p[1]/step)*step)}
+ if(snapEnabled&&snapModes.nearest)for(const s of segments){const x=s[0][0],y=s[0][1],dx=s[1][0]-x,dy=s[1][1]-y,l=dx*dx+dy*dy;if(l){let t=((p[0]-x)*dx+(p[1]-y)*dy)/l;t=Math.max(0,Math.min(1,t));test(x+t*dx,y+t*dy)}}
+ if(gridSnapEnabled&&snapModes.grid&&grid){const step=niceStep(70/view.scale);test(Math.round(p[0]/step)*step,Math.round(p[1]/step)*step)}
  return best||p;
 }
 function layerOf(e){return e.layer||"0"}
@@ -401,8 +396,8 @@ window.addEventListener("keydown",e=>{
 $("newLayerBtn").onclick=()=>{const n=prompt("نام لایه جدید:","0");if(n&&n.trim()){const name=n.trim();if(!layers.has(name))layers.set(name,{visible:true,count:0});activeLayer=name;$("activeLayerInfo").textContent="لایه فعال: "+activeLayer;renderLayers();setStatus("لایه فعال: "+activeLayer)}};
 $("activeLayerBtn").onclick=()=>{const names=[...layers.keys()];if(!names.length)return;const idx=Math.max(0,names.indexOf(activeLayer));activeLayer=names[(idx+1)%names.length];$("activeLayerInfo").textContent="لایه فعال: "+activeLayer;setStatus("لایه فعال: "+activeLayer)};
 $("gridStatus").onclick=()=>{$("gridBtn").click();$("gridStatus").classList.toggle("active",grid)};
-$("snapStatus").onclick=()=>{snapEnabled=!snapEnabled;$("snapStatus").classList.toggle("active",snapEnabled);setStatus(snapEnabled?"OSNAP روشن شد":"OSNAP خاموش شد")};
-$("osnapStatus").onclick=()=>{snapEnabled=!snapEnabled;$("osnapStatus").classList.toggle("active",snapEnabled);$("snapStatus").classList.toggle("active",snapEnabled);setStatus(snapEnabled?"Object Snap روشن شد":"Object Snap خاموش شد")};
+$("snapStatus").onclick=()=>{gridSnapEnabled=!gridSnapEnabled;$("snapStatus").classList.toggle("active",gridSnapEnabled);setStatus(gridSnapEnabled?"SNAP شبکه روشن شد":"SNAP شبکه خاموش شد")};
+$("osnapStatus").onclick=()=>{snapEnabled=!snapEnabled;$("osnapStatus").classList.toggle("active",snapEnabled);setStatus(snapEnabled?"OSNAP روشن شد — Endpoint / Midpoint / Center / Intersection / Nearest":"OSNAP خاموش شد")};
 
 resize();rebuildLayers();fit();
 </script>
