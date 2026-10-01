@@ -244,12 +244,17 @@ canvas.addEventListener("mousedown",e=>{if(e.button===1||e.button===2){drag={x:e
  if(mode==="line"){drawPoints.push(p);if(drawPoints.length===2){entities.push({type:"LINE",x1:drawPoints[0][0],y1:drawPoints[0][1],x2:p[0],y2:p[1]});drawPoints=[];draw();setStatus("خط ایجاد شد")}}
  else if(mode==="circle"){if(!drawPoints.length){drawPoints=[p];setStatus("نقطه دوم را برای شعاع انتخاب کن")}else{const q=drawPoints[0],r=Math.hypot(p[0]-q[0],p[1]-q[1]);entities.push({type:"CIRCLE",x:q[0],y:q[1],r});drawPoints=[];draw();setStatus("دایره ایجاد شد")}}
  else if(mode==="polyline"){if(e.detail===2){if(drawPoints.length>=2)entities.push({type:"LWPOLYLINE",pts:drawPoints.slice(),closed:false});drawPoints=[];draw();setStatus("پلی‌لاین پایان یافت")}else{drawPoints.push(p);draw()}}
- else {selected=findNearest(p);draw();setStatus(selected>=0?"عارضه انتخاب شد":"هیچ عارضه‌ای در محدوده انتخاب نبود")}
+ else {
+  const hit=findNearest(p);
+  if(e.ctrlKey&&hit>=0){selectedSet.has(hit)?selectedSet.delete(hit):selectedSet.add(hit);selected=hit}
+  else {selectedSet.clear();if(hit>=0)selectedSet.add(hit);selected=hit}
+  draw();setStatus(selectedSet.size?(selectedSet.size+" عارضه انتخاب شده"):"هیچ عارضه‌ای در محدوده انتخاب نبود")
+ }
 });
 canvas.addEventListener("mouseup",()=>drag=null);
 canvas.addEventListener("mouseleave",()=>drag=null);
 canvas.addEventListener("wheel",e=>{e.preventDefault();const r=canvas.getBoundingClientRect(),before=screenToWorld(e.clientX-r.left,e.clientY-r.top),factor=e.deltaY<0?1.15:.87;view.scale=Math.max(.0001,Math.min(1e9,view.scale*factor));const after=screenToWorld(e.clientX-r.left,e.clientY-r.top);view.cx+=before[0]-after[0];view.cy+=before[1]-after[1];draw()},{passive:false});
-function findNearest(p){let best=-1,bd=Infinity;entities.forEach((e,i)=>{let d=Infinity;if(e.type==="POINT"||e.type==="CIRCLE")d=Math.hypot(p[0]-e.x,p[1]-e.y);else if(e.type==="LINE"){d=segDist(p[0],p[1],e.x1,e.y1,e.x2,e.y2)}else if(e.type==="LWPOLYLINE"){for(let j=1;j<e.pts.length;j++)d=Math.min(d,segDist(p[0],p[1],e.pts[j-1][0],e.pts[j-1][1],e.pts[j][0],e.pts[j][1]))}if(d<bd){bd=d;best=i}});return bd<25/view.scale?best:-1}
+function findNearest(p){let best=-1,bd=Infinity;entities.forEach((e,i)=>{let d=Infinity;if(e.type==="POINT"||e.type==="CIRCLE")d=Math.hypot(p[0]-e.x,p[1]-e.y);else if(e.type==="LINE"){d=segDist(p[0],p[1],e.x1,e.y1,e.x2,e.y2)}else if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"){for(let j=1;j<e.pts.length;j++)d=Math.min(d,segDist(p[0],p[1],e.pts[j-1][0],e.pts[j-1][1],e.pts[j][0],e.pts[j][1]));if(e.closed&&e.pts.length>2)d=Math.min(d,segDist(p[0],p[1],e.pts.at(-1)[0],e.pts.at(-1)[1],e.pts[0][0],e.pts[0][1]))}if(d<bd){bd=d;best=i}});return bd<25/view.scale?best:-1}
 function segDist(px,py,x1,y1,x2,y2){const dx=x2-x1,dy=y2-y1;if(!dx&&!dy)return Math.hypot(px-x1,py-y1);let t=((px-x1)*dx+(py-y1)*dy)/(dx*dx+dy*dy);t=Math.max(0,Math.min(1,t));return Math.hypot(px-(x1+t*dx),py-(y1+t*dy))}
 $("aiRun").onclick=()=>{const q=$("aiCommand").value.trim().toLowerCase();if(!q){$("aiResult").textContent="فرمان را وارد کن.";return}if(q.includes("تمام")||q.includes("zoom")||q.includes("fit")){fit();$("aiResult").textContent="نمایش کامل نقشه اجرا شد."}else if(q.includes("شبکه")&&(q.includes("خاموش")||q.includes("off"))){grid=false;draw();$("aiResult").textContent="شبکه خاموش شد."}else if(q.includes("شبکه")){grid=true;draw();$("aiResult").textContent="شبکه روشن شد."}else{$("aiResult").textContent="این فرمان در نسخه پایه هنوز به AI متصل نیست؛ هسته اتصال AI در مرحله بعد اضافه می‌شود."}};
 resize();rebuildLayers();fit();
