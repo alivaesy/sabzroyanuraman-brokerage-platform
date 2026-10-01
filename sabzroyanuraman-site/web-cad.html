@@ -143,17 +143,22 @@ function drawEntity(e,sel){
 }
 function parseDXF(text){
  const lines=text.replace(/\r/g,"").split("\n").map(x=>x.trimEnd()),out=[];let i=0;
- const val=(map,c)=>{const a=map[c];return a===undefined?undefined:Number(a)};
  while(i<lines.length-1){
-  const code=lines[i].trim(),value=lines[i+1].trim();i+=2;
-  if(code!=="0")continue;
-  const type=value.toUpperCase();if(type==="EOF")break;
-  const m={};const pts=[];
-  while(i<lines.length-1 && lines[i].trim()!=="0"){const c=lines[i].trim(),v=lines[i+1].trim();i+=2;if(c==="10"||c==="11"||c==="20"||c==="21"||c==="40"||c==="50"||c==="51"||c==="70")m[c]=v;else if(c==="10"&&type==="LWPOLYLINE")pts.push([Number(v),0]);}
+  if(lines[i].trim()!=="0"){i+=2;continue}
+  const type=lines[i+1].trim().toUpperCase();i+=2;
+  if(type==="EOF")break;
+  const m={},pts=[];
+  while(i<lines.length-1 && lines[i].trim()!=="0"){
+   const c=lines[i].trim(),v=lines[i+1].trim();i+=2;
+   if(type==="LWPOLYLINE"&&c==="10"){pts.push([Number(v),0]);continue}
+   if(type==="LWPOLYLINE"&&c==="20"){if(pts.length)pts[pts.length-1][1]=Number(v);continue}
+   if(c==="10"||c==="11"||c==="20"||c==="21"||c==="40"||c==="50"||c==="51"||c==="70")m[c]=v;
+  }
   if(type==="LINE"&&m[10]!=null&&m[20]!=null&&m[11]!=null&&m[21]!=null)out.push({type:"LINE",x1:+m[10],y1:+m[20],x2:+m[11],y2:+m[21]});
   else if(type==="CIRCLE"&&m[10]!=null&&m[20]!=null&&m[40]!=null)out.push({type:"CIRCLE",x:+m[10],y:+m[20],r:+m[40]});
   else if(type==="ARC"&&m[10]!=null&&m[20]!=null&&m[40]!=null)out.push({type:"ARC",x:+m[10],y:+m[20],r:+m[40],a1:+(m[50]||0),a2:+(m[51]||360)});
   else if(type==="POINT"&&m[10]!=null&&m[20]!=null)out.push({type:"POINT",x:+m[10],y:+m[20],r:0});
+  else if(type==="LWPOLYLINE"&&pts.length>=2)out.push({type:"LWPOLYLINE",pts,closed:(Number(m[70]||0)&1)===1});
  }
  return out
 }
