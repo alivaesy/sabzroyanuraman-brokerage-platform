@@ -49,7 +49,7 @@ textarea{min-height:64px;resize:vertical}
   <div class="menu-wrap"><span class="menu" data-menu="view">نما</span><div class="menu-dropdown"><button data-menu-action="fit">Zoom Extents</button><button data-menu-action="grid">Grid</button><button data-menu-action="snap">SNAP</button><button data-menu-action="osnap">OSNAP</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="insert">درج</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button><button data-menu-action="point">Point</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="format">فرمت</span><div class="menu-dropdown"><button data-menu-action="newlayer">لایه جدید</button><button data-menu-action="activelayer">لایه فعال</button></div></div>
-  <div class="menu-wrap"><span class="menu" data-menu="tools">ابزارها</span><div class="menu-dropdown"><button data-menu-action="divide">Divide</button><button data-menu-action="measure">Measure</button><button data-menu-action="snap">SNAP شبکه</button><button data-menu-action="osnap">OSNAP اشیا</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="tools">ابزارها</span><div class="menu-dropdown"><button data-menu-action="divide">Divide</button><button data-menu-action="measure">Measure</button><button data-menu-action="snap">SNAP شبکه</button><button data-menu-action="osnap">OSNAP اشیا</button><button data-snap-mode="endpoint">OSNAP Endpoint</button><button data-snap-mode="midpoint">OSNAP Midpoint</button><button data-snap-mode="center">OSNAP Center</button><button data-snap-mode="intersection">OSNAP Intersection</button><button data-snap-mode="nearest">OSNAP Nearest</button><button data-snap-mode="perpendicular">OSNAP Perpendicular</button><button data-snap-mode="quadrant">OSNAP Quadrant</button><button data-snap-mode="tangent">OSNAP Tangent</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="draw">ترسیم</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="modify">تغییر</span><div class="menu-dropdown"><button data-menu-action="move">Move</button><button data-menu-action="copy">Copy</button><button data-menu-action="offset">Offset</button><button data-menu-action="trim">Trim</button><button data-menu-action="extend">Extend</button><button data-menu-action="rotate">Rotate</button><button data-menu-action="erase">Erase</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="window">پنجره</span><div class="menu-dropdown"><button data-menu-action="model">Model</button><button data-menu-action="layout1">Layout1</button><button data-menu-action="layout2">Layout2</button></div></div>
@@ -123,7 +123,8 @@ textarea{min-height:64px;resize:vertical}
 <script>
 const canvas=document.getElementById("cad"),ctx=canvas.getContext("2d");
 let orthoEnabled=true;
-let snapEnabled=true,gridSnapEnabled=false,snapModes={endpoint:true,midpoint:true,center:true,intersection:true,nearest:true,grid:true};
+let snapEnabled=true,gridSnapEnabled=false,snapModes={endpoint:true,midpoint:true,center:true,intersection:true,nearest:true,perpendicular:true,quadrant:true,tangent:true,grid:true};
+let snapInfo={point:null,type:""};
 let entities=[],mode="select",grid=true,selected=-1,selectedSet=new Set(),layers=new Map(),activeLayer="0";
 let history=[],historyLimit=30;
 function saveHistory(){history.push(JSON.stringify(entities));if(history.length>historyLimit)history.shift()}
@@ -139,28 +140,59 @@ function setMode(m){mode=m;drawPoints=[];document.querySelectorAll("[data-mode]"
 function worldToScreen(x,y){const w=canvas.clientWidth,h=canvas.clientHeight;return [w/2+(x-view.cx)*view.scale,h/2-(y-view.cy)*view.scale]}
 function screenToWorld(sx,sy){const w=canvas.clientWidth,h=canvas.clientHeight;return [(sx-w/2)/view.scale+view.cx,(h/2-sy)/view.scale+view.cy]}
 function snapPoint(p){
- if(!snapEnabled&& !gridSnapEnabled)return p;
- let best=null,bd=Infinity,limit=18/view.scale;
- const test=(x,y)=>{const d=Math.hypot(p[0]-x,p[1]-y);if(d<bd&&d<limit){bd=d;best=[x,y]}};
- const segments=[];
+ if(!snapEnabled&&!gridSnapEnabled){snapInfo={point:null,type:""};return p}
+ let best=null,bd=Infinity,btype="",limit=18/view.scale;
+ const test=(x,y,type,priority=50)=>{
+  if(!Number.isFinite(x)||!Number.isFinite(y))return;
+  const d=Math.hypot(p[0]-x,p[1]-y);
+  if(d<limit&&(d<bd-1e-9||(Math.abs(d-bd)<1e-9&&priority>0))){bd=d;best=[x,y];btype=type}
+ };
+ const segments=[],circles=[];
  for(const e of entities){
   if(!isLayerVisible(e))continue;
-  if(snapEnabled&&snapModes.endpoint){
-   if(e.type==="LINE"){test(e.x1,e.y1);test(e.x2,e.y2)}
-   else if(e.pts){e.pts.forEach(v=>test(v[0],v[1]))}
+  if(e.type==="LINE"){
+   if(snapEnabled&&snapModes.endpoint){test(e.x1,e.y1,"Endpoint",100);test(e.x2,e.y2,"Endpoint",100)}
+   if(snapEnabled&&snapModes.midpoint)test((e.x1+e.x2)/2,(e.y1+e.y2)/2,"Midpoint",90);
+   segments.push([[e.x1,e.y1],[e.x2,e.y2]]);
+  }else if(e.pts){
+   if(snapEnabled&&snapModes.endpoint)e.pts.forEach(v=>test(v[0],v[1],"Endpoint",100));
+   if(snapEnabled&&snapModes.midpoint)for(let i=1;i<e.pts.length;i++){const a=e.pts[i-1],b=e.pts[i];test((a[0]+b[0])/2,(a[1]+b[1])/2,"Midpoint",90)}
+   for(let i=1;i<e.pts.length;i++)segments.push([e.pts[i-1],e.pts[i]]);
+   if(e.closed&&e.pts.length>2)segments.push([e.pts.at(-1),e.pts[0]]);
   }
-  if(snapEnabled&&snapModes.midpoint&&e.type==="LINE")test((e.x1+e.x2)/2,(e.y1+e.y2)/2);
-  if(snapEnabled&&snapModes.center&&(e.type==="CIRCLE"||e.type==="ARC"||e.type==="ELLIPSE"))test(e.x,e.y);
-  if(e.type==="LINE")segments.push([[e.x1,e.y1],[e.x2,e.y2]]);
-  else if(e.pts)for(let i=1;i<e.pts.length;i++)segments.push([e.pts[i-1],e.pts[i]]);
+  if(snapEnabled&&snapModes.center&&(e.type==="CIRCLE"||e.type==="ARC"||e.type==="ELLIPSE"))test(e.x,e.y,"Center",95);
+  if(e.type==="CIRCLE"||e.type==="ARC"||e.type==="ELLIPSE")circles.push(e);
  }
- if(snapEnabled&&snapModes.intersection){
-  const cross=(a,b,c,d)=>{const den=(a[0]-b[0])*(c[1]-d[1])-(a[1]-b[1])*(c[0]-d[0]);if(Math.abs(den)<1e-12)return null;const t=((a[0]-c[0])*(c[1]-d[1])-(a[1]-c[1])*(c[0]-d[0]))/den;const u=-((a[0]-b[0])*(a[1]-c[1])-(a[1]-b[1])*(a[0]-c[0]))/den;if(t>=0&&t<=1&&u>=0&&u<=1)return[a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1])];return null};
-  for(let i=0;i<segments.length;i++)for(let j=i+1;j<segments.length;j++){const q=cross(segments[i][0],segments[i][1],segments[j][0],segments[j][1]);if(q)test(q[0],q[1])}
- }
- if(snapEnabled&&snapModes.nearest)for(const s of segments){const x=s[0][0],y=s[0][1],dx=s[1][0]-x,dy=s[1][1]-y,l=dx*dx+dy*dy;if(l){let t=((p[0]-x)*dx+(p[1]-y)*dy)/l;t=Math.max(0,Math.min(1,t));test(x+t*dx,y+t*dy)}}
- if(gridSnapEnabled&&snapModes.grid&&grid){const step=niceStep(70/view.scale);test(Math.round(p[0]/step)*step,Math.round(p[1]/step)*step)}
- return best||p;
+ const cross=(a,b,c,d)=>{
+  const den=(a[0]-b[0])*(c[1]-d[1])-(a[1]-b[1])*(c[0]-d[0]);
+  if(Math.abs(den)<1e-12)return null;
+  const t=((a[0]-c[0])*(c[1]-d[1])-(a[1]-c[1])*(c[0]-d[0]))/den;
+  const u=-((a[0]-b[0])*(a[1]-c[1])-(a[1]-b[1])*(a[0]-c[0]))/den;
+  if(t>=-1e-9&&t<=1+1e-9&&u>=-1e-9&&u<=1+1e-9)return[a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1])];
+  return null;
+ };
+ if(snapEnabled&&snapModes.intersection)for(let i=0;i<segments.length;i++)for(let j=i+1;j<segments.length;j++){const q=cross(segments[i][0],segments[i][1],segments[j][0],segments[j][1]);if(q)test(q[0],q[1],"Intersection",110)}
+ if(snapEnabled&&snapModes.nearest)for(const s of segments){const x=s[0][0],y=s[0][1],dx=s[1][0]-x,dy=s[1][1]-y,l=dx*dx+dy*dy;if(l){let t=((p[0]-x)*dx+(p[1]-y)*dy)/l;t=Math.max(0,Math.min(1,t));test(x+t*dx,y+t*dy,"Nearest",30)}}
+ if(snapEnabled&&snapModes.perpendicular)for(const s of segments){const a=s[0],b=s[1],dx=b[0]-a[0],dy=b[1]-a[1],l=dx*dx+dy*dy;if(!l)continue;const t=((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l;if(t>=0&&t<=1){const q=[a[0]+t*dx,a[1]+t*dy];test(q[0],q[1],"Perpendicular",70)}}
+ if(snapEnabled&&snapModes.quadrant)for(const e of circles){const pts=e.type==="ELLIPSE"?[[e.x+e.rx,e.y],[e.x-e.rx,e.y],[e.x,e.y+e.ry],[e.x,e.y-e.ry]]:[[e.x+e.r,e.y],[e.x-e.r,e.y],[e.x,e.y+e.r],[e.x,e.y-e.r]];pts.forEach(q=>test(q[0],q[1],"Quadrant",80))}
+ if(snapEnabled&&snapModes.tangent)for(const e of circles){const rx=e.type==="ELLIPSE"?e.rx:e.r,ry=e.type==="ELLIPSE"?e.ry:e.r;if(!rx||!ry)continue;const dx=p[0]-e.x,dy=p[1]-e.y,den=(dx*dx)/(rx*rx)+(dy*dy)/(ry*ry);if(den>1e-12){const q=[e.x+dx/Math.sqrt(den),e.y+dy/Math.sqrt(den)];test(q[0],q[1],"Tangent",60)}}
+ if(gridSnapEnabled&&snapModes.grid&&grid){const step=niceStep(70/view.scale);test(Math.round(p[0]/step)*step,Math.round(p[1]/step)*step,"Grid",10)}
+ snapInfo={point:best,type:btype};return best||p;
+}
+function drawSnapMarker(){
+ if(!snapInfo.point||!snapInfo.type)return;
+ const s=worldToScreen(snapInfo.point[0],snapInfo.point[1]),x=s[0],y=s[1],r=7;
+ ctx.save();ctx.strokeStyle="#ffd54a";ctx.fillStyle="#ffd54a";ctx.lineWidth=1.4;ctx.setLineDash([]);
+ if(snapInfo.type==="Endpoint"){ctx.strokeRect(x-r,y-r,r*2,r*2)}
+ else if(snapInfo.type==="Midpoint"){ctx.beginPath();ctx.moveTo(x,y-r);ctx.lineTo(x+r,y);ctx.lineTo(x,y+r);ctx.lineTo(x-r,y);ctx.closePath();ctx.stroke()}
+ else if(snapInfo.type==="Center"){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.stroke();ctx.moveTo(x-r-3,y);ctx.lineTo(x+r+3,y);ctx.moveTo(x,y-r-3);ctx.lineTo(x,y+r+3);ctx.stroke()}
+ else if(snapInfo.type==="Intersection"){ctx.beginPath();ctx.moveTo(x-r,y-r);ctx.lineTo(x+r,y+r);ctx.moveTo(x+r,y-r);ctx.lineTo(x-r,y+r);ctx.stroke()}
+ else if(snapInfo.type==="Nearest"){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.stroke()}
+ else if(snapInfo.type==="Perpendicular"){ctx.beginPath();ctx.moveTo(x-r,y);ctx.lineTo(x+r,y);ctx.moveTo(x,y-r);ctx.lineTo(x,y+r);ctx.stroke()}
+ else if(snapInfo.type==="Quadrant"){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.stroke();ctx.fillRect(x-1,y-1,2,2)}
+ else if(snapInfo.type==="Tangent"){ctx.beginPath();ctx.moveTo(x-r,y+r);ctx.lineTo(x+r,y-r);ctx.stroke()}
+ else if(snapInfo.type==="Grid"){ctx.beginPath();ctx.moveTo(x-r,y);ctx.lineTo(x+r,y);ctx.moveTo(x,y-r);ctx.lineTo(x,y+r);ctx.stroke()}
+ ctx.font="9px Tahoma";ctx.textAlign="left";ctx.fillText(snapInfo.type,x+r+3,y-5);ctx.restore();
 }
 function layerOf(e){return e.layer||"0"}
 function rebuildLayers(){const old=layers;layers=new Map();for(const e of entities){const n=layerOf(e);if(!layers.has(n)){const prev=old.get(n);layers.set(n,{visible:prev?prev.visible:true,count:0})}layers.get(n).count++}renderLayers();if(!layers.has(activeLayer)){activeLayer=layers.keys().next().value||"0"}$("activeLayerInfo").textContent="لایه فعال: "+activeLayer}
@@ -214,7 +246,8 @@ function draw(){
   ctx.save();ctx.fillStyle="#d35400";
   for(const p of drawPoints){const q=worldToScreen(p[0],p[1]);ctx.beginPath();ctx.arc(q[0],q[1],4,0,Math.PI*2);ctx.fill()}
   ctx.restore();
-}
+
+ drawSnapMarker();}
 function drawEntityFast(e){
  if(e.type==="LINE"){const a=worldToScreen(e.x1,e.y1),b=worldToScreen(e.x2,e.y2);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()}
  else if(e.type==="CIRCLE"){const q=worldToScreen(e.x,e.y);ctx.beginPath();ctx.arc(q[0],q[1],Math.abs(e.r*view.scale),0,Math.PI*2);ctx.stroke()}
@@ -533,6 +566,7 @@ function runMenuAction(a){
   if(a==="about")return setStatus("Web CAD سبز رویان اورامان — نسخه پایه توسعه‌یافته");
 }
 document.querySelectorAll("[data-menu-action]").forEach(btn=>btn.addEventListener("click",e=>{e.stopPropagation();btn.closest(".menu-wrap").classList.remove("open");runMenuAction(btn.dataset.menuAction)}));
+document.querySelectorAll("[data-snap-mode]").forEach(btn=>{btn.addEventListener("click",e=>{e.stopPropagation();const key=btn.dataset.snapMode;snapModes[key]=!snapModes[key];btn.classList.toggle("active",snapModes[key]);setStatus("OSNAP "+key+" "+(snapModes[key]?"روشن":"خاموش")+" شد");});});
 
 const commandInput=$("commandInput");
 function runCadCommand(raw){
@@ -572,7 +606,7 @@ document.querySelectorAll(".view-tab").forEach(tab=>tab.onclick=()=>{document.qu
 $("gridStatus").onclick=()=>{$("gridBtn").click();$("gridStatus").classList.toggle("active",grid)};
 $("orthoStatus").onclick=()=>{orthoEnabled=!orthoEnabled;$("orthoStatus").classList.toggle("active",orthoEnabled);setStatus(orthoEnabled?"ORTHO روشن شد":"ORTHO خاموش شد")};
 $("snapStatus").onclick=()=>{gridSnapEnabled=!gridSnapEnabled;$("snapStatus").classList.toggle("active",gridSnapEnabled);setStatus(gridSnapEnabled?"SNAP شبکه روشن شد":"SNAP شبکه خاموش شد")};
-$("osnapStatus").onclick=()=>{snapEnabled=!snapEnabled;$("osnapStatus").classList.toggle("active",snapEnabled);setStatus(snapEnabled?"OSNAP روشن شد — Endpoint / Midpoint / Center / Intersection / Nearest":"OSNAP خاموش شد")};
+$("osnapStatus").onclick=()=>{snapEnabled=!snapEnabled;$("osnapStatus").classList.toggle("active",snapEnabled);setStatus(snapEnabled?"OSNAP روشن شد — Endpoint / Midpoint / Center / Intersection / Nearest / Perpendicular / Quadrant / Tangent":"OSNAP خاموش شد")};
 
 resize();rebuildLayers();fit();
 </script>
