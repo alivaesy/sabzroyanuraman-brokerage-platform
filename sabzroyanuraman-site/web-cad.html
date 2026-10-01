@@ -29,7 +29,7 @@ button,input,textarea{font-family:inherit}
 input[type=text],textarea{width:100%;border:1px solid #555;background:#1e1e1e;color:#eee;border-radius:2px;padding:6px;font-size:10px;direction:rtl}
 textarea{min-height:64px;resize:vertical}
 .layer-row{display:flex;align-items:center;gap:6px;font-size:10px;margin:2px 0;padding:4px;border-radius:2px}.layer-row:hover{background:#333}.layer-row input{margin:0}.layer-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.layer-count{font-size:9px;color:#999}
-.layer-dot{width:9px;height:9px;border-radius:1px;background:#f4f4f4}.layer-row{cursor:default;user-select:none}.layer-row.context-target{background:#3b3b3b;border:1px solid #555}.layer-properties{position:fixed;inset:0;background:rgba(0,0,0,.42);display:none;align-items:center;justify-content:center;z-index:3000;direction:rtl}.layer-properties.open{display:flex}.layer-properties-card{width:390px;max-width:calc(100vw - 30px);background:#292929;border:1px solid #666;box-shadow:0 10px 30px rgba(0,0,0,.65);border-radius:3px}.layer-properties-head{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:#343434;border-bottom:1px solid #505050;font-size:12px;font-weight:700}.layer-properties-close{border:1px solid #555;background:#292929;color:#ddd;width:25px;height:23px;cursor:pointer;border-radius:2px}.layer-properties-body{padding:12px}.layer-prop-grid{display:grid;grid-template-columns:110px 1fr;gap:7px 10px;font-size:10px}.layer-prop-label{color:#aaa}.layer-prop-value{color:#eee;word-break:break-word}.layer-properties-foot{display:flex;justify-content:flex-start;gap:5px;padding:8px 12px;border-top:1px solid #444}.layer-properties-foot button{border:1px solid #555;background:#343434;color:#eee;padding:5px 12px;border-radius:2px;cursor:pointer;font-size:10px}
+.layer-dot{width:9px;height:9px;border-radius:1px;background:#f4f4f4}.layer-row{cursor:default;user-select:none}.layer-row.context-target{background:#3b3b3b;border:1px solid #555}.layer-properties{position:fixed;inset:0;background:rgba(0,0,0,.42);display:none;align-items:center;justify-content:center;z-index:3000;direction:rtl}.layer-properties.open{display:flex}.layer-properties-card{width:390px;max-width:calc(100vw - 30px);background:#292929;border:1px solid #666;box-shadow:0 10px 30px rgba(0,0,0,.65);border-radius:3px}.layer-properties-head{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:#343434;border-bottom:1px solid #505050;font-size:12px;font-weight:700}.layer-properties-close{border:1px solid #555;background:#292929;color:#ddd;width:25px;height:23px;cursor:pointer;border-radius:2px}.layer-properties-body{padding:12px}.layer-prop-grid{display:grid;grid-template-columns:110px 1fr;gap:7px 10px;font-size:10px}.layer-prop-label{color:#aaa}.layer-prop-value{color:#eee;word-break:break-word}.layer-properties-foot{display:flex;justify-content:flex-start;gap:5px;padding:8px 12px;border-top:1px solid #444}.layer-properties-foot button{border:1px solid #555;background:#343434;color:#eee;padding:5px 12px;border-radius:2px;cursor:pointer;font-size:10px}.entity-context-menu{position:fixed;display:none;min-width:150px;background:#292929;border:1px solid #666;box-shadow:0 6px 18px rgba(0,0,0,.65);z-index:5000;direction:rtl;padding:3px}.entity-context-menu.open{display:block}.entity-context-menu button{display:block;width:100%;border:0;background:transparent;color:#eee;text-align:right;padding:7px 10px;font-size:10px;cursor:pointer}.entity-context-menu button:hover{background:#3b3b3b}.entity-context-menu button.danger{color:#ffb4a8}
 .small{font-size:9px;color:#aaa;line-height:1.65}
 .status{position:absolute;bottom:34px;right:10px;background:rgba(35,35,35,.92);border:1px solid #555;border-radius:2px;padding:4px 7px;font-size:9px;color:#ddd;box-shadow:none;direction:rtl}
 .coord{position:absolute;bottom:34px;left:10px;background:rgba(25,25,25,.92);border:1px solid #555;border-radius:2px;padding:4px 7px;font-size:9px;color:#ddd;direction:ltr}
@@ -107,7 +107,7 @@ textarea{min-height:64px;resize:vertical}
     </section>
   </aside>
 </div>
-<div id="layerProperties" class="layer-properties"><div class="layer-properties-card"><div class="layer-properties-head"><span id="layerPropertiesTitle">Properties — Layer</span><button class="layer-properties-close" id="layerPropertiesClose">×</button></div><div class="layer-properties-body"><div id="layerPropertiesBody"></div></div><div class="layer-properties-foot"><button id="layerPropertiesSetCurrent">قرار دادن به‌عنوان لایه فعال</button><button id="layerPropertiesHide">مخفی/نمایش</button><button id="layerPropertiesDone">بستن</button></div></div></div><div class="bottom-bar"><div class="command-label">Command:</div><input id="commandInput" class="command-input" autocomplete="off" placeholder="LINE, PLINE, CIRCLE, ZOOM..."><div class="view-tabs"><div class="view-tab active">Model</div><div class="view-tab">Layout1</div><div class="view-tab">Layout2</div></div><div class="statusbar"><span class="status-item active" id="orthoStatus">ORT</span><span class="status-item" id="snapStatus">SNAP</span><span class="status-item" id="gridStatus">GRID</span><span class="status-item active" id="osnapStatus">OSNAP</span><span class="status-item">LWT</span><span class="status-item">MODEL</span><span class="status-spacer"></span><span class="status-item">UTM 38N</span><span class="status-item" id="statusScale">1:1</span></div></div>
+<div id="layerProperties" class="layer-properties"><div class="layer-properties-card"><div class="layer-properties-head"><span id="layerPropertiesTitle">Properties — Layer</span><button class="layer-properties-close" id="layerPropertiesClose">×</button></div><div class="layer-properties-body"><div id="layerPropertiesBody"></div></div><div class="layer-properties-foot"><button id="layerPropertiesSetCurrent">قرار دادن به‌عنوان لایه فعال</button><button id="layerPropertiesHide">مخفی/نمایش</button><button id="layerPropertiesDone">بستن</button></div></div></div><div id="entityContextMenu" class="entity-context-menu"><button id="entityPropertiesAction">Properties / مشخصات</button><button id="entitySetLayerAction">قرار دادن لایه به‌عنوان فعال</button><button id="entityEraseAction" class="danger">Erase / حذف</button></div><div id="entityProperties" class="layer-properties"><div class="layer-properties-card"><div class="layer-properties-head"><span id="entityPropertiesTitle">Properties — Entity</span><button class="layer-properties-close" id="entityPropertiesClose">×</button></div><div class="layer-properties-body"><div id="entityPropertiesBody"></div></div><div class="layer-properties-foot"><button id="entityPropertiesDone">بستن</button></div></div></div><div class="bottom-bar"><div class="command-label">Command:</div><input id="commandInput" class="command-input" autocomplete="off" placeholder="LINE, PLINE, CIRCLE, ZOOM..."><div class="view-tabs"><div class="view-tab active">Model</div><div class="view-tab">Layout1</div><div class="view-tab">Layout2</div></div><div class="statusbar"><span class="status-item active" id="orthoStatus">ORT</span><span class="status-item" id="snapStatus">SNAP</span><span class="status-item" id="gridStatus">GRID</span><span class="status-item active" id="osnapStatus">OSNAP</span><span class="status-item">LWT</span><span class="status-item">MODEL</span><span class="status-spacer"></span><span class="status-item">UTM 38N</span><span class="status-item" id="statusScale">1:1</span></div></div>
 </div>
 
 <script>
@@ -413,7 +413,7 @@ $("backBtn").onclick=()=>location.href="index.html";
 document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
 document.querySelectorAll("[data-cmd]").forEach(b=>b.onclick=()=>beginEditCommand(b.dataset.cmd));
 canvas.addEventListener("mousemove",e=>{const r=canvas.getBoundingClientRect();let rawP=screenToWorld(e.clientX-r.left,e.clientY-r.top);if(orthoEnabled&&drawPoints.length&&(mode==="line"||mode==="polyline")){const b=drawPoints[drawPoints.length-1],dx=rawP[0]-b[0],dy=rawP[1]-b[1];if(Math.abs(dx)>=Math.abs(dy))rawP=[rawP[0],b[1]];else rawP=[b[0],rawP[1]]}const p=snapPoint(rawP);$("coord").textContent="X: "+p[0].toFixed(3)+" | Y: "+p[1].toFixed(3);previewPoint=(mode==="line"||mode==="circle"||mode==="polyline")?p:null;if(drag){view.cx=drag.cx-(e.clientX-drag.x)/view.scale;view.cy=drag.cy+(e.clientY-drag.y)/view.scale}else if(selectionBox&&mode==="select"){selectionBox.x2=p[0];selectionBox.y2=p[1];selectionBox.crossing=p[0]<selectionBox.x1;draw()};draw()});
-canvas.addEventListener("mousedown",e=>{if(e.button===1||e.button===2){drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy};e.preventDefault();return}if(e.button!==0)return;const r=canvas.getBoundingClientRect(),rawP=screenToWorld(e.clientX-r.left,e.clientY-r.top),p=snapPoint(rawP);
+canvas.addEventListener("mousedown",e=>{if(e.button===1){drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy};e.preventDefault();return}if(e.button===2){e.preventDefault();return}if(e.button!==0)return;const r=canvas.getBoundingClientRect(),rawP=screenToWorld(e.clientX-r.left,e.clientY-r.top),p=snapPoint(rawP);
  if(commandClick(p))return;
  if(mode==="line"){drawPoints.push(p);if(drawPoints.length===2){saveHistory();entities.push({type:"LINE",layer:activeLayer,x1:drawPoints[0][0],y1:drawPoints[0][1],x2:p[0],y2:p[1]});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("خط ایجاد شد")}}
  else if(mode==="circle"){if(!drawPoints.length){drawPoints=[p];setStatus("نقطه دوم را برای شعاع انتخاب کن")}else{const q=drawPoints[0],r=Math.hypot(p[0]-q[0],p[1]-q[1]);saveHistory();entities.push({type:"CIRCLE",layer:activeLayer,x:q[0],y:q[1],r});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("دایره ایجاد شد")}}
@@ -427,7 +427,77 @@ canvas.addEventListener("mousedown",e=>{if(e.button===1||e.button===2){drag={x:e
   draw();setStatus(selectedSet.size?(selectedSet.size+" عارضه انتخاب شده"):"هیچ عارضه‌ای در محدوده انتخاب نبود")
  }
 });
-canvas.addEventListener("mouseup",e=>{if(selectionBox&&mode==="select"){const b=selectionBox;const x1=Math.min(b.x1,b.x2),x2=Math.max(b.x1,b.x2),y1=Math.min(b.y1,b.y2),y2=Math.max(b.y1,b.y2);const hit=[];entities.forEach((ent,i)=>{if(!isLayerVisible(ent))return;const eb=entityBounds(ent);if(!eb)return;const inside=b.crossing?(eb.maxX>=x1&&eb.minX<=x2&&eb.maxY>=y1&&eb.minY<=y2):(eb.minX>=x1&&eb.maxX<=x2&&eb.minY>=y1&&eb.maxY<=y2);if(inside)hit.push(i)});if(!e.ctrlKey)selectedSet.clear();hit.forEach(i=>selectedSet.add(i));selected=hit.length?hit[hit.length-1]:-1;setStatus(selectedSet.size?selectedSet.size+" عارضه انتخاب شده":"هیچ عارضه‌ای در پنجره انتخاب نبود");selectionBox=null;draw()}drag=null});canvas.addEventListener("contextmenu",e=>e.preventDefault());
+canvas.addEventListener("mouseup",e=>{if(selectionBox&&mode==="select"){const b=selectionBox;const x1=Math.min(b.x1,b.x2),x2=Math.max(b.x1,b.x2),y1=Math.min(b.y1,b.y2),y2=Math.max(b.y1,b.y2);const hit=[];entities.forEach((ent,i)=>{if(!isLayerVisible(ent))return;const eb=entityBounds(ent);if(!eb)return;const inside=b.crossing?(eb.maxX>=x1&&eb.minX<=x2&&eb.maxY>=y1&&eb.minY<=y2):(eb.minX>=x1&&eb.maxX<=x2&&eb.minY>=y1&&eb.maxY<=y2);if(inside)hit.push(i)});if(!e.ctrlKey)selectedSet.clear();hit.forEach(i=>selectedSet.add(i));selected=hit.length?hit[hit.length-1]:-1;setStatus(selectedSet.size?selectedSet.size+" عارضه انتخاب شده":"هیچ عارضه‌ای در پنجره انتخاب نبود");selectionBox=null;draw()}drag=null});function selectedEntityForContext(p){
+ const hit=findNearest(p);
+ if(hit>=0){
+  if(!selectedSet.has(hit)){selectedSet.clear();selectedSet.add(hit);selected=hit;draw()}
+  return hit;
+ }
+ const ids=selectedIndices();
+ return ids.length?ids[ids.length-1]:-1;
+}
+function showEntityProperties(index){
+ const e=entities[index]; if(!e)return;
+ const rows=[];
+ const add=(label,value)=>rows.push('<div class="layer-prop-label">'+label+'</div><div class="layer-prop-value">'+value+'</div>');
+ add("نوع عارضه",e.type);
+ add("لایه",layerOf(e));
+ if(e.type==="LINE"){
+  add("نقطه ۱","X "+Number(e.x1).toFixed(3)+" | Y "+Number(e.y1).toFixed(3));
+  add("نقطه ۲","X "+Number(e.x2).toFixed(3)+" | Y "+Number(e.y2).toFixed(3));
+  add("طول",entityPathLength(e).toFixed(3));
+ }else if(e.type==="CIRCLE"){
+  add("مرکز","X "+Number(e.x).toFixed(3)+" | Y "+Number(e.y).toFixed(3));
+  add("شعاع",Number(e.r).toFixed(3));
+  add("محیط",(2*Math.PI*Math.abs(e.r)).toFixed(3));
+  add("مساحت",(Math.PI*Math.abs(e.r)*Math.abs(e.r)).toFixed(3));
+ }else if(e.type==="ARC"){
+  add("مرکز","X "+Number(e.x).toFixed(3)+" | Y "+Number(e.y).toFixed(3));
+  add("شعاع",Number(e.r).toFixed(3));
+  add("زاویه شروع",Number(e.a1||0).toFixed(3)+"°");
+  add("زاویه پایان",Number(e.a2||0).toFixed(3)+"°");
+  add("طول قوس",entityPathLength(e).toFixed(3));
+ }else if(e.pts){
+  add("تعداد رأس",String(e.pts.length));
+  add("بسته",e.closed?"بله":"خیر");
+  add("طول",entityPathLength(e).toFixed(3));
+  if(e.pts.length)add("رأس اول","X "+Number(e.pts[0][0]).toFixed(3)+" | Y "+Number(e.pts[0][1]).toFixed(3));
+ }else if(["POINT","TEXT","MTEXT","HATCH","ELLIPSE"].includes(e.type)){
+  if(Number.isFinite(e.x)&&Number.isFinite(e.y))add("مختصات","X "+Number(e.x).toFixed(3)+" | Y "+Number(e.y).toFixed(3));
+  if(e.type==="TEXT"||e.type==="MTEXT")add("متن",String(e.text||"—"));
+  if(e.type==="ELLIPSE"){add("نیم‌محور X",Number(e.rx).toFixed(3));add("نیم‌محور Y",Number(e.ry).toFixed(3))}
+ }else if(e.type==="DIMENSION"){
+  add("نقطه ۱","X "+Number(e.x1).toFixed(3)+" | Y "+Number(e.y1).toFixed(3));
+  add("نقطه ۲","X "+Number(e.x2).toFixed(3)+" | Y "+Number(e.y2).toFixed(3));
+  add("متن",String(e.text||"—"));
+ }
+ const b=entityBounds(e);
+ if(b)add("محدوده","X "+b.minX.toFixed(3)+" … "+b.maxX.toFixed(3)+" | Y "+b.minY.toFixed(3)+" … "+b.maxY.toFixed(3));
+ $("entityPropertiesTitle").textContent="Properties — "+e.type+" ["+(index+1)+"]";
+ $("entityPropertiesBody").innerHTML='<div class="layer-prop-grid">'+rows.join("")+'</div>';
+ $("entityProperties").classList.add("open");
+}
+function closeEntityProperties(){$("entityProperties").classList.remove("open")}
+let contextEntityIndex=-1;
+canvas.addEventListener("contextmenu",e=>{
+ e.preventDefault();
+ const r=canvas.getBoundingClientRect(),p=screenToWorld(e.clientX-r.left,e.clientY-r.top);
+ contextEntityIndex=selectedEntityForContext(p);
+ if(contextEntityIndex<0){closeEntityContext();return}
+ const menu=$("entityContextMenu");
+ menu.style.left=Math.min(e.clientX,window.innerWidth-170)+"px";
+ menu.style.top=Math.min(e.clientY,window.innerHeight-125)+"px";
+ menu.classList.add("open");
+});
+function closeEntityContext(){const m=$("entityContextMenu");if(m)m.classList.remove("open")}
+document.addEventListener("click",e=>{if(!e.target.closest("#entityContextMenu"))closeEntityContext()});
+document.addEventListener("scroll",closeEntityContext,true);
+$("entityPropertiesAction").onclick=()=>{const i=contextEntityIndex;closeEntityContext();if(i>=0)showEntityProperties(i)};
+$("entitySetLayerAction").onclick=()=>{const e=entities[contextEntityIndex];if(e){activeLayer=layerOf(e);$("activeLayerInfo").textContent="لایه فعال: "+activeLayer;renderLayers();setStatus("لایه فعال: "+activeLayer)}closeEntityContext()};
+$("entityEraseAction").onclick=()=>{const i=contextEntityIndex;if(i>=0){saveHistory();entities.splice(i,1);selectedSet.clear();selected=-1;rebuildLayers();draw();setStatus("عارضه حذف شد")}closeEntityContext()};
+$("entityPropertiesClose").onclick=closeEntityProperties;
+$("entityPropertiesDone").onclick=closeEntityProperties;
+$("entityProperties").addEventListener("click",e=>{if(e.target.id==="entityProperties")closeEntityProperties()});
 canvas.addEventListener("mouseleave",()=>drag=null);
 canvas.addEventListener("wheel",e=>{e.preventDefault();const r=canvas.getBoundingClientRect(),before=screenToWorld(e.clientX-r.left,e.clientY-r.top),factor=e.deltaY<0?1.10:.9090909;view.scale=Math.max(.0001,Math.min(20,view.scale*factor));const after=screenToWorld(e.clientX-r.left,e.clientY-r.top);view.cx+=before[0]-after[0];view.cy+=before[1]-after[1];draw()},{passive:false});
 function cloneEntity(e){return JSON.parse(JSON.stringify(e))}
