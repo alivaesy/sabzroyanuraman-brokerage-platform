@@ -141,28 +141,51 @@ function worldToScreen(x,y){const w=canvas.clientWidth,h=canvas.clientHeight;ret
 function screenToWorld(sx,sy){const w=canvas.clientWidth,h=canvas.clientHeight;return [(sx-w/2)/view.scale+view.cx,(h/2-sy)/view.scale+view.cy]}
 function snapPoint(p){
  if(!snapEnabled&&!gridSnapEnabled){snapInfo={point:null,type:""};return p}
- let best=null,bd=Infinity,btype="",limit=18/view.scale;
+ let best=null,bd=Infinity,btype="",bp=-Infinity,limit=16/view.scale;
  const test=(x,y,type,priority=50)=>{
   if(!Number.isFinite(x)||!Number.isFinite(y))return;
   const d=Math.hypot(p[0]-x,p[1]-y);
-  if(d<limit&&(d<bd-1e-9||(Math.abs(d-bd)<1e-9&&priority>0))){bd=d;best=[x,y];btype=type}
+  if(d>limit)return;
+  if(d<bd-1e-9||(Math.abs(d-bd)<1e-9&&priority>bp)){bd=d;best=[x,y];btype=type;bp=priority}
  };
- const segments=[],circles=[];
+ const segments=[],curves=[];
  for(const e of entities){
   if(!isLayerVisible(e))continue;
   if(e.type==="LINE"){
-   if(snapEnabled&&snapModes.endpoint){test(e.x1,e.y1,"Endpoint",100);test(e.x2,e.y2,"Endpoint",100)}
-   if(snapEnabled&&snapModes.midpoint)test((e.x1+e.x2)/2,(e.y1+e.y2)/2,"Midpoint",90);
+   if(snapEnabled&&snapModes.endpoint){test(e.x1,e.y1,"Endpoint",110);test(e.x2,e.y2,"Endpoint",110)}
+   if(snapEnabled&&snapModes.midpoint)test((e.x1+e.x2)/2,(e.y1+e.y2)/2,"Midpoint",95);
    segments.push([[e.x1,e.y1],[e.x2,e.y2]]);
   }else if(e.pts){
-   if(snapEnabled&&snapModes.endpoint)e.pts.forEach(v=>test(v[0],v[1],"Endpoint",100));
-   if(snapEnabled&&snapModes.midpoint)for(let i=1;i<e.pts.length;i++){const a=e.pts[i-1],b=e.pts[i];test((a[0]+b[0])/2,(a[1]+b[1])/2,"Midpoint",90)}
+   if(snapEnabled&&snapModes.endpoint)e.pts.forEach(v=>test(v[0],v[1],"Endpoint",110));
+   if(snapEnabled&&snapModes.midpoint)for(let i=1;i<e.pts.length;i++){const a=e.pts[i-1],b=e.pts[i];test((a[0]+b[0])/2,(a[1]+b[1])/2,"Midpoint",95)}
    for(let i=1;i<e.pts.length;i++)segments.push([e.pts[i-1],e.pts[i]]);
    if(e.closed&&e.pts.length>2)segments.push([e.pts.at(-1),e.pts[0]]);
   }
-  if(snapEnabled&&snapModes.center&&(e.type==="CIRCLE"||e.type==="ARC"||e.type==="ELLIPSE"))test(e.x,e.y,"Center",95);
-  if(e.type==="CIRCLE"||e.type==="ARC"||e.type==="ELLIPSE")circles.push(e);
+  if(e.type==="CIRCLE"||e.type==="ARC"||e.type==="ELLIPSE"){
+   curves.push(e);
+   if(snapEnabled&&snapModes.center)test(e.x,e.y,"Center",105);
+  }
  }
+ const inArc=(e,x,y)=>{
+  if(e.type!=="ARC")return true;
+  const a=(Math.atan2(y-e.y,x-e.x)*180/Math.PI+360)%360;
+  const s=((e.startAngle||0)%360+360)%360, f=((e.endAngle||360)%360+360)%360;
+  return s<=f?a>=s&&a<=f:a>=s||a<=f;
+ };
+ const addCurveNearest=e=>{
+  if(e.type==="CIRCLE"||e.type==="ARC"){
+   const vx=p[0]-e.x,vy=p[1]-e.y,d=Math.hypot(vx,vy);
+   if(d>1e-12){
+    const q=[e.x+vx*e.r/d,e.y+vy*e.r/d];
+    if(inArc(e,q[0],q[1]))test(q[0],q[1],"Nearest",70);
+   }
+  }else if(e.type==="ELLIPSE"){
+   const dx=p[0]-e.x,dy=p[1]-e.y,rx=Math.max(1e-9,e.rx),ry=Math.max(1e-9,e.ry);
+   const t=Math.atan2(dy*rx,dx*ry);
+   const q=[e.x+rx*Math.cos(t),e.y+ry*Math.sin(t)];
+   test(q[0],q[1],"Nearest",70);
+  }
+ };
  const cross=(a,b,c,d)=>{
   const den=(a[0]-b[0])*(c[1]-d[1])-(a[1]-b[1])*(c[0]-d[0]);
   if(Math.abs(den)<1e-12)return null;
@@ -171,13 +194,27 @@ function snapPoint(p){
   if(t>=-1e-9&&t<=1+1e-9&&u>=-1e-9&&u<=1+1e-9)return[a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1])];
   return null;
  };
- if(snapEnabled&&snapModes.intersection)for(let i=0;i<segments.length;i++)for(let j=i+1;j<segments.length;j++){const q=cross(segments[i][0],segments[i][1],segments[j][0],segments[j][1]);if(q)test(q[0],q[1],"Intersection",110)}
- if(snapEnabled&&snapModes.nearest)for(const s of segments){const x=s[0][0],y=s[0][1],dx=s[1][0]-x,dy=s[1][1]-y,l=dx*dx+dy*dy;if(l){let t=((p[0]-x)*dx+(p[1]-y)*dy)/l;t=Math.max(0,Math.min(1,t));test(x+t*dx,y+t*dy,"Nearest",30)}}
- if(snapEnabled&&snapModes.perpendicular)for(const s of segments){const a=s[0],b=s[1],dx=b[0]-a[0],dy=b[1]-a[1],l=dx*dx+dy*dy;if(!l)continue;const t=((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l;if(t>=0&&t<=1){const q=[a[0]+t*dx,a[1]+t*dy];test(q[0],q[1],"Perpendicular",70)}}
- if(snapEnabled&&snapModes.quadrant)for(const e of circles){const pts=e.type==="ELLIPSE"?[[e.x+e.rx,e.y],[e.x-e.rx,e.y],[e.x,e.y+e.ry],[e.x,e.y-e.ry]]:[[e.x+e.r,e.y],[e.x-e.r,e.y],[e.x,e.y+e.r],[e.x,e.y-e.r]];pts.forEach(q=>test(q[0],q[1],"Quadrant",80))}
- if(snapEnabled&&snapModes.tangent)for(const e of circles){if(e.type==="CIRCLE"&&e.r>0){const vx=p[0]-e.x,vy=p[1]-e.y,d2=vx*vx+vy*vy,r=e.r;if(d2>r*r+1e-12){const k=r*r/d2,h=r*Math.sqrt(d2-r*r)/d2;const q1=[e.x+k*vx-h*vy,e.y+k*vy+h*vx],q2=[e.x+k*vx+h*vy,e.y+k*vy-h*vx];test(q1[0],q1[1],"Tangent",60);test(q2[0],q2[1],"Tangent",60)}}}
- if(gridSnapEnabled&&snapModes.grid&&grid){const step=niceStep(70/view.scale);test(Math.round(p[0]/step)*step,Math.round(p[1]/step)*step,"Grid",10)}
- snapInfo={point:best,type:btype};return best||p;
+ if(snapEnabled&&snapModes.intersection)for(let i=0;i<segments.length;i++)for(let j=i+1;j<segments.length;j++){const q=cross(segments[i][0],segments[i][1],segments[j][0],segments[j][1]);if(q)test(q[0],q[1],"Intersection",120)}
+ if(snapEnabled&&snapModes.nearest)for(const s of segments){const x=s[0][0],y=s[0][1],dx=s[1][0]-x,dy=s[1][1]-y,l=dx*dx+dy*dy;if(l){let t=((p[0]-x)*dx+(p[1]-y)*dy)/l;t=Math.max(0,Math.min(1,t));test(x+t*dx,y+t*dy,"Nearest",70)}}
+ if(snapEnabled&&snapModes.perpendicular)for(const s of segments){const a=s[0],b=s[1],dx=b[0]-a[0],dy=b[1]-a[1],l=dx*dx+dy*dy;if(!l)continue;const t=((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l;if(t>=0&&t<=1){const q=[a[0]+t*dx,a[1]+t*dy];test(q[0],q[1],"Perpendicular",90)}}
+ if(snapEnabled&&snapModes.nearest)curves.forEach(addCurveNearest);
+ if(snapEnabled&&snapModes.quadrant)for(const e of curves){
+  const pts=e.type==="ELLIPSE"?[[e.x+e.rx,e.y],[e.x-e.rx,e.y],[e.x,e.y+e.ry],[e.x,e.y-e.ry]]:[[e.x+e.r,e.y],[e.x-e.r,e.y],[e.x,e.y+e.r],[e.x,e.y-e.r]];
+  pts.forEach(q=>{if(inArc(e,q[0],q[1]))test(q[0],q[1],"Quadrant",100)});
+ }
+ if(snapEnabled&&snapModes.tangent)for(const e of curves)if(e.type==="CIRCLE"&&e.r>0){
+  const vx=p[0]-e.x,vy=p[1]-e.y,d2=vx*vx+vy*vy,r=e.r;
+  if(d2>r*r+1e-12){const k=r*r/d2,h=r*Math.sqrt(d2-r*r)/d2;
+   const q1=[e.x+k*vx-h*vy,e.y+k*vy+h*vx],q2=[e.x+k*vx+h*vy,e.y+k*vy-h*vx];
+   test(q1[0],q1[1],"Tangent",85);test(q2[0],q2[1],"Tangent",85);
+  }
+ }
+ if(gridSnapEnabled&&snapModes.grid&&grid){
+  const step=gridStep||1,gx=Math.round(p[0]/step)*step,gy=Math.round(p[1]/step)*step;
+  test(gx,gy,"Grid",20);
+ }
+ snapInfo={point:best,type:btype};
+ return best||p;
 }
 function drawSnapMarker(){
  if(!snapInfo.point||!snapInfo.type)return;
