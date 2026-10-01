@@ -590,8 +590,7 @@ function breakLineAtPoints(index,p1,p2){
  return replacements.length>0;
 }
 function finishCommand(msg){const s=commandState;
- if(s.cmd==="MATCHPROP"&&s.step==="source"){const i=findNearest(p);if(i<0){setStatus("MATCHPROP — Select source object:");return true}s.source=i;s.step="target";selectedSet.clear();selectedSet.add(i);selected=i;setStatus("MATCHPROP — Select target objects:");draw();return true;}
- if(s.cmd==="MATCHPROP"&&s.step==="target"){const i=findNearest(p);if(i<0){setStatus("MATCHPROP — Select target objects:");return true}if(i!==s.source){saveHistory();applyEntityProperties(entities[s.source],entities[i]);selectedSet.clear();selectedSet.add(i);selected=i;draw();setStatus("MATCHPROP — Properties applied. Select another target or press Enter.");}return true;}if(s&&s.before){const now=JSON.stringify(entities);if(now!==s.before){history.push(s.before);if(history.length>historyLimit)history.shift()}}commandState=null;setMode("select");rebuildLayers();draw();setStatus(msg)}
+ if(s&&s.before){const now=JSON.stringify(entities);if(now!==s.before){history.push(s.before);if(history.length>historyLimit)history.shift()}}commandState=null;setMode("select");rebuildLayers();draw();setStatus(msg)}
 function selectedIndices(){return [...selectedSet].filter(i=>entities[i]&&isLayerVisible(entities[i]))}
 function beginEditCommand(cmd){
  const ids=selectedIndices();
@@ -624,6 +623,17 @@ function commandClick(p){
  }
  const s=commandState;
  
+if((s.cmd==="FILLET"||s.cmd==="CHAMFER")&&s.step==="first"){
+ const i=findNearest(p);if(i<0||entities[i].type!=="LINE"){setStatus(s.cmd+" — Select first LINE:");return true}
+ s.i1=i;s.pick1=p;s.step="second";setStatus(s.cmd+" — Select second LINE:");draw();return true;
+}
+if((s.cmd==="FILLET"||s.cmd==="CHAMFER")&&s.step==="second"){
+ const i=findNearest(p);if(i<0||i===s.i1||entities[i].type!=="LINE"){setStatus(s.cmd+" — Select second LINE:");return true}
+ const raw=prompt(s.cmd+" — "+(s.cmd==="FILLET"?"Radius":"Chamfer distance")+":","10");
+ if(raw===null){commandState=null;setMode("select");return true}
+ if(applyLineCorner(s.cmd,s.i1,i,s.pick1,p,raw)){finishCommand(s.cmd+" completed")}else setStatus(s.cmd+" — Geometry cannot accommodate the specified value.");
+ return true;
+}
 if(s.cmd==="ID"&&s.step==="idPoint"){
   const x=p[0],y=p[1];
   setStatus("ID — X = "+formatCadNumber(x)+"   Y = "+formatCadNumber(y));
@@ -829,7 +839,7 @@ function normAngle(a){const t=Math.PI*2;return ((a%t)+t)%t}
 function angleOnArc(a,start,end){a=normAngle(a);start=normAngle(start);end=normAngle(end);if(Math.abs(start-end)<1e-10)return true;return start<=end?(a>=start&&a<=end):(a>=start||a<=end)}
 function pointInPolyline(p,e){if(!e.closed||!e.pts||e.pts.length<3)return false;let inside=false;for(let i=0,j=e.pts.length-1;i<e.pts.length;j=i++){const xi=e.pts[i][0],yi=e.pts[i][1],xj=e.pts[j][0],yj=e.pts[j][1];const hit=((yi>p[1])!==(yj>p[1]))&&(p[0]<(xj-xi)*(p[1]-yi)/(yj-yi+Number.EPSILON)+xi);if(hit)inside=!inside}return inside}
 function circleDistance(p,e){return Math.abs(Math.hypot(p[0]-e.x,p[1]-e.y)-Math.abs(e.r||0))}
-function arcDistance(p,e){const a=Math.atan2(p[1]-e.y,p[0]-e.x),rad=Math.hypot(p[0]-e.x,p[1]-e.y),r=Math.abs(e.r||0);if(angleOnArc(a,e.startAngle||0,e.endAngle||0))return Math.abs(rad-r);const a1=[e.x+Math.cos(e.startAngle||0)*r,e.y+Math.sin(e.startAngle||0)*r],a2=[e.x+Math.cos(e.endAngle||0)*r,e.y+Math.sin(e.endAngle||0)*r];return Math.min(Math.hypot(p[0]-a1[0],p[1]-a1[1]),Math.hypot(p[0]-a2[0],p[1]-a2[1]))}
+function arcDistance(p,e){const a=Math.atan2(p[1]-e.y,p[0]-e.x),rad=Math.hypot(p[0]-e.x,p[1]-e.y),r=Math.abs(e.r||0),s=(e.a1||0)*Math.PI/180,f=(e.a2??360)*Math.PI/180;if(angleOnArc(a,s,f))return Math.abs(rad-r);const p1=[e.x+r*Math.cos(s),e.y+r*Math.sin(s)],p2=[e.x+r*Math.cos(f),e.y+r*Math.sin(f)];return Math.min(Math.hypot(p[0]-p1[0],p[1]-p1[1]),Math.hypot(p[0]-p2[0],p[1]-p2[1]))}
 function ellipseDistance(p,e){const rx=Math.abs(e.rx||0),ry=Math.abs(e.ry||0);if(!rx||!ry)return Math.hypot(p[0]-e.x,p[1]-e.y);const a=Math.atan2((p[1]-e.y)/ry,(p[0]-e.x)/rx),q=[e.x+rx*Math.cos(a),e.y+ry*Math.sin(a)];return Math.hypot(p[0]-q[0],p[1]-q[1])}
 function findNearest(p){let best=-1,bd=Infinity;entities.forEach((e,i)=>{if(!isLayerVisible(e))return;let d=Infinity;if(e.type==="XLINE"||e.type==="RAY"){const dx=e.dx,dy=e.dy,len=Math.hypot(dx,dy)||1;d=Math.abs((p[0]-e.x)*dy-(p[1]-e.y)*dx)/len;if(e.type==="RAY"&&((p[0]-e.x)*dx+(p[1]-e.y)*dy)<0)d=Math.hypot(p[0]-e.x,p[1]-e.y)}else if(e.type==="POINT")d=Math.hypot(p[0]-e.x,p[1]-e.y);else if(e.type==="CIRCLE")d=circleDistance(p,e);else if(e.type==="ARC")d=arcDistance(p,e);else if(e.type==="ELLIPSE")d=ellipseDistance(p,e);else if(e.type==="LINE")d=segDist(p[0],p[1],e.x1,e.y1,e.x2,e.y2);else if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"||e.type==="POLYLINE3D"||e.type==="SPLINE"){if(pointInPolyline(p,e))d=0;else{for(let j=1;j<e.pts.length;j++)d=Math.min(d,segDist(p[0],p[1],e.pts[j-1][0],e.pts[j-1][1],e.pts[j][0],e.pts[j][1]));if(e.closed&&e.pts.length>2)d=Math.min(d,segDist(p[0],p[1],e.pts.at(-1)[0],e.pts.at(-1)[1],e.pts[0][0],e.pts[0][1]))}}else if(e.type==="TEXT"||e.type==="MTEXT"||e.type==="HATCH")d=Math.hypot(p[0]-e.x,p[1]-e.y);else if(e.type==="DIMENSION")d=Math.min(segDist(p[0],p[1],e.x1,e.y1,e.x2,e.y2),Math.hypot(p[0]-e.tx,p[1]-e.ty));if(d<bd){bd=d;best=i}});return bd<12/view.scale?best:-1}
 function segDist(px,py,x1,y1,x2,y2){const dx=x2-x1,dy=y2-y1;if(!dx&&!dy)return Math.hypot(px-x1,py-y1);let t=((px-x1)*dx+(py-y1)*dy)/(dx*dx+dy*dy);t=Math.max(0,Math.min(1,t));return Math.hypot(px-(x1+t*dx),py-(y1+t*dy))}
@@ -863,7 +873,7 @@ function entityLength(e){
   if(e.type==="LINE")return Math.hypot(e.x2-e.x1,e.y2-e.y1);
   if(e.type==="CIRCLE")return 2*Math.PI*Math.abs(e.r||0);
   if(e.type==="ARC"){
-    const da=Math.abs(normAngle((e.endAngle||0)-(e.startAngle||0)));
+    const da=Math.abs(normAngle(((e.a2??360)-(e.a1||0))*Math.PI/180));
     return Math.abs(e.r||0)*da;
   }
   if(e.pts&&e.pts.length>1){
@@ -951,10 +961,70 @@ function runTransformCommand(cmd){
  const mir=(x,y)=>{const t=((x-b[0])*dx+(y-b[1])*dy)/l2,hx=b[0]+t*dx,hy=b[1]+t*dy;return[2*hx-x,2*hy-y]};
  saveHistory();ids.forEach(i=>{const e=entities[i];if(e.type==="LINE"){[e.x1,e.y1]=mir(e.x1,e.y1);[e.x2,e.y2]=mir(e.x2,e.y2)}else if(e.pts)e.pts=e.pts.map(p=>mir(p[0],p[1]));else if("x"in e)[e.x,e.y]=mir(e.x,e.y)});draw();setStatus("MIRROR completed");
 }
+function lineIntersectionPoint(a,b){
+ const x1=a.x1,y1=a.y1,x2=a.x2,y2=a.y2,x3=b.x1,y3=b.y1,x4=b.x2,y4=b.y2;
+ const den=(x1-x2)*(y3-y4)-(y1-y2)*(x3-x4);
+ if(Math.abs(den)<1e-12)return null;
+ const t=((x1-x3)*(y3-y4)-(y1-y3)*(x3-x4))/den;
+ return [x1+t*(x2-x1),y1+t*(y2-y1)];
+}
+function applyLineCorner(cmd,i1,i2,pick1,pick2,value){
+ const a=entities[i1],b=entities[i2];
+ if(!a||!b||a.type!=="LINE"||b.type!=="LINE")return false;
+ const I=lineIntersectionPoint(a,b);if(!I)return false;
+ const ends1=[[a.x1,a.y1],[a.x2,a.y2]],ends2=[[b.x1,b.y1],[b.x2,b.y2]];
+ const e1=ends1[Math.hypot(pick1[0]-ends1[0][0],pick1[1]-ends1[0][1])<=Math.hypot(pick1[0]-ends1[1][0],pick1[1]-ends1[1][1])?0:1];
+ const e2=ends2[Math.hypot(pick2[0]-ends2[0][0],pick2[1]-ends2[0][1])<=Math.hypot(pick2[0]-ends2[1][0],pick2[1]-ends2[1][1])?0:1];
+ const u0=[e1[0]-I[0],e1[1]-I[1]],v0=[e2[0]-I[0],e2[1]-I[1]];
+ const lu=Math.hypot(u0[0],u0[1]),lv=Math.hypot(v0[0],v0[1]);
+ if(lu<1e-9||lv<1e-9)return false;
+ const u=[u0[0]/lu,u0[1]/lu],v=[v0[0]/lv,v0[1]/lv];
+ const dot=Math.max(-1,Math.min(1,u[0]*v[0]+u[1]*v[1])),theta=Math.acos(dot);
+ if(theta<1e-6||Math.abs(Math.PI-theta)<1e-6)return false;
+ let r=Number(value);if(!Number.isFinite(r)||r<0)return false;
+ if(cmd==="CHAMFER"){
+  const d=r;
+  if(d<=0)return applyLineCorner("FILLET",i1,i2,pick1,pick2,0);
+  const t1=[I[0]+u[0]*Math.min(d,lu),I[1]+u[1]*Math.min(d,lu)];
+  const t2=[I[0]+v[0]*Math.min(d,lv),I[1]+v[1]*Math.min(d,lv)];
+  if(Math.hypot(t1[0]-t2[0],t1[1]-t2[1])<1e-9)return false;
+  saveHistory();a.x1===e1[0]&&a.y1===e1[1]?[a.x1,a.y1]=t1:[a.x2,a.y2]=t1;
+  b.x1===e2[0]&&b.y1===e2[1]?[b.x1,b.y1]=t2:[b.x2,b.y2]=t2;
+  entities.push({type:"LINE",layer:a.layer||activeLayer,x1:t1[0],y1:t1[1],x2:t2[0],y2:t2[1]});
+  return true;
+ }
+ if(r===0){
+  saveHistory();
+  a.x1===e1[0]&&a.y1===e1[1]?[a.x1,a.y1]=I:[a.x2,a.y2]=I;
+  b.x1===e2[0]&&b.y1===e2[1]?[b.x1,b.y1]=I:[b.x2,b.y2]=I;
+  return true;
+ }
+ const t=r/Math.tan(theta/2);
+ if(t>=lu-1e-9||t>=lv-1e-9)return false;
+ const p1=[I[0]+u[0]*t,I[1]+u[1]*t],p2=[I[0]+v[0]*t,I[1]+v[1]*t];
+ const w0=[u[0]+v[0],u[1]+v[1]],wl=Math.hypot(w0[0],w0[1]);if(wl<1e-9)return false;
+ const sinHalf=Math.sin(theta/2),dCenter=r/sinHalf;
+ const c=[I[0]+w0[0]/wl*dCenter,I[1]+w0[1]/wl*dCenter];
+ let a1=Math.atan2(p1[1]-c[1],p1[0]-c[0])*180/Math.PI;
+ let a2=Math.atan2(p2[1]-c[1],p2[0]-c[0])*180/Math.PI;
+ while(a1<0)a1+=360;while(a2<0)a2+=360;
+ let sweep=(a2-a1+360)%360;
+ if(sweep>180){const z=a1;a1=a2;a2=z}
+ saveHistory();
+ a.x1===e1[0]&&a.y1===e1[1]?[a.x1,a.y1]=p1:[a.x2,a.y2]=p1;
+ b.x1===e2[0]&&b.y1===e2[1]?[b.x1,b.y1]=p2:[b.x2,b.y2]=p2;
+ entities.push({type:"ARC",layer:a.layer||activeLayer,x:c[0],y:c[1],r, a1,a2});
+ return true;
+}
 function runFilletChamfer(cmd){
- const ids=selectedIndices();if(ids.length!==2){setStatus(cmd+" — Select two LINE objects.");return}
- const a=entities[ids[0]],b=entities[ids[1]];if(a.type!=="LINE"||b.type!=="LINE"){setStatus(cmd+" — LINE objects only.");return}
- setStatus(cmd+" — Two-line geometry selected. Use TRIM/EXTEND for final corner cleanup."); 
+ const ids=selectedIndices();
+ if(ids.length===2){
+  const a=entities[ids[0]],b=entities[ids[1]];
+  if(a.type==="LINE"&&b.type==="LINE"){const raw=prompt(cmd+" — "+(cmd==="FILLET"?"Radius":"Chamfer distance")+":","10");if(raw!==null){const pick1=[(a.x1+a.x2)/2,(a.y1+a.y2)/2],pick2=[(b.x1+b.x2)/2,(b.y1+b.y2)/2];if(applyLineCorner(cmd,ids[0],ids[1],pick1,pick2,raw)){rebuildLayers();draw();setStatus(cmd+" completed")}else setStatus(cmd+" — Geometry cannot accommodate the specified value.");}return}
+ }
+ commandState={cmd,step:"first",pick1:null,i1:-1};
+ setMode("select");
+ setStatus(cmd+" — Select first LINE:");
 }
 function runPurgeCommand(){const before=entities.length,seen=new Set();entities=entities.filter(e=>{const k=JSON.stringify(e);if(seen.has(k))return false;seen.add(k);return true});rebuildLayers();draw();setStatus("PURGE — "+(before-entities.length)+" duplicate object(s) removed.")}
 function runAuditCommand(){let bad=0;entities.forEach(e=>{if(e.type==="LINE"&&!([e.x1,e.y1,e.x2,e.y2].every(Number.isFinite)))bad++;if(e.pts&&!e.pts.every(p=>Array.isArray(p)&&Number.isFinite(p[0])&&Number.isFinite(p[1])))bad++});setStatus("AUDIT — "+bad+" invalid object(s) found.")}
@@ -1105,6 +1175,7 @@ window.addEventListener("keydown",e=>{
  if(e.target===commandInput||e.target.tagName==="TEXTAREA"||e.target.tagName==="INPUT")return;
  const k=e.key.toUpperCase();
  if(e.key==="Escape"){runCadCommand("ESC");return}
+ if(k==="C"&&mode==="polyline"&&drawPoints.length>=3){runMenuAction("closepoly");e.preventDefault();return}
  if((e.ctrlKey||e.metaKey)&&k==="Z"){undo();e.preventDefault();return}
  if(k==="F3"){
   snapEnabled=!snapEnabled;
@@ -1115,8 +1186,6 @@ window.addEventListener("keydown",e=>{
   e.preventDefault();
  }
  else if(k==="L"){setMode("line");e.preventDefault()}
- else if(k==="C"){setMode("circle");e.preventDefault()}
- else if(k==="P"){setMode("polyline");e.preventDefault()}
  else if(k==="C"&&mode==="polyline"&&drawPoints.length>=3){saveHistory();entities.push({type:"LWPOLYLINE",layer:activeLayer,pts:drawPoints.slice(),closed:true});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("PLINE — Close completed");e.preventDefault()}
 });
 $("newLayerBtn").onclick=()=>{const n=prompt("Enter name for new layer:","0");if(n&&n.trim()){const name=n.trim();if(!layers.has(name))layers.set(name,{visible:true,count:0});activeLayer=name;$("activeLayerInfo").textContent="Current layer: "+activeLayer;renderLayers();setStatus("Current Layer: "+activeLayer)}};
