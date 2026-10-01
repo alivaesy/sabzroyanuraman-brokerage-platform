@@ -38,7 +38,9 @@ textarea{min-height:64px;resize:vertical}
 .file{display:none}
 #layerList{max-height:180px;overflow:auto}
 @media(max-width:900px){.side{width:250px}.menu{padding:4px 6px}.rbutton{min-width:38px}}
-.grip{fill:#050505;stroke:#4fc3f7;stroke-width:1}.mid-grip{fill:#050505;stroke:#ffd54a;stroke-width:1}.xline-preview{stroke:#888;stroke-width:1;stroke-dasharray:7 5}\n</style>\n</head>
+.grip{fill:#050505;stroke:#4fc3f7;stroke-width:1}.mid-grip{fill:#050505;stroke:#ffd54a;stroke-width:1}.xline-preview{stroke:#888;stroke-width:1;stroke-dasharray:7 5}
+</style>
+</head>
 <body>
 <div class="app">
 <div class="classic-title"><div class="brand">Sabz Royan Uraman — Web CAD</div><div class="file-title" id="windowTitle">Drawing1.dxf</div></div>
@@ -327,7 +329,7 @@ function drawInfiniteEntity(e){
  const dx=e.dx,dy=e.dy,L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L;
  const tvals=[(minX-e.x)/ux,(maxX-e.x)/ux,(minY-e.y)/uy,(maxY-e.y)/uy].filter(Number.isFinite);
  const pts=[];
- for(const t of tvals){const x=e.x+ux*t,y=e.y+uy*t;if(x>=minX-1e-6&&x<=maxX+1e-6&&y>=minY-1e-6&&y<=maxY+1e-6)pts.push([x,y]);}
+ for(const t of tvals){if(e.type==="RAY"&&t<0)continue;const x=e.x+ux*t,y=e.y+uy*t;if(x>=minX-1e-6&&x<=maxX+1e-6&&y>=minY-1e-6&&y<=maxY+1e-6)pts.push([x,y]);}
  let a,b,best=0;
  for(let i=0;i<pts.length;i++)for(let j=i+1;j<pts.length;j++){const d=Math.hypot(pts[i][0]-pts[j][0],pts[i][1]-pts[j][1]);if(d>best){best=d;a=pts[i];b=pts[j];}}
  if(a&&b){const A=worldToScreen(a[0],a[1]),B=worldToScreen(b[0],b[1]);ctx.beginPath();ctx.moveTo(A[0],A[1]);ctx.lineTo(B[0],B[1]);ctx.stroke();}
