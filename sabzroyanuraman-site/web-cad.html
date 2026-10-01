@@ -285,7 +285,7 @@ canvas.addEventListener("mousedown",e=>{if(e.button===1||e.button===2){drag={x:e
 });
 canvas.addEventListener("mouseup",()=>drag=null);canvas.addEventListener("contextmenu",e=>e.preventDefault());
 canvas.addEventListener("mouseleave",()=>drag=null);
-canvas.addEventListener("wheel",e=>{e.preventDefault();const r=canvas.getBoundingClientRect(),before=screenToWorld(e.clientX-r.left,e.clientY-r.top),factor=e.deltaY<0?1.15:.87;view.scale=Math.max(.0001,Math.min(1e9,view.scale*factor));const after=screenToWorld(e.clientX-r.left,e.clientY-r.top);view.cx+=before[0]-after[0];view.cy+=before[1]-after[1];draw()},{passive:false});
+canvas.addEventListener("wheel",e=>{e.preventDefault();const r=canvas.getBoundingClientRect(),before=screenToWorld(e.clientX-r.left,e.clientY-r.top),factor=e.deltaY<0?1.10:.9090909;view.scale=Math.max(.0001,Math.min(20,view.scale*factor));const after=screenToWorld(e.clientX-r.left,e.clientY-r.top);view.cx+=before[0]-after[0];view.cy+=before[1]-after[1];draw()},{passive:false});
 function cloneEntity(e){return JSON.parse(JSON.stringify(e))}
 function transformEntity(e,dx,dy,angle=0,base=null){
  const q=cloneEntity(e),b=base||[0,0],co=Math.cos(angle),si=Math.sin(angle);
