@@ -116,6 +116,7 @@ textarea{min-height:64px;resize:vertical}
 
 <script>
 const canvas=document.getElementById("cad"),ctx=canvas.getContext("2d");
+let snapEnabled=false,snapModes={endpoint:true,midpoint:true,center:true,intersection:true,nearest:true,grid:false};
 let entities=[],mode="select",grid=true,selected=-1,selectedSet=new Set(),layers=new Map();
 let view={cx:0,cy:0,scale:1};
 let drag=null,drawPoints=[],previewPoint=null;
@@ -126,6 +127,7 @@ function setStatus(s){$("status").textContent=s}
 function setMode(m){mode=m;drawPoints=[];document.querySelectorAll("[data-mode]").forEach(b=>b.classList.toggle("primary",b.dataset.mode===m));setStatus("ابزار: "+m)}
 function worldToScreen(x,y){const w=canvas.clientWidth,h=canvas.clientHeight;return [w/2+(x-view.cx)*view.scale,h/2-(y-view.cy)*view.scale]}
 function screenToWorld(sx,sy){const w=canvas.clientWidth,h=canvas.clientHeight;return [(sx-w/2)/view.scale+view.cx,(h/2-sy)/view.scale+view.cy]}
+function snapPoint(p){if(!snapEnabled)return p;let best=null,bd=Infinity,limit=18/view.scale;const test=(x,y)=>{const d=Math.hypot(p[0]-x,p[1]-y);if(d<bd&&d<limit){bd=d;best=[x,y]}};for(const e of entities){if(snapModes.endpoint){if(e.type==="LINE"){test(e.x1,e.y1);test(e.x2,e.y2)}else if(e.pts){test(e.pts[0][0],e.pts[0][1]);test(e.pts.at(-1)[0],e.pts.at(-1)[1])}}if(snapModes.midpoint&&e.type==="LINE")test((e.x1+e.x2)/2,(e.y1+e.y2)/2);if(snapModes.center&&(e.type==="CIRCLE"||e.type==="ARC"||e.type==="ELLIPSE"))test(e.x,e.y)}return best||p}
 function layerOf(e){return e.layer||"0"}
 function rebuildLayers(){layers=new Map();for(const e of entities){const n=layerOf(e);if(!layers.has(n))layers.set(n,{visible:true,count:0});layers.get(n).count++}renderLayers()}
 function renderLayers(){const box=$("layerList");if(!box)return;box.innerHTML="";for(const [name,info] of layers){const row=document.createElement("label");row.className="layer-row";row.innerHTML='<input type="checkbox" '+(info.visible?"checked":"")+'><span class="layer-name"></span><span class="layer-count"></span>';row.querySelector(".layer-name").textContent=name;row.querySelector(".layer-count").textContent=info.count;row.querySelector("input").onchange=()=>{info.visible=row.querySelector("input").checked;draw()};box.appendChild(row)}}
@@ -138,7 +140,9 @@ function bounds(){
   if(e.type==="LINE"){add(e.x1,e.y1);add(e.x2,e.y2)}
   else if(e.type==="CIRCLE"||e.type==="POINT"){add(e.x-e.r,e.y-e.r);add(e.x+e.r,e.y+e.r)}
   else if(e.type==="ARC"){add(e.x-e.r,e.y-e.r);add(e.x+e.r,e.y+e.r)}
-  else if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"){e.pts.forEach(p=>add(p[0],p[1]))}
+  else if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"||e.type==="POLYLINE3D"||e.type==="SPLINE"){e.pts.forEach(p=>add(p[0],p[1]))}
+  else if(e.type==="DIMENSION"){add(e.x1,e.y1);add(e.x2,e.y2);add(e.tx,e.ty)}
+  else if(e.type==="HATCH"){add(e.x-1,e.y-1);add(e.x+1,e.y+1)}
   else if(e.type==="TEXT"||e.type==="MTEXT"){add(e.x,e.y)}
   else if(e.type==="ELLIPSE"){add(e.x-e.rx,e.y-e.ry);add(e.x+e.rx,e.y+e.ry)}
  }
@@ -187,13 +191,15 @@ function drawEntityFast(e){
   ctx.beginPath();ctx.arc(c[0],c[1],r,-e.a2*Math.PI/180,-e.a1*Math.PI/180,true);ctx.stroke();
  }else if(e.type==="POINT"){
   const c=worldToScreen(e.x,e.y);ctx.beginPath();ctx.arc(c[0],c[1],3,0,Math.PI*2);ctx.fill();
- }else if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"){
+ }else if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"||e.type==="POLYLINE3D"||e.type==="SPLINE"){
   if(!e.pts.length)return;
   ctx.beginPath();
   for(let j=0;j<e.pts.length;j++){const q=worldToScreen(e.pts[j][0],e.pts[j][1]);j?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])}
   if(e.closed)ctx.closePath();ctx.stroke();
  }else if(e.type==="TEXT"||e.type==="MTEXT"){
   const q=worldToScreen(e.x,e.y);ctx.fillText(e.text||"",q[0],q[1]);
+ }else if(e.type==="DIMENSION"){const a=worldToScreen(e.x1,e.y1),b=worldToScreen(e.x2,e.y2),t=worldToScreen(e.tx,e.ty);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();if(e.text){ctx.font="10px Arial";ctx.fillText(e.text,t[0],t[1])}}
+ }else if(e.type==="HATCH"){const q=worldToScreen(e.x,e.y);ctx.save();ctx.setLineDash([3,3]);ctx.beginPath();ctx.arc(q[0],q[1],5,0,Math.PI*2);ctx.stroke();ctx.restore();
  }else if(e.type==="ELLIPSE"){
   const c=worldToScreen(e.x,e.y),rx=Math.abs(e.rx*view.scale),ry=Math.abs(e.ry*view.scale);
   ctx.save();ctx.translate(c[0],c[1]);ctx.scale(rx||1,ry||1);ctx.beginPath();ctx.arc(0,0,1,0,Math.PI*2);ctx.restore();ctx.stroke();
@@ -251,7 +257,7 @@ $("gridBtn").onclick=()=>{grid=!grid;draw();setStatus(grid?"شبکه روشن ش
 $("newBtn").onclick=()=>{entities=[];selected=-1;selectedSet.clear();rebuildLayers();fit();$("fileInfo").textContent="فایل جدید";setStatus("نقشه جدید ایجاد شد")};
 $("backBtn").onclick=()=>location.href="index.html";
 document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
-canvas.addEventListener("mousemove",e=>{const r=canvas.getBoundingClientRect(),p=screenToWorld(e.clientX-r.left,e.clientY-r.top);$("coord").textContent="X: "+p[0].toFixed(3)+" | Y: "+p[1].toFixed(3);previewPoint=(mode==="line"||mode==="circle"||mode==="polyline")?p:null;if(drag){view.cx=drag.cx-(e.clientX-drag.x)/view.scale;view.cy=drag.cy+(e.clientY-drag.y)/view.scale}draw()});
+canvas.addEventListener("mousemove",e=>{const r=canvas.getBoundingClientRect(),rawP=screenToWorld(e.clientX-r.left,e.clientY-r.top),p=snapPoint(rawP);$("coord").textContent="X: "+p[0].toFixed(3)+" | Y: "+p[1].toFixed(3);previewPoint=(mode==="line"||mode==="circle"||mode==="polyline")?p:null;if(drag){view.cx=drag.cx-(e.clientX-drag.x)/view.scale;view.cy=drag.cy+(e.clientY-drag.y)/view.scale}draw()});
 canvas.addEventListener("mousedown",e=>{if(e.button===1||e.button===2){drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy};e.preventDefault();return}if(e.button!==0)return;const r=canvas.getBoundingClientRect(),p=screenToWorld(e.clientX-r.left,e.clientY-r.top);
  if(mode==="line"){drawPoints.push(p);if(drawPoints.length===2){entities.push({type:"LINE",layer:"0",x1:drawPoints[0][0],y1:drawPoints[0][1],x2:p[0],y2:p[1]});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("خط ایجاد شد")}}
  else if(mode==="circle"){if(!drawPoints.length){drawPoints=[p];setStatus("نقطه دوم را برای شعاع انتخاب کن")}else{const q=drawPoints[0],r=Math.hypot(p[0]-q[0],p[1]-q[1]);entities.push({type:"CIRCLE",layer:"0",x:q[0],y:q[1],r});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("دایره ایجاد شد")}}
@@ -266,7 +272,7 @@ canvas.addEventListener("mousedown",e=>{if(e.button===1||e.button===2){drag={x:e
 canvas.addEventListener("mouseup",()=>drag=null);
 canvas.addEventListener("mouseleave",()=>drag=null);
 canvas.addEventListener("wheel",e=>{e.preventDefault();const r=canvas.getBoundingClientRect(),before=screenToWorld(e.clientX-r.left,e.clientY-r.top),factor=e.deltaY<0?1.15:.87;view.scale=Math.max(.0001,Math.min(1e9,view.scale*factor));const after=screenToWorld(e.clientX-r.left,e.clientY-r.top);view.cx+=before[0]-after[0];view.cy+=before[1]-after[1];draw()},{passive:false});
-function findNearest(p){let best=-1,bd=Infinity;entities.forEach((e,i)=>{let d=Infinity;if(e.type==="POINT"||e.type==="CIRCLE")d=Math.hypot(p[0]-e.x,p[1]-e.y);else if(e.type==="LINE"){d=segDist(p[0],p[1],e.x1,e.y1,e.x2,e.y2)}else if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"){for(let j=1;j<e.pts.length;j++)d=Math.min(d,segDist(p[0],p[1],e.pts[j-1][0],e.pts[j-1][1],e.pts[j][0],e.pts[j][1]));if(e.closed&&e.pts.length>2)d=Math.min(d,segDist(p[0],p[1],e.pts.at(-1)[0],e.pts.at(-1)[1],e.pts[0][0],e.pts[0][1]))}if(d<bd){bd=d;best=i}});return bd<25/view.scale?best:-1}
+function findNearest(p){let best=-1,bd=Infinity;entities.forEach((e,i)=>{let d=Infinity;if(e.type==="POINT"||e.type==="CIRCLE")d=Math.hypot(p[0]-e.x,p[1]-e.y);else if(e.type==="LINE"){d=segDist(p[0],p[1],e.x1,e.y1,e.x2,e.y2)}else if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"||e.type==="POLYLINE3D"||e.type==="SPLINE"){for(let j=1;j<e.pts.length;j++)d=Math.min(d,segDist(p[0],p[1],e.pts[j-1][0],e.pts[j-1][1],e.pts[j][0],e.pts[j][1]));if(e.closed&&e.pts.length>2)d=Math.min(d,segDist(p[0],p[1],e.pts.at(-1)[0],e.pts.at(-1)[1],e.pts[0][0],e.pts[0][1]))}if(d<bd){bd=d;best=i}});return bd<25/view.scale?best:-1}
 function segDist(px,py,x1,y1,x2,y2){const dx=x2-x1,dy=y2-y1;if(!dx&&!dy)return Math.hypot(px-x1,py-y1);let t=((px-x1)*dx+(py-y1)*dy)/(dx*dx+dy*dy);t=Math.max(0,Math.min(1,t));return Math.hypot(px-(x1+t*dx),py-(y1+t*dy))}
 $("aiRun").onclick=()=>{const q=$("aiCommand").value.trim().toLowerCase();if(!q){$("aiResult").textContent="فرمان را وارد کن.";return}if(q.includes("تمام")||q.includes("zoom")||q.includes("fit")){fit();$("aiResult").textContent="نمایش کامل نقشه اجرا شد."}else if(q.includes("شبکه")&&(q.includes("خاموش")||q.includes("off"))){grid=false;draw();$("aiResult").textContent="شبکه خاموش شد."}else if(q.includes("شبکه")){grid=true;draw();$("aiResult").textContent="شبکه روشن شد."}else{$("aiResult").textContent="این فرمان در نسخه پایه هنوز به AI متصل نیست؛ هسته اتصال AI در مرحله بعد اضافه می‌شود."}};
 
