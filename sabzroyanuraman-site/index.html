@@ -324,6 +324,27 @@ body {
     display: flex !important;
 }
 
+/* ابزارهای Web CAD و Web GIS داخل همین صفحه باز می‌شوند و پنل راست ثابت می‌ماند. */
+#embeddedToolViewer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: var(--sidebar-width);
+    bottom: 0;
+    z-index: 900;
+    display: none;
+    background: #fff;
+}
+#embeddedToolViewer.open {
+    display: block;
+}
+#embeddedToolViewer iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+}
+
 .map-menu-item {
     width: 100%;
     min-height: 48px;
@@ -1790,7 +1811,7 @@ body.map-mode .map-wrapper {
                 type="button"
                 class="map-menu-item"
                 id="webCadMenuItem"
-                onclick="window.location.href='web-cad.html';"
+                onclick="openEmbeddedTool('web-cad.html'); return false;"
             >
                 <span class="map-menu-icon" aria-hidden="true">📐</span>
                 <span>Web CAD</span>
@@ -1800,7 +1821,7 @@ body.map-mode .map-wrapper {
                 type="button"
                 class="map-menu-item"
                 id="webGisMenuItem"
-                onclick="window.location.href='web-gis.html';"
+                onclick="openEmbeddedTool('web-gis.html'); return false;"
             >
                 <span class="map-menu-icon" aria-hidden="true">🗺️</span>
                 <span>Web GIS</span>
@@ -10005,5 +10026,20 @@ setTimeout(mdStage2Watch,500);
 setInterval(mdStage3Watch,900);
 setTimeout(mdStage3Watch,700);
 })();
-</script></body>
+</script>
+<div id="embeddedToolViewer" aria-hidden="true">
+    <iframe id="embeddedToolFrame" title="ابزار نقشه"></iframe>
+</div>
+
+<script>
+function openEmbeddedTool(url) {
+    const viewer = document.getElementById('embeddedToolViewer');
+    const frame = document.getElementById('embeddedToolFrame');
+    if (!viewer || !frame) return;
+    frame.src = url;
+    viewer.classList.add('open');
+    viewer.setAttribute('aria-hidden', 'false');
+}
+</script>
+</body>
 </html>
