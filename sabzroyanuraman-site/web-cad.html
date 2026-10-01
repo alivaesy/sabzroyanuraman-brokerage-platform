@@ -49,9 +49,9 @@ textarea{min-height:64px;resize:vertical}
   <div class="menu-wrap"><span class="menu" data-menu="view">View</span><div class="menu-dropdown"><button data-menu-action="fit">Zoom Extents</button><button data-menu-action="grid">Grid</button><button data-menu-action="snap">SNAP</button><button data-menu-action="osnap">OSNAP</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="insert">Insert</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button><button data-menu-action="point">Point</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="format">Format</span><div class="menu-dropdown"><button data-menu-action="newlayer">New Layer</button><button data-menu-action="activelayer">Current Layer</button></div></div>
-  <div class="menu-wrap"><span class="menu" data-menu="tools">Tools</span><div class="menu-dropdown"><button data-menu-action="divide">Divide</button><button data-menu-action="measure">Measure</button><button data-menu-action="snap">Grid SNAP</button><button data-menu-action="osnap">Object OSNAP</button><button data-snap-mode="endpoint">OSNAP Endpoint</button><button data-snap-mode="midpoint">OSNAP Midpoint</button><button data-snap-mode="center">OSNAP Center</button><button data-snap-mode="intersection">OSNAP Intersection</button><button data-snap-mode="nearest">OSNAP Nearest</button><button data-snap-mode="perpendicular">OSNAP Perpendicular</button><button data-snap-mode="quadrant">OSNAP Quadrant</button><button data-snap-mode="tangent">OSNAP Tangent</button></div></div>
-  <div class="menu-wrap"><span class="menu" data-menu="draw">Draw</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button></div></div>
-  <div class="menu-wrap"><span class="menu" data-menu="modify">Modify</span><div class="menu-dropdown"><button data-menu-action="move">Move</button><button data-menu-action="copy">Copy</button><button data-menu-action="offset">Offset</button><button data-menu-action="trim">Trim</button><button data-menu-action="extend">Extend</button><button data-menu-action="rotate">Rotate</button><button data-menu-action="erase">Erase</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="tools">Tools</span><div class="menu-dropdown"><button data-menu-action="snap">Grid SNAP</button><button data-menu-action="osnap">Object OSNAP</button><button data-menu-action="osnap">Object OSNAP</button><button data-snap-mode="endpoint">OSNAP Endpoint</button><button data-snap-mode="midpoint">OSNAP Midpoint</button><button data-snap-mode="center">OSNAP Center</button><button data-snap-mode="intersection">OSNAP Intersection</button><button data-snap-mode="nearest">OSNAP Nearest</button><button data-snap-mode="perpendicular">OSNAP Perpendicular</button><button data-snap-mode="quadrant">OSNAP Quadrant</button><button data-snap-mode="tangent">OSNAP Tangent</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="draw">Draw</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button><button data-menu-action="point">Point</button><button data-menu-action="divide">Divide</button><button data-menu-action="measure">Measure</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="modify">Modify</span><div class="menu-dropdown"><button data-menu-action="move">Move</button><button data-menu-action="copy">Copy</button><button data-menu-action="offset">Offset</button><button data-menu-action="trim">Trim</button><button data-menu-action="extend">Extend</button><button data-menu-action="rotate">Rotate</button><button data-menu-action="break">Break</button><button data-menu-action="erase">Erase</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="window">Window</span><div class="menu-dropdown"><button data-menu-action="model">Model</button><button data-menu-action="layout1">Layout1</button><button data-menu-action="layout2">Layout2</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="help">Help</span><div class="menu-dropdown"><button data-menu-action="help">Help </button><button data-menu-action="about">About Web CAD</button></div></div>
 </div>
@@ -416,6 +416,7 @@ canvas.addEventListener("mousemove",e=>{const r=canvas.getBoundingClientRect();l
 function openEntityContextAt(clientX,clientY){const r=canvas.getBoundingClientRect(),p=screenToWorld(clientX-r.left,clientY-r.top);contextEntityIndex=selectedEntityForContext(p);if(contextEntityIndex<0){closeEntityContext();return false}const e=entities[contextEntityIndex],menu=$("entityContextMenu");$("entityContextCaption").textContent=(e.type||"Object")+"  •  "+(layerOf(e)||"0");menu.style.left=Math.max(4,Math.min(clientX,window.innerWidth-212))+"px";menu.style.top=Math.max(4,Math.min(clientY,window.innerHeight-250))+"px";menu.classList.add("open");return true}
 canvas.addEventListener("mousedown",e=>{if(e.button===1){drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy};e.preventDefault();return}if(e.button===2){e.preventDefault();e.stopPropagation();openEntityContextAt(e.clientX,e.clientY);return}if(e.button!==0)return;const r=canvas.getBoundingClientRect(),rawP=screenToWorld(e.clientX-r.left,e.clientY-r.top),p=snapPoint(rawP);
  if(commandClick(p))return;
+ if(mode==="point"){saveHistory();entities.push({type:"POINT",layer:activeLayer,x:p[0],y:p[1],r:0});rebuildLayers();draw();setStatus("POINT completed");return}
  if(mode==="line"){drawPoints.push(p);if(drawPoints.length===2){saveHistory();entities.push({type:"LINE",layer:activeLayer,x1:drawPoints[0][0],y1:drawPoints[0][1],x2:p[0],y2:p[1]});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("LINE completed")}}
  else if(mode==="circle"){if(!drawPoints.length){drawPoints=[p];setStatus("Specify radius:")}else{const q=drawPoints[0],r=Math.hypot(p[0]-q[0],p[1]-q[1]);saveHistory();entities.push({type:"CIRCLE",layer:activeLayer,x:q[0],y:q[1],r});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("CIRCLE completed")}}
  else if(mode==="point"){saveHistory();entities.push({type:"POINT",layer:activeLayer,x:p[0],y:p[1],r:0});rebuildLayers();draw();setStatus("POINT completed")}
@@ -512,29 +513,82 @@ function addDividePoints(e,count){const L=entityPathLength(e);if(L<=0||count<2)r
 function addMeasurePoints(e,step){const L=entityPathLength(e);if(L<=0||step<=0)return 0;let n=0;for(let d=step;d<L-1e-9;d+=step){const p=pointAtDistance(e,d);if(p){entities.push({type:"POINT",layer:e.layer||activeLayer,x:p[0],y:p[1],r:0});n++}}return n}
 function runPointDivision(cmd){
  const ids=selectedIndices();
- if(ids.length!==1){setStatus(cmd+" — Select one line/polyline/arc/circle first");return}
- const e=entities[ids[0]];
- if(!["LINE","LWPOLYLINE","POLYLINE","POLYLINE3D","SPLINE","CIRCLE","ARC"].includes(e.type)){setStatus(cmd+" — Select a supported object.");return}
+ if(ids.length!==1){
+  setMode("select");
+  commandState={cmd,ids:[],step:"selectPointObject",before:JSON.stringify(entities)};
+  setStatus(cmd+" — Select one line/polyline/arc/circle:");
+  return;
+ }
+ executePointDivision(cmd,ids[0]);
+}
+function executePointDivision(cmd,index){
+ const e=entities[index];
+ if(!e||!["LINE","LWPOLYLINE","POLYLINE","POLYLINE3D","SPLINE","CIRCLE","ARC"].includes(e.type)){setStatus(cmd+" — Select a supported object.");return}
  if(cmd==="DIVIDE"){
   const n=parseInt(prompt("Enter number of segments:","10"),10);
   if(!Number.isFinite(n)||n<2){setStatus("DIVIDE canceled; number of segments must be at least 2.");return}
-  const added=addDividePoints(e,n);rebuildLayers();draw();setStatus("DIVIDE completed — "+added+" POINT completed");
+  saveHistory();const added=addDividePoints(e,n);rebuildLayers();draw();setStatus("DIVIDE completed — "+added+" POINT objects created");
  }else{
   const d=parseFloat(prompt("Specify length:","10"));
   if(!Number.isFinite(d)||d<=0){setStatus("MEASURE canceled; distance must be greater than zero.");return}
-  const added=addMeasurePoints(e,d);rebuildLayers();draw();setStatus("MEASURE completed — "+added+" points at spacing "+d+"  ");
+  saveHistory();const added=addMeasurePoints(e,d);rebuildLayers();draw();setStatus("MEASURE completed — "+added+" POINT objects at spacing "+d);
  }
+}
+function breakLineAtPoints(index,p1,p2){
+ const e=entities[index];
+ if(!e||e.type!=="LINE")return false;
+ const A=[e.x1,e.y1],B=[e.x2,e.y2],dx=B[0]-A[0],dy=B[1]-A[1],len2=dx*dx+dy*dy;
+ if(!len2)return false;
+ const param=p=>((p[0]-A[0])*dx+(p[1]-A[1])*dy)/len2;
+ let t1=Math.max(0,Math.min(1,param(p1))),t2=Math.max(0,Math.min(1,param(p2)));
+ if(Math.abs(t1-t2)<1e-8)return false;
+ if(t1>t2){const t=t1;t1=t2;t2=t}
+ const P1=[A[0]+dx*t1,A[1]+dy*t1],P2=[A[0]+dx*t2,A[1]+dy*t2];
+ const replacements=[];
+ if(t1>1e-8)replacements.push({...cloneEntity(e),x1:A[0],y1:A[1],x2:P1[0],y2:P1[1]});
+ if(t2-t1>1e-8)replacements.push({...cloneEntity(e),x1:P1[0],y1:P1[1],x2:P2[0],y2:P2[1]});
+ if(1-t2>1e-8)replacements.push({...cloneEntity(e),x1:P2[0],y1:P2[1],x2:B[0],y2:B[1]});
+ entities.splice(index,1,...replacements);
+ selectedSet.clear();replacements.forEach((_,k)=>selectedSet.add(index+k));selected=index;
+ return replacements.length>0;
 }
 function finishCommand(msg){const s=commandState;if(s&&s.before){const now=JSON.stringify(entities);if(now!==s.before){history.push(s.before);if(history.length>historyLimit)history.shift()}}commandState=null;setMode("select");rebuildLayers();draw();setStatus(msg)}
 function selectedIndices(){return [...selectedSet].filter(i=>entities[i]&&isLayerVisible(entities[i]))}
 function beginEditCommand(cmd){
  const ids=selectedIndices();
- if(!ids.length){setStatus(cmd+" — Select objects:");return}
- commandState={cmd,ids,step:"base",before:JSON.stringify(entities)};setMode("select");setStatus(cmd+" — Specify base point:")
+ if(!ids.length){setMode("select");commandState={cmd,ids:[],step:"select",before:JSON.stringify(entities)};setStatus(cmd+" — Select objects:");return}
+ commandState={cmd,ids,step:cmd==="BREAK"?"break1":"base",before:JSON.stringify(entities)};setMode("select");
+ setStatus(cmd==="BREAK"?"BREAK — Specify first break point:":cmd+" — Specify base point:")
 }
 function commandClick(p){
  if(!commandState)return false;
  const s=commandState;
+ if(s.step==="select"){
+  const hit=findNearest(p);
+  if(hit<0){setStatus(s.cmd+" — Select objects:");return true}
+  s.ids=[hit];selectedSet.clear();selectedSet.add(hit);selected=hit;s.step=s.cmd==="BREAK"?"break1":"base";
+  setStatus(s.cmd==="BREAK"?"BREAK — Specify first break point:":s.cmd+" — Specify base point:");
+  draw();return true;
+ }
+ if(s.step==="selectPointObject"){
+  const hit=findNearest(p);
+  if(hit<0){setStatus(s.cmd+" — Select one line/polyline/arc/circle:");return true}
+  s.ids=[hit];selectedSet.clear();selectedSet.add(hit);selected=hit;
+  const idx=hit;s.step="execute";
+  executePointDivision(s.cmd,idx);commandState=null;setMode("select");draw();
+  return true;
+ }
+ if(s.step==="break1"){
+  s.break1=p;s.step="break2";setStatus("BREAK — Specify second break point:");return true;
+ }
+ if(s.step==="break2"){
+  if(s.cmd==="BREAK"){
+   const idx=s.ids[0],before=s.before;
+   if(breakLineAtPoints(idx,s.break1,p)){history.push(before);if(history.length>historyLimit)history.shift();finishCommand("BREAK completed")}
+   else finishCommand("BREAK — Select two distinct points on a LINE.");
+  }
+  return true;
+ }
  if(s.step==="base"){s.base=p;s.step="target";setStatus(s.cmd+" — Specify second point or displacement:");return true}
  if(s.step==="target"){
   if(s.cmd==="MOVE"){const dx=p[0]-s.base[0],dy=p[1]-s.base[1];s.ids.forEach(i=>entities[i]=transformEntity(entities[i],dx,dy));finishCommand("MOVE completed")}
@@ -699,13 +753,13 @@ function runMenuAction(a){
   if(a==="select")return setMode("select");
   if(a==="line"||a==="polyline"||a==="circle")return setMode(a);
   if(a==="point"){mode="point";drawPoints=[];setStatus("POINT — Specify point:");return}
-  if(["move","copy","offset","trim","extend","rotate"].includes(a))return beginEditCommand(a.toUpperCase());
+  if(["move","copy","offset","trim","extend","rotate","break"].includes(a))return beginEditCommand(a.toUpperCase());
   if(a==="erase"){const ids=selectedIndices();if(!ids.length)return setStatus("ERASE — Select objects:");saveHistory();entities=entities.filter((_,i)=>!selectedSet.has(i));selectedSet.clear();selected=-1;rebuildLayers();draw();return setStatus("ERASE completed")}
   if(a==="divide")return runPointDivision("DIVIDE");
   if(a==="measure")return runPointDivision("MEASURE");
   if(a==="undo")return undo();
   if(a==="model"||a==="layout1"||a==="layout2"){document.querySelectorAll(".view-tab").forEach(x=>x.classList.toggle("active",x.textContent.trim().toLowerCase()===a));return setStatus(a==="model"?"Model":"Layout active")}
-  if(a==="help")return setStatus("L=LINE | PL=PLINE | C=CIRCLE | M=MOVE | CO=COPY | O=OFFSET | TR=TRIM | EX=EXTEND | RO=ROTATE | E=ERASE | Z=ZOOM | G=GRID | F3=OSNAP | Esc=CANCEL");
+  if(a==="help")return setStatus("L=LINE | PL=PLINE | C=CIRCLE | P=POINT | M=MOVE | CO=COPY | O=OFFSET | TR=TRIM | EX=EXTEND | RO=ROTATE | BR=BREAK | DIV=DIVIDE | ME=MEASURE | E=ERASE | Z=ZOOM | G=GRID | F3=OSNAP | Esc=CANCEL");
   if(a==="about")return setStatus("Web CAD    — extended base version");
 }
 document.querySelectorAll("[data-menu-action]").forEach(btn=>btn.addEventListener("click",e=>{e.stopPropagation();btn.closest(".menu-wrap").classList.remove("open");runMenuAction(btn.dataset.menuAction)}));
@@ -725,6 +779,7 @@ function runCadCommand(raw){
  else if(q==="TR"||q==="TRIM")beginEditCommand("TRIM");
  else if(q==="EX"||q==="EXTEND")beginEditCommand("EXTEND");
  else if(q==="RO"||q==="ROTATE")beginEditCommand("ROTATE");
+ else if(q==="BR"||q==="BREAK")beginEditCommand("BREAK");
  else if(q==="DIVIDE"||q==="DIV")runPointDivision("DIVIDE");
  else if(q==="MEASURE"||q==="ME")runPointDivision("MEASURE");
  else if(q==="Z"||q==="ZOOM"||q==="ZE"||q==="ZOOM E"){fit();}
