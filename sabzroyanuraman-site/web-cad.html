@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>طراحی آنلاین Web CAD | سبز رویان اورامان</title>
+<style>
+@font-face{font-family:Vazirmatn;src:url("/assets/fonts/Vazirmatn-Regular.woff2") format("woff2");font-weight:400}
+@font-face{font-family:Vazirmatn;src:url("/assets/fonts/Vazirmatn-Bold.woff2") format("woff2");font-weight:700}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:Vazirmatn,sans-serif;background:#eef3f2;color:#173b57;overflow:hidden}
+.app{height:100%;display:flex;flex-direction:column}
+.topbar{height:62px;background:#355a78;color:#fff;display:flex;align-items:center;gap:10px;padding:8px 14px;box-shadow:0 2px 10px rgba(0,0,0,.18);z-index:10}
+.brand{font-weight:800;font-size:17px;margin-left:auto}
+.badge{font-size:11px;background:#e7f3ed;color:#086344;border-radius:14px;padding:5px 9px}
+.tool{border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.08);color:#fff;border-radius:7px;padding:7px 10px;font:inherit;font-size:11px;cursor:pointer}
+.tool:hover{background:rgba(255,255,255,.18)}
+.file{display:none}
+.workspace{min-height:0;flex:1;display:flex}
+.canvas-wrap{position:relative;min-width:0;flex:1;background:#fff}
+#cad{width:100%;height:100%;display:block;cursor:crosshair;background:#fff}
+.side{width:315px;background:#fff;border-left:1px solid #cbd8df;display:flex;flex-direction:column;overflow:auto}
+.panel{padding:14px;border-bottom:1px solid #e1e8eb}
+.panel h3{margin:0 0 9px;color:#07573e;font-size:14px}
+.help{font-size:11px;line-height:1.9;color:#526876}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.btn{border:1px solid #c4d0d6;background:#f7fafb;color:#29465c;border-radius:7px;padding:8px;font:inherit;font-size:11px;cursor:pointer}
+.btn:hover{background:#e7f2ed;border-color:#79a892}
+.btn.primary{background:#146c43;color:#fff;border-color:#146c43}
+.btn.danger{color:#a43b32}
+input[type=text],textarea{width:100%;border:1px solid #c9d5da;border-radius:7px;padding:8px;font:inherit;font-size:11px;direction:rtl}
+textarea{min-height:72px;resize:vertical}
+.status{position:absolute;bottom:12px;right:12px;background:rgba(255,255,255,.94);border:1px solid #cbd8df;border-radius:8px;padding:6px 9px;font-size:10px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.coord{position:absolute;bottom:12px;left:12px;background:rgba(255,255,255,.94);border:1px solid #cbd8df;border-radius:8px;padding:6px 9px;font-size:10px;direction:ltr}
+.layer-row{display:flex;align-items:center;gap:7px;font-size:11px;margin:6px 0}
+.layer-dot{width:10px;height:10px;border-radius:50%;background:#146c43}
+.small{font-size:10px;color:#667b88;line-height:1.7}
+@media(max-width:800px){.side{width:260px}.brand{font-size:14px}.tool{padding:6px}}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="topbar">
+  <div class="brand">📐 طراحی آنلاین Web CAD — سبز رویان اورامان</div>
+  <span class="badge">DXF v1</span>
+  <label class="tool" for="dxfFile">📂 باز کردن DXF</label>
+  <input id="dxfFile" class="file" type="file" accept=".dxf,.txt">
+  <button class="tool" id="newBtn">نقشه جدید</button>
+  <button class="tool" id="saveBtn">💾 خروجی DXF</button>
+  <button class="tool" id="fitBtn">⌗ تمام نقشه</button>
+  <button class="tool" id="gridBtn">شبکه</button>
+  <button class="tool" id="backBtn">← نمایش نقشه</button>
+</header>
+<div class="workspace">
+  <div class="canvas-wrap">
+    <canvas id="cad"></canvas>
+    <div id="status" class="status">Web CAD آماده است؛ یک فایل DXF باز کن یا ترسیم را شروع کن.</div>
+    <div id="coord" class="coord">X: — | Y: —</div>
+  </div>
+  <aside class="side">
+    <section class="panel">
+      <h3>ابزار ترسیم</h3>
+      <div class="actions">
+        <button class="btn primary" data-mode="select">انتخاب</button>
+        <button class="btn" data-mode="line">خط</button>
+        <button class="btn" data-mode="polyline">پلی‌لاین</button>
+        <button class="btn" data-mode="circle">دایره</button>
+      </div>
+      <div class="small" style="margin-top:9px">برای خط و دایره روی بوم کلیک کن. برای پایان پلی‌لاین دوبار کلیک کن. چرخ ماوس Zoom و کشیدن با دکمه وسط Pan است.</div>
+    </section>
+    <section class="panel">
+      <h3>لایه</h3>
+      <div class="layer-row"><span class="layer-dot"></span><span>0 — لایه پیش‌فرض</span></div>
+      <div class="small">در نسخه بعدی، مدیریت کامل Layerهای DXF و رنگ/نوع خط اضافه می‌شود.</div>
+    </section>
+    <section class="panel">
+      <h3>دستیار CAD</h3>
+      <div class="small" style="margin-bottom:8px">هسته آماده اتصال به AI است. فعلاً فرمان‌های پایه محلی اجرا می‌شوند.</div>
+      <textarea id="aiCommand" placeholder="مثلاً: تمام نقشه را نمایش بده"></textarea>
+      <button class="btn primary" id="aiRun" style="width:100%;margin-top:7px">اجرای فرمان</button>
+      <div id="aiResult" class="small" style="margin-top:7px"></div>
+    </section>
+    <section class="panel">
+      <h3>وضعیت فایل</h3>
+      <div id="fileInfo" class="small">فایلی بارگذاری نشده است.</div>
+    </section>
+    <section class="panel">
+      <h3>مسیر توسعه</h3>
+      <div class="small">DXF → ویرایش حرفه‌ای → اتصال AI → پشتیبانی DWG با ODA. این نسخه عمداً مستقل از AutoCAD Web است.</div>
+    </section>
+  </aside>
+</div>
+</div>
+
+<script>
+const canvas=document.getElementById("cad"),ctx=canvas.getContext("2d");
+let entities=[],mode="select",grid=true,selected=-1;
+let view={cx:0,cy:0,scale:1};
+let drag=null,drawPoints=[];
+const $=id=>document.getElementById(id);
+function resize(){const r=canvas.getBoundingClientRect(),d=window.devicePixelRatio||1;canvas.width=Math.round(r.width*d);canvas.height=Math.round(r.height*d);ctx.setTransform(d,0,0,d,0,0);draw()}
+window.addEventListener("resize",resize);
+function setStatus(s){$("status").textContent=s}
+function setMode(m){mode=m;drawPoints=[];document.querySelectorAll("[data-mode]").forEach(b=>b.classList.toggle("primary",b.dataset.mode===m));setStatus("ابزار: "+m)}
+function worldToScreen(x,y){const w=canvas.clientWidth,h=canvas.clientHeight;return [w/2+(x-view.cx)*view.scale,h/2-(y-view.cy)*view.scale]}
+function screenToWorld(sx,sy){const w=canvas.clientWidth,h=canvas.clientHeight;return [(sx-w/2)/view.scale+view.cx,(h/2-sy)/view.scale+view.cy]}
+function bounds(){
+ if(!entities.length)return null;
+ let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+ const add=(x,y)=>{minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y)};
+ for(const e of entities){
+  if(e.type==="LINE"){add(e.x1,e.y1);add(e.x2,e.y2)}
+  else if(e.type==="CIRCLE"||e.type==="POINT"){add(e.x-e.r,e.y-e.r);add(e.x+e.r,e.y+e.r)}
+  else if(e.type==="ARC"){add(e.x-e.r,e.y-e.r);add(e.x+e.r,e.y+e.r)}
+  else if(e.type==="LWPOLYLINE"){e.pts.forEach(p=>add(p[0],p[1]))}
+ }
+ return {minX,minY,maxX,maxY};
+}
+function fit(){const b=bounds();if(!b){view={cx:0,cy:0,scale:1};draw();return}view.cx=(b.minX+b.maxX)/2;view.cy=(b.minY+b.maxY)/2;const bw=Math.max(1,b.maxX-b.minX),bh=Math.max(1,b.maxY-b.minY);view.scale=Math.max(.05,Math.min((canvas.clientWidth-80)/bw,(canvas.clientHeight-80)/bh));draw();setStatus("نمایش کامل نقشه")}
+function drawGrid(){
+ if(!grid)return;
+ const step=niceStep(70/view.scale);const tl=screenToWorld(0,0),br=screenToWorld(canvas.clientWidth,canvas.clientHeight);
+ ctx.save();ctx.strokeStyle="#e7edef";ctx.lineWidth=1;
+ for(let x=Math.floor(tl[0]/step)*step;x<=br[0];x+=step){const a=worldToScreen(x,tl[1]),b=worldToScreen(x,br[1]);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()}
+ for(let y=Math.floor(br[1]/step)*step;y<=tl[1];y+=step){const a=worldToScreen(tl[0],y),b=worldToScreen(br[0],y);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()}
+ ctx.restore()
+}
+function niceStep(v){const p=Math.pow(10,Math.floor(Math.log10(v)));const n=v/p;return (n<2?1:n<5?2:5)*p}
+function draw(){
+ ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);ctx.fillStyle="#fff";ctx.fillRect(0,0,canvas.clientWidth,canvas.clientHeight);drawGrid();
+ entities.forEach((e,i)=>drawEntity(e,i===selected));
+ if(drawPoints.length){ctx.save();ctx.fillStyle="#d35400";drawPoints.forEach(p=>{const s=worldToScreen(p[0],p[1]);ctx.beginPath();ctx.arc(s[0],s[1],4,0,Math.PI*2);ctx.fill()});ctx.restore()}
+}
+function drawEntity(e,sel){
+ ctx.save();ctx.strokeStyle=sel?"#d35400":"#146c43";ctx.fillStyle=sel?"#d35400":"#146c43";ctx.lineWidth=sel?3:1.5;
+ if(e.type==="LINE"){const a=worldToScreen(e.x1,e.y1),b=worldToScreen(e.x2,e.y2);ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke()}
+ else if(e.type==="CIRCLE"){const c=worldToScreen(e.x,e.y);ctx.beginPath();ctx.arc(c[0],c[1],Math.abs(e.r*view.scale),0,Math.PI*2);ctx.stroke()}
+ else if(e.type==="ARC"){const c=worldToScreen(e.x,e.y);ctx.beginPath();ctx.arc(c[0],c[1],Math.abs(e.r*view.scale),-e.a2*Math.PI/180,-e.a1*Math.PI/180,true);ctx.stroke()}
+ else if(e.type==="POINT"){const c=worldToScreen(e.x,e.y);ctx.beginPath();ctx.arc(c[0],c[1],3,0,Math.PI*2);ctx.fill()}
+ else if(e.type==="LWPOLYLINE"){ctx.beginPath();e.pts.forEach((p,j)=>{const s=worldToScreen(p[0],p[1]);j?ctx.lineTo(...s):ctx.moveTo(...s)});if(e.closed)ctx.closePath();ctx.stroke()}
+ ctx.restore()
+}
+function parseDXF(text){
+ const lines=text.replace(/\r/g,"").split("\n").map(x=>x.trimEnd()),out=[];let i=0;
+ const val=(map,c)=>{const a=map[c];return a===undefined?undefined:Number(a)};
+ while(i<lines.length-1){
+  const code=lines[i].trim(),value=lines[i+1].trim();i+=2;
+  if(code!=="0")continue;
+  const type=value.toUpperCase();if(type==="EOF")break;
+  const m={};const pts=[];
+  while(i<lines.length-1 && lines[i].trim()!=="0"){const c=lines[i].trim(),v=lines[i+1].trim();i+=2;if(c==="10"||c==="11"||c==="20"||c==="21"||c==="40"||c==="50"||c==="51"||c==="70")m[c]=v;else if(c==="10"&&type==="LWPOLYLINE")pts.push([Number(v),0]);}
+  if(type==="LINE"&&m[10]!=null&&m[20]!=null&&m[11]!=null&&m[21]!=null)out.push({type:"LINE",x1:+m[10],y1:+m[20],x2:+m[11],y2:+m[21]});
+  else if(type==="CIRCLE"&&m[10]!=null&&m[20]!=null&&m[40]!=null)out.push({type:"CIRCLE",x:+m[10],y:+m[20],r:+m[40]});
+  else if(type==="ARC"&&m[10]!=null&&m[20]!=null&&m[40]!=null)out.push({type:"ARC",x:+m[10],y:+m[20],r:+m[40],a1:+(m[50]||0),a2:+(m[51]||360)});
+  else if(type==="POINT"&&m[10]!=null&&m[20]!=null)out.push({type:"POINT",x:+m[10],y:+m[20],r:0});
+ }
+ return out
+}
+function dxfText(){
+ let s="0\nSECTION\n2\nHEADER\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n";
+ for(const e of entities){
+  if(e.type==="LINE")s+=`0\nLINE\n8\n0\n10\n${e.x1}\n20\n${e.y1}\n11\n${e.x2}\n21\n${e.y2}\n`;
+  else if(e.type==="CIRCLE")s+=`0\nCIRCLE\n8\n0\n10\n${e.x}\n20\n${e.y}\n40\n${e.r}\n`;
+  else if(e.type==="LWPOLYLINE"){s+=`0\nLWPOLYLINE\n8\n0\n90\n${e.pts.length}\n70\n${e.closed?1:0}\n`;e.pts.forEach(p=>s+=`10\n${p[0]}\n20\n${p[1]}\n`)}
+ }
+ return s+"0\nENDSEC\n0\nEOF\n"
+}
+function download(text,name,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+$("dxfFile").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const t=await f.text();entities=parseDXF(t);selected=-1;fit();$("fileInfo").textContent=f.name+" — "+entities.length+" عارضه";setStatus("DXF بارگذاری شد: "+entities.length+" عارضه")}catch(err){setStatus("خطا در خواندن DXF: "+err.message)}};
+$("saveBtn").onclick=()=>{download(dxfText(),"sabz-royan-web-cad.dxf","application/dxf");setStatus("فایل DXF ذخیره شد")};
+$("fitBtn").onclick=fit;
+$("gridBtn").onclick=()=>{grid=!grid;draw();setStatus(grid?"شبکه روشن شد":"شبکه خاموش شد")};
+$("newBtn").onclick=()=>{entities=[];selected=-1;fit();$("fileInfo").textContent="فایل جدید";setStatus("نقشه جدید ایجاد شد")};
+$("backBtn").onclick=()=>location.href="index.html";
+document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+canvas.addEventListener("mousemove",e=>{const r=canvas.getBoundingClientRect(),p=screenToWorld(e.clientX-r.left,e.clientY-r.top);$("coord").textContent="X: "+p[0].toFixed(3)+" | Y: "+p[1].toFixed(3);if(drag){view.cx=drag.cx-(e.clientX-drag.x)/view.scale;view.cy=drag.cy+(e.clientY-drag.y)/view.scale;draw()}});
+canvas.addEventListener("mousedown",e=>{if(e.button===1||e.button===2){drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy};e.preventDefault();return}if(e.button!==0)return;const r=canvas.getBoundingClientRect(),p=screenToWorld(e.clientX-r.left,e.clientY-r.top);
+ if(mode==="line"){drawPoints.push(p);if(drawPoints.length===2){entities.push({type:"LINE",x1:drawPoints[0][0],y1:drawPoints[0][1],x2:p[0],y2:p[1]});drawPoints=[];draw();setStatus("خط ایجاد شد")}}
+ else if(mode==="circle"){if(!drawPoints.length){drawPoints=[p];setStatus("نقطه دوم را برای شعاع انتخاب کن")}else{const q=drawPoints[0],r=Math.hypot(p[0]-q[0],p[1]-q[1]);entities.push({type:"CIRCLE",x:q[0],y:q[1],r});drawPoints=[];draw();setStatus("دایره ایجاد شد")}}
+ else if(mode==="polyline"){if(e.detail===2){if(drawPoints.length>=2)entities.push({type:"LWPOLYLINE",pts:drawPoints.slice(),closed:false});drawPoints=[];draw();setStatus("پلی‌لاین پایان یافت")}else{drawPoints.push(p);draw()}}
+ else {selected=findNearest(p);draw();setStatus(selected>=0?"عارضه انتخاب شد":"هیچ عارضه‌ای در محدوده انتخاب نبود")}
+});
+canvas.addEventListener("mouseup",()=>drag=null);
+canvas.addEventListener("mouseleave",()=>drag=null);
+canvas.addEventListener("wheel",e=>{e.preventDefault();const r=canvas.getBoundingClientRect(),before=screenToWorld(e.clientX-r.left,e.clientY-r.top),factor=e.deltaY<0?1.15:.87;view.scale=Math.max(.0001,Math.min(1e9,view.scale*factor));const after=screenToWorld(e.clientX-r.left,e.clientY-r.top);view.cx+=before[0]-after[0];view.cy+=before[1]-after[1];draw()},{passive:false});
+function findNearest(p){let best=-1,bd=Infinity;entities.forEach((e,i)=>{let d=Infinity;if(e.type==="POINT"||e.type==="CIRCLE")d=Math.hypot(p[0]-e.x,p[1]-e.y);else if(e.type==="LINE"){d=segDist(p[0],p[1],e.x1,e.y1,e.x2,e.y2)}else if(e.type==="LWPOLYLINE"){for(let j=1;j<e.pts.length;j++)d=Math.min(d,segDist(p[0],p[1],e.pts[j-1][0],e.pts[j-1][1],e.pts[j][0],e.pts[j][1]))}if(d<bd){bd=d;best=i}});return bd<25/view.scale?best:-1}
+function segDist(px,py,x1,y1,x2,y2){const dx=x2-x1,dy=y2-y1;if(!dx&&!dy)return Math.hypot(px-x1,py-y1);let t=((px-x1)*dx+(py-y1)*dy)/(dx*dx+dy*dy);t=Math.max(0,Math.min(1,t));return Math.hypot(px-(x1+t*dx),py-(y1+t*dy))}
+$("aiRun").onclick=()=>{const q=$("aiCommand").value.trim().toLowerCase();if(!q){$("aiResult").textContent="فرمان را وارد کن.";return}if(q.includes("تمام")||q.includes("zoom")||q.includes("fit")){fit();$("aiResult").textContent="نمایش کامل نقشه اجرا شد."}else if(q.includes("شبکه")&&(q.includes("خاموش")||q.includes("off"))){grid=false;draw();$("aiResult").textContent="شبکه خاموش شد."}else if(q.includes("شبکه")){grid=true;draw();$("aiResult").textContent="شبکه روشن شد."}else{$("aiResult").textContent="این فرمان در نسخه پایه هنوز به AI متصل نیست؛ هسته اتصال AI در مرحله بعد اضافه می‌شود."}};
+resize();fit();
+</script>
+</body>
+</html>
