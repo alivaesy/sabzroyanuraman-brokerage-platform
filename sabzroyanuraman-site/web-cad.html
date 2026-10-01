@@ -118,7 +118,7 @@ textarea{min-height:64px;resize:vertical}
 const canvas=document.getElementById("cad"),ctx=canvas.getContext("2d");
 let entities=[],mode="select",grid=true,selected=-1,selectedSet=new Set(),layers=new Map();
 let view={cx:0,cy:0,scale:1};
-let drag=null,drawPoints=[];
+let drag=null,drawPoints=[],previewPoint=null;
 const $=id=>document.getElementById(id);
 function resize(){const r=canvas.getBoundingClientRect(),d=window.devicePixelRatio||1;canvas.width=Math.round(r.width*d);canvas.height=Math.round(r.height*d);ctx.setTransform(d,0,0,d,0,0);draw()}
 window.addEventListener("resize",resize);
@@ -165,6 +165,12 @@ function draw(){
  for(const e of picked) if(isLayerVisible(e)) drawEntityFast(e);
  ctx.restore();
  if(drawPoints.length){
+  ctx.save();ctx.strokeStyle="#4fc3f7";ctx.fillStyle="#4fc3f7";ctx.lineWidth=1.35;ctx.setLineDash([5,4]);
+  for(let j=1;j<drawPoints.length;j++){const a=worldToScreen(drawPoints[j-1][0],drawPoints[j-1][1]),b=worldToScreen(drawPoints[j][0],drawPoints[j][1]);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()}
+  for(const p of drawPoints){const q=worldToScreen(p[0],p[1]);ctx.setLineDash([]);ctx.beginPath();ctx.arc(q[0],q[1],3,0,Math.PI*2);ctx.fill();ctx.setLineDash([5,4])}
+  if(previewPoint){const last=drawPoints[drawPoints.length-1],a=worldToScreen(last[0],last[1]),b=worldToScreen(previewPoint[0],previewPoint[1]);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()}
+  ctx.restore();
+ }
   ctx.save();ctx.fillStyle="#d35400";
   for(const p of drawPoints){const q=worldToScreen(p[0],p[1]);ctx.beginPath();ctx.arc(q[0],q[1],4,0,Math.PI*2);ctx.fill()}
   ctx.restore();
@@ -260,11 +266,11 @@ $("gridBtn").onclick=()=>{grid=!grid;draw();setStatus(grid?"شبکه روشن ش
 $("newBtn").onclick=()=>{entities=[];selected=-1;selectedSet.clear();rebuildLayers();fit();$("fileInfo").textContent="فایل جدید";setStatus("نقشه جدید ایجاد شد")};
 $("backBtn").onclick=()=>location.href="index.html";
 document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
-canvas.addEventListener("mousemove",e=>{const r=canvas.getBoundingClientRect(),p=screenToWorld(e.clientX-r.left,e.clientY-r.top);$("coord").textContent="X: "+p[0].toFixed(3)+" | Y: "+p[1].toFixed(3);if(drag){view.cx=drag.cx-(e.clientX-drag.x)/view.scale;view.cy=drag.cy+(e.clientY-drag.y)/view.scale;draw()}});
+canvas.addEventListener("mousemove",e=>{const r=canvas.getBoundingClientRect(),p=screenToWorld(e.clientX-r.left,e.clientY-r.top);$("coord").textContent="X: "+p[0].toFixed(3)+" | Y: "+p[1].toFixed(3);previewPoint=(mode==="line"||mode==="circle"||mode==="polyline")?p:null;if(drag){view.cx=drag.cx-(e.clientX-drag.x)/view.scale;view.cy=drag.cy+(e.clientY-drag.y)/view.scale}draw()});
 canvas.addEventListener("mousedown",e=>{if(e.button===1||e.button===2){drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy};e.preventDefault();return}if(e.button!==0)return;const r=canvas.getBoundingClientRect(),p=screenToWorld(e.clientX-r.left,e.clientY-r.top);
- if(mode==="line"){drawPoints.push(p);if(drawPoints.length===2){entities.push({type:"LINE",x1:drawPoints[0][0],y1:drawPoints[0][1],x2:p[0],y2:p[1]});drawPoints=[];draw();setStatus("خط ایجاد شد")}}
- else if(mode==="circle"){if(!drawPoints.length){drawPoints=[p];setStatus("نقطه دوم را برای شعاع انتخاب کن")}else{const q=drawPoints[0],r=Math.hypot(p[0]-q[0],p[1]-q[1]);entities.push({type:"CIRCLE",x:q[0],y:q[1],r});drawPoints=[];draw();setStatus("دایره ایجاد شد")}}
- else if(mode==="polyline"){if(e.detail===2){if(drawPoints.length>=2)entities.push({type:"LWPOLYLINE",pts:drawPoints.slice(),closed:false});drawPoints=[];draw();setStatus("پلی‌لاین پایان یافت")}else{drawPoints.push(p);draw()}}
+ if(mode==="line"){drawPoints.push(p);if(drawPoints.length===2){entities.push({type:"LINE",layer:"0",x1:drawPoints[0][0],y1:drawPoints[0][1],x2:p[0],y2:p[1]});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("خط ایجاد شد")}}
+ else if(mode==="circle"){if(!drawPoints.length){drawPoints=[p];setStatus("نقطه دوم را برای شعاع انتخاب کن")}else{const q=drawPoints[0],r=Math.hypot(p[0]-q[0],p[1]-q[1]);entities.push({type:"CIRCLE",layer:"0",x:q[0],y:q[1],r});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("دایره ایجاد شد")}}
+ else if(mode==="polyline"){if(e.detail===2){if(drawPoints.length>=2)entities.push({type:"LWPOLYLINE",layer:"0",pts:drawPoints.slice(),closed:false});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("پلی‌لاین پایان یافت")}else{drawPoints.push(p);draw()}}
  else {
   const hit=findNearest(p);
   if(e.ctrlKey&&hit>=0){selectedSet.has(hit)?selectedSet.delete(hit):selectedSet.add(hit);selected=hit}
