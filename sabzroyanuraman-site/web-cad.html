@@ -181,29 +181,15 @@ function draw(){
  }
 }
 function drawEntityFast(e){
- if(e.type==="LINE"){
-  const a=worldToScreen(e.x1,e.y1),b=worldToScreen(e.x2,e.y2);
-  ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();
- }else if(e.type==="CIRCLE"){
-  const c=worldToScreen(e.x,e.y);ctx.beginPath();ctx.arc(c[0],c[1],Math.abs(e.r*view.scale),0,Math.PI*2);ctx.stroke();
- }else if(e.type==="ARC"){
-  const c=worldToScreen(e.x,e.y),r=Math.abs(e.r*view.scale);
-  ctx.beginPath();ctx.arc(c[0],c[1],r,-e.a2*Math.PI/180,-e.a1*Math.PI/180,true);ctx.stroke();
- }else if(e.type==="POINT"){
-  const c=worldToScreen(e.x,e.y);ctx.beginPath();ctx.arc(c[0],c[1],3,0,Math.PI*2);ctx.fill();
- }else if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"||e.type==="POLYLINE3D"||e.type==="SPLINE"){
-  if(!e.pts.length)return;
-  ctx.beginPath();
-  for(let j=0;j<e.pts.length;j++){const q=worldToScreen(e.pts[j][0],e.pts[j][1]);j?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])}
-  if(e.closed)ctx.closePath();ctx.stroke();
- }else if(e.type==="TEXT"||e.type==="MTEXT"){
-  const q=worldToScreen(e.x,e.y);ctx.fillText(e.text||"",q[0],q[1]);
- }else if(e.type==="DIMENSION"){const a=worldToScreen(e.x1,e.y1),b=worldToScreen(e.x2,e.y2),t=worldToScreen(e.tx,e.ty);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();if(e.text){ctx.font="10px Arial";ctx.fillText(e.text,t[0],t[1])}}
- }else if(e.type==="HATCH"){const q=worldToScreen(e.x,e.y);ctx.save();ctx.setLineDash([3,3]);ctx.beginPath();ctx.arc(q[0],q[1],5,0,Math.PI*2);ctx.stroke();ctx.restore();
- }else if(e.type==="ELLIPSE"){
-  const c=worldToScreen(e.x,e.y),rx=Math.abs(e.rx*view.scale),ry=Math.abs(e.ry*view.scale);
-  ctx.save();ctx.translate(c[0],c[1]);ctx.scale(rx||1,ry||1);ctx.beginPath();ctx.arc(0,0,1,0,Math.PI*2);ctx.restore();ctx.stroke();
- }
+ if(e.type==="LINE"){const a=worldToScreen(e.x1,e.y1),b=worldToScreen(e.x2,e.y2);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()}
+ else if(e.type==="CIRCLE"){const q=worldToScreen(e.x,e.y);ctx.beginPath();ctx.arc(q[0],q[1],Math.abs(e.r*view.scale),0,Math.PI*2);ctx.stroke()}
+ else if(e.type==="ARC"){const q=worldToScreen(e.x,e.y),r=Math.abs(e.r*view.scale);ctx.beginPath();ctx.arc(q[0],q[1],r,-e.a2*Math.PI/180,-e.a1*Math.PI/180,true);ctx.stroke()}
+ else if(e.type==="POINT"){const q=worldToScreen(e.x,e.y);ctx.beginPath();ctx.arc(q[0],q[1],3,0,Math.PI*2);ctx.fill()}
+ else if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"||e.type==="POLYLINE3D"||e.type==="SPLINE"){if(!e.pts.length)return;ctx.beginPath();for(let j=0;j<e.pts.length;j++){const q=worldToScreen(e.pts[j][0],e.pts[j][1]);j?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])}if(e.closed)ctx.closePath();ctx.stroke()}
+ else if(e.type==="TEXT"||e.type==="MTEXT"){const q=worldToScreen(e.x,e.y);ctx.fillText(e.text||"",q[0],q[1])}
+ else if(e.type==="DIMENSION"){const a=worldToScreen(e.x1,e.y1),b=worldToScreen(e.x2,e.y2),t=worldToScreen(e.tx,e.ty);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();if(e.text){ctx.font="10px Arial";ctx.fillText(e.text,t[0],t[1])}}
+ else if(e.type==="HATCH"){const q=worldToScreen(e.x,e.y);ctx.save();ctx.setLineDash([3,3]);ctx.beginPath();ctx.arc(q[0],q[1],5,0,Math.PI*2);ctx.stroke();ctx.restore()}
+ else if(e.type==="ELLIPSE"){const q=worldToScreen(e.x,e.y),rx=Math.abs(e.rx*view.scale),ry=Math.abs(e.ry*view.scale);ctx.save();ctx.translate(q[0],q[1]);ctx.scale(rx||1,ry||1);ctx.beginPath();ctx.arc(0,0,1,0,Math.PI*2);ctx.restore();ctx.stroke()}
 }
 function parseDXF(text){
  const raw=text.replace(/^\uFEFF/,"").replace(/\r/g,"").split("\n"),pairs=[];for(let i=0;i+1<raw.length;i+=2)pairs.push([raw[i].trim(),raw[i+1].trim()]);
