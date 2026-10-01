@@ -50,7 +50,7 @@ textarea{min-height:64px;resize:vertical}
   <div class="menu-wrap"><span class="menu" data-menu="view">View</span><div class="menu-dropdown"><button data-menu-action="fit">Zoom Extents</button><button data-menu-action="grid">Grid</button><button data-menu-action="snap">SNAP</button><button data-menu-action="osnap">OSNAP</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="insert">Insert</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button><button data-menu-action="point">Point</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="format">Format</span><div class="menu-dropdown"><button data-menu-action="layerproperties">Layer Properties</button><button data-menu-action="newlayer">New Layer</button><button data-menu-action="activelayer">Current Layer</button></div></div>
-  <div class="menu-wrap"><span class="menu" data-menu="tools">Tools</span><div class="menu-dropdown"><button data-menu-action="snap">Grid SNAP</button><button data-menu-action="osnap">Object OSNAP</button><button data-snap-mode="endpoint">OSNAP Endpoint</button><button data-snap-mode="midpoint">OSNAP Midpoint</button><button data-snap-mode="center">OSNAP Center</button><button data-snap-mode="intersection">OSNAP Intersection</button><button data-snap-mode="nearest">OSNAP Nearest</button><button data-snap-mode="perpendicular">OSNAP Perpendicular</button><button data-snap-mode="quadrant">OSNAP Quadrant</button><button data-snap-mode="tangent">OSNAP Tangent</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="tools">Tools</span><div class="menu-dropdown"><button data-menu-action="snap">Grid SNAP</button><button data-menu-action="osnap">Object OSNAP</button><button data-snap-mode="endpoint">OSNAP Endpoint</button><button data-snap-mode="midpoint">OSNAP Midpoint</button><button data-snap-mode="center">OSNAP Center</button><button data-snap-mode="intersection">OSNAP Intersection</button><button data-snap-mode="nearest">OSNAP Nearest</button><button data-snap-mode="perpendicular">OSNAP Perpendicular</button><button data-snap-mode="quadrant">OSNAP Quadrant</button><button data-snap-mode="tangent">OSNAP Tangent</button><button data-menu-action="distance">Distance (DIST)</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="draw">Draw</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button><button data-menu-action="point">Point</button><button data-menu-action="xline">Construction Line (XLINE)</button><button data-menu-action="ray">Ray (RAY)</button><button data-menu-action="divide">Divide</button><button data-menu-action="measure">Measure</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="modify">Modify</span><div class="menu-dropdown"><button data-menu-action="move">Move</button><button data-menu-action="copy">Copy</button><button data-menu-action="offset">Offset</button><button data-menu-action="trim">Trim</button><button data-menu-action="extend">Extend</button><button data-menu-action="rotate">Rotate</button><button data-menu-action="break">Break</button><button data-menu-action="closepoly">Close Polyline</button><button data-menu-action="editvertex">Edit Vertex</button><button data-menu-action="erase">Erase</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="window">Window</span><div class="menu-dropdown"><button data-menu-action="model">Model</button><button data-menu-action="layout1">Layout1</button><button data-menu-action="layout2">Layout2</button></div></div>
@@ -110,7 +110,7 @@ textarea{min-height:64px;resize:vertical}
     <section id="entityProperties" class="panel entity-properties-palette"><div class="entity-properties-head"><span id="entityPropertiesTitle">Properties</span><button class="entity-properties-close" id="entityPropertiesClose" title="Close Properties">×</button></div><div class="entity-properties-body"><div id="entityPropertiesBody"></div></div><div class="entity-properties-foot"><button id="entityPropertiesDone">Close</button></div></section>
   </aside>
 </div>
-<div id="layerProperties" class="layer-properties"><div class="layer-properties-card"><div class="layer-properties-head"><span id="layerPropertiesTitle">Layer Properties</span><button class="layer-properties-close" id="layerPropertiesClose">×</button></div><div class="layer-properties-body"><div id="layerPropertiesBody"></div></div><div class="layer-properties-foot"><button id="layerPropertiesSetCurrent">Make Current</button><button id="layerPropertiesHide">On / Off</button><button id="layerPropertiesDone">Close</button></div></div></div><div id="entityContextMenu" class="entity-context-menu"><div class="context-caption" id="entityContextCaption">Object</div><button id="entityPropertiesAction">Properties</button><div class="context-separator"></div><button id="entityRepeatAction">Repeat Last Command</button><button id="entitySetLayerAction">Make Current</button><button id="entityMoveAction">Move</button><button id="entityCopyAction">Copy</button><button id="entityRotateAction">Rotate</button><div class="context-separator"></div><button id="entityEraseAction" class="danger">Erase</button></div><div class="bottom-bar"><div class="command-label">Command:</div><input id="commandInput" class="command-input" autocomplete="off" placeholder="LINE, PLINE, CIRCLE, ZOOM..."><div class="view-tabs"><div class="view-tab active">Model</div><div class="view-tab">Layout1</div><div class="view-tab">Layout2</div></div><div class="statusbar"><span class="status-item active" id="orthoStatus">ORT</span><span class="status-item" id="snapStatus">SNAP</span><span class="status-item" id="gridStatus">GRID</span><span class="status-item active" id="osnapStatus">OSNAP</span><span class="status-item">LWT</span><span class="status-item">MODEL</span><span class="status-spacer"></span><span class="status-item">UTM 38N</span><span class="status-item" id="statusScale">1:1</span></div></div>
+<div id="layerProperties" class="layer-properties"><div class="layer-properties-card"><div class="layer-properties-head"><span id="layerPropertiesTitle">Layer Properties</span><button class="layer-properties-close" id="layerPropertiesClose">×</button></div><div class="layer-properties-body"><div id="layerPropertiesBody"></div></div><div class="layer-properties-foot"><button id="layerPropertiesSetCurrent">Make Current</button><button id="layerPropertiesHide">On / Off</button><button id="layerPropertiesDone">Close</button></div></div></div><div id="entityContextMenu" class="entity-context-menu"><div class="context-caption" id="entityContextCaption">Object</div><button id="entityPropertiesAction">Properties</button><div class="context-separator"></div><button id="entityRepeatAction">Repeat Last Command</button><button id="entitySetLayerAction">Make Current</button><button id="entityMoveAction">Move</button><button id="entityCopyAction">Copy</button><button id="entityRotateAction">Rotate</button><div class="context-separator"></div><button id="entityEraseAction" class="danger">Erase</button></div><div class="bottom-bar"><div class="command-label">Command:</div><input id="commandInput" class="command-input" autocomplete="off" placeholder="LINE, PLINE, CIRCLE, DIST, ZOOM..."><div class="view-tabs"><div class="view-tab active">Model</div><div class="view-tab">Layout1</div><div class="view-tab">Layout2</div></div><div class="statusbar"><span class="status-item active" id="orthoStatus">ORT</span><span class="status-item" id="snapStatus">SNAP</span><span class="status-item" id="gridStatus">GRID</span><span class="status-item active" id="osnapStatus">OSNAP</span><span class="status-item">LWT</span><span class="status-item">MODEL</span><span class="status-spacer"></span><span class="status-item">UTM 38N</span><span class="status-item" id="statusScale">1:1</span></div></div>
 </div>
 
 <script>
@@ -621,6 +621,21 @@ function commandClick(p){
   return false;
  }
  const s=commandState;
+ if(s.cmd==="DIST"&&s.step==="dist1"){
+  s.p1=p;s.step="dist2";
+  setStatus("DIST — Specify second point:");
+  return true;
+ }
+ if(s.cmd==="DIST"&&s.step==="dist2"){
+  const dx=p[0]-s.p1[0],dy=p[1]-s.p1[1];
+  const distance=Math.hypot(dx,dy);
+  let angle=Math.atan2(dy,dx)*180/Math.PI;
+  if(angle<0)angle+=360;
+  const fmt=v=>Number(v).toFixed(4).replace(/.?0+$/,"");
+  setStatus("Distance = "+fmt(distance)+"   Angle = "+fmt(angle)+"°   ΔX = "+fmt(dx)+"   ΔY = "+fmt(dy));
+  s.p1=null;s.step="dist1";
+  return true;
+ }
  if(s.step==="vertex"){
   const e=entities[s.ids[0]];if(e&&e.pts&&e.pts[s.vertexIndex]){e.pts[s.vertexIndex]=p;finishCommand("PEDIT — Vertex moved");}else{commandState=null;setMode("select");}
   return true;
@@ -816,6 +831,7 @@ function runMenuAction(a){
   if(a==="grid")return $("gridBtn").click();
   if(a==="snap")return $("snapStatus").click();
   if(a==="osnap")return $("osnapStatus").click();
+  if(a==="distance")return runCadCommand("DIST");
   if(a==="layerproperties"){const name=activeLayer||layers.keys().next().value;if(name)showLayerProperties(name);return}
   if(a==="newlayer")return $("newLayerBtn").click();
   if(a==="activelayer")return $("activeLayerBtn").click();
@@ -838,7 +854,7 @@ function runMenuAction(a){
   if(a==="measure")return runPointDivision("MEASURE");
   if(a==="undo")return undo();
   if(a==="model"||a==="layout1"||a==="layout2"){document.querySelectorAll(".view-tab").forEach(x=>x.classList.toggle("active",x.textContent.trim().toLowerCase()===a));return setStatus(a==="model"?"Model":"Layout active")}
-  if(a==="help")return setStatus("L=LINE | PL=PLINE | C=CIRCLE | P=POINT | M=MOVE | CO=COPY | O=OFFSET | TR=TRIM | EX=EXTEND | RO=ROTATE | BR=BREAK | DIV=DIVIDE | ME=MEASURE | E=ERASE | Z=ZOOM | G=GRID | F3=OSNAP | Esc=CANCEL");
+  if(a==="help")return setStatus("L=LINE | PL=PLINE | C=CIRCLE | P=POINT | M=MOVE | CO=COPY | O=OFFSET | TR=TRIM | EX=EXTEND | RO=ROTATE | BR=BREAK | DIV=DIVIDE | ME=MEASURE | DI=DIST | E=ERASE | Z=ZOOM | G=GRID | F3=OSNAP | Esc=CANCEL");
   if(a==="about")return setStatus("Web CAD    — extended base version");
 }
 document.querySelectorAll("[data-menu-action]").forEach(btn=>btn.addEventListener("click",e=>{e.stopPropagation();btn.closest(".menu-wrap").classList.remove("open");runMenuAction(btn.dataset.menuAction)}));
@@ -871,6 +887,7 @@ function runCadCommand(raw){
  else if(q==="EX"||q==="EXTEND")beginEditCommand("EXTEND");
  else if(q==="RO"||q==="ROTATE")beginEditCommand("ROTATE");
  else if(q==="BR"||q==="BREAK")beginEditCommand("BREAK");
+ else if(q==="DIST"||q==="DI"||q==="DISTANCE"){commandState={cmd:"DIST",step:"dist1",p1:null};setMode("select");setStatus("DIST — Specify first point:");}
  else if(q==="DIVIDE"||q==="DIV")runPointDivision("DIVIDE");
  else if(q==="MEASURE"||q==="ME")runPointDivision("MEASURE");
  else if(q==="Z"||q==="ZOOM"||q==="ZE"||q==="ZOOM E"){fit();}
