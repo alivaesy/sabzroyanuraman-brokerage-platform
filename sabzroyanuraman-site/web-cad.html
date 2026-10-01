@@ -125,6 +125,9 @@ const canvas=document.getElementById("cad"),ctx=canvas.getContext("2d");
 let orthoEnabled=true;
 let snapEnabled=true,gridSnapEnabled=false,snapModes={endpoint:true,midpoint:true,center:true,intersection:true,nearest:true,grid:true};
 let entities=[],mode="select",grid=true,selected=-1,selectedSet=new Set(),layers=new Map(),activeLayer="0";
+let history=[],historyLimit=30;
+function saveHistory(){history.push(JSON.stringify(entities));if(history.length>historyLimit)history.shift()}
+function undo(){if(!history.length){setStatus("Undo — سابقه‌ای برای بازگشت وجود ندارد");return}entities=JSON.parse(history.pop());selectedSet.clear();selected=-1;commandState=null;drawPoints=[];previewPoint=null;rebuildLayers();fit();setStatus("Undo انجام شد")}
 let commandState=null;
 let view={cx:0,cy:0,scale:1};
 let drag=null,drawPoints=[],previewPoint=null,selectionBox=null;
@@ -280,10 +283,10 @@ document.querySelectorAll("[data-cmd]").forEach(b=>b.onclick=()=>beginEditComman
 canvas.addEventListener("mousemove",e=>{const r=canvas.getBoundingClientRect();let rawP=screenToWorld(e.clientX-r.left,e.clientY-r.top);if(orthoEnabled&&drawPoints.length&&(mode==="line"||mode==="polyline")){const b=drawPoints[drawPoints.length-1],dx=rawP[0]-b[0],dy=rawP[1]-b[1];if(Math.abs(dx)>=Math.abs(dy))rawP=[rawP[0],b[1]];else rawP=[b[0],rawP[1]]}const p=snapPoint(rawP);$("coord").textContent="X: "+p[0].toFixed(3)+" | Y: "+p[1].toFixed(3);previewPoint=(mode==="line"||mode==="circle"||mode==="polyline")?p:null;if(drag){view.cx=drag.cx-(e.clientX-drag.x)/view.scale;view.cy=drag.cy+(e.clientY-drag.y)/view.scale}else if(selectionBox&&mode==="select"){selectionBox.x2=p[0];selectionBox.y2=p[1];selectionBox.crossing=p[0]<selectionBox.x1;draw()};draw()});
 canvas.addEventListener("mousedown",e=>{if(e.button===1||e.button===2){drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy};e.preventDefault();return}if(e.button!==0)return;const r=canvas.getBoundingClientRect(),rawP=screenToWorld(e.clientX-r.left,e.clientY-r.top),p=snapPoint(rawP);
  if(commandClick(p))return;
- if(mode==="line"){drawPoints.push(p);if(drawPoints.length===2){entities.push({type:"LINE",layer:activeLayer,x1:drawPoints[0][0],y1:drawPoints[0][1],x2:p[0],y2:p[1]});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("خط ایجاد شد")}}
- else if(mode==="circle"){if(!drawPoints.length){drawPoints=[p];setStatus("نقطه دوم را برای شعاع انتخاب کن")}else{const q=drawPoints[0],r=Math.hypot(p[0]-q[0],p[1]-q[1]);entities.push({type:"CIRCLE",layer:activeLayer,x:q[0],y:q[1],r});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("دایره ایجاد شد")}}
- else if(mode==="point"){entities.push({type:"POINT",layer:activeLayer,x:p[0],y:p[1],r:0});rebuildLayers();draw();setStatus("نقطه ایجاد شد")}
- else if(mode==="polyline"){if(e.detail===2){if(drawPoints.length>=2)entities.push({type:"LWPOLYLINE",layer:activeLayer,pts:drawPoints.slice(),closed:false});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("پلی‌لاین پایان یافت")}else{drawPoints.push(p);draw()}}
+ if(mode==="line"){drawPoints.push(p);if(drawPoints.length===2){saveHistory();entities.push({type:"LINE",layer:activeLayer,x1:drawPoints[0][0],y1:drawPoints[0][1],x2:p[0],y2:p[1]});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("خط ایجاد شد")}}
+ else if(mode==="circle"){if(!drawPoints.length){drawPoints=[p];setStatus("نقطه دوم را برای شعاع انتخاب کن")}else{const q=drawPoints[0],r=Math.hypot(p[0]-q[0],p[1]-q[1]);saveHistory();entities.push({type:"CIRCLE",layer:activeLayer,x:q[0],y:q[1],r});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("دایره ایجاد شد")}}
+ else if(mode==="point"){saveHistory();entities.push({type:"POINT",layer:activeLayer,x:p[0],y:p[1],r:0});rebuildLayers();draw();setStatus("نقطه ایجاد شد")}
+ else if(mode==="polyline"){if(e.detail===2){if(drawPoints.length>=2){saveHistory();entities.push({type:"LWPOLYLINE",layer:activeLayer,pts:drawPoints.slice(),closed:false});}drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("پلی‌لاین پایان یافت")}else{drawPoints.push(p);draw()}}
  else {
   if(mode==="select"){selectionBox={x1:p[0],y1:p[1],x2:p[0],y2:p[1],crossing:false};draw();return}
   const hit=findNearest(p);
@@ -346,12 +349,12 @@ function runPointDivision(cmd){
   const added=addMeasurePoints(e,d);rebuildLayers();draw();setStatus("MEASURE انجام شد — "+added+" نقطه با فاصله "+d+" ایجاد شد");
  }
 }
-function finishCommand(msg){commandState=null;setMode("select");rebuildLayers();draw();setStatus(msg)}
+function finishCommand(msg){const s=commandState;if(s&&s.before){const now=JSON.stringify(entities);if(now!==s.before){history.push(s.before);if(history.length>historyLimit)history.shift()}}commandState=null;setMode("select");rebuildLayers();draw();setStatus(msg)}
 function selectedIndices(){return [...selectedSet].filter(i=>entities[i]&&isLayerVisible(entities[i]))}
 function beginEditCommand(cmd){
  const ids=selectedIndices();
  if(!ids.length){setStatus(cmd+" — ابتدا عارضه را انتخاب کن");return}
- commandState={cmd,ids,step:"base"};setMode("select");setStatus(cmd+" — نقطه مبنا را انتخاب کن")
+ commandState={cmd,ids,step:"base",before:JSON.stringify(entities)};setMode("select");setStatus(cmd+" — نقطه مبنا را انتخاب کن")
 }
 function commandClick(p){
  if(!commandState)return false;
@@ -363,12 +366,85 @@ function commandClick(p){
   else if(s.cmd==="ROTATE"){const a=Math.atan2(p[1]-s.base[1],p[0]-s.base[0]);s.ids.forEach(i=>entities[i]=transformEntity(entities[i],0,0,a,s.base));finishCommand("ROTATE انجام شد")}
   else if(s.cmd==="OFFSET"){const d=Math.hypot(p[0]-s.base[0],p[1]-s.base[1]),side=(p[0]-s.base[0])+(p[1]-s.base[1])>=0?1:-1;for(const i of s.ids){const e=entities[i];if(e.type==="LINE"){const dx=e.x2-e.x1,dy=e.y2-e.y1,L=Math.hypot(dx,dy)||1,nx=-dy/L*d*side,ny=dx/L*d*side;entities.push({...cloneEntity(e),x1:e.x1+nx,y1:e.y1+ny,x2:e.x2+nx,y2:e.y2+ny})}else if(e.type==="CIRCLE"){const rr=Math.max(.000001,e.r+d*side);entities.push({...cloneEntity(e),r:rr})}else if(e.pts){const q=cloneEntity(e);q.pts=q.pts.map(v=>[v[0]+(p[0]-s.base[0]),v[1]+(p[1]-s.base[1])]);entities.push(q)}}finishCommand("OFFSET انجام شد")}
   else if(s.cmd==="ERASE"){const targets=s.ids.slice().sort((a,b)=>b-a);targets.forEach(i=>entities.splice(i,1));selectedSet.clear();selected=-1;finishCommand("ERASE انجام شد")}
-  else if(s.cmd==="TRIM"){const target=findNearest(p);if(target>=0&&s.ids.includes(target)){entities.splice(target,1);selectedSet.clear();finishCommand("TRIM — عارضه حذف/Trim شد")}else finishCommand("TRIM: عارضه انتخاب‌شده قابل Trim نبود")}
-  else if(s.cmd==="EXTEND"){finishCommand("EXTEND: نقطه مقصد ثبت شد؛ نسخه فعلی فقط انتخاب/ویرایش پایه را انجام می‌دهد")}
+  else if(s.cmd==="TRIM"){
+    const target=findNearest(p);
+    if(target<0){finishCommand("TRIM — عارضه‌ای نزدیک نقطه انتخاب نشد");return true}
+    const changed=trimEntityAt(target,p,s.ids);
+    if(changed){selectedSet.clear();selectedSet.add(target);finishCommand("TRIM انجام شد")}
+    else finishCommand("TRIM — این عارضه نسبت به برش‌های انتخاب‌شده قابل Trim نبود")
+  }
+  else if(s.cmd==="EXTEND"){
+    const target=findNearest(p);
+    if(target<0){finishCommand("EXTEND — عارضه‌ای نزدیک نقطه انتخاب نشد");return true}
+    const changed=extendEntityAt(target,p,s.ids);
+    if(changed){selectedSet.clear();selectedSet.add(target);finishCommand("EXTEND انجام شد")}
+    else finishCommand("EXTEND — امتداد به مرز انتخاب‌شده ممکن نبود")
+  }
   return true;
  }
  return false;
 }
+function lineIntersection(a,b,c,d){
+ const den=(a[0]-b[0])*(c[1]-d[1])-(a[1]-b[1])*(c[0]-d[0]);
+ if(Math.abs(den)<1e-12)return null;
+ const t=((a[0]-c[0])*(c[1]-d[1])-(a[1]-c[1])*(c[0]-d[0]))/den;
+ const u=-((a[0]-b[0])*(a[1]-c[1])-(a[1]-b[1])*(a[0]-c[0]))/den;
+ return {p:[a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1])],t,u};
+}
+function boundarySegments(e){
+ const out=[];
+ if(e.type==="LINE")out.push([[e.x1,e.y1],[e.x2,e.y2]]);
+ else if(e.pts)for(let i=1;i<e.pts.length;i++)out.push([e.pts[i-1],e.pts[i]]);
+ if(e.closed&&e.pts&&e.pts.length>2)out.push([e.pts[e.pts.length-1],e.pts[0]]);
+ return out;
+}
+function trimLineAtPoint(target,p,cuts){
+ const e=entities[target];if(e.type!=="LINE")return false;
+ const A=[e.x1,e.y1],B=[e.x2,e.y2],dx=B[0]-A[0],dy=B[1]-A[1],den=dx*dx+dy*dy;if(!den)return false;
+ const ints=[];
+ cuts.forEach(i=>{if(i===target)return;for(const s of boundarySegments(entities[i])){const q=lineIntersection(A,B,s[0],s[1]);if(q&&q.t>1e-7&&q.t<1-1e-7&&q.u>=-1e-7&&q.u<=1+1e-7)ints.push(q.t)}});
+ if(!ints.length)return false;
+ const t=Math.max(0,Math.min(1,((p[0]-A[0])*dx+(p[1]-A[1])*dy)/den));
+ const cut=ints.reduce((best,v)=>Math.abs(v-t)<Math.abs(best-t)?v:best,ints[0]);
+ if(t<cut){e.x2=A[0]+dx*cut;e.y2=A[1]+dy*cut}else{e.x1=A[0]+dx*cut;e.y1=A[1]+dy*cut}
+ return Math.hypot(e.x2-e.x1,e.y2-e.y1)>1e-9;
+}
+function trimEntityAt(target,p,cuts){
+ const e=entities[target];
+ if(e.type==="LINE")return trimLineAtPoint(target,p,cuts);
+ if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"||e.type==="POLYLINE3D"){
+  let best=null;
+  for(let k=1;k<e.pts.length;k++){
+   const A=e.pts[k-1],B=e.pts[k],dx=B[0]-A[0],dy=B[1]-A[1],den=dx*dx+dy*dy;if(!den)continue;
+   const ints=[];
+   cuts.forEach(i=>{if(i===target)return;for(const s of boundarySegments(entities[i])){const q=lineIntersection(A,B,s[0],s[1]);if(q&&q.t>1e-7&&q.t<1-1e-7&&q.u>=-1e-7&&q.u<=1+1e-7)ints.push(q.t)}});
+   if(!ints.length)continue;
+   const t=Math.max(0,Math.min(1,((p[0]-A[0])*dx+(p[1]-A[1])*dy)/den));
+   const cut=ints.reduce((z,v)=>Math.abs(v-t)<Math.abs(z-t)?v:z,ints[0]),d=Math.abs(t-cut);
+   if(!best||d<best.d)best={k,A,B,cut,t,d};
+  }
+  if(!best)return false;
+  const {k,A,B,cut,t}=best,pt=[A[0]+(B[0]-A[0])*cut,A[1]+(B[1]-A[1])*cut];
+  if(t<cut)e.pts=e.pts.slice(0,k+1).concat([pt]);else e.pts=[pt].concat(e.pts.slice(k));
+  return e.pts.length>=2;
+ }
+ return false;
+}
+function extendLineAtPoint(target,p,cuts){
+ const e=entities[target];if(e.type!=="LINE")return false;
+ const A=[e.x1,e.y1],B=[e.x2,e.y2],dx=B[0]-A[0],dy=B[1]-A[1],len2=dx*dx+dy*dy;if(!len2)return false;
+ const candidates=[];
+ cuts.forEach(i=>{if(i===target)return;for(const s of boundarySegments(entities[i])){const q=lineIntersection(A,B,s[0],s[1]);if(q&&q.u>=-1e-7&&q.u<=1+1e-7)candidates.push(q.p)}});
+ if(!candidates.length)return false;
+ const nearStart=Math.hypot(p[0]-A[0],p[1]-A[1])<=Math.hypot(p[0]-B[0],p[1]-B[1]);
+ const base=nearStart?A:B,other=nearStart?B:A,ox=other[0]-base[0],oy=other[1]-base[1];
+ let best=null,bestT=Infinity;
+ for(const q of candidates){const t=((q[0]-base[0])*ox+(q[1]-base[1])*oy)/len2;if(t>1+1e-9&&t<bestT){bestT=t;best=q}}
+ if(!best)return false;
+ if(nearStart){e.x1=best[0];e.y1=best[1]}else{e.x2=best[0];e.y2=best[1]}
+ return true;
+}
+function extendEntityAt(target,p,cuts){return entities[target]?.type==="LINE"?extendLineAtPoint(target,p,cuts):false}
 function entityBounds(e){let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;const add=(x,y)=>{minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y)};if(e.type==="LINE"){add(e.x1,e.y1);add(e.x2,e.y2)}else if(e.type==="CIRCLE"||e.type==="ARC"||e.type==="POINT"){add(e.x-e.r,e.y-e.r);add(e.x+e.r,e.y+e.r)}else if(e.pts&&e.pts.length)e.pts.forEach(p=>add(p[0],p[1]));else if(e.type==="ELLIPSE"){add(e.x-e.rx,e.y-e.ry);add(e.x+e.rx,e.y+e.ry)}else if(e.type==="TEXT"||e.type==="MTEXT"||e.type==="HATCH"){add(e.x,e.y)}else if(e.type==="DIMENSION"){add(e.x1,e.y1);add(e.x2,e.y2);add(e.tx,e.ty)}return isFinite(minX)?{minX,minY,maxX,maxY}:null}
 function findNearest(p){let best=-1,bd=Infinity;entities.forEach((e,i)=>{let d=Infinity;if(e.type==="POINT"||e.type==="CIRCLE")d=Math.hypot(p[0]-e.x,p[1]-e.y);else if(e.type==="LINE"){d=segDist(p[0],p[1],e.x1,e.y1,e.x2,e.y2)}else if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"||e.type==="POLYLINE3D"||e.type==="SPLINE"){for(let j=1;j<e.pts.length;j++)d=Math.min(d,segDist(p[0],p[1],e.pts[j-1][0],e.pts[j-1][1],e.pts[j][0],e.pts[j][1]));if(e.closed&&e.pts.length>2)d=Math.min(d,segDist(p[0],p[1],e.pts.at(-1)[0],e.pts.at(-1)[1],e.pts[0][0],e.pts[0][1]))}if(d<bd){bd=d;best=i}});return bd<25/view.scale?best:-1}
 function segDist(px,py,x1,y1,x2,y2){const dx=x2-x1,dy=y2-y1;if(!dx&&!dy)return Math.hypot(px-x1,py-y1);let t=((px-x1)*dx+(py-y1)*dy)/(dx*dx+dy*dy);t=Math.max(0,Math.min(1,t));return Math.hypot(px-(x1+t*dx),py-(y1+t*dy))}
@@ -397,10 +473,10 @@ function runMenuAction(a){
   if(a==="line"||a==="polyline"||a==="circle")return setMode(a);
   if(a==="point"){mode="point";drawPoints=[];setStatus("POINT — برای درج نقطه کلیک کن");return}
   if(["move","copy","offset","trim","extend","rotate"].includes(a))return beginEditCommand(a.toUpperCase());
-  if(a==="erase"){const ids=selectedIndices();if(!ids.length)return setStatus("ERASE — ابتدا عارضه را انتخاب کن");entities=entities.filter((_,i)=>!selectedSet.has(i));selectedSet.clear();selected=-1;rebuildLayers();draw();return setStatus("ERASE انجام شد")}
+  if(a==="erase"){const ids=selectedIndices();if(!ids.length)return setStatus("ERASE — ابتدا عارضه را انتخاب کن");saveHistory();entities=entities.filter((_,i)=>!selectedSet.has(i));selectedSet.clear();selected=-1;rebuildLayers();draw();return setStatus("ERASE انجام شد")}
   if(a==="divide")return runPointDivision("DIVIDE");
   if(a==="measure")return runPointDivision("MEASURE");
-  if(a==="undo")return setStatus("Undo در نسخه فعلی هنوز پیاده‌سازی نشده است");
+  if(a==="undo")return undo();
   if(a==="model"||a==="layout1"||a==="layout2"){document.querySelectorAll(".view-tab").forEach(x=>x.classList.toggle("active",x.textContent.trim().toLowerCase()===a));return setStatus(a==="model"?"Model فعال شد":"این Layout فعلاً نمای کاری است")}
   if(a==="help")return setStatus("L=Line | P=Polyline | C=Circle | M=Move | CO=Copy | O=Offset | TR=Trim | EX=Extend | RO=Rotate | E=Erase | Z=Zoom | G=Grid | Esc=لغو");
   if(a==="about")return setStatus("Web CAD سبز رویان اورامان — نسخه پایه توسعه‌یافته");
@@ -414,7 +490,7 @@ function runCadCommand(raw){
  if(q==="L"||q==="LINE"){setMode("line");setStatus("LINE — Specify first point");}
  else if(q==="PL"||q==="PLINE"){setMode("polyline");setStatus("PLINE — Specify first point");}
  else if(q==="C"||q==="CIRCLE"){setMode("circle");setStatus("CIRCLE — Specify center point");}
- else if(q==="E"||q==="ERASE"){const ids=selectedIndices();if(ids.length){entities=entities.filter((_,i)=>!selectedSet.has(i));selectedSet.clear();selected=-1;rebuildLayers();draw();setStatus("ERASE انجام شد")}else setStatus("ERASE — ابتدا عارضه را انتخاب کن");}
+ else if(q==="E"||q==="ERASE"){const ids=selectedIndices();if(ids.length){saveHistory();entities=entities.filter((_,i)=>!selectedSet.has(i));selectedSet.clear();selected=-1;rebuildLayers();draw();setStatus("ERASE انجام شد")}else setStatus("ERASE — ابتدا عارضه را انتخاب کن");}
  else if(q==="M"||q==="MOVE")beginEditCommand("MOVE");
  else if(q==="CO"||q==="COPY")beginEditCommand("COPY");
  else if(q==="O"||q==="OFFSET")beginEditCommand("OFFSET");
@@ -433,6 +509,7 @@ commandInput.addEventListener("keydown",e=>{if(e.key==="Enter"){runCadCommand(co
 window.addEventListener("keydown",e=>{
  if(e.target===commandInput||e.target.tagName==="TEXTAREA"||e.target.tagName==="INPUT")return;
  if(e.key==="Escape"){runCadCommand("ESC");return}
+ if((e.ctrlKey||e.metaKey)&&k==="Z"){undo();e.preventDefault();return}
  const k=e.key.toUpperCase();
  if(k==="L"){setMode("line");e.preventDefault()}
  else if(k==="C"){setMode("circle");e.preventDefault()}
