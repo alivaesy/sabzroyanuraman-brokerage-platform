@@ -52,7 +52,7 @@ textarea{min-height:64px;resize:vertical}
   <div class="menu-wrap"><span class="menu" data-menu="format">Format</span><div class="menu-dropdown"><button data-menu-action="layerproperties">Layer Properties</button><button data-menu-action="newlayer">New Layer</button><button data-menu-action="activelayer">Current Layer</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="tools">Tools</span><div class="menu-dropdown"><button data-menu-action="snap">Grid SNAP</button><button data-menu-action="osnap">Object OSNAP</button><button data-snap-mode="endpoint">OSNAP Endpoint</button><button data-snap-mode="midpoint">OSNAP Midpoint</button><button data-snap-mode="center">OSNAP Center</button><button data-snap-mode="intersection">OSNAP Intersection</button><button data-snap-mode="nearest">OSNAP Nearest</button><button data-snap-mode="perpendicular">OSNAP Perpendicular</button><button data-snap-mode="quadrant">OSNAP Quadrant</button><button data-snap-mode="tangent">OSNAP Tangent</button><button data-menu-action="distance">Distance (DIST)</button><button data-menu-action="area">Area</button><button data-menu-action="id">ID</button><button data-menu-action="list">List</button><button data-menu-action="qselect">Quick Select</button><button data-menu-action="units">Units</button><button data-menu-action="dsettings">Drafting Settings</button><button data-menu-action="ucs">UCS</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="draw">Draw</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button><button data-menu-action="point">Point</button><button data-menu-action="xline">Construction Line (XLINE)</button><button data-menu-action="ray">Ray (RAY)</button><button data-menu-action="divide">Divide</button><button data-menu-action="measure">Measure</button></div></div>
-  <div class="menu-wrap"><span class="menu" data-menu="modify">Modify</span><div class="menu-dropdown"><button data-menu-action="move">Move</button><button data-menu-action="copy">Copy</button><button data-menu-action="offset">Offset</button><button data-menu-action="trim">Trim</button><button data-menu-action="extend">Extend</button><button data-menu-action="rotate">Rotate</button><button data-menu-action="break">Break</button><button data-menu-action="join">Join</button><button data-menu-action="mirror">Mirror</button><button data-menu-action="scale">Scale</button><button data-menu-action="fillet">Fillet</button><button data-menu-action="chamfer">Chamfer</button><button data-menu-action="closepoly">Close Polyline</button><button data-menu-action="editvertex">Edit Vertex</button><button data-menu-action="erase">Erase</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="modify">Modify</span><div class="menu-dropdown"><button data-menu-action="move">Move</button><button data-menu-action="copy">Copy</button><button data-menu-action="offset">Offset</button><button data-menu-action="trim">Trim</button><button data-menu-action="extend">Extend</button><button data-menu-action="rotate">Rotate</button><button data-menu-action="break">Break</button><button data-menu-action="join">Join</button><button data-menu-action="pedit">PEDIT</button><button data-menu-action="matchprop">Match Properties</button><button data-menu-action="mirror">Mirror</button><button data-menu-action="scale">Scale</button><button data-menu-action="fillet">Fillet</button><button data-menu-action="chamfer">Chamfer</button><button data-menu-action="closepoly">Close Polyline</button><button data-menu-action="editvertex">Edit Vertex</button><button data-menu-action="erase">Erase</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="window">Window</span><div class="menu-dropdown"><button data-menu-action="model">Model</button><button data-menu-action="layout1">Layout1</button><button data-menu-action="layout2">Layout2</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="help">Help</span><div class="menu-dropdown"><button data-menu-action="help">Help </button><button data-menu-action="about">About Web CAD</button></div></div>
 </div>
@@ -478,7 +478,7 @@ function showEntityProperties(index){
  const rows=[];const add=(label,value)=>rows.push('<div class="layer-prop-label">'+label+'</div><div class="layer-prop-value">'+value+'</div>');
  const fmt=n=>Number.isFinite(Number(n))?Number(n).toFixed(3):"—";const coord=(x,y)=>"X "+fmt(x)+" | Y "+fmt(y);
  rows.push('<div class="entity-prop-section">General</div>');
- add("Type",e.type);add("Layer",layerOf(e));add("Color","ByLayer");add("Linetype","ByLayer");add("Lineweight","ByLayer");add("Index",String(index+1));
+ add("Type",e.type);add("Layer",'<select class="entity-layer-editor" data-entity-index="'+index+'">'+[...layers.keys()].map(n=>'<option'+(n===layerOf(e)?' selected':'')+'>'+n.replace(/&/g,"&amp;").replace(/</g,"&lt;")+"</option>").join("")+"</select>");add("Color","ByLayer");add("Linetype","ByLayer");add("Lineweight","ByLayer");add("Index",String(index+1));
  rows.push('<div class="entity-prop-section">Geometry</div>');
  if(e.type==="XLINE"||e.type==="RAY"){add("Base point",coord(e.x,e.y));add("Direction","X "+fmt(e.dx)+" | Y "+fmt(e.dy));add("Length",e.type==="XLINE"?"Infinite":"Infinite");}
  else if(e.type==="LINE"){add("Start point",coord(e.x1,e.y1));add("End point",coord(e.x2,e.y2));add("Length",fmt(entityPathLength(e)));add("Angle",(Math.atan2(e.y2-e.y1,e.x2-e.x1)*180/Math.PI).toFixed(3)+"°");}
@@ -491,7 +491,7 @@ function showEntityProperties(index){
  else if(e.type==="DIMENSION"){add("Point 1",coord(e.x1,e.y1));add("Point 2",coord(e.x2,e.y2));add("Text position",coord(e.tx,e.ty));add("Text",String(e.text||"—"));}
  const b=entityBounds(e);rows.push('<div class="entity-prop-section">Extents</div>');if(b){add("Min X",fmt(b.minX));add("Min Y",fmt(b.minY));add("Max X",fmt(b.maxX));add("Max Y",fmt(b.maxY));}else add("Bounds","—");
  rows.push('<div class="entity-prop-note">Properties uses AutoCAD-style categories. Color, Linetype, and Lineweight are ByLayer.</div>');
- $("entityPropertiesTitle").textContent="Properties — "+e.type+" ["+(index+1)+"]";$("entityPropertiesBody").innerHTML='<div class="layer-prop-grid">'+rows.join("")+'</div>';$("entityProperties").classList.add("open");$("entityPropertiesBody").scrollTop=0;
+ $("entityPropertiesTitle").textContent="Properties — "+e.type+" ["+(index+1)+"]";$("entityPropertiesBody").innerHTML='<div class="layer-prop-grid">'+rows.join("")+'</div>';$("entityProperties").classList.add("open");$("entityPropertiesBody").scrollTop=0;const layerEditor=$("entityPropertiesBody").querySelector(".entity-layer-editor");if(layerEditor)layerEditor.onchange=ev=>{const idx=Number(ev.target.dataset.entityIndex),name=ev.target.value;if(!entities[idx])return;saveHistory();entities[idx].layer=name;rebuildLayers();draw();showEntityProperties(idx);setStatus("Layer changed to "+name)};
 }
 function closeEntityProperties(){$("entityProperties").classList.remove("open")}
 let contextEntityIndex=-1;
@@ -589,7 +589,9 @@ function breakLineAtPoints(index,p1,p2){
  selectedSet.clear();replacements.forEach((_,k)=>selectedSet.add(index+k));selected=index;
  return replacements.length>0;
 }
-function finishCommand(msg){const s=commandState;if(s&&s.before){const now=JSON.stringify(entities);if(now!==s.before){history.push(s.before);if(history.length>historyLimit)history.shift()}}commandState=null;setMode("select");rebuildLayers();draw();setStatus(msg)}
+function finishCommand(msg){const s=commandState;
+ if(s.cmd==="MATCHPROP"&&s.step==="source"){const i=findNearest(p);if(i<0){setStatus("MATCHPROP — Select source object:");return true}s.source=i;s.step="target";selectedSet.clear();selectedSet.add(i);selected=i;setStatus("MATCHPROP — Select target objects:");draw();return true;}
+ if(s.cmd==="MATCHPROP"&&s.step==="target"){const i=findNearest(p);if(i<0){setStatus("MATCHPROP — Select target objects:");return true}if(i!==s.source){saveHistory();applyEntityProperties(entities[s.source],entities[i]);selectedSet.clear();selectedSet.add(i);selected=i;draw();setStatus("MATCHPROP — Properties applied. Select another target or press Enter.");}return true;}if(s&&s.before){const now=JSON.stringify(entities);if(now!==s.before){history.push(s.before);if(history.length>historyLimit)history.shift()}}commandState=null;setMode("select");rebuildLayers();draw();setStatus(msg)}
 function selectedIndices(){return [...selectedSet].filter(i=>entities[i]&&isLayerVisible(entities[i]))}
 function beginEditCommand(cmd){
  const ids=selectedIndices();
@@ -973,6 +975,8 @@ function runMenuAction(a){
   if(a==="qselect")return runQSelectCommand();
   if(a==="rectang")return runRectangCommand();
   if(a==="join")return runJoinCommand();
+  if(a==="pedit")return runPeditCommand();
+  if(a==="matchprop")return runMatchPropCommand();
   if(a==="mirror")return runTransformCommand("MIRROR");
   if(a==="scale")return runTransformCommand("SCALE");
   if(a==="fillet")return runFilletChamfer("FILLET");
@@ -990,7 +994,6 @@ function runMenuAction(a){
  if(a==="xline")return startInfiniteCommand("XLINE");
  if(a==="ray")return startInfiniteCommand("RAY");
  if(a==="closepoly")return closeSelectedPolyline();
- if(a==="editvertex"){setStatus("PEDIT — Select a polyline, then use vertex/midpoint grips.");return;}
   if(a==="line"||a==="polyline"||a==="circle")return setMode(a);
  if(a==="point"){mode="point";drawPoints=[];return setStatus("POINT — Specify point");}
  if(a==="xline")return startInfiniteCommand("XLINE");
@@ -1004,13 +1007,38 @@ function runMenuAction(a){
   if(a==="measure")return runPointDivision("MEASURE");
   if(a==="undo")return undo();
   if(a==="model"||a==="layout1"||a==="layout2"){document.querySelectorAll(".view-tab").forEach(x=>x.classList.toggle("active",x.textContent.trim().toLowerCase()===a));return setStatus(a==="model"?"Model":"Layout active")}
-  if(a==="help")return setStatus("L=LINE | PL=PLINE | C=CIRCLE | P=POINT | M=MOVE | CO=COPY | O=OFFSET | TR=TRIM | EX=EXTEND | RO=ROTATE | BR=BREAK | DIV=DIVIDE | ME=MEASURE | DI=DIST | AA=AREA | ID=ID | LI=LIST | QS=QSELECT | REC=RECTANG | J=JOIN | MI=MIRROR | SC=SCALE | F=FILLET | CHA=CHAMFER | PU=PURGE | AUDIT | UN=UNITS | DS=DSETTINGS | UCS | E=ERASE | Z=ZOOM | G=GRID | F3=OSNAP | Esc=CANCEL");
+  if(a==="help")return setStatus("L=LINE | PL=PLINE | C=CIRCLE | P=POINT | M=MOVE | CO=COPY | O=OFFSET | TR=TRIM | EX=EXTEND | RO=ROTATE | BR=BREAK | DIV=DIVIDE | ME=MEASURE | DI=DIST | AA=AREA | ID=ID | LI=LIST | QS=QSELECT | REC=RECTANG | J=JOIN | PE=PEDIT | MA=MATCHPROP | MI=MIRROR | SC=SCALE | F=FILLET | CHA=CHAMFER | PU=PURGE | AUDIT | UN=UNITS | DS=DSETTINGS | UCS | E=ERASE | Z=ZOOM | G=GRID | F3=OSNAP | Esc=CANCEL");
   if(a==="about")return setStatus("Web CAD    — extended base version");
 }
 document.querySelectorAll("[data-menu-action]").forEach(btn=>btn.addEventListener("click",e=>{e.stopPropagation();btn.closest(".menu-wrap").classList.remove("open");runMenuAction(btn.dataset.menuAction)}));
 document.querySelectorAll("[data-snap-mode]").forEach(btn=>{btn.addEventListener("click",e=>{e.stopPropagation();const key=btn.dataset.snapMode;snapModes[key]=!snapModes[key];btn.classList.toggle("active",snapModes[key]);setStatus("OSNAP "+key+" "+(snapModes[key]?"ON":"OFF")+" ");});});
 
 const commandInput=$("commandInput");
+function runPeditCommand(){
+ const ids=selectedIndices();
+ if(ids.length!==1){setStatus("PEDIT — Select one polyline.");return}
+ const e=entities[ids[0]];
+ if(!e||!e.pts){setStatus("PEDIT — Selected object is not a polyline.");return}
+ const opt=(prompt("PEDIT options: [Open/Close/Edit/Join]","Edit")||"").trim().toUpperCase();
+ if(!opt)return;
+ if(opt==="C"||opt==="CLOSE"){if(e.closed){setStatus("PEDIT — Polyline is already closed.");return}saveHistory();e.closed=true;draw();setStatus("PEDIT — Polyline closed.");return}
+ if(opt==="O"||opt==="OPEN"){if(!e.closed){setStatus("PEDIT — Polyline is already open.");return}saveHistory();e.closed=false;draw();setStatus("PEDIT — Polyline opened.");return}
+ if(opt==="E"||opt==="EDIT"){setStatus("PEDIT — Select a vertex or midpoint grip.");return}
+ if(opt==="J"||opt==="JOIN"){runJoinCommand();return}
+ setStatus("PEDIT — Unknown option.");
+}
+function applyEntityProperties(source,target){
+ if(!source||!target)return;
+ if(source.layer)target.layer=source.layer;
+ if(source.color!==undefined)target.color=source.color;
+ if(source.linetype!==undefined)target.linetype=source.linetype;
+ if(source.lineweight!==undefined)target.lineweight=source.lineweight;
+}
+function runMatchPropCommand(){
+ const ids=selectedIndices();
+ if(ids.length===1){commandState={cmd:"MATCHPROP",step:"target",source:ids[0]};setMode("select");setStatus("MATCHPROP — Select target objects:");return}
+ commandState={cmd:"MATCHPROP",step:"source",source:-1};setMode("select");setStatus("MATCHPROP — Select source object:");
+}
 function closeSelectedPolyline(){
  const ids=selectedIndices();if(ids.length!==1){setStatus("PEDIT — Select one open polyline.");return}
  const e=entities[ids[0]];if(!e.pts||e.pts.length<3){setStatus("PEDIT — Polyline must have at least 3 vertices.");return}
@@ -1043,6 +1071,8 @@ function runCadCommand(raw){
  else if(q==="QSELECT"||q==="QS"){runQSelectCommand();}
  else if(q==="RECTANG"||q==="REC"){runRectangCommand();}
  else if(q==="JOIN"||q==="J"){runJoinCommand();}
+ else if(q==="PEDIT"||q==="PE"){runPeditCommand();}
+ else if(q==="MATCHPROP"||q==="MA"){runMatchPropCommand();}
  else if(q==="MIRROR"||q==="MI"){runTransformCommand("MIRROR");}
  else if(q==="SCALE"||q==="SC"){runTransformCommand("SCALE");}
  else if(q==="FILLET"||q==="F"){runFilletChamfer("FILLET");}
@@ -1070,7 +1100,7 @@ function runCadCommand(raw){
  else {setStatus("Unknown command: "+raw);}
  commandInput.value="";
 }
-commandInput.addEventListener("keydown",e=>{if(e.key==="Enter"){runCadCommand(commandInput.value);e.preventDefault()}});
+commandInput.addEventListener("keydown",e=>{if(e.key==="Enter"){if(commandState&&commandState.cmd==="MATCHPROP"&&commandState.step==="target"&&!commandInput.value.trim()){commandState=null;setMode("select");setStatus("MATCHPROP completed");e.preventDefault();return}runCadCommand(commandInput.value);e.preventDefault()}});
 window.addEventListener("keydown",e=>{
  if(e.target===commandInput||e.target.tagName==="TEXTAREA"||e.target.tagName==="INPUT")return;
  const k=e.key.toUpperCase();
