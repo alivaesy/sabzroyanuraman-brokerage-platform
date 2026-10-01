@@ -314,12 +314,14 @@ body {
     border-radius: 0;
 }
 
-.map-menu-conditional {
-    display: none;
+/* فقط Web CAD و Web GIS در حالت عادی دیده می‌شوند. */
+#mapMenu:not(.open) .map-menu-conditional {
+    display: none !important;
 }
 
-.map-menu.open .map-menu-conditional {
-    display: flex;
+/* با کلیک روی «نمایش نقشه»، گزینه‌های شرطی نمایش داده می‌شوند. */
+#mapMenu.open .map-menu-conditional {
+    display: flex !important;
 }
 
 .map-menu-item {
