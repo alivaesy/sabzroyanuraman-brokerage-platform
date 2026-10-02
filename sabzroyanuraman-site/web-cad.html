@@ -169,8 +169,8 @@ textarea{min-height:64px;resize:vertical}
   <div class="menu-wrap"><span class="menu" data-menu="insert">Insert</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button><button data-menu-action="point">Point</button><button data-menu-action="rectang">Rectangle</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="format">Format</span><div class="menu-dropdown"><button data-menu-action="layerproperties">Layer Properties</button><button data-menu-action="newlayer">New Layer</button><button data-menu-action="activelayer">Current Layer</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="tools">Tools</span><div class="menu-dropdown"><button data-menu-action="snap">Grid SNAP</button><button data-menu-action="osnap">Object OSNAP</button><button data-snap-mode="endpoint">OSNAP Endpoint</button><button data-snap-mode="midpoint">OSNAP Midpoint</button><button data-snap-mode="center">OSNAP Center</button><button data-snap-mode="intersection">OSNAP Intersection</button><button data-snap-mode="nearest">OSNAP Nearest</button><button data-snap-mode="perpendicular">OSNAP Perpendicular</button><button data-snap-mode="quadrant">OSNAP Quadrant</button><button data-snap-mode="tangent">OSNAP Tangent</button><button data-menu-action="distance">Distance (DIST)</button><button data-menu-action="area">Area</button><button data-menu-action="id">ID</button><button data-menu-action="list">List</button><button data-menu-action="qselect">Quick Select</button><button data-menu-action="units">Units</button><button data-menu-action="dsettings">Drafting Settings</button><button data-menu-action="ucs">UCS</button></div></div>
-  <div class="menu-wrap"><span class="menu" data-menu="draw">Draw</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button><button data-menu-action="point">Point</button><button data-menu-action="xline">Construction Line (XLINE)</button><button data-menu-action="ray">Ray (RAY)</button><button data-menu-action="divide">Divide</button><button data-menu-action="measure">Measure</button></div></div>
-  <div class="menu-wrap"><span class="menu" data-menu="modify">Modify</span><div class="menu-dropdown"><button data-menu-action="move">Move</button><button data-menu-action="copy">Copy</button><button data-menu-action="offset">Offset</button><button data-menu-action="trim">Trim</button><button data-menu-action="extend">Extend</button><button data-menu-action="rotate">Rotate</button><button data-menu-action="break">Break</button><button data-menu-action="join">Join</button><button data-menu-action="pedit">PEDIT</button><button data-menu-action="matchprop">Match Properties</button><button data-menu-action="mirror">Mirror</button><button data-menu-action="scale">Scale</button><button data-menu-action="fillet">Fillet</button><button data-menu-action="chamfer">Chamfer</button><button data-menu-action="closepoly">Close Polyline</button><button data-menu-action="editvertex">Edit Vertex</button><button data-menu-action="erase">Erase</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="draw">Draw</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button><button data-menu-action="arc">Arc</button><button data-menu-action="point">Point</button><button data-menu-action="rectang">Rectangle</button><button data-menu-action="xline">Construction Line (XLINE)</button><button data-menu-action="ray">Ray (RAY)</button><button data-menu-action="divide">Divide</button><button data-menu-action="measure">Measure</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="modify">Modify</span><div class="menu-dropdown"><button data-menu-action="move">Move</button><button data-menu-action="copy">Copy</button><button data-menu-action="offset">Offset</button><button data-menu-action="trim">Trim</button><button data-menu-action="extend">Extend</button><button data-menu-action="stretch">Stretch</button><button data-menu-action="rotate">Rotate</button><button data-menu-action="break">Break</button><button data-menu-action="join">Join</button><button data-menu-action="pedit">PEDIT</button><button data-menu-action="matchprop">Match Properties</button><button data-menu-action="mirror">Mirror</button><button data-menu-action="scale">Scale</button><button data-menu-action="fillet">Fillet</button><button data-menu-action="chamfer">Chamfer</button><button data-menu-action="closepoly">Close Polyline</button><button data-menu-action="editvertex">Edit Vertex</button><button data-menu-action="erase">Erase</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="window">Window</span><div class="menu-dropdown"><button data-menu-action="model">Model</button><button data-menu-action="layout1">Layout1</button><button data-menu-action="layout2">Layout2</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="help">Help</span><div class="menu-dropdown"><button data-menu-action="help">Help </button><button data-menu-action="about">About Web CAD</button></div></div>
 </div>
@@ -191,6 +191,7 @@ textarea{min-height:64px;resize:vertical}
     <button class="rbutton" data-menu-action="line" title="Line"><span class="ico">╱</span><span class="rlabel">Line</span></button>
     <button class="rbutton" data-menu-action="polyline" title="Polyline"><span class="ico">⌁</span><span class="rlabel">Polyline</span></button>
     <button class="rbutton" data-menu-action="circle" title="Circle"><span class="ico">○</span><span class="rlabel">Circle</span></button>
+    <button class="rbutton" data-menu-action="arc" title="Arc"><span class="ico">⌒</span><span class="rlabel">Arc</span></button>
     <button class="rbutton" data-menu-action="point" title="Point"><span class="ico">·</span><span class="rlabel">Point</span></button>
     <button class="rbutton" data-menu-action="rectang" title="Rectangle"><span class="ico">▱</span><span class="rlabel">Rectangle</span></button>
   </div>
@@ -206,6 +207,7 @@ textarea{min-height:64px;resize:vertical}
     <button class="rbutton" data-menu-action="offset" title="Offset"><span class="ico">⇆</span><span class="rlabel">Offset</span></button>
     <button class="rbutton" data-menu-action="trim" title="Trim"><span class="ico">✂</span><span class="rlabel">Trim</span></button>
     <button class="rbutton" data-menu-action="extend" title="Extend"><span class="ico">↔</span><span class="rlabel">Extend</span></button>
+    <button class="rbutton" data-menu-action="stretch" title="Stretch"><span class="ico">⇳</span><span class="rlabel">Stretch</span></button>
     <button class="rbutton" data-menu-action="rotate" title="Rotate"><span class="ico">⟳</span><span class="rlabel">Rotate</span></button>
     <button class="rbutton" data-menu-action="break" title="Break"><span class="ico">✂</span><span class="rlabel">Break</span></button>
     <button class="rbutton" data-menu-action="join" title="Join"><span class="ico">⌇</span><span class="rlabel">Join</span></button>
@@ -793,6 +795,39 @@ function commandClick(p){
  }
  const s=commandState;
  
+if(s.cmd==="RECTANG"&&s.step==="first"){
+ s.p1=p;s.step="second";setStatus("RECTANG — Specify other corner point or type D for Dimensions / A for Area:");draw();return true;
+}
+if(s.cmd==="RECTANG"&&s.step==="second"){
+ const a=s.p1,q=p;makeRectangle(a,q,0);commandState=null;setMode("select");setStatus("RECTANG completed");return true;
+}
+if(s.cmd==="ARC"&&s.step==="center"){
+ s.p1=p;s.step="start";setStatus("ARC — Specify start point:");draw();return true;
+}
+if(s.cmd==="ARC"&&s.step==="start"){
+ s.p2=p;s.step="end";setStatus("ARC — Specify end point:");draw();return true;
+}
+if(s.cmd==="ARC"&&s.step==="end"){
+ const c0=s.p1,a=s.p2,b=p,r=Math.hypot(a[0]-c0[0],a[1]-c0[1]);
+ if(r<1e-9){setStatus("ARC — Radius must be greater than zero.");return true}
+ let a1=Math.atan2(a[1]-c0[1],a[0]-c0[0])*180/Math.PI;
+ let a2=Math.atan2(b[1]-c0[1],b[0]-c0[0])*180/Math.PI;
+ while(a1<0)a1+=360;while(a2<0)a2+=360;
+ saveHistory();entities.push({type:"ARC",layer:activeLayer,x:c0[0],y:c0[1],r,a1,a2});
+ rebuildLayers();draw();commandState=null;setMode("select");setStatus("ARC completed");return true;
+}
+if(s.cmd==="STRETCH"&&s.step==="select"){
+ const hit=findNearest(p);if(hit<0){setStatus("STRETCH — Select objects:");return true}
+ s.ids=[hit];selectedSet.clear();selectedSet.add(hit);selected=hit;s.step="base";setStatus("STRETCH — Specify base point:");draw();return true;
+}
+if(s.cmd==="STRETCH"&&s.step==="base"){
+ s.base=p;s.step="second";setStatus("STRETCH — Specify second point or displacement:");return true;
+}
+if(s.cmd==="STRETCH"&&s.step==="second"){
+ const dx=p[0]-s.base[0],dy=p[1]-s.base[1];saveHistory();
+ s.ids.forEach(i=>{const e=entities[i];if(e.type==="LINE"){e.x1+=dx;e.y1+=dy;e.x2+=dx;e.y2+=dy}else if(e.pts)e.pts=e.pts.map(v=>[v[0]+dx,v[1]+dy]);else if("x"in e){e.x+=dx;e.y+=dy}});
+ rebuildLayers();draw();commandState=null;setMode("select");setStatus("STRETCH completed");return true;
+}
 if((s.cmd==="FILLET"||s.cmd==="CHAMFER")&&s.step==="first"){
  const i=findNearest(p);if(i<0||entities[i].type!=="LINE"){setStatus(s.cmd+" — Select first LINE:");return true}
  s.i1=i;s.pick1=p;s.step="second";setStatus(s.cmd+" — Select second LINE:");draw();return true;
@@ -1140,12 +1175,44 @@ function entityArea(e){
 }
 
 
+function makeRectangle(p,q,rotation=0){
+ const x1=p[0],y1=p[1],w=q[0]-x1,h=q[1]-y1;
+ const pts=[[x1,y1],[x1+w,y1],[x1+w,y1+h],[x1,y1+h]];
+ if(Math.abs(rotation)>1e-9){
+  const a=rotation*Math.PI/180,c=Math.cos(a),s=Math.sin(a);
+  for(const v of pts){const dx=v[0]-x1,dy=v[1]-y1;v[0]=x1+dx*c-dy*s;v[1]=y1+dx*s+dy*c}
+ }
+ saveHistory();entities.push({type:"LWPOLYLINE",layer:activeLayer,pts,closed:true});rebuildLayers();draw();
+}
 function runRectangCommand(){
- const a=prompt("RECTANG — First corner X,Y:","0,0");if(a===null)return;
- const b=prompt("RECTANG — Other corner X,Y:","100,50");if(b===null)return;
- const p=a.split(",").map(Number),q=b.split(",").map(Number);
- if(p.length<2||q.length<2||p.some(isNaN)||q.some(isNaN)){setStatus("RECTANG — Invalid coordinates");return}
- saveHistory();entities.push({type:"LWPOLYLINE",layer:activeLayer,pts:[[p[0],p[1]],[q[0],p[1]],[q[0],q[1]],[p[0],q[1]]],closed:true});rebuildLayers();draw();setStatus("RECTANG completed");
+ commandState={cmd:"RECTANG",step:"first",p1:null};
+ setMode("select");
+ setStatus("RECTANG — Specify first corner point:");
+}
+function finishRectangByDimensions(){
+ const p=commandState&&commandState.p1;if(!p)return;
+ const raw=prompt("RECTANG — Length,Width:","100,50");if(raw===null)return;
+ const v=raw.split(",").map(Number);if(v.length<2||!v.every(Number.isFinite)||v[0]===0||v[1]===0){setStatus("RECTANG — Invalid dimensions");return}
+ const rot=Number(prompt("RECTANG — Rotation angle:","0"));if(!Number.isFinite(rot)){setStatus("RECTANG — Invalid rotation");return}
+ const q=[p[0]+v[0],p[1]+v[1]];makeRectangle(p,q,rot);commandState=null;setMode("select");setStatus("RECTANG completed");
+}
+function finishRectangByArea(){
+ const p=commandState&&commandState.p1;if(!p)return;
+ const area=Number(prompt("RECTANG — Area:","5000"));if(!Number.isFinite(area)||area===0){setStatus("RECTANG — Invalid area");return}
+ const width=Number(prompt("RECTANG — Width:","50"));if(!Number.isFinite(width)||width===0){setStatus("RECTANG — Invalid width");return}
+ const length=area/width;const rot=Number(prompt("RECTANG — Rotation angle:","0"));if(!Number.isFinite(rot)){setStatus("RECTANG — Invalid rotation");return}
+ makeRectangle(p,[p[0]+length,p[1]+width],rot);commandState=null;setMode("select");setStatus("RECTANG completed");
+}
+function runArcCommand(){
+ commandState={cmd:"ARC",step:"center",p1:null,p2:null};
+ setMode("select");
+ setStatus("ARC — Specify center point:");
+}
+function runStretchCommand(){
+ const ids=selectedIndices();
+ if(!ids.length){setMode("select");commandState={cmd:"STRETCH",step:"select",ids:[],before:JSON.stringify(entities)};setStatus("STRETCH — Select objects:");return}
+ commandState={cmd:"STRETCH",step:"base",ids:ids,before:JSON.stringify(entities)};
+ setMode("select");setStatus("STRETCH — Specify base point:");
 }
 function runJoinCommand(){
  const ids=selectedIndices();if(ids.length<2){setStatus("JOIN — Select two or more connected LINE/POLYLINE objects.");return}
@@ -1253,6 +1320,8 @@ function runMenuAction(a){
   if(a==="list")return runListCommand();
   if(a==="qselect")return runQSelectCommand();
   if(a==="rectang")return runRectangCommand();
+  if(a==="arc")return runArcCommand();
+  if(a==="stretch")return runStretchCommand();
   if(a==="join")return runJoinCommand();
   if(a==="pedit")return runPeditCommand();
   if(a==="matchprop")return runMatchPropCommand();
@@ -1344,7 +1413,11 @@ function runCadCommand(raw){
  else if(q==="ID"){runIdCommand();}
  else if(q==="LIST"||q==="LI"){runListCommand();}
  else if(q==="QSELECT"||q==="QS"){runQSelectCommand();}
+ else if(commandState&&commandState.cmd==="RECTANG"&&commandState.step==="second"&&(q==="D"||q==="DIMENSIONS")){finishRectangByDimensions();}
+ else if(commandState&&commandState.cmd==="RECTANG"&&commandState.step==="second"&&(q==="A"||q==="AREA")){finishRectangByArea();}
  else if(q==="RECTANG"||q==="REC"){runRectangCommand();}
+ else if(q==="ARC"||q==="A"){runArcCommand();}
+ else if(q==="STRETCH"||q==="S"){runStretchCommand();}
  else if(q==="JOIN"||q==="J"){runJoinCommand();}
  else if(q==="PEDIT"||q==="PE"){runPeditCommand();}
  else if(q==="MATCHPROP"||q==="MA"){runMatchPropCommand();}
