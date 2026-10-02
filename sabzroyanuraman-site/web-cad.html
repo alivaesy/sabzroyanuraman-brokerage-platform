@@ -172,7 +172,7 @@ textarea{min-height:64px;resize:vertical}
   <div class="menu-wrap"><span class="menu" data-menu="format">Format</span><div class="menu-dropdown"><button data-menu-action="layerproperties">Layer Properties</button><button data-menu-action="newlayer">New Layer</button><button data-menu-action="activelayer">Current Layer</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="tools">Tools</span><div class="menu-dropdown"><button data-menu-action="snap">Grid SNAP</button><button data-menu-action="osnap">Object OSNAP</button><button data-snap-mode="endpoint">OSNAP Endpoint</button><button data-snap-mode="midpoint">OSNAP Midpoint</button><button data-snap-mode="center">OSNAP Center</button><button data-snap-mode="intersection">OSNAP Intersection</button><button data-snap-mode="nearest">OSNAP Nearest</button><button data-snap-mode="perpendicular">OSNAP Perpendicular</button><button data-snap-mode="quadrant">OSNAP Quadrant</button><button data-snap-mode="tangent">OSNAP Tangent</button><button data-menu-action="distance">Distance (DIST)</button><button data-menu-action="dimlinear">Linear Dimension</button><button data-menu-action="dimaligned">Aligned Dimension</button><button data-menu-action="area">Area</button><button data-menu-action="id">ID</button><button data-menu-action="list">List</button><button data-menu-action="qselect">Quick Select</button><button data-menu-action="units">Units</button><button data-menu-action="dsettings">Drafting Settings</button><button data-menu-action="ucs">UCS</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="draw">Draw</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button><button data-menu-action="arc">Arc</button><button data-menu-action="point">Point</button><button data-menu-action="rectang">Rectangle</button><button data-menu-action="hatch">Hatch</button><button data-menu-action="xline">Construction Line (XLINE)</button><button data-menu-action="ray">Ray (RAY)</button><button data-menu-action="divide">Divide</button><button data-menu-action="measure">Measure</button></div></div>
-  <div class="menu-wrap"><span class="menu" data-menu="modify">Modify</span><div class="menu-dropdown"><button data-menu-action="move">Move</button><button data-menu-action="copy">Copy</button><button data-menu-action="offset">Offset</button><button data-menu-action="trim">Trim</button><button data-menu-action="extend">Extend</button><button data-menu-action="lengthen">Lengthen</button><button data-menu-action="explode">Explode</button><button data-menu-action="stretch">Stretch</button><button data-menu-action="rotate">Rotate</button><button data-menu-action="break">Break</button><button data-menu-action="join">Join</button><button data-menu-action="pedit">PEDIT</button><button data-menu-action="matchprop">Match Properties</button><button data-menu-action="mirror">Mirror</button><button data-menu-action="scale">Scale</button><button data-menu-action="fillet">Fillet</button><button data-menu-action="chamfer">Chamfer</button><button data-menu-action="closepoly">Close Polyline</button><button data-menu-action="editvertex">Edit Vertex</button><button data-menu-action="erase">Erase</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="modify">Modify</span><div class="menu-dropdown"><button data-menu-action="move">Move</button><button data-menu-action="copy">Copy</button><button data-menu-action="offset">Offset</button><button data-menu-action="trim">Trim</button><button data-menu-action="extend">Extend</button><button data-menu-action="lengthen">Lengthen</button><button data-menu-action="explode">Explode</button><button data-menu-action="stretch">Stretch</button><button data-menu-action="rotate">Rotate</button><button data-menu-action="break">Break</button><button data-menu-action="join">Join</button><button data-menu-action="pedit">PEDIT</button><button data-menu-action="matchprop">Match Properties</button><button data-menu-action="mirror">Mirror</button><button data-menu-action="scale">Scale</button><button data-menu-action="fillet">Fillet</button><button data-menu-action="chamfer">Chamfer</button><button data-menu-action="closepoly">Close Polyline</button><button data-menu-action="editvertex">Edit Vertex</button><button data-menu-action="cutpolygon">CUT POLYGON</button><button data-menu-action="erase">Erase</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="window">Window</span><div class="menu-dropdown"><button data-menu-action="model">Model</button><button data-menu-action="layout1">Layout1</button><button data-menu-action="layout2">Layout2</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="help">Help</span><div class="menu-dropdown"><button data-menu-action="help">Help </button><button data-menu-action="about">About Web CAD</button></div></div>
 </div>
@@ -228,6 +228,7 @@ textarea{min-height:64px;resize:vertical}
     <button class="rbutton" data-menu-action="chamfer" title="Chamfer"><span class="ico">⌟</span><span class="rlabel">Chamfer</span></button>
     <button class="rbutton" data-menu-action="closepoly" title="Close Polyline"><span class="ico">◫</span><span class="rlabel">Close PL</span></button>
     <button class="rbutton" data-menu-action="editvertex" title="Edit Vertex"><span class="ico">◆</span><span class="rlabel">Edit Vertex</span></button>
+    <button class="rbutton" data-menu-action="cutpolygon" title="Cut Polygon by Area"><span class="ico">▥</span><span class="rlabel">Cut Poly</span></button>
     <button class="rbutton" data-menu-action="erase" title="Erase"><span class="ico">⌫</span><span class="rlabel">Erase</span></button>
   </div>
   <div class="rgroup">
@@ -915,6 +916,30 @@ function commandClick(p){
   return false;
  }
  const s=commandState;
+ if(s.cmd==="CUTPOLYGON"&&s.step==="select"){
+  const hit=findNearest(p),e=hit>=0?entities[hit]:null;
+  if(hit<0||!e||!e.pts||!e.closed||e.pts.length<3){setStatus("CUT POLYGON — Select a closed polygon/polyline.");return true}
+  s.ids=[hit];selectedSet.clear();selectedSet.add(hit);selected=hit;s.step="method";s.original=e;
+  setStatus("CUT POLYGON — Method [Area/Point/Line/Equal]:");draw();return true;
+ }
+ if(s.cmd==="CUTPOLYGON"&&s.step==="pointStart"){
+  const info=cutPolyBoundaryInfo(cutPolyRing(s.original),p);
+  if(!info||info.d>30/view.scale){setStatus("CUT POLYGON — Point must be on the polygon boundary.");return true}
+  s.start=info.point;s.step="pointArea";setStatus("CUT POLYGON — Enter target area:");commandInput.focus();return true;
+ }
+ if(s.cmd==="CUTPOLYGON"&&s.step==="lineSelect"){
+  const hit=findNearest(p),e=hit>=0?entities[hit]:null;
+  if(hit<0||!e||e.type!=="LINE"){setStatus("CUT POLYGON — Select a LINE as reference.");return true}
+  s.ref=e;s.step="lineArea";setStatus("CUT POLYGON — Enter target area:");commandInput.focus();return true;
+ }
+ if(s.cmd==="CUTPOLYGON"&&s.step==="areaDir"){
+  return true;
+ }
+ if(s.cmd==="CUTPOLYGON"&&s.step==="equalLineSelect"){
+  const hit=findNearest(p),e=hit>=0?entities[hit]:null;
+  if(hit<0||!e||e.type!=="LINE"){setStatus("CUT POLYGON — Select a LINE as reference.");return true}
+  s.ref=e;s.step="equalParts";setStatus("CUT POLYGON — Enter number of equal parts:");commandInput.focus();return true;
+ }
  if(s.cmd==="BREAK"&&s.step==="select"){
   const hit=findNearest(p);
   const e=hit>=0?entities[hit]:null;
@@ -1485,6 +1510,7 @@ function runMenuAction(a){
   if(a==="point"){mode="point";drawPoints=[];setStatus("POINT — Specify point:");return}
   if(["move","copy","offset","trim","extend","rotate","break"].includes(a))return beginEditCommand(a.toUpperCase());
   if(a==="lengthen")return runLengthenCommand();
+  if(a==="cutpolygon")return startCutPolygonCommand();
   if(a==="explode")return runExplodeCommand();
   if(a==="erase"){const ids=selectedIndices();if(!ids.length)return setStatus("ERASE — Select objects:");saveHistory();entities=entities.filter((_,i)=>!selectedSet.has(i));selectedSet.clear();selected=-1;rebuildLayers();draw();return setStatus("ERASE completed")}
   if(a==="divide")return runPointDivision("DIVIDE");
@@ -1539,9 +1565,280 @@ function hatchFromPolyline(index){
  saveHistory();entities.push({type:"HATCH",layer:activeLayer,pts:e.pts.map(p=>[p[0],p[1]]),pattern:"ANSI31",angle:45,scale:5,source:index});rebuildLayers();draw();setStatus("HATCH completed");return true;
 }
 function startHatchCommand(){const ids=selectedIndices();if(ids.length===1&&hatchFromPolyline(ids[0]))return;commandState={cmd:"HATCH",step:"select",before:JSON.stringify(entities)};setMode("select");setStatus("HATCH — Select a closed polyline:");}
+
+function cutPolyRing(e){
+ const pts=(e&&e.pts||[]).map(p=>[Number(p[0]),Number(p[1])]).filter(p=>p.every(Number.isFinite));
+ if(pts.length>1&&Math.hypot(pts[0][0]-pts.at(-1)[0],pts[0][1]-pts.at(-1)[1])<1e-9)pts.pop();
+ return pts.length>=3?pts:null;
+}
+function cutPolyArea(pts){let a=0;for(let i=0;i<pts.length;i++){const p=pts[i],q=pts[(i+1)%pts.length];a+=p[0]*q[1]-q[0]*p[1]}return Math.abs(a)/2}
+function cutPolySignedArea(pts){let a=0;for(let i=0;i<pts.length;i++){const p=pts[i],q=pts[(i+1)%pts.length];a+=p[0]*q[1]-q[0]*p[1]}return a/2}
+function cutPolyPointLineDist(p,a,b){return segDist(p[0],p[1],a[0],a[1],b[0],b[1])}
+function cutPolyBoundaryInfo(pts,p){
+ let best={d:Infinity,edge:0,t:0,param:0,len:0},total=0;
+ for(let i=0;i<pts.length;i++){
+  const a=pts[i],b=pts[(i+1)%pts.length],dx=b[0]-a[0],dy=b[1]-a[1],l=Math.hypot(dx,dy);
+  if(l<1e-12)continue;
+  let t=((p[0]-a[0])*dx+(p[1]-a[1])*dy)/(l*l);t=Math.max(0,Math.min(1,t));
+  const q=[a[0]+t*dx,a[1]+t*dy],d=Math.hypot(p[0]-q[0],p[1]-q[1]);
+  if(d<best.d)best={d,edge:i,t,param:total+t*l,len:l};
+  total+=l;
+ }
+ best.total=total;return best;
+}
+function cutPolyPointAt(pts,param){
+ const n=pts.length, lens=[],cum=[0];let total=0;
+ for(let i=0;i<n;i++){const a=pts[i],b=pts[(i+1)%n],l=Math.hypot(b[0]-a[0],b[1]-a[1]);lens.push(l);total+=l;cum.push(total)}
+ let s=((param%total)+total)%total;
+ let i=0;while(i<n-1&&s>cum[i+1]-1e-10)i++;
+ const l=lens[i]||1,t=Math.max(0,Math.min(1,(s-cum[i])/l)),a=pts[i],b=pts[(i+1)%n];
+ return {point:[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t],edge:i,t,param:s,total};
+}
+function cutPolyPathForward(pts,aParam,bParam){
+ const total=cutPolyPointAt(pts,0).total;
+ let a=((aParam%total)+total)%total,b=((bParam%total)+total)%total;
+ if(b<a-1e-10)b+=total;
+ const out=[cutPolyPointAt(pts,a).point],limit=b,stepGuard=0;
+ for(let k=0;k<pts.length+2&&stepGuard++<pts.length+2;k++){
+  let v=Math.ceil((a+1e-9)/1); // replaced below by explicit vertex scan
+  break;
+ }
+ for(let k=0;k<pts.length;k++){
+  const vk=cutPolyVertexParam(pts,k);
+  const vv=vk<=a+1e-9?vk+total:vk;
+  if(vv<a+1e-9||vv>=limit-1e-9)continue;
+  out.push(pts[k].slice());
+ }
+ out.push(cutPolyPointAt(pts,b).point);
+ return out;
+}
+function cutPolyVertexParam(pts,k){
+ let s=0;for(let i=0;i<k;i++)s+=Math.hypot(pts[(i+1)%pts.length][0]-pts[i][0],pts[(i+1)%pts.length][1]-pts[i][1]);return s;
+}
+function cutPolyPath(pts,aParam,bParam,forward=true){
+ if(forward)return cutPolyPathForward(pts,aParam,bParam);
+ return cutPolyPathForward(pts,bParam,aParam).reverse();
+}
+function cutPolyClosedFromPath(path){
+ const out=path.map(p=>[p[0],p[1]]);
+ if(out.length>1&&Math.hypot(out[0][0]-out.at(-1)[0],out[0][1]-out.at(-1)[1])<1e-9)out.pop();
+ return out.length>=3?out:null;
+}
+function cutPolyCentroid(pts){
+ const sa=cutPolySignedArea(pts);if(Math.abs(sa)<1e-12){let x=0,y=0;pts.forEach(p=>{x+=p[0];y+=p[1]});return[x/pts.length,y/pts.length]}
+ let cx=0,cy=0;
+ for(let i=0;i<pts.length;i++){const p=pts[i],q=pts[(i+1)%pts.length],cr=p[0]*q[1]-q[0]*p[1];cx+=(p[0]+q[0])*cr;cy+=(p[1]+q[1])*cr}
+ return[cx/(6*sa),cy/(6*sa)];
+}
+function cutPolyIntersections(pts,p0,d){
+ const hits=[];
+ const cross=(a,b)=>a[0]*b[1]-a[1]*b[0];
+ let cum=0;
+ for(let i=0;i<pts.length;i++){
+  const a=pts[i],b=pts[(i+1)%pts.length],e=[b[0]-a[0],b[1]-a[1]],den=cross(d,e),rel=[a[0]-p0[0],a[1]-p0[1]];
+  const el=Math.hypot(e[0],e[1]);
+  if(el<1e-12){continue}
+  if(Math.abs(den)<1e-12){
+   cum+=el;continue;
+  }
+  const t=cross(rel,d)/den;
+  if(t>=-1e-9&&t<=1+1e-9){
+   const u=cross(rel,e)/den;
+   const pt=[a[0]+e[0]*t,a[1]+e[1]*t];
+   hits.push({point:pt,param:cum+Math.max(0,Math.min(1,t))*el,lineParam:u});
+  }
+  cum+=el;
+ }
+ const uniq=[];
+ hits.sort((a,b)=>a.param-b.param);
+ hits.forEach(h=>{if(!uniq.some(u=>Math.hypot(u.point[0]-h.point[0],u.point[1]-h.point[1])<1e-7))uniq.push(h)});
+ return uniq;
+}
+function cutPolySplitByLine(pts,p0,d){
+ const hits=cutPolyIntersections(pts,p0,d);
+ if(hits.length!==2)return null;
+ const a=hits[0],b=hits[1];
+ const pAB=cutPolyPath(pts,a.param,b.param,true),pBA=cutPolyPath(pts,a.param,b.param,false);
+ const r1=cutPolyClosedFromPath(pAB.concat([a.point]));
+ const r2=cutPolyClosedFromPath(pBA.concat([a.point]));
+ if(!r1||!r2)return null;
+ return {parts:[r1,r2],hits};
+}
+function cutPolySideForPart(part,p0,d){
+ const c=cutPolyCentroid(part);return d[0]*(c[1]-p0[1])-d[1]*(c[0]-p0[0]);
+}
+function cutPolyCommitParts(original,parts){
+ const valid=parts.filter(p=>p&&p.length>=3&&cutPolyArea(p)>1e-8);
+ if(valid.length!==2)return false;
+ saveHistory();
+ const baseLayer=original.layer||activeLayer;
+ const out=valid.map(p=>({type:"LWPOLYLINE",layer:baseLayer,pts:p,closed:true}));
+ const idx=entities.indexOf(original);
+ if(idx<0)return false;
+ entities.splice(idx,1,...out);
+ selectedSet.clear();out.forEach((_,k)=>selectedSet.add(idx+k));selected=idx;
+ rebuildLayers();draw();return true;
+}
+function cutPolyAxisDirection(dir){
+ if(dir==="LEFT"||dir==="RIGHT")return [0,1];
+ return [1,0];
+}
+function cutPolyAreaByAxis(pts,target,dir){
+ const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),xmin=Math.min(...xs),xmax=Math.max(...xs),ymin=Math.min(...ys),ymax=Math.max(...ys);
+ let p0,d,lo,hi,chooseLeft;
+ if(dir==="LEFT"||dir==="RIGHT"){p0=[xmin-1, ymin-1];d=[0,1];lo=xmin-1;hi=xmax+1;chooseLeft=dir==="LEFT"}
+ else{p0=[xmin-1,ymin-1];d=[1,0];lo=ymin-1;hi=ymax+1;chooseLeft=dir==="DOWN"}
+ const total=cutPolyArea(pts),wanted=Math.min(target,total-target);
+ let best=null,bestErr=Infinity;
+ for(let i=0;i<=48;i++){
+  const off=lo+(hi-lo)*i/48,base=p0.slice();
+  if(dir==="LEFT"||dir==="RIGHT")base[0]=off;else base[1]=off;
+  const sp=cutPolySplitByLine(pts,base,d);if(!sp)continue;
+  for(const part of sp.parts){
+   const a=cutPolyArea(part),side=cutPolySideForPart(part,base,d),isWanted=chooseLeft?side>=0:side<=0;
+   if(isWanted){const er=Math.abs(a-target);if(er<bestErr){bestErr=er;best={base,d,parts:sp.parts,wanted:a}}}
+  }
+ }
+ if(!best)return null;
+ let a=lo,b=hi;
+ for(let it=0;it<45;it++){
+  const mid=(a+b)/2,base=p0.slice();if(dir==="LEFT"||dir==="RIGHT")base[0]=mid;else base[1]=mid;
+  const sp=cutPolySplitByLine(pts,base,d);if(!sp)break;
+  let chosen=null;
+  for(const part of sp.parts){const side=cutPolySideForPart(part,base,d),ok=chooseLeft?side>=-1e-9:side<=1e-9;if(ok){chosen=part;break}}
+  if(!chosen){if(dir==="LEFT"||dir==="RIGHT"){a=mid}else{a=mid};continue}
+  const ar=cutPolyArea(chosen);
+  if(Math.abs(ar-target)<bestErr){bestErr=Math.abs(ar-target);best={base,d,parts:sp.parts,wanted:ar}}
+  if(dir==="LEFT"||dir==="RIGHT"){
+   if((chooseLeft&&ar<target)||(!chooseLeft&&ar>target))a=mid;else b=mid;
+  }else{
+   if((chooseLeft&&ar<target)||(!chooseLeft&&ar>target))a=mid;else b=mid;
+  }
+ }
+ return best;
+}
+function cutPolyAreaByReference(pts,refP,refD,target,side){
+ const d=[refD[0],refD[1]],len=Math.hypot(d[0],d[1]);if(len<1e-12)return null;
+ const n=[-d[1]/len,d[0]/len],projs=pts.map(p=>p[0]*n[0]+p[1]*n[1]),center=refP[0]*n[0]+refP[1]*n[1];
+ let lo=Math.min(...projs)-1,hi=Math.max(...projs)+1;
+ const total=cutPolyArea(pts),chooseLeft=side==="LEFT";
+ let best=null,bestErr=Infinity;
+ for(let it=0;it<55;it++){
+  const off=(lo+hi)/2,p0=[n[0]*off,n[1]*off],sp=cutPolySplitByLine(pts,p0,d);
+  if(sp){
+   let chosen=null;
+   for(const part of sp.parts){const sg=cutPolySideForPart(part,p0,d),ok=chooseLeft?sg>=-1e-8:sg<=1e-8;if(ok){chosen=part;break}}
+   if(chosen){
+    const ar=cutPolyArea(chosen),er=Math.abs(ar-target);if(er<bestErr){bestErr=er;best={p0,d,parts:sp.parts,wanted:ar}}
+    if((chooseLeft&&ar<target)||(!chooseLeft&&ar>target))lo=off;else hi=off;
+   }else{lo=off}
+  }else lo=off;
+ }
+ return best;
+}
+function cutPolyPointArea(pts,start,target,clockwise){
+ const info=cutPolyBoundaryInfo(pts,start);if(info.d>30/view.scale)return null;
+ const total=info.total,full=cutPolyArea(pts),wanted=target;
+ if(wanted<=0||wanted>=full)return null;
+ const ccw=cutPolySignedArea(pts)>0;
+ const forwardForClockwise=ccw?false:true;
+ const forward=clockwise?forwardForClockwise:!forwardForClockwise;
+ const areaAt=t=>{
+  const end=info.param+(forward?t:-t);
+  const path=cutPolyPath(pts,info.param,end,forward);
+  return cutPolyArea(cutPolyClosedFromPath(path.concat([info.point]))||[]);
+ };
+ let bestT=0,bestE=Infinity;
+ const N=360;
+ for(let i=1;i<N;i++){const t=total*i/N,a=areaAt(t),e=Math.abs(a-wanted);if(e<bestE){bestE=e;bestT=t}}
+ let lo=Math.max(0,bestT-total/N),hi=Math.min(total,bestT+total/N);
+ for(let it=0;it<45;it++){
+  const m1=lo+(hi-lo)/3,m2=hi-(hi-lo)/3,e1=Math.abs(areaAt(m1)-wanted),e2=Math.abs(areaAt(m2)-wanted);
+  if(e1<e2)hi=m2;else lo=m1;
+ }
+ const t=(lo+hi)/2,path=cutPolyPath(pts,info.param,info.param+(forward?t:-t),forward),cut=cutPolyClosedFromPath(path.concat([info.point]));
+ if(!cut)return null;
+ const remainArea=full-cutPolyArea(cut),revPath=cutPolyPath(pts,info.param,info.param+(forward?t:-t),!forward),remain=cutPolyClosedFromPath(revPath.concat([info.point]));
+ return cut&&remain?{parts:[cut,remain],area:cutPolyArea(cut)}:null;
+}
+function startCutPolygonCommand(){
+ commandState={cmd:"CUTPOLYGON",step:"select",ids:[],before:JSON.stringify(entities)};
+ setMode("select");setStatus("CUT POLYGON — Select a closed polygon/polyline:");
+}
+function finishCutPolygonParts(original,parts,msg){
+ if(cutPolyCommitParts(original,parts)){commandState=null;setMode("select");setStatus(msg||"CUT POLYGON completed");return true}
+ setStatus("CUT POLYGON — Cannot create two valid closed parts.");return false;
+}
+
 function runCadCommand(raw){
  const rawText=(raw||"").trim();
  const q=rawText.toUpperCase();
+ if(commandState&&commandState.cmd==="CUTPOLYGON"){
+  const s=commandState;
+  if(s.step==="method"){
+   if(q==="A"||q==="AREA"){s.step="areaValue";setStatus("CUT POLYGON — Enter target area:");commandInput.value="";return;}
+   if(q==="P"||q==="POINT"){s.step="pointStart";setStatus("CUT POLYGON — Specify a point on boundary:");setMode("select");return;}
+   if(q==="L"||q==="LINE"){s.step="lineSelect";setStatus("CUT POLYGON — Select reference LINE:");setMode("select");return;}
+   if(q==="E"||q==="EQUAL"||q==="DIVIDE"){s.step="equalParts";setStatus("CUT POLYGON — Enter number of equal parts:");commandInput.value="";return;}
+   setStatus("CUT POLYGON — Method [Area/Point/Line/Equal]:");commandInput.value="";return;
+  }
+  if(s.step==="areaValue"){
+   const a=Number(rawText);const total=cutPolyArea(cutPolyRing(s.original));if(!Number.isFinite(a)||a<=0||a>=total){setStatus("CUT POLYGON — Area must be between 0 and "+formatCadNumber(total));return}
+   s.target=a;s.step="areaDir";setStatus("CUT POLYGON — Direction [Left/Right/Up/Down]:");commandInput.value="";return;
+  }
+  if(s.step==="areaDir"){
+   const d=q==="LEFT"||q==="L"?"LEFT":q==="RIGHT"||q==="R"?"RIGHT":q==="UP"||q==="U"?"UP":q==="DOWN"||q==="D"?"DOWN":null;
+   if(!d){setStatus("CUT POLYGON — Direction [Left/Right/Up/Down]:");commandInput.value="";return}
+   const pts=cutPolyRing(s.original),res=cutPolyAreaByAxis(pts,s.target,d);
+   if(!res){setStatus("CUT POLYGON — Could not find a valid parallel cut line.");commandInput.value="";return}
+   finishCutPolygonParts(s.original,res.parts,"CUT POLYGON — "+formatCadNumber(cutPolyArea(res.parts[0]))+" m² cut");
+   commandInput.value="";return;
+  }
+  if(s.step==="pointArea"){
+   const a=Number(rawText),total=cutPolyArea(cutPolyRing(s.original));if(!Number.isFinite(a)||a<=0||a>=total){setStatus("CUT POLYGON — Invalid target area.");return}
+   s.target=a;s.step="pointDir";setStatus("CUT POLYGON — Direction [Clockwise/Counterclockwise]:");commandInput.value="";return;
+  }
+  if(s.step==="pointDir"){
+   const cw=q==="CW"||q==="CLOCKWISE",ccw=q==="CCW"||q==="COUNTERCLOCKWISE";
+   if(!cw&&!ccw){setStatus("CUT POLYGON — Direction [Clockwise/Counterclockwise]:");commandInput.value="";return}
+   const res=cutPolyPointArea(cutPolyRing(s.original),s.start,s.target,cw);
+   if(!res){setStatus("CUT POLYGON — Could not find a valid cut for this point/direction.");commandInput.value="";return}
+   finishCutPolygonParts(s.original,res.parts,"CUT POLYGON — Point cut completed");commandInput.value="";return;
+  }
+  if(s.step==="lineArea"){
+   const a=Number(rawText),total=cutPolyArea(cutPolyRing(s.original));if(!Number.isFinite(a)||a<=0||a>=total){setStatus("CUT POLYGON — Invalid target area.");return}
+   s.target=a;s.step="lineSide";setStatus("CUT POLYGON — Side of parallel [Left/Right]:");commandInput.value="";return;
+  }
+  if(s.step==="lineSide"){
+   const side=q==="LEFT"||q==="L"?"LEFT":q==="RIGHT"||q==="R"?"RIGHT":null;if(!side){setStatus("CUT POLYGON — Side [Left/Right]:");commandInput.value="";return}
+   const pts=cutPolyRing(s.original),d=[s.ref.x2-s.ref.x1,s.ref.y2-s.ref.y1],res=cutPolyAreaByReference(pts,[s.ref.x1,s.ref.y1],d,s.target,side);
+   if(!res){setStatus("CUT POLYGON — Could not find a valid parallel cut line.");commandInput.value="";return}
+   finishCutPolygonParts(s.original,res.parts,"CUT POLYGON — Parallel line cut completed");commandInput.value="";return;
+  }
+  if(s.step==="equalParts"){
+   const n=Math.floor(Number(rawText));if(!Number.isFinite(n)||n<2||n>20){setStatus("CUT POLYGON — Number of parts must be 2–20.");return}
+   s.partsCount=n;s.step="equalDir";setStatus("CUT POLYGON — Direction [Left/Right/Up/Down]:");commandInput.value="";return;
+  }
+  if(s.step==="equalDir"){
+   const d=q==="LEFT"||q==="L"?"LEFT":q==="RIGHT"||q==="R"?"RIGHT":q==="UP"||q==="U"?"UP":q==="DOWN"||q==="D"?"DOWN":null;
+   if(!d){setStatus("CUT POLYGON — Direction [Left/Right/Up/Down]:");commandInput.value="";return}
+   const pts=cutPolyRing(s.original),total=cutPolyArea(pts),remaining=[pts],pieces=[];
+   for(let k=1;k<s.partsCount;k++){
+    const current=remaining[0],target=total*k/s.partsCount,curArea=cutPolyArea(current),want=target-pieces.reduce((z,x)=>z+cutPolyArea(x),0);
+    const res=cutPolyAreaByAxis(current,want,d);
+    if(!res){setStatus("CUT POLYGON — Equal-area cut failed at part "+k+".");commandInput.value="";return}
+    const a1=cutPolyArea(res.parts[0]),a2=cutPolyArea(res.parts[1]);
+    const choose=res.parts.find(p=>Math.abs(cutPolyArea(p)-want)<Math.abs((a1===cutPolyArea(p)?a2:a1)-want))||res.parts[0];
+    const rest=choose===res.parts[0]?res.parts[1]:res.parts[0];
+    pieces.push(choose);remaining[0]=rest;
+   }
+   pieces.push(remaining[0]);saveHistory();
+   const idx=entities.indexOf(s.original);if(idx<0){commandState=null;return}
+   const out=pieces.filter(p=>p&&p.length>=3&&cutPolyArea(p)>1e-8).map(p=>({type:"LWPOLYLINE",layer:s.original.layer||activeLayer,pts:p,closed:true}));
+   if(out.length!==s.partsCount){setStatus("CUT POLYGON — Could not create all equal parts.");commandInput.value="";return}
+   entities.splice(idx,1,...out);selectedSet.clear();out.forEach((_,i)=>selectedSet.add(idx+i));selected=idx;rebuildLayers();draw();commandState=null;setMode("select");setStatus("CUT POLYGON — "+n+" equal-area parts completed");commandInput.value="";return;
+  }
+ }
  if(commandState&&["TEXT","MTEXT"].includes(commandState.cmd)&&commandState.step==="text"){commandState.text=rawText;commandState.step="height";setStatus(commandState.cmd+" — Specify text height <2.5>:");commandInput.value="";return;}
  if(commandState&&["TEXT","MTEXT"].includes(commandState.cmd)&&commandState.step==="height"){const h=rawText?Number(rawText):2.5;if(!Number.isFinite(h)||h<=0){setStatus(commandState.cmd+" — Invalid text height.");return}const doneCmd=commandState.cmd;saveHistory();entities.push({type:doneCmd,x:commandState.p1[0],y:commandState.p1[1],text:commandState.text,height:h,layer:activeLayer});rebuildLayers();draw();commandState=null;setMode("select");setStatus(doneCmd+" completed");commandInput.value="";return;}
  if(commandState&&commandState.cmd==="CIRCLE"&&commandState.step==="radiusInput"){
@@ -1582,6 +1879,7 @@ function runCadCommand(raw){
  else if(q==="TR"||q==="TRIM"){beginEditCommand("TRIM");}
  else if(q==="EX"||q==="EXTEND"){beginEditCommand("EXTEND");}
  else if(q==="LEN"||q==="LENGTHEN"){runLengthenCommand();}
+ else if(q==="CUTPOLYGON"||q==="CUTPOLY"||q==="CP"){startCutPolygonCommand();}
  else if(q==="X"||q==="EXPLODE"){runExplodeCommand();}
  else if(q==="RO"||q==="ROTATE")beginEditCommand("ROTATE");
  else if(q==="BR"||q==="BREAK")beginEditCommand("BREAK");
