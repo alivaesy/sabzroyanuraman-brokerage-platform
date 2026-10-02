@@ -1168,7 +1168,7 @@ function runMenuAction(a){
   if(a==="help")return setStatus("L=LINE | PL=PLINE | C=CIRCLE | P=POINT | M=MOVE | CO=COPY | O=OFFSET | TR=TRIM | EX=EXTEND | RO=ROTATE | BR=BREAK | DIV=DIVIDE | ME=MEASURE | DI=DIST | AA=AREA | ID=ID | LI=LIST | QS=QSELECT | REC=RECTANG | J=JOIN | PE=PEDIT | MA=MATCHPROP | MI=MIRROR | SC=SCALE | F=FILLET | CHA=CHAMFER | PU=PURGE | AUDIT | UN=UNITS | DS=DSETTINGS | UCS | E=ERASE | Z=ZOOM | G=GRID | F3=OSNAP | Esc=CANCEL");
   if(a==="about")return setStatus("Web CAD    — extended base version");
 }
-document.querySelectorAll("[data-menu-action]").forEach(btn=>btn.addEventListener("click",e=>{e.stopPropagation();btn.closest(".menu-wrap").classList.remove("open");runMenuAction(btn.dataset.menuAction)}));
+document.querySelectorAll("[data-menu-action]").forEach(btn=>btn.addEventListener("click",e=>{e.stopPropagation();btn.closest(".menu-wrap")?.classList.remove("open");runMenuAction(btn.dataset.menuAction)}));
 document.querySelectorAll("[data-snap-mode]").forEach(btn=>{btn.addEventListener("click",e=>{e.stopPropagation();const key=btn.dataset.snapMode;snapModes[key]=!snapModes[key];btn.classList.toggle("active",snapModes[key]);btn.closest(".menu-wrap")?.classList.remove("open");setStatus("OSNAP "+key+" "+(snapModes[key]?"ON":"OFF"));});});
 
 const commandInput=$("commandInput");
