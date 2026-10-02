@@ -114,7 +114,7 @@ textarea{min-height:64px;resize:vertical}
 
 <script>
 const canvas=document.getElementById("cad"),ctx=canvas.getContext("2d");
-let orthoEnabled=true;
+let orthoEnabled=false;
 let gridStep=10;
 let snapEnabled=true,gridSnapEnabled=false,snapModes={endpoint:true,midpoint:true,center:true,intersection:true,nearest:true,perpendicular:true,quadrant:true,tangent:true,grid:true};
 let snapInfo={point:null,type:""};
