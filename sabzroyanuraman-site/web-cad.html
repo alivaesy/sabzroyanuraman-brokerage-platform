@@ -915,7 +915,12 @@ function commandClick(p){
   return false;
  }
  const s=commandState;
- 
+ if(s.cmd==="BREAK"&&s.step==="select"){
+  const hit=findNearest(p);
+  const e=hit>=0?entities[hit]:null;
+  if(hit<0||!e||(e.type!=="LINE"&&e.type!=="LWPOLYLINE"&&e.type!=="POLYLINE"&&e.type!=="POLYLINE3D")){setStatus("BREAK — Select a LINE or POLYLINE.");return true}
+  s.ids=[hit];selectedSet.clear();selectedSet.add(hit);selected=hit;s.step="break1";setStatus("BREAK — Specify first break point:");draw();return true;
+ }
 if(s.cmd==="HATCH"&&s.step==="select"){const hit=findNearest(p);if(hit<0){setStatus("HATCH — Select a closed polyline.");return true}hatchFromPolyline(hit);commandState=null;setMode("select");return true;}
 if((s.cmd==="TEXT"||s.cmd==="MTEXT")&&s.step==="point"){s.p1=p;s.step="text";setStatus(s.cmd+" — Enter text:");commandInput.focus();draw();return true;}
 if((s.cmd==="DIMLINEAR"||s.cmd==="DIMALIGNED")&&s.step==="first"){s.p1=p;s.step="second";setStatus(s.cmd+" — Specify second extension line origin:");draw();return true;}
