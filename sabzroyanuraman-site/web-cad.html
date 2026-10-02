@@ -778,8 +778,99 @@ function executePointDivision(cmd,index){
   saveHistory();const added=addMeasurePoints(e,d);rebuildLayers();draw();setStatus("MEASURE completed — "+added+" POINT objects at spacing "+d);
  }
 }
+function breakPolylineAtPoints(index,p1,p2){
+ const e=entities[index],pts=e&&e.pts;
+ if(!e||!pts||pts.length<2)return false;
+ const closed=!!e.closed,n=pts.length,segments=n-1+(closed?1:0),tol=1e-8;
+ const segs=[],lens=[];let total=0;
+ const dist2=(a,b)=>{const dx=b[0]-a[0],dy=b[1]-a[1];return dx*dx+dy*dy};
+ const project=(p)=>{
+   let best=null,acc=0;
+   for(let i=0;i<segments;i++){
+     const j=(i+1)%n,a=pts[i],b=pts[j],dx=b[0]-a[0],dy=b[1]-a[1],l2=dx*dx+dy*dy,l=Math.sqrt(l2);
+     if(l<tol){acc+=l;continue}
+     let t=((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l2;t=Math.max(0,Math.min(1,t));
+     const q=[a[0]+dx*t,a[1]+dy*t],d2=dist2(p,q);
+     if(!best||d2<best.d2)best={i,t,q,dist:acc+l*t};
+     acc+=l;
+   }
+   return best;
+ };
+ for(let i=0;i<segments;i++){
+   const j=(i+1)%n,l=Math.hypot(pts[j][0]-pts[i][0],pts[j][1]-pts[i][1]);
+   if(l>=tol){segs.push({i,j,a:pts[i],b:pts[j]});lens.push(l);total+=l}
+ }
+ if(total<tol)return false;
+ const a=project(p1),b=project(p2);
+ if(!a||!b||Math.abs(a.dist-b.dist)<tol)return false;
+ const pointAt=pr=>pr.q;
+ const buildOpen=(start,end)=>{
+   const out=[start];
+   let k=a.i;
+   return out;
+ };
+ const pointOn=(pr)=>[pr.q[0],pr.q[1]];
+ const makePath=(from,to)=>{
+   const out=[pointOn(from)],cur=from;
+   let guard=0;
+   while(guard++<segments+2){
+     if(cur.i===to.i){
+       if(to.t>cur.t+tol)out.push(pointOn(to));
+       break;
+     }
+     const nextIndex=(cur.i+1)%n;
+     const nextPoint=pts[nextIndex];
+     if(Math.hypot(out[out.length-1][0]-nextPoint[0],out[out.length-1][1]-nextPoint[1])>tol)out.push([nextPoint[0],nextPoint[1]]);
+     cur.i=(cur.i+1)%n;cur.t=0;
+   }
+   return out;
+ };
+ let replacements=[];
+ if(!closed){
+   const lo=a.dist<b.dist?a:b,hi=a.dist<b.dist?b:a;
+   const left=[pointOn(lo)];
+   for(let i=lo.i+1;i<=hi.i;i++)left.push([pts[i][0],pts[i][1]]);
+   if(left.length&&Math.hypot(left[left.length-1][0]-pointOn(hi)[0],left[left.length-1][1]-pointOn(hi)[1])>tol)left.push(pointOn(hi));
+   const right=[pointOn(hi)];
+   for(let i=hi.i+1;i<n;i++)right.push([pts[i][0],pts[i][1]]);
+   if(right.length&&Math.hypot(right[0][0]-pointOn(hi)[0],right[0][1]-pointOn(hi)[1])<tol)right.shift();
+   right.unshift(pointOn(hi));
+   const before=[pts[0],pointOn(lo)];
+   const after=[pointOn(hi),...pts.slice(hi.i+1)];
+   if(lo.dist>tol&&before.length>=2)replacements.push({...cloneEntity(e),pts:before,closed:false});
+   if(total-hi.dist>tol&&after.length>=2)replacements.push({...cloneEntity(e),pts:after,closed:false});
+   if(lo.i===hi.i){
+     const midA=pointOn(lo),midB=pointOn(hi);
+     replacements=[];
+     if(lo.dist>tol)replacements.push({...cloneEntity(e),pts:[...pts.slice(0,lo.i+1),midA],closed:false});
+     if(total-hi.dist>tol)replacements.push({...cloneEntity(e),pts:[midB,...pts.slice(hi.i+1)],closed:false});
+   }
+ }else{
+   const from=a,to=b;
+   const keep=[];
+   let cur=to;
+   keep.push(pointOn(cur));
+   let guard=0;
+   while(guard++<segments+2){
+     if(cur.i===from.i){
+       if(from.t>cur.t+tol)keep.push(pointOn(from));
+       break;
+     }
+     const ni=(cur.i+1)%n;
+     const np=pts[ni];
+     if(Math.hypot(keep.at(-1)[0]-np[0],keep.at(-1)[1]-np[1])>tol)keep.push([np[0],np[1]]);
+     cur={i:ni,t:0};
+   }
+   if(keep.length>=2)replacements.push({...cloneEntity(e),pts:keep,closed:false});
+ }
+ if(!replacements.length)return false;
+ entities.splice(index,1,...replacements);
+ selectedSet.clear();replacements.forEach((_,k)=>selectedSet.add(index+k));selected=index;
+ return true;
+}
 function breakLineAtPoints(index,p1,p2){
  const e=entities[index];
+ if(e&&(e.type==="LWPOLYLINE"||e.type==="POLYLINE"||e.type==="POLYLINE3D"))return breakPolylineAtPoints(index,p1,p2);
  if(!e||e.type!=="LINE")return false;
  const A=[e.x1,e.y1],B=[e.x2,e.y2],dx=B[0]-A[0],dy=B[1]-A[1],len2=dx*dx+dy*dy;
  if(!len2)return false;
@@ -1015,7 +1106,7 @@ if(s.step==="vertex"){
   if(s.cmd==="BREAK"){
    const idx=s.ids[0],before=s.before;
    if(breakLineAtPoints(idx,s.break1,p)){history.push(before);if(history.length>historyLimit)history.shift();finishCommand("BREAK completed")}
-   else finishCommand("BREAK — Select two distinct points on a LINE.");
+   else finishCommand("BREAK — Select two distinct points on a LINE or POLYLINE.");
   }
   return true;
  }
