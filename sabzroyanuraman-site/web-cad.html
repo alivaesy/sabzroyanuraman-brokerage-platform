@@ -1683,58 +1683,45 @@ function cutPolyAxisDirection(dir){
  if(dir==="LEFT"||dir==="RIGHT")return [0,1];
  return [1,0];
 }
-function cutPolyAreaByAxis(pts,target,dir){
- const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),xmin=Math.min(...xs),xmax=Math.max(...xs),ymin=Math.min(...ys),ymax=Math.max(...ys);
- let p0,d,lo,hi,chooseLeft;
- if(dir==="LEFT"||dir==="RIGHT"){p0=[xmin-1, ymin-1];d=[0,1];lo=xmin-1;hi=xmax+1;chooseLeft=dir==="LEFT"}
- else{p0=[xmin-1,ymin-1];d=[1,0];lo=ymin-1;hi=ymax+1;chooseLeft=dir==="DOWN"}
- const total=cutPolyArea(pts),wanted=Math.min(target,total-target);
- let best=null,bestErr=Infinity;
- for(let i=0;i<=48;i++){
-  const off=lo+(hi-lo)*i/48,base=p0.slice();
-  if(dir==="LEFT"||dir==="RIGHT")base[0]=off;else base[1]=off;
-  const sp=cutPolySplitByLine(pts,base,d);if(!sp)continue;
+function cutPolySearchParallel(pts,d,target,side){
+ const len=Math.hypot(d[0],d[1]);if(len<1e-12)return null;
+ d=[d[0]/len,d[1]/len];
+ const n=[-d[1],d[0]],proj=pts.map(p=>p[0]*n[0]+p[1]*n[1]);
+ let lo=Math.min(...proj)-1,hi=Math.max(...proj)+1;
+ const evalAt=off=>{
+  const p0=[n[0]*off,n[1]*off],sp=cutPolySplitByLine(pts,p0,d);if(!sp)return null;
+  let chosen=null;
   for(const part of sp.parts){
-   const a=cutPolyArea(part),side=cutPolySideForPart(part,base,d),isWanted=chooseLeft?side>=0:side<=0;
-   if(isWanted){const er=Math.abs(a-target);if(er<bestErr){bestErr=er;best={base,d,parts:sp.parts,wanted:a}}}
+   const sg=cutPolySideForPart(part,p0,d),ok=side==="LEFT"?sg>=-1e-8:sg<=1e-8;
+   if(ok){chosen=part;break}
   }
+  return chosen?{p0,d,parts:sp.parts,chosen,area:cutPolyArea(chosen)}:null;
+ };
+ let best=null,bestErr=Infinity,step=(hi-lo)/96;
+ for(let i=0;i<=96;i++){
+  const r=evalAt(lo+(hi-lo)*i/96);if(!r)continue;
+  const er=Math.abs(r.area-target);if(er<bestErr){bestErr=er;best=r}
  }
  if(!best)return null;
- let a=lo,b=hi;
- for(let it=0;it<45;it++){
-  const mid=(a+b)/2,base=p0.slice();if(dir==="LEFT"||dir==="RIGHT")base[0]=mid;else base[1]=mid;
-  const sp=cutPolySplitByLine(pts,base,d);if(!sp)break;
-  let chosen=null;
-  for(const part of sp.parts){const side=cutPolySideForPart(part,base,d),ok=chooseLeft?side>=-1e-9:side<=1e-9;if(ok){chosen=part;break}}
-  if(!chosen){if(dir==="LEFT"||dir==="RIGHT"){a=mid}else{a=mid};continue}
-  const ar=cutPolyArea(chosen);
-  if(Math.abs(ar-target)<bestErr){bestErr=Math.abs(ar-target);best={base,d,parts:sp.parts,wanted:ar}}
-  if(dir==="LEFT"||dir==="RIGHT"){
-   if((chooseLeft&&ar<target)||(!chooseLeft&&ar>target))a=mid;else b=mid;
-  }else{
-   if((chooseLeft&&ar<target)||(!chooseLeft&&ar>target))a=mid;else b=mid;
-  }
+ let center=n[0]*best.p0[0]+n[1]*best.p0[1],a=Math.max(lo,center-step),b=Math.min(hi,center+step);
+ for(let it=0;it<42;it++){
+  const m1=a+(b-a)/3,m2=b-(b-a)/3,r1=evalAt(m1),r2=evalAt(m2);
+  const e1=r1?Math.abs(r1.area-target):Infinity,e2=r2?Math.abs(r2.area-target):Infinity;
+  if(e1<e2)b=m2;else a=m1;
+  const rm=evalAt((a+b)/2);if(rm&&Math.abs(rm.area-target)<bestErr){bestErr=Math.abs(rm.area-target);best=rm}
  }
  return best;
 }
+function cutPolyAreaByAxis(pts,target,dir){
+ let d,side;
+ if(dir==="LEFT"){d=[0,1];side="LEFT"}
+ else if(dir==="RIGHT"){d=[0,1];side="RIGHT"}
+ else if(dir==="UP"){d=[1,0];side="LEFT"}
+ else {d=[1,0];side="RIGHT"}
+ return cutPolySearchParallel(pts,d,target,side);
+}
 function cutPolyAreaByReference(pts,refP,refD,target,side){
- const d=[refD[0],refD[1]],len=Math.hypot(d[0],d[1]);if(len<1e-12)return null;
- const n=[-d[1]/len,d[0]/len],projs=pts.map(p=>p[0]*n[0]+p[1]*n[1]),center=refP[0]*n[0]+refP[1]*n[1];
- let lo=Math.min(...projs)-1,hi=Math.max(...projs)+1;
- const total=cutPolyArea(pts),chooseLeft=side==="LEFT";
- let best=null,bestErr=Infinity;
- for(let it=0;it<55;it++){
-  const off=(lo+hi)/2,p0=[n[0]*off,n[1]*off],sp=cutPolySplitByLine(pts,p0,d);
-  if(sp){
-   let chosen=null;
-   for(const part of sp.parts){const sg=cutPolySideForPart(part,p0,d),ok=chooseLeft?sg>=-1e-8:sg<=1e-8;if(ok){chosen=part;break}}
-   if(chosen){
-    const ar=cutPolyArea(chosen),er=Math.abs(ar-target);if(er<bestErr){bestErr=er;best={p0,d,parts:sp.parts,wanted:ar}}
-    if((chooseLeft&&ar<target)||(!chooseLeft&&ar>target))lo=off;else hi=off;
-   }else{lo=off}
-  }else lo=off;
- }
- return best;
+ return cutPolySearchParallel(pts,[refD[0],refD[1]],target,side);
 }
 function cutPolyPointArea(pts,start,target,clockwise){
  const info=cutPolyBoundaryInfo(pts,start);if(info.d>30/view.scale)return null;
@@ -1822,14 +1809,11 @@ function runCadCommand(raw){
   if(s.step==="equalDir"){
    const d=q==="LEFT"||q==="L"?"LEFT":q==="RIGHT"||q==="R"?"RIGHT":q==="UP"||q==="U"?"UP":q==="DOWN"||q==="D"?"DOWN":null;
    if(!d){setStatus("CUT POLYGON — Direction [Left/Right/Up/Down]:");commandInput.value="";return}
-   const pts=cutPolyRing(s.original),total=cutPolyArea(pts),remaining=[pts],pieces=[];
+   const pts=cutPolyRing(s.original),total=cutPolyArea(pts),remaining=[pts],pieces=[],wantEach=total/s.partsCount;
    for(let k=1;k<s.partsCount;k++){
-    const current=remaining[0],target=total*k/s.partsCount,curArea=cutPolyArea(current),want=target-pieces.reduce((z,x)=>z+cutPolyArea(x),0);
-    const res=cutPolyAreaByAxis(current,want,d);
+    const current=remaining[0],res=cutPolyAreaByAxis(current,wantEach,d);
     if(!res){setStatus("CUT POLYGON — Equal-area cut failed at part "+k+".");commandInput.value="";return}
-    const a1=cutPolyArea(res.parts[0]),a2=cutPolyArea(res.parts[1]);
-    const choose=res.parts.find(p=>Math.abs(cutPolyArea(p)-want)<Math.abs((a1===cutPolyArea(p)?a2:a1)-want))||res.parts[0];
-    const rest=choose===res.parts[0]?res.parts[1]:res.parts[0];
+    const choose=res.chosen,rest=choose===res.parts[0]?res.parts[1]:res.parts[0];
     pieces.push(choose);remaining[0]=rest;
    }
    pieces.push(remaining[0]);saveHistory();
