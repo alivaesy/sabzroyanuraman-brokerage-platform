@@ -1069,7 +1069,7 @@ if(s.step==="vertex"){
  if(s.step==="break2"){
   if(s.cmd==="BREAK"){
    const idx=s.ids[0],before=s.before;
-   if(breakLineAtPoints(idx,s.break1,p)){history.push(before);if(history.length>historyLimit)history.shift();finishCommand("BREAK completed")}
+   if(breakLineAtPoints(idx,s.break1,p)){finishCommand("BREAK completed")}
    else finishCommand("BREAK — Select two distinct points on a LINE or POLYLINE.");
   }
   return true;
