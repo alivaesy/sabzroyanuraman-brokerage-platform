@@ -254,73 +254,73 @@ textarea{min-height:64px;resize:vertical}
 <div class="ribbon-lite">
   <div class="rgroup">
     <label class="rbutton" for="dxfFile" title="Open DXF"><svg class="ico icon-file" aria-hidden="true"><use href="#i-open"></use></svg><span class="rlabel">Open</span></label>
-    <button class="rbutton" id="newBtn" title="New"><svg class="ico icon-file" aria-hidden="true"><use href="#i-open"></use></svg><span class="rlabel">New</span></button>
-    <button class="rbutton" id="saveBtn" title="Save"><svg class="ico icon-file" aria-hidden="true"><use href="#i-open"></use></svg><span class="rlabel">Save</span></button>
+    <button class="rbutton" id="newBtn" title="New"><svg class="ico icon-file" aria-hidden="true"><use href="#i-new"></use></svg><span class="rlabel">New</span></button>
+    <button class="rbutton" id="saveBtn" title="Save"><svg class="ico icon-file" aria-hidden="true"><use href="#i-save"></use></svg><span class="rlabel">Save</span></button>
   </div>
   <div class="rgroup">
-    <button class="rbutton" id="fitBtn" title="Zoom Extents"><svg class="ico icon-view" aria-hidden="true"><use href="#i-open"></use></svg><span class="rlabel">Zoom</span></button>
-    <button class="rbutton" id="gridBtn" title="Grid"><svg class="ico icon-view" aria-hidden="true"><use href="#i-new"></use></svg><span class="rlabel">Grid</span></button>
+    <button class="rbutton" id="fitBtn" title="Zoom Extents"><svg class="ico icon-view" aria-hidden="true"><use href="#i-zoom"></use></svg><span class="rlabel">Zoom</span></button>
+    <button class="rbutton" id="gridBtn" title="Grid"><svg class="ico icon-view" aria-hidden="true"><use href="#i-grid"></use></svg><span class="rlabel">Grid</span></button>
   </div>
   <div class="rgroup">
-    <button class="rbutton" data-mode="select" title="Select"><svg class="ico icon-select" aria-hidden="true"><use href="#i-save"></use></svg><span class="rlabel">Select</span></button>
+    <button class="rbutton" data-mode="select" title="Select"><svg class="ico icon-select" aria-hidden="true"><use href="#i-select"></use></svg><span class="rlabel">Select</span></button>
   </div>
   <div class="rgroup">
-    <button class="rbutton" data-menu-action="line" title="Line"><svg class="ico icon-draw" aria-hidden="true"><use href="#i-zoom"></use></svg><span class="rlabel">Line</span></button>
-    <button class="rbutton" data-menu-action="polyline" title="Polyline"><svg class="ico icon-draw" aria-hidden="true"><use href="#i-grid"></use></svg><span class="rlabel">Polyline</span></button>
-    <button class="rbutton" data-menu-action="circle" title="Circle"><svg class="ico icon-draw" aria-hidden="true"><use href="#i-select"></use></svg><span class="rlabel">Circle</span></button>
-    <button class="rbutton" data-menu-action="arc" title="Arc"><svg class="ico icon-draw" aria-hidden="true"><use href="#i-line"></use></svg><span class="rlabel">Arc</span></button>
-    <button class="rbutton" data-menu-action="point" title="Point"><svg class="ico icon-draw" aria-hidden="true"><use href="#i-polyline"></use></svg><span class="rlabel">Point</span></button>
-    <button class="rbutton" data-menu-action="rectang" title="Rectangle"><svg class="ico icon-draw" aria-hidden="true"><use href="#i-circle"></use></svg><span class="rlabel">Rectangle</span></button>
-    <button class="rbutton" data-menu-action="hatch" title="Hatch"><svg class="ico icon-draw" aria-hidden="true"><use href="#i-arc"></use></svg><span class="rlabel">Hatch</span></button>
-    <button class="rbutton" data-menu-action="text" title="Text"><svg class="ico icon-annot" aria-hidden="true"><use href="#i-point"></use></svg><span class="rlabel">Text</span></button>
-    <button class="rbutton" data-menu-action="mtext" title="MText"><svg class="ico icon-annot" aria-hidden="true"><use href="#i-rect"></use></svg><span class="rlabel">MText</span></button>
+    <button class="rbutton" data-menu-action="line" title="Line"><svg class="ico icon-draw" aria-hidden="true"><use href="#i-line"></use></svg><span class="rlabel">Line</span></button>
+    <button class="rbutton" data-menu-action="polyline" title="Polyline"><svg class="ico icon-draw" aria-hidden="true"><use href="#i-polyline"></use></svg><span class="rlabel">Polyline</span></button>
+    <button class="rbutton" data-menu-action="circle" title="Circle"><svg class="ico icon-draw" aria-hidden="true"><use href="#i-circle"></use></svg><span class="rlabel">Circle</span></button>
+    <button class="rbutton" data-menu-action="arc" title="Arc"><svg class="ico icon-draw" aria-hidden="true"><use href="#i-arc"></use></svg><span class="rlabel">Arc</span></button>
+    <button class="rbutton" data-menu-action="point" title="Point"><svg class="ico icon-draw" aria-hidden="true"><use href="#i-point"></use></svg><span class="rlabel">Point</span></button>
+    <button class="rbutton" data-menu-action="rectang" title="Rectangle"><svg class="ico icon-draw" aria-hidden="true"><use href="#i-rect"></use></svg><span class="rlabel">Rectangle</span></button>
+    <button class="rbutton" data-menu-action="hatch" title="Hatch"><svg class="ico icon-draw" aria-hidden="true"><use href="#i-hatch"></use></svg><span class="rlabel">Hatch</span></button>
+    <button class="rbutton" data-menu-action="text" title="Text"><svg class="ico icon-annot" aria-hidden="true"><use href="#i-text"></use></svg><span class="rlabel">Text</span></button>
+    <button class="rbutton" data-menu-action="mtext" title="MText"><svg class="ico icon-annot" aria-hidden="true"><use href="#i-mtext"></use></svg><span class="rlabel">MText</span></button>
   </div>
   <div class="rgroup">
-    <button class="rbutton" data-menu-action="xline" title="Construction Line (XLINE)"><svg class="ico icon-construct" aria-hidden="true"><use href="#i-hatch"></use></svg><span class="rlabel">XLINE</span></button>
-    <button class="rbutton" data-menu-action="ray" title="Ray (RAY)"><svg class="ico icon-construct" aria-hidden="true"><use href="#i-text"></use></svg><span class="rlabel">RAY</span></button>
-    <button class="rbutton" data-menu-action="divide" title="Divide"><svg class="ico icon-measure" aria-hidden="true"><use href="#i-mtext"></use></svg><span class="rlabel">Divide</span></button>
-    <button class="rbutton" data-menu-action="measure" title="Measure"><svg class="ico icon-measure" aria-hidden="true"><use href="#i-xline"></use></svg><span class="rlabel">Measure</span></button>
+    <button class="rbutton" data-menu-action="xline" title="Construction Line (XLINE)"><svg class="ico icon-construct" aria-hidden="true"><use href="#i-xline"></use></svg><span class="rlabel">XLINE</span></button>
+    <button class="rbutton" data-menu-action="ray" title="Ray (RAY)"><svg class="ico icon-construct" aria-hidden="true"><use href="#i-ray"></use></svg><span class="rlabel">RAY</span></button>
+    <button class="rbutton" data-menu-action="divide" title="Divide"><svg class="ico icon-measure" aria-hidden="true"><use href="#i-divide"></use></svg><span class="rlabel">Divide</span></button>
+    <button class="rbutton" data-menu-action="measure" title="Measure"><svg class="ico icon-measure" aria-hidden="true"><use href="#i-measure"></use></svg><span class="rlabel">Measure</span></button>
   </div>
   <div class="rgroup">
-    <button class="rbutton" data-menu-action="move" title="Move"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-ray"></use></svg><span class="rlabel">Move</span></button>
-    <button class="rbutton" data-menu-action="copy" title="Copy"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-divide"></use></svg><span class="rlabel">Copy</span></button>
-    <button class="rbutton" data-menu-action="offset" title="Offset"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-measure"></use></svg><span class="rlabel">Offset</span></button>
-    <button class="rbutton" data-menu-action="trim" title="Trim"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-move"></use></svg><span class="rlabel">Trim</span></button>
-    <button class="rbutton" data-menu-action="lengthen" title="Lengthen"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-copy"></use></svg><span class="rlabel">Lengthen</span></button>
-    <button class="rbutton" data-menu-action="explode" title="Explode"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-offset"></use></svg><span class="rlabel">Explode</span></button>
-    <button class="rbutton" data-menu-action="extend" title="Extend"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-trim"></use></svg><span class="rlabel">Extend</span></button>
-    <button class="rbutton" data-menu-action="stretch" title="Stretch"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-lengthen"></use></svg><span class="rlabel">Stretch</span></button>
-    <button class="rbutton" data-menu-action="rotate" title="Rotate"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-explode"></use></svg><span class="rlabel">Rotate</span></button>
-    <button class="rbutton" data-menu-action="break" title="Break"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-extend"></use></svg><span class="rlabel">Break</span></button>
-    <button class="rbutton" data-menu-action="join" title="Join"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-stretch"></use></svg><span class="rlabel">Join</span></button>
-    <button class="rbutton" data-menu-action="pedit" title="PEDIT"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-rotate"></use></svg><span class="rlabel">PEDIT</span></button>
+    <button class="rbutton" data-menu-action="move" title="Move"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-move"></use></svg><span class="rlabel">Move</span></button>
+    <button class="rbutton" data-menu-action="copy" title="Copy"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-copy"></use></svg><span class="rlabel">Copy</span></button>
+    <button class="rbutton" data-menu-action="offset" title="Offset"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-offset"></use></svg><span class="rlabel">Offset</span></button>
+    <button class="rbutton" data-menu-action="trim" title="Trim"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-trim"></use></svg><span class="rlabel">Trim</span></button>
+    <button class="rbutton" data-menu-action="lengthen" title="Lengthen"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-lengthen"></use></svg><span class="rlabel">Lengthen</span></button>
+    <button class="rbutton" data-menu-action="explode" title="Explode"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-explode"></use></svg><span class="rlabel">Explode</span></button>
+    <button class="rbutton" data-menu-action="extend" title="Extend"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-extend"></use></svg><span class="rlabel">Extend</span></button>
+    <button class="rbutton" data-menu-action="stretch" title="Stretch"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-stretch"></use></svg><span class="rlabel">Stretch</span></button>
+    <button class="rbutton" data-menu-action="rotate" title="Rotate"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-rotate"></use></svg><span class="rlabel">Rotate</span></button>
+    <button class="rbutton" data-menu-action="break" title="Break"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-break"></use></svg><span class="rlabel">Break</span></button>
+    <button class="rbutton" data-menu-action="join" title="Join"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-join"></use></svg><span class="rlabel">Join</span></button>
+    <button class="rbutton" data-menu-action="pedit" title="PEDIT"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-pedit"></use></svg><span class="rlabel">PEDIT</span></button>
   </div>
   <div class="rgroup">
-    <button class="rbutton" data-menu-action="matchprop" title="Match Properties"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-break"></use></svg><span class="rlabel">MatchProp</span></button>
-    <button class="rbutton" data-menu-action="mirror" title="Mirror"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-join"></use></svg><span class="rlabel">Mirror</span></button>
-    <button class="rbutton" data-menu-action="scale" title="Scale"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-pedit"></use></svg><span class="rlabel">Scale</span></button>
-    <button class="rbutton" data-menu-action="fillet" title="Fillet"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-match"></use></svg><span class="rlabel">Fillet</span></button>
-    <button class="rbutton" data-menu-action="chamfer" title="Chamfer"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-mirror"></use></svg><span class="rlabel">Chamfer</span></button>
-    <button class="rbutton" data-menu-action="closepoly" title="Close Polyline"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-scale"></use></svg><span class="rlabel">Close PL</span></button>
-    <button class="rbutton" data-menu-action="editvertex" title="Edit Vertex"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-fillet"></use></svg><span class="rlabel">Edit Vertex</span></button>
-    <button class="rbutton" data-menu-action="cutpolygon" title="Cut Polygon by Area"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-chamfer"></use></svg><span class="rlabel">Cut Poly</span></button>
-    <button class="rbutton" data-menu-action="erase" title="Erase"><svg class="ico icon-erase" aria-hidden="true"><use href="#i-closepoly"></use></svg><span class="rlabel">Erase</span></button>
+    <button class="rbutton" data-menu-action="matchprop" title="Match Properties"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-match"></use></svg><span class="rlabel">MatchProp</span></button>
+    <button class="rbutton" data-menu-action="mirror" title="Mirror"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-mirror"></use></svg><span class="rlabel">Mirror</span></button>
+    <button class="rbutton" data-menu-action="scale" title="Scale"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-scale"></use></svg><span class="rlabel">Scale</span></button>
+    <button class="rbutton" data-menu-action="fillet" title="Fillet"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-fillet"></use></svg><span class="rlabel">Fillet</span></button>
+    <button class="rbutton" data-menu-action="chamfer" title="Chamfer"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-chamfer"></use></svg><span class="rlabel">Chamfer</span></button>
+    <button class="rbutton" data-menu-action="closepoly" title="Close Polyline"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-closepoly"></use></svg><span class="rlabel">Close PL</span></button>
+    <button class="rbutton" data-menu-action="editvertex" title="Edit Vertex"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-vertex"></use></svg><span class="rlabel">Edit Vertex</span></button>
+    <button class="rbutton" data-menu-action="cutpolygon" title="Cut Polygon by Area"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-cutpoly"></use></svg><span class="rlabel">Cut Poly</span></button>
+    <button class="rbutton" data-menu-action="erase" title="Erase"><svg class="ico icon-erase" aria-hidden="true"><use href="#i-erase"></use></svg><span class="rlabel">Erase</span></button>
   </div>
   <div class="rgroup">
-    <button class="rbutton" data-menu-action="undo" title="Undo"><svg class="ico icon-file" aria-hidden="true"><use href="#i-vertex"></use></svg><span class="rlabel">Undo</span></button>
-    <button class="rbutton" data-menu-action="rotate" title="Rotate"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-cutpoly"></use></svg><span class="rlabel">Rotate</span></button>
-    <button class="rbutton" data-menu-action="distance" title="Distance"><svg class="ico icon-measure" aria-hidden="true"><use href="#i-erase"></use></svg><span class="rlabel">Distance</span></button>
-    <button class="rbutton" data-menu-action="dimlinear" title="Linear Dimension"><svg class="ico icon-annot" aria-hidden="true"><use href="#i-undo"></use></svg><span class="rlabel">Dim Linear</span></button>
-    <button class="rbutton" data-menu-action="dimaligned" title="Aligned Dimension"><svg class="ico icon-annot" aria-hidden="true"><use href="#i-rotate"></use></svg><span class="rlabel">Dim Aligned</span></button>
-    <button class="rbutton" data-menu-action="area" title="Area"><svg class="ico icon-measure" aria-hidden="true"><use href="#i-distance"></use></svg><span class="rlabel">Area</span></button>
+    <button class="rbutton" data-menu-action="undo" title="Undo"><svg class="ico icon-file" aria-hidden="true"><use href="#i-undo"></use></svg><span class="rlabel">Undo</span></button>
+    <button class="rbutton" data-menu-action="rotate" title="Rotate"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-rotate"></use></svg><span class="rlabel">Rotate</span></button>
+    <button class="rbutton" data-menu-action="distance" title="Distance"><svg class="ico icon-measure" aria-hidden="true"><use href="#i-distance"></use></svg><span class="rlabel">Distance</span></button>
+    <button class="rbutton" data-menu-action="dimlinear" title="Linear Dimension"><svg class="ico icon-annot" aria-hidden="true"><use href="#i-dimlinear"></use></svg><span class="rlabel">Dim Linear</span></button>
+    <button class="rbutton" data-menu-action="dimaligned" title="Aligned Dimension"><svg class="ico icon-annot" aria-hidden="true"><use href="#i-dimaligned"></use></svg><span class="rlabel">Dim Aligned</span></button>
+    <button class="rbutton" data-menu-action="area" title="Area"><svg class="ico icon-measure" aria-hidden="true"><use href="#i-area"></use></svg><span class="rlabel">Area</span></button>
   </div>
   <div class="rgroup">
-    <button class="rbutton" data-menu-action="snap" title="Grid SNAP"><svg class="ico icon-draft" aria-hidden="true"><use href="#i-dimlinear"></use></svg><span class="rlabel">SNAP</span></button>
-    <button class="rbutton" data-menu-action="osnap" title="Object OSNAP"><svg class="ico icon-draft" aria-hidden="true"><use href="#i-dimaligned"></use></svg><span class="rlabel">OSNAP</span></button>
-    <button class="rbutton" data-menu-action="ucs" title="UCS"><svg class="ico icon-draft" aria-hidden="true"><use href="#i-area"></use></svg><span class="rlabel">UCS</span></button>
+    <button class="rbutton" data-menu-action="snap" title="Grid SNAP"><svg class="ico icon-draft" aria-hidden="true"><use href="#i-snap"></use></svg><span class="rlabel">SNAP</span></button>
+    <button class="rbutton" data-menu-action="osnap" title="Object OSNAP"><svg class="ico icon-draft" aria-hidden="true"><use href="#i-osnap"></use></svg><span class="rlabel">OSNAP</span></button>
+    <button class="rbutton" data-menu-action="ucs" title="UCS"><svg class="ico icon-draft" aria-hidden="true"><use href="#i-ucs"></use></svg><span class="rlabel">UCS</span></button>
   </div>
   <div class="rgroup">
-    <button class="rbutton" id="backBtn" title="Back to Site Map"><svg class="ico icon-site" aria-hidden="true"><use href="#i-snap"></use></svg><span class="rlabel">Site Map</span></button>
+    <button class="rbutton" id="backBtn" title="Back to Site Map"><svg class="ico icon-site" aria-hidden="true"><use href="#i-home"></use></svg><span class="rlabel">Site Map</span></button>
   </div>
   <input id="dxfFile" class="file" type="file" accept=".dxf,.txt">
 </div>
