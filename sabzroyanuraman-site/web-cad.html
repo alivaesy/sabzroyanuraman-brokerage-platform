@@ -664,6 +664,8 @@ function showEntityProperties(index){
 function closeEntityProperties(){$("entityProperties").classList.remove("open")}
 let contextEntityIndex=-1;
 canvas.addEventListener("contextmenu",e=>{e.preventDefault();e.stopPropagation();openEntityContextAt(e.clientX,e.clientY)});
+// Disable the browser context menu throughout Web CAD so right-click belongs to CAD, not Back/Forward/Reload browser actions.
+document.addEventListener("contextmenu",e=>{if(e.target.closest(".app"))e.preventDefault();},true);
 function closeEntityContext(){const m=$("entityContextMenu");if(m)m.classList.remove("open")}
 document.addEventListener("click",e=>{if(!e.target.closest("#entityContextMenu"))closeEntityContext()});
 document.addEventListener("scroll",closeEntityContext,true);
