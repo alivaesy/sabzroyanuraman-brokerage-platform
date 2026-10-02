@@ -38,7 +38,9 @@ textarea{min-height:64px;resize:vertical}
 .status{position:absolute;bottom:34px;right:10px;background:rgba(35,35,35,.92);border:1px solid #555;border-radius:2px;padding:4px 7px;font-size:9px;color:#ddd;box-shadow:none;direction:ltr}
 .coord{position:absolute;bottom:34px;left:10px;background:rgba(25,25,25,.92);border:1px solid #555;border-radius:2px;padding:4px 7px;font-size:9px;color:#ddd;direction:ltr}
 .ucs{position:absolute;left:15px;top:15px;width:55px;height:55px;pointer-events:none;opacity:.9}.ucs:before{content:"";position:absolute;left:25px;top:8px;height:37px;border-left:1px solid #ddd}.ucs:after{content:"";position:absolute;left:8px;top:27px;width:37px;border-top:1px solid #ddd}.ucs .x{position:absolute;left:45px;top:23px;color:#e25d4d;font-size:10px}.ucs .y{position:absolute;left:27px;top:0;color:#6fb6e9;font-size:10px}
-.bottom-bar{height:31px;background:#242424;border-top:1px solid #444;display:flex;align-items:center;direction:ltr;gap:0;overflow:hidden}.command-label{width:68px;flex:0 0 68px;color:#ddd;padding:0 7px;font-size:10px}.command-input{width:240px;flex:0 1 240px;height:25px;border:0;border-left:1px solid #444;background:#101010;color:#fff;padding:3px 7px;outline:none;font-family:Consolas,monospace;font-size:11px;direction:ltr}.view-tabs{height:31px;display:flex;align-items:stretch;direction:ltr}.view-tab{padding:8px 12px;border-left:1px solid #111;color:#bbb;font-size:10px;cursor:pointer}.view-tab.active{background:#353535;color:#fff}.statusbar{height:31px;display:flex;align-items:center;gap:1px;padding:0 3px;direction:ltr;color:#aaa;font-size:9px;margin-left:auto}.status-item{padding:5px 7px;border:1px solid transparent;cursor:pointer}.status-item.active{background:#3a3a3a;color:#fff;border-color:#4b4b4b}.status-spacer{flex:1}
+.bottom-bar{height:31px;background:#242424;border-top:1px solid #444;display:flex;align-items:center;direction:ltr;gap:0;overflow:hidden}.command-label{width:68px;flex:0 0 68px;color:#ddd;padding:0 7px;font-size:10px}.command-input{width:240px;flex:0 1 240px;height:25px;border:0;border-left:1px solid #444;background:#101010;color:#fff;padding:3px 7px;outline:none;font-family:Consolas,monospace;font-size:11px;direction:ltr}.view-tabs{height:31px;display:flex;align-items:stretch;direction:ltr}.view-tab{padding:8px 12px;border-left:1px solid #111;color:#bbb;font-size:10px;cursor:pointer}.view-tab.active{background:#353535;color:#fff}.dynamic-input{position:absolute;display:none;z-index:1200;pointer-events:none;background:rgba(30,30,30,.94);border:1px solid #777;color:#fff;padding:3px 6px;font:10px Tahoma,Arial,sans-serif;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.55)}
+.dynamic-input.active{display:block}
+.statusbar{height:31px;display:flex;align-items:center;gap:1px;padding:0 3px;direction:ltr;color:#aaa;font-size:9px;margin-left:auto}.status-item{padding:5px 7px;border:1px solid transparent;cursor:pointer}.status-item.active{background:#3a3a3a;color:#fff;border-color:#4b4b4b}.status-spacer{flex:1}
 .file{display:none}
 #layerList{max-height:180px;overflow:auto}
 @media(max-width:900px){.side{width:280px}.menu{padding:4px 6px}.ribbon-lite{height:64px}.rgroup{height:59px;padding-bottom:12px}.rbutton{width:42px;min-width:42px}.rbutton .rlabel{font-size:7px}}
@@ -243,7 +245,7 @@ textarea{min-height:64px;resize:vertical}
   <div class="canvas-wrap">
     <canvas id="cad"></canvas><div class="ucs"><span class="x">X</span><span class="y">Y</span></div>
     <div id="status" class="status">Command: Type a command or select a tool</div>
-    <div id="coord" class="coord">X: — | Y: —</div>
+    <div id="coord" class="coord">X: — | Y: —</div><div id="dynamicInput" class="dynamic-input"></div>
   </div>
   <aside class="side">
     
@@ -272,12 +274,12 @@ textarea{min-height:64px;resize:vertical}
     <section id="entityProperties" class="panel entity-properties-palette"><div class="entity-properties-head"><span id="entityPropertiesTitle">Properties</span><button class="entity-properties-close" id="entityPropertiesClose" title="Close Properties">×</button></div><div class="entity-properties-body"><div id="entityPropertiesBody"></div></div><div class="entity-properties-foot"><button id="entityPropertiesDone">Close</button></div></section>
   </aside>
 </div>
-<div id="layerProperties" class="layer-properties"><div class="layer-properties-card"><div class="layer-properties-head"><span id="layerPropertiesTitle">Layer Properties</span><button class="layer-properties-close" id="layerPropertiesClose">×</button></div><div class="layer-properties-body"><div id="layerPropertiesBody"></div></div><div class="layer-properties-foot"><button id="layerPropertiesSetCurrent">Make Current</button><button id="layerPropertiesHide">On / Off</button><button id="layerPropertiesDone">Close</button></div></div></div><div id="entityContextMenu" class="entity-context-menu"><div class="context-caption" id="entityContextCaption">Object</div><button id="entityPropertiesAction">Properties</button><div class="context-separator"></div><button id="entityRepeatAction">Repeat Last Command</button><button id="entitySetLayerAction">Make Current</button><button id="entityMoveAction">Move</button><button id="entityCopyAction">Copy</button><button id="entityRotateAction">Rotate</button><div class="context-separator"></div><button id="entityEraseAction" class="danger">Erase</button></div><div class="bottom-bar"><div class="command-label">Command:</div><input id="commandInput" class="command-input" autocomplete="off" placeholder="LINE, PLINE, CIRCLE, DIST, ZOOM..."><div class="view-tabs"><div class="view-tab active">Model</div><div class="view-tab">Layout1</div><div class="view-tab">Layout2</div></div><div class="statusbar"><span class="status-item active" id="orthoStatus">ORT</span><span class="status-item" id="snapStatus">SNAP</span><span class="status-item" id="gridStatus">GRID</span><span class="status-item active" id="osnapStatus">OSNAP</span><span class="status-item">LWT</span><span class="status-item">MODEL</span><span class="status-spacer"></span><span class="status-item">UTM 38N</span><span class="status-item" id="statusScale">1:1</span></div></div>
+<div id="layerProperties" class="layer-properties"><div class="layer-properties-card"><div class="layer-properties-head"><span id="layerPropertiesTitle">Layer Properties</span><button class="layer-properties-close" id="layerPropertiesClose">×</button></div><div class="layer-properties-body"><div id="layerPropertiesBody"></div></div><div class="layer-properties-foot"><button id="layerPropertiesSetCurrent">Make Current</button><button id="layerPropertiesHide">On / Off</button><button id="layerPropertiesDone">Close</button></div></div></div><div id="entityContextMenu" class="entity-context-menu"><div class="context-caption" id="entityContextCaption">Object</div><button id="entityPropertiesAction">Properties</button><div class="context-separator"></div><button id="entityRepeatAction">Repeat Last Command</button><button id="entitySetLayerAction">Make Current</button><button id="entityMoveAction">Move</button><button id="entityCopyAction">Copy</button><button id="entityRotateAction">Rotate</button><div class="context-separator"></div><button id="entityEraseAction" class="danger">Erase</button></div><div class="bottom-bar"><div class="command-label">Command:</div><input id="commandInput" class="command-input" autocomplete="off" placeholder="LINE, PLINE, CIRCLE, DIST, ZOOM..."><div class="view-tabs"><div class="view-tab active">Model</div><div class="view-tab">Layout1</div><div class="view-tab">Layout2</div></div><div class="statusbar"><span class="status-item active" id="orthoStatus">ORT</span><span class="status-item" id="snapStatus">SNAP</span><span class="status-item" id="polarStatus">POLAR</span><span class="status-item" id="gridStatus">GRID</span><span class="status-item active" id="osnapStatus">OSNAP</span><span class="status-item">LWT</span><span class="status-item">MODEL</span><span class="status-spacer"></span><span class="status-item">UTM 38N</span><span class="status-item" id="statusScale">1:1</span></div></div>
 </div>
 
 <script>
 const canvas=document.getElementById("cad"),ctx=canvas.getContext("2d");
-let orthoEnabled=false;
+let orthoEnabled=false,polarEnabled=false,polarAngleStep=45;
 let gridStep=10;
 let snapEnabled=true,gridSnapEnabled=false,snapModes={endpoint:true,midpoint:true,center:true,intersection:true,nearest:true,perpendicular:true,quadrant:true,tangent:true,grid:true};
 let snapInfo={point:null,type:""};
@@ -295,6 +297,31 @@ function setStatus(s){$("status").textContent=s}
 function setMode(m){mode=m;drawPoints=[];document.querySelectorAll("[data-mode]").forEach(b=>b.classList.toggle("primary",b.dataset.mode===m));setStatus("Command: "+m)}
 function worldToScreen(x,y){const w=canvas.clientWidth,h=canvas.clientHeight;return [w/2+(x-view.cx)*view.scale,h/2-(y-view.cy)*view.scale]}
 function screenToWorld(sx,sy){const w=canvas.clientWidth,h=canvas.clientHeight;return [(sx-w/2)/view.scale+view.cx,(h/2-sy)/view.scale+view.cy]}
+function applyPolar(p,base){
+ if(!polarEnabled||!base)return p;
+ const dx=p[0]-base[0],dy=p[1]-base[1],d=Math.hypot(dx,dy);if(d<1e-12)return p;
+ const step=Math.max(1,Number(polarAngleStep)||45),a=Math.atan2(dy,dx),snap=Math.round((a*180/Math.PI)/step)*step*Math.PI/180;
+ const da=Math.abs((((a-snap)+Math.PI)%(2*Math.PI))-Math.PI);
+ if(da>10*Math.PI/180)return p;
+ return [base[0]+d*Math.cos(snap),base[1]+d*Math.sin(snap)];
+}
+function parseCadPoint(raw,base){
+ const s=String(raw||"").trim().replace(/[，]/g,",");if(!s)return null;
+ const rel=s[0]==="@";const body=rel?s.slice(1):s;
+ const parts=body.split(/[,;]/).map(Number);if(parts.length<2||!parts.slice(0,2).every(Number.isFinite))return null;
+ return rel&&base?[base[0]+parts[0],base[1]+parts[1]]:[parts[0],parts[1]];
+}
+function updateDynamicInput(p){
+ const box=$("dynamicInput");if(!box)return;
+ let text="X "+formatCadNumber(p[0])+"  Y "+formatCadNumber(p[1]);
+ const base=drawPoints.length?drawPoints[drawPoints.length-1]:null;
+ if(base&&(mode==="line"||mode==="polyline"||mode==="xline"||mode==="ray")){
+  const dx=p[0]-base[0],dy=p[1]-base[1],d=Math.hypot(dx,dy),a=(Math.atan2(dy,dx)*180/Math.PI+360)%360;
+  text+="  |  ΔX "+formatCadNumber(dx)+"  ΔY "+formatCadNumber(dy)+"  D "+formatCadNumber(d)+"  A "+formatCadNumber(a)+"°";
+ }
+ box.textContent=text;box.classList.add("active");
+}
+
 function snapPoint(p){
  if(!snapEnabled&&!gridSnapEnabled){snapInfo={point:null,type:""};return p}
  let best=null,bd=Infinity,btype="",bp=-Infinity,limit=16/view.scale;
@@ -616,7 +643,8 @@ $("newBtn").onclick=()=>{entities=[];selected=-1;selectedSet.clear();rebuildLaye
 $("backBtn").onclick=()=>location.href="index.html";
 document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
 document.querySelectorAll("[data-cmd]").forEach(b=>b.onclick=()=>beginEditCommand(b.dataset.cmd));
-canvas.addEventListener("mousemove",e=>{const r=canvas.getBoundingClientRect();let rawP=screenToWorld(e.clientX-r.left,e.clientY-r.top);if(orthoEnabled&&drawPoints.length&&(mode==="line"||mode==="polyline")){const b=drawPoints[drawPoints.length-1],dx=rawP[0]-b[0],dy=rawP[1]-b[1];if(Math.abs(dx)>=Math.abs(dy))rawP=[rawP[0],b[1]];else rawP=[b[0],rawP[1]]}const p=snapPoint(rawP);$("coord").textContent="X: "+p[0].toFixed(3)+" | Y: "+p[1].toFixed(3);previewPoint=(mode==="line"||mode==="circle"||mode==="polyline"||mode==="xline"||mode==="ray")?p:null;if(commandState&&commandState.cmd==="DIST"&&commandState.step==="dist2"){distVisual.p1=commandState.p1;distVisual.p2=p;}if(drag){view.cx=drag.cx-(e.clientX-drag.x)/view.scale;view.cy=drag.cy+(e.clientY-drag.y)/view.scale}else if(selectionBox&&mode==="select"){selectionBox.x2=p[0];selectionBox.y2=p[1];selectionBox.crossing=p[0]<selectionBox.x1;draw()};draw()});
+canvas.addEventListener("mouseleave",()=>{$("dynamicInput")?.classList.remove("active")});
+canvas.addEventListener("mousemove",e=>{const r=canvas.getBoundingClientRect();let rawP=screenToWorld(e.clientX-r.left,e.clientY-r.top);if(orthoEnabled&&drawPoints.length&&(mode==="line"||mode==="polyline")){const b=drawPoints[drawPoints.length-1],dx=rawP[0]-b[0],dy=rawP[1]-b[1];if(Math.abs(dx)>=Math.abs(dy))rawP=[rawP[0],b[1]];else rawP=[b[0],rawP[1]]}if(polarEnabled&&drawPoints.length&&(mode==="line"||mode==="polyline"))rawP=applyPolar(rawP,drawPoints[drawPoints.length-1]);const p=snapPoint(rawP);$("coord").textContent="X: "+p[0].toFixed(3)+" | Y: "+p[1].toFixed(3);updateDynamicInput(p);previewPoint=(mode==="line"||mode==="circle"||mode==="polyline"||mode==="xline"||mode==="ray")?p:null;if(commandState&&commandState.cmd==="DIST"&&commandState.step==="dist2"){distVisual.p1=commandState.p1;distVisual.p2=p;}if(drag){view.cx=drag.cx-(e.clientX-drag.x)/view.scale;view.cy=drag.cy+(e.clientY-drag.y)/view.scale}else if(selectionBox&&mode==="select"){selectionBox.x2=p[0];selectionBox.y2=p[1];selectionBox.crossing=p[0]<selectionBox.x1;draw()};draw()});
 function openEntityContextAt(clientX,clientY){const r=canvas.getBoundingClientRect(),p=screenToWorld(clientX-r.left,clientY-r.top);contextEntityIndex=selectedEntityForContext(p);if(contextEntityIndex<0){closeEntityContext();return false}const e=entities[contextEntityIndex],menu=$("entityContextMenu");$("entityContextCaption").textContent=(e.type||"Object")+"  •  "+(layerOf(e)||"0");const menuW=212,menuH=250,topSafe=100;menu.style.left=Math.max(4,Math.min(clientX,window.innerWidth-menuW))+"px";menu.style.top=Math.max(topSafe,Math.min(clientY,window.innerHeight-menuH-4))+"px";menu.classList.add("open");return true}
 canvas.addEventListener("mousedown",e=>{if(e.button===1){drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy};e.preventDefault();return}if(e.button===2){e.preventDefault();e.stopPropagation();openEntityContextAt(e.clientX,e.clientY);return}if(e.button!==0)return;const r=canvas.getBoundingClientRect(),rawP=screenToWorld(e.clientX-r.left,e.clientY-r.top),p=snapPoint(rawP);
  if(commandClick(p))return;
@@ -1393,8 +1421,28 @@ function startInfiniteCommand(type){
  mode=type==="XLINE"?"xline":"ray";drawPoints=[];setStatus(type+" — Specify base point:");
 }
 function runCadCommand(raw){
- const q=(raw||"").trim().toUpperCase();
- if(!q)return;
+ const rawText=(raw||"").trim();
+ const q=rawText.toUpperCase();
+ if(commandState&&commandState.cmd==="CIRCLE"&&commandState.step==="radiusInput"){
+  const radius=Number(rawText);if(Number.isFinite(radius)&&radius>0){saveHistory();entities.push({type:"CIRCLE",layer:activeLayer,x:commandState.p1[0],y:commandState.p1[1],r:radius});rebuildLayers();draw();commandState=null;setMode("select");setStatus("CIRCLE completed");commandInput.value="";return;}
+ }
+ if((mode==="polyline"||commandState?.cmd==="POLYLINE")&&q==="CLOSE"&&drawPoints.length>=2){
+  saveHistory();entities.push({type:"LWPOLYLINE",layer:activeLayer,pts:drawPoints.slice(),closed:true});drawPoints=[];draw();setMode("select");setStatus("PLINE closed");commandInput.value="";return;
+ }
+ if(!rawText)return;
+ if(mode==="line"&&(!commandState||commandState.cmd!=="RECTANG")){
+  const base=drawPoints.length?drawPoints[drawPoints.length-1]:null,p=parseCadPoint(rawText,base);
+  if(p){const pp=applyPolar(p,base);if(!drawPoints.length){drawPoints=[pp];setStatus("LINE — Specify next point:");}else{saveHistory();entities.push({type:"LINE",layer:activeLayer,x1:base[0],y1:base[1],x2:pp[0],y2:pp[1]});drawPoints=[pp];setStatus("LINE — Specify next point or press Esc.");rebuildLayers();}draw();commandInput.value="";return;}
+ }
+ if(mode==="polyline"&&(!commandState||commandState.cmd!=="RECTANG")){
+  const base=drawPoints.length?drawPoints[drawPoints.length-1]:null,p=parseCadPoint(rawText,base);
+  if(p){const pp=applyPolar(p,base);if(!drawPoints.length)drawPoints=[pp];else drawPoints.push(pp);setStatus("PLINE — Specify next point or type Close.");draw();commandInput.value="";return;}
+ }
+ if(mode==="circle"){
+  const p=parseCadPoint(rawText,null);
+  if(p){drawPoints=[p];commandState={cmd:"CIRCLE",step:"radiusInput",p1:p};setStatus("CIRCLE — Specify radius or type a value:");draw();commandInput.value="";return;}
+ }
+
  if(q==="L"||q==="LINE"){setMode("line");setStatus("LINE — Specify first point");}
  else if(q==="PL"||q==="PLINE"){setMode("polyline");setStatus("PLINE — Specify first point");}
  else if(q==="C"||q==="CIRCLE"){setMode("circle");setStatus("CIRCLE — Specify center point");}
@@ -1436,6 +1484,7 @@ function runCadCommand(raw){
  else if(q==="Z"||q==="ZOOM"||q==="ZE"||q==="ZOOM E"){fit();}
  else if(q==="G"||q==="GRID"){grid=!grid;draw();$("gridStatus").classList.toggle("active",grid);}
  else if(q==="F3"||q==="OSNAP"){snapEnabled=!snapEnabled;$("osnapStatus").classList.toggle("active",snapEnabled);snapInfo={point:null,type:""};draw();setStatus(snapEnabled?"OSNAP enabled":"OSNAP disabled");}
+ else if(q==="F10"||q==="POLAR"){polarEnabled=!polarEnabled;$("polarStatus").classList.toggle("active",polarEnabled);draw();setStatus(polarEnabled?"POLAR enabled — "+polarAngleStep+"°":"POLAR disabled");}
  else if(q==="END"){snapModes.endpoint=!snapModes.endpoint;setStatus("OSNAP Endpoint "+(snapModes.endpoint?"ON":"OFF"));}
  else if(q==="MID"){snapModes.midpoint=!snapModes.midpoint;setStatus("OSNAP Midpoint "+(snapModes.midpoint?"ON":"OFF"));}
  else if(q==="CEN"){snapModes.center=!snapModes.center;setStatus("OSNAP Center "+(snapModes.center?"ON":"OFF"));}
@@ -1444,7 +1493,7 @@ function runCadCommand(raw){
  else if(q==="PER"){snapModes.perpendicular=!snapModes.perpendicular;setStatus("OSNAP Perpendicular "+(snapModes.perpendicular?"ON":"OFF"));}
  else if(q==="QUA"){snapModes.quadrant=!snapModes.quadrant;setStatus("OSNAP Quadrant "+(snapModes.quadrant?"ON":"OFF"));}
  else if(q==="TAN"){snapModes.tangent=!snapModes.tangent;setStatus("OSNAP Tangent "+(snapModes.tangent?"ON":"OFF"));}
- else if(q==="ESC"){commandState=null;setMode("select");selectedSet.clear();selected=-1;snapInfo={point:null,type:""};distVisual={p1:null,p2:null};draw();setStatus("Command: *Cancel*");}
+ else if(q==="ESC"){commandState=null;setMode("select");selectedSet.clear();selected=-1;snapInfo={point:null,type:""};distVisual={p1:null,p2:null};$("dynamicInput")?.classList.remove("active");draw();setStatus("Command: *Cancel*");}
  else {setStatus("Unknown command: "+raw);}
  commandInput.value="";
 }
@@ -1452,6 +1501,7 @@ commandInput.addEventListener("keydown",e=>{if(e.key==="Enter"){if(commandState&
 window.addEventListener("keydown",e=>{
  if(e.target===commandInput||e.target.tagName==="TEXTAREA"||e.target.tagName==="INPUT")return;
  const k=e.key.toUpperCase();
+ if(e.key==="F10"){polarEnabled=!polarEnabled;$("polarStatus").classList.toggle("active",polarEnabled);setStatus(polarEnabled?"POLAR enabled — "+polarAngleStep+"°":"POLAR disabled");e.preventDefault();return;}
  if(e.key==="Escape"){runCadCommand("ESC");return}
  if(k==="C"&&mode==="polyline"&&drawPoints.length>=3){runMenuAction("closepoly");e.preventDefault();return}
  if((e.ctrlKey||e.metaKey)&&k==="Z"){undo();e.preventDefault();return}
