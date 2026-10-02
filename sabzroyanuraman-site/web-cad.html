@@ -43,6 +43,106 @@ textarea{min-height:64px;resize:vertical}
 #layerList{max-height:180px;overflow:auto}
 @media(max-width:900px){.side{width:280px}.menu{padding:4px 6px}.ribbon-lite{height:64px}.rgroup{height:59px;padding-bottom:12px}.rbutton{width:42px;min-width:42px}.rbutton .rlabel{font-size:7px}}
 .grip{fill:#050505;stroke:#4fc3f7;stroke-width:1}.mid-grip{fill:#050505;stroke:#ffd54a;stroke-width:1}.xline-preview{stroke:#888;stroke-width:1;stroke-dasharray:7 5}
+
+/* AutoCAD-style ribbon presentation — visual only, no command/JS changes */
+.ribbon-lite{
+  height:86px;
+  min-height:86px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  background:#303030;
+  border-bottom:1px solid #111;
+  display:flex;
+  align-items:stretch;
+  direction:ltr;
+  padding:3px 5px 0;
+  box-shadow:inset 0 1px 0 #555;
+  scrollbar-width:thin;
+}
+.ribbon-lite .rgroup{
+  height:82px;
+  min-width:max-content;
+  display:grid;
+  grid-auto-flow:row;
+  grid-template-rows:36px 36px;
+  grid-auto-columns:52px;
+  align-content:start;
+  justify-content:start;
+  gap:1px;
+  padding:2px 5px 15px;
+  margin:0;
+  border-left:1px solid #555;
+  border-right:1px solid #202020;
+  position:relative;
+  background:linear-gradient(to bottom,rgba(255,255,255,.035),rgba(0,0,0,.08));
+}
+.ribbon-lite .rgroup:nth-of-type(1){grid-template-rows:72px;grid-auto-flow:column;grid-auto-columns:52px}
+.ribbon-lite .rgroup:nth-of-type(2){grid-template-rows:72px;grid-auto-flow:column;grid-auto-columns:52px}
+.ribbon-lite .rgroup:nth-of-type(3){grid-template-rows:72px;grid-auto-flow:column;grid-auto-columns:58px}
+.ribbon-lite .rgroup:nth-of-type(4){grid-template-columns:repeat(3,52px)}
+.ribbon-lite .rgroup:nth-of-type(5){grid-template-columns:repeat(2,52px)}
+.ribbon-lite .rgroup:nth-of-type(6){grid-template-columns:repeat(5,52px)}
+.ribbon-lite .rgroup:nth-of-type(7){grid-template-columns:repeat(4,52px)}
+.ribbon-lite .rgroup:nth-of-type(8){grid-template-rows:72px;grid-auto-flow:column;grid-auto-columns:52px}
+.ribbon-lite .rgroup:nth-of-type(9){grid-template-rows:72px;grid-auto-flow:column;grid-auto-columns:58px}
+.ribbon-lite .rgroup:nth-of-type(10){grid-template-rows:72px;grid-auto-flow:column;grid-auto-columns:60px}
+.ribbon-lite .rgroup::after{
+  content:"";
+  position:absolute;
+  left:5px;
+  right:5px;
+  bottom:2px;
+  height:10px;
+  text-align:center;
+  color:#bdbdbd;
+  font-size:8px;
+  line-height:10px;
+  white-space:nowrap;
+  pointer-events:none;
+}
+.ribbon-lite .rgroup:nth-of-type(1)::after{content:"File"}
+.ribbon-lite .rgroup:nth-of-type(2)::after{content:"View"}
+.ribbon-lite .rgroup:nth-of-type(3)::after{content:"Selection"}
+.ribbon-lite .rgroup:nth-of-type(4)::after{content:"Draw"}
+.ribbon-lite .rgroup:nth-of-type(5)::after{content:"Construction / Measure"}
+.ribbon-lite .rgroup:nth-of-type(6)::after{content:"Modify"}
+.ribbon-lite .rgroup:nth-of-type(7)::after{content:"Modify / Edit"}
+.ribbon-lite .rgroup:nth-of-type(8)::after{content:"Inquiry"}
+.ribbon-lite .rgroup:nth-of-type(9)::after{content:"Drafting"}
+.ribbon-lite .rgroup:nth-of-type(10)::after{content:"Site"}
+.ribbon-lite .rbutton{
+  width:52px;
+  min-width:52px;
+  height:36px;
+  border:1px solid transparent;
+  background:transparent;
+  color:#eee;
+  border-radius:2px;
+  padding:1px 2px;
+  cursor:pointer;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  position:relative;
+  overflow:hidden;
+}
+.ribbon-lite .rgroup:nth-of-type(3) .rbutton,
+.ribbon-lite .rgroup:nth-of-type(9) .rbutton,
+.ribbon-lite .rgroup:nth-of-type(10) .rbutton{width:58px;min-width:58px}
+.ribbon-lite .rgroup:nth-of-type(10) .rbutton{width:60px;min-width:60px}
+.ribbon-lite .rbutton:hover{background:#474747;border-color:#6a6a6a}
+.ribbon-lite .rbutton:active{background:#505050;border-color:#888}
+.ribbon-lite .rbutton .ico{font-size:16px;line-height:17px;font-family:Arial,sans-serif;font-weight:400}
+.ribbon-lite .rbutton .rlabel{display:block;font-size:8px;line-height:10px;color:#ddd;white-space:nowrap;margin-top:1px;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.ribbon-lite .rbutton[title]:hover:after{content:attr(title);position:absolute;top:30px;left:0;z-index:3000;white-space:nowrap;background:#252525;color:#fff;border:1px solid #666;padding:4px 7px;font-size:10px;box-shadow:0 3px 8px rgba(0,0,0,.5)}
+@media(max-width:900px){
+  .ribbon-lite{height:78px;min-height:78px}
+  .ribbon-lite .rgroup{height:74px;grid-template-rows:32px 32px;padding-bottom:13px;grid-auto-columns:46px}
+  .ribbon-lite .rbutton{width:46px;min-width:46px;height:32px}
+  .ribbon-lite .rbutton .ico{font-size:14px;line-height:15px}
+  .ribbon-lite .rbutton .rlabel{font-size:7px}
+}
 </style>
 </head>
 <body>
