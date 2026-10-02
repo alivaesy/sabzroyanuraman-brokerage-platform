@@ -144,6 +144,20 @@ textarea{min-height:64px;resize:vertical}
   .ribbon-lite .rbutton .rlabel{font-size:7px}
 }
 .menu-wrap:nth-child(1) .menu-dropdown,.menu-wrap:nth-child(2) .menu-dropdown,.menu-wrap:nth-child(3) .menu-dropdown{left:0;right:auto;}
+
+/* Keep entity Properties palette visible above the drawing/context menu */
+.entity-properties-palette.open{
+  position:fixed;
+  top:112px;
+  right:10px;
+  width:292px;
+  max-width:calc(100vw - 20px);
+  height:min(520px,calc(100vh - 155px));
+  z-index:6000;
+  border:1px solid #666;
+  box-shadow:0 8px 24px rgba(0,0,0,.72);
+}
+.entity-properties-palette.open .entity-properties-body{min-height:0;overflow:auto}
 </style>
 </head>
 <body>
