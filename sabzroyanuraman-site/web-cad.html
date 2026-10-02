@@ -16,7 +16,11 @@ button,input,textarea{font-family:inherit}
 .classic-title .brand{font-weight:700;margin-left:auto}.classic-title .file-title{color:#bdbdbd;margin-right:14px}
 .menu-bar{height:27px;background:#2a2a2a;display:flex;align-items:center;padding:0 7px;border-bottom:1px solid #111;direction:ltr}
 .menu{padding:4px 11px;color:#eee;cursor:pointer}.menu:hover{background:#3b3b3b}.menu-wrap{position:relative;height:27px;display:flex;align-items:center}.menu-dropdown{display:none;position:absolute;top:27px;right:0;min-width:175px;background:#292929;border:1px solid #555;box-shadow:0 4px 12px rgba(0,0,0,.55);z-index:1000;padding:3px 0}.menu-wrap.open .menu-dropdown{display:block}.menu-dropdown button{display:block;width:100%;border:0;background:transparent;color:#eee;text-align:left;direction:ltr;padding:7px 12px;font-size:10px;cursor:pointer;white-space:nowrap}.menu-dropdown button:hover{background:#3b3b3b}.menu-dropdown button.active{background:#454545;color:#ffd54a}.menu-wrap.open>.menu{background:#3b3b3b}
-.ribbon-lite{height:68px;overflow-x:auto;overflow-y:hidden;background:#3a3a3a;border-bottom:1px solid #111;display:flex;align-items:stretch;direction:ltr;padding:2px 5px;box-shadow:inset 0 1px 0 #555}.rgroup{height:63px;display:flex;flex-direction:column;justify-content:space-between;gap:0;padding:1px 5px 0;border-left:1px solid #555;flex:0 0 auto}.rgroup-tools{display:flex;align-items:center;gap:2px;height:48px}.rgroup-caption{text-align:center;color:#aaa;font-size:8px;line-height:12px;height:12px;border-top:1px solid #4b4b4b;padding-top:1px;white-space:nowrap}.rbutton{width:48px;min-width:48px;height:44px;border:1px solid transparent;background:transparent;color:#eee;border-radius:2px;padding:2px 1px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}.rbutton .ico{font-size:17px;line-height:19px;font-family:Arial,sans-serif}
+.ribbon-lite{height:52px;overflow-x:auto;overflow-y:hidden;background:#3a3a3a;border-bottom:1px solid #111;display:flex;align-items:center;direction:ltr;padding:2px 5px;box-shadow:inset 0 1px 0 #555}
+.rgroup{height:48px;display:flex;align-items:center;gap:2px;padding:1px 5px;border-left:1px solid #555}
+.rbutton{width:48px;min-width:48px;height:44px;border:1px solid transparent;background:transparent;color:#eee;border-radius:2px;padding:2px 1px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+.rbutton:hover{background:#4a4a4a;border-color:#666}
+.rbutton .ico{font-size:17px;line-height:19px;font-family:Arial,sans-serif}
 .rbutton .rlabel{display:block;font-size:8px;line-height:11px;color:#ddd;white-space:nowrap;margin-top:1px}
 .rbutton[title]{position:relative}
 .rbutton[title]:hover:after{content:attr(title);position:absolute;top:32px;left:0;z-index:3000;white-space:nowrap;background:#252525;color:#fff;border:1px solid #666;padding:4px 7px;font-size:10px;box-shadow:0 3px 8px rgba(0,0,0,.5)}
@@ -53,11 +57,68 @@ textarea{min-height:64px;resize:vertical}
   <div class="menu-wrap"><span class="menu" data-menu="draw">Draw</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button><button data-menu-action="point">Point</button><button data-menu-action="xline">Construction Line (XLINE)</button><button data-menu-action="ray">Ray (RAY)</button><button data-menu-action="divide">Divide</button><button data-menu-action="measure">Measure</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="modify">Modify</span><div class="menu-dropdown"><button data-menu-action="move">Move</button><button data-menu-action="copy">Copy</button><button data-menu-action="offset">Offset</button><button data-menu-action="trim">Trim</button><button data-menu-action="extend">Extend</button><button data-menu-action="rotate">Rotate</button><button data-menu-action="break">Break</button><button data-menu-action="join">Join</button><button data-menu-action="pedit">PEDIT</button><button data-menu-action="matchprop">Match Properties</button><button data-menu-action="mirror">Mirror</button><button data-menu-action="scale">Scale</button><button data-menu-action="fillet">Fillet</button><button data-menu-action="chamfer">Chamfer</button><button data-menu-action="closepoly">Close Polyline</button><button data-menu-action="editvertex">Edit Vertex</button><button data-menu-action="erase">Erase</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="window">Window</span><div class="menu-dropdown"><button data-menu-action="model">Model</button><button data-menu-action="layout1">Layout1</button><button data-menu-action="layout2">Layout2</button></div></div>
-  <div cla<div class="ribbon-lite">
-<div class="rgroup"><div class="rgroup-tools"><button class="rbutton" data-menu-action="undo" title="Undo"><span class="ico">↶</span><span class="rlabel">Undo</span></button><button class="rbutton" data-menu-action="snap" title="Grid SNAP"><span class="ico">#</span><span class="rlabel">SNAP</span></button><button class="rbutton" data-menu-action="osnap" title="Object OSNAP"><span class="ico">⊙</span><span class="rlabel">OSNAP</span></button><button class="rbutton" data-menu-action="ucs" title="UCS"><span class="ico">XYZ</span><span class="rlabel">UCS</span></button></div><div class="rgroup-caption">Drafting</div></div>
-<div class="rgroup"><div class="rgroup-tools"></div><div class="rgroup-caption">Navigation</div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="help">Help</span><div class="menu-dropdown"><button data-menu-action="help">Help </button><button data-menu-action="about">About Web CAD</button></div></div>
 </div>
- class="rbutton" id="backBtn" title="Back to Site Map"><span class="ico">⌂</span><span class="rlabel">Site Map</span></button>
+<div class="ribbon-lite">
+  <div class="rgroup">
+    <label class="rbutton" for="dxfFile" title="Open DXF"><span class="ico">↗</span><span class="rlabel">Open</span></label>
+    <button class="rbutton" id="newBtn" title="New"><span class="ico">□</span><span class="rlabel">New</span></button>
+    <button class="rbutton" id="saveBtn" title="Save"><span class="ico">▣</span><span class="rlabel">Save</span></button>
+  </div>
+  <div class="rgroup">
+    <button class="rbutton" id="fitBtn" title="Zoom Extents"><span class="ico">⌕</span><span class="rlabel">Zoom</span></button>
+    <button class="rbutton" id="gridBtn" title="Grid"><span class="ico">▦</span><span class="rlabel">Grid</span></button>
+  </div>
+  <div class="rgroup">
+    <button class="rbutton" data-mode="select" title="Select"><span class="ico">↖</span><span class="rlabel">Select</span></button>
+  </div>
+  <div class="rgroup">
+    <button class="rbutton" data-menu-action="line" title="Line"><span class="ico">╱</span><span class="rlabel">Line</span></button>
+    <button class="rbutton" data-menu-action="polyline" title="Polyline"><span class="ico">⌁</span><span class="rlabel">Polyline</span></button>
+    <button class="rbutton" data-menu-action="circle" title="Circle"><span class="ico">○</span><span class="rlabel">Circle</span></button>
+    <button class="rbutton" data-menu-action="point" title="Point"><span class="ico">·</span><span class="rlabel">Point</span></button>
+    <button class="rbutton" data-menu-action="rectang" title="Rectangle"><span class="ico">▱</span><span class="rlabel">Rectangle</span></button>
+  </div>
+  <div class="rgroup">
+    <button class="rbutton" data-menu-action="xline" title="Construction Line (XLINE)"><span class="ico">⟷</span><span class="rlabel">XLINE</span></button>
+    <button class="rbutton" data-menu-action="ray" title="Ray (RAY)"><span class="ico">→</span><span class="rlabel">RAY</span></button>
+    <button class="rbutton" data-menu-action="divide" title="Divide"><span class="ico">÷</span><span class="rlabel">Divide</span></button>
+    <button class="rbutton" data-menu-action="measure" title="Measure"><span class="ico">⋯</span><span class="rlabel">Measure</span></button>
+  </div>
+  <div class="rgroup">
+    <button class="rbutton" data-menu-action="move" title="Move"><span class="ico">✥</span><span class="rlabel">Move</span></button>
+    <button class="rbutton" data-menu-action="copy" title="Copy"><span class="ico">⧉</span><span class="rlabel">Copy</span></button>
+    <button class="rbutton" data-menu-action="offset" title="Offset"><span class="ico">⇆</span><span class="rlabel">Offset</span></button>
+    <button class="rbutton" data-menu-action="trim" title="Trim"><span class="ico">✂</span><span class="rlabel">Trim</span></button>
+    <button class="rbutton" data-menu-action="extend" title="Extend"><span class="ico">↔</span><span class="rlabel">Extend</span></button>
+    <button class="rbutton" data-menu-action="rotate" title="Rotate"><span class="ico">⟳</span><span class="rlabel">Rotate</span></button>
+    <button class="rbutton" data-menu-action="break" title="Break"><span class="ico">✂</span><span class="rlabel">Break</span></button>
+    <button class="rbutton" data-menu-action="join" title="Join"><span class="ico">⌇</span><span class="rlabel">Join</span></button>
+    <button class="rbutton" data-menu-action="pedit" title="PEDIT"><span class="ico">P</span><span class="rlabel">PEDIT</span></button>
+  </div>
+  <div class="rgroup">
+    <button class="rbutton" data-menu-action="matchprop" title="Match Properties"><span class="ico">≡</span><span class="rlabel">MatchProp</span></button>
+    <button class="rbutton" data-menu-action="mirror" title="Mirror"><span class="ico">⇆</span><span class="rlabel">Mirror</span></button>
+    <button class="rbutton" data-menu-action="scale" title="Scale"><span class="ico">↗</span><span class="rlabel">Scale</span></button>
+    <button class="rbutton" data-menu-action="fillet" title="Fillet"><span class="ico">⌒</span><span class="rlabel">Fillet</span></button>
+    <button class="rbutton" data-menu-action="chamfer" title="Chamfer"><span class="ico">⌟</span><span class="rlabel">Chamfer</span></button>
+    <button class="rbutton" data-menu-action="closepoly" title="Close Polyline"><span class="ico">◫</span><span class="rlabel">Close PL</span></button>
+    <button class="rbutton" data-menu-action="editvertex" title="Edit Vertex"><span class="ico">◆</span><span class="rlabel">Edit Vertex</span></button>
+    <button class="rbutton" data-menu-action="erase" title="Erase"><span class="ico">⌫</span><span class="rlabel">Erase</span></button>
+  </div>
+  <div class="rgroup">
+    <button class="rbutton" data-menu-action="undo" title="Undo"><span class="ico">↶</span><span class="rlabel">Undo</span></button>
+    <button class="rbutton" data-menu-action="rotate" title="Rotate"><span class="ico">⟳</span><span class="rlabel">Rotate</span></button>
+    <button class="rbutton" data-menu-action="distance" title="Distance"><span class="ico">↔</span><span class="rlabel">Distance</span></button>
+    <button class="rbutton" data-menu-action="area" title="Area"><span class="ico">□</span><span class="rlabel">Area</span></button>
+  </div>
+  <div class="rgroup">
+    <button class="rbutton" data-menu-action="snap" title="Grid SNAP"><span class="ico">#</span><span class="rlabel">SNAP</span></button>
+    <button class="rbutton" data-menu-action="osnap" title="Object OSNAP"><span class="ico">⊙</span><span class="rlabel">OSNAP</span></button>
+    <button class="rbutton" data-menu-action="ucs" title="UCS"><span class="ico">XYZ</span><span class="rlabel">UCS</span></button>
+  </div>
+  <div class="rgroup">
+    <button class="rbutton" id="backBtn" title="Back to Site Map"><span class="ico">⌂</span><span class="rlabel">Site Map</span></button>
   </div>
   <input id="dxfFile" class="file" type="file" accept=".dxf,.txt">
 </div>
@@ -1107,7 +1168,7 @@ function runMenuAction(a){
   if(a==="help")return setStatus("L=LINE | PL=PLINE | C=CIRCLE | P=POINT | M=MOVE | CO=COPY | O=OFFSET | TR=TRIM | EX=EXTEND | RO=ROTATE | BR=BREAK | DIV=DIVIDE | ME=MEASURE | DI=DIST | AA=AREA | ID=ID | LI=LIST | QS=QSELECT | REC=RECTANG | J=JOIN | PE=PEDIT | MA=MATCHPROP | MI=MIRROR | SC=SCALE | F=FILLET | CHA=CHAMFER | PU=PURGE | AUDIT | UN=UNITS | DS=DSETTINGS | UCS | E=ERASE | Z=ZOOM | G=GRID | F3=OSNAP | Esc=CANCEL");
   if(a==="about")return setStatus("Web CAD    — extended base version");
 }
-document.querySelectorAll("[data-menu-action]").forEach(btn=>btn.addEventListener("click",e=>{e.stopPropagation();btn.closest(".menu-wrap")?.classList.remove("open");runMenuAction(btn.dataset.menuAction)}));
+document.querySelectorAll("[data-menu-action]").forEach(btn=>btn.addEventListener("click",e=>{e.stopPropagation();btn.closest(".menu-wrap").classList.remove("open");runMenuAction(btn.dataset.menuAction)}));
 document.querySelectorAll("[data-snap-mode]").forEach(btn=>{btn.addEventListener("click",e=>{e.stopPropagation();const key=btn.dataset.snapMode;snapModes[key]=!snapModes[key];btn.classList.toggle("active",snapModes[key]);btn.closest(".menu-wrap")?.classList.remove("open");setStatus("OSNAP "+key+" "+(snapModes[key]?"ON":"OFF"));});});
 
 const commandInput=$("commandInput");
