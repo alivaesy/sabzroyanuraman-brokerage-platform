@@ -16,10 +16,14 @@ button,input,textarea{font-family:inherit}
 .classic-title .brand{font-weight:700;margin-left:auto}.classic-title .file-title{color:#bdbdbd;margin-right:14px}
 .menu-bar{height:27px;background:#2a2a2a;display:flex;align-items:center;padding:0 7px;border-bottom:1px solid #111;direction:ltr}
 .menu{padding:4px 11px;color:#eee;cursor:pointer}.menu:hover{background:#3b3b3b}.menu-wrap{position:relative;height:27px;display:flex;align-items:center}.menu-dropdown{display:none;position:absolute;top:27px;right:0;min-width:175px;background:#292929;border:1px solid #555;box-shadow:0 4px 12px rgba(0,0,0,.55);z-index:1000;padding:3px 0}.menu-wrap.open .menu-dropdown{display:block}.menu-dropdown button{display:block;width:100%;border:0;background:transparent;color:#eee;text-align:right;padding:7px 12px;font-size:10px;cursor:pointer;white-space:nowrap}.menu-dropdown button:hover{background:#3b3b3b}.menu-dropdown button.active{background:#454545;color:#ffd54a}.menu-wrap.open>.menu{background:#3b3b3b}
-.ribbon-lite{height:48px;background:#303030;border-bottom:1px solid #111;display:flex;align-items:stretch;direction:ltr}
-.rgroup{display:flex;align-items:center;gap:4px;padding:4px 7px;border-left:1px solid #444}
-.rbutton{min-width:48px;border:1px solid transparent;background:transparent;color:#eee;border-radius:2px;padding:2px 5px;font-size:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px}
-.rbutton:hover{background:#414141;border-color:#555}.rbutton .ico{font-size:17px;line-height:18px}
+.ribbon-lite{height:39px;background:#3a3a3a;border-bottom:1px solid #111;display:flex;align-items:center;direction:ltr;padding:2px 5px;box-shadow:inset 0 1px 0 #555}
+.rgroup{height:34px;display:flex;align-items:center;gap:2px;padding:1px 5px;border-left:1px solid #555}
+.rbutton{width:31px;min-width:31px;height:30px;border:1px solid transparent;background:transparent;color:#eee;border-radius:2px;padding:1px;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative}
+.rbutton:hover{background:#4a4a4a;border-color:#666}
+.rbutton .ico{font-size:18px;line-height:20px;font-family:Arial,sans-serif}
+.rbutton .rlabel{display:none}
+.rbutton[title]{position:relative}
+.rbutton[title]:hover:after{content:attr(title);position:absolute;top:32px;left:0;z-index:3000;white-space:nowrap;background:#252525;color:#fff;border:1px solid #666;padding:4px 7px;font-size:10px;box-shadow:0 3px 8px rgba(0,0,0,.5)}
 .workspace{min-height:0;flex:1;display:flex;direction:ltr}
 .canvas-wrap{position:relative;min-width:0;flex:1;background:#050505;overflow:hidden}
 #cad{width:100%;height:100%;display:block;cursor:crosshair;background:#050505}#cad:active{cursor:grabbing}
@@ -57,22 +61,43 @@ textarea{min-height:64px;resize:vertical}
 </div>
 <div class="ribbon-lite">
   <div class="rgroup">
-    <label class="rbutton" for="dxfFile"><span class="ico">📂</span>Open</label>
-    <button class="rbutton" id="newBtn"><span class="ico">📄</span>New</button>
-    <button class="rbutton" id="saveBtn"><span class="ico">💾</span>Save</button>
+    <label class="rbutton" for="dxfFile" title="Open DXF"><span class="ico">↗</span><span class="rlabel">Open</span></label>
+    <button class="rbutton" id="newBtn" title="New"><span class="ico">□</span><span class="rlabel">New</span></button>
+    <button class="rbutton" id="saveBtn" title="Save"><span class="ico">▣</span><span class="rlabel">Save</span></button>
   </div>
   <div class="rgroup">
-    <button class="rbutton" id="fitBtn"><span class="ico">⌗</span>Zoom Extents</button>
-    <button class="rbutton" id="gridBtn"><span class="ico">▦</span>Grid</button>
+    <button class="rbutton" id="fitBtn" title="Zoom Extents"><span class="ico">⌕</span><span class="rlabel">Zoom</span></button>
+    <button class="rbutton" id="gridBtn" title="Grid"><span class="ico">▦</span><span class="rlabel">Grid</span></button>
   </div>
   <div class="rgroup">
-    <button class="rbutton" data-mode="select"><span class="ico">↖</span>Select</button>
-    <button class="rbutton" data-mode="line"><span class="ico">╱</span>Line</button>
-    <button class="rbutton" data-mode="polyline"><span class="ico">⌁</span>Polyline</button>
-    <button class="rbutton" data-mode="circle"><span class="ico">○</span>Circle</button>
+    <button class="rbutton" data-mode="select" title="Select"><span class="ico">↖</span><span class="rlabel">Select</span></button>
+    <button class="rbutton" data-mode="line" title="Line"><span class="ico">╱</span><span class="rlabel">Line</span></button>
+    <button class="rbutton" data-mode="polyline" title="Polyline"><span class="ico">⌁</span><span class="rlabel">Polyline</span></button>
+    <button class="rbutton" data-mode="circle" title="Circle"><span class="ico">○</span><span class="rlabel">Circle</span></button>
+    <button class="rbutton" data-menu-action="point" title="Point"><span class="ico">·</span><span class="rlabel">Point</span></button>
+    <button class="rbutton" data-menu-action="rectang" title="Rectangle"><span class="ico">▱</span><span class="rlabel">Rectangle</span></button>
   </div>
   <div class="rgroup">
-    <button class="rbutton" id="backBtn"><span class="ico">↩</span>Site Map</button>
+    <button class="rbutton" data-menu-action="move" title="Move"><span class="ico">✥</span><span class="rlabel">Move</span></button>
+    <button class="rbutton" data-menu-action="copy" title="Copy"><span class="ico">⧉</span><span class="rlabel">Copy</span></button>
+    <button class="rbutton" data-menu-action="offset" title="Offset"><span class="ico">⇆</span><span class="rlabel">Offset</span></button>
+    <button class="rbutton" data-menu-action="trim" title="Trim"><span class="ico">✂</span><span class="rlabel">Trim</span></button>
+    <button class="rbutton" data-menu-action="extend" title="Extend"><span class="ico">↔</span><span class="rlabel">Extend</span></button>
+    <button class="rbutton" data-menu-action="erase" title="Erase"><span class="ico">⌫</span><span class="rlabel">Erase</span></button>
+  </div>
+  <div class="rgroup">
+    <button class="rbutton" data-menu-action="undo" title="Undo"><span class="ico">↶</span><span class="rlabel">Undo</span></button>
+    <button class="rbutton" data-menu-action="rotate" title="Rotate"><span class="ico">⟳</span><span class="rlabel">Rotate</span></button>
+    <button class="rbutton" data-menu-action="distance" title="Distance"><span class="ico">↔</span><span class="rlabel">Distance</span></button>
+    <button class="rbutton" data-menu-action="area" title="Area"><span class="ico">□</span><span class="rlabel">Area</span></button>
+  </div>
+  <div class="rgroup">
+    <button class="rbutton" data-menu-action="snap" title="Grid SNAP"><span class="ico">#</span><span class="rlabel">SNAP</span></button>
+    <button class="rbutton" data-menu-action="osnap" title="Object OSNAP"><span class="ico">⊙</span><span class="rlabel">OSNAP</span></button>
+    <button class="rbutton" data-menu-action="ucs" title="UCS"><span class="ico">XYZ</span><span class="rlabel">UCS</span></button>
+  </div>
+  <div class="rgroup">
+    <button class="rbutton" id="backBtn" title="Back to Site Map"><span class="ico">⌂</span><span class="rlabel">Site Map</span></button>
   </div>
   <input id="dxfFile" class="file" type="file" accept=".dxf,.txt">
 </div>
