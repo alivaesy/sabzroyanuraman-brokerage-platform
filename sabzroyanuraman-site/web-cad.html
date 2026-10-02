@@ -16,12 +16,12 @@ button,input,textarea{font-family:inherit}
 .classic-title .brand{font-weight:700;margin-left:auto}.classic-title .file-title{color:#bdbdbd;margin-right:14px}
 .menu-bar{height:27px;background:#2a2a2a;display:flex;align-items:center;padding:0 7px;border-bottom:1px solid #111;direction:ltr}
 .menu{padding:4px 11px;color:#eee;cursor:pointer}.menu:hover{background:#3b3b3b}.menu-wrap{position:relative;height:27px;display:flex;align-items:center}.menu-dropdown{display:none;position:absolute;top:27px;right:0;min-width:175px;background:#292929;border:1px solid #555;box-shadow:0 4px 12px rgba(0,0,0,.55);z-index:1000;padding:3px 0}.menu-wrap.open .menu-dropdown{display:block}.menu-dropdown button{display:block;width:100%;border:0;background:transparent;color:#eee;text-align:right;padding:7px 12px;font-size:10px;cursor:pointer;white-space:nowrap}.menu-dropdown button:hover{background:#3b3b3b}.menu-dropdown button.active{background:#454545;color:#ffd54a}.menu-wrap.open>.menu{background:#3b3b3b}
-.ribbon-lite{height:39px;background:#3a3a3a;border-bottom:1px solid #111;display:flex;align-items:center;direction:ltr;padding:2px 5px;box-shadow:inset 0 1px 0 #555}
-.rgroup{height:34px;display:flex;align-items:center;gap:2px;padding:1px 5px;border-left:1px solid #555}
-.rbutton{width:31px;min-width:31px;height:30px;border:1px solid transparent;background:transparent;color:#eee;border-radius:2px;padding:1px;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative}
+.ribbon-lite{height:52px;background:#3a3a3a;border-bottom:1px solid #111;display:flex;align-items:center;direction:ltr;padding:2px 5px;box-shadow:inset 0 1px 0 #555}
+.rgroup{height:48px;display:flex;align-items:center;gap:2px;padding:1px 5px;border-left:1px solid #555}
+.rbutton{width:48px;min-width:48px;height:44px;border:1px solid transparent;background:transparent;color:#eee;border-radius:2px;padding:2px 1px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
 .rbutton:hover{background:#4a4a4a;border-color:#666}
-.rbutton .ico{font-size:18px;line-height:20px;font-family:Arial,sans-serif}
-.rbutton .rlabel{display:none}
+.rbutton .ico{font-size:17px;line-height:19px;font-family:Arial,sans-serif}
+.rbutton .rlabel{display:block;font-size:8px;line-height:11px;color:#ddd;white-space:nowrap;margin-top:1px}
 .rbutton[title]{position:relative}
 .rbutton[title]:hover:after{content:attr(title);position:absolute;top:32px;left:0;z-index:3000;white-space:nowrap;background:#252525;color:#fff;border:1px solid #666;padding:4px 7px;font-size:10px;box-shadow:0 3px 8px rgba(0,0,0,.5)}
 .workspace{min-height:0;flex:1;display:flex;direction:ltr}
@@ -41,12 +41,13 @@ textarea{min-height:64px;resize:vertical}
 .bottom-bar{height:31px;background:#242424;border-top:1px solid #444;display:flex;align-items:center;direction:ltr;gap:0;overflow:hidden}.command-label{width:68px;flex:0 0 68px;color:#ddd;padding:0 7px;font-size:10px}.command-input{width:240px;flex:0 1 240px;height:25px;border:0;border-left:1px solid #444;background:#101010;color:#fff;padding:3px 7px;outline:none;font-family:Consolas,monospace;font-size:11px;direction:ltr}.view-tabs{height:31px;display:flex;align-items:stretch;direction:ltr}.view-tab{padding:8px 12px;border-left:1px solid #111;color:#bbb;font-size:10px;cursor:pointer}.view-tab.active{background:#353535;color:#fff}.statusbar{height:31px;display:flex;align-items:center;gap:1px;padding:0 3px;direction:ltr;color:#aaa;font-size:9px;margin-left:auto}.status-item{padding:5px 7px;border:1px solid transparent;cursor:pointer}.status-item.active{background:#3a3a3a;color:#fff;border-color:#4b4b4b}.status-spacer{flex:1}
 .file{display:none}
 #layerList{max-height:180px;overflow:auto}
-@media(max-width:900px){.side{width:280px}.menu{padding:4px 6px}.rbutton{min-width:38px}}
+@media(max-width:900px){.side{width:280px}.menu{padding:4px 6px}.rbutton{width:42px;min-width:42px}.rbutton .rlabel{font-size:7px}}
 .grip{fill:#050505;stroke:#4fc3f7;stroke-width:1}.mid-grip{fill:#050505;stroke:#ffd54a;stroke-width:1}.xline-preview{stroke:#888;stroke-width:1;stroke-dasharray:7 5}
 </style>
 </head>
 <body>
 <div class="app">
+<div class="classic-title"><span class="file-title">Web CAD — Sabz Royan Uraman</span><span class="brand">AutoCAD-style Web CAD</span></div>
 <div class="menu-bar" id="mainMenuBar">
   <div class="menu-wrap"><span class="menu" data-menu="file">File</span><div class="menu-dropdown"><button data-menu-action="new">New</button><button data-menu-action="open">Open</button><button data-menu-action="save">Save</button><button data-menu-action="purge">Purge</button><button data-menu-action="audit">Audit</button><button data-menu-action="fit">Zoom Extents</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="edit">Edit</span><div class="menu-dropdown"><button data-menu-action="undo">Undo</button><button data-menu-action="erase">Erase</button><button data-menu-action="select">Select</button></div></div>
