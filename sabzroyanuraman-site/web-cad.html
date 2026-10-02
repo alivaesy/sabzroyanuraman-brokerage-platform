@@ -15,7 +15,7 @@ button,input,textarea{font-family:inherit}
 .classic-title{height:28px;background:#171717;color:#eee;display:flex;align-items:center;padding:0 9px;border-bottom:1px solid #343434;font-size:12px;direction:ltr}
 .classic-title .brand{font-weight:700;margin-left:auto}.classic-title .file-title{color:#bdbdbd;margin-right:14px}
 .menu-bar{height:27px;background:#2a2a2a;display:flex;align-items:center;padding:0 7px;border-bottom:1px solid #111;direction:ltr}
-.menu{padding:4px 11px;color:#eee;cursor:pointer}.menu:hover{background:#3b3b3b}.menu-wrap{position:relative;height:27px;display:flex;align-items:center}.menu-dropdown{display:none;position:absolute;top:27px;right:0;min-width:175px;background:#292929;border:1px solid #555;box-shadow:0 4px 12px rgba(0,0,0,.55);z-index:1000;padding:3px 0}.menu-wrap.open .menu-dropdown{display:block}.menu-dropdown button{display:block;width:100%;border:0;background:transparent;color:#eee;text-align:right;padding:7px 12px;font-size:10px;cursor:pointer;white-space:nowrap}.menu-dropdown button:hover{background:#3b3b3b}.menu-dropdown button.active{background:#454545;color:#ffd54a}.menu-wrap.open>.menu{background:#3b3b3b}
+.menu{padding:4px 11px;color:#eee;cursor:pointer}.menu:hover{background:#3b3b3b}.menu-wrap{position:relative;height:27px;display:flex;align-items:center}.menu-dropdown{display:none;position:absolute;top:27px;right:0;min-width:175px;background:#292929;border:1px solid #555;box-shadow:0 4px 12px rgba(0,0,0,.55);z-index:1000;padding:3px 0}.menu-wrap.open .menu-dropdown{display:block}.menu-dropdown button{display:block;width:100%;border:0;background:transparent;color:#eee;text-align:left;direction:ltr;padding:7px 12px;font-size:10px;cursor:pointer;white-space:nowrap}.menu-dropdown button:hover{background:#3b3b3b}.menu-dropdown button.active{background:#454545;color:#ffd54a}.menu-wrap.open>.menu{background:#3b3b3b}
 .ribbon-lite{height:52px;background:#3a3a3a;border-bottom:1px solid #111;display:flex;align-items:center;direction:ltr;padding:2px 5px;box-shadow:inset 0 1px 0 #555}
 .rgroup{height:48px;display:flex;align-items:center;gap:2px;padding:1px 5px;border-left:1px solid #555}
 .rbutton{width:48px;min-width:48px;height:44px;border:1px solid transparent;background:transparent;color:#eee;border-radius:2px;padding:2px 1px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
@@ -473,7 +473,7 @@ async function openDXFFile(f){
 $("dxfFile").onchange=e=>openDXFFile(e.target.files[0]);
 $("saveBtn").onclick=()=>{download(dxfText(),"sabz-royan-web-cad.dxf","application/dxf");setStatus("File DXF No ")};
 $("fitBtn").onclick=fit;
-$("gridBtn").onclick=()=>{grid=!grid;draw();setStatus(grid?"Grid enabled":"Grid disabled")};
+$("gridBtn").onclick=()=>{grid=!grid;$("gridStatus").classList.toggle("active",grid);draw();setStatus(grid?"Grid enabled":"Grid disabled")};
 $("newBtn").onclick=()=>{entities=[];selected=-1;selectedSet.clear();rebuildLayers();fit();$("fileInfo").textContent="File New";setStatus("New drawing")};
 $("backBtn").onclick=()=>location.href="index.html";
 document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
@@ -1136,10 +1136,6 @@ function runMenuAction(a){
  if(a==="ray")return startInfiniteCommand("RAY");
  if(a==="closepoly")return closeSelectedPolyline();
   if(a==="line"||a==="polyline"||a==="circle")return setMode(a);
- if(a==="point"){mode="point";drawPoints=[];return setStatus("POINT — Specify point");}
- if(a==="xline")return startInfiniteCommand("XLINE");
- if(a==="ray")return startInfiniteCommand("RAY");
- if(a==="closepoly")return closeSelectedPolyline();
  if(a==="editvertex"){const ids=selectedIndices();if(ids.length===1&&entities[ids[0]].pts){setStatus("PEDIT — Select a vertex or midpoint grip.");return}return setStatus("PEDIT — Select one polyline.");}
   if(a==="point"){mode="point";drawPoints=[];setStatus("POINT — Specify point:");return}
   if(["move","copy","offset","trim","extend","rotate","break"].includes(a))return beginEditCommand(a.toUpperCase());
@@ -1152,7 +1148,7 @@ function runMenuAction(a){
   if(a==="about")return setStatus("Web CAD    — extended base version");
 }
 document.querySelectorAll("[data-menu-action]").forEach(btn=>btn.addEventListener("click",e=>{e.stopPropagation();btn.closest(".menu-wrap").classList.remove("open");runMenuAction(btn.dataset.menuAction)}));
-document.querySelectorAll("[data-snap-mode]").forEach(btn=>{btn.addEventListener("click",e=>{e.stopPropagation();const key=btn.dataset.snapMode;snapModes[key]=!snapModes[key];btn.classList.toggle("active",snapModes[key]);setStatus("OSNAP "+key+" "+(snapModes[key]?"ON":"OFF")+" ");});});
+document.querySelectorAll("[data-snap-mode]").forEach(btn=>{btn.addEventListener("click",e=>{e.stopPropagation();const key=btn.dataset.snapMode;snapModes[key]=!snapModes[key];btn.classList.toggle("active",snapModes[key]);btn.closest(".menu-wrap")?.classList.remove("open");setStatus("OSNAP "+key+" "+(snapModes[key]?"ON":"OFF"));});});
 
 const commandInput=$("commandInput");
 function runPeditCommand(){
@@ -1262,7 +1258,7 @@ window.addEventListener("keydown",e=>{
 $("newLayerBtn").onclick=()=>{const n=prompt("Enter name for new layer:","0");if(n&&n.trim()){const name=n.trim();if(!layers.has(name))layers.set(name,{visible:true,count:0});activeLayer=name;$("activeLayerInfo").textContent="Current layer: "+activeLayer;renderLayers();setStatus("Current Layer: "+activeLayer)}};
 $("activeLayerBtn").onclick=()=>{const names=[...layers.keys()];if(!names.length)return;const idx=Math.max(0,names.indexOf(activeLayer));activeLayer=names[(idx+1)%names.length];$("activeLayerInfo").textContent="Current layer: "+activeLayer;setStatus("Current Layer: "+activeLayer)};
 document.querySelectorAll(".view-tab").forEach(tab=>tab.onclick=()=>{document.querySelectorAll(".view-tab").forEach(t=>t.classList.remove("active"));tab.classList.add("active");setStatus(tab.textContent.trim()+" active ")});
-$("gridStatus").onclick=()=>{$("gridBtn").click();$("gridStatus").classList.toggle("active",grid)};
+$("gridStatus").onclick=()=>{$("gridBtn").click()};
 $("orthoStatus").onclick=()=>{orthoEnabled=!orthoEnabled;$("orthoStatus").classList.toggle("active",orthoEnabled);setStatus(orthoEnabled?"ORTHO enabled":"ORTHO disabled")};
 $("snapStatus").onclick=()=>{gridSnapEnabled=!gridSnapEnabled;$("snapStatus").classList.toggle("active",gridSnapEnabled);setStatus(gridSnapEnabled?"SNAP enabled":"SNAP disabled")};
 $("osnapStatus").onclick=()=>{snapEnabled=!snapEnabled;$("osnapStatus").classList.toggle("active",snapEnabled);setStatus(snapEnabled?"OSNAP enabled — Endpoint / Midpoint / Center / Intersection / Nearest / Perpendicular / Quadrant / Tangent":"OSNAP disabled")};
