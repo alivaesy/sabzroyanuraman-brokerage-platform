@@ -1866,16 +1866,19 @@ function peditDeleteVertex(index,vertexNo){const e=entities[index];if(!e||!e.pts
 function peditInsertVertex(index,segmentNo){const e=entities[index];if(!e||!e.pts||e.pts.length<2)return false;const n=Math.trunc(Number(segmentNo));if(!Number.isFinite(n)||n<1||n>e.pts.length){setStatus("PEDIT — Invalid segment number.");return false}const a=e.pts[n-1],b=e.pts[n%e.pts.length],p=[(a[0]+b[0])/2,(a[1]+b[1])/2];saveHistory();e.pts.splice(n,0,p);rebuildLayers();draw();setStatus("PEDIT — Vertex inserted at segment "+n+".");return true}
 function runPeditCommand(){const ids=selectedIndices();if(ids.length!==1){setStatus("PEDIT — Select one polyline.");return}const e=entities[ids[0]];if(!e||!e.pts){setStatus("PEDIT — Selected object is not a polyline.");return}const opt=(prompt("PEDIT options: [Open/Close/Edit/Join/Insert/Delete]","Edit")||"").trim().toUpperCase();if(!opt)return;if(opt==="C"||opt==="CLOSE"){if(e.closed){setStatus("PEDIT — Polyline is already closed.");return}saveHistory();e.closed=true;rebuildLayers();draw();setStatus("PEDIT — Polyline closed.");return}if(opt==="O"||opt==="OPEN"){if(!e.closed){setStatus("PEDIT — Polyline is already open.");return}saveHistory();e.closed=false;rebuildLayers();draw();setStatus("PEDIT — Polyline opened.");return}if(opt==="E"||opt==="EDIT"){setStatus("PEDIT — Drag vertex grip to move; drag midpoint grip to insert.");return}if(opt==="I"||opt==="INSERT"){const n=prompt("PEDIT — Segment number:","1");if(n!==null)peditInsertVertex(ids[0],n);return}if(opt==="D"||opt==="DELETE"){const n=prompt("PEDIT — Vertex number:","1");if(n!==null)peditDeleteVertex(ids[0],n);return}if(opt==="J"||opt==="JOIN"){runJoinCommand();return}setStatus("PEDIT — Unknown option.");}
 function applyEntityProperties(source,target){
- if(!source||!target)return;
- if(source.layer)target.layer=source.layer;
+ if(!source||!target)return false;
+ target.layer=source.layer||target.layer||activeLayer;
  if(source.color!==undefined)target.color=source.color;
  if(source.linetype!==undefined)target.linetype=source.linetype;
  if(source.lineweight!==undefined)target.lineweight=source.lineweight;
+ if((source.type==="TEXT"||source.type==="MTEXT")&&(target.type==="TEXT"||target.type==="MTEXT"))["height","rotation","textStyle","align","alignH","alignV"].forEach(k=>{if(source[k]!==undefined)target[k]=source[k]});
+ if(source.type==="DIMENSION"&&target.type==="DIMENSION")["textHeight","dimStyle","dimColor","dimPrecision","arrowSize"].forEach(k=>{if(source[k]!==undefined)target[k]=source[k]});
+ return true;
 }
 function runMatchPropCommand(){
- const ids=selectedIndices();
- if(ids.length===1){commandState={cmd:"MATCHPROP",step:"target",source:ids[0]};setMode("select");setStatus("MATCHPROP — Select target objects:");return}
- commandState={cmd:"MATCHPROP",step:"source",source:-1};setMode("select");setStatus("MATCHPROP — Select source object:");
+ const ids=selectedIndices().filter(i=>entities[i]&&!isLayerLocked(entities[i]));
+ if(ids.length===1){commandState={cmd:"MATCHPROP",step:"target",source:ids[0],changed:false};setMode("select");setStatus("MATCHPROP — Select target objects:");return}
+ commandState={cmd:"MATCHPROP",step:"source",source:-1,changed:false};setMode("select");setStatus("MATCHPROP — Select source object:");
 }
 function closeSelectedPolyline(){
  const ids=selectedIndices();if(ids.length!==1){setStatus("PEDIT — Select one open polyline.");return}
