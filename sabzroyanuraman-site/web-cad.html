@@ -1163,16 +1163,20 @@ if(s.cmd==="DIST"&&s.step==="dist1"){
 if(s.cmd==="LENGTHEN"&&s.step==="select"){const hit=findNearest(p);if(hit<0){setStatus("LENGTHEN — Select line or arc:");return true}saveHistory();if(lengthenEntity(hit,p)){selectedSet.clear();selectedSet.add(hit);selected=hit}else{try{entities=JSON.parse(commandState.before)}catch(_){}}commandState=null;setMode("select");return true;}
 if((s.cmd==="TRIM"||s.cmd==="EXTEND")&&s.step==="cutting"){
  const hit=findNearest(p);
- if(hit<0){setStatus(s.cmd+" — Select cutting edges:");return true}
- if(!s.ids.includes(hit))s.ids.push(hit);
- s.step="target";setStatus(s.cmd+" — Select object to modify:");draw();return true;
+ if(hit<0){setStatus(s.cmd+" — Select cutting edges, then press Enter:");return true}
+ if(!s.ids.includes(hit)){s.ids.push(hit);selectedSet.clear();s.ids.forEach(i=>selectedSet.add(i));selected=s.ids[s.ids.length-1]}
+ setStatus(s.cmd+" — Select another cutting edge or press Enter:");
+ draw();return true;
 }
 if((s.cmd==="TRIM"||s.cmd==="EXTEND")&&s.step==="target"){
  const target=findNearest(p);
  if(target<0||s.ids.includes(target)){setStatus(s.cmd+" — Select object to modify:");return true}
  const changed=s.cmd==="TRIM"?trimEntityAt(target,p,s.ids):extendEntityAt(target,p,s.ids);
- if(changed){selectedSet.clear();selectedSet.add(target);selected=target;setStatus(s.cmd+" completed — Select another object or press Enter.");draw();}
- else setStatus(s.cmd+" — No valid intersection.");
+ if(changed){
+  if(!s.historySaved){saveHistory();s.historySaved=true}
+  selectedSet.clear();selectedSet.add(target);selected=target;s.changed=true;
+  setStatus(s.cmd+" completed — Select another object or press Enter.");rebuildLayers();draw();
+ }else setStatus(s.cmd+" — No valid intersection.");
  return true;
 }
 if(s.cmd==="OFFSET"&&s.step==="select"){
@@ -2062,6 +2066,18 @@ function runCadCommand(raw){
 }
 function finishKeyboardCommand(){
  const cmd=commandState&&commandState.cmd?String(commandState.cmd).toUpperCase():"";
+ if(cmd==="TRIM"||cmd==="EXTEND"){
+  const s=commandState;
+  if(s.step==="cutting"){
+   if(!s.ids||!s.ids.length){setStatus(cmd+" — Select at least one cutting edge:");return true}
+   s.step="target";selectedSet.clear();selected=-1;
+   setStatus(cmd+" — Select object to modify, or press Enter to finish:");draw();return true;
+  }
+  if(s.step==="target"){
+   const changed=!!s.changed;commandState=null;setMode("select");selectedSet.clear();selected=-1;
+   setStatus(cmd+(changed?" completed":" canceled — No objects modified"));draw();return true;
+  }
+ }
  if(mode==="polyline"&&drawPoints.length>=2){saveHistory();entities.push({type:"LWPOLYLINE",layer:activeLayer,pts:drawPoints.slice(),closed:false});clearCommandVisuals();setMode("select");rebuildLayers();draw();setStatus("PLINE completed");return true;}
  if((mode==="line"||mode==="xline"||mode==="ray")&&drawPoints.length>=1){clearCommandVisuals();setMode("select");draw();setStatus((cmd||mode.toUpperCase())+" completed");return true;}
  if(cmd==="MATCHPROP"&&commandState.step==="target"&&!commandInput.value.trim()){commandState=null;setMode("select");setStatus("MATCHPROP completed");return true;}
