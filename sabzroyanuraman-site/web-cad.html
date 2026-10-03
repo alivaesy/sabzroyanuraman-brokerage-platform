@@ -377,7 +377,15 @@ const $=id=>document.getElementById(id);
 function resize(){const r=canvas.getBoundingClientRect(),d=window.devicePixelRatio||1;canvas.width=Math.round(r.width*d);canvas.height=Math.round(r.height*d);ctx.setTransform(d,0,0,d,0,0);draw()}
 window.addEventListener("resize",resize);
 function setStatus(s){$("status").textContent=s}
-function setMode(m){mode=m;drawPoints=[];document.querySelectorAll("[data-mode]").forEach(b=>b.classList.toggle("primary",b.dataset.mode===m));setStatus("Command: "+m)}
+function setMode(m){
+  mode=m; drawPoints=[]; previewPoint=null; selectionBox=null;
+  document.querySelectorAll("[data-mode]").forEach(b=>b.classList.toggle("primary",b.dataset.mode===m));
+  setStatus("Command: "+m);
+}
+function clearCommandVisuals(){drawPoints=[];previewPoint=null;selectionBox=null;snapInfo={point:null,type:""};distVisual={p1:null,p2:null};$("dynamicInput")?.classList.remove("active");}
+function cancelActiveCommand(message){commandState=null;clearCommandVisuals();selectedSet.clear();selected=-1;setMode("select");draw();setStatus(message||"Command: *Cancel*");}
+function isCadCommandToken(q){return /^(LINE|L|PLINE|PL|CIRCLE|C|POINT|PO|RECTANG|REC|ARC|HATCH|TEXT|DTEXT|MTEXT|DIMLINEAR|DLI|DIMALIGNED|DAL|XLINE|XL|RAY|ERASE|E|MOVE|M|COPY|CO|OFFSET|O|TRIM|TR|EXTEND|EX|LENGTHEN|LEN|CUTPOLYGON|CUTPOLY|CP|EXPLODE|X|ROTATE|RO|BREAK|BR|AREA|AA|ID|LIST|LI|QSELECT|QS|STRETCH|S|JOIN|J|PEDIT|PE|MATCHPROP|MA|MIRROR|MI|SCALE|SC|FILLET|F|CHAMFER|CHA|PURGE|PU|AUDIT|UNITS|UN|DSETTINGS|DS|UCS|DIST|DI|DISTANCE|DIVIDE|DIV|MEASURE|ME|ZOOM|Z|GRID|G|OSNAP|F3|POLAR|F10|ESC)$/.test(q);}
+function interruptForNewCommand(raw){const q=String(raw||"").trim().toUpperCase();if(!q||q==="ESC")return;if(commandState&&q!==String(commandState.cmd||"").toUpperCase()&&isCadCommandToken(q))cancelActiveCommand("Command: "+q);}
 function worldToScreen(x,y){const w=canvas.clientWidth,h=canvas.clientHeight;return [w/2+(x-view.cx)*view.scale,h/2-(y-view.cy)*view.scale]}
 function screenToWorld(sx,sy){const w=canvas.clientWidth,h=canvas.clientHeight;return [(sx-w/2)/view.scale+view.cx,(h/2-sy)/view.scale+view.cy]}
 function applyPolar(p,base){
@@ -1835,6 +1843,7 @@ function finishCutPolygonParts(original,parts,msg){
 function runCadCommand(raw){
  const rawText=(raw||"").trim();
  const q=rawText.toUpperCase();
+ interruptForNewCommand(rawText);
  if(commandState&&commandState.cmd==="CUTPOLYGON"){
   const s=commandState;
   if(s.step==="method"){
@@ -1982,24 +1991,28 @@ function runCadCommand(raw){
  else {setStatus("Unknown command: "+raw);}
  commandInput.value="";
 }
-commandInput.addEventListener("keydown",e=>{if(e.key==="Enter"){if(commandState&&commandState.cmd==="MATCHPROP"&&commandState.step==="target"&&!commandInput.value.trim()){commandState=null;setMode("select");setStatus("MATCHPROP completed");e.preventDefault();return}runCadCommand(commandInput.value);e.preventDefault()}});
+function finishKeyboardCommand(){
+ const cmd=commandState&&commandState.cmd?String(commandState.cmd).toUpperCase():"";
+ if(mode==="polyline"&&drawPoints.length>=2){saveHistory();entities.push({type:"LWPOLYLINE",layer:activeLayer,pts:drawPoints.slice(),closed:false});clearCommandVisuals();setMode("select");rebuildLayers();draw();setStatus("PLINE completed");return true;}
+ if((mode==="line"||mode==="xline"||mode==="ray")&&drawPoints.length>=1){clearCommandVisuals();setMode("select");draw();setStatus((cmd||mode.toUpperCase())+" completed");return true;}
+ if(cmd==="MATCHPROP"&&commandState.step==="target"&&!commandInput.value.trim()){commandState=null;setMode("select");setStatus("MATCHPROP completed");return true;}
+ return false;
+}
+commandInput.addEventListener("keydown",e=>{
+ if(e.key==="Enter"){if(!commandInput.value.trim()&&finishKeyboardCommand()){e.preventDefault();return;}runCadCommand(commandInput.value);e.preventDefault();}
+ else if(e.key==="Escape"){cancelActiveCommand();e.preventDefault();}
+});
 window.addEventListener("keydown",e=>{
- if(e.target===commandInput||e.target.tagName==="TEXTAREA"||e.target.tagName==="INPUT")return;
- const k=e.key.toUpperCase();
+ const target=e.target,editing=target===commandInput||target&&(["TEXTAREA","INPUT"].includes(target.tagName)),k=e.key.toUpperCase();
+ if(e.key==="Escape"){cancelActiveCommand();e.preventDefault();return;}
+ if((e.ctrlKey||e.metaKey)&&k==="Z"){undo();e.preventDefault();return;}
  if(e.key==="F10"){polarEnabled=!polarEnabled;$("polarStatus").classList.toggle("active",polarEnabled);setStatus(polarEnabled?"POLAR enabled — "+polarAngleStep+"°":"POLAR disabled");e.preventDefault();return;}
- if(e.key==="Escape"){runCadCommand("ESC");return}
- if(k==="C"&&mode==="polyline"&&drawPoints.length>=3){runMenuAction("closepoly");e.preventDefault();return}
- if((e.ctrlKey||e.metaKey)&&k==="Z"){undo();e.preventDefault();return}
- if(k==="F3"){
-  snapEnabled=!snapEnabled;
-  $("osnapStatus").classList.toggle("active",snapEnabled);
-  snapInfo={point:null,type:""};
-  draw();
-  setStatus(snapEnabled?"OSNAP enabled — F3":"OSNAP disabled — F3");
-  e.preventDefault();
- }
- else if(k==="L"){setMode("line");e.preventDefault()}
- else if(k==="C"&&mode==="polyline"&&drawPoints.length>=3){saveHistory();entities.push({type:"LWPOLYLINE",layer:activeLayer,pts:drawPoints.slice(),closed:true});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("PLINE — Close completed");e.preventDefault()}
+ if(e.key==="F3"){snapEnabled=!snapEnabled;$("osnapStatus").classList.toggle("active",snapEnabled);snapInfo={point:null,type:""};draw();setStatus(snapEnabled?"OSNAP enabled — F3":"OSNAP disabled — F3");e.preventDefault();return;}
+ if(editing)return;
+ if(e.key===" "){if(finishKeyboardCommand())e.preventDefault();else{commandInput.focus();commandInput.value="";}return;}
+ if(k==="C"&&mode==="polyline"&&drawPoints.length>=3){runMenuAction("closepoly");e.preventDefault();return;}
+ if(e.ctrlKey||e.metaKey||e.altKey)return;
+ if(e.key.length===1&&/[A-Za-z0-9._@,+\-]/.test(e.key)){commandInput.focus();commandInput.value+=e.key;e.preventDefault();}
 });
 $("newLayerBtn").onclick=()=>{const n=prompt("Enter name for new layer:","0");if(n&&n.trim()){const name=n.trim();if(!layers.has(name))layers.set(name,{visible:true,count:0});activeLayer=name;$("activeLayerInfo").textContent="Current layer: "+activeLayer;renderLayers();setStatus("Current Layer: "+activeLayer)}};
 $("activeLayerBtn").onclick=()=>{const names=[...layers.keys()];if(!names.length)return;const idx=Math.max(0,names.indexOf(activeLayer));activeLayer=names[(idx+1)%names.length];$("activeLayerInfo").textContent="Current layer: "+activeLayer;setStatus("Current Layer: "+activeLayer)};
