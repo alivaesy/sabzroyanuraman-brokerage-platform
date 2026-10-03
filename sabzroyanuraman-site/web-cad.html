@@ -696,7 +696,7 @@ function parseDXF(text){
   if(type==="ARC"&&m.has("10")&&m.has("20")&&m.has("40"))return{type:"ARC",layer,x:n(m.get("10")),y:n(m.get("20")),r:Math.abs(n(m.get("40"))),a1:n(m.get("50")||0),a2:n(m.get("51")||360)};
   if(type==="POINT"&&m.has("10")&&m.has("20"))return{type:"POINT",layer,x:n(m.get("10")),y:n(m.get("20")),r:0};
   if((type==="TEXT"||type==="MTEXT")&&m.has("10")&&m.has("20"))return{type,layer,x:n(m.get("10")),y:n(m.get("20")),text:m.get("1")||"",r:0};
-  if(type==="ELLIPSE"&&m.has("10")&&m.has("20")&&m.has("11")&&m.has("21")){const major=Math.hypot(n(m.get("11")),n(m.get("21")));return{type:"ELLIPSE",layer,x:n(m.get("10")),y:n(m.get("20")),rx:major,ry:major*Math.abs(n(m.get("40")||1))}}
+  if(type==="ELLIPSE"&&m.has("10")&&m.has("20")&&m.has("11")&&m.has("21")){const mx=n(m.get("11")),my=n(m.get("21")),major=Math.hypot(mx,my);return{type:"ELLIPSE",layer,x:n(m.get("10")),y:n(m.get("20")),rx:major,ry:major*Math.abs(n(m.get("40")||1)),rotation:Math.atan2(my,mx)}}
   return null};
  const parseArray=a=>{const out=[];let j=0;while(j<a.length){if(a[j][0]!=="0"){j++;continue}const type=a[j][1].toUpperCase();
   if(type==="POLYLINE"){const h=take(a,j),hm=props(h.data),pts=[];j=h.next;while(j<a.length&&a[j][0]==="0"&&a[j][1].toUpperCase()==="VERTEX"){const v=take(a,j),vm=props(v.data);if(vm.has("10")&&vm.has("20"))pts.push([num(vm.get("10")),num(vm.get("20"))]);j=v.next}if(j<a.length&&a[j][0]==="0"&&a[j][1].toUpperCase()==="SEQEND")j++;if(pts.length>=2)out.push({type:(num(hm.get("70")||0)&8)?"POLYLINE3D":"POLYLINE",layer:hm.get("8")||"0",pts,closed:(num(hm.get("70")||0)&1)===1});continue}
@@ -724,7 +724,7 @@ function dxfText(){
   else if(e.type==="TEXT"||e.type==="MTEXT")s+=`0\n${e.type}\n8\n${layer}\n10\n${e.x}\n20\n${e.y}\n1\n${esc(e.text||"")}\n`;
   else if(e.type==="LWPOLYLINE")poly(e,"LWPOLYLINE");
   else if(e.type==="POLYLINE"||e.type==="POLYLINE3D")poly(e,e.type==="POLYLINE3D"?"POLYLINE":"POLYLINE");
-  else if(e.type==="ELLIPSE")s+=`0\nELLIPSE\n8\n${layer}\n10\n${e.x}\n20\n${e.y}\n11\n${e.rx}\n21\n0\n40\n${e.ry/e.rx||1}\n`;
+  else if(e.type==="ELLIPSE"){const a=e.rotation||0;s+=`0\nELLIPSE\n8\n${layer}\n10\n${e.x}\n20\n${e.y}\n11\n${e.rx*Math.cos(a)}\n21\n${e.rx*Math.sin(a)}\n40\n${e.ry/e.rx||1}\n`}
   else if(e.type==="DIMENSION")s+=`0\nDIMENSION\n8\n${layer}\n10\n${e.tx}\n20\n${e.ty}\n13\n${e.x1}\n23\n${e.y1}\n14\n${e.x2}\n24\n${e.y2}\n1\n${esc(e.text||"")}\n`;
  }
  return s+"0\nENDSEC\n0\nEOF\n"
@@ -821,7 +821,7 @@ function showEntityProperties(index){
  else if(e.pts){add("Vertices",String(e.pts.length));add("Closed",e.closed?"Yes":"No");add("Length",fmt(entityPathLength(e)));if(e.pts.length){add("Start vertex",coord(e.pts[0][0],e.pts[0][1]));add("End vertex",coord(e.pts[e.pts.length-1][0],e.pts[e.pts.length-1][1]));}}
  else if(e.type==="POINT"){add("Position",coord(e.x,e.y));}
  else if(e.type==="TEXT"||e.type==="MTEXT"){add("Insertion point",coord(e.x,e.y));add("Text",String(e.text||"—"));}
- else if(e.type==="ELLIPSE"){add("Center",coord(e.x,e.y));add("Semi-axis X",fmt(e.rx));add("Semi-axis Y",fmt(e.ry));}
+ else if(e.type==="ELLIPSE"){add("Center",coord(e.x,e.y));add("Major radius",fmt(e.rx));add("Minor radius",fmt(e.ry));add("Rotation",fmt((e.rotation||0)*180/Math.PI)+"°");add("Major diameter",fmt(Math.abs(e.rx)*2));add("Minor diameter",fmt(Math.abs(e.ry)*2));add("Area",fmt(Math.PI*Math.abs(e.rx)*Math.abs(e.ry)));}
  else if(e.type==="DIMENSION"){add("Point 1",coord(e.x1,e.y1));add("Point 2",coord(e.x2,e.y2));add("Text position",coord(e.tx,e.ty));add("Text",String(e.text||"—"));}
  const b=entityBounds(e);rows.push('<div class="entity-prop-section">Extents</div>');if(b){add("Min X",fmt(b.minX));add("Min Y",fmt(b.minY));add("Max X",fmt(b.maxX));add("Max Y",fmt(b.maxY));}else add("Bounds","—");
  rows.push('<div class="entity-prop-note">Properties uses AutoCAD-style categories. Color, Linetype, and Lineweight are ByLayer.</div>');
@@ -855,7 +855,7 @@ function transformEntity(e,dx,dy,angle=0,base=null){
  const tr=(x,y)=>{const X=x-b[0],Y=y-b[1];return[b[0]+X*co-Y*si+dx,b[1]+X*si+Y*co+dy]};
  if(q.type==="LINE"){[q.x1,q.y1]=tr(q.x1,q.y1);[q.x2,q.y2]=tr(q.x2,q.y2)}
  else if(q.type==="XLINE"||q.type==="RAY"){[q.x,q.y]=tr(q.x,q.y);const X=q.dx,Y=q.dy;q.dx=X*co-Y*si;q.dy=X*si+Y*co}
- else if(["CIRCLE","ARC","POINT","TEXT","MTEXT","ELLIPSE"].includes(q.type)){[q.x,q.y]=tr(q.x,q.y);if(q.type==="ARC"){q.a1+=angle*180/Math.PI;q.a2+=angle*180/Math.PI}}
+ else if(["CIRCLE","ARC","POINT","TEXT","MTEXT","ELLIPSE"].includes(q.type)){[q.x,q.y]=tr(q.x,q.y);if(q.type==="ARC"){q.a1+=angle*180/Math.PI;q.a2+=angle*180/Math.PI}if(q.type==="ELLIPSE")q.rotation=(q.rotation||0)+angle}
  else if(q.pts)q.pts=q.pts.map(p=>tr(p[0],p[1]));
  else if(q.type==="DIMENSION"){[q.x1,q.y1]=tr(q.x1,q.y1);[q.x2,q.y2]=tr(q.x2,q.y2);[q.tx,q.ty]=tr(q.tx,q.ty)}
  return q;
@@ -1366,7 +1366,7 @@ function extendLineAtPoint(target,p,cuts){
  return true;
 }
 function extendEntityAt(target,p,cuts){return entities[target]?.type==="LINE"?extendLineAtPoint(target,p,cuts):false}
-function entityBounds(e){if(e.type==="XLINE"||e.type==="RAY")return null;let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;const add=(x,y)=>{if(!Number.isFinite(x)||!Number.isFinite(y))return;minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y)};if(e.type==="LINE"){add(e.x1,e.y1);add(e.x2,e.y2)}else if(e.type==="CIRCLE"||e.type==="ARC"||e.type==="POINT"){add(e.x-e.r,e.y-e.r);add(e.x+e.r,e.y+e.r)}else if(e.pts&&e.pts.length)e.pts.forEach(p=>add(p[0],p[1]));else if(e.type==="ELLIPSE"){add(e.x-e.rx,e.y-e.ry);add(e.x+e.rx,e.y+e.ry)}else if(e.type==="TEXT"||e.type==="MTEXT"||e.type==="HATCH"){add(e.x,e.y)}else if(e.type==="DIMENSION"){add(e.x1,e.y1);add(e.x2,e.y2);add(e.tx,e.ty)}return isFinite(minX)?{minX,minY,maxX,maxY}:null}
+function entityBounds(e){if(e.type==="XLINE"||e.type==="RAY")return null;let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;const add=(x,y)=>{if(!Number.isFinite(x)||!Number.isFinite(y))return;minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y)};if(e.type==="LINE"){add(e.x1,e.y1);add(e.x2,e.y2)}else if(e.type==="CIRCLE"||e.type==="ARC"||e.type==="POINT"){add(e.x-e.r,e.y-e.r);add(e.x+e.r,e.y+e.r)}else if(e.type==="ELLIPSE"){const a=e.rotation||0,rx=Math.abs(e.rx||0),ry=Math.abs(e.ry||0),ex=Math.hypot(rx*Math.cos(a),ry*Math.sin(a)),ey=Math.hypot(rx*Math.sin(a),ry*Math.cos(a));add(e.x-ex,e.y-ey);add(e.x+ex,e.y+ey)}else if(e.pts&&e.pts.length)e.pts.forEach(p=>add(p[0],p[1]));else if(e.type==="TEXT"||e.type==="MTEXT"||e.type==="HATCH"){add(e.x,e.y)}else if(e.type==="DIMENSION"){add(e.x1,e.y1);add(e.x2,e.y2);add(e.tx,e.ty)}return isFinite(minX)?{minX,minY,maxX,maxY}:null}
 function normAngle(a){const t=Math.PI*2;return ((a%t)+t)%t}
 function angleOnArc(a,start,end){a=normAngle(a);start=normAngle(start);end=normAngle(end);if(Math.abs(start-end)<1e-10)return true;return start<=end?(a>=start&&a<=end):(a>=start||a<=end)}
 function pointInPolyline(p,e){if(!e.closed||!e.pts||e.pts.length<3)return false;let inside=false;for(let i=0,j=e.pts.length-1;i<e.pts.length;j=i++){const xi=e.pts[i][0],yi=e.pts[i][1],xj=e.pts[j][0],yj=e.pts[j][1];const hit=((yi>p[1])!==(yj>p[1]))&&(p[0]<(xj-xi)*(p[1]-yi)/(yj-yi+Number.EPSILON)+xi);if(hit)inside=!inside}return inside}
