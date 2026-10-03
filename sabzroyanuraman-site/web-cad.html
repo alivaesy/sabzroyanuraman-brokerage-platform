@@ -375,6 +375,11 @@ let lastCadCommand="";
 let commandHistory=[];
 let commandHistoryIndex=-1;
 let view={cx:0,cy:0,scale:1};
+let zoomHistory=[];
+function saveZoomView(){zoomHistory.push({...view});if(zoomHistory.length>30)zoomHistory.shift()}
+function zoomBy(factor,anchor){const p=anchor||[canvas.clientWidth/2,canvas.clientHeight/2],before=screenToWorld(p[0],p[1]);saveZoomView();view.scale=Math.max(.0001,Math.min(20,view.scale*factor));const after=screenToWorld(p[0],p[1]);view.cx+=before[0]-after[0];view.cy+=before[1]-after[1];draw()}
+function zoomWindow(a,b){const minX=Math.min(a[0],b[0]),maxX=Math.max(a[0],b[0]),minY=Math.min(a[1],b[1]),maxY=Math.max(a[1],b[1]),bw=Math.max(1e-9,maxX-minX),bh=Math.max(1e-9,maxY-minY);saveZoomView();view.cx=(minX+maxX)/2;view.cy=(minY+maxY)/2;view.scale=Math.max(.0001,Math.min(20,Math.min((canvas.clientWidth-40)/bw,(canvas.clientHeight-40)/bh)));draw();setStatus("Zoom Window")}
+function zoomPrevious(){const v=zoomHistory.pop();if(!v){setStatus("Zoom Previous — No previous view");return}view={...v};draw();setStatus("Zoom Previous")}
 let drag=null,drawPoints=[],previewPoint=null,selectionBox=null,distVisual={p1:null,p2:null};let gripDrag=null;
 const $=id=>document.getElementById(id);
 function resize(){const r=canvas.getBoundingClientRect(),d=window.devicePixelRatio||1;canvas.width=Math.round(r.width*d);canvas.height=Math.round(r.height*d);ctx.setTransform(d,0,0,d,0,0);draw()}
@@ -838,7 +843,7 @@ $("entityPropertiesClose").onclick=closeEntityProperties;
 $("entityPropertiesDone").onclick=closeEntityProperties;
 $("entityProperties").addEventListener("click",e=>{if(e.target.id==="entityProperties")closeEntityProperties()});
 canvas.addEventListener("mouseleave",()=>drag=null);
-canvas.addEventListener("wheel",e=>{e.preventDefault();const r=canvas.getBoundingClientRect(),before=screenToWorld(e.clientX-r.left,e.clientY-r.top),factor=e.deltaY<0?1.10:.9090909;view.scale=Math.max(.0001,Math.min(20,view.scale*factor));const after=screenToWorld(e.clientX-r.left,e.clientY-r.top);view.cx+=before[0]-after[0];view.cy+=before[1]-after[1];draw()},{passive:false});
+canvas.addEventListener("wheel",e=>{e.preventDefault();const r=canvas.getBoundingClientRect(),anchor=[e.clientX-r.left,e.clientY-r.top];zoomBy(e.deltaY<0?1.10:.9090909,anchor)},{passive:false});
 function cloneEntity(e){return JSON.parse(JSON.stringify(e))}
 function transformEntity(e,dx,dy,angle=0,base=null){
  const q=cloneEntity(e),b=base||[0,0],co=Math.cos(angle),si=Math.sin(angle);
@@ -1858,6 +1863,19 @@ function runCadCommand(raw){
  const topLevel=!commandState&&isCadCommandToken(q)&&q!=="ESC";
  if(topLevel){lastCadCommand=q;commandHistory=commandHistory.filter(x=>x!==q);commandHistory.push(q);if(commandHistory.length>40)commandHistory.shift();commandHistoryIndex=commandHistory.length;}
  if(!(commandState&&commandState.cmd==="CUTPOLYGON"&&commandState.step==="method"&&isCutPolygonMethodInput(q)))interruptForNewCommand(rawText);
+ if(commandState&&commandState.cmd==="ZOOM"){
+ const z=commandState;
+ if(z.step==="method"){
+  if(q==="E"||q==="EXTENTS"||q==="ZE"){commandState=null;saveZoomView();fit();setStatus("Zoom Extents");commandInput.value="";return}
+  if(q==="W"||q==="WINDOW"||q==="ZW"){z.step="window1";setStatus("ZOOM — Specify first corner:");commandInput.value="";return}
+  if(q==="P"||q==="PREVIOUS"||q==="ZP"){commandState=null;zoomPrevious();commandInput.value="";return}
+  if(q==="I"||q==="IN"||q==="ZI"){commandState=null;zoomBy(1.5);setStatus("Zoom In");commandInput.value="";return}
+  if(q==="O"||q==="OUT"||q==="ZO"){commandState=null;zoomBy(1/1.5);setStatus("Zoom Out");commandInput.value="";return}
+  setCommandError("Use Extents, Window, Previous, In or Out.");return
+ }
+ if(z.step==="window1"){const p=parseCadPoint(rawText,null);if(!p){setCommandError("Specify a valid first corner.");return}z.p1=p;z.step="window2";setStatus("ZOOM — Specify opposite corner:");commandInput.value="";return}
+ if(z.step==="window2"){const p=parseCadPoint(rawText,z.p1);if(!p){setCommandError("Specify a valid opposite corner.");return}commandState=null;zoomWindow(z.p1,p);commandInput.value="";return}
+}
  if(commandState&&commandState.cmd==="CUTPOLYGON"){
   const s=commandState;
   if(s.step==="method"){
@@ -1990,7 +2008,12 @@ function runCadCommand(raw){
  else if(q==="DIST"||q==="DI"||q==="DISTANCE"){commandState={cmd:"DIST",step:"dist1",p1:null};distVisual={p1:null,p2:null};setMode("select");setStatus("DIST — Specify first point:");}
  else if(q==="DIVIDE"||q==="DIV")runPointDivision("DIVIDE");
  else if(q==="MEASURE"||q==="ME")runPointDivision("MEASURE");
- else if(q==="Z"||q==="ZOOM"||q==="ZE"||q==="ZOOM E"){fit();}
+ else if(q==="ZI"||q==="ZOOMIN"){zoomBy(1.5);setStatus("Zoom In");}
+ else if(q==="ZO"||q==="ZOOMOUT"){zoomBy(1/1.5);setStatus("Zoom Out");}
+ else if(q==="ZP"||q==="ZOOMPREVIOUS"){zoomPrevious();}
+ else if(q==="ZE"||q==="ZOOM E"){saveZoomView();fit();}
+ else if(q==="ZW"||q==="ZOOMW"||q==="ZOOM WINDOW"){commandState={cmd:"ZOOM",step:"window1"};setMode("select");setStatus("ZOOM — Specify first corner:");}
+ else if(q==="Z"||q==="ZOOM"){commandState={cmd:"ZOOM",step:"method"};setMode("select");setStatus("ZOOM — [Extents/Window/Previous/In/Out]:");}
  else if(q==="G"||q==="GRID"){grid=!grid;draw();$("gridStatus").classList.toggle("active",grid);}
  else if(q==="F3"||q==="OSNAP"){snapEnabled=!snapEnabled;$("osnapStatus").classList.toggle("active",snapEnabled);snapInfo={point:null,type:""};draw();setStatus(snapEnabled?"OSNAP enabled":"OSNAP disabled");}
  else if(q==="F10"||q==="POLAR"){polarEnabled=!polarEnabled;$("polarStatus").classList.toggle("active",polarEnabled);draw();setStatus(polarEnabled?"POLAR enabled — "+polarAngleStep+"°":"POLAR disabled");}
