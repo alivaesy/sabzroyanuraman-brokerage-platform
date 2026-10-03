@@ -830,7 +830,7 @@ if(e.button===1){drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy};e.preventD
  }
 });
 canvas.addEventListener("mouseup",e=>{
- if(gripDrag){const gi=gripDrag.index;gripDrag=null;rebuildLayers();draw();setStatus("PEDIT — Vertex edit completed");e.preventDefault();return;}
+ if(gripDrag){const gi=gripDrag.index;gripDrag=null;rebuildLayers();draw();if(document.getElementById("entityProperties")?.classList.contains("open")&&entities[gi])showEntityProperties(gi);setStatus("GRIP — Geometry edit completed");e.preventDefault();return;}
 if(selectionBox&&mode==="select"){const clickTol=8/view.scale;if(Math.hypot(selectionBox.x2-selectionBox.x1,selectionBox.y2-selectionBox.y1)<=clickTol){const raw=screenToWorld(e.clientX-canvas.getBoundingClientRect().left,e.clientY-canvas.getBoundingClientRect().top),p=snapPoint(raw),hitOne=findNearest(p);const mod=selectionBox.modifier;if(mod==="REMOVE"){if(hitOne>=0)selectedSet.delete(hitOne);selected=selectedSet.size?[...selectedSet].at(-1):-1}else if(mod==="ADD"){if(hitOne>=0){selectedSet.add(hitOne);selected=hitOne}}else{selectedSet.clear();if(hitOne>=0)selectedSet.add(hitOne);selected=hitOne}selectionBox=null;setStatus(selectedSet.size?selectedSet.size+" object(s) selected.":"Select objects:");draw();drag=null;return;}const b=selectionBox;const x1=Math.min(b.x1,b.x2),x2=Math.max(b.x1,b.x2),y1=Math.min(b.y1,b.y2),y2=Math.max(b.y1,b.y2);const hit=[];const pointInBox=(p)=>p[0]>=x1&&p[0]<=x2&&p[1]>=y1&&p[1]<=y2;const segBoxHit=(a,b)=>{if(pointInBox(a)||pointInBox(b))return true;const edges=[[[x1,y1],[x2,y1]],[[x2,y1],[x2,y2]],[[x2,y2],[x1,y2]],[[x1,y2],[x1,y1]]];return edges.some(s=>!!lineIntersection(a,b,s[0],s[1]));};entities.forEach((ent,i)=>{if(!isLayerVisible(ent))return;let inside=false;if(ent.pts&&ent.pts.length){const verts=ent.pts,any=verts.some(pointInBox),all=verts.every(pointInBox);let crosses=false;for(let j=1;j<verts.length;j++)if(segBoxHit(verts[j-1],verts[j])){crosses=true;break}if(ent.closed&&verts.length>2&&segBoxHit(verts.at(-1),verts[0]))crosses=true;inside=b.crossing?(any||crosses):all}else{const eb=entityBounds(ent);if(!eb)return;inside=b.crossing?(eb.maxX>=x1&&eb.minX<=x2&&eb.maxY>=y1&&eb.minY<=y2):(eb.minX>=x1&&eb.maxX<=x2&&eb.minY>=y1&&eb.maxY<=y2)}if(inside)hit.push(i)});if(b.modifier==="REMOVE"){hit.forEach(i=>selectedSet.delete(i));selected=selectedSet.size?[...selectedSet].at(-1):-1}else{if(b.modifier!=="ADD")selectedSet.clear();hit.forEach(i=>selectedSet.add(i));selected=hit.length?hit[hit.length-1]:(selectedSet.size?[...selectedSet].at(-1):-1);}
  if(commandState&&commandState.cmd==="STRETCH"&&commandState.step==="select"){
   const s=commandState;s.ids=selectedIndices();s.stretchVerts=new Map();s.moveWhole=new Set();
@@ -863,23 +863,50 @@ if(selectionBox&&mode==="select"){const clickTol=8/view.scale;if(Math.hypot(sele
 }
 function showEntityProperties(index){
  const e=entities[index];if(!e)return;
- const rows=[];const add=(label,value)=>rows.push('<div class="layer-prop-label">'+label+'</div><div class="layer-prop-value">'+value+'</div>');
- const fmt=n=>Number.isFinite(Number(n))?Number(n).toFixed(3):"—";const coord=(x,y)=>"X "+fmt(x)+" | Y "+fmt(y);
+ const rows=[];
+ const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+ const add=(label,value)=>rows.push('<div class="layer-prop-label">'+label+'</div><div class="layer-prop-value">'+value+'</div>');
+ const fmt=n=>Number.isFinite(Number(n))?Number(n).toFixed(3):"—";
+ const coord=(x,y)=>"X "+fmt(x)+" | Y "+fmt(y);
+ const input=(label,key,value,step="any")=>add(label,'<input class="entity-geometry-editor" data-entity-index="'+index+'" data-entity-prop="'+key+'" type="number" step="'+step+'" value="'+esc(value)+'">');
+ const check=(label,key,value)=>add(label,'<input class="entity-geometry-editor" data-entity-index="'+index+'" data-entity-prop="'+key+'" type="checkbox" '+(value?"checked":"")+'>');
  rows.push('<div class="entity-prop-section">General</div>');
- add("Type",e.type);add("Layer",'<select class="entity-layer-editor" data-entity-index="'+index+'">'+[...layers.keys()].map(n=>'<option'+(n===layerOf(e)?' selected':'')+'>'+n.replace(/&/g,"&amp;").replace(/</g,"&lt;")+"</option>").join("")+"</select>");add("Color","ByLayer");add("Linetype","ByLayer");add("Lineweight","ByLayer");add("Index",String(index+1));
+ add("Type",e.type);
+ add("Layer",'<select class="entity-layer-editor" data-entity-index="'+index+'">'+[...layers.keys()].map(n=>'<option'+(n===layerOf(e)?' selected':'')+'>'+esc(n)+"</option>").join("")+'</select>');
+ add("Color","ByLayer");add("Linetype","ByLayer");add("Lineweight","ByLayer");add("Index",String(index+1));
  rows.push('<div class="entity-prop-section">Geometry</div>');
- if(e.type==="XLINE"||e.type==="RAY"){add("Base point",coord(e.x,e.y));add("Direction","X "+fmt(e.dx)+" | Y "+fmt(e.dy));add("Length",e.type==="XLINE"?"Infinite":"Infinite");}
- else if(e.type==="LINE"){add("Start point",coord(e.x1,e.y1));add("End point",coord(e.x2,e.y2));add("Length",fmt(entityPathLength(e)));add("Angle",(Math.atan2(e.y2-e.y1,e.x2-e.x1)*180/Math.PI).toFixed(3)+"°");}
- else if(e.type==="CIRCLE"){add("Center",coord(e.x,e.y));add("Radius",fmt(e.r));add("Diameter",fmt(Math.abs(e.r)*2));add("Circumference",fmt(2*Math.PI*Math.abs(e.r)));add("Area",fmt(Math.PI*Math.abs(e.r)*Math.abs(e.r)));}
- else if(e.type==="ARC"){add("Center",coord(e.x,e.y));add("Radius",fmt(e.r));add("Start angle",fmt(e.a1||0)+"°");add("End angle",fmt(e.a2||0)+"°");add("Arc length",fmt(entityPathLength(e)));}
- else if(e.type==="SPLINE"){add("Control points",String(e.pts?.length||0));add("Closed",e.closed?"Yes":"No");add("Length",fmt(entityPathLength(e)));if(e.pts?.length){add("Start point",coord(e.pts[0][0],e.pts[0][1]));add("End point",coord(e.pts[e.pts.length-1][0],e.pts[e.pts.length-1][1]));}}else if(e.pts){add("Vertices",String(e.pts.length));add("Closed",e.closed?"Yes":"No");add("Length",fmt(entityPathLength(e)));if(e.pts.length){add("Start vertex",coord(e.pts[0][0],e.pts[0][1]));add("End vertex",coord(e.pts[e.pts.length-1][0],e.pts[e.pts.length-1][1]));}}
- else if(e.type==="POINT"){add("Position",coord(e.x,e.y));}
+ if(e.type==="XLINE"||e.type==="RAY"){input("Base X","x",e.x);input("Base Y","y",e.y);add("Direction","X "+fmt(e.dx)+" | Y "+fmt(e.dy));add("Length","Infinite");}
+ else if(e.type==="LINE"){input("Start X","x1",e.x1);input("Start Y","y1",e.y1);input("End X","x2",e.x2);input("End Y","y2",e.y2);add("Length",fmt(entityPathLength(e)));add("Angle",(Math.atan2(e.y2-e.y1,e.x2-e.x1)*180/Math.PI).toFixed(3)+"°");}
+ else if(e.type==="CIRCLE"){input("Center X","x",e.x);input("Center Y","y",e.y);input("Radius","r",Math.abs(e.r));add("Diameter",fmt(Math.abs(e.r)*2));add("Circumference",fmt(2*Math.PI*Math.abs(e.r)));add("Area",fmt(Math.PI*Math.abs(e.r)*Math.abs(e.r)));}
+ else if(e.type==="ARC"){input("Center X","x",e.x);input("Center Y","y",e.y);input("Radius","r",Math.abs(e.r));input("Start angle","a1",e.a1??0);input("End angle","a2",e.a2??360);add("Arc length",fmt(entityPathLength(e)));}
+ else if(e.type==="ELLIPSE"){input("Center X","x",e.x);input("Center Y","y",e.y);input("Major radius","rx",Math.abs(e.rx));input("Minor radius","ry",Math.abs(e.ry));input("Rotation","rotationDeg",(e.rotation||0)*180/Math.PI);add("Major diameter",fmt(Math.abs(e.rx)*2));add("Minor diameter",fmt(Math.abs(e.ry)*2));add("Area",fmt(Math.PI*Math.abs(e.rx)*Math.abs(e.ry)));}
+ else if(e.type==="SPLINE"){add("Control points",String(e.pts?.length||0));check("Closed","closed",!!e.closed);add("Length",fmt(entityPathLength(e)));if(e.pts?.length){add("Start point",coord(e.pts[0][0],e.pts[0][1]));add("End point",coord(e.pts[e.pts.length-1][0],e.pts[e.pts.length-1][1]));}}
+ else if(e.pts){add("Vertices",String(e.pts.length));check("Closed","closed",!!e.closed);add("Length",fmt(entityPathLength(e)));if(e.pts.length){add("Start vertex",coord(e.pts[0][0],e.pts[0][1]));add("End vertex",coord(e.pts[e.pts.length-1][0],e.pts[e.pts.length-1][1]));}}
+ else if(e.type==="POINT"){input("X","x",e.x);input("Y","y",e.y);}
  else if(e.type==="TEXT"||e.type==="MTEXT"){add("Insertion point",coord(e.x,e.y));add("Text",String(e.text||"—"));}
- else if(e.type==="ELLIPSE"){add("Center",coord(e.x,e.y));add("Major radius",fmt(e.rx));add("Minor radius",fmt(e.ry));add("Rotation",fmt((e.rotation||0)*180/Math.PI)+"°");add("Major diameter",fmt(Math.abs(e.rx)*2));add("Minor diameter",fmt(Math.abs(e.ry)*2));add("Area",fmt(Math.PI*Math.abs(e.rx)*Math.abs(e.ry)));}
  else if(e.type==="DIMENSION"){add("Point 1",coord(e.x1,e.y1));add("Point 2",coord(e.x2,e.y2));add("Text position",coord(e.tx,e.ty));add("Text",String(e.text||"—"));}
  const b=entityBounds(e);rows.push('<div class="entity-prop-section">Extents</div>');if(b){add("Min X",fmt(b.minX));add("Min Y",fmt(b.minY));add("Max X",fmt(b.maxX));add("Max Y",fmt(b.maxY));}else add("Bounds","—");
- rows.push('<div class="entity-prop-note">Properties uses AutoCAD-style categories. Color, Linetype, and Lineweight are ByLayer.</div>');
- $("entityPropertiesTitle").textContent="Properties — "+e.type+" ["+(index+1)+"]";$("entityPropertiesBody").innerHTML='<div class="layer-prop-grid">'+rows.join("")+'</div>';$("entityProperties").classList.add("open");$("entityPropertiesBody").scrollTop=0;const layerEditor=$("entityPropertiesBody").querySelector(".entity-layer-editor");if(layerEditor)layerEditor.onchange=ev=>{const idx=Number(ev.target.dataset.entityIndex),name=ev.target.value;if(!entities[idx])return;saveHistory();entities[idx].layer=name;rebuildLayers();draw();showEntityProperties(idx);setStatus("Layer changed to "+name)};
+ rows.push('<div class="entity-prop-note">Geometry fields are editable. Changes are applied immediately and remain synchronized with grips.</div>');
+ $("entityPropertiesTitle").textContent="Properties — "+e.type+" ["+(index+1)+"]";
+ $("entityPropertiesBody").innerHTML='<div class="layer-prop-grid">'+rows.join("")+'</div>';
+ $("entityProperties").classList.add("open");$("entityPropertiesBody").scrollTop=0;
+ const layerEditor=$("entityPropertiesBody").querySelector(".entity-layer-editor");
+ if(layerEditor)layerEditor.onchange=ev=>{const idx=Number(ev.target.dataset.entityIndex),name=ev.target.value;if(!entities[idx])return;saveHistory();entities[idx].layer=name;rebuildLayers();draw();showEntityProperties(idx);setStatus("Layer changed to "+name)};
+ $("entityPropertiesBody").querySelectorAll(".entity-geometry-editor").forEach(el=>{
+  el.onchange=ev=>{
+   const idx=Number(ev.target.dataset.entityIndex),key=ev.target.dataset.entityProp,ge=entities[idx];if(!ge)return;
+   saveHistory();
+   if(key==="closed"){ge.closed=!!ev.target.checked}
+   else{
+    const v=Number(ev.target.value);if(!Number.isFinite(v)){showEntityProperties(idx);return}
+    if(["r","rx","ry"].includes(key)){if(v<=0){showEntityProperties(idx);setStatus("Property value must be greater than zero.");return}ge[key]=Math.abs(v)}
+    else if(key==="rotationDeg"){ge.rotation=v*Math.PI/180}
+    else if(["a1","a2"].includes(key)){ge[key]=v}
+    else ge[key]=v;
+   }
+   rebuildLayers();draw();showEntityProperties(idx);setStatus("Properties — "+ge.type+" updated");
+  };
+ });
 }
 function closeEntityProperties(){$("entityProperties").classList.remove("open")}
 let contextEntityIndex=-1;
