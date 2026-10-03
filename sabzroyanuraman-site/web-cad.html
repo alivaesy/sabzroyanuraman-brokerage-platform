@@ -801,8 +801,23 @@ canvas.addEventListener("mouseup",e=>{
  if(gripDrag){const gi=gripDrag.index;gripDrag=null;rebuildLayers();draw();setStatus("PEDIT — Vertex edit completed");e.preventDefault();return;}
 if(selectionBox&&mode==="select"){const clickTol=8/view.scale;if(Math.hypot(selectionBox.x2-selectionBox.x1,selectionBox.y2-selectionBox.y1)<=clickTol){const raw=screenToWorld(e.clientX-canvas.getBoundingClientRect().left,e.clientY-canvas.getBoundingClientRect().top),p=snapPoint(raw),hitOne=findNearest(p);if(!selectionBox.add)selectedSet.clear();if(hitOne>=0){if(e.ctrlKey)selectedSet.has(hitOne)?selectedSet.delete(hitOne):selectedSet.add(hitOne);else selectedSet.add(hitOne);selected=hitOne}else if(!selectionBox.add)selected=-1;selectionBox=null;setStatus(selectedSet.size?selectedSet.size+" object(s) selected.":"Select objects:");draw();drag=null;return;}const b=selectionBox;const x1=Math.min(b.x1,b.x2),x2=Math.max(b.x1,b.x2),y1=Math.min(b.y1,b.y2),y2=Math.max(b.y1,b.y2);const hit=[];const pointInBox=(p)=>p[0]>=x1&&p[0]<=x2&&p[1]>=y1&&p[1]<=y2;const segBoxHit=(a,b)=>{if(pointInBox(a)||pointInBox(b))return true;const edges=[[[x1,y1],[x2,y1]],[[x2,y1],[x2,y2]],[[x2,y2],[x1,y2]],[[x1,y2],[x1,y1]]];return edges.some(s=>!!lineIntersection(a,b,s[0],s[1]));};entities.forEach((ent,i)=>{if(!isLayerVisible(ent))return;let inside=false;if(ent.pts&&ent.pts.length){const verts=ent.pts,any=verts.some(pointInBox),all=verts.every(pointInBox);let crosses=false;for(let j=1;j<verts.length;j++)if(segBoxHit(verts[j-1],verts[j])){crosses=true;break}if(ent.closed&&verts.length>2&&segBoxHit(verts.at(-1),verts[0]))crosses=true;inside=b.crossing?(any||crosses):all}else{const eb=entityBounds(ent);if(!eb)return;inside=b.crossing?(eb.maxX>=x1&&eb.minX<=x2&&eb.maxY>=y1&&eb.minY<=y2):(eb.minX>=x1&&eb.maxX<=x2&&eb.minY>=y1&&eb.maxY<=y2)}if(inside)hit.push(i)});if(!b.add)selectedSet.clear();hit.forEach(i=>selectedSet.add(i));selected=hit.length?hit[hit.length-1]:(selectedSet.size?[...selectedSet].at(-1):-1);
  if(commandState&&commandState.cmd==="STRETCH"&&commandState.step==="select"){
-  const s=commandState;s.ids=selectedIndices();s.stretchVerts=new Map();const inside=(q)=>q[0]>=x1&&q[0]<=x2&&q[1]>=y1&&q[1]<=y2;
-  s.ids.forEach(i=>{const ent=entities[i];if(ent?.pts?.length){const v=[];ent.pts.forEach((q,j)=>{if(inside(q))v.push(j)});if(ent.closed&&v.length===0&&b.crossing&&pointInBox(ent.pts[0]))v.push(0);if(v.length)s.stretchVerts.set(i,v)}else if(ent&&"x"in ent&&inside([ent.x,ent.y]))s.stretchVerts.set(i,["center"])});
+  const s=commandState;s.ids=selectedIndices();s.stretchVerts=new Map();s.moveWhole=new Set();
+  const inside=(q)=>q[0]>=x1&&q[0]<=x2&&q[1]>=y1&&q[1]<=y2;
+  const boxFullyContains=(ent)=>{
+   const eb=entityBounds(ent);return !!eb&&eb.minX>=x1&&eb.maxX<=x2&&eb.minY>=y1&&eb.maxY<=y2;
+  };
+  s.ids.forEach(i=>{
+   const ent=entities[i];if(!ent)return;
+   if(ent?.pts?.length){
+    const v=[];ent.pts.forEach((q,j)=>{if(inside(q))v.push(j)});
+    if(b.crossing){if(v.length)s.stretchVerts.set(i,v)}
+    else if(boxFullyContains(ent))s.moveWhole.add(i);
+   }else if(ent&&"x"in ent){
+    if(b.crossing){if(inside([ent.x,ent.y]))s.stretchVerts.set(i,["center"])}
+    else if(boxFullyContains(ent))s.moveWhole.add(i);
+   }else if(boxFullyContains(ent))s.moveWhole.add(i);
+  });
+  s.ids=[...new Set([...s.stretchVerts.keys(),...s.moveWhole])];
   s.step="base";setStatus(s.ids.length?"STRETCH — Specify base point:":"STRETCH — No objects selected.");if(!s.ids.length){commandState=null;setMode("select")}else draw();
  }else setStatus(selectedSet.size?selectedSet.size+" object(s) selected.":"Specify opposite corner:");
  selectionBox=null;draw()}drag=null});function selectedEntityForContext(p){
@@ -1152,7 +1167,11 @@ if(s.cmd==="STRETCH"&&s.step==="second"){
  s.ids.forEach(i=>{
   const e=entities[i];if(!e)return;
   const verts=s.stretchVerts?.get(i);
-  if(e.type==="LINE"){
+  if(s.moveWhole?.has(i)){
+   if(e.type==="LINE"){e.x1+=dx;e.y1+=dy;e.x2+=dx;e.y2+=dy}
+   else if(e.pts?.length)e.pts=e.pts.map(v=>[v[0]+dx,v[1]+dy]);
+   else if("x"in e){e.x+=dx;e.y+=dy}
+  }else if(e.type==="LINE"){
    if(verts?.length){if(verts.includes(0)){e.x1+=dx;e.y1+=dy}if(verts.includes(1)){e.x2+=dx;e.y2+=dy}}
    else{
     const a=[e.x1,e.y1],b=[e.x2,e.y2];
