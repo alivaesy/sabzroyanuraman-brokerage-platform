@@ -2130,7 +2130,10 @@ function runCadCommand(raw){
  else if(q==="MTEXT"||q==="MT"){startTextCommand("MTEXT");}
  else if(q==="DIMLINEAR"||q==="DLI"){startDimensionCommand("DIMLINEAR");}
  else if(q==="DIMALIGNED"||q==="DAL"){startDimensionCommand("DIMALIGNED");}
- else if(q==="DIMANGULAR"||q==="DAN"){startDimensionCommand("DIMANGULAR");}\n else if(q==="DIMRADIUS"||q==="DRA"){startDimensionCommand("DIMRADIUS");}\n else if(q==="DIMDIAMETER"||q==="DDI"){startDimensionCommand("DIMDIAMETER");}\n else if(q==="XL"||q==="XLINE")startInfiniteCommand("XLINE");
+ else if(q==="DIMANGULAR"||q==="DAN"){startDimensionCommand("DIMANGULAR");}
+ else if(q==="DIMRADIUS"||q==="DRA"){startDimensionCommand("DIMRADIUS");}
+ else if(q==="DIMDIAMETER"||q==="DDI"){startDimensionCommand("DIMDIAMETER");}
+ else if(q==="XL"||q==="XLINE")startInfiniteCommand("XLINE");
  else if(q==="RAY")startInfiniteCommand("RAY");
  else if(q==="E"||q==="ERASE"){const ids=selectedIndices();if(ids.length){saveHistory();entities=entities.filter((_,i)=>!selectedSet.has(i));selectedSet.clear();selected=-1;rebuildLayers();draw();setStatus("ERASE completed")}else{commandState={cmd:"ERASE",step:"select",ids:[],before:JSON.stringify(entities)};setMode("select");setStatus("ERASE — Select objects:");}}
  else if(q==="M"||q==="MOVE")beginEditCommand("MOVE");
