@@ -587,7 +587,8 @@ function bounds(){
   if(e.type==="LINE"){add(e.x1,e.y1);add(e.x2,e.y2)}
   else if(e.type==="CIRCLE"||e.type==="POINT"){add(e.x-e.r,e.y-e.r);add(e.x+e.r,e.y+e.r)}
   else if(e.type==="ARC"){add(e.x-e.r,e.y-e.r);add(e.x+e.r,e.y+e.r)}
-  else if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"||e.type==="POLYLINE3D"||e.type==="SPLINE"){e.pts.forEach(p=>add(p[0],p[1]))}
+  else if(e.type==="SPLINE"){if(!e.pts||e.pts.length<2)return;ctx.beginPath();const pts=e.pts.map(p=>worldToScreen(p[0],p[1]));ctx.moveTo(pts[0][0],pts[0][1]);if(pts.length===2)ctx.lineTo(pts[1][0],pts[1][1]);else for(let i=0;i<pts.length-1;i++){const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)];for(let t=0;t<=1;t+=0.1){const t2=t*t,t3=t2*t;ctx.lineTo(.5*((2*p1[0])+(-p0[0]+p2[0])*t+(2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2+(-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3),.5*((2*p1[1])+(-p0[1]+p2[1])*t+(2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2+(-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3))}}ctx.stroke()}
+ else if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"||e.type==="POLYLINE3D"){e.pts.forEach(p=>add(p[0],p[1]))}
   else if(e.type==="DIMENSION"){add(e.x1,e.y1);add(e.x2,e.y2);add(e.tx,e.ty)}
   else if(e.type==="HATCH"&&e.pts){e.pts.forEach(p=>add(p[0],p[1]))}
   else if(e.type==="TEXT"||e.type==="MTEXT"){add(e.x,e.y)}
@@ -780,9 +781,9 @@ if(e.button===1){drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy};e.preventD
  if(mode==="point"){saveHistory();entities.push({type:"POINT",layer:activeLayer,x:p[0],y:p[1],r:0});rebuildLayers();draw();setStatus("POINT completed");return}
  if(mode==="xline"||mode==="ray"){drawPoints.push(p);if(drawPoints.length===1){setStatus(mode==="xline"?"XLINE — Specify through point:":"RAY — Specify through point:")}else{saveHistory();const a=drawPoints[0],b=p,dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy);if(L>1e-9)entities.push({type:mode==="xline"?"XLINE":"RAY",layer:activeLayer,x:a[0],y:a[1],dx:dx/L,dy:dy/L});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus((mode==="xline"?"XLINE":"RAY")+" completed");}return}
  if(mode==="line"){drawPoints.push(p);if(drawPoints.length===2){saveHistory();entities.push({type:"LINE",layer:activeLayer,x1:drawPoints[0][0],y1:drawPoints[0][1],x2:p[0],y2:p[1]});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("LINE completed")}}
- else if(mode==="spline"){const p=parseCadPoint(rawText,null);if(p){drawPoints.push(p);setStatus("SPLINE — Specify next point or Enter to finish");draw();commandInput.value="";return}}
- if(mode==="ellipse"){const p=parseCadPoint(rawText,null);if(p){drawPoints.push(p);commandState={cmd:"ELLIPSE",step:"axis",center:p};setStatus("ELLIPSE — Specify end of major axis:");mode="ellipseAxis";draw();commandInput.value="";return}}
- if(mode==="ellipseAxis"){const p=parseCadPoint(rawText,null);if(p&&commandState?.center){const c=commandState.center,rx=Math.hypot(p[0]-c[0],p[1]-c[1]);if(rx>0){commandState.axis=p;commandState.step="minor";setStatus("ELLIPSE — Specify minor axis distance:");draw();commandInput.value="";return}}}
+ else if(mode==="spline"){drawPoints.push(p);setStatus("SPLINE — Specify next point or Enter to finish");draw();return}
+ if(mode==="ellipse"){if(!drawPoints.length){drawPoints=[p];commandState={cmd:"ELLIPSE",step:"axis",center:p};setStatus("ELLIPSE — Specify end of major axis:");draw();return}}
+ if(mode==="ellipseAxis"){const c=commandState?.center;if(c){const L=Math.hypot(p[0]-c[0],p[1]-c[1]);if(L>1e-9){commandState.axis=p;commandState.step="minor";setStatus("ELLIPSE — Specify minor axis distance:");draw();return}}}
  if(mode==="circle"){if(!drawPoints.length){drawPoints=[p];setStatus("Specify radius:")}else{const q=drawPoints[0],r=Math.hypot(p[0]-q[0],p[1]-q[1]);saveHistory();entities.push({type:"CIRCLE",layer:activeLayer,x:q[0],y:q[1],r});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus("CIRCLE completed")}}
  else if(mode==="point"){saveHistory();entities.push({type:"POINT",layer:activeLayer,x:p[0],y:p[1],r:0});rebuildLayers();draw();setStatus("POINT completed")}
  else if(mode==="polyline"){const nearStart=drawPoints.length>=3&&Math.hypot(p[0]-drawPoints[0][0],p[1]-drawPoints[0][1])<=Math.max(12/view.scale,18/view.scale);if(nearStart||e.detail===2){if(drawPoints.length>=2){saveHistory();const pts=drawPoints.slice();const closeIt=pts.length>=3&&nearStart;entities.push({type:"LWPOLYLINE",layer:activeLayer,pts,closed:closeIt});}drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus(nearStart?"PLINE closed — first vertex snapped":"PLINE completed")}else{drawPoints.push(p);draw()}}
