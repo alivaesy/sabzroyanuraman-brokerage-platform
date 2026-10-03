@@ -608,6 +608,7 @@ function gripHit(e,p){
  if(!e)return null;const t=Math.max(8/view.scale,10/view.scale),n=(x,y)=>Math.hypot(p[0]-x,p[1]-y)<=t;
  if(e.type==="LINE"){if(n(e.x1,e.y1))return{kind:"lineVertex",index:0};if(n(e.x2,e.y2))return{kind:"lineVertex",index:1};return null}
  if(e.type==="CIRCLE"){if(n(e.x,e.y))return{kind:"circleCenter"};const r=Math.abs(e.r||0),a=Math.atan2(p[1]-e.y,p[0]-e.x),q=[e.x+r*Math.cos(a),e.y+r*Math.sin(a)];if(Math.hypot(p[0]-q[0],p[1]-q[1])<=t)return{kind:"circleRadius"};return null}
+ if(e.type==="ELLIPSE"){const a=e.rotation||0,rx=Math.abs(e.rx||0),ry=Math.abs(e.ry||0);if(n(e.x,e.y))return{kind:"ellipseCenter"};const major=[e.x+rx*Math.cos(a),e.y+rx*Math.sin(a)],minor=[e.x-ry*Math.sin(a),e.y+ry*Math.cos(a)];if(n(major[0],major[1]))return{kind:"ellipseMajor"};if(n(minor[0],minor[1]))return{kind:"ellipseMinor"};return null}
  if(!e.pts||e.pts.length<2)return null;
  for(let i=0;i<e.pts.length;i++)if(n(e.pts[i][0],e.pts[i][1]))return{kind:"vertex",index:i};
  const c=e.pts.length-1+(e.closed?1:0);for(let i=0;i<c;i++){const j=(i+1)%e.pts.length,a=e.pts[i],b=e.pts[j],m=[(a[0]+b[0])/2,(a[1]+b[1])/2];if(n(m[0],m[1]))return{kind:"mid",index:i,point:m}}return null;
