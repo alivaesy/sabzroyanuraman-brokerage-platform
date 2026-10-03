@@ -1518,12 +1518,27 @@ function runJoinCommand(){
  saveHistory();const layer=es[0].layer||activeLayer;entities=entities.filter((_,i)=>!selectedSet.has(i));entities.push({type:"LWPOLYLINE",layer,pts:chain,closed:false});selectedSet.clear();selected=entities.length-1;selectedSet.add(selected);rebuildLayers();draw();setStatus("JOIN completed");
 }
 function runTransformCommand(cmd){
- const ids=selectedIndices();if(!ids.length){setStatus(cmd+" — Select objects:");return}
+ const ids=selectedIndices();
+ if(!ids.length){
+  commandState={cmd,ids:[],step:"select",before:JSON.stringify(entities)};
+  setMode("select");setStatus(cmd+" — Select objects:");return;
+ }
  const raw=prompt(cmd+" — Base point X,Y:","0,0");if(raw===null)return;const b=raw.split(",").map(Number);if(b.length<2||b.some(isNaN)){setStatus(cmd+" — Invalid point");return}
  if(cmd==="SCALE"){const f=Number(prompt("SCALE — Scale factor:","1"));if(!Number.isFinite(f)||f===0){setStatus("SCALE — Invalid factor");return}saveHistory();ids.forEach(i=>{const e=entities[i];if(e.type==="LINE"){e.x1=b[0]+(e.x1-b[0])*f;e.y1=b[1]+(e.y1-b[1])*f;e.x2=b[0]+(e.x2-b[0])*f;e.y2=b[1]+(e.y2-b[1])*f}else if(e.pts)e.pts=e.pts.map(p=>[b[0]+(p[0]-b[0])*f,b[1]+(p[1]-b[1])*f]);else if("x"in e){e.x=b[0]+(e.x-b[0])*f;e.y=b[1]+(e.y-b[1])*f;if("r"in e)e.r*=Math.abs(f);if("rx"in e)e.rx*=Math.abs(f);if("ry"in e)e.ry*=Math.abs(f)}});draw();setStatus("SCALE completed");return}
  const raw2=prompt("MIRROR — Second axis point X,Y:","100,0");if(raw2===null)return;const q=raw2.split(",").map(Number),dx=q[0]-b[0],dy=q[1]-b[1],l2=dx*dx+dy*dy;if(!l2)return;
  const mir=(x,y)=>{const t=((x-b[0])*dx+(y-b[1])*dy)/l2,hx=b[0]+t*dx,hy=b[1]+t*dy;return[2*hx-x,2*hy-y]};
- saveHistory();ids.forEach(i=>{const e=entities[i];if(e.type==="LINE"){[e.x1,e.y1]=mir(e.x1,e.y1);[e.x2,e.y2]=mir(e.x2,e.y2)}else if(e.pts)e.pts=e.pts.map(p=>mir(p[0],p[1]));else if("x"in e)[e.x,e.y]=mir(e.x,e.y)});draw();setStatus("MIRROR completed");
+ saveHistory();ids.forEach(i=>{const e=entities[i];
+  if(e.type==="LINE"){[e.x1,e.y1]=mir(e.x1,e.y1);[e.x2,e.y2]=mir(e.x2,e.y2)}
+  else if(e.pts)e.pts=e.pts.map(p=>mir(p[0],p[1]));
+  else if("x"in e){
+   [e.x,e.y]=mir(e.x,e.y);
+   if(e.type==="ELLIPSE"||e.type==="ARC"){
+    const axis=e.type==="ELLIPSE"?[Math.cos(e.rotation||0),Math.sin(e.rotation||0)]:null;
+    if(axis){const mx=mir(e.x+axis[0],e.y+axis[1]),vx=mx[0]-e.x,vy=mx[1]-e.y;e.rotation=Math.atan2(vy,vx)}
+    else{const p1=mir(e.x+Math.cos((e.a1||0)*Math.PI/180),e.y+Math.sin((e.a1||0)*Math.PI/180)),p2=mir(e.x+Math.cos((e.a2||0)*Math.PI/180),e.y+Math.sin((e.a2||0)*Math.PI/180));e.a1=Math.atan2(p1[1]-e.y,p1[0]-e.x)*180/Math.PI;e.a2=Math.atan2(p2[1]-e.y,p2[0]-e.x)*180/Math.PI}
+   }
+  }
+ });draw();setStatus("MIRROR completed");
 }
 function lineIntersectionPoint(a,b){
  const x1=a.x1,y1=a.y1,x2=a.x2,y2=a.y2,x3=b.x1,y3=b.y1,x4=b.x2,y4=b.y2;
