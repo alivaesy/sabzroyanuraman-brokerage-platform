@@ -371,6 +371,9 @@ let history=[],historyLimit=30;
 function saveHistory(){history.push(JSON.stringify(entities));if(history.length>historyLimit)history.shift()}
 function undo(){if(!history.length){setStatus("Undo — No undo history");return}entities=JSON.parse(history.pop());selectedSet.clear();selected=-1;commandState=null;drawPoints=[];previewPoint=null;rebuildLayers();fit();setStatus("Undo")}
 let commandState=null;
+let lastCadCommand="";
+let commandHistory=[];
+let commandHistoryIndex=-1;
 let view={cx:0,cy:0,scale:1};
 let drag=null,drawPoints=[],previewPoint=null,selectionBox=null,distVisual={p1:null,p2:null};let gripDrag=null;
 const $=id=>document.getElementById(id);
@@ -1853,6 +1856,8 @@ function finishCutPolygonParts(original,parts,msg){
 function runCadCommand(raw){
  const rawText=(raw||"").trim();
  const q=rawText.toUpperCase();
+ const topLevel=!commandState&&isCadCommandToken(q)&&q!=="ESC";
+ if(topLevel){lastCadCommand=q;commandHistory=commandHistory.filter(x=>x!==q);commandHistory.push(q);if(commandHistory.length>40)commandHistory.shift();commandHistoryIndex=commandHistory.length;}
  interruptForNewCommand(rawText);
  if(commandState&&commandState.cmd==="CUTPOLYGON"){
   const s=commandState;
@@ -2010,8 +2015,16 @@ function finishKeyboardCommand(){
  return false;
 }
 commandInput.addEventListener("keydown",e=>{
+ if(e.key==="ArrowUp"||e.key==="ArrowDown"){
+  if(!commandState&&!commandInput.value.trim()&&commandHistory.length){
+   commandHistoryIndex=Math.max(0,Math.min(commandHistory.length,commandHistoryIndex+(e.key==="ArrowUp"?-1:1)));
+   commandInput.value=commandHistoryIndex<commandHistory.length?commandHistory[commandHistoryIndex]:"";
+   e.preventDefault();return;
+  }
+ }
  if(e.key==="Enter"||e.key===" "){
   if(!commandInput.value.trim()&&finishKeyboardCommand()){e.preventDefault();return;}
+  if(!commandInput.value.trim()&&!commandState&&lastCadCommand){runCadCommand(lastCadCommand);e.preventDefault();return;}
   if(commandInput.value.trim()){runCadCommand(commandInput.value);e.preventDefault();return;}
  }
  else if(e.key==="Escape"){cancelActiveCommand();e.preventDefault();}
