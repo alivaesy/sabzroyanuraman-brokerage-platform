@@ -1872,10 +1872,6 @@ function startCutPolygonCommand(){
  commandState={cmd:"CUTPOLYGON",step:"select",ids:[],before:JSON.stringify(entities)};
  setMode("select");hideCutMethodPalette();setStatus("CUT POLYGON — Select a closed polygon/polyline:");
 }
-
- commandState={cmd:"CUTPOLYGON",step:"select",ids:[],before:JSON.stringify(entities)};
- setMode("select");setStatus("CUT POLYGON — Select a closed polygon/polyline:");
-}
 function finishCutPolygonParts(original,parts,msg){
  if(cutPolyCommitParts(original,parts)){commandState=null;setMode("select");setStatus(msg||"CUT POLYGON completed");return true}
  setStatus("CUT POLYGON — Cannot create two valid closed parts.");return false;
