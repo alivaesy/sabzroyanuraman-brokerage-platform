@@ -831,8 +831,8 @@ $("entityCopyAction").onclick=()=>{const i=contextEntityIndex;closeEntityContext
 $("entityPeditAction").onclick=()=>{const i=contextEntityIndex;closeEntityContext();if(i>=0&&entities[i].pts){selectedSet.clear();selectedSet.add(i);selected=i;setMode("select");setStatus("PEDIT — Drag yellow vertex or blue midpoint grip to edit");draw();}};
 $("entityCutAction").onclick=()=>{const i=contextEntityIndex;closeEntityContext();if(i>=0&&entities[i].pts&&entities[i].closed){selectedSet.clear();selectedSet.add(i);selected=i;startCutPolygonCommand();commandClick(entities[i].pts[0]);}};
 $("entityRotateAction").onclick=()=>{const i=contextEntityIndex;closeEntityContext();if(i>=0){selectedSet.clear();selectedSet.add(i);selected=i;beginEditCommand("ROTATE")}};
-$("entityRepeatAction").onclick=()=>{closeEntityContext();setStatus("Repeat Last Command — Run the previous command from the Command Line")};
-$("entityEraseAction").onclick=()=>{const i=contextEntityIndex;if(i>=0){saveHistory();entities.splice(i,1);selectedSet.clear();selected=-1;rebuildLayers();draw();setStatus("Erase completed")}closeEntityContext()};
+$("entityRepeatAction").onclick=()=>{closeEntityContext();if(lastCadCommand)runCadCommand(lastCadCommand);else setStatus("No previous command")};
+$("entityEraseAction").onclick=()=>{const i=contextEntityIndex;closeEntityContext();if(i>=0){selectedSet.clear();selectedSet.add(i);selected=i;beginEditCommand("ERASE")}};
 $("entityPropertiesClose").onclick=closeEntityProperties;
 $("entityPropertiesDone").onclick=closeEntityProperties;
 $("entityProperties").addEventListener("click",e=>{if(e.target.id==="entityProperties")closeEntityProperties()});
