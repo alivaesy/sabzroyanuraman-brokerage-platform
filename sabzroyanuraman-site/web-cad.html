@@ -393,7 +393,7 @@ function setMode(m){
 }
 function clearCommandVisuals(){drawPoints=[];previewPoint=null;selectionBox=null;snapInfo={point:null,type:""};distVisual={p1:null,p2:null};$("dynamicInput")?.classList.remove("active");}
 function cancelActiveCommand(message){commandState=null;clearCommandVisuals();selectedSet.clear();selected=-1;setMode("select");draw();setStatus(message||"Command: *Cancel*");}
-function isCadCommandToken(q){return /^(LINE|L|PLINE|PL|CIRCLE|C|POINT|PO|RECTANG|REC|ARC|HATCH|TEXT|DTEXT|MTEXT|DIMLINEAR|DLI|DIMALIGNED|DAL|DIMANGULAR|DAN|DIMRADIUS|DRA|DIMDIAMETER|DDI|XLINE|XL|RAY|ERASE|E|MOVE|M|COPY|CO|OFFSET|O|TRIM|TR|EXTEND|EX|LENGTHEN|LEN|CUTPOLYGON|CUTPOLY|CP|EXPLODE|X|ROTATE|RO|BREAK|BR|AREA|AA|ID|LIST|LI|QSELECT|QS|STRETCH|S|JOIN|J|PEDIT|PE|MATCHPROP|MA|MIRROR|MI|SCALE|SC|FILLET|F|CHAMFER|CHA|UNDO|U|PURGE|PU|AUDIT|UNITS|UN|DSETTINGS|DS|UCS|SPLINE|SPL|ELLIPSE|EL|DIST|DI|DISTANCE|DIVIDE|DIV|MEASURE|ME|ZOOM|Z|GRID|G|OSNAP|F3|POLAR|F10|ESC)$/.test(q);}
+function isCadCommandToken(q){return /^(LINE|L|PLINE|PL|CIRCLE|C|POINT|PO|RECTANG|REC|ARC|HATCH|TEXT|DTEXT|MTEXT|DIMLINEAR|DLI|DIMALIGNED|DAL|DIMANGULAR|DAN|DIMRADIUS|DRA|DIMDIAMETER|DDI|XLINE|XL|RAY|ERASE|E|MOVE|M|COPY|CO|OFFSET|O|TRIM|TR|EXTEND|EX|LENGTHEN|LEN|CUTPOLYGON|CUTPOLY|CP|EXPLODE|X|ROTATE|RO|BREAK|BR|AREA|AA|ID|LIST|LI|QSELECT|QS|SELECTSIMILAR|SELECTSIM|SSIM|STRETCH|S|JOIN|J|PEDIT|PE|MATCHPROP|MA|MIRROR|MI|SCALE|SC|FILLET|F|CHAMFER|CHA|UNDO|U|PURGE|PU|AUDIT|UNITS|UN|DSETTINGS|DS|UCS|SPLINE|SPL|ELLIPSE|EL|DIST|DI|DISTANCE|DIVIDE|DIV|MEASURE|ME|ZOOM|Z|GRID|G|OSNAP|F3|POLAR|F10|ESC)$/.test(q);}
 function interruptForNewCommand(raw){const q=String(raw||"").trim().toUpperCase();if(!q||q==="ESC")return;if(commandState&&q!==String(commandState.cmd||"").toUpperCase()&&isCadCommandToken(q))cancelActiveCommand("Command: "+q);}
 function worldToScreen(x,y){const w=canvas.clientWidth,h=canvas.clientHeight;return [w/2+(x-view.cx)*view.scale,h/2-(y-view.cy)*view.scale]}
 function screenToWorld(sx,sy){const w=canvas.clientWidth,h=canvas.clientHeight;return [(sx-w/2)/view.scale+view.cx,(h/2-sy)/view.scale+view.cy]}
@@ -1571,6 +1571,15 @@ function runQSelectCommand(){
   draw();
   setStatus("QSELECT — "+selectedSet.size+" object(s) selected.");
 }
+function runSelectSimilarCommand(){
+ const ids=selectedIndices();
+ if(ids.length!==1){setStatus("SELECTSIMILAR — Select exactly one source object.");return}
+ const src=entities[ids[0]],type=src.type,layer=src.layer||"0";
+ selectedSet.clear();
+ entities.forEach((e,i)=>{if(i!==ids[0]&&isLayerVisible(e)&&e.type===type&&(e.layer||"0")===layer)selectedSet.add(i)});
+ selected=selectedSet.size?[...selectedSet][0]:-1;
+ draw();setStatus("SELECTSIMILAR — "+selectedSet.size+" similar object(s) selected.");
+}
 function entityArea(e){
   if(e.type==="CIRCLE")return Math.PI*Math.abs(e.r||0)**2;
   if(e.type==="ELLIPSE")return Math.PI*Math.abs(e.rx||0)*Math.abs(e.ry||0);
@@ -2137,6 +2146,7 @@ function runCadCommand(raw){
  else if(q==="DIMANGULAR"||q==="DAN"){startDimensionCommand("DIMANGULAR");}
  else if(q==="DIMRADIUS"||q==="DRA"){startDimensionCommand("DIMRADIUS");}
  else if(q==="DIMDIAMETER"||q==="DDI"){startDimensionCommand("DIMDIAMETER");}
+ else if(q==="SELECTSIMILAR"||q==="SELECTSIM"||q==="SSIM"){runSelectSimilarCommand();}
  else if(q==="XL"||q==="XLINE")startInfiniteCommand("XLINE");
  else if(q==="RAY")startInfiniteCommand("RAY");
  else if(q==="E"||q==="ERASE"){const ids=selectedIndices();if(ids.length){saveHistory();entities=entities.filter((_,i)=>!selectedSet.has(i));selectedSet.clear();selected=-1;rebuildLayers();draw();setStatus("ERASE completed")}else{commandState={cmd:"ERASE",step:"select",ids:[],before:JSON.stringify(entities)};setMode("select");setStatus("ERASE — Select objects:");}}
