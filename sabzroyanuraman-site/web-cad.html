@@ -363,6 +363,13 @@ textarea{min-height:64px;resize:vertical}
 <script>
 const canvas=document.getElementById("cad"),ctx=canvas.getContext("2d");
 let orthoEnabled=false,polarEnabled=false,polarAngleStep=45;
+let ucs={origin:[0,0],angle:0};
+function worldToUcs(p){const dx=p[0]-ucs.origin[0],dy=p[1]-ucs.origin[1],c=Math.cos(ucs.angle),si=Math.sin(ucs.angle);return [dx*c+dy*si,-dx*si+dy*c]}
+function ucsToWorld(p){const c=Math.cos(ucs.angle),si=Math.sin(ucs.angle);return [ucs.origin[0]+p[0]*c-p[1]*si,ucs.origin[1]+p[0]*si+p[1]*c]}
+function formatUcsPoint(p){const q=worldToUcs(p);return "X "+formatCadNumber(q[0])+"  Y "+formatCadNumber(q[1])}
+function setUcsWorld(){ucs={origin:[0,0],angle:0};draw();setStatus("UCS — World")}
+function setUcsFromCommand(origin,angle){ucs={origin:[origin[0],origin[1]],angle:Number(angle)||0};draw();setStatus("UCS — Origin "+formatCadNumber(ucs.origin[0])+","+formatCadNumber(ucs.origin[1])+" | Angle "+formatCadNumber(ucs.angle*180/Math.PI)+"°")}
+
 let gridStep=10;
 let snapEnabled=true,gridSnapEnabled=false,snapModes={endpoint:true,midpoint:true,center:true,intersection:true,nearest:true,perpendicular:true,quadrant:true,tangent:true,grid:true};
 let snapInfo={point:null,type:""};let objectTrackingEnabled=true;let trackingPoints=[];let trackingVisual={x:null,y:null};
@@ -414,11 +421,12 @@ function parseCadPoint(raw,base){
  const s=String(raw||"").trim().replace(/[，]/g,",");if(!s)return null;
  const rel=s[0]==="@";const body=rel?s.slice(1):s;
  const parts=body.split(/[,;]/).map(Number);if(parts.length<2||!parts.slice(0,2).every(Number.isFinite))return null;
- return rel&&base?[base[0]+parts[0],base[1]+parts[1]]:[parts[0],parts[1]];
+ const q=rel&&base?[worldToUcs(base)[0]+parts[0],worldToUcs(base)[1]+parts[1]]:[parts[0],parts[1]];
+ return ucsToWorld(q);
 }
 function updateDynamicInput(p){
  const box=$("dynamicInput");if(!box)return;
- let text="X "+formatCadNumber(p[0])+"  Y "+formatCadNumber(p[1]);
+ let text=formatUcsPoint(p)+"  |  WCS X "+formatCadNumber(p[0])+" Y "+formatCadNumber(p[1]);
  const base=drawPoints.length?drawPoints[drawPoints.length-1]:null;
  if(base&&(mode==="line"||mode==="polyline"||mode==="xline"||mode==="ray")){
   const dx=p[0]-base[0],dy=p[1]-base[1],d=Math.hypot(dx,dy),a=(Math.atan2(dy,dx)*180/Math.PI+360)%360;
@@ -1800,7 +1808,18 @@ function runFilletChamfer(cmd){
 }
 function runPurgeCommand(){const before=entities.length,seen=new Set();entities=entities.filter(e=>{const k=JSON.stringify(e);if(seen.has(k))return false;seen.add(k);return true});rebuildLayers();draw();setStatus("PURGE — "+(before-entities.length)+" duplicate object(s) removed.")}
 function runAuditCommand(){let bad=0;entities.forEach(e=>{if(e.type==="LINE"&&!([e.x1,e.y1,e.x2,e.y2].every(Number.isFinite)))bad++;if(e.pts&&!e.pts.every(p=>Array.isArray(p)&&Number.isFinite(p[0])&&Number.isFinite(p[1])))bad++});setStatus("AUDIT — "+bad+" invalid object(s) found.")}
-function runSettingsCommand(cmd){if(cmd==="UNITS"){const u=prompt("UNITS — Drawing units:","Meters");if(u!==null)setStatus("UNITS — "+u+" for this session.");}else if(cmd==="UCS")setStatus("UCS — World coordinate system active.");else setStatus("DSETTINGS — ORTHO / SNAP / GRID / OSNAP are available on the status bar.")}
+function runSettingsCommand(cmd){
+ if(cmd==="UNITS"){const u=prompt("UNITS — Drawing units:","Meters");if(u!==null)setStatus("UNITS — "+u+" for this session.");}
+ else if(cmd==="UCS"){
+  const choice=prompt("UCS — Enter WORLD, ORIGIN, or ROTATE:","WORLD");
+  if(choice===null)return;
+  const q=choice.trim().toUpperCase();
+  if(q==="WORLD"||q==="W"){setUcsWorld();return}
+  if(q==="ORIGIN"||q==="O"){const raw=prompt("UCS origin X,Y (WCS):",ucs.origin.join(","));if(raw===null)return;const p=parseCadPoint(raw,null);if(!p){setStatus("UCS — Invalid origin.");return}setUcsFromCommand(p,ucs.angle);return}
+  if(q==="ROTATE"||q==="R"){const deg=Number(prompt("UCS rotation angle (degrees):",String((ucs.angle*180/Math.PI).toFixed(3))));if(!Number.isFinite(deg)){setStatus("UCS — Invalid angle.");return}setUcsFromCommand(ucs.origin,deg*Math.PI/180);return}
+  setStatus("UCS — Use WORLD, ORIGIN, or ROTATE.");
+ }else setStatus("DSETTINGS — ORTHO / SNAP / GRID / OSNAP are available on the status bar.")
+}
 
 function runMenuAction(a){
   if(a==="new")return $("newBtn").click();
