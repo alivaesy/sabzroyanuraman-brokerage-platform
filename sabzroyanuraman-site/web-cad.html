@@ -2074,12 +2074,14 @@ function cutPolySideForPart(part,p0,d){
 function cutPolyCommitParts(original,parts){
  const valid=parts.filter(p=>p&&p.length>=3&&cutPolyArea(p)>1e-8);
  if(valid.length!==2)return false;
- saveHistory();
+ const originalArea=cutPolyArea(cutPolyRing(original)),sum=valid.reduce((a,p)=>a+cutPolyArea(p),0);
+ const tol=Math.max(1e-7,originalArea*1e-5);
+ if(!Number.isFinite(originalArea)||Math.abs(sum-originalArea)>tol)return false;
  const baseLayer=original.layer||activeLayer;
  const out=valid.map(p=>({type:"LWPOLYLINE",layer:baseLayer,pts:p,closed:true}));
  const idx=entities.indexOf(original);
  if(idx<0)return false;
- entities.splice(idx,1,...out);
+ saveHistory();entities.splice(idx,1,...out);
  selectedSet.clear();out.forEach((_,k)=>selectedSet.add(idx+k));selected=idx;
  rebuildLayers();draw();return true;
 }
@@ -2254,7 +2256,9 @@ function runCadCommand(raw){
     const choose=res.chosen,rest=choose===res.parts[0]?res.parts[1]:res.parts[0];
     pieces.push(choose);remaining[0]=rest;
    }
-   pieces.push(remaining[0]);saveHistory();
+   pieces.push(remaining[0]);
+   const eqArea=pieces.reduce((a,p)=>a+cutPolyArea(p),0),eqTotal=cutPolyArea(pts);
+   if(!Number.isFinite(eqTotal)||Math.abs(eqArea-eqTotal)>Math.max(1e-7,eqTotal*1e-5)){setStatus("CUT POLYGON — Equal-area validation failed.");commandInput.value="";return}
    const idx=entities.indexOf(s.original);if(idx<0){commandState=null;return}
    const out=pieces.filter(p=>p&&p.length>=3&&cutPolyArea(p)>1e-8).map(p=>({type:"LWPOLYLINE",layer:s.original.layer||activeLayer,pts:p,closed:true}));
    if(out.length!==s.partsCount){setStatus("CUT POLYGON — Could not create all equal parts.");commandInput.value="";return}
