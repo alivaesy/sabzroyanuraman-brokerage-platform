@@ -2466,10 +2466,11 @@ window.addEventListener("keydown",e=>{
  const target=e.target,editing=target===commandInput||target&&(["TEXTAREA","INPUT"].includes(target.tagName)),k=e.key.toUpperCase();
  if(e.key==="Escape"){cancelActiveCommand();e.preventDefault();return;}
  if((e.ctrlKey||e.metaKey)&&k==="Z"){undo();e.preventDefault();return;}
+ if((e.ctrlKey||e.metaKey)&&k==="Y"){redo();e.preventDefault();return;}
  if(e.key==="F10"){polarEnabled=!polarEnabled;$("polarStatus").classList.toggle("active",polarEnabled);setStatus(polarEnabled?"POLAR enabled — "+polarAngleStep+"°":"POLAR disabled");e.preventDefault();return;}
  if(e.key==="F3"){snapEnabled=!snapEnabled;$("osnapStatus").classList.toggle("active",snapEnabled);snapInfo={point:null,type:""};draw();setStatus(snapEnabled?"OSNAP enabled — F3":"OSNAP disabled — F3");e.preventDefault();return;}
  if(editing)return;
- if(e.key===" "){if(finishKeyboardCommand())e.preventDefault();else{commandInput.focus();commandInput.value="";}return;}
+ if(e.key===" "){if(commandInput.value.trim()){runCadCommand(commandInput.value);commandInput.value="";e.preventDefault();return;}if(finishKeyboardCommand())e.preventDefault();else{commandInput.focus();commandInput.value="";}return;}
  if(k==="C"&&mode==="polyline"&&drawPoints.length>=3){runMenuAction("closepoly");e.preventDefault();return;}
  if(e.ctrlKey||e.metaKey||e.altKey)return;
  if(e.key.length===1&&/[A-Za-z0-9._@,+\-]/.test(e.key)){commandInput.focus();commandInput.value+=e.key;e.preventDefault();}
