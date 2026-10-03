@@ -405,7 +405,7 @@ function cancelActiveCommand(message){
 }
 function clearSelectionModifier(){selectionModifier=null;selectionBox=null;setMode("select");draw();setStatus("Selection mode — modifier cleared");}
 function beginSelectionModifier(kind){selectionModifier=kind;commandState=null;selectionBox=null;setMode("select");setStatus(kind==="ADD"?"ADD — Select objects to add to current selection:":"REMOVE — Select objects to remove from current selection:");}
-function isCadCommandToken(q){return /^(LINE|L|PLINE|PL|CIRCLE|C|POINT|PO|RECTANG|REC|ARC|HATCH|TEXT|DTEXT|MTEXT|DIMLINEAR|DLI|DIMALIGNED|DAL|DIMANGULAR|DAN|DIMRADIUS|DRA|DIMDIAMETER|DDI|XLINE|XL|RAY|ERASE|E|MOVE|M|COPY|CO|OFFSET|O|TRIM|TR|EXTEND|EX|LENGTHEN|LEN|CUTPOLYGON|CUTPOLY|CP|EXPLODE|X|ROTATE|RO|BREAK|BR|AREA|AA|ID|LIST|LI|QSELECT|QS|SELECTSIMILAR|SELECTSIM|SSIM|ADD|REMOVE|REMOVESELECT|TRACK|F11|STRETCH|S|JOIN|J|PEDIT|PE|MATCHPROP|MA|MIRROR|MI|SCALE|SC|FILLET|F|CHAMFER|CHA|UNDO|U|PURGE|PU|AUDIT|UNITS|UN|DSETTINGS|DS|UCS|SPLINE|SPL|ELLIPSE|EL|DIST|DI|DISTANCE|DIVIDE|DIV|MEASURE|ME|ZOOM|Z|GRID|G|OSNAP|F3|POLAR|F10|ESC)$/.test(q);}
+function isCadCommandToken(q){return /^(LINE|L|PLINE|PL|CIRCLE|C|POINT|PO|RECTANG|REC|ARC|HATCH|HATCHEDIT|HE|REGION|REG|TEXT|DTEXT|MTEXT|DIMLINEAR|DLI|DIMALIGNED|DAL|DIMANGULAR|DAN|DIMRADIUS|DRA|DIMDIAMETER|DDI|XLINE|XL|RAY|ERASE|E|MOVE|M|COPY|CO|OFFSET|O|TRIM|TR|EXTEND|EX|LENGTHEN|LEN|CUTPOLYGON|CUTPOLY|CP|EXPLODE|X|ROTATE|RO|BREAK|BR|AREA|AA|ID|LIST|LI|QSELECT|QS|SELECTSIMILAR|SELECTSIM|SSIM|ADD|REMOVE|REMOVESELECT|TRACK|F11|STRETCH|S|JOIN|J|PEDIT|PE|MATCHPROP|MA|MIRROR|MI|SCALE|SC|FILLET|F|CHAMFER|CHA|UNDO|U|PURGE|PU|AUDIT|UNITS|UN|DSETTINGS|DS|UCS|SPLINE|SPL|ELLIPSE|EL|DIST|DI|DISTANCE|DIVIDE|DIV|MEASURE|ME|ZOOM|Z|GRID|G|OSNAP|F3|POLAR|F10|ESC)$/.test(q);}
 function interruptForNewCommand(raw){const q=String(raw||"").trim().toUpperCase();if(!q||q==="ESC")return;if(commandState&&q!==String(commandState.cmd||"").toUpperCase()&&isCadCommandToken(q))cancelActiveCommand("Command: "+q);}
 function worldToScreen(x,y){const w=canvas.clientWidth,h=canvas.clientHeight;return [w/2+(x-view.cx)*view.scale,h/2-(y-view.cy)*view.scale]}
 function screenToWorld(sx,sy){const w=canvas.clientWidth,h=canvas.clientHeight;return [(sx-w/2)/view.scale+view.cx,(h/2-sy)/view.scale+view.cy]}
@@ -611,7 +611,7 @@ function bounds(){
   else if(e.type==="SPLINE"){const pts=e.pts||[];if(pts.length===1)add(pts[0][0],pts[0][1]);else if(pts.length===2){add(pts[0][0],pts[0][1]);add(pts[1][0],pts[1][1])}else{for(let i=0;i<pts.length-1;i++){const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)];for(let k=0;k<=20;k++){const t=k/20,t2=t*t,t3=t2*t;add(.5*((2*p1[0])+(-p0[0]+p2[0])*t+(2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2+(-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3),.5*((2*p1[1])+(-p0[1]+p2[1])*t+(2*p0[1]-5*p1[1]+4*p2[1])*t2+(-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3))}}}}
  else if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"||e.type==="POLYLINE3D"){e.pts.forEach(p=>add(p[0],p[1]))}
   else if(e.type==="DIMENSION"){if(e.dimKind==="DIMANGULAR"){add(e.x,e.y);add(e.p1[0],e.p1[1]);add(e.p2[0],e.p2[1]);add(e.tx,e.ty)}else if(e.dimKind==="DIMRADIUS"||e.dimKind==="DIMDIAMETER"){add(e.x-e.r,e.y-e.r);add(e.x+e.r,e.y+e.r);add(e.tx,e.ty)}else{add(e.x1,e.y1);add(e.x2,e.y2);add(e.tx,e.ty)}}
-  else if(e.type==="HATCH"&&e.pts){e.pts.forEach(p=>add(p[0],p[1]))}
+  else if((e.type==="HATCH"||e.type==="REGION")&&e.pts){e.pts.forEach(p=>add(p[0],p[1]))}
   else if(e.type==="TEXT"||e.type==="MTEXT"){add(e.x,e.y)}
   else if(e.type==="ELLIPSE"){const a=e.rotation||0,rx=Math.abs(e.rx||0),ry=Math.abs(e.ry||0),ex=Math.hypot(rx*Math.cos(a),ry*Math.sin(a)),ey=Math.hypot(rx*Math.sin(a),ry*Math.cos(a));add(e.x-ex,e.y-ey);add(e.x+ex,e.y+ey)}
  }
@@ -1212,7 +1212,9 @@ function commandClick(p){
   if(hit<0||!e||(e.type!=="LINE"&&e.type!=="ARC"&&e.type!=="LWPOLYLINE"&&e.type!=="POLYLINE"&&e.type!=="POLYLINE3D")){setStatus("BREAK — Select a LINE, ARC or POLYLINE.");return true}
   s.ids=[hit];selectedSet.clear();selectedSet.add(hit);selected=hit;s.step="break1";setStatus("BREAK — Specify first break point:");draw();return true;
  }
-if(s.cmd==="HATCH"&&s.step==="select"){const hit=findNearest(p);if(hit<0){setStatus("HATCH — Select a closed polyline.");return true}hatchFromPolyline(hit);commandState=null;setMode("select");return true;}
+if(s.cmd==="HATCH"&&s.step==="select"){const hit=findNearest(p);if(hit<0){setStatus("HATCH — Select a closed polyline.");return true}hatchFromPolyline(hit);commandState=null;setMode("select");return true;}if(s.cmd==="HATCHEDIT"&&s.step==="select"){const hit=findNearest(p);if(hit<0||entities[hit].type!=="HATCH"){setStatus("HATCHEDIT Select hatch.");return true}editHatch(hit);commandState=null;setMode("select");return true;}
+if(s.cmd==="REGION"&&s.step==="select"){const hit=findNearest(p);if(hit<0||!regionFromPolyline(hit)){setStatus("REGION Select closed polyline.");return true}commandState=null;setMode("select");return true;}
+
 if((s.cmd==="TEXT"||s.cmd==="MTEXT")&&s.step==="point"){s.p1=p;s.step="text";setStatus(s.cmd+" — Enter text:");commandInput.focus();draw();return true;}
 if((s.cmd==="DIMLINEAR"||s.cmd==="DIMALIGNED")&&s.step==="first"){s.p1=p;s.step="second";setStatus(s.cmd+" — Specify second extension line origin:");draw();return true;}
 if((s.cmd==="DIMLINEAR"||s.cmd==="DIMALIGNED")&&s.step==="second"){s.p2=p;s.step="offset";setStatus(s.cmd+" — Specify dimension line location:");draw();return true;}
@@ -1846,7 +1848,7 @@ function runMenuAction(a){
   if(a==="osnap")return $("osnapStatus").click();
   const commandMap={
     line:"LINE",polyline:"PLINE",circle:"CIRCLE",point:"POINT",rectang:"RECTANG",
-    arc:"ARC",hatch:"HATCH",text:"TEXT",mtext:"MTEXT",xline:"XLINE",ray:"RAY",
+    arc:"ARC",hatch:"HATCH",hatchedit:"HATCHEDIT",region:"REGION",text:"TEXT",mtext:"MTEXT",xline:"XLINE",ray:"RAY",
     divide:"DIVIDE",measure:"MEASURE",move:"MOVE",copy:"COPY",offset:"OFFSET",
     trim:"TRIM",extend:"EXTEND",lengthen:"LENGTHEN",explode:"EXPLODE",stretch:"STRETCH",
     rotate:"ROTATE",break:"BREAK",join:"JOIN",pedit:"PEDIT",matchprop:"MATCHPROP",
@@ -1909,6 +1911,10 @@ function hatchFromPolyline(index){
  const e=entities[index];if(!e||!e.pts||e.pts.length<3||!e.closed){setStatus("HATCH — Select a closed polyline.");return false}
  saveHistory();entities.push({type:"HATCH",layer:activeLayer,pts:e.pts.map(p=>[p[0],p[1]]),pattern:"ANSI31",angle:45,scale:5,source:index});rebuildLayers();draw();setStatus("HATCH completed");return true;
 }
+function editHatch(index){const e=entities[index];if(!e||e.type!=="HATCH")return false;const pattern=(prompt("HATCHEDIT Pattern [ANSI31/SOLID]:",e.pattern||"ANSI31")||e.pattern||"ANSI31").trim().toUpperCase();const angle=Number(prompt("HATCHEDIT Angle:",String(e.angle||45)));const scale=Number(prompt("HATCHEDIT Scale:",String(e.scale||5)));if(!Number.isFinite(angle)||!Number.isFinite(scale)||scale<=0){setStatus("HATCHEDIT Invalid angle or scale.");return false}saveHistory();e.pattern=pattern==="SOLID"?"SOLID":"ANSI31";e.angle=angle;e.scale=scale;rebuildLayers();draw();setStatus("HATCHEDIT completed");return true}
+function startHatchEditCommand(){const ids=selectedIndices();if(ids.length===1&&entities[ids[0]].type==="HATCH"){editHatch(ids[0]);return}commandState={cmd:"HATCHEDIT",step:"select"};setMode("select");setStatus("HATCHEDIT Select hatch:");}
+function regionFromPolyline(index){const e=entities[index];if(!e||!e.pts||e.pts.length<3||!e.closed){setStatus("REGION Select a closed polyline.");return false}saveHistory();entities.push({type:"REGION",layer:activeLayer,pts:e.pts.map(p=>[p[0],p[1]]),closed:true,source:index});rebuildLayers();draw();setStatus("REGION completed");return true}
+function startRegionCommand(){const ids=selectedIndices();if(ids.length===1&&regionFromPolyline(ids[0]))return;commandState={cmd:"REGION",step:"select"};setMode("select");setStatus("REGION Select a closed polyline:");}
 function startHatchCommand(){const ids=selectedIndices();if(ids.length===1&&hatchFromPolyline(ids[0]))return;commandState={cmd:"HATCH",step:"select",before:JSON.stringify(entities)};setMode("select");setStatus("HATCH — Select a closed polyline:");}
 
 function cutPolyRing(e){
