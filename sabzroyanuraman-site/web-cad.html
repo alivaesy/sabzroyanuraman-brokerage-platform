@@ -193,7 +193,7 @@ textarea{min-height:64px;resize:vertical}
   <div class="menu-wrap"><span class="menu" data-menu="view">View</span><div class="menu-dropdown"><button data-menu-action="fit">Zoom Extents</button><button data-menu-action="grid">Grid</button><button data-menu-action="snap">SNAP</button><button data-menu-action="osnap">OSNAP</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="insert">Insert</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button><button data-menu-action="point">Point</button><button data-menu-action="rectang">Rectangle</button><button data-menu-action="text">Text</button><button data-menu-action="mtext">MText</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="format">Format</span><div class="menu-dropdown"><button data-menu-action="layerproperties">Layer Properties</button><button data-menu-action="newlayer">New Layer</button><button data-menu-action="activelayer">Current Layer</button></div></div>
-  <div class="menu-wrap"><span class="menu" data-menu="tools">Tools</span><div class="menu-dropdown"><button data-menu-action="snap">Grid SNAP</button><button data-menu-action="osnap">Object OSNAP</button><button data-snap-mode="endpoint">OSNAP Endpoint</button><button data-snap-mode="midpoint">OSNAP Midpoint</button><button data-snap-mode="center">OSNAP Center</button><button data-snap-mode="intersection">OSNAP Intersection</button><button data-snap-mode="nearest">OSNAP Nearest</button><button data-snap-mode="perpendicular">OSNAP Perpendicular</button><button data-snap-mode="quadrant">OSNAP Quadrant</button><button data-snap-mode="tangent">OSNAP Tangent</button><button data-menu-action="distance">Distance (DIST)</button><button data-menu-action="dimlinear">Linear Dimension</button><button data-menu-action="dimaligned">Aligned Dimension</button><button data-menu-action="area">Area</button><button data-menu-action="id">ID</button><button data-menu-action="list">List</button><button data-menu-action="qselect">Quick Select</button><button data-menu-action="units">Units</button><button data-menu-action="dsettings">Drafting Settings</button><button data-menu-action="ucs">UCS</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="tools">Tools</span><div class="menu-dropdown"><button data-menu-action="snap">Grid SNAP</button><button data-menu-action="osnap">Object OSNAP</button><button data-snap-mode="endpoint">OSNAP Endpoint</button><button data-snap-mode="midpoint">OSNAP Midpoint</button><button data-snap-mode="center">OSNAP Center</button><button data-snap-mode="intersection">OSNAP Intersection</button><button data-snap-mode="nearest">OSNAP Nearest</button><button data-snap-mode="perpendicular">OSNAP Perpendicular</button><button data-snap-mode="quadrant">OSNAP Quadrant</button><button data-snap-mode="tangent">OSNAP Tangent</button><button data-menu-action="distance">Distance (DIST)</button><button data-menu-action="dimlinear">Linear Dimension</button><button data-menu-action="dimaligned">Aligned Dimension</button><button data-menu-action="dimangular">Angular Dimension</button><button data-menu-action="dimradius">Radius Dimension</button><button data-menu-action="dimdiameter">Diameter Dimension</button><button data-menu-action="area">Area</button><button data-menu-action="id">ID</button><button data-menu-action="list">List</button><button data-menu-action="qselect">Quick Select</button><button data-menu-action="units">Units</button><button data-menu-action="dsettings">Drafting Settings</button><button data-menu-action="ucs">UCS</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="draw">Draw</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button><button data-menu-action="arc">Arc</button><button data-menu-action="point">Point</button><button data-menu-action="rectang">Rectangle</button><button data-menu-action="hatch">Hatch</button><button data-menu-action="xline">Construction Line (XLINE)</button><button data-menu-action="ray">Ray (RAY)</button><button data-menu-action="divide">Divide</button><button data-menu-action="measure">Measure</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="modify">Modify</span><div class="menu-dropdown"><button data-menu-action="move">Move</button><button data-menu-action="copy">Copy</button><button data-menu-action="offset">Offset</button><button data-menu-action="trim">Trim</button><button data-menu-action="extend">Extend</button><button data-menu-action="lengthen">Lengthen</button><button data-menu-action="explode">Explode</button><button data-menu-action="stretch">Stretch</button><button data-menu-action="rotate">Rotate</button><button data-menu-action="break">Break</button><button data-menu-action="join">Join</button><button data-menu-action="pedit">PEDIT</button><button data-menu-action="matchprop">Match Properties</button><button data-menu-action="mirror">Mirror</button><button data-menu-action="scale">Scale</button><button data-menu-action="fillet">Fillet</button><button data-menu-action="chamfer">Chamfer</button><button data-menu-action="closepoly">Close Polyline</button><button data-menu-action="editvertex">Edit Vertex</button><button data-menu-action="cutpolygon">CUT POLYGON</button><button data-menu-action="erase">Erase</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="window">Window</span><div class="menu-dropdown"><button data-menu-action="model">Model</button><button data-menu-action="layout1">Layout1</button><button data-menu-action="layout2">Layout2</button></div></div>
@@ -311,7 +311,7 @@ textarea{min-height:64px;resize:vertical}
     <button class="rbutton" data-menu-action="rotate" title="Rotate"><svg class="ico icon-modify" aria-hidden="true"><use href="#i-rotate"></use></svg><span class="rlabel">Rotate</span></button>
     <button class="rbutton" data-menu-action="distance" title="Distance"><svg class="ico icon-measure" aria-hidden="true"><use href="#i-distance"></use></svg><span class="rlabel">Distance</span></button>
     <button class="rbutton" data-menu-action="dimlinear" title="Linear Dimension"><svg class="ico icon-annot" aria-hidden="true"><use href="#i-dimlinear"></use></svg><span class="rlabel">Dim Linear</span></button>
-    <button class="rbutton" data-menu-action="dimaligned" title="Aligned Dimension"><svg class="ico icon-annot" aria-hidden="true"><use href="#i-dimaligned"></use></svg><span class="rlabel">Dim Aligned</span></button>
+    <button class="rbutton" data-menu-action="dimaligned" title="Aligned Dimension"><svg class="ico icon-annot" aria-hidden="true"><use href="#i-dimaligned"></use></svg><span class="rlabel">Dim Aligned</span></button><button class="rbutton" data-menu-action="dimangular" title="Angular Dimension"><svg class="ico icon-annot" aria-hidden="true"><use href="#i-dimaligned"></use></svg><span class="rlabel">Dim Angular</span></button><button class="rbutton" data-menu-action="dimradius" title="Radius Dimension"><svg class="ico icon-annot" aria-hidden="true"><use href="#i-dimlinear"></use></svg><span class="rlabel">Dim Radius</span></button><button class="rbutton" data-menu-action="dimdiameter" title="Diameter Dimension"><svg class="ico icon-annot" aria-hidden="true"><use href="#i-dimlinear"></use></svg><span class="rlabel">Dim Diameter</span></button>
     <button class="rbutton" data-menu-action="area" title="Area"><svg class="ico icon-measure" aria-hidden="true"><use href="#i-area"></use></svg><span class="rlabel">Area</span></button>
   </div>
   <div class="rgroup">
@@ -393,7 +393,7 @@ function setMode(m){
 }
 function clearCommandVisuals(){drawPoints=[];previewPoint=null;selectionBox=null;snapInfo={point:null,type:""};distVisual={p1:null,p2:null};$("dynamicInput")?.classList.remove("active");}
 function cancelActiveCommand(message){commandState=null;clearCommandVisuals();selectedSet.clear();selected=-1;setMode("select");draw();setStatus(message||"Command: *Cancel*");}
-function isCadCommandToken(q){return /^(LINE|L|PLINE|PL|CIRCLE|C|POINT|PO|RECTANG|REC|ARC|HATCH|TEXT|DTEXT|MTEXT|DIMLINEAR|DLI|DIMALIGNED|DAL|XLINE|XL|RAY|ERASE|E|MOVE|M|COPY|CO|OFFSET|O|TRIM|TR|EXTEND|EX|LENGTHEN|LEN|CUTPOLYGON|CUTPOLY|CP|EXPLODE|X|ROTATE|RO|BREAK|BR|AREA|AA|ID|LIST|LI|QSELECT|QS|STRETCH|S|JOIN|J|PEDIT|PE|MATCHPROP|MA|MIRROR|MI|SCALE|SC|FILLET|F|CHAMFER|CHA|UNDO|U|PURGE|PU|AUDIT|UNITS|UN|DSETTINGS|DS|UCS|SPLINE|SPL|ELLIPSE|EL|DIST|DI|DISTANCE|DIVIDE|DIV|MEASURE|ME|ZOOM|Z|GRID|G|OSNAP|F3|POLAR|F10|ESC)$/.test(q);}
+function isCadCommandToken(q){return /^(LINE|L|PLINE|PL|CIRCLE|C|POINT|PO|RECTANG|REC|ARC|HATCH|TEXT|DTEXT|MTEXT|DIMLINEAR|DLI|DIMALIGNED|DAL|DIMANGULAR|DAN|DIMRADIUS|DRA|DIMDIAMETER|DDI|XLINE|XL|RAY|ERASE|E|MOVE|M|COPY|CO|OFFSET|O|TRIM|TR|EXTEND|EX|LENGTHEN|LEN|CUTPOLYGON|CUTPOLY|CP|EXPLODE|X|ROTATE|RO|BREAK|BR|AREA|AA|ID|LIST|LI|QSELECT|QS|STRETCH|S|JOIN|J|PEDIT|PE|MATCHPROP|MA|MIRROR|MI|SCALE|SC|FILLET|F|CHAMFER|CHA|UNDO|U|PURGE|PU|AUDIT|UNITS|UN|DSETTINGS|DS|UCS|SPLINE|SPL|ELLIPSE|EL|DIST|DI|DISTANCE|DIVIDE|DIV|MEASURE|ME|ZOOM|Z|GRID|G|OSNAP|F3|POLAR|F10|ESC)$/.test(q);}
 function interruptForNewCommand(raw){const q=String(raw||"").trim().toUpperCase();if(!q||q==="ESC")return;if(commandState&&q!==String(commandState.cmd||"").toUpperCase()&&isCadCommandToken(q))cancelActiveCommand("Command: "+q);}
 function worldToScreen(x,y){const w=canvas.clientWidth,h=canvas.clientHeight;return [w/2+(x-view.cx)*view.scale,h/2-(y-view.cy)*view.scale]}
 function screenToWorld(sx,sy){const w=canvas.clientWidth,h=canvas.clientHeight;return [(sx-w/2)/view.scale+view.cx,(h/2-sy)/view.scale+view.cy]}
@@ -589,7 +589,7 @@ function bounds(){
   else if(e.type==="ARC"){add(e.x-e.r,e.y-e.r);add(e.x+e.r,e.y+e.r)}
   else if(e.type==="SPLINE"){const pts=e.pts||[];if(pts.length===1)add(pts[0][0],pts[0][1]);else if(pts.length===2){add(pts[0][0],pts[0][1]);add(pts[1][0],pts[1][1])}else{for(let i=0;i<pts.length-1;i++){const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)];for(let k=0;k<=20;k++){const t=k/20,t2=t*t,t3=t2*t;add(.5*((2*p1[0])+(-p0[0]+p2[0])*t+(2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2+(-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3),.5*((2*p1[1])+(-p0[1]+p2[1])*t+(2*p0[1]-5*p1[1]+4*p2[1])*t2+(-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3))}}}}
  else if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"||e.type==="POLYLINE3D"){e.pts.forEach(p=>add(p[0],p[1]))}
-  else if(e.type==="DIMENSION"){add(e.x1,e.y1);add(e.x2,e.y2);add(e.tx,e.ty)}
+  else if(e.type==="DIMENSION"){if(e.dimKind==="DIMANGULAR"){add(e.x,e.y);add(e.p1[0],e.p1[1]);add(e.p2[0],e.p2[1]);add(e.tx,e.ty)}else if(e.dimKind==="DIMRADIUS"||e.dimKind==="DIMDIAMETER"){add(e.x-e.r,e.y-e.r);add(e.x+e.r,e.y+e.r);add(e.tx,e.ty)}else{add(e.x1,e.y1);add(e.x2,e.y2);add(e.tx,e.ty)}}
   else if(e.type==="HATCH"&&e.pts){e.pts.forEach(p=>add(p[0],p[1]))}
   else if(e.type==="TEXT"||e.type==="MTEXT"){add(e.x,e.y)}
   else if(e.type==="ELLIPSE"){const a=e.rotation||0,rx=Math.abs(e.rx||0),ry=Math.abs(e.ry||0),ex=Math.hypot(rx*Math.cos(a),ry*Math.sin(a)),ey=Math.hypot(rx*Math.sin(a),ry*Math.cos(a));add(e.x-ex,e.y-ey);add(e.x+ex,e.y+ey)}
@@ -681,7 +681,22 @@ function drawEntityFast(e){
  else if(e.type==="POINT"){const q=worldToScreen(e.x,e.y);ctx.beginPath();ctx.arc(q[0],q[1],3,0,Math.PI*2);ctx.fill()}
  else if(e.type==="LWPOLYLINE"||e.type==="POLYLINE"||e.type==="POLYLINE3D"||e.type==="SPLINE"){if(!e.pts.length)return;ctx.beginPath();for(let j=0;j<e.pts.length;j++){const q=worldToScreen(e.pts[j][0],e.pts[j][1]);j?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])}if(e.closed)ctx.closePath();ctx.stroke()}
  else if(e.type==="TEXT"||e.type==="MTEXT"){const q=worldToScreen(e.x,e.y);ctx.fillText(e.text||"",q[0],q[1])}
- else if(e.type==="DIMENSION"){const a=worldToScreen(e.x1,e.y1),b=worldToScreen(e.x2,e.y2),t=worldToScreen(e.tx,e.ty);ctx.save();ctx.beginPath();if(Number.isFinite(e.ex1)){const ex1=worldToScreen(e.ex1,e.ey1),ex2=worldToScreen(e.ex2,e.ey2);ctx.moveTo(ex1[0],ex1[1]);ctx.lineTo(a[0],a[1]);ctx.moveTo(ex2[0],ex2[1]);ctx.lineTo(b[0],b[1]);}ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();const ang=Math.atan2(b[1]-a[1],b[0]-a[0]),ah=7,arr=(q,d)=>{ctx.beginPath();ctx.moveTo(q[0],q[1]);ctx.lineTo(q[0]-d*Math.cos(ang-Math.PI/6)*ah,q[1]-d*Math.sin(ang-Math.PI/6)*ah);ctx.lineTo(q[0]-d*Math.cos(ang+Math.PI/6)*ah,q[1]-d*Math.sin(ang+Math.PI/6)*ah);ctx.closePath();ctx.fill()};arr(a,1);arr(b,-1);if(e.text){ctx.font=(e.textHeight||10)+"px Arial";ctx.textAlign="center";ctx.textBaseline="bottom";ctx.fillText(e.text,t[0],t[1]-3)}ctx.restore()}
+ else if(e.type==="DIMENSION"){
+ ctx.save();ctx.lineWidth=1;
+ const textAt=(x,y)=>{if(!e.text)return;ctx.font=(e.textHeight||10)+"px Arial";ctx.textAlign="center";ctx.textBaseline="bottom";ctx.fillText(e.text,x,y-3)};
+ const arrow=(q,ang,dir=1)=>{const ah=7;ctx.beginPath();ctx.moveTo(q[0],q[1]);ctx.lineTo(q[0]-dir*Math.cos(ang-Math.PI/6)*ah,q[1]-dir*Math.sin(ang-Math.PI/6)*ah);ctx.lineTo(q[0]-dir*Math.cos(ang+Math.PI/6)*ah,q[1]-dir*Math.sin(ang+Math.PI/6)*ah);ctx.closePath();ctx.fill()};
+ if(e.dimKind==="DIMANGULAR"){
+  const c=worldToScreen(e.x,e.y),a1=worldToScreen(e.p1[0],e.p1[1]),a2=worldToScreen(e.p2[0],e.p2[1]),t=worldToScreen(e.tx,e.ty),r=Math.abs(e.r*view.scale);
+  ctx.beginPath();ctx.moveTo(c[0],c[1]);ctx.lineTo(a1[0],a1[1]);ctx.moveTo(c[0],c[1]);ctx.lineTo(a2[0],a2[1]);ctx.stroke();
+  const aa1=Math.atan2(a1[1]-c[1],a1[0]-c[0]),aa2=Math.atan2(a2[1]-c[1],a2[0]-c[0]);let sw=(aa2-aa1+Math.PI*2)%(Math.PI*2);ctx.beginPath();ctx.arc(c[0],c[1],r,-aa1,-aa2,sw>Math.PI);ctx.stroke();textAt(t[0],t[1]);
+ }else if(e.dimKind==="DIMRADIUS"||e.dimKind==="DIMDIAMETER"){
+  const c=worldToScreen(e.x,e.y),q=worldToScreen(e.qx,e.qy),t=worldToScreen(e.tx,e.ty),ang=Math.atan2(q[1]-c[1],q[0]-c[0]);
+  if(e.dimKind==="DIMRADIUS"){ctx.beginPath();ctx.moveTo(c[0],c[1]);ctx.lineTo(q[0],q[1]);ctx.stroke();arrow(q,ang,1);textAt(t[0],t[1]);}
+  else{const q2=[2*c[0]-q[0],2*c[1]-q[1]];ctx.beginPath();ctx.moveTo(q2[0],q2[1]);ctx.lineTo(q[0],q[1]);ctx.stroke();arrow(q,ang,1);arrow(q2,ang,-1);textAt(t[0],t[1]);}
+ }else{
+  const a=worldToScreen(e.x1,e.y1),b=worldToScreen(e.x2,e.y2),t=worldToScreen(e.tx,e.ty);ctx.beginPath();if(Number.isFinite(e.ex1)){const ex1=worldToScreen(e.ex1,e.ey1),ex2=worldToScreen(e.ex2,e.ey2);ctx.moveTo(ex1[0],ex1[1]);ctx.lineTo(a[0],a[1]);ctx.moveTo(ex2[0],ex2[1]);ctx.lineTo(b[0],b[1]);}ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();const ang=Math.atan2(b[1]-a[1],b[0]-a[0]);arrow(a,ang,1);arrow(b,ang,-1);textAt(t[0],t[1]);
+ }
+ ctx.restore()}
  else if(e.type==="HATCH"){if(!e.pts||e.pts.length<3)return;ctx.save();const pts=e.pts.map(v=>worldToScreen(v[0],v[1]));ctx.beginPath();pts.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));ctx.closePath();if(e.pattern==="SOLID"){ctx.globalAlpha=.16;ctx.fill();ctx.globalAlpha=1;}else{ctx.clip();const step=Math.max(6,Math.abs((e.scale||5)*view.scale));ctx.lineWidth=.7;const minX=Math.min(...pts.map(q=>q[0]))-step*4,maxX=Math.max(...pts.map(q=>q[0]))+step*4,minY=Math.min(...pts.map(q=>q[1]))-step*4,maxY=Math.max(...pts.map(q=>q[1]))+step*4,ang=(e.angle||45)*Math.PI/180,dx=Math.cos(ang),dy=Math.sin(ang),nx=-dy,ny=dx,span=Math.hypot(maxX-minX,maxY-minY)*2;for(let k=-span;k<=span;k+=step){const cx=(minX+maxX)/2+nx*k,cy=(minY+maxY)/2+ny*k;ctx.beginPath();ctx.moveTo(cx-dx*span,cy-dy*span);ctx.lineTo(cx+dx*span,cy+dy*span);ctx.stroke();}}ctx.restore()}
  else if(e.type==="ELLIPSE"){const q=worldToScreen(e.x,e.y),rx=Math.abs(e.rx*view.scale),ry=Math.abs(e.ry*view.scale),rot=e.rotation||0;ctx.save();ctx.translate(q[0],q[1]);ctx.rotate(-rot);ctx.beginPath();ctx.ellipse(0,0,rx||1,ry||1,0,0,Math.PI*2);ctx.stroke();ctx.restore()}
 }
@@ -1135,6 +1150,28 @@ if((s.cmd==="TEXT"||s.cmd==="MTEXT")&&s.step==="point"){s.p1=p;s.step="text";set
 if((s.cmd==="DIMLINEAR"||s.cmd==="DIMALIGNED")&&s.step==="first"){s.p1=p;s.step="second";setStatus(s.cmd+" — Specify second extension line origin:");draw();return true;}
 if((s.cmd==="DIMLINEAR"||s.cmd==="DIMALIGNED")&&s.step==="second"){s.p2=p;s.step="offset";setStatus(s.cmd+" — Specify dimension line location:");draw();return true;}
 if((s.cmd==="DIMLINEAR"||s.cmd==="DIMALIGNED")&&s.step==="offset"){const a=s.p1,b=s.p2,dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy);if(len<1e-9){setStatus(s.cmd+" — Points must be different.");return true}const nx=-dy/len,ny=dx/len,off=(p[0]-a[0])*nx+(p[1]-a[1])*ny,d=s.cmd==="DIMALIGNED"?len:Math.abs(dx),ox=nx*off,oy=ny*off,ex1=[a[0]+ox,a[1]+oy],ex2=[b[0]+ox,b[1]+oy],mid=[(ex1[0]+ex2[0])/2,(ex1[1]+ex2[1])/2];saveHistory();entities.push({type:"DIMENSION",layer:activeLayer,x1:ex1[0],y1:ex1[1],x2:ex2[0],y2:ex2[1],ex1:a[0],ey1:a[1],ex2:b[0],ey2:b[1],tx:mid[0],ty:mid[1],text:formatCadNumber(d),textHeight:10,dimKind:s.cmd});rebuildLayers();draw();commandState=null;setMode("select");setStatus(s.cmd+" completed");return true;}
+if(s.cmd==="DIMANGULAR"&&s.step==="first"){s.center=p;s.step="ray1";setStatus("DIMANGULAR — Specify first angle point:");draw();return true;}
+if(s.cmd==="DIMANGULAR"&&s.step==="ray1"){s.p1=p;s.step="ray2";setStatus("DIMANGULAR — Specify second angle point:");draw();return true;}
+if(s.cmd==="DIMANGULAR"&&s.step==="ray2"){s.p2=p;s.step="location";setStatus("DIMANGULAR — Specify dimension arc location:");draw();return true;}
+if(s.cmd==="DIMANGULAR"&&s.step==="location"){
+ const c=s.center,a=s.p1,b=s.p2,ra=Math.atan2(a[1]-c[1],a[0]-c[0]),rb=Math.atan2(b[1]-c[1],b[0]-c[0]);
+ let sweep=(rb-ra+Math.PI*2)%(Math.PI*2);if(sweep>Math.PI){const t=s.p1;s.p1=s.p2;s.p2=t;sweep=(ra-rb+Math.PI*2)%(Math.PI*2)}
+ const rr=Math.hypot(p[0]-c[0],p[1]-c[1]);if(rr<1e-9||sweep<1e-9){setStatus("DIMANGULAR — Invalid angle or location.");return true}
+ const midA=ra+sweep/2,tx=c[0]+rr*Math.cos(midA),ty=c[1]+rr*Math.sin(midA),deg=sweep*180/Math.PI;
+ saveHistory();entities.push({type:"DIMENSION",dimKind:"DIMANGULAR",layer:activeLayer,x:c[0],y:c[1],p1:s.p1.slice(),p2:s.p2.slice(),r:rr,tx,ty,text:formatCadNumber(deg)+"°",textHeight:10});
+ rebuildLayers();draw();commandState=null;setMode("select");setStatus("DIMANGULAR completed");return true;
+}
+if((s.cmd==="DIMRADIUS"||s.cmd==="DIMDIAMETER")&&s.step==="selectObject"){
+ const hit=findNearest(p),e=hit>=0?entities[hit]:null;
+ if(!e||!(e.type==="CIRCLE"||e.type==="ARC")){setStatus(s.cmd+" — Select a CIRCLE or ARC:");return true}
+ s.entityIndex=hit;s.step="location";selectedSet.clear();selectedSet.add(hit);selected=hit;setStatus(s.cmd+" — Specify dimension location:");draw();return true;
+}
+if((s.cmd==="DIMRADIUS"||s.cmd==="DIMDIAMETER")&&s.step==="location"){
+ const e=entities[s.entityIndex],rr=Math.abs(e?.r||0);if(!e||rr<1e-9){setStatus(s.cmd+" — Invalid circle/arc.");return true}
+ const c=[e.x,e.y],ang=Math.atan2(p[1]-c[1],p[0]-c[0]),qx=c[0]+rr*Math.cos(ang),qy=c[1]+rr*Math.sin(ang),value=s.cmd==="DIMRADIUS"?rr:2*rr;
+ saveHistory();entities.push({type:"DIMENSION",dimKind:s.cmd,layer:activeLayer,x:c[0],y:c[1],r:rr,qx,qy,tx:p[0],ty:p[1],text:(s.cmd==="DIMRADIUS"?"R ":"Ø ")+formatCadNumber(value),textHeight:10});
+ rebuildLayers();draw();commandState=null;setMode("select");setStatus(s.cmd+" completed");return true;
+}
 if(s.cmd==="RECTANG"&&s.step==="first"){
  s.p1=p;s.step="second";setStatus("RECTANG — Specify other corner point or type D for Dimensions / A for Area:");draw();return true;
 }
@@ -1722,7 +1759,7 @@ function runMenuAction(a){
     rotate:"ROTATE",break:"BREAK",join:"JOIN",pedit:"PEDIT",matchprop:"MATCHPROP",
     mirror:"MIRROR",scale:"SCALE",fillet:"FILLET",chamfer:"CHAMFER",
     closepoly:"CLOSE",editvertex:"PEDIT",cutpolygon:"CUTPOLYGON",erase:"ERASE",
-    distance:"DIST",dimlinear:"DIMLINEAR",dimaligned:"DIMALIGNED",area:"AREA",
+    distance:"DIST",dimlinear:"DIMLINEAR",dimaligned:"DIMALIGNED",dimangular:"DIMANGULAR",dimradius:"DIMRADIUS",dimdiameter:"DIMDIAMETER",area:"AREA",
     id:"ID",list:"LIST",qselect:"QSELECT",units:"UNITS",dsettings:"DSETTINGS",
     ucs:"UCS",undo:"UNDO",purge:"PURGE",audit:"AUDIT",zoom:"ZOOM"
   };
@@ -1764,7 +1801,7 @@ function startInfiniteCommand(type){
  mode=type==="XLINE"?"xline":"ray";drawPoints=[];setStatus(type+" — Specify base point:");
 }
 function startTextCommand(kind){commandState={cmd:kind,step:"point",text:"",height:2.5,p1:null};setMode("select");setStatus(kind+" — Specify insertion point:");}
-function startDimensionCommand(kind){commandState={cmd:kind,step:"first",p1:null,p2:null};setMode("select");setStatus(kind+" — Specify first extension line origin:");}
+function startDimensionCommand(kind){\n const firstStep=(kind==="DIMRADIUS"||kind==="DIMDIAMETER")?"selectObject":"first";\n commandState={cmd:kind,step:firstStep,p1:null,p2:null};setMode("select");\n setStatus(kind==="DIMANGULAR"?kind+" — Specify vertex point:":(firstStep==="selectObject"?kind+" — Select a CIRCLE or ARC:":kind+" — Specify first extension line origin:"));\n}
 function hatchFromPolyline(index){
  const e=entities[index];if(!e||!e.pts||e.pts.length<3||!e.closed){setStatus("HATCH — Select a closed polyline.");return false}
  saveHistory();entities.push({type:"HATCH",layer:activeLayer,pts:e.pts.map(p=>[p[0],p[1]]),pattern:"ANSI31",angle:45,scale:5,source:index});rebuildLayers();draw();setStatus("HATCH completed");return true;
@@ -2093,7 +2130,7 @@ function runCadCommand(raw){
  else if(q==="MTEXT"||q==="MT"){startTextCommand("MTEXT");}
  else if(q==="DIMLINEAR"||q==="DLI"){startDimensionCommand("DIMLINEAR");}
  else if(q==="DIMALIGNED"||q==="DAL"){startDimensionCommand("DIMALIGNED");}
- else if(q==="XL"||q==="XLINE")startInfiniteCommand("XLINE");
+ else if(q==="DIMANGULAR"||q==="DAN"){startDimensionCommand("DIMANGULAR");}\n else if(q==="DIMRADIUS"||q==="DRA"){startDimensionCommand("DIMRADIUS");}\n else if(q==="DIMDIAMETER"||q==="DDI"){startDimensionCommand("DIMDIAMETER");}\n else if(q==="XL"||q==="XLINE")startInfiniteCommand("XLINE");
  else if(q==="RAY")startInfiniteCommand("RAY");
  else if(q==="E"||q==="ERASE"){const ids=selectedIndices();if(ids.length){saveHistory();entities=entities.filter((_,i)=>!selectedSet.has(i));selectedSet.clear();selected=-1;rebuildLayers();draw();setStatus("ERASE completed")}else{commandState={cmd:"ERASE",step:"select",ids:[],before:JSON.stringify(entities)};setMode("select");setStatus("ERASE — Select objects:");}}
  else if(q==="M"||q==="MOVE")beginEditCommand("MOVE");
