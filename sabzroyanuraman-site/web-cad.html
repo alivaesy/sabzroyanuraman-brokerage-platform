@@ -1284,6 +1284,10 @@ function offsetPolyline(e,d,pick){
   const cross=(pick[0]-a[0])*dy-(pick[1]-a[1])*dx;
   const dist=Math.abs(cross)/L;
   if(dist<bestDist){bestDist=dist;bestSide=cross>=0?-1:1}
+ }
+ for(let i=0;i<count;i++){
+  const a=pts[i],b=pts[(i+1)%pts.length],dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy);
+  if(!L)continue;
   const nx=-dy/L*d*bestSide,ny=dx/L*d*bestSide;
   segs.push([[a[0]+nx,a[1]+ny],[b[0]+nx,b[1]+ny]]);
  }
