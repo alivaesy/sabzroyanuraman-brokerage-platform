@@ -914,8 +914,8 @@ function showEntityProperties(index){
  else if(e.type==="SPLINE"){add("Control points",String(e.pts?.length||0));check("Closed","closed",!!e.closed);add("Length",fmt(entityPathLength(e)));if(e.pts?.length){add("Start point",coord(e.pts[0][0],e.pts[0][1]));add("End point",coord(e.pts[e.pts.length-1][0],e.pts[e.pts.length-1][1]));}}
  else if(e.pts){add("Vertices",String(e.pts.length));check("Closed","closed",!!e.closed);add("Length",fmt(entityPathLength(e)));if(e.pts.length){add("Start vertex",coord(e.pts[0][0],e.pts[0][1]));add("End vertex",coord(e.pts[e.pts.length-1][0],e.pts[e.pts.length-1][1]));}}
  else if(e.type==="POINT"){input("X","x",e.x);input("Y","y",e.y);}
- else if(e.type==="TEXT"||e.type==="MTEXT"){add("Insertion point",coord(e.x,e.y));add("Text",String(e.text||"—"));}
- else if(e.type==="DIMENSION"){add("Point 1",coord(e.x1,e.y1));add("Point 2",coord(e.x2,e.y2));add("Text position",coord(e.tx,e.ty));add("Text",String(e.text||"—"));}
+ else if(e.type==="TEXT"||e.type==="MTEXT"){input("Insertion X","x",e.x);input("Insertion Y","y",e.y);add("Text",'<input class="entity-geometry-editor" data-entity-index="'+index+'" data-entity-prop="text" type="text" value="'+esc(e.text||"") +'">');input("Height","height",e.height||2.5);input("Rotation","rotationDeg",e.rotation||0);}
+ else if(e.type==="DIMENSION"){input("Text X","tx",e.tx);input("Text Y","ty",e.ty);add("Text",'<input class="entity-geometry-editor" data-entity-index="'+index+'" data-entity-prop="text" type="text" value="'+esc(e.text||"") +'">');}
  else if(e.type==="BLOCK"){add("Block name",esc(e.name||"—"));input("Insertion X","x",e.x);input("Insertion Y","y",e.y);input("Scale X","sx",e.sx||1);input("Scale Y","sy",e.sy||1);input("Rotation","rotationDeg",(e.rotation||0));add("Members",String(blockDefinitions[e.name]?.members?.length||0));}
  const b=entityBounds(e);rows.push('<div class="entity-prop-section">Extents</div>');if(b){add("Min X",fmt(b.minX));add("Min Y",fmt(b.minY));add("Max X",fmt(b.maxX));add("Max Y",fmt(b.maxY));}else add("Bounds","—");
  rows.push('<div class="entity-prop-note">Geometry fields are editable. Changes are applied immediately and remain synchronized with grips.</div>');
@@ -931,9 +931,9 @@ function showEntityProperties(index){
    if(key==="closed"){ge.closed=!!ev.target.checked}
    else{
     const v=Number(ev.target.value);if(!Number.isFinite(v)){showEntityProperties(idx);return}
-    if(["r","rx","ry","sx","sy"].includes(key)){if(v<=0){showEntityProperties(idx);setStatus("Property value must be greater than zero.");return}ge[key]=Math.abs(v)}
+    if(["r","rx","ry","sx","sy","height"].includes(key)){if(v<=0){showEntityProperties(idx);setStatus("Property value must be greater than zero.");return}ge[key]=Math.abs(v)}
     else if(key==="rotationDeg"){ge.rotation=ge.type==="BLOCK"?v:v*Math.PI/180}
-    else if(["a1","a2"].includes(key)){ge[key]=v}
+    else if(key==="rotationDeg"){ge.rotation=ge.type==="BLOCK"?v:v*Math.PI/180}else if(["a1","a2","tx","ty","x","y","x1","y1","x2","y2"].includes(key)){ge[key]=v}
     else ge[key]=v;
    }
    rebuildLayers();draw();showEntityProperties(idx);setStatus("Properties — "+ge.type+" updated");
