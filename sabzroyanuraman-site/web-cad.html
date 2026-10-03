@@ -799,7 +799,13 @@ if(e.button===1){drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy};e.preventD
 });
 canvas.addEventListener("mouseup",e=>{
  if(gripDrag){const gi=gripDrag.index;gripDrag=null;rebuildLayers();draw();setStatus("PEDIT — Vertex edit completed");e.preventDefault();return;}
-if(selectionBox&&mode==="select"){const clickTol=8/view.scale;if(Math.hypot(selectionBox.x2-selectionBox.x1,selectionBox.y2-selectionBox.y1)<=clickTol){const raw=screenToWorld(e.clientX-canvas.getBoundingClientRect().left,e.clientY-canvas.getBoundingClientRect().top),p=snapPoint(raw),hitOne=findNearest(p);if(!selectionBox.add)selectedSet.clear();if(hitOne>=0){if(e.ctrlKey)selectedSet.has(hitOne)?selectedSet.delete(hitOne):selectedSet.add(hitOne);else selectedSet.add(hitOne);selected=hitOne}else if(!selectionBox.add)selected=-1;selectionBox=null;setStatus(selectedSet.size?selectedSet.size+" object(s) selected.":"Select objects:");draw();drag=null;return;}const b=selectionBox;const x1=Math.min(b.x1,b.x2),x2=Math.max(b.x1,b.x2),y1=Math.min(b.y1,b.y2),y2=Math.max(b.y1,b.y2);const hit=[];const pointInBox=(p)=>p[0]>=x1&&p[0]<=x2&&p[1]>=y1&&p[1]<=y2;const segBoxHit=(a,b)=>{if(pointInBox(a)||pointInBox(b))return true;const edges=[[[x1,y1],[x2,y1]],[[x2,y1],[x2,y2]],[[x2,y2],[x1,y2]],[[x1,y2],[x1,y1]]];return edges.some(s=>!!lineIntersection(a,b,s[0],s[1]));};entities.forEach((ent,i)=>{if(!isLayerVisible(ent))return;let inside=false;if(ent.pts&&ent.pts.length){const verts=ent.pts,any=verts.some(pointInBox),all=verts.every(pointInBox);let crosses=false;for(let j=1;j<verts.length;j++)if(segBoxHit(verts[j-1],verts[j])){crosses=true;break}if(ent.closed&&verts.length>2&&segBoxHit(verts.at(-1),verts[0]))crosses=true;inside=b.crossing?(any||crosses):all}else{const eb=entityBounds(ent);if(!eb)return;inside=b.crossing?(eb.maxX>=x1&&eb.minX<=x2&&eb.maxY>=y1&&eb.minY<=y2):(eb.minX>=x1&&eb.maxX<=x2&&eb.minY>=y1&&eb.maxY<=y2)}if(inside)hit.push(i)});if(!b.add)selectedSet.clear();hit.forEach(i=>selectedSet.add(i));selected=hit.length?hit[hit.length-1]:(selectedSet.size?[...selectedSet].at(-1):-1);setStatus(selectedSet.size?selectedSet.size+" object(s) selected.":"Specify opposite corner:");selectionBox=null;draw()}drag=null});function selectedEntityForContext(p){
+if(selectionBox&&mode==="select"){const clickTol=8/view.scale;if(Math.hypot(selectionBox.x2-selectionBox.x1,selectionBox.y2-selectionBox.y1)<=clickTol){const raw=screenToWorld(e.clientX-canvas.getBoundingClientRect().left,e.clientY-canvas.getBoundingClientRect().top),p=snapPoint(raw),hitOne=findNearest(p);if(!selectionBox.add)selectedSet.clear();if(hitOne>=0){if(e.ctrlKey)selectedSet.has(hitOne)?selectedSet.delete(hitOne):selectedSet.add(hitOne);else selectedSet.add(hitOne);selected=hitOne}else if(!selectionBox.add)selected=-1;selectionBox=null;setStatus(selectedSet.size?selectedSet.size+" object(s) selected.":"Select objects:");draw();drag=null;return;}const b=selectionBox;const x1=Math.min(b.x1,b.x2),x2=Math.max(b.x1,b.x2),y1=Math.min(b.y1,b.y2),y2=Math.max(b.y1,b.y2);const hit=[];const pointInBox=(p)=>p[0]>=x1&&p[0]<=x2&&p[1]>=y1&&p[1]<=y2;const segBoxHit=(a,b)=>{if(pointInBox(a)||pointInBox(b))return true;const edges=[[[x1,y1],[x2,y1]],[[x2,y1],[x2,y2]],[[x2,y2],[x1,y2]],[[x1,y2],[x1,y1]]];return edges.some(s=>!!lineIntersection(a,b,s[0],s[1]));};entities.forEach((ent,i)=>{if(!isLayerVisible(ent))return;let inside=false;if(ent.pts&&ent.pts.length){const verts=ent.pts,any=verts.some(pointInBox),all=verts.every(pointInBox);let crosses=false;for(let j=1;j<verts.length;j++)if(segBoxHit(verts[j-1],verts[j])){crosses=true;break}if(ent.closed&&verts.length>2&&segBoxHit(verts.at(-1),verts[0]))crosses=true;inside=b.crossing?(any||crosses):all}else{const eb=entityBounds(ent);if(!eb)return;inside=b.crossing?(eb.maxX>=x1&&eb.minX<=x2&&eb.maxY>=y1&&eb.minY<=y2):(eb.minX>=x1&&eb.maxX<=x2&&eb.minY>=y1&&eb.maxY<=y2)}if(inside)hit.push(i)});if(!b.add)selectedSet.clear();hit.forEach(i=>selectedSet.add(i));selected=hit.length?hit[hit.length-1]:(selectedSet.size?[...selectedSet].at(-1):-1);
+ if(commandState&&commandState.cmd==="STRETCH"&&commandState.step==="select"){
+  const s=commandState;s.ids=selectedIndices();s.stretchVerts=new Map();const inside=(q)=>q[0]>=x1&&q[0]<=x2&&q[1]>=y1&&q[1]<=y2;
+  s.ids.forEach(i=>{const ent=entities[i];if(ent?.pts?.length){const v=[];ent.pts.forEach((q,j)=>{if(inside(q))v.push(j)});if(ent.closed&&v.length===0&&b.crossing&&pointInBox(ent.pts[0]))v.push(0);if(v.length)s.stretchVerts.set(i,v)}else if(ent&&"x"in ent&&inside([ent.x,ent.y]))s.stretchVerts.set(i,["center"])});
+  s.step="base";setStatus(s.ids.length?"STRETCH — Specify base point:":"STRETCH — No objects selected.");if(!s.ids.length){commandState=null;setMode("select")}else draw();
+ }else setStatus(selectedSet.size?selectedSet.size+" object(s) selected.":"Specify opposite corner:");
+ selectionBox=null;draw()}drag=null});function selectedEntityForContext(p){
  const hit=findNearest(p);
  if(hit>=0){
   if(!selectedSet.has(hit)){selectedSet.clear();selectedSet.add(hit);selected=hit;draw()}
@@ -1110,8 +1116,7 @@ if(s.cmd==="ARC"&&s.step==="end"){
  rebuildLayers();draw();commandState=null;setMode("select");setStatus("ARC completed");return true;
 }
 if(s.cmd==="STRETCH"&&s.step==="select"){
- const hit=findNearest(p);if(hit<0){setStatus("STRETCH — Select objects:");return true}
- s.ids=[hit];selectedSet.clear();selectedSet.add(hit);selected=hit;s.step="base";setStatus("STRETCH — Specify base point:");draw();return true;
+ return false;
 }
 if(s.cmd==="STRETCH"&&s.step==="base"){
  s.base=p;s.step="second";setStatus("STRETCH — Specify second point or displacement:");return true;
@@ -1120,16 +1125,17 @@ if(s.cmd==="STRETCH"&&s.step==="second"){
  const dx=p[0]-s.base[0],dy=p[1]-s.base[1],tol=14/Math.max(view.scale,.0001);saveHistory();
  s.ids.forEach(i=>{
   const e=entities[i];if(!e)return;
+  const verts=s.stretchVerts?.get(i);
   if(e.type==="LINE"){
-   const a=[e.x1,e.y1],b=[e.x2,e.y2];
-   if(Math.hypot(s.base[0]-a[0],s.base[1]-a[1])<=Math.hypot(s.base[0]-b[0],s.base[1]-b[1])){
-    e.x1+=dx;e.y1+=dy;
-   }else{e.x2+=dx;e.y2+=dy}
+   if(verts?.length){if(verts.includes(0)){e.x1+=dx;e.y1+=dy}if(verts.includes(1)){e.x2+=dx;e.y2+=dy}}
+   else{
+    const a=[e.x1,e.y1],b=[e.x2,e.y2];
+    if(Math.hypot(s.base[0]-a[0],s.base[1]-a[1])<=Math.hypot(s.base[0]-b[0],s.base[1]-b[1])){e.x1+=dx;e.y1+=dy}else{e.x2+=dx;e.y2+=dy}
+   }
   }else if(e.pts&&e.pts.length){
-   let k=0,best=Infinity;
-   e.pts.forEach((v,j)=>{const d=Math.hypot(s.base[0]-v[0],s.base[1]-v[1]);if(d<best){best=d;k=j}});
-   if(best<=tol)e.pts[k]=[e.pts[k][0]+dx,e.pts[k][1]+dy];else e.pts=e.pts.map(v=>[v[0]+dx,v[1]+dy]);
-  }else if("x"in e){e.x+=dx;e.y+=dy}
+   if(verts?.length)verts.forEach(j=>{e.pts[j]=[e.pts[j][0]+dx,e.pts[j][1]+dy]});
+   else{let k=0,best=Infinity;e.pts.forEach((v,j)=>{const d=Math.hypot(s.base[0]-v[0],s.base[1]-v[1]);if(d<best){best=d;k=j}});if(best<=tol)e.pts[k]=[e.pts[k][0]+dx,e.pts[k][1]+dy];else e.pts=e.pts.map(v=>[v[0]+dx,v[1]+dy])}
+  }else if(verts?.includes("center")&&"x"in e){e.x+=dx;e.y+=dy}else if("x"in e){e.x+=dx;e.y+=dy}
  });
  rebuildLayers();draw();commandState=null;setMode("select");setStatus("STRETCH completed");return true;
 }
