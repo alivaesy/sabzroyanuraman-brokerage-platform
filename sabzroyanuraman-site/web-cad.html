@@ -1801,7 +1801,11 @@ function startInfiniteCommand(type){
  mode=type==="XLINE"?"xline":"ray";drawPoints=[];setStatus(type+" — Specify base point:");
 }
 function startTextCommand(kind){commandState={cmd:kind,step:"point",text:"",height:2.5,p1:null};setMode("select");setStatus(kind+" — Specify insertion point:");}
-function startDimensionCommand(kind){\n const firstStep=(kind==="DIMRADIUS"||kind==="DIMDIAMETER")?"selectObject":"first";\n commandState={cmd:kind,step:firstStep,p1:null,p2:null};setMode("select");\n setStatus(kind==="DIMANGULAR"?kind+" — Specify vertex point:":(firstStep==="selectObject"?kind+" — Select a CIRCLE or ARC:":kind+" — Specify first extension line origin:"));\n}
+function startDimensionCommand(kind){
+ const firstStep=(kind==="DIMRADIUS"||kind==="DIMDIAMETER")?"selectObject":"first";
+ commandState={cmd:kind,step:firstStep,p1:null,p2:null};setMode("select");
+ setStatus(kind==="DIMANGULAR"?kind+" — Specify vertex point:":(firstStep==="selectObject"?kind+" — Select a CIRCLE or ARC:":kind+" — Specify first extension line origin:"));
+}
 function hatchFromPolyline(index){
  const e=entities[index];if(!e||!e.pts||e.pts.length<3||!e.closed){setStatus("HATCH — Select a closed polyline.");return false}
  saveHistory();entities.push({type:"HATCH",layer:activeLayer,pts:e.pts.map(p=>[p[0],p[1]]),pattern:"ANSI31",angle:45,scale:5,source:index});rebuildLayers();draw();setStatus("HATCH completed");return true;
