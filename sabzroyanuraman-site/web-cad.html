@@ -374,9 +374,10 @@ let gridStep=10;
 let snapEnabled=true,gridSnapEnabled=false,snapModes={endpoint:true,midpoint:true,center:true,intersection:true,nearest:true,perpendicular:true,quadrant:true,tangent:true,grid:true};
 let snapInfo={point:null,type:""};let objectTrackingEnabled=true;let trackingPoints=[];let trackingVisual={x:null,y:null};
 let entities=[],mode="select",grid=true,selected=-1,selectedSet=new Set(),layers=new Map(),activeLayer="0";
-let history=[],historyLimit=30;
-function saveHistory(){history.push(JSON.stringify(entities));if(history.length>historyLimit)history.shift()}
-function undo(){if(!history.length){setStatus("Undo — No undo history");return}entities=JSON.parse(history.pop());selectedSet.clear();selected=-1;commandState=null;drawPoints=[];previewPoint=null;rebuildLayers();fit();setStatus("Undo")}
+let history=[],redoHistory=[],historyLimit=30;
+function saveHistory(){history.push(JSON.stringify(entities));redoHistory=[];if(history.length>historyLimit)history.shift()}
+function undo(){if(!history.length){setStatus("Undo — No undo history");return}redoHistory.push(JSON.stringify(entities));entities=JSON.parse(history.pop());selectedSet.clear();selected=-1;commandState=null;drawPoints=[];previewPoint=null;rebuildLayers();fit();setStatus("Undo")}
+function redo(){if(!redoHistory.length){setStatus("Redo — No redo history");return}history.push(JSON.stringify(entities));entities=JSON.parse(redoHistory.pop());if(history.length>historyLimit)history.shift();selectedSet.clear();selected=-1;commandState=null;drawPoints=[];previewPoint=null;rebuildLayers();fit();setStatus("Redo")}
 let commandState=null;
 let lastCadCommand="";
 let commandHistory=[];
@@ -405,7 +406,7 @@ function cancelActiveCommand(message){
 }
 function clearSelectionModifier(){selectionModifier=null;selectionBox=null;setMode("select");draw();setStatus("Selection mode — modifier cleared");}
 function beginSelectionModifier(kind){selectionModifier=kind;commandState=null;selectionBox=null;setMode("select");setStatus(kind==="ADD"?"ADD — Select objects to add to current selection:":"REMOVE — Select objects to remove from current selection:");}
-function isCadCommandToken(q){return /^(LINE|L|PLINE|PL|CIRCLE|C|POINT|PO|RECTANG|REC|ARC|HATCH|HATCHEDIT|HE|REGION|REG|TEXT|DTEXT|MTEXT|DIMLINEAR|DLI|DIMALIGNED|DAL|DIMANGULAR|DAN|DIMRADIUS|DRA|DIMDIAMETER|DDI|XLINE|XL|RAY|ERASE|E|MOVE|M|COPY|CO|OFFSET|O|TRIM|TR|EXTEND|EX|LENGTHEN|LEN|CUTPOLYGON|CUTPOLY|CP|EXPLODE|X|ROTATE|RO|BREAK|BR|AREA|AA|ID|LIST|LI|QSELECT|QS|SELECTSIMILAR|SELECTSIM|SSIM|ADD|REMOVE|REMOVESELECT|TRACK|F11|STRETCH|S|JOIN|J|PEDIT|PE|MATCHPROP|MA|BLOCK|B|INSERT|I|MIRROR|MI|SCALE|SC|FILLET|F|CHAMFER|CHA|UNDO|U|PURGE|PU|AUDIT|UNITS|UN|DSETTINGS|DS|UCS|SPLINE|SPL|ELLIPSE|EL|DIST|DI|DISTANCE|DIVIDE|DIV|MEASURE|ME|ZOOM|Z|GRID|G|OSNAP|F3|POLAR|F10|ESC)$/.test(q);}
+function isCadCommandToken(q){return /^(LINE|L|PLINE|PL|CIRCLE|C|POINT|PO|RECTANG|REC|ARC|HATCH|HATCHEDIT|HE|REGION|REG|TEXT|DTEXT|MTEXT|DIMLINEAR|DLI|DIMALIGNED|DAL|DIMANGULAR|DAN|DIMRADIUS|DRA|DIMDIAMETER|DDI|XLINE|XL|RAY|ERASE|E|MOVE|M|COPY|CO|OFFSET|O|TRIM|TR|EXTEND|EX|LENGTHEN|LEN|CUTPOLYGON|CUTPOLY|CP|EXPLODE|X|ROTATE|RO|BREAK|BR|AREA|AA|ID|LIST|LI|QSELECT|QS|SELECTSIMILAR|SELECTSIM|SSIM|ADD|REMOVE|REMOVESELECT|TRACK|F11|STRETCH|S|JOIN|J|PEDIT|PE|MATCHPROP|MA|BLOCK|B|INSERT|I|MIRROR|MI|SCALE|SC|FILLET|F|CHAMFER|CHA|UNDO|U|PURGE|PU|AUDIT|UNITS|UN|DSETTINGS|DS|UCS|SPLINE|SPL|ELLIPSE|EL|DIST|DI|DISTANCE|DIVIDE|DIV|MEASURE|ME|ZOOM|Z|GRID|G|OSNAP|F3|POLAR|F10|CTRL+Y|REDO|ESC)$/.test(q);}
 function interruptForNewCommand(raw){const q=String(raw||"").trim().toUpperCase();if(!q||q==="ESC")return;if(commandState&&q!==String(commandState.cmd||"").toUpperCase()&&isCadCommandToken(q))cancelActiveCommand("Command: "+q);}
 function worldToScreen(x,y){const w=canvas.clientWidth,h=canvas.clientHeight;return [w/2+(x-view.cx)*view.scale,h/2-(y-view.cy)*view.scale]}
 function screenToWorld(sx,sy){const w=canvas.clientWidth,h=canvas.clientHeight;return [(sx-w/2)/view.scale+view.cx,(h/2-sy)/view.scale+view.cy]}
