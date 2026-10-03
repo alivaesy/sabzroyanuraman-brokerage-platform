@@ -1581,53 +1581,26 @@ function runMenuAction(a){
   if(a==="grid")return $("gridBtn").click();
   if(a==="snap")return $("snapStatus").click();
   if(a==="osnap")return $("osnapStatus").click();
-  if(a==="distance")return runCadCommand("DIST");
-  if(a==="area")return runAreaCommand();
-  if(a==="id")return runIdCommand();
-  if(a==="list")return runListCommand();
-  if(a==="qselect")return runQSelectCommand();
-  if(a==="rectang")return runRectangCommand();
-  if(a==="text")return startTextCommand("TEXT");
-  if(a==="mtext")return startTextCommand("MTEXT");
-  if(a==="dimlinear")return startDimensionCommand("DIMLINEAR");
-  if(a==="dimaligned")return startDimensionCommand("DIMALIGNED");
-  if(a==="arc")return runArcCommand();
-  if(a==="stretch")return runStretchCommand();
-  if(a==="join")return runJoinCommand();
-  if(a==="pedit")return runPeditCommand();
-  if(a==="matchprop")return runMatchPropCommand();
-  if(a==="mirror")return runTransformCommand("MIRROR");
-  if(a==="scale")return runTransformCommand("SCALE");
-  if(a==="fillet")return runFilletChamfer("FILLET");
-  if(a==="chamfer")return runFilletChamfer("CHAMFER");
-  if(a==="purge")return runPurgeCommand();
-  if(a==="audit")return runAuditCommand();
-  if(a==="units")return runSettingsCommand("UNITS");
-  if(a==="dsettings")return runSettingsCommand("DSETTINGS");
-  if(a==="ucs")return runSettingsCommand("UCS");
+  const commandMap={
+    line:"LINE",polyline:"PLINE",circle:"CIRCLE",point:"POINT",rectang:"RECTANG",
+    arc:"ARC",hatch:"HATCH",text:"TEXT",mtext:"MTEXT",xline:"XLINE",ray:"RAY",
+    divide:"DIVIDE",measure:"MEASURE",move:"MOVE",copy:"COPY",offset:"OFFSET",
+    trim:"TRIM",extend:"EXTEND",lengthen:"LENGTHEN",explode:"EXPLODE",stretch:"STRETCH",
+    rotate:"ROTATE",break:"BREAK",join:"JOIN",pedit:"PEDIT",matchprop:"MATCHPROP",
+    mirror:"MIRROR",scale:"SCALE",fillet:"FILLET",chamfer:"CHAMFER",
+    closepoly:"CLOSE",editvertex:"PEDIT",cutpolygon:"CUTPOLYGON",erase:"ERASE",
+    distance:"DIST",dimlinear:"DIMLINEAR",dimaligned:"DIMALIGNED",area:"AREA",
+    id:"ID",list:"LIST",qselect:"QSELECT",units:"UNITS",dsettings:"DSETTINGS",
+    ucs:"UCS",undo:"UNDO",purge:"PURGE",audit:"AUDIT",zoom:"ZOOM"
+  };
+  if(commandMap[a])return runCadCommand(commandMap[a]);
   if(a==="layerproperties"){const name=activeLayer||layers.keys().next().value;if(name)showLayerProperties(name);return}
   if(a==="newlayer")return $("newLayerBtn").click();
   if(a==="activelayer")return $("activeLayerBtn").click();
-  if(a==="select")return setMode("select");
- if(a==="point"){mode="point";drawPoints=[];return setStatus("POINT — Specify point");}
- if(a==="hatch")return startHatchCommand();
- if(a==="xline")return startInfiniteCommand("XLINE");
- if(a==="ray")return startInfiniteCommand("RAY");
- if(a==="closepoly")return closeSelectedPolyline();
-  if(a==="line"||a==="polyline"||a==="circle")return setMode(a);
- if(a==="editvertex"){const ids=selectedIndices();if(ids.length===1&&entities[ids[0]].pts){setStatus("PEDIT — Select a vertex or midpoint grip.");return}return setStatus("PEDIT — Select one polyline.");}
-  if(a==="point"){mode="point";drawPoints=[];setStatus("POINT — Specify point:");return}
-  if(["move","copy","offset","trim","extend","rotate","break"].includes(a))return beginEditCommand(a.toUpperCase());
-  if(a==="lengthen")return runLengthenCommand();
-  if(a==="cutpolygon")return startCutPolygonCommand();
-  if(a==="explode")return runExplodeCommand();
-  if(a==="erase"){const ids=selectedIndices();if(!ids.length)return setStatus("ERASE — Select objects:");saveHistory();entities=entities.filter((_,i)=>!selectedSet.has(i));selectedSet.clear();selected=-1;rebuildLayers();draw();return setStatus("ERASE completed")}
-  if(a==="divide")return runPointDivision("DIVIDE");
-  if(a==="measure")return runPointDivision("MEASURE");
-  if(a==="undo")return undo();
+  if(a==="select")return cancelActiveCommand("Command: select");
   if(a==="model"||a==="layout1"||a==="layout2"){document.querySelectorAll(".view-tab").forEach(x=>x.classList.toggle("active",x.textContent.trim().toLowerCase()===a));return setStatus(a==="model"?"Model":"Layout active")}
   if(a==="help")return setStatus("L=LINE | PL=PLINE | C=CIRCLE | P=POINT | M=MOVE | CO=COPY | O=OFFSET | TR=TRIM | EX=EXTEND | RO=ROTATE | BR=BREAK | DIV=DIVIDE | ME=MEASURE | DI=DIST | AA=AREA | ID=ID | LI=LIST | QS=QSELECT | REC=RECTANG | J=JOIN | PE=PEDIT | MA=MATCHPROP | MI=MIRROR | SC=SCALE | F=FILLET | CHA=CHAMFER | PU=PURGE | AUDIT | UN=UNITS | DS=DSETTINGS | UCS | E=ERASE | Z=ZOOM | G=GRID | F3=OSNAP | Esc=CANCEL");
-  if(a==="about")return setStatus("Web CAD    — extended base version");
+  if(a==="about")return setStatus("Web CAD — extended base version");
 }
 document.querySelectorAll("[data-menu-action]").forEach(btn=>btn.addEventListener("click",e=>{e.stopPropagation();btn.closest(".menu-wrap")?.classList.remove("open");runMenuAction(btn.dataset.menuAction)}));
 document.querySelectorAll("[data-snap-mode]").forEach(btn=>{btn.addEventListener("click",e=>{e.stopPropagation();const key=btn.dataset.snapMode;snapModes[key]=!snapModes[key];btn.classList.toggle("active",snapModes[key]);btn.closest(".menu-wrap")?.classList.remove("open");setStatus("OSNAP "+key+" "+(snapModes[key]?"ON":"OFF"));});});
