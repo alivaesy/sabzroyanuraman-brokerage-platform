@@ -1531,11 +1531,12 @@ function runTransformCommand(cmd){
   if(e.type==="LINE"){[e.x1,e.y1]=mir(e.x1,e.y1);[e.x2,e.y2]=mir(e.x2,e.y2)}
   else if(e.pts)e.pts=e.pts.map(p=>mir(p[0],p[1]));
   else if("x"in e){
-   [e.x,e.y]=mir(e.x,e.y);
+   const ox=e.x,oy=e.y;
+   [e.x,e.y]=mir(ox,oy);
    if(e.type==="ELLIPSE"||e.type==="ARC"){
     const axis=e.type==="ELLIPSE"?[Math.cos(e.rotation||0),Math.sin(e.rotation||0)]:null;
-    if(axis){const mx=mir(e.x+axis[0],e.y+axis[1]),vx=mx[0]-e.x,vy=mx[1]-e.y;e.rotation=Math.atan2(vy,vx)}
-    else{const p1=mir(e.x+Math.cos((e.a1||0)*Math.PI/180),e.y+Math.sin((e.a1||0)*Math.PI/180)),p2=mir(e.x+Math.cos((e.a2||0)*Math.PI/180),e.y+Math.sin((e.a2||0)*Math.PI/180));e.a1=Math.atan2(p1[1]-e.y,p1[0]-e.x)*180/Math.PI;e.a2=Math.atan2(p2[1]-e.y,p2[0]-e.x)*180/Math.PI}
+    if(axis){const mx=mir(ox+axis[0],oy+axis[1]),vx=mx[0]-e.x,vy=mx[1]-e.y;e.rotation=Math.atan2(vy,vx)}
+    else{const p1=mir(ox+Math.cos((e.a1||0)*Math.PI/180),oy+Math.sin((e.a1||0)*Math.PI/180)),p2=mir(ox+Math.cos((e.a2||0)*Math.PI/180),oy+Math.sin((e.a2||0)*Math.PI/180));e.a1=Math.atan2(p1[1]-e.y,p1[0]-e.x)*180/Math.PI;e.a2=Math.atan2(p2[1]-e.y,p2[0]-e.x)*180/Math.PI}
    }
   }
  });draw();setStatus("MIRROR completed");
