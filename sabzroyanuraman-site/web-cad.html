@@ -420,6 +420,8 @@ function applyPolar(p,base){
 function parseCadPoint(raw,base){
  const s=String(raw||"").trim().replace(/[，]/g,",");if(!s)return null;
  const rel=s[0]==="@";const body=rel?s.slice(1):s;
+ const polarParts=body.split("<");
+ if(polarParts.length===2){const d=Number(polarParts[0]),deg=Number(polarParts[1]);if(Number.isFinite(d)&&Number.isFinite(deg)){const a=deg*Math.PI/180,q=rel&&base?worldToUcs(base):[0,0];return ucsToWorld([q[0]+d*Math.cos(a),q[1]+d*Math.sin(a)]);}}
  const parts=body.split(/[,;]/).map(Number);if(parts.length<2||!parts.slice(0,2).every(Number.isFinite))return null;
  const q=rel&&base?[worldToUcs(base)[0]+parts[0],worldToUcs(base)[1]+parts[1]]:[parts[0],parts[1]];
  return ucsToWorld(q);
@@ -2193,7 +2195,7 @@ function runCadCommand(raw){
  if(!rawText)return;
  if(mode==="line"&&(!commandState||commandState.cmd!=="RECTANG")){
   const base=drawPoints.length?drawPoints[drawPoints.length-1]:null,p=parseCadPoint(rawText,base);
-  if(p){const pp=applyPolar(p,base);if(!drawPoints.length){drawPoints=[pp];setStatus("LINE — Specify next point:");}else{saveHistory();entities.push({type:"LINE",layer:activeLayer,x1:base[0],y1:base[1],x2:pp[0],y2:pp[1]});drawPoints=[pp];setStatus("LINE — Specify next point or press Esc.");rebuildLayers();}draw();commandInput.value="";return;} setCommandError("Invalid point. Use X,Y or @ΔX,ΔY.");
+  if(p){const pp=applyPolar(p,base);if(!drawPoints.length){drawPoints=[pp];setStatus("LINE — Specify next point:");}else{saveHistory();entities.push({type:"LINE",layer:activeLayer,x1:base[0],y1:base[1],x2:pp[0],y2:pp[1]});drawPoints=[pp];setStatus("LINE — Specify next point or press Esc.");rebuildLayers();}draw();commandInput.value="";return;} setCommandError("Invalid point. Use X,Y, @ΔX,ΔY or @distance<angle.");
  }
  if(mode==="polyline"&&(!commandState||commandState.cmd!=="RECTANG")){
   const base=drawPoints.length?drawPoints[drawPoints.length-1]:null,p=parseCadPoint(rawText,base);
