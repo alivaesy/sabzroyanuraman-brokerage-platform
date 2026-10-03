@@ -1884,19 +1884,7 @@ function runFilletChamfer(cmd){
  setStatus(cmd+" — Select first LINE:");
 }
 function runPurgeCommand(){const before=entities.length,seen=new Set();entities=entities.filter(e=>{const k=JSON.stringify(e);if(seen.has(k))return false;seen.add(k);return true});rebuildLayers();draw();setStatus("PURGE — "+(before-entities.length)+" duplicate object(s) removed.")}
-function runAuditCommand(){let bad=0;entities.forEach(e=>{if(e.type==="LINE"&&!([e.x1,e.y1,e.x2,e.y2].every(Number.isFinite)))bad++;if(e.pts&&!e.pts.every(p=>Array.isArray(p)&&Number.isFinite(p[0])&&Number.isFinite(p[1])))bad++});setStatus("AUDIT — "+bad+" invalid object(s) found.")}
-function runSettingsCommand(cmd){
- if(cmd==="UNITS"){const u=prompt("UNITS — Drawing units:","Meters");if(u!==null)setStatus("UNITS — "+u+" for this session.");}
- else if(cmd==="UCS"){
-  const choice=prompt("UCS — Enter WORLD, ORIGIN, or ROTATE:","WORLD");
-  if(choice===null)return;
-  const q=choice.trim().toUpperCase();
-  if(q==="WORLD"||q==="W"){setUcsWorld();return}
-  if(q==="ORIGIN"||q==="O"){const raw=prompt("UCS origin X,Y (WCS):",ucs.origin.join(","));if(raw===null)return;const p=parseCadPoint(raw,null);if(!p){setStatus("UCS — Invalid origin.");return}setUcsFromCommand(p,ucs.angle);return}
-  if(q==="ROTATE"||q==="R"){const deg=Number(prompt("UCS rotation angle (degrees):",String((ucs.angle*180/Math.PI).toFixed(3))));if(!Number.isFinite(deg)){setStatus("UCS — Invalid angle.");return}setUcsFromCommand(ucs.origin,deg*Math.PI/180);return}
-  setStatus("UCS — Use WORLD, ORIGIN, or ROTATE.");
- }else setStatus("DSETTINGS — ORTHO / SNAP / GRID / OSNAP are available on the status bar.")
-}
+function runAuditCommand(){let bad=0,checked=0,detail=[];const fin=Number.isFinite,validPts=e=>Array.isArray(e.pts)&&e.pts.length>=2&&e.pts.every(p=>Array.isArray(p)&&fin(p[0])&&fin(p[1]));const report=(n,t)=>{bad++;if(detail.length<6)detail.push("#"+(n+1)+" "+t)};entities.forEach((e,n)=>{checked++;if(!e||typeof e!=="object"){report(n,"invalid object");return}if(!e.type){report(n,"missing type");return}if(e.x!==undefined&&e.y!==undefined&&(!fin(e.x)||!fin(e.y)))report(n,"invalid X/Y");if(e.pts!==undefined&&!validPts(e))report(n,"invalid vertices");if(e.type==="LINE"&&(!fin(e.x1)||!fin(e.y1)||!fin(e.x2)||!fin(e.y2)))report(n,"LINE");else if(e.type==="CIRCLE"&&(!fin(e.x)||!fin(e.y)||!fin(e.r)||e.r<=0))report(n,"CIRCLE");else if(e.type==="ARC"&&(!fin(e.x)||!fin(e.y)||!fin(e.r)||e.r<=0||!fin(e.a1)||!fin(e.a2)))report(n,"ARC");else if(e.type==="ELLIPSE"&&(!fin(e.x)||!fin(e.y)||!fin(e.rx)||!fin(e.ry)||e.rx<=0||e.ry<=0))report(n,"ELLIPSE");else if(["LWPOLYLINE","POLYLINE","POLYLINE3D","SPLINE"].includes(e.type)&&!validPts(e))report(n,e.type);else if(e.type==="POINT"&&(!fin(e.x)||!fin(e.y)))report(n,"POINT");else if(["TEXT","MTEXT"].includes(e.type)&&(!fin(e.x)||!fin(e.y)||typeof e.text!=="string"))report(n,e.type);else if(e.type==="DIMENSION"&&(!fin(e.x1)||!fin(e.y1)||!fin(e.x2)||!fin(e.y2)||e.text===undefined))report(n,"DIMENSION");else if(["XLINE","RAY"].includes(e.type)&&(!fin(e.x)||!fin(e.y)||!fin(e.dx)||!fin(e.dy)||Math.hypot(e.dx,e.dy)<1e-12))report(n,e.type);else if(["HATCH","REGION"].includes(e.type)&&!validPts(e))report(n,e.type)});setStatus(bad?"AUDIT — "+bad+" invalid object(s) / "+checked+" checked. "+detail.join(" | "):"AUDIT — OK. "+checked+" object(s) checked; no invalid geometry found.")}
 
 function runMenuAction(a){
   if(a==="new")return $("newBtn").click();
