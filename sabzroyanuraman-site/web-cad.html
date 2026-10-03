@@ -1950,7 +1950,7 @@ function runCadCommand(raw){
  else if(q==="DIMALIGNED"||q==="DAL"){startDimensionCommand("DIMALIGNED");}
  else if(q==="XL"||q==="XLINE")startInfiniteCommand("XLINE");
  else if(q==="RAY")startInfiniteCommand("RAY");
- else if(q==="E"||q==="ERASE"){const ids=selectedIndices();if(ids.length){saveHistory();entities=entities.filter((_,i)=>!selectedSet.has(i));selectedSet.clear();selected=-1;rebuildLayers();draw();setStatus("ERASE completed")}else setStatus("ERASE — Select objects:");}
+ else if(q==="E"||q==="ERASE"){const ids=selectedIndices();if(ids.length){saveHistory();entities=entities.filter((_,i)=>!selectedSet.has(i));selectedSet.clear();selected=-1;rebuildLayers();draw();setStatus("ERASE completed")}else{commandState={cmd:"ERASE",step:"select",ids:[],before:JSON.stringify(entities)};setMode("select");setStatus("ERASE — Select objects:");}}
  else if(q==="M"||q==="MOVE")beginEditCommand("MOVE");
  else if(q==="CO"||q==="COPY")beginEditCommand("COPY");
  else if(q==="O"||q==="OFFSET"){commandState={cmd:"OFFSET",ids:[],step:"select",before:JSON.stringify(entities)};setMode("select");setStatus("OFFSET — Select object:");}
@@ -2009,7 +2009,10 @@ function finishKeyboardCommand(){
  return false;
 }
 commandInput.addEventListener("keydown",e=>{
- if(e.key==="Enter"){if(!commandInput.value.trim()&&finishKeyboardCommand()){e.preventDefault();return;}runCadCommand(commandInput.value);e.preventDefault();}
+ if(e.key==="Enter"||e.key===" "){
+  if(!commandInput.value.trim()&&finishKeyboardCommand()){e.preventDefault();return;}
+  if(commandInput.value.trim()){runCadCommand(commandInput.value);e.preventDefault();return;}
+ }
  else if(e.key==="Escape"){cancelActiveCommand();e.preventDefault();}
 });
 window.addEventListener("keydown",e=>{
