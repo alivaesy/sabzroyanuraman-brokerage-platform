@@ -450,6 +450,13 @@ function snapPoint(p){
     test(e.x+e.r*Math.cos(sa),e.y+e.r*Math.sin(sa),"Endpoint",110);
     test(e.x+e.r*Math.cos(ea),e.y+e.r*Math.sin(ea),"Endpoint",110);
    }
+   if(snapEnabled&&snapModes.midpoint&&e.type==="ARC"&&Number.isFinite(e.r)){
+    const sa=(e.a1||0)*Math.PI/180,ea=(e.a2||0)*Math.PI/180;
+    let span=((ea-sa)%(Math.PI*2)+Math.PI*2)%(Math.PI*2);
+    if(span<1e-9)span=Math.PI*2;
+    const ma=sa+span/2;
+    test(e.x+e.r*Math.cos(ma),e.y+e.r*Math.sin(ma),"Midpoint",95);
+   }
   }
  }
  const inArc=(e,x,y)=>{
@@ -525,8 +532,13 @@ function snapPoint(p){
  if(snapEnabled&&snapModes.perpendicular)for(const s of segments){const a=s[0],b=s[1],dx=b[0]-a[0],dy=b[1]-a[1],l=dx*dx+dy*dy;if(!l)continue;const t=((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l;if(t>=0&&t<=1){const q=[a[0]+t*dx,a[1]+t*dy];test(q[0],q[1],"Perpendicular",90)}}
  if(snapEnabled&&snapModes.nearest)curves.forEach(addCurveNearest);
  if(snapEnabled&&snapModes.quadrant)for(const e of curves){
-  const pts=e.type==="ELLIPSE"?[[e.x+e.rx,e.y],[e.x-e.rx,e.y],[e.x,e.y+e.ry],[e.x,e.y-e.ry]]:[[e.x+e.r,e.y],[e.x-e.r,e.y],[e.x,e.y+e.r],[e.x,e.y-e.r]];
-  pts.forEach(q=>{if(inArc(e,q[0],q[1]))test(q[0],q[1],"Quadrant",100)});
+  if(e.type==="ELLIPSE"){
+   const pts=[[e.x+e.rx,e.y],[e.x-e.rx,e.y],[e.x,e.y+e.ry],[e.x,e.y-e.ry]];
+   pts.forEach(q=>test(q[0],q[1],"Quadrant",100));
+  }else{
+   const pts=[[e.x+e.r,e.y],[e.x-e.r,e.y],[e.x,e.y+e.r],[e.x,e.y-e.r]];
+   pts.forEach(q=>{if(inArc(e,q[0],q[1]))test(q[0],q[1],"Quadrant",100)});
+  }
  }
  if(snapEnabled&&snapModes.tangent)for(const e of curves)if(e.type==="CIRCLE"&&e.r>0){
   const vx=p[0]-e.x,vy=p[1]-e.y,d2=vx*vx+vy*vy,r=e.r;
