@@ -379,7 +379,8 @@ let drag=null,drawPoints=[],previewPoint=null,selectionBox=null,distVisual={p1:n
 const $=id=>document.getElementById(id);
 function resize(){const r=canvas.getBoundingClientRect(),d=window.devicePixelRatio||1;canvas.width=Math.round(r.width*d);canvas.height=Math.round(r.height*d);ctx.setTransform(d,0,0,d,0,0);draw()}
 window.addEventListener("resize",resize);
-function setStatus(s){$("status").textContent=s}
+function setStatus(s){$("status").textContent=s}function setCommandError(message){setStatus("Command: *Invalid* — "+message);$("commandInput").select();}
+
 function setMode(m){
   mode=m; drawPoints=[]; previewPoint=null; selectionBox=null;
   document.querySelectorAll("[data-mode]").forEach(b=>b.classList.toggle("primary",b.dataset.mode===m));
@@ -1931,11 +1932,11 @@ function runCadCommand(raw){
  if(!rawText)return;
  if(mode==="line"&&(!commandState||commandState.cmd!=="RECTANG")){
   const base=drawPoints.length?drawPoints[drawPoints.length-1]:null,p=parseCadPoint(rawText,base);
-  if(p){const pp=applyPolar(p,base);if(!drawPoints.length){drawPoints=[pp];setStatus("LINE — Specify next point:");}else{saveHistory();entities.push({type:"LINE",layer:activeLayer,x1:base[0],y1:base[1],x2:pp[0],y2:pp[1]});drawPoints=[pp];setStatus("LINE — Specify next point or press Esc.");rebuildLayers();}draw();commandInput.value="";return;}
+  if(p){const pp=applyPolar(p,base);if(!drawPoints.length){drawPoints=[pp];setStatus("LINE — Specify next point:");}else{saveHistory();entities.push({type:"LINE",layer:activeLayer,x1:base[0],y1:base[1],x2:pp[0],y2:pp[1]});drawPoints=[pp];setStatus("LINE — Specify next point or press Esc.");rebuildLayers();}draw();commandInput.value="";return;} setCommandError("Invalid point. Use X,Y or @ΔX,ΔY.");
  }
  if(mode==="polyline"&&(!commandState||commandState.cmd!=="RECTANG")){
   const base=drawPoints.length?drawPoints[drawPoints.length-1]:null,p=parseCadPoint(rawText,base);
-  if(p){const pp=applyPolar(p,base);if(!drawPoints.length)drawPoints=[pp];else drawPoints.push(pp);setStatus("PLINE — Specify next point or type Close.");draw();commandInput.value="";return;}
+  if(p){const pp=applyPolar(p,base);if(!drawPoints.length)drawPoints=[pp];else drawPoints.push(pp);setStatus("PLINE — Specify next point or type Close.");draw();commandInput.value="";return;} setCommandError("Invalid point. Use X,Y or @ΔX,ΔY.");
  }
  if(mode==="circle"){
   const p=parseCadPoint(rawText,null);
@@ -2002,7 +2003,7 @@ function runCadCommand(raw){
  else if(q==="QUA"){snapModes.quadrant=!snapModes.quadrant;setStatus("OSNAP Quadrant "+(snapModes.quadrant?"ON":"OFF"));}
  else if(q==="TAN"){snapModes.tangent=!snapModes.tangent;setStatus("OSNAP Tangent "+(snapModes.tangent?"ON":"OFF"));}
  else if(q==="ESC"){commandState=null;setMode("select");selectedSet.clear();selected=-1;snapInfo={point:null,type:""};distVisual={p1:null,p2:null};$("dynamicInput")?.classList.remove("active");draw();setStatus("Command: *Cancel*");}
- else {setStatus("Unknown command: "+raw);}
+ else {setCommandError("Unknown command: "+raw);}
  commandInput.value="";
 }
 function finishKeyboardCommand(){
