@@ -698,7 +698,12 @@ function drawVertexGrips(){
   ctx.restore();
  }
 }
+function entityStrokeColor(e){const c=e?.color;if(!c||c==="ByLayer")return null;const map={Red:"#ff4d4d",Yellow:"#ffd54a",Green:"#55d66b",Cyan:"#48d7e8",Blue:"#4d8dff",Magenta:"#e46cff",White:"#ffffff"};return map[c]||c}
 function drawEntityFast(e){
+ const entitySelected=selectedSet.has(entities.indexOf(e));
+ if(!entitySelected){const c=entityStrokeColor(e)||"#d7d7d7";ctx.strokeStyle=c;ctx.fillStyle=c;ctx.lineWidth=Number.isFinite(Number(e.lineweight))?Math.max(1,Math.min(8,Number(e.lineweight)*view.scale)):1.05;ctx.setLineDash(e.linetype==="Dashed"?[8,5]:e.linetype==="Center"?[12,4,2,4]:e.linetype==="Hidden"?[4,4]:[])}
+ else ctx.setLineDash([]);
+
  if(e.type==="XLINE"||e.type==="RAY"){drawInfiniteEntity(e);return}
  if(e.type==="LINE"){const a=worldToScreen(e.x1,e.y1),b=worldToScreen(e.x2,e.y2);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()}
  else if(e.type==="CIRCLE"){const q=worldToScreen(e.x,e.y);ctx.beginPath();ctx.arc(q[0],q[1],Math.abs(e.r*view.scale),0,Math.PI*2);ctx.stroke()}
@@ -904,7 +909,11 @@ function showEntityProperties(index){
  rows.push('<div class="entity-prop-section">General</div>');
  add("Type",e.type);
  add("Layer",'<select class="entity-layer-editor" data-entity-index="'+index+'">'+[...layers.keys()].map(n=>'<option'+(n===layerOf(e)?' selected':'')+'>'+esc(n)+"</option>").join("")+'</select>');
- add("Color",'<select class="entity-geometry-editor" data-entity-index="'+index+'" data-entity-prop="color"><option>ByLayer</option><option>Red</option><option>Yellow</option><option>Green</option><option>Cyan</option><option>Blue</option><option>Magenta</option><option>White</option></select>');add("Linetype",'<select class="entity-geometry-editor" data-entity-index="'+index+'" data-entity-prop="linetype"><option>ByLayer</option><option>Continuous</option><option>Dashed</option><option>Center</option><option>Hidden</option></select>');add("Lineweight",'<select class="entity-geometry-editor" data-entity-index="'+index+'" data-entity-prop="lineweight"><option>ByLayer</option><option>0.25</option><option>0.35</option><option>0.50</option><option>0.70</option><option>1.00</option></select>');add("Index",String(index+1));
+ const propSelect=(label,key,value,options)=>add(label,'<select class="entity-geometry-editor" data-entity-index="'+index+'" data-entity-prop="'+key+'">'+options.map(v=>'<option value="'+esc(v)+'">'+esc(v)+'</option>').join("")+'</select>');
+ propSelect("Color","color",e.color||"ByLayer",["ByLayer","Red","Yellow","Green","Cyan","Blue","Magenta","White"]);
+ propSelect("Linetype","linetype",e.linetype||"ByLayer",["ByLayer","Continuous","Dashed","Center","Hidden"]);
+ propSelect("Lineweight","lineweight",e.lineweight??"ByLayer",["ByLayer","0.25","0.35","0.50","0.70","1.00"]);
+ add("Index",String(index+1));
  rows.push('<div class="entity-prop-section">Geometry</div>');
  if(e.type==="XLINE"||e.type==="RAY"){input("Base X","x",e.x);input("Base Y","y",e.y);add("Direction","X "+fmt(e.dx)+" | Y "+fmt(e.dy));add("Length","Infinite");}
  else if(e.type==="LINE"){input("Start X","x1",e.x1);input("Start Y","y1",e.y1);input("End X","x2",e.x2);input("End Y","y2",e.y2);add("Length",fmt(entityPathLength(e)));add("Angle",(Math.atan2(e.y2-e.y1,e.x2-e.x1)*180/Math.PI).toFixed(3)+"°");}
@@ -920,7 +929,9 @@ function showEntityProperties(index){
  const b=entityBounds(e);rows.push('<div class="entity-prop-section">Extents</div>');if(b){add("Min X",fmt(b.minX));add("Min Y",fmt(b.minY));add("Max X",fmt(b.maxX));add("Max Y",fmt(b.maxY));}else add("Bounds","—");
  rows.push('<div class="entity-prop-note">Geometry fields are editable. Changes are applied immediately and remain synchronized with grips.</div>');
  $("entityPropertiesTitle").textContent="Properties — "+e.type+" ["+(index+1)+"]";
- $("entityPropertiesBody").innerHTML='<div class="layer-prop-grid">'+rows.join("")+'</div>';
+ $("entityPropertiesBody").innerHTML='<div class="layer-prop-grid">'+rows.join("")+'</div>'; const colorEditor=$("entityPropertiesBody").querySelector('[data-entity-prop="color"]');if(colorEditor)colorEditor.value=e.color||"ByLayer";
+ const linetypeEditor=$("entityPropertiesBody").querySelector('[data-entity-prop="linetype"]');if(linetypeEditor)linetypeEditor.value=e.linetype||"ByLayer";
+ const lineweightEditor=$("entityPropertiesBody").querySelector('[data-entity-prop="lineweight"]');if(lineweightEditor)lineweightEditor.value=e.lineweight??"ByLayer";
  $("entityProperties").classList.add("open");$("entityPropertiesBody").scrollTop=0;
  const layerEditor=$("entityPropertiesBody").querySelector(".entity-layer-editor");
  if(layerEditor)layerEditor.onchange=ev=>{const idx=Number(ev.target.dataset.entityIndex),name=ev.target.value;if(!entities[idx])return;saveHistory();entities[idx].layer=name;rebuildLayers();draw();showEntityProperties(idx);setStatus("Layer changed to "+name)};
@@ -929,6 +940,8 @@ function showEntityProperties(index){
    const idx=Number(ev.target.dataset.entityIndex),key=ev.target.dataset.entityProp,ge=entities[idx];if(!ge)return;
    saveHistory();
    if(key==="closed"){ge.closed=!!ev.target.checked}
+   else if(key==="color"||key==="linetype"){ge[key]=ev.target.value}
+   else if(key==="lineweight"){if(ev.target.value==="ByLayer")delete ge.lineweight;else ge.lineweight=Number(ev.target.value)}
    else{
     const v=Number(ev.target.value);if(!Number.isFinite(v)){showEntityProperties(idx);return}
     if(["r","rx","ry","sx","sy","height"].includes(key)){if(v<=0){showEntityProperties(idx);setStatus("Property value must be greater than zero.");return}ge[key]=Math.abs(v)}
