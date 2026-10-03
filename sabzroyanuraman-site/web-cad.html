@@ -384,7 +384,7 @@ function setMode(m){
 }
 function clearCommandVisuals(){drawPoints=[];previewPoint=null;selectionBox=null;snapInfo={point:null,type:""};distVisual={p1:null,p2:null};$("dynamicInput")?.classList.remove("active");}
 function cancelActiveCommand(message){commandState=null;clearCommandVisuals();selectedSet.clear();selected=-1;setMode("select");draw();setStatus(message||"Command: *Cancel*");}
-function isCadCommandToken(q){return /^(LINE|L|PLINE|PL|CIRCLE|C|POINT|PO|RECTANG|REC|ARC|HATCH|TEXT|DTEXT|MTEXT|DIMLINEAR|DLI|DIMALIGNED|DAL|XLINE|XL|RAY|ERASE|E|MOVE|M|COPY|CO|OFFSET|O|TRIM|TR|EXTEND|EX|LENGTHEN|LEN|CUTPOLYGON|CUTPOLY|CP|EXPLODE|X|ROTATE|RO|BREAK|BR|AREA|AA|ID|LIST|LI|QSELECT|QS|STRETCH|S|JOIN|J|PEDIT|PE|MATCHPROP|MA|MIRROR|MI|SCALE|SC|FILLET|F|CHAMFER|CHA|PURGE|PU|AUDIT|UNITS|UN|DSETTINGS|DS|UCS|DIST|DI|DISTANCE|DIVIDE|DIV|MEASURE|ME|ZOOM|Z|GRID|G|OSNAP|F3|POLAR|F10|ESC)$/.test(q);}
+function isCadCommandToken(q){return /^(LINE|L|PLINE|PL|CIRCLE|C|POINT|PO|RECTANG|REC|ARC|HATCH|TEXT|DTEXT|MTEXT|DIMLINEAR|DLI|DIMALIGNED|DAL|XLINE|XL|RAY|ERASE|E|MOVE|M|COPY|CO|OFFSET|O|TRIM|TR|EXTEND|EX|LENGTHEN|LEN|CUTPOLYGON|CUTPOLY|CP|EXPLODE|X|ROTATE|RO|BREAK|BR|AREA|AA|ID|LIST|LI|QSELECT|QS|STRETCH|S|JOIN|J|PEDIT|PE|MATCHPROP|MA|MIRROR|MI|SCALE|SC|FILLET|F|CHAMFER|CHA|UNDO|U|PURGE|PU|AUDIT|UNITS|UN|DSETTINGS|DS|UCS|DIST|DI|DISTANCE|DIVIDE|DIV|MEASURE|ME|ZOOM|Z|GRID|G|OSNAP|F3|POLAR|F10|ESC)$/.test(q);}
 function interruptForNewCommand(raw){const q=String(raw||"").trim().toUpperCase();if(!q||q==="ESC")return;if(commandState&&q!==String(commandState.cmd||"").toUpperCase()&&isCadCommandToken(q))cancelActiveCommand("Command: "+q);}
 function worldToScreen(x,y){const w=canvas.clientWidth,h=canvas.clientHeight;return [w/2+(x-view.cx)*view.scale,h/2-(y-view.cy)*view.scale]}
 function screenToWorld(sx,sy){const w=canvas.clientWidth,h=canvas.clientHeight;return [(sx-w/2)/view.scale+view.cx,(h/2-sy)/view.scale+view.cy]}
@@ -1977,6 +1977,7 @@ function runCadCommand(raw){
  else if(q==="SCALE"||q==="SC"){runTransformCommand("SCALE");}
  else if(q==="FILLET"||q==="F"){runFilletChamfer("FILLET");}
  else if(q==="CHAMFER"||q==="CHA"){runFilletChamfer("CHAMFER");}
+ else if(q==="UNDO"||q==="U"){undo();}
  else if(q==="PURGE"||q==="PU"){runPurgeCommand();}
  else if(q==="AUDIT"){runAuditCommand();}
  else if(q==="UNITS"||q==="UN"){runSettingsCommand("UNITS");}
