@@ -1172,6 +1172,16 @@ function commandClick(p){
   return false;
  }
  const s=commandState;
+ if(s.cmd==="MATCHPROP"&&s.step==="source"){
+  const hit=findNearest(p);if(hit<0||isLayerLocked(entities[hit])){setStatus("MATCHPROP — Select an unlocked source object.");return true}
+  s.source=hit;s.step="target";selectedSet.clear();selectedSet.add(hit);selected=hit;setStatus("MATCHPROP — Select target objects, or press Enter to finish:");draw();return true;
+ }
+ if(s.cmd==="MATCHPROP"&&s.step==="target"){
+  const hit=findNearest(p);if(hit<0){setStatus("MATCHPROP — Select a target object.");return true}
+  if(hit===s.source){setStatus("MATCHPROP — Source cannot be target.");return true}
+  if(isLayerLocked(entities[hit])){setStatus("MATCHPROP — Target is on a locked layer.");return true}
+  saveHistory();applyEntityProperties(entities[s.source],entities[hit]);s.changed=true;selectedSet.clear();selectedSet.add(hit);selected=hit;rebuildLayers();draw();setStatus("MATCHPROP — Properties matched. Select another target or press Enter.");return true;
+ }
  if(s.cmd==="CUTPOLYGON"&&s.step==="select"){
   const hit=findNearest(p),e=hit>=0?entities[hit]:null;
   if(hit<0||!e||!e.pts||!e.closed||e.pts.length<3){setStatus("CUT POLYGON — Select a closed polygon/polyline.");return true}
