@@ -555,7 +555,7 @@ function drawSnapMarker(){
  else if(snapInfo.type==="Quadrant"){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.stroke();ctx.fillRect(x-1,y-1,2,2)}
  else if(snapInfo.type==="Tangent"){ctx.beginPath();ctx.moveTo(x-r,y+r);ctx.lineTo(x+r,y-r);ctx.stroke()}
  else if(snapInfo.type==="Grid"){ctx.beginPath();ctx.moveTo(x-r,y);ctx.lineTo(x+r,y);ctx.moveTo(x,y-r);ctx.lineTo(x,y+r);ctx.stroke()}
- ctx.font="9px Tahoma";ctx.textAlign="left";ctx.fillText(snapInfo.type,x+r+3,y-5);ctx.restore();
+ ctx.font="bold 9px Tahoma";ctx.textAlign="left";ctx.textBaseline="middle";ctx.fillStyle="rgba(25,25,25,.92)";ctx.strokeStyle="rgba(255,213,74,.7)";ctx.lineWidth=1;const lw=ctx.measureText(snapInfo.type).width+8;ctx.fillRect(x+r+5,y-8,lw,16);ctx.strokeRect(x+r+5,y-8,lw,16);ctx.fillStyle="#ffd54a";ctx.fillText(snapInfo.type,x+r+9,y);ctx.restore();
 }
 function layerOf(e){return e.layer||"0"}
 function rebuildLayers(){const old=layers;layers=new Map();for(const e of entities){const n=layerOf(e);if(!layers.has(n)){const prev=old.get(n);layers.set(n,{visible:prev?prev.visible:true,count:0})}layers.get(n).count++}renderLayers();if(!layers.has(activeLayer)){activeLayer=layers.keys().next().value||"0"}$("activeLayerInfo").textContent="Current layer: "+activeLayer}
