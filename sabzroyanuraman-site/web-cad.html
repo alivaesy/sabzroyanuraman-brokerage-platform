@@ -1132,6 +1132,40 @@ function runExplodeCommand(){
 }
 function blockClone(e){return JSON.parse(JSON.stringify(e))}
 function createBlockDefinition(name,base,ids){const members=ids.map(i=>blockClone(entities[i])).filter(Boolean);members.forEach(m=>{if(m.x!==undefined){m.x-=base[0];m.y-=base[1]}if(m.x1!==undefined){m.x1-=base[0];m.y1-=base[1]}if(m.x2!==undefined){m.x2-=base[0];m.y2-=base[1]}if(m.pts)m.pts=m.pts.map(p=>[p[0]-base[0],p[1]-base[1]])});blockDefinitions[name]={name:name,base:[0,0],members:members}}
+function blockDefinitionNames(){return Object.keys(blockDefinitions).sort((a,b)=>a.localeCompare(b));}
+function runBlockRenameCommand(){
+ const names=blockDefinitionNames();if(!names.length){setStatus("BREN — No block definitions.");return}
+ const old=(prompt("BREN — Block name:\n"+names.join(", "),names[0])||"").trim();if(!old||!blockDefinitions[old]){setStatus("BREN — Block not found.");return}
+ const next=(prompt("BREN — New block name:",old)||"").trim();if(!next||next===old)return;
+ if(blockDefinitions[next]){setStatus("BREN — Name already exists.");return}
+ blockDefinitions[next]=blockDefinitions[old];blockDefinitions[next].name=next;delete blockDefinitions[old];
+ entities.forEach(e=>{if(e.type==="BLOCK"&&e.name===old)e.name=next});
+ draw();setStatus("BREN — Renamed "+old+" to "+next);
+}
+function runBlockDeleteCommand(){
+ const names=blockDefinitionNames();if(!names.length){setStatus("BDEL — No block definitions.");return}
+ const name=(prompt("BDEL — Block name:\n"+names.join(", "),names[0])||"").trim();if(!name||!blockDefinitions[name]){setStatus("BDEL — Block not found.");return}
+ const refs=entities.filter(e=>e.type==="BLOCK"&&e.name===name).length;
+ if(refs){setStatus("BDEL — Cannot delete "+name+"; "+refs+" reference(s) still exist.");return}
+ delete blockDefinitions[name];setStatus("BDEL — Definition deleted: "+name);
+}
+function runBlockRedefineCommand(){
+ const names=blockDefinitionNames();if(!names.length){setStatus("BRED — No block definitions.");return}
+ const name=(prompt("BRED — Definition to replace:\n"+names.join(", "),names[0])||"").trim();if(!name||!blockDefinitions[name]){setStatus("BRED — Block not found.");return}
+ const ids=selectedIndices().filter(i=>entities[i]&&entities[i].type!=="BLOCK"&&!isLayerLocked(entities[i]));
+ if(!ids.length){setMode("select");commandState={cmd:"BRED",step:"select",name:name};setStatus("BRED — Select source objects:");return}
+ const base=parseCadPoint(prompt("BRED — Base point X,Y:","0,0"),null);if(!base){setStatus("BRED — Invalid base point.");return}
+ saveHistory();createBlockDefinition(name,base,ids);entities=entities.filter((_,j)=>!ids.includes(j));selectedSet.clear();selected=-1;rebuildLayers();draw();setStatus("BRED — Definition redefined: "+name);
+}
+function runBlockManagerCommand(){
+ const names=blockDefinitionNames();if(!names.length){setStatus("BMANAGER — No block definitions.");return}
+ const lines=names.map(n=>n+" — "+(blockDefinitions[n].members?.length||0)+" member(s), "+entities.filter(e=>e.type==="BLOCK"&&e.name===n).length+" reference(s)");
+ const action=(prompt("BLOCK MANAGER\n"+lines.join("\n")+"\n\nAction: RENAME / DELETE / REDEFINE / CANCEL","CANCEL")||"").trim().toUpperCase();
+ if(action==="RENAME"||action==="R")return runBlockRenameCommand();
+ if(action==="DELETE"||action==="D")return runBlockDeleteCommand();
+ if(action==="REDEFINE"||action==="RED"||action==="E")return runBlockRedefineCommand();
+ setStatus("BMANAGER — Canceled");
+}
 function runBlockCommand(){const ids=selectedIndices().filter(i=>entities[i]&&!isLayerLocked(entities[i]));if(!ids.length){setStatus("BLOCK — Select source objects first.");return}const name=(prompt("BLOCK — Name:","Block1")||"").trim();if(!name)return;const base=parseCadPoint(prompt("BLOCK — Base point X,Y:","0,0"),null);if(!base){setStatus("BLOCK — Invalid base point.");return}saveHistory();createBlockDefinition(name,base,ids);const ref={type:"BLOCK",layer:activeLayer,name:name,x:base[0],y:base[1],sx:1,sy:1,rotation:0};entities=entities.filter((_,j)=>!ids.includes(j));entities.push(ref);selectedSet.clear();selectedSet.add(entities.length-1);selected=entities.length-1;rebuildLayers();draw();setStatus("BLOCK created: "+name)}
 function runInsertCommand(){const names=Object.keys(blockDefinitions);if(!names.length){setStatus("INSERT — No block definitions.");return}const name=(prompt("INSERT — Block name:\n"+names.join(", "),names[0])||"").trim();if(!blockDefinitions[name]){setStatus("INSERT — Block not found.");return}commandState={cmd:"INSERT",step:"point",name:name};setMode("select");setStatus("INSERT "+name+" — Specify insertion point:")}
 function explodeBlockReference(index){const e=entities[index],b=blockDefinitions[e&&e.name];if(!e||e.type!=="BLOCK"||!b)return false;const a=(e.rotation||0)*Math.PI/180,c=Math.cos(a),si=Math.sin(a),sx=e.sx||1,sy=e.sy||1,tr=(x,y)=>{const X=x*sx,Y=y*sy;return[e.x+X*c-Y*si,e.y+X*si+Y*c]};const out=b.members.map(m=>{const q=blockClone(m);if(q.x!==undefined&&q.y!==undefined){const p=tr(q.x,q.y);q.x=p[0];q.y=p[1]}if(q.x1!==undefined){const p=tr(q.x1,q.y1);q.x1=p[0];q.y1=p[1]}if(q.x2!==undefined){const p=tr(q.x2,q.y2);q.x2=p[0];q.y2=p[1]}if(q.pts)q.pts=q.pts.map(p=>tr(p[0],p[1]));if(q.type==="ARC"){q.a1=(q.a1||0)+(e.rotation||0);q.a2=(q.a2||0)+(e.rotation||0)}return q});if(!out.length)return false;saveHistory();entities.splice(index,1,...out);selectedSet.clear();out.forEach((_,k)=>selectedSet.add(index+k));selected=index;rebuildLayers();draw();setStatus("EXPLODE BLOCK completed");return true}
@@ -1877,7 +1911,7 @@ function runMenuAction(a){
     arc:"ARC",hatch:"HATCH",hatchedit:"HATCHEDIT",region:"REGION",text:"TEXT",mtext:"MTEXT",xline:"XLINE",ray:"RAY",
     divide:"DIVIDE",measure:"MEASURE",move:"MOVE",copy:"COPY",offset:"OFFSET",
     trim:"TRIM",extend:"EXTEND",lengthen:"LENGTHEN",explode:"EXPLODE",stretch:"STRETCH",
-    rotate:"ROTATE",break:"BREAK",join:"JOIN",pedit:"PEDIT",matchprop:"MATCHPROP",
+    rotate:"ROTATE",break:"BREAK",join:"JOIN",pedit:"PEDIT",matchprop:"MATCHPROP",bedit:"BEDIT",bmanager:"BMANAGER",brename:"BREN",bdelete:"BDEL",bredefine:"BRED",
     mirror:"MIRROR",scale:"SCALE",fillet:"FILLET",chamfer:"CHAMFER",
     closepoly:"CLOSE",editvertex:"PEDIT",cutpolygon:"CUTPOLYGON",erase:"ERASE",
     distance:"DIST",dimlinear:"DIMLINEAR",dimaligned:"DIMALIGNED",dimangular:"DIMANGULAR",dimradius:"DIMRADIUS",dimdiameter:"DIMDIAMETER",area:"AREA",
@@ -2297,6 +2331,11 @@ function runCadCommand(raw){
  else if(q==="PEDIT"||q==="PE"){runPeditCommand();}
  else if(q==="MATCHPROP"||q==="MA"){runMatchPropCommand();}
  else if(q==="BLOCK"||q==="B"){runBlockCommand();}
+ else if(q==="BEDIT"||q==="BE"){runBlockManagerCommand();}
+ else if(q==="BMANAGER"||q==="BM"){runBlockManagerCommand();}
+ else if(q==="BREN"||q==="BLOCKRENAME"){runBlockRenameCommand();}
+ else if(q==="BDEL"||q==="BLOCKDELETE"){runBlockDeleteCommand();}
+ else if(q==="BRED"||q==="BLOCKREDEFINE"){runBlockRedefineCommand();}
  else if(q==="INSERT"||q==="I"){runInsertCommand();}
  else if(q==="MIRROR"||q==="MI"){runTransformCommand("MIRROR");}
  else if(q==="SCALE"||q==="SC"){runTransformCommand("SCALE");}
