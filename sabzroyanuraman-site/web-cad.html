@@ -189,7 +189,7 @@ textarea{min-height:64px;resize:vertical}
 <div class="app">
 <div class="menu-bar" id="mainMenuBar">
   <div class="menu-wrap"><span class="menu" data-menu="file">File</span><div class="menu-dropdown"><button data-menu-action="new">New</button><button data-menu-action="open">Open</button><button data-menu-action="save">Save</button><button data-menu-action="purge">Purge</button><button data-menu-action="audit">Audit</button><button data-menu-action="fit">Zoom Extents</button></div></div>
-  <div class="menu-wrap"><span class="menu" data-menu="edit">Edit</span><div class="menu-dropdown"><button data-menu-action="undo">Undo</button><button data-menu-action="erase">Erase</button><button data-menu-action="select">Select</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="edit">Edit</span><div class="menu-dropdown"><button data-menu-action="undo">Undo</button><button data-menu-action="erase">Erase</button><button data-menu-action="select">Select</button><button data-menu-action="add">Add Selection</button><button data-menu-action="remove">Remove Selection</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="view">View</span><div class="menu-dropdown"><button data-menu-action="fit">Zoom Extents</button><button data-menu-action="grid">Grid</button><button data-menu-action="snap">SNAP</button><button data-menu-action="osnap">OSNAP</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="insert">Insert</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button><button data-menu-action="point">Point</button><button data-menu-action="rectang">Rectangle</button><button data-menu-action="text">Text</button><button data-menu-action="mtext">MText</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="format">Format</span><div class="menu-dropdown"><button data-menu-action="layerproperties">Layer Properties</button><button data-menu-action="newlayer">New Layer</button><button data-menu-action="activelayer">Current Layer</button></div></div>
@@ -380,7 +380,7 @@ function saveZoomView(){zoomHistory.push({...view});if(zoomHistory.length>30)zoo
 function zoomBy(factor,anchor){const p=anchor||[canvas.clientWidth/2,canvas.clientHeight/2],before=screenToWorld(p[0],p[1]);saveZoomView();view.scale=Math.max(.0001,Math.min(20,view.scale*factor));const after=screenToWorld(p[0],p[1]);view.cx+=before[0]-after[0];view.cy+=before[1]-after[1];draw()}
 function zoomWindow(a,b){const minX=Math.min(a[0],b[0]),maxX=Math.max(a[0],b[0]),minY=Math.min(a[1],b[1]),maxY=Math.max(a[1],b[1]),bw=Math.max(1e-9,maxX-minX),bh=Math.max(1e-9,maxY-minY);saveZoomView();view.cx=(minX+maxX)/2;view.cy=(minY+maxY)/2;view.scale=Math.max(.0001,Math.min(20,Math.min((canvas.clientWidth-40)/bw,(canvas.clientHeight-40)/bh)));draw();setStatus("Zoom Window")}
 function zoomPrevious(){const v=zoomHistory.pop();if(!v){setStatus("Zoom Previous — No previous view");return}view={...v};draw();setStatus("Zoom Previous")}
-let drag=null,drawPoints=[],previewPoint=null,selectionBox=null,distVisual={p1:null,p2:null};let gripDrag=null;
+let drag=null,drawPoints=[],previewPoint=null,selectionBox=null,distVisual={p1:null,p2:null};let gripDrag=null;let selectionModifier=null;
 const $=id=>document.getElementById(id);
 function resize(){const r=canvas.getBoundingClientRect(),d=window.devicePixelRatio||1;canvas.width=Math.round(r.width*d);canvas.height=Math.round(r.height*d);ctx.setTransform(d,0,0,d,0,0);draw()}
 window.addEventListener("resize",resize);
@@ -392,8 +392,13 @@ function setMode(m){
   setStatus("Command: "+m);
 }
 function clearCommandVisuals(){drawPoints=[];previewPoint=null;selectionBox=null;snapInfo={point:null,type:""};distVisual={p1:null,p2:null};$("dynamicInput")?.classList.remove("active");}
-function cancelActiveCommand(message){commandState=null;clearCommandVisuals();selectedSet.clear();selected=-1;setMode("select");draw();setStatus(message||"Command: *Cancel*");}
-function isCadCommandToken(q){return /^(LINE|L|PLINE|PL|CIRCLE|C|POINT|PO|RECTANG|REC|ARC|HATCH|TEXT|DTEXT|MTEXT|DIMLINEAR|DLI|DIMALIGNED|DAL|DIMANGULAR|DAN|DIMRADIUS|DRA|DIMDIAMETER|DDI|XLINE|XL|RAY|ERASE|E|MOVE|M|COPY|CO|OFFSET|O|TRIM|TR|EXTEND|EX|LENGTHEN|LEN|CUTPOLYGON|CUTPOLY|CP|EXPLODE|X|ROTATE|RO|BREAK|BR|AREA|AA|ID|LIST|LI|QSELECT|QS|SELECTSIMILAR|SELECTSIM|SSIM|STRETCH|S|JOIN|J|PEDIT|PE|MATCHPROP|MA|MIRROR|MI|SCALE|SC|FILLET|F|CHAMFER|CHA|UNDO|U|PURGE|PU|AUDIT|UNITS|UN|DSETTINGS|DS|UCS|SPLINE|SPL|ELLIPSE|EL|DIST|DI|DISTANCE|DIVIDE|DIV|MEASURE|ME|ZOOM|Z|GRID|G|OSNAP|F3|POLAR|F10|ESC)$/.test(q);}
+function cancelActiveCommand(message){
+ if(selectionModifier){selectionModifier=null;selectionBox=null;setMode("select");draw();setStatus(message||"Selection modifier canceled");return}
+ commandState=null;clearCommandVisuals();selectedSet.clear();selected=-1;setMode("select");draw();setStatus(message||"Command: *Cancel*");
+}
+function clearSelectionModifier(){selectionModifier=null;selectionBox=null;setMode("select");draw();setStatus("Selection mode — modifier cleared");}
+function beginSelectionModifier(kind){selectionModifier=kind;commandState=null;selectionBox=null;setMode("select");setStatus(kind==="ADD"?"ADD — Select objects to add to current selection:":"REMOVE — Select objects to remove from current selection:");}
+function isCadCommandToken(q){return /^(LINE|L|PLINE|PL|CIRCLE|C|POINT|PO|RECTANG|REC|ARC|HATCH|TEXT|DTEXT|MTEXT|DIMLINEAR|DLI|DIMALIGNED|DAL|DIMANGULAR|DAN|DIMRADIUS|DRA|DIMDIAMETER|DDI|XLINE|XL|RAY|ERASE|E|MOVE|M|COPY|CO|OFFSET|O|TRIM|TR|EXTEND|EX|LENGTHEN|LEN|CUTPOLYGON|CUTPOLY|CP|EXPLODE|X|ROTATE|RO|BREAK|BR|AREA|AA|ID|LIST|LI|QSELECT|QS|SELECTSIMILAR|SELECTSIM|SSIM|ADD|REMOVE|REMOVESELECT|STRETCH|S|JOIN|J|PEDIT|PE|MATCHPROP|MA|MIRROR|MI|SCALE|SC|FILLET|F|CHAMFER|CHA|UNDO|U|PURGE|PU|AUDIT|UNITS|UN|DSETTINGS|DS|UCS|SPLINE|SPL|ELLIPSE|EL|DIST|DI|DISTANCE|DIVIDE|DIV|MEASURE|ME|ZOOM|Z|GRID|G|OSNAP|F3|POLAR|F10|ESC)$/.test(q);}
 function interruptForNewCommand(raw){const q=String(raw||"").trim().toUpperCase();if(!q||q==="ESC")return;if(commandState&&q!==String(commandState.cmd||"").toUpperCase()&&isCadCommandToken(q))cancelActiveCommand("Command: "+q);}
 function worldToScreen(x,y){const w=canvas.clientWidth,h=canvas.clientHeight;return [w/2+(x-view.cx)*view.scale,h/2-(y-view.cy)*view.scale]}
 function screenToWorld(sx,sy){const w=canvas.clientWidth,h=canvas.clientHeight;return [(sx-w/2)/view.scale+view.cx,(h/2-sy)/view.scale+view.cy]}
@@ -805,7 +810,7 @@ if(e.button===1){drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy};e.preventD
  else if(mode==="point"){saveHistory();entities.push({type:"POINT",layer:activeLayer,x:p[0],y:p[1],r:0});rebuildLayers();draw();setStatus("POINT completed")}
  else if(mode==="polyline"){const nearStart=drawPoints.length>=3&&Math.hypot(p[0]-drawPoints[0][0],p[1]-drawPoints[0][1])<=Math.max(12/view.scale,18/view.scale);if(nearStart||e.detail===2){if(drawPoints.length>=2){saveHistory();const pts=drawPoints.slice();const closeIt=pts.length>=3&&nearStart;entities.push({type:"LWPOLYLINE",layer:activeLayer,pts,closed:closeIt});}drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus(nearStart?"PLINE closed — first vertex snapped":"PLINE completed")}else{drawPoints.push(p);draw()}}
  else {
-  if(mode==="select"){selectionBox={x1:p[0],y1:p[1],x2:p[0],y2:p[1],crossing:false,add:e.ctrlKey};draw();return}
+  if(mode==="select"){const modifier=selectionModifier||(e.ctrlKey?"ADD":null);selectionBox={x1:p[0],y1:p[1],x2:p[0],y2:p[1],crossing:false,modifier};draw();return}
   const hit=findNearest(p);
   if(e.ctrlKey&&hit>=0){selectedSet.has(hit)?selectedSet.delete(hit):selectedSet.add(hit);selected=hit}
   else {selectedSet.clear();if(hit>=0)selectedSet.add(hit);selected=hit}
@@ -814,7 +819,7 @@ if(e.button===1){drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy};e.preventD
 });
 canvas.addEventListener("mouseup",e=>{
  if(gripDrag){const gi=gripDrag.index;gripDrag=null;rebuildLayers();draw();setStatus("PEDIT — Vertex edit completed");e.preventDefault();return;}
-if(selectionBox&&mode==="select"){const clickTol=8/view.scale;if(Math.hypot(selectionBox.x2-selectionBox.x1,selectionBox.y2-selectionBox.y1)<=clickTol){const raw=screenToWorld(e.clientX-canvas.getBoundingClientRect().left,e.clientY-canvas.getBoundingClientRect().top),p=snapPoint(raw),hitOne=findNearest(p);if(!selectionBox.add)selectedSet.clear();if(hitOne>=0){if(e.ctrlKey)selectedSet.has(hitOne)?selectedSet.delete(hitOne):selectedSet.add(hitOne);else selectedSet.add(hitOne);selected=hitOne}else if(!selectionBox.add)selected=-1;selectionBox=null;setStatus(selectedSet.size?selectedSet.size+" object(s) selected.":"Select objects:");draw();drag=null;return;}const b=selectionBox;const x1=Math.min(b.x1,b.x2),x2=Math.max(b.x1,b.x2),y1=Math.min(b.y1,b.y2),y2=Math.max(b.y1,b.y2);const hit=[];const pointInBox=(p)=>p[0]>=x1&&p[0]<=x2&&p[1]>=y1&&p[1]<=y2;const segBoxHit=(a,b)=>{if(pointInBox(a)||pointInBox(b))return true;const edges=[[[x1,y1],[x2,y1]],[[x2,y1],[x2,y2]],[[x2,y2],[x1,y2]],[[x1,y2],[x1,y1]]];return edges.some(s=>!!lineIntersection(a,b,s[0],s[1]));};entities.forEach((ent,i)=>{if(!isLayerVisible(ent))return;let inside=false;if(ent.pts&&ent.pts.length){const verts=ent.pts,any=verts.some(pointInBox),all=verts.every(pointInBox);let crosses=false;for(let j=1;j<verts.length;j++)if(segBoxHit(verts[j-1],verts[j])){crosses=true;break}if(ent.closed&&verts.length>2&&segBoxHit(verts.at(-1),verts[0]))crosses=true;inside=b.crossing?(any||crosses):all}else{const eb=entityBounds(ent);if(!eb)return;inside=b.crossing?(eb.maxX>=x1&&eb.minX<=x2&&eb.maxY>=y1&&eb.minY<=y2):(eb.minX>=x1&&eb.maxX<=x2&&eb.minY>=y1&&eb.maxY<=y2)}if(inside)hit.push(i)});if(!b.add)selectedSet.clear();hit.forEach(i=>selectedSet.add(i));selected=hit.length?hit[hit.length-1]:(selectedSet.size?[...selectedSet].at(-1):-1);
+if(selectionBox&&mode==="select"){const clickTol=8/view.scale;if(Math.hypot(selectionBox.x2-selectionBox.x1,selectionBox.y2-selectionBox.y1)<=clickTol){const raw=screenToWorld(e.clientX-canvas.getBoundingClientRect().left,e.clientY-canvas.getBoundingClientRect().top),p=snapPoint(raw),hitOne=findNearest(p);const mod=selectionBox.modifier;if(mod==="REMOVE"){if(hitOne>=0)selectedSet.delete(hitOne);selected=selectedSet.size?[...selectedSet].at(-1):-1}else if(mod==="ADD"){if(hitOne>=0){selectedSet.add(hitOne);selected=hitOne}}else{selectedSet.clear();if(hitOne>=0)selectedSet.add(hitOne);selected=hitOne}selectionBox=null;setStatus(selectedSet.size?selectedSet.size+" object(s) selected.":"Select objects:");draw();drag=null;return;}const b=selectionBox;const x1=Math.min(b.x1,b.x2),x2=Math.max(b.x1,b.x2),y1=Math.min(b.y1,b.y2),y2=Math.max(b.y1,b.y2);const hit=[];const pointInBox=(p)=>p[0]>=x1&&p[0]<=x2&&p[1]>=y1&&p[1]<=y2;const segBoxHit=(a,b)=>{if(pointInBox(a)||pointInBox(b))return true;const edges=[[[x1,y1],[x2,y1]],[[x2,y1],[x2,y2]],[[x2,y2],[x1,y2]],[[x1,y2],[x1,y1]]];return edges.some(s=>!!lineIntersection(a,b,s[0],s[1]));};entities.forEach((ent,i)=>{if(!isLayerVisible(ent))return;let inside=false;if(ent.pts&&ent.pts.length){const verts=ent.pts,any=verts.some(pointInBox),all=verts.every(pointInBox);let crosses=false;for(let j=1;j<verts.length;j++)if(segBoxHit(verts[j-1],verts[j])){crosses=true;break}if(ent.closed&&verts.length>2&&segBoxHit(verts.at(-1),verts[0]))crosses=true;inside=b.crossing?(any||crosses):all}else{const eb=entityBounds(ent);if(!eb)return;inside=b.crossing?(eb.maxX>=x1&&eb.minX<=x2&&eb.maxY>=y1&&eb.minY<=y2):(eb.minX>=x1&&eb.maxX<=x2&&eb.minY>=y1&&eb.maxY<=y2)}if(inside)hit.push(i)});if(b.modifier==="REMOVE"){hit.forEach(i=>selectedSet.delete(i));selected=selectedSet.size?[...selectedSet].at(-1):-1}else{if(b.modifier!=="ADD")selectedSet.clear();hit.forEach(i=>selectedSet.add(i));selected=hit.length?hit[hit.length-1]:(selectedSet.size?[...selectedSet].at(-1):-1);}
  if(commandState&&commandState.cmd==="STRETCH"&&commandState.step==="select"){
   const s=commandState;s.ids=selectedIndices();s.stretchVerts=new Map();s.moveWhole=new Set();
   const inside=(q)=>q[0]>=x1&&q[0]<=x2&&q[1]>=y1&&q[1]<=y2;
@@ -1564,9 +1569,15 @@ function runQSelectCommand(){
   if(type===null)return;
   const layer=prompt("Quick Select — Layer (leave blank for any):\\n"+layerNames.join(", "),"");
   if(layer===null)return;
-  const t=type.trim().toUpperCase(),l=layer.trim();
+  const closed=prompt("Quick Select — Closed [Yes/No] (leave blank for any):","");
+  if(closed===null)return;
+  const t=type.trim().toUpperCase(),l=layer.trim(),c=closed.trim().toUpperCase();
+  if(c&&c!=="YES"&&c!=="Y"&&c!=="NO"&&c!=="N"){setStatus("QSELECT — Closed filter must be Yes, No, or blank.");return}
   selectedSet.clear();
-  entities.forEach((e,i)=>{if((!t||e.type===t)&&(!l||(e.layer||"0")===l)&&isLayerVisible(e))selectedSet.add(i)});
+  entities.forEach((e,i)=>{
+    const closedMatch=!c||(["YES","Y"].includes(c)&&!!e.closed)||(["NO","N"].includes(c)&&e.closed===false);
+    if((!t||e.type===t)&&(!l||(e.layer||"0")===l)&&closedMatch&&isLayerVisible(e))selectedSet.add(i);
+  });
   selected=selectedSet.size?[...selectedSet][0]:-1;
   draw();
   setStatus("QSELECT — "+selectedSet.size+" object(s) selected.");
@@ -1777,6 +1788,8 @@ function runMenuAction(a){
   if(a==="newlayer")return $("newLayerBtn").click();
   if(a==="activelayer")return $("activeLayerBtn").click();
   if(a==="select")return cancelActiveCommand("Command: select");
+  if(a==="add")return runCadCommand("ADD");
+  if(a==="remove")return runCadCommand("REMOVE");
   if(a==="model"||a==="layout1"||a==="layout2"){document.querySelectorAll(".view-tab").forEach(x=>x.classList.toggle("active",x.textContent.trim().toLowerCase()===a));return setStatus(a==="model"?"Model":"Layout active")}
   if(a==="help")return setStatus("L=LINE | PL=PLINE | C=CIRCLE | P=POINT | M=MOVE | CO=COPY | O=OFFSET | TR=TRIM | EX=EXTEND | RO=ROTATE | BR=BREAK | DIV=DIVIDE | ME=MEASURE | DI=DIST | AA=AREA | ID=ID | LI=LIST | QS=QSELECT | REC=RECTANG | J=JOIN | PE=PEDIT | MA=MATCHPROP | MI=MIRROR | SC=SCALE | F=FILLET | CHA=CHAMFER | PU=PURGE | AUDIT | UN=UNITS | DS=DSETTINGS | UCS | E=ERASE | Z=ZOOM | G=GRID | F3=OSNAP | Esc=CANCEL");
   if(a==="about")return setStatus("Web CAD — extended base version");
@@ -2164,6 +2177,8 @@ function runCadCommand(raw){
  else if(q==="ID"){runIdCommand();}
  else if(q==="LIST"||q==="LI"){runListCommand();}
  else if(q==="QSELECT"||q==="QS"){runQSelectCommand();}
+ else if(q==="ADD"){beginSelectionModifier("ADD");}
+ else if(q==="REMOVE"||q==="REMOVESELECT"){beginSelectionModifier("REMOVE");}
  else if(commandState&&commandState.cmd==="RECTANG"&&commandState.step==="second"&&(q==="D"||q==="DIMENSIONS")){finishRectangByDimensions();}
  else if(commandState&&commandState.cmd==="RECTANG"&&commandState.step==="second"&&(q==="A"||q==="AREA")){finishRectangByArea();}
  else if(q==="RECTANG"||q==="REC"){runRectangCommand();}
