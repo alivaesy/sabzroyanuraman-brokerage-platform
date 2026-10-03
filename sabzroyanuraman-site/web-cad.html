@@ -731,6 +731,7 @@ function parseDXF(text){
  const num=v=>Number(v),props=a=>{const m=new Map();for(const [c,v] of a)if(!m.has(c))m.set(c,v);return m},take=(a,p)=>{const type=a[p][1].toUpperCase(),d=[];let j=p+1;while(j<a.length&&a[j][0]!=="0"){d.push(a[j]);j++}return{type,data:d,next:j}};
  const simple=(type,d)=>{const m=props(d),n=num,layer=m.get("8")||"0";
   if(type==="LINE"&&m.has("10")&&m.has("20")&&m.has("11")&&m.has("21"))return{type:"LINE",layer,x1:n(m.get("10")),y1:n(m.get("20")),x2:n(m.get("11")),y2:n(m.get("21"))};
+  if((type==="XLINE"||type==="RAY")&&m.has("10")&&m.has("20")&&m.has("11")&&m.has("21")){const dx=n(m.get("11"))-n(m.get("10")),dy=n(m.get("21"))-n(m.get("20")),L=Math.hypot(dx,dy);if(L>1e-12)return{type,layer,x:n(m.get("10")),y:n(m.get("20")),dx:dx/L,dy:dy/L};}
   if(type==="CIRCLE"&&m.has("10")&&m.has("20")&&m.has("40"))return{type:"CIRCLE",layer,x:n(m.get("10")),y:n(m.get("20")),r:Math.abs(n(m.get("40")))};
   if(type==="ARC"&&m.has("10")&&m.has("20")&&m.has("40"))return{type:"ARC",layer,x:n(m.get("10")),y:n(m.get("20")),r:Math.abs(n(m.get("40"))),a1:n(m.get("50")||0),a2:n(m.get("51")||360)};
   if(type==="POINT"&&m.has("10")&&m.has("20"))return{type:"POINT",layer,x:n(m.get("10")),y:n(m.get("20")),r:0};
@@ -757,6 +758,7 @@ function dxfText(){
  for(const e of entities){
   const layer=esc(e.layer||"0");
   if(e.type==="LINE")s+=`0\nLINE\n8\n${layer}\n10\n${e.x1}\n20\n${e.y1}\n11\n${e.x2}\n21\n${e.y2}\n`;
+  else if(e.type==="XLINE"||e.type==="RAY"){const typ=e.type,tx=e.x+(e.dx||0),ty=e.y+(e.dy||0);s+=`0\n${typ}\n8\n${layer}\n10\n${e.x}\n20\n${e.y}\n11\n${tx}\n21\n${ty}\n`}
   else if(e.type==="CIRCLE")s+=`0\nCIRCLE\n8\n${layer}\n10\n${e.x}\n20\n${e.y}\n40\n${e.r}\n`;
   else if(e.type==="ARC")s+=`0\nARC\n8\n${layer}\n10\n${e.x}\n20\n${e.y}\n40\n${e.r}\n50\n${e.a1||0}\n51\n${e.a2??360}\n`;
   else if(e.type==="POINT")s+=`0\nPOINT\n8\n${layer}\n10\n${e.x}\n20\n${e.y}\n`;
@@ -764,6 +766,7 @@ function dxfText(){
   else if(e.type==="LWPOLYLINE")poly(e,"LWPOLYLINE");
   else if(e.type==="POLYLINE"||e.type==="POLYLINE3D")poly(e,e.type==="POLYLINE3D"?"POLYLINE":"POLYLINE");
   else if(e.type==="ELLIPSE"){const a=e.rotation||0;s+=`0\nELLIPSE\n8\n${layer}\n10\n${e.x}\n20\n${e.y}\n11\n${e.rx*Math.cos(a)}\n21\n${e.rx*Math.sin(a)}\n40\n${e.ry/e.rx||1}\n`}
+  else if(e.type==="SPLINE"){const pts=Array.isArray(e.pts)?e.pts:[];if(pts.length>=2){const degree=Math.min(3,pts.length-1),knots=pts.length+degree+1;s+=`0\nSPLINE\n8\n${layer}\n70\n0\n71\n${degree}\n72\n${knots}\n73\n${pts.length}\n`;for(let k=0;k<knots;k++){const knot=k<degree?0:k>pts.length?pts.length-degree:k-degree;s+=`40\n${knot}\n`}for(const p of pts)s+=`10\n${p[0]}\n20\n${p[1]}\n`}}
   else if(e.type==="DIMENSION")s+=`0\nDIMENSION\n8\n${layer}\n10\n${e.tx}\n20\n${e.ty}\n13\n${e.x1}\n23\n${e.y1}\n14\n${e.x2}\n24\n${e.y2}\n1\n${esc(e.text||"")}\n`;
  }
  return s+"0\nENDSEC\n0\nEOF\n"
