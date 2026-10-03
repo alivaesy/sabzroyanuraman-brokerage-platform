@@ -1616,19 +1616,9 @@ document.querySelectorAll("[data-menu-action]").forEach(btn=>btn.addEventListene
 document.querySelectorAll("[data-snap-mode]").forEach(btn=>{btn.addEventListener("click",e=>{e.stopPropagation();const key=btn.dataset.snapMode;snapModes[key]=!snapModes[key];btn.classList.toggle("active",snapModes[key]);btn.closest(".menu-wrap")?.classList.remove("open");setStatus("OSNAP "+key+" "+(snapModes[key]?"ON":"OFF"));});});
 
 const commandInput=$("commandInput");
-function runPeditCommand(){
- const ids=selectedIndices();
- if(ids.length!==1){setStatus("PEDIT — Select one polyline.");return}
- const e=entities[ids[0]];
- if(!e||!e.pts){setStatus("PEDIT — Selected object is not a polyline.");return}
- const opt=(prompt("PEDIT options: [Open/Close/Edit/Join]","Edit")||"").trim().toUpperCase();
- if(!opt)return;
- if(opt==="C"||opt==="CLOSE"){if(e.closed){setStatus("PEDIT — Polyline is already closed.");return}saveHistory();e.closed=true;draw();setStatus("PEDIT — Polyline closed.");return}
- if(opt==="O"||opt==="OPEN"){if(!e.closed){setStatus("PEDIT — Polyline is already open.");return}saveHistory();e.closed=false;draw();setStatus("PEDIT — Polyline opened.");return}
- if(opt==="E"||opt==="EDIT"){setStatus("PEDIT — Select a vertex or midpoint grip.");return}
- if(opt==="J"||opt==="JOIN"){runJoinCommand();return}
- setStatus("PEDIT — Unknown option.");
-}
+function peditDeleteVertex(index,vertexNo){const e=entities[index];if(!e||!e.pts)return false;const n=Math.trunc(Number(vertexNo));if(!Number.isFinite(n)||n<1||n>e.pts.length||e.pts.length<=2){setStatus("PEDIT — Invalid vertex or minimum vertex count reached.");return false}saveHistory();e.pts.splice(n-1,1);if(e.closed&&e.pts.length<3)e.closed=false;rebuildLayers();draw();setStatus("PEDIT — Vertex "+n+" deleted.");return true}
+function peditInsertVertex(index,segmentNo){const e=entities[index];if(!e||!e.pts||e.pts.length<2)return false;const n=Math.trunc(Number(segmentNo));if(!Number.isFinite(n)||n<1||n>e.pts.length){setStatus("PEDIT — Invalid segment number.");return false}const a=e.pts[n-1],b=e.pts[n%e.pts.length],p=[(a[0]+b[0])/2,(a[1]+b[1])/2];saveHistory();e.pts.splice(n,0,p);rebuildLayers();draw();setStatus("PEDIT — Vertex inserted at segment "+n+".");return true}
+function runPeditCommand(){const ids=selectedIndices();if(ids.length!==1){setStatus("PEDIT — Select one polyline.");return}const e=entities[ids[0]];if(!e||!e.pts){setStatus("PEDIT — Selected object is not a polyline.");return}const opt=(prompt("PEDIT options: [Open/Close/Edit/Join/Insert/Delete]","Edit")||"").trim().toUpperCase();if(!opt)return;if(opt==="C"||opt==="CLOSE"){if(e.closed){setStatus("PEDIT — Polyline is already closed.");return}saveHistory();e.closed=true;rebuildLayers();draw();setStatus("PEDIT — Polyline closed.");return}if(opt==="O"||opt==="OPEN"){if(!e.closed){setStatus("PEDIT — Polyline is already open.");return}saveHistory();e.closed=false;rebuildLayers();draw();setStatus("PEDIT — Polyline opened.");return}if(opt==="E"||opt==="EDIT"){setStatus("PEDIT — Drag vertex grip to move; drag midpoint grip to insert.");return}if(opt==="I"||opt==="INSERT"){const n=prompt("PEDIT — Segment number:","1");if(n!==null)peditInsertVertex(ids[0],n);return}if(opt==="D"||opt==="DELETE"){const n=prompt("PEDIT — Vertex number:","1");if(n!==null)peditDeleteVertex(ids[0],n);return}if(opt==="J"||opt==="JOIN"){runJoinCommand();return}setStatus("PEDIT — Unknown option.");}
 function applyEntityProperties(source,target){
  if(!source||!target)return;
  if(source.layer)target.layer=source.layer;
