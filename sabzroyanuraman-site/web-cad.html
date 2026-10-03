@@ -193,7 +193,7 @@ textarea{min-height:64px;resize:vertical}
   <div class="menu-wrap"><span class="menu" data-menu="view">View</span><div class="menu-dropdown"><button data-menu-action="fit">Zoom Extents</button><button data-menu-action="grid">Grid</button><button data-menu-action="snap">SNAP</button><button data-menu-action="osnap">OSNAP</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="insert">Insert</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button><button data-menu-action="point">Point</button><button data-menu-action="rectang">Rectangle</button><button data-menu-action="text">Text</button><button data-menu-action="mtext">MText</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="format">Format</span><div class="menu-dropdown"><button data-menu-action="layerproperties">Layer Properties</button><button data-menu-action="newlayer">New Layer</button><button data-menu-action="activelayer">Current Layer</button></div></div>
-  <div class="menu-wrap"><span class="menu" data-menu="tools">Tools</span><div class="menu-dropdown"><button data-menu-action="snap">Grid SNAP</button><button data-menu-action="osnap">Object OSNAP</button><button data-snap-mode="endpoint">OSNAP Endpoint</button><button data-snap-mode="midpoint">OSNAP Midpoint</button><button data-snap-mode="center">OSNAP Center</button><button data-snap-mode="intersection">OSNAP Intersection</button><button data-snap-mode="nearest">OSNAP Nearest</button><button data-snap-mode="perpendicular">OSNAP Perpendicular</button><button data-snap-mode="quadrant">OSNAP Quadrant</button><button data-snap-mode="tangent">OSNAP Tangent</button><button data-menu-action="distance">Distance (DIST)</button><button data-menu-action="dimlinear">Linear Dimension</button><button data-menu-action="dimaligned">Aligned Dimension</button><button data-menu-action="dimangular">Angular Dimension</button><button data-menu-action="dimradius">Radius Dimension</button><button data-menu-action="dimdiameter">Diameter Dimension</button><button data-menu-action="area">Area</button><button data-menu-action="id">ID</button><button data-menu-action="list">List</button><button data-menu-action="qselect">Quick Select</button><button data-menu-action="selectsimilar">Select Similar</button><button data-menu-action="units">Units</button><button data-menu-action="dsettings">Drafting Settings</button><button data-menu-action="ucs">UCS</button></div></div>
+  <div class="menu-wrap"><span class="menu" data-menu="tools">Tools</span><div class="menu-dropdown"><button data-menu-action="snap">Grid SNAP</button><button data-menu-action="osnap">Object OSNAP</button><button data-snap-mode="endpoint">OSNAP Endpoint</button><button data-snap-mode="midpoint">OSNAP Midpoint</button><button data-snap-mode="center">OSNAP Center</button><button data-snap-mode="intersection">OSNAP Intersection</button><button data-snap-mode="nearest">OSNAP Nearest</button><button data-snap-mode="perpendicular">OSNAP Perpendicular</button><button data-snap-mode="quadrant">OSNAP Quadrant</button><button data-snap-mode="tangent">OSNAP Tangent</button><button data-menu-action="tracking">Object Tracking (F11)</button><button data-menu-action="distance">Distance (DIST)</button><button data-menu-action="dimlinear">Linear Dimension</button><button data-menu-action="dimaligned">Aligned Dimension</button><button data-menu-action="dimangular">Angular Dimension</button><button data-menu-action="dimradius">Radius Dimension</button><button data-menu-action="dimdiameter">Diameter Dimension</button><button data-menu-action="area">Area</button><button data-menu-action="id">ID</button><button data-menu-action="list">List</button><button data-menu-action="qselect">Quick Select</button><button data-menu-action="selectsimilar">Select Similar</button><button data-menu-action="units">Units</button><button data-menu-action="dsettings">Drafting Settings</button><button data-menu-action="ucs">UCS</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="draw">Draw</span><div class="menu-dropdown"><button data-menu-action="line">Line</button><button data-menu-action="polyline">Polyline</button><button data-menu-action="circle">Circle</button><button data-menu-action="arc">Arc</button><button data-menu-action="point">Point</button><button data-menu-action="rectang">Rectangle</button><button data-menu-action="hatch">Hatch</button><button data-menu-action="xline">Construction Line (XLINE)</button><button data-menu-action="ray">Ray (RAY)</button><button data-menu-action="divide">Divide</button><button data-menu-action="measure">Measure</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="modify">Modify</span><div class="menu-dropdown"><button data-menu-action="move">Move</button><button data-menu-action="copy">Copy</button><button data-menu-action="offset">Offset</button><button data-menu-action="trim">Trim</button><button data-menu-action="extend">Extend</button><button data-menu-action="lengthen">Lengthen</button><button data-menu-action="explode">Explode</button><button data-menu-action="stretch">Stretch</button><button data-menu-action="rotate">Rotate</button><button data-menu-action="break">Break</button><button data-menu-action="join">Join</button><button data-menu-action="pedit">PEDIT</button><button data-menu-action="matchprop">Match Properties</button><button data-menu-action="mirror">Mirror</button><button data-menu-action="scale">Scale</button><button data-menu-action="fillet">Fillet</button><button data-menu-action="chamfer">Chamfer</button><button data-menu-action="closepoly">Close Polyline</button><button data-menu-action="editvertex">Edit Vertex</button><button data-menu-action="cutpolygon">CUT POLYGON</button><button data-menu-action="erase">Erase</button></div></div>
   <div class="menu-wrap"><span class="menu" data-menu="window">Window</span><div class="menu-dropdown"><button data-menu-action="model">Model</button><button data-menu-action="layout1">Layout1</button><button data-menu-action="layout2">Layout2</button></div></div>
@@ -365,7 +365,7 @@ const canvas=document.getElementById("cad"),ctx=canvas.getContext("2d");
 let orthoEnabled=false,polarEnabled=false,polarAngleStep=45;
 let gridStep=10;
 let snapEnabled=true,gridSnapEnabled=false,snapModes={endpoint:true,midpoint:true,center:true,intersection:true,nearest:true,perpendicular:true,quadrant:true,tangent:true,grid:true};
-let snapInfo={point:null,type:""};
+let snapInfo={point:null,type:""};let objectTrackingEnabled=true;let trackingPoints=[];let trackingVisual={x:null,y:null};
 let entities=[],mode="select",grid=true,selected=-1,selectedSet=new Set(),layers=new Map(),activeLayer="0";
 let history=[],historyLimit=30;
 function saveHistory(){history.push(JSON.stringify(entities));if(history.length>historyLimit)history.shift()}
@@ -391,14 +391,14 @@ function setMode(m){
   document.querySelectorAll("[data-mode]").forEach(b=>b.classList.toggle("primary",b.dataset.mode===m));
   setStatus("Command: "+m);
 }
-function clearCommandVisuals(){drawPoints=[];previewPoint=null;selectionBox=null;snapInfo={point:null,type:""};distVisual={p1:null,p2:null};$("dynamicInput")?.classList.remove("active");}
+function clearCommandVisuals(){drawPoints=[];previewPoint=null;selectionBox=null;snapInfo={point:null,type:""};distVisual={p1:null,p2:null};trackingPoints=[];trackingVisual={x:null,y:null};$("dynamicInput")?.classList.remove("active");}
 function cancelActiveCommand(message){
  if(selectionModifier){selectionModifier=null;selectionBox=null;setMode("select");draw();setStatus(message||"Selection modifier canceled");return}
  commandState=null;clearCommandVisuals();selectedSet.clear();selected=-1;setMode("select");draw();setStatus(message||"Command: *Cancel*");
 }
 function clearSelectionModifier(){selectionModifier=null;selectionBox=null;setMode("select");draw();setStatus("Selection mode — modifier cleared");}
 function beginSelectionModifier(kind){selectionModifier=kind;commandState=null;selectionBox=null;setMode("select");setStatus(kind==="ADD"?"ADD — Select objects to add to current selection:":"REMOVE — Select objects to remove from current selection:");}
-function isCadCommandToken(q){return /^(LINE|L|PLINE|PL|CIRCLE|C|POINT|PO|RECTANG|REC|ARC|HATCH|TEXT|DTEXT|MTEXT|DIMLINEAR|DLI|DIMALIGNED|DAL|DIMANGULAR|DAN|DIMRADIUS|DRA|DIMDIAMETER|DDI|XLINE|XL|RAY|ERASE|E|MOVE|M|COPY|CO|OFFSET|O|TRIM|TR|EXTEND|EX|LENGTHEN|LEN|CUTPOLYGON|CUTPOLY|CP|EXPLODE|X|ROTATE|RO|BREAK|BR|AREA|AA|ID|LIST|LI|QSELECT|QS|SELECTSIMILAR|SELECTSIM|SSIM|ADD|REMOVE|REMOVESELECT|STRETCH|S|JOIN|J|PEDIT|PE|MATCHPROP|MA|MIRROR|MI|SCALE|SC|FILLET|F|CHAMFER|CHA|UNDO|U|PURGE|PU|AUDIT|UNITS|UN|DSETTINGS|DS|UCS|SPLINE|SPL|ELLIPSE|EL|DIST|DI|DISTANCE|DIVIDE|DIV|MEASURE|ME|ZOOM|Z|GRID|G|OSNAP|F3|POLAR|F10|ESC)$/.test(q);}
+function isCadCommandToken(q){return /^(LINE|L|PLINE|PL|CIRCLE|C|POINT|PO|RECTANG|REC|ARC|HATCH|TEXT|DTEXT|MTEXT|DIMLINEAR|DLI|DIMALIGNED|DAL|DIMANGULAR|DAN|DIMRADIUS|DRA|DIMDIAMETER|DDI|XLINE|XL|RAY|ERASE|E|MOVE|M|COPY|CO|OFFSET|O|TRIM|TR|EXTEND|EX|LENGTHEN|LEN|CUTPOLYGON|CUTPOLY|CP|EXPLODE|X|ROTATE|RO|BREAK|BR|AREA|AA|ID|LIST|LI|QSELECT|QS|SELECTSIMILAR|SELECTSIM|SSIM|ADD|REMOVE|REMOVESELECT|TRACK|F11|STRETCH|S|JOIN|J|PEDIT|PE|MATCHPROP|MA|MIRROR|MI|SCALE|SC|FILLET|F|CHAMFER|CHA|UNDO|U|PURGE|PU|AUDIT|UNITS|UN|DSETTINGS|DS|UCS|SPLINE|SPL|ELLIPSE|EL|DIST|DI|DISTANCE|DIVIDE|DIV|MEASURE|ME|ZOOM|Z|GRID|G|OSNAP|F3|POLAR|F10|ESC)$/.test(q);}
 function interruptForNewCommand(raw){const q=String(raw||"").trim().toUpperCase();if(!q||q==="ESC")return;if(commandState&&q!==String(commandState.cmd||"").toUpperCase()&&isCadCommandToken(q))cancelActiveCommand("Command: "+q);}
 function worldToScreen(x,y){const w=canvas.clientWidth,h=canvas.clientHeight;return [w/2+(x-view.cx)*view.scale,h/2-(y-view.cy)*view.scale]}
 function screenToWorld(sx,sy){const w=canvas.clientWidth,h=canvas.clientHeight;return [(sx-w/2)/view.scale+view.cx,(h/2-sy)/view.scale+view.cy]}
@@ -562,9 +562,15 @@ function snapPoint(p){
   const step=(Number.isFinite(gridStep)&&gridStep>0)?gridStep:10,gx=Math.round(p[0]/step)*step,gy=Math.round(p[1]/step)*step;
   test(gx,gy,"Grid",20);
  }
+ if(objectTrackingEnabled&&trackingPoints.length){
+  trackingVisual={x:null,y:null};const tol=10/view.scale;let tx=null,ty=null,dx=Infinity,dy=Infinity;
+  for(const a of trackingPoints){const vx=Math.abs(p[0]-a[0]),vy=Math.abs(p[1]-a[1]);if(vx<=tol&&vx<dx){dx=vx;tx=a[0]}if(vy<=tol&&vy<dy){dy=vy;ty=a[1]}}
+  if(best===null){if(tx!==null&&ty!==null){const useX=dx<=dy;best=useX?[tx,p[1]]:[p[0],ty];btype="Tracking";bp=80;trackingVisual=useX?{x:tx,y:null}:{x:null,y:ty}}else if(tx!==null){best=[tx,p[1]];btype="Tracking";bp=80;trackingVisual={x:tx,y:null}}else if(ty!==null){best=[p[0],ty];btype="Tracking";bp=80;trackingVisual={x:null,y:ty}}}
+ }
  snapInfo={point:best,type:btype};
  return best||p;
 }
+function drawTrackingGuides(){if(!objectTrackingEnabled||(trackingVisual.x===null&&trackingVisual.y===null))return;ctx.save();ctx.strokeStyle="rgba(255,213,74,.55)";ctx.lineWidth=1;ctx.setLineDash([5,5]);const h=canvas.clientHeight,w=canvas.clientWidth;if(trackingVisual.x!==null){const q=worldToScreen(trackingVisual.x,0);ctx.beginPath();ctx.moveTo(q[0],0);ctx.lineTo(q[0],h);ctx.stroke()}if(trackingVisual.y!==null){const q=worldToScreen(0,trackingVisual.y);ctx.beginPath();ctx.moveTo(0,q[1]);ctx.lineTo(w,q[1]);ctx.stroke()}ctx.restore()}
 function drawSnapMarker(){
  if(!snapInfo.point||!snapInfo.type)return;
  const s=worldToScreen(snapInfo.point[0],snapInfo.point[1]),x=s[0],y=s[1],r=7;
@@ -651,6 +657,7 @@ function draw(){
   ctx.restore();
 
  drawVertexGrips();
+ drawTrackingGuides();
  drawSnapMarker();
  if(distVisual.p1){const a=worldToScreen(distVisual.p1[0],distVisual.p1[1]),b=worldToScreen((distVisual.p2||previewPoint||distVisual.p1)[0],(distVisual.p2||previewPoint||distVisual.p1)[1]);ctx.save();ctx.strokeStyle="#ffd54a";ctx.fillStyle="#ffd54a";ctx.lineWidth=1.5;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();ctx.setLineDash([]);ctx.beginPath();ctx.arc(a[0],a[1],3,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(b[0],b[1],3,0,Math.PI*2);ctx.fill();const d=Math.hypot(b[0]-a[0],b[1]-a[1])/view.scale;const mid=[(a[0]+b[0])/2,(a[1]+b[1])/2];ctx.font="10px Tahoma,Arial,sans-serif";ctx.fillText("DIST = "+formatCadNumber(d),mid[0]+7,mid[1]-7);ctx.restore()}
  if(mode==="select"&&selectedSet.size===1)drawPolylineGrips();
@@ -798,6 +805,7 @@ canvas.addEventListener("mousedown",e=>{
   if(gh){saveHistory();if(gh.kind==="mid"){ge.pts.splice(gh.index+1,0,gh.point);gripDrag={index:gi,kind:"vertex",vertex:gh.index+1};}else gripDrag={index:gi,kind:gh.kind,vertex:gh.index};setStatus("GRIP — Drag grip to edit; release to finish");e.preventDefault();e.stopPropagation();return;}
  }
 if(e.button===1){drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy};e.preventDefault();return}if(e.button===2){e.preventDefault();e.stopPropagation();openEntityContextAt(e.clientX,e.clientY);return}if(e.button!==0)return;const r=canvas.getBoundingClientRect(),rawP=screenToWorld(e.clientX-r.left,e.clientY-r.top),p=snapPoint(rawP);
+ if(mode!=="select"&&snapInfo.point&&snapInfo.type!=="Tracking"){trackingPoints.unshift([...snapInfo.point]);trackingPoints=trackingPoints.slice(0,8)}
  if(commandClick(p))return;
  if(mode==="point"){saveHistory();entities.push({type:"POINT",layer:activeLayer,x:p[0],y:p[1],r:0});rebuildLayers();draw();setStatus("POINT completed");return}
  if(mode==="xline"||mode==="ray"){drawPoints.push(p);if(drawPoints.length===1){setStatus(mode==="xline"?"XLINE — Specify through point:":"RAY — Specify through point:")}else{saveHistory();const a=drawPoints[0],b=p,dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy);if(L>1e-9)entities.push({type:mode==="xline"?"XLINE":"RAY",layer:activeLayer,x:a[0],y:a[1],dx:dx/L,dy:dy/L});drawPoints=[];previewPoint=null;rebuildLayers();draw();setStatus((mode==="xline"?"XLINE":"RAY")+" completed");}return}
@@ -1787,6 +1795,7 @@ function runMenuAction(a){
   if(a==="layerproperties"){const name=activeLayer||layers.keys().next().value;if(name)showLayerProperties(name);return}
   if(a==="newlayer")return $("newLayerBtn").click();
   if(a==="activelayer")return $("activeLayerBtn").click();
+  if(a==="tracking")return runCadCommand("F11");
   if(a==="select")return cancelActiveCommand("Command: select");
   if(a==="add")return runCadCommand("ADD");
   if(a==="remove")return runCadCommand("REMOVE");
@@ -2209,6 +2218,7 @@ function runCadCommand(raw){
  else if(q==="G"||q==="GRID"){grid=!grid;draw();$("gridStatus").classList.toggle("active",grid);}
  else if(q==="F3"||q==="OSNAP"){snapEnabled=!snapEnabled;$("osnapStatus").classList.toggle("active",snapEnabled);snapInfo={point:null,type:""};draw();setStatus(snapEnabled?"OSNAP enabled":"OSNAP disabled");}
  else if(q==="F10"||q==="POLAR"){polarEnabled=!polarEnabled;$("polarStatus").classList.toggle("active",polarEnabled);draw();setStatus(polarEnabled?"POLAR enabled — "+polarAngleStep+"°":"POLAR disabled");}
+ else if(q==="F11"||q==="TRACK"||q==="OTRACK"){objectTrackingEnabled=!objectTrackingEnabled;trackingPoints=[];trackingVisual={x:null,y:null};setStatus(objectTrackingEnabled?"Object Tracking enabled — F11":"Object Tracking disabled — F11");draw()}
  else if(q==="END"){snapModes.endpoint=!snapModes.endpoint;setStatus("OSNAP Endpoint "+(snapModes.endpoint?"ON":"OFF"));}
  else if(q==="MID"){snapModes.midpoint=!snapModes.midpoint;setStatus("OSNAP Midpoint "+(snapModes.midpoint?"ON":"OFF"));}
  else if(q==="CEN"){snapModes.center=!snapModes.center;setStatus("OSNAP Center "+(snapModes.center?"ON":"OFF"));}
