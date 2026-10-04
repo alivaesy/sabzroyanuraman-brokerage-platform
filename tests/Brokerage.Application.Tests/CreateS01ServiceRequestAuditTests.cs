@@ -28,7 +28,7 @@ public class CreateS01ServiceRequestAuditTests
         var request = await useCase.ExecuteAsync(
             new CreateS01RequestModel
             {
-                NationalIdentifier = "TEST-123"
+                NationalIdentifier = "1234567891"
             },
             "CORRELATION-123");
 
