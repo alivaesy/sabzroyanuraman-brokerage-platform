@@ -46,17 +46,36 @@ public class CreateS01ServiceRequest
             cancellationToken);
 
         var request = new ServiceRequest(ServiceCode.S01);
-        request.SetOrganizationTrackingId(trackingId);
-        request.ChangeStatus(RequestStatus.WaitingForOrganization);
 
-        var workflowStage = _workflowService.CreateStage(
+        var identityVerificationStage = _workflowService.CreateStage(
             request,
             S01StageCode.IdentityVerification.ToString());
+        identityVerificationStage.Complete();
+
+        var organizationSubmissionStage = _workflowService.CreateStage(
+            request,
+            S01StageCode.OrganizationSubmission.ToString());
+        organizationSubmissionStage.Complete();
+
+        var organizationFollowUpStage = _workflowService.CreateStage(
+            request,
+            S01StageCode.OrganizationFollowUp.ToString());
+
+        request.SetOrganizationTrackingId(trackingId);
+        request.ChangeStatus(RequestStatus.WaitingForOrganization);
 
         if (_serviceRequestRepository is not null)
         {
             await _serviceRequestRepository.AddAsync(request, cancellationToken);
-            await _serviceRequestRepository.AddWorkflowStageAsync(workflowStage, cancellationToken);
+            await _serviceRequestRepository.AddWorkflowStageAsync(
+                identityVerificationStage,
+                cancellationToken);
+            await _serviceRequestRepository.AddWorkflowStageAsync(
+                organizationSubmissionStage,
+                cancellationToken);
+            await _serviceRequestRepository.AddWorkflowStageAsync(
+                organizationFollowUpStage,
+                cancellationToken);
             await _serviceRequestRepository.SaveChangesAsync(cancellationToken);
         }
 
