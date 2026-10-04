@@ -35,4 +35,17 @@ public class OtpServiceTests
         Assert.False(await service.VerifyAsync(challenge.ChallengeId, "000000"));
         Assert.False(await service.VerifyAsync(challenge.ChallengeId, "000000"));
     }
+
+    [Fact]
+    public async Task VerifyAsync_LocksChallengeAfterFiveFailedAttempts()
+    {
+        var service = new InMemoryOtpService();
+
+        var challenge = await service.IssueAsync("TEST-USER-001");
+
+        for (var attempt = 0; attempt < 5; attempt++)
+            Assert.False(await service.VerifyAsync(challenge.ChallengeId, "000000"));
+
+        Assert.False(await service.VerifyAsync(challenge.ChallengeId, "000000"));
+    }
 }

@@ -5,10 +5,13 @@ namespace Brokerage.Application.Authentication;
 
 public sealed class InMemoryOtpService : IOtpService
 {
+    private const int MaxAttempts = 5;
+
     private sealed record PendingChallenge(
         string Code,
         DateTimeOffset ExpiresAt,
-        string UserId);
+        string UserId,
+        int FailedAttempts);
 
     private readonly ConcurrentDictionary<string, PendingChallenge> _challenges = new();
 
@@ -25,7 +28,8 @@ public sealed class InMemoryOtpService : IOtpService
         _challenges[challengeId] = new PendingChallenge(
             code,
             expiresAt,
-            userId);
+            userId,
+            0);
 
         return Task.FromResult(new OtpChallenge(challengeId, expiresAt));
     }
@@ -37,14 +41,39 @@ public sealed class InMemoryOtpService : IOtpService
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!_challenges.TryRemove(challengeId, out var challenge))
+        if (!_challenges.TryGetValue(challengeId, out var challenge))
             return Task.FromResult(false);
 
-        var valid = challenge.ExpiresAt > DateTimeOffset.UtcNow
-            && CryptographicOperations.FixedTimeEquals(
-                System.Text.Encoding.UTF8.GetBytes(challenge.Code),
-                System.Text.Encoding.UTF8.GetBytes(code ?? string.Empty));
+        if (challenge.ExpiresAt <= DateTimeOffset.UtcNow)
+        {
+            _challenges.TryRemove(challengeId, out _);
+            return Task.FromResult(false);
+        }
 
-        return Task.FromResult(valid);
+        var valid = CryptographicOperations.FixedTimeEquals(
+            System.Text.Encoding.UTF8.GetBytes(challenge.Code),
+            System.Text.Encoding.UTF8.GetBytes(code ?? string.Empty));
+
+        if (valid)
+        {
+            _challenges.TryRemove(challengeId, out _);
+            return Task.FromResult(true);
+        }
+
+        var failedAttempts = challenge.FailedAttempts + 1;
+
+        if (failedAttempts >= MaxAttempts)
+        {
+            _challenges.TryRemove(challengeId, out _);
+        }
+        else
+        {
+            _challenges.TryUpdate(
+                challengeId,
+                challenge with { FailedAttempts = failedAttempts },
+                challenge);
+        }
+
+        return Task.FromResult(false);
     }
 }
