@@ -671,7 +671,7 @@ public class BrokerageApiTests
     }
 
     private sealed class FailingOrganizationApiClient
-        : IOrganizationApiClient
+        : IntegrationOrganizationApiClient
     {
         public Task<OrganizationApiResult> SubmitAsync(
             string serviceCode,
