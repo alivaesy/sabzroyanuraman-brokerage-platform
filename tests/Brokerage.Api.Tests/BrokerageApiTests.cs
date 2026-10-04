@@ -362,6 +362,83 @@ public class BrokerageApiTests
     }
 
     [Fact]
+    public async Task GetOrganizationStatus_WhenOrganizationApiFails_DoesNotAdvanceWorkflow()
+    {
+        await using var application =
+            new WebApplicationFactory<Program>()
+                .WithWebHostBuilder(builder =>
+                {
+                    builder.ConfigureServices(services =>
+                    {
+                        services.AddScoped<
+                            IOrganizationApiClient,
+                            FailingOrganizationStatusApiClient>();
+                    });
+                });
+
+        using var client = application.CreateClient();
+
+        var content = new StringContent(
+            """
+            {
+                "nationalIdentifier": "TEST-123"
+            }
+            """,
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        var createResponse = await client.PostAsync(
+            "/service-requests/s01",
+            content);
+
+        Assert.Equal(
+            System.Net.HttpStatusCode.OK,
+            createResponse.StatusCode);
+
+        var created =
+            await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+
+        var requestId = Guid.Parse(
+            created.GetProperty("id").GetString()!);
+
+        var statusResponse = await client.GetAsync(
+            $"/service-requests/{requestId}/organization-status");
+
+        Assert.Equal(
+            System.Net.HttpStatusCode.BadRequest,
+            statusResponse.StatusCode);
+
+        var errorResponse =
+            await statusResponse.Content.ReadFromJsonAsync<
+                Brokerage.Application.Models.ErrorResponse>();
+
+        Assert.NotNull(errorResponse);
+        Assert.Equal("BROKERAGE_ERROR", errorResponse.Code);
+        Assert.Equal(
+            "Mock organization status request failed.",
+            errorResponse.Message);
+
+        var workflowResponse = await client.GetAsync(
+            $"/service-requests/{requestId}/workflow-stages");
+
+        Assert.Equal(
+            System.Net.HttpStatusCode.OK,
+            workflowResponse.StatusCode);
+
+        var stages =
+            await workflowResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement[]>();
+
+        Assert.NotNull(stages);
+        Assert.Equal(3, stages!.Length);
+        Assert.Equal(
+            "OrganizationFollowUp",
+            stages[2].GetProperty("stageCode").GetString());
+        Assert.Equal(
+            System.Text.Json.JsonValueKind.Null,
+            stages[2].GetProperty("completedAt").ValueKind);
+    }
+
+    [Fact]
     public async Task GetOrganizationStatus_WhenTrackingIdIsMissing_ReturnsBadRequest()
     {
         await using var application = new WebApplicationFactory<Program>();
