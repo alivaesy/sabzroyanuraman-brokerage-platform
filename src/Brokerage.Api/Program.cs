@@ -7,7 +7,10 @@ using Brokerage.Application.Integration;
 using Brokerage.Infrastructure.Integration;
 using Brokerage.Infrastructure.Persistence;
 using Brokerage.Api.Middleware;
+using Brokerage.Api.Authentication;
 using Brokerage.Application.Models;
+using Brokerage.Application.Authorization;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -16,6 +19,38 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole();
 builder.Services.AddOpenApi();
+
+builder.Services.AddAuthentication(DevelopmentAuthenticationHandler.SchemeName)
+    .AddScheme<AuthenticationSchemeOptions, DevelopmentAuthenticationHandler>(
+        DevelopmentAuthenticationHandler.SchemeName,
+        _ => { });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(
+        AuthorizationPolicies.Applicant,
+        policy => policy.RequireRole(UserRole.Applicant.ToString()));
+
+    options.AddPolicy(
+        AuthorizationPolicies.Expert,
+        policy => policy.RequireRole(UserRole.Expert.ToString()));
+
+    options.AddPolicy(
+        AuthorizationPolicies.Support,
+        policy => policy.RequireRole(UserRole.Support.ToString()));
+
+    options.AddPolicy(
+        AuthorizationPolicies.TechnicalSecurity,
+        policy => policy.RequireRole(UserRole.TechnicalSecurity.ToString()));
+
+    options.AddPolicy(
+        AuthorizationPolicies.OrganizationObserver,
+        policy => policy.RequireRole(UserRole.OrganizationObserver.ToString()));
+
+    options.AddPolicy(
+        AuthorizationPolicies.Administrator,
+        policy => policy.RequireRole(UserRole.Administrator.ToString()));
+});
 
 builder.Services.AddDbContext<BrokerageDbContext>(options =>
     options.UseSqlite(
@@ -52,12 +87,31 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapGet("/", () => Results.Ok(new
 {
     service = "Brokerage.Api",
     status = "running"
 }));
+
+app.MapGet("/identity/me", (HttpContext context) =>
+{
+    var userId = context.User.FindFirst(IdentityClaims.UserId)?.Value;
+    var role = context.User.FindFirst(IdentityClaims.Role)?.Value;
+
+    return Results.Ok(new
+    {
+        userId,
+        role
+    });
+}).RequireAuthorization();
+
+app.MapGet("/identity/applicant-only", () => Results.Ok(new
+{
+    authorized = true
+})).RequireAuthorization(AuthorizationPolicies.Applicant);
 
 app.MapPost("/service-requests", (
     CreateServiceRequest useCase,
