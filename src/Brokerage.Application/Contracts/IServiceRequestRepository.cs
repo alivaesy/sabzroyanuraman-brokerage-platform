@@ -6,6 +6,7 @@ public interface IServiceRequestRepository
 {
     Task AddAsync(ServiceRequest request, CancellationToken cancellationToken = default);
     Task AddWorkflowStageAsync(WorkflowStage stage, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<WorkflowStage>> GetWorkflowStagesAsync(Guid serviceRequestId, CancellationToken cancellationToken = default);
     Task<ServiceRequest?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
