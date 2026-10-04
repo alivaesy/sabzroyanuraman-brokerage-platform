@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc.Testing;
 using System.Net.Http.Json;
 using Brokerage.Application.Integration;
+using Brokerage.Application.Contracts;
 using Brokerage.Domain.Entities;
 using Brokerage.Domain.Enums;
 using Microsoft.Extensions.DependencyInjection;
