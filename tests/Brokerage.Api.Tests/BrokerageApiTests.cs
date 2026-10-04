@@ -312,7 +312,7 @@ public class BrokerageApiTests
                     builder.ConfigureServices(services =>
                     {
                         services.AddScoped<
-                            IOrganizationApiClient,
+                            IntegrationOrganizationApiClient,
                             FailingOrganizationApiClient>();
                     });
                 });
@@ -468,7 +468,7 @@ public class BrokerageApiTests
                     builder.ConfigureServices(services =>
                     {
                         services.AddScoped<
-                            IOrganizationApiClient,
+                            IntegrationOrganizationApiClient,
                             FailingOrganizationStatusApiClient>();
                     });
                 });
