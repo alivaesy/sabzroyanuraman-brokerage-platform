@@ -160,6 +160,34 @@ app.MapGet("/service-requests/{id:guid}/organization-status", async (
         cancellationToken);
 
     request.SetOrganizationStatus(organizationStatus);
+
+    var workflowStages = await repository.GetWorkflowStagesAsync(
+        id,
+        cancellationToken);
+
+    var followUpStage = workflowStages.SingleOrDefault(stage =>
+        stage.StageCode == S01StageCode.OrganizationFollowUp.ToString());
+
+    if (followUpStage is not null && followUpStage.CompletedAt is null)
+    {
+        followUpStage.Complete();
+    }
+
+    var resultStage = workflowStages.SingleOrDefault(stage =>
+        stage.StageCode == S01StageCode.ResultNotification.ToString());
+
+    if (resultStage is null)
+    {
+        resultStage = new WorkflowStage(
+            request.Id,
+            S01StageCode.ResultNotification.ToString());
+
+        await repository.AddWorkflowStageAsync(
+            resultStage,
+            cancellationToken);
+
+        request.SetCurrentWorkflowStage(resultStage.Id);
+    }
     await repository.SaveChangesAsync(cancellationToken);
 
     return Results.Ok(new
