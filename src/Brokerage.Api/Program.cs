@@ -54,6 +54,7 @@ builder.Services.AddDbContext<BrokerageDbContext>(options =>
 builder.Services.AddScoped<IServiceRequestRepository, ServiceRequestRepository>();
 builder.Services.AddScoped<CreateServiceRequest>();
 builder.Services.AddScoped<CreateS01ServiceRequest>();
+builder.Services.AddScoped<VerifyIdentity>();
 builder.Services.AddScoped<WorkflowService>();
 builder.Services.AddScoped<IOrganizationIntegrationService, OrganizationIntegrationService>();
 builder.Services.AddScoped<OrganizationRetryPolicy>();
@@ -85,6 +86,28 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapGet("/", () => Results.Ok(new { service = "Brokerage.Api", status = "running" }));
+
+
+app.MapPost("/identity/verify", async (
+    ICurrentUser currentUser,
+    VerifyIdentityRequest request,
+    VerifyIdentity useCase,
+    HttpContext context,
+    CancellationToken cancellationToken) =>
+{
+    if (!currentUser.IsAuthenticated || string.IsNullOrWhiteSpace(currentUser.UserId))
+        return Results.Unauthorized();
+
+    var result = await useCase.ExecuteAsync(
+        currentUser.UserId,
+        request.NationalIdentifier,
+        context.TraceIdentifier,
+        cancellationToken);
+
+    return result.Verified
+        ? Results.Ok(new { verified = true })
+        : Results.BadRequest(new { verified = false });
+}).RequireAuthorization(AuthorizationPolicies.Applicant);
 
 app.MapGet("/identity/me", (ICurrentUser currentUser) =>
     Results.Ok(new { userId = currentUser.UserId, role = currentUser.Role, isMfaVerified = currentUser.IsMfaVerified }))
