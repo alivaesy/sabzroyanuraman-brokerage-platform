@@ -8,6 +8,7 @@ using Brokerage.Infrastructure.Integration;
 using Brokerage.Infrastructure.Persistence;
 using Brokerage.Api.Middleware;
 using Brokerage.Api.Authentication;
+using Brokerage.Api.Authorization;
 using Brokerage.Application.Models;
 using Brokerage.Application.Authorization;
 using Brokerage.Application.Authentication;
@@ -26,6 +27,9 @@ builder.Services.AddAuthentication(DevelopmentAuthenticationHandler.SchemeName)
         DevelopmentAuthenticationHandler.SchemeName,
         _ => { });
 
+builder.Services.AddSingleton<IMfaVerificationStore, InMemoryMfaVerificationStore>();
+builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, MfaAuthorizationHandler>();
+
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy(AuthorizationPolicies.Applicant, policy => policy.RequireRole(UserRole.Applicant.ToString()));
@@ -34,7 +38,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(AuthorizationPolicies.TechnicalSecurity, policy => policy.RequireRole(UserRole.TechnicalSecurity.ToString()));
     options.AddPolicy(AuthorizationPolicies.OrganizationObserver, policy => policy.RequireRole(UserRole.OrganizationObserver.ToString()));
     options.AddPolicy(AuthorizationPolicies.Administrator, policy => policy.RequireRole(UserRole.Administrator.ToString()));
-    options.AddPolicy(AuthorizationPolicies.MfaVerified, policy => policy.RequireClaim(IdentityClaims.MfaVerified, "true"));
+    options.AddPolicy(AuthorizationPolicies.MfaVerified, policy => policy.AddRequirements(new MfaRequirement()));
 });
 
 builder.Services.AddDbContext<BrokerageDbContext>(options =>
@@ -97,28 +101,17 @@ app.MapPost("/identity/otp/challenges", async (
 
     loggerFactory.CreateLogger("Audit").LogInformation(
         "AuditEvent {@AuditEvent}",
-        new AuditEvent(
-            Guid.NewGuid(),
-            DateTimeOffset.UtcNow,
-            "OtpChallengeIssued",
-            context.TraceIdentifier,
-            null,
-            null,
-            "Success",
-            null,
-            "Issued"));
+        new AuditEvent(Guid.NewGuid(), DateTimeOffset.UtcNow, "OtpChallengeIssued", context.TraceIdentifier,
+            null, null, "Success", null, "Issued"));
 
-    return Results.Ok(new
-    {
-        challenge.ChallengeId,
-        challenge.ExpiresAt
-    });
+    return Results.Ok(new { challenge.ChallengeId, challenge.ExpiresAt });
 }).RequireAuthorization();
 
 app.MapPost("/identity/otp/verify", async (
     HttpContext context,
     OtpVerificationRequest request,
     IOtpService otpService,
+    IMfaVerificationStore mfaVerificationStore,
     ILoggerFactory loggerFactory,
     CancellationToken cancellationToken) =>
 {
@@ -126,35 +119,26 @@ app.MapPost("/identity/otp/verify", async (
     if (string.IsNullOrWhiteSpace(userId))
         return Results.Unauthorized();
 
-    var verified = await otpService.VerifyAsync(
-        userId,
-        request.ChallengeId,
-        request.Code,
-        cancellationToken);
+    var verified = await otpService.VerifyAsync(userId, request.ChallengeId, request.Code, cancellationToken);
+
+    if (verified)
+        mfaVerificationStore.MarkVerified(userId, DateTimeOffset.UtcNow);
 
     loggerFactory.CreateLogger("Audit").LogInformation(
         "AuditEvent {@AuditEvent}",
-        new AuditEvent(
-            Guid.NewGuid(),
-            DateTimeOffset.UtcNow,
-            "OtpVerification",
-            context.TraceIdentifier,
-            null,
-            null,
-            verified ? "Success" : "Failure",
-            null,
-            verified ? "Verified" : "Rejected"));
+        new AuditEvent(Guid.NewGuid(), DateTimeOffset.UtcNow, "OtpVerification", context.TraceIdentifier,
+            null, null, verified ? "Success" : "Failure", null, verified ? "Verified" : "Rejected"));
 
     return verified
         ? Results.Ok(new { verified = true })
         : Results.BadRequest(new { verified = false });
 }).RequireAuthorization();
 
-app.MapGet("/identity/applicant-only", () => Results.Ok(new { authorized = true }))
-    .RequireAuthorization(AuthorizationPolicies.Applicant);
-
 app.MapGet("/identity/mfa-required", () => Results.Ok(new { authorized = true }))
     .RequireAuthorization(AuthorizationPolicies.MfaVerified);
+
+app.MapGet("/identity/applicant-only", () => Results.Ok(new { authorized = true }))
+    .RequireAuthorization(AuthorizationPolicies.Applicant);
 
 app.MapPost("/service-requests", (CreateServiceRequest useCase, ServiceCode serviceCode) =>
 {
