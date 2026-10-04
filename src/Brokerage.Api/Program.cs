@@ -34,6 +34,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(AuthorizationPolicies.TechnicalSecurity, policy => policy.RequireRole(UserRole.TechnicalSecurity.ToString()));
     options.AddPolicy(AuthorizationPolicies.OrganizationObserver, policy => policy.RequireRole(UserRole.OrganizationObserver.ToString()));
     options.AddPolicy(AuthorizationPolicies.Administrator, policy => policy.RequireRole(UserRole.Administrator.ToString()));
+    options.AddPolicy(AuthorizationPolicies.MfaVerified, policy => policy.RequireClaim(IdentityClaims.MfaVerified, "true"));
 });
 
 builder.Services.AddDbContext<BrokerageDbContext>(options =>
@@ -151,6 +152,9 @@ app.MapPost("/identity/otp/verify", async (
 
 app.MapGet("/identity/applicant-only", () => Results.Ok(new { authorized = true }))
     .RequireAuthorization(AuthorizationPolicies.Applicant);
+
+app.MapGet("/identity/mfa-required", () => Results.Ok(new { authorized = true }))
+    .RequireAuthorization(AuthorizationPolicies.MfaVerified);
 
 app.MapPost("/service-requests", (CreateServiceRequest useCase, ServiceCode serviceCode) =>
 {
