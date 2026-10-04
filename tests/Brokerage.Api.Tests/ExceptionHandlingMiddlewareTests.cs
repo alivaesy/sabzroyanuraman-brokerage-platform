@@ -1,5 +1,7 @@
 using Brokerage.Api.Middleware;
 using Brokerage.Application.Exceptions;
+using Brokerage.Application.Models;
+using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
 
 namespace Brokerage.Api.Tests;
@@ -116,4 +118,99 @@ public async Task InvokeAsync_WhenCorrelationIdAlreadyExists_UsesSameIdInErrorRe
         correlationId,
         response.CorrelationId);
 }
+
+    [Fact]
+    public async Task InvokeAsync_WhenBrokerageExceptionOccurs_EmitsFailureAuditEvent()
+    {
+        var context = new DefaultHttpContext
+        {
+            TraceIdentifier = "audit-correlation-id"
+        };
+        context.Response.Body = new MemoryStream();
+
+        var logger = new TestLogger<ExceptionHandlingMiddleware>();
+        var middleware = new ExceptionHandlingMiddleware(
+            _ => throw new BrokerageException("Identity verification failed."),
+            logger);
+
+        await middleware.InvokeAsync(context);
+
+        var auditEvent = logger.Events
+            .Select(x => x["AuditEvent"])
+            .OfType<AuditEvent>()
+            .Single();
+
+        Assert.Equal("RequestFailed", auditEvent.EventType);
+        Assert.Equal("Failure", auditEvent.Outcome);
+        Assert.Equal("audit-correlation-id", auditEvent.CorrelationId);
+        Assert.Null(auditEvent.ServiceRequestId);
+        Assert.Null(auditEvent.WorkflowStage);
+        Assert.Null(auditEvent.PreviousState);
+        Assert.Equal("BROKERAGE_ERROR", auditEvent.NewState);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_WhenUnexpectedExceptionOccurs_EmitsInternalFailureAuditEvent()
+    {
+        var context = new DefaultHttpContext
+        {
+            TraceIdentifier = "audit-internal-correlation-id"
+        };
+        context.Response.Body = new MemoryStream();
+
+        var logger = new TestLogger<ExceptionHandlingMiddleware>();
+        var middleware = new ExceptionHandlingMiddleware(
+            _ => throw new InvalidOperationException("Sensitive internal detail."),
+            logger);
+
+        await middleware.InvokeAsync(context);
+
+        var auditEvent = logger.Events
+            .Select(x => x["AuditEvent"])
+            .OfType<AuditEvent>()
+            .Single();
+
+        Assert.Equal("RequestFailed", auditEvent.EventType);
+        Assert.Equal("Failure", auditEvent.Outcome);
+        Assert.Equal("audit-internal-correlation-id", auditEvent.CorrelationId);
+        Assert.Equal("INTERNAL_ERROR", auditEvent.NewState);
+    }
+
+    private sealed class TestLogger<T> : ILogger<T>
+    {
+        public List<Dictionary<string, object?>> Events { get; } = [];
+
+        public IDisposable BeginScope<TState>(TState state)
+            where TState : notnull
+            => NullScope.Instance;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            if (state is not IEnumerable<KeyValuePair<string, object?>> values)
+                return;
+
+            var eventData = values.ToDictionary(
+                pair => pair.Key,
+                pair => pair.Value);
+
+            if (eventData.ContainsKey("AuditEvent"))
+                Events.Add(eventData);
+        }
+
+        private sealed class NullScope : IDisposable
+        {
+            public static readonly NullScope Instance = new();
+
+            public void Dispose()
+            {
+            }
+        }
+    }
 }
