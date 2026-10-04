@@ -54,7 +54,7 @@ public class OrganizationIntegrationService
                 "Organization API status request failed.");
         }
 
-        return result.TrackingId ?? string.Empty;
+        return result.Status ?? string.Empty;
     }
 
     private async Task<OrganizationApiResult> ExecuteSubmitAsync(
