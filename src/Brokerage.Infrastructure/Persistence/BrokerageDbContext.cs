@@ -26,6 +26,9 @@ public sealed class BrokerageDbContext(DbContextOptions<BrokerageDbContext> opti
                 .HasMaxLength(50)
                 .IsRequired();
 
+            entity.Property(x => x.OrganizationTrackingId)
+                .HasMaxLength(200);
+
             entity.Property(x => x.CreatedAt).IsRequired();
             entity.Property(x => x.UpdatedAt).IsRequired();
 
