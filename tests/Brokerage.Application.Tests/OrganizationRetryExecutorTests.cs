@@ -354,4 +354,85 @@ public async Task ExecuteAsync_WhenBackoffIsConfigured_DelaysBeforeRetry()
     Assert.True(
         elapsed >= TimeSpan.FromMilliseconds(90));
 }
+
+    [Fact]
+    public void Constructor_WhenMaxRetryCountIsNegative_Throws()
+    {
+        var options = new OrganizationRetryOptions { MaxRetryCount = -1 };
+        var timeoutOptions = new OrganizationTimeoutOptions();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new OrganizationRetryExecutor(
+                new OrganizationRetryPolicy(), options, timeoutOptions));
+    }
+
+    [Fact]
+    public void Constructor_WhenTimeoutIsZero_Throws()
+    {
+        var options = new OrganizationRetryOptions();
+        var timeoutOptions = new OrganizationTimeoutOptions { Timeout = TimeSpan.Zero };
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new OrganizationRetryExecutor(
+                new OrganizationRetryPolicy(), options, timeoutOptions));
+    }
+
+    [Fact]
+    public void Constructor_WhenTimeoutIsNegative_Throws()
+    {
+        var options = new OrganizationRetryOptions();
+        var timeoutOptions = new OrganizationTimeoutOptions
+        {
+            Timeout = TimeSpan.FromMilliseconds(-1)
+        };
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new OrganizationRetryExecutor(
+                new OrganizationRetryPolicy(), options, timeoutOptions));
+    }
+
+    [Fact]
+    public void Constructor_WhenInitialBackoffIsNegative_Throws()
+    {
+        var options = new OrganizationRetryOptions
+        {
+            InitialBackoff = TimeSpan.FromMilliseconds(-1)
+        };
+        var timeoutOptions = new OrganizationTimeoutOptions();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new OrganizationRetryExecutor(
+                new OrganizationRetryPolicy(), options, timeoutOptions));
+    }
+
+    [Fact]
+    public void Constructor_WhenDependenciesAreNull_Throws()
+    {
+        var options = new OrganizationRetryOptions();
+        var timeoutOptions = new OrganizationTimeoutOptions();
+
+        Assert.Throws<ArgumentNullException>(() =>
+            new OrganizationRetryExecutor(null!, options, timeoutOptions));
+
+        Assert.Throws<ArgumentNullException>(() =>
+            new OrganizationRetryExecutor(
+                new OrganizationRetryPolicy(), null!, timeoutOptions));
+
+        Assert.Throws<ArgumentNullException>(() =>
+            new OrganizationRetryExecutor(
+                new OrganizationRetryPolicy(), options, null!));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenOperationIsNull_Throws()
+    {
+        var executor = new OrganizationRetryExecutor(
+            new OrganizationRetryPolicy(),
+            new OrganizationRetryOptions(),
+            new OrganizationTimeoutOptions());
+
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            () => executor.ExecuteAsync(null!));
+    }
+
 }
