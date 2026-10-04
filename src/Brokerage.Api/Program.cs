@@ -82,7 +82,7 @@ app.MapPost("/service-requests/s01", async (
     ILoggerFactory loggerFactory,
     CancellationToken cancellationToken) =>
 {
-    var request = await useCase.ExecuteAsync(model, cancellationToken);
+    var request = await useCase.ExecuteAsync(model, context.TraceIdentifier, cancellationToken);
 
     var logger = loggerFactory.CreateLogger("Audit");
     logger.LogInformation(

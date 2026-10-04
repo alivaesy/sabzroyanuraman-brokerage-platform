@@ -14,21 +14,25 @@ public class CreateS01ServiceRequest
     private readonly IIdentityVerificationService _identityVerificationService;
     private readonly IOrganizationIntegrationService _organizationIntegrationService;
     private readonly IServiceRequestRepository? _serviceRequestRepository;
+    private readonly Microsoft.Extensions.Logging.ILogger<CreateS01ServiceRequest>? _logger;
 
     public CreateS01ServiceRequest(
         WorkflowService workflowService,
         IIdentityVerificationService identityVerificationService,
         IOrganizationIntegrationService organizationIntegrationService,
-        IServiceRequestRepository? serviceRequestRepository = null)
+        IServiceRequestRepository? serviceRequestRepository = null,
+        Microsoft.Extensions.Logging.ILogger<CreateS01ServiceRequest>? logger = null)
     {
         _workflowService = workflowService;
         _identityVerificationService = identityVerificationService;
         _organizationIntegrationService = organizationIntegrationService;
         _serviceRequestRepository = serviceRequestRepository;
+        _logger = logger;
     }
 
     public async Task<ServiceRequest> ExecuteAsync(
         CreateS01RequestModel model,
+        string? correlationId = null,
         CancellationToken cancellationToken = default)
     {
         var isVerified = await _identityVerificationService.VerifyAsync(
@@ -50,16 +54,56 @@ public class CreateS01ServiceRequest
         var identityVerificationStage = _workflowService.CreateStage(
             request,
             S01StageCode.IdentityVerification.ToString());
+        LogAudit(
+            "WorkflowStageCreated",
+            request.Id,
+            identityVerificationStage.StageCode,
+            correlationId,
+            null,
+            identityVerificationStage.StageCode);
+
         identityVerificationStage.Complete();
+
+        LogAudit(
+            "WorkflowStageCompleted",
+            request.Id,
+            identityVerificationStage.StageCode,
+            correlationId,
+            identityVerificationStage.StageCode,
+            identityVerificationStage.StageCode);
 
         var organizationSubmissionStage = _workflowService.CreateStage(
             request,
             S01StageCode.OrganizationSubmission.ToString());
+        LogAudit(
+            "WorkflowStageCreated",
+            request.Id,
+            organizationSubmissionStage.StageCode,
+            correlationId,
+            null,
+            organizationSubmissionStage.StageCode);
+
         organizationSubmissionStage.Complete();
+
+        LogAudit(
+            "WorkflowStageCompleted",
+            request.Id,
+            organizationSubmissionStage.StageCode,
+            correlationId,
+            organizationSubmissionStage.StageCode,
+            organizationSubmissionStage.StageCode);
 
         var organizationFollowUpStage = _workflowService.CreateStage(
             request,
             S01StageCode.OrganizationFollowUp.ToString());
+
+        LogAudit(
+            "WorkflowStageCreated",
+            request.Id,
+            organizationFollowUpStage.StageCode,
+            correlationId,
+            null,
+            organizationFollowUpStage.StageCode);
 
         request.SetOrganizationTrackingId(trackingId);
         request.ChangeStatus(RequestStatus.WaitingForOrganization);
@@ -80,5 +124,27 @@ public class CreateS01ServiceRequest
         }
 
         return request;
+    }
+
+    private void LogAudit(
+        string eventType,
+        Guid serviceRequestId,
+        string workflowStage,
+        string? correlationId,
+        string? previousState,
+        string? newState)
+    {
+        _logger?.LogInformation(
+            "AuditEvent {@AuditEvent}",
+            new AuditEvent(
+                Guid.NewGuid(),
+                DateTimeOffset.UtcNow,
+                eventType,
+                correlationId ?? string.Empty,
+                serviceRequestId,
+                workflowStage,
+                "Success",
+                previousState,
+                newState));
     }
 }
