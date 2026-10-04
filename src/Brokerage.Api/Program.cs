@@ -111,4 +111,37 @@ app.MapGet("/service-requests/{id:guid}", async (
         });
 });
 
+app.MapGet("/service-requests/{id:guid}/organization-status", async (
+    Guid id,
+    IServiceRequestRepository repository,
+    IOrganizationIntegrationService organizationIntegrationService,
+    CancellationToken cancellationToken) =>
+{
+    var request = await repository.GetByIdAsync(id, cancellationToken);
+
+    if (request is null)
+        return Results.NotFound();
+
+    if (string.IsNullOrWhiteSpace(request.OrganizationTrackingId))
+    {
+        return Results.BadRequest(new
+        {
+            message = "The service request has no organization tracking ID."
+        });
+    }
+
+    var organizationStatus = await organizationIntegrationService.GetStatusAsync(
+        request.OrganizationTrackingId,
+        cancellationToken);
+
+    return Results.Ok(new
+    {
+        request.Id,
+        request.ServiceCode,
+        request.Status,
+        request.OrganizationTrackingId,
+        organizationStatus
+    });
+});
+
 app.Run();
