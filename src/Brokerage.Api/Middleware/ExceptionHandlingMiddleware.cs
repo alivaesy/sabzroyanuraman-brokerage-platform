@@ -1,4 +1,5 @@
 ﻿using Brokerage.Application.Exceptions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Brokerage.Application.Models;
 
 namespace Brokerage.Api.Middleware;
@@ -8,10 +9,10 @@ public class ExceptionHandlingMiddleware
     private readonly RequestDelegate _next;
     private readonly ILogger<ExceptionHandlingMiddleware> _logger;
 
-    public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
+    public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware>? logger = null)
     {
         _next = next;
-        _logger = logger;
+        _logger = logger ?? NullLogger<ExceptionHandlingMiddleware>.Instance;
     }
 
     public async Task InvokeAsync(HttpContext context)
