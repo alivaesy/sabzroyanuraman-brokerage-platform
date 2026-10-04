@@ -10,6 +10,7 @@ using Brokerage.Api.Middleware;
 using Brokerage.Api.Authentication;
 using Brokerage.Application.Models;
 using Brokerage.Application.Authorization;
+using Brokerage.Application.Authentication;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -53,6 +54,7 @@ builder.Services.AddScoped<Brokerage.Application.Integration.IOrganizationApiCli
 builder.Services.AddScoped<IIdentityVerificationService, IdentityVerificationService>();
 builder.Services.AddScoped<ISanaClient, MockSanaClient>();
 builder.Services.AddScoped<IShahkarClient, MockShahkarClient>();
+builder.Services.AddSingleton<IOtpService, InMemoryOtpService>();
 
 var app = builder.Build();
 
@@ -63,9 +65,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 if (app.Environment.IsDevelopment())
-{
     app.MapOpenApi();
-}
 
 app.UseHttpsRedirection();
 app.UseMiddleware<CorrelationIdMiddleware>();
@@ -73,17 +73,51 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/", () => Results.Ok(new
-{
-    service = "Brokerage.Api",
-    status = "running"
-}));
+app.MapGet("/", () => Results.Ok(new { service = "Brokerage.Api", status = "running" }));
 
 app.MapGet("/identity/me", (HttpContext context) =>
 {
     var userId = context.User.FindFirst(IdentityClaims.UserId)?.Value;
     var role = context.User.FindFirst(IdentityClaims.Role)?.Value;
     return Results.Ok(new { userId, role });
+}).RequireAuthorization();
+
+app.MapPost("/identity/otp/challenges", async (
+    HttpContext context,
+    IOtpService otpService,
+    CancellationToken cancellationToken) =>
+{
+    var userId = context.User.FindFirst(IdentityClaims.UserId)?.Value;
+    if (string.IsNullOrWhiteSpace(userId))
+        return Results.Unauthorized();
+
+    var challenge = await otpService.IssueAsync(userId, cancellationToken);
+    return Results.Ok(new
+    {
+        challenge.ChallengeId,
+        challenge.ExpiresAt
+    });
+}).RequireAuthorization();
+
+app.MapPost("/identity/otp/verify", async (
+    HttpContext context,
+    OtpVerificationRequest request,
+    IOtpService otpService,
+    CancellationToken cancellationToken) =>
+{
+    var userId = context.User.FindFirst(IdentityClaims.UserId)?.Value;
+    if (string.IsNullOrWhiteSpace(userId))
+        return Results.Unauthorized();
+
+    var verified = await otpService.VerifyAsync(
+        userId,
+        request.ChallengeId,
+        request.Code,
+        cancellationToken);
+
+    return verified
+        ? Results.Ok(new { verified = true })
+        : Results.BadRequest(new { verified = false });
 }).RequireAuthorization();
 
 app.MapGet("/identity/applicant-only", () => Results.Ok(new { authorized = true }))
@@ -167,3 +201,5 @@ app.MapGet("/service-requests/{id:guid}/organization-status", async (
 });
 
 app.Run();
+
+public sealed record OtpVerificationRequest(string ChallengeId, string Code);
