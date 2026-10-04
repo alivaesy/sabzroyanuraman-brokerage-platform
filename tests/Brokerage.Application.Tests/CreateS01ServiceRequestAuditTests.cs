@@ -102,7 +102,7 @@ internal sealed class ListLogger<T> : ILogger<T>
             pair => pair.Key,
             pair => pair.Value);
 
-        if (eventData.ContainsKey("AuditEvent"))
+        if (eventData.Values.Any(value => value is AuditEvent))
             Events.Add(eventData);
     }
 

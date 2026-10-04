@@ -20,10 +20,13 @@ public sealed class ServiceRequestRepository(BrokerageDbContext dbContext) : ISe
         Guid serviceRequestId,
         CancellationToken cancellationToken = default)
     {
-        return await dbContext.WorkflowStages
+        var stages = await dbContext.WorkflowStages
             .Where(x => x.ServiceRequestId == serviceRequestId)
-            .OrderBy(x => x.CreatedAt)
             .ToListAsync(cancellationToken);
+
+        return stages
+            .OrderBy(x => x.CreatedAt)
+            .ToList();
     }
 
     public Task<ServiceRequest?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
