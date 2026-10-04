@@ -136,7 +136,7 @@ public async Task InvokeAsync_WhenCorrelationIdAlreadyExists_UsesSameIdInErrorRe
         await middleware.InvokeAsync(context);
 
         var auditEvent = logger.Events
-            .Select(x => x["AuditEvent"])
+            .SelectMany(x => x.Values)
             .OfType<AuditEvent>()
             .Single();
 
@@ -166,7 +166,7 @@ public async Task InvokeAsync_WhenCorrelationIdAlreadyExists_UsesSameIdInErrorRe
         await middleware.InvokeAsync(context);
 
         var auditEvent = logger.Events
-            .Select(x => x["AuditEvent"])
+            .SelectMany(x => x.Values)
             .OfType<AuditEvent>()
             .Single();
 
@@ -200,7 +200,7 @@ public async Task InvokeAsync_WhenCorrelationIdAlreadyExists_UsesSameIdInErrorRe
                 pair => pair.Key,
                 pair => pair.Value);
 
-            if (eventData.ContainsKey("AuditEvent"))
+            if (eventData.Values.Any(value => value is AuditEvent))
                 Events.Add(eventData);
         }
 
