@@ -129,9 +129,16 @@ public class BrokerageApiTests
         Assert.Equal(
             (int)RequestStatus.WaitingForOrganization,
             request.GetProperty("status").GetInt32());
-        Assert.Equal(
-            "MOCK-TRACKING-ID",
-            request.GetProperty("organizationTrackingId").GetString());
+        var trackingId =
+            request.GetProperty("organizationTrackingId").GetString();
+
+        Assert.NotNull(trackingId);
+        Assert.StartsWith("MOCK-ORG-", trackingId);
+        Assert.True(
+            Guid.TryParseExact(
+                trackingId["MOCK-ORG-".Length..],
+                "N",
+                out _));
         Assert.Equal(
             System.Text.Json.JsonValueKind.Null,
             request.GetProperty("organizationStatus").ValueKind);
