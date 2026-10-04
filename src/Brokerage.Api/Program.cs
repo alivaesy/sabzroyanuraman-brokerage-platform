@@ -85,6 +85,7 @@ app.MapGet("/identity/me", (HttpContext context) =>
 app.MapPost("/identity/otp/challenges", async (
     HttpContext context,
     IOtpService otpService,
+    ILoggerFactory loggerFactory,
     CancellationToken cancellationToken) =>
 {
     var userId = context.User.FindFirst(IdentityClaims.UserId)?.Value;
@@ -92,6 +93,20 @@ app.MapPost("/identity/otp/challenges", async (
         return Results.Unauthorized();
 
     var challenge = await otpService.IssueAsync(userId, cancellationToken);
+
+    loggerFactory.CreateLogger("Audit").LogInformation(
+        "AuditEvent {@AuditEvent}",
+        new AuditEvent(
+            Guid.NewGuid(),
+            DateTimeOffset.UtcNow,
+            "OtpChallengeIssued",
+            context.TraceIdentifier,
+            null,
+            null,
+            "Success",
+            null,
+            "Issued"));
+
     return Results.Ok(new
     {
         challenge.ChallengeId,
@@ -103,6 +118,7 @@ app.MapPost("/identity/otp/verify", async (
     HttpContext context,
     OtpVerificationRequest request,
     IOtpService otpService,
+    ILoggerFactory loggerFactory,
     CancellationToken cancellationToken) =>
 {
     var userId = context.User.FindFirst(IdentityClaims.UserId)?.Value;
@@ -114,6 +130,19 @@ app.MapPost("/identity/otp/verify", async (
         request.ChallengeId,
         request.Code,
         cancellationToken);
+
+    loggerFactory.CreateLogger("Audit").LogInformation(
+        "AuditEvent {@AuditEvent}",
+        new AuditEvent(
+            Guid.NewGuid(),
+            DateTimeOffset.UtcNow,
+            "OtpVerification",
+            context.TraceIdentifier,
+            null,
+            null,
+            verified ? "Success" : "Failure",
+            null,
+            verified ? "Verified" : "Rejected"));
 
     return verified
         ? Results.Ok(new { verified = true })

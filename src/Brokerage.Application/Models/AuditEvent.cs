@@ -8,5 +8,5 @@ public sealed record AuditEvent(
     Guid? ServiceRequestId,
     string? WorkflowStage,
     string Outcome,
-    string? PreviousState = null,
-    string? NewState = null);
+    string? PreviousState,
+    string? NewState);
