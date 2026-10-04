@@ -112,6 +112,30 @@ app.MapGet("/service-requests/{id:guid}", async (
         });
 });
 
+app.MapGet("/service-requests/{id:guid}/workflow-stages", async (
+    Guid id,
+    IServiceRequestRepository repository,
+    CancellationToken cancellationToken) =>
+{
+    var request = await repository.GetByIdAsync(id, cancellationToken);
+
+    if (request is null)
+        return Results.NotFound();
+
+    var stages = await repository.GetWorkflowStagesAsync(
+        id,
+        cancellationToken);
+
+    return Results.Ok(stages.Select(stage => new
+    {
+        stage.Id,
+        stage.ServiceRequestId,
+        stage.StageCode,
+        stage.CreatedAt,
+        stage.CompletedAt
+    }));
+});
+
 app.MapGet("/service-requests/{id:guid}/organization-status", async (
     Guid id,
     IServiceRequestRepository repository,
