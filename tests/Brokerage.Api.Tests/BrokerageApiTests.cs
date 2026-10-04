@@ -83,6 +83,73 @@ public class BrokerageApiTests
     }
 
     [Fact]
+    public async Task GetServiceRequest_ForCreatedS01_ReturnsPersistedRequest()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var content = new StringContent(
+            """
+            {
+                "nationalIdentifier": "TEST-123"
+            }
+            """,
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        var createResponse = await client.PostAsync(
+            "/service-requests/s01",
+            content);
+
+        Assert.Equal(
+            System.Net.HttpStatusCode.OK,
+            createResponse.StatusCode);
+
+        var created =
+            await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+
+        var requestId = Guid.Parse(
+            created.GetProperty("id").GetString()!);
+
+        var response = await client.GetAsync(
+            $"/service-requests/{requestId}");
+
+        Assert.Equal(
+            System.Net.HttpStatusCode.OK,
+            response.StatusCode);
+
+        var request =
+            await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+
+        Assert.Equal(
+            requestId,
+            Guid.Parse(request.GetProperty("id").GetString()!));
+        Assert.Equal(
+            "WaitingForOrganization",
+            request.GetProperty("status").GetString());
+        Assert.Equal(
+            "MOCK-TRACKING-ID",
+            request.GetProperty("organizationTrackingId").GetString());
+        Assert.Equal(
+            System.Text.Json.JsonValueKind.Null,
+            request.GetProperty("organizationStatus").ValueKind);
+    }
+
+    [Fact]
+    public async Task GetServiceRequest_WhenRequestDoesNotExist_ReturnsNotFound()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var response = await client.GetAsync(
+            $"/service-requests/{Guid.NewGuid()}");
+
+        Assert.Equal(
+            System.Net.HttpStatusCode.NotFound,
+            response.StatusCode);
+    }
+
+    [Fact]
     public async Task GetWorkflowStages_ForCreatedS01_ReturnsPersistedStagesInOrder()
     {
         await using var application = new WebApplicationFactory<Program>();
