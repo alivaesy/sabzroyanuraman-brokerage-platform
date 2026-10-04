@@ -81,7 +81,7 @@ public class BrokerageApiTests
     }
 
     [Fact]
-    public async Task GetWorkflowStages_ForCreatedS01_ReturnsPersistedStage()
+    public async Task GetWorkflowStages_ForCreatedS01_ReturnsPersistedStagesInOrder()
     {
         await using var application = new WebApplicationFactory<Program>();
         using var client = application.CreateClient();
@@ -110,7 +110,7 @@ public class BrokerageApiTests
         var requestId =
             Guid.Parse(created.GetProperty("id").GetString()!);
 
-        var stageId =
+        var currentStageId =
             Guid.Parse(
                 created.GetProperty("currentWorkflowStageId").GetString()!);
 
@@ -126,10 +126,8 @@ public class BrokerageApiTests
                 System.Text.Json.JsonElement[]>();
 
         Assert.NotNull(stages);
-        Assert.Single(stages!);
-        Assert.Equal(
-            stageId,
-            Guid.Parse(stages[0].GetProperty("id").GetString()!));
+        Assert.Equal(3, stages!.Length);
+
         Assert.Equal(
             "IdentityVerification",
             stages[0].GetProperty("stageCode").GetString());
@@ -137,6 +135,26 @@ public class BrokerageApiTests
             requestId,
             Guid.Parse(
                 stages[0].GetProperty("serviceRequestId").GetString()!));
+        Assert.NotEqual(
+            System.Text.Json.JsonValueKind.Null,
+            stages[0].GetProperty("completedAt").ValueKind);
+
+        Assert.Equal(
+            "OrganizationSubmission",
+            stages[1].GetProperty("stageCode").GetString());
+        Assert.NotEqual(
+            System.Text.Json.JsonValueKind.Null,
+            stages[1].GetProperty("completedAt").ValueKind);
+
+        Assert.Equal(
+            "OrganizationFollowUp",
+            stages[2].GetProperty("stageCode").GetString());
+        Assert.Equal(
+            System.Text.Json.JsonValueKind.Null,
+            stages[2].GetProperty("completedAt").ValueKind);
+        Assert.Equal(
+            currentStageId,
+            Guid.Parse(stages[2].GetProperty("id").GetString()!));
     }
 
     [Fact]
