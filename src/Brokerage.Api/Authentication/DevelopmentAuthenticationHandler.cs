@@ -36,21 +36,13 @@ public sealed class DevelopmentAuthenticationHandler
                 AuthenticateResult.Fail("Invalid test role."));
         }
 
-        var claims = new List<Claim>
+        var claims = new[]
         {
-            new(IdentityClaims.UserId, userId.ToString()),
-            new(ClaimTypes.NameIdentifier, userId.ToString()),
-            new(IdentityClaims.Role, parsedRole.ToString()),
-            new(ClaimTypes.Role, parsedRole.ToString())
+            new Claim(IdentityClaims.UserId, userId.ToString()),
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+            new Claim(IdentityClaims.Role, parsedRole.ToString()),
+            new Claim(ClaimTypes.Role, parsedRole.ToString())
         };
-
-        if (string.Equals(
-                Request.Headers["X-Test-Mfa-Verified"].FirstOrDefault(),
-                "true",
-                StringComparison.OrdinalIgnoreCase))
-        {
-            claims.Add(new Claim(IdentityClaims.MfaVerified, "true"));
-        }
 
         var identity = new ClaimsIdentity(claims, SchemeName);
         var principal = new ClaimsPrincipal(identity);
