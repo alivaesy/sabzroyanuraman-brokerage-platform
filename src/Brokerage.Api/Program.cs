@@ -94,7 +94,9 @@ app.MapPost("/service-requests/s01", async (
             context.TraceIdentifier,
             request.Id,
             request.CurrentWorkflowStageId?.ToString(),
-            "Success"));
+            "Success",
+            null,
+            request.Status.ToString()));
 
     return Results.Ok(new
     {
@@ -175,6 +177,7 @@ app.MapGet("/service-requests/{id:guid}/organization-status", async (
         });
     }
 
+    var previousOrganizationStatus = request.OrganizationStatus;
     var organizationStatus = await organizationIntegrationService.GetStatusAsync(
         request.OrganizationTrackingId,
         cancellationToken);
@@ -221,7 +224,9 @@ app.MapGet("/service-requests/{id:guid}/organization-status", async (
             context.TraceIdentifier,
             request.Id,
             resultStage.StageCode,
-            "Success"));
+            "Success",
+            previousOrganizationStatus,
+            organizationStatus));
 
     return Results.Ok(new
     {
