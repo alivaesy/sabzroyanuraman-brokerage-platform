@@ -16,6 +16,16 @@ public sealed class ServiceRequestRepository(BrokerageDbContext dbContext) : ISe
         await dbContext.WorkflowStages.AddAsync(stage, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<WorkflowStage>> GetWorkflowStagesAsync(
+        Guid serviceRequestId,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.WorkflowStages
+            .Where(x => x.ServiceRequestId == serviceRequestId)
+            .OrderBy(x => x.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<ServiceRequest?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return dbContext.ServiceRequests
