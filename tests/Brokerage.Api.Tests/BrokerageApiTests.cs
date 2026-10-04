@@ -602,6 +602,35 @@ public class BrokerageApiTests
             System.Net.HttpStatusCode.OK,
             secondStatusResponse.StatusCode);
 
+        var firstStatus =
+            await firstStatusResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var secondStatus =
+            await secondStatusResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+
+        Assert.Equal(
+            firstStatus.GetProperty("currentWorkflowStageId").GetString(),
+            secondStatus.GetProperty("currentWorkflowStageId").GetString());
+        Assert.Equal(
+            "MOCK-STATUS",
+            secondStatus.GetProperty("organizationStatus").GetString());
+
+        var persistedRequestResponse = await client.GetAsync(
+            $"/service-requests/{requestId}");
+
+        Assert.Equal(
+            System.Net.HttpStatusCode.OK,
+            persistedRequestResponse.StatusCode);
+
+        var persistedRequest =
+            await persistedRequestResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+
+        Assert.Equal(
+            secondStatus.GetProperty("currentWorkflowStageId").GetString(),
+            persistedRequest.GetProperty("currentWorkflowStageId").GetString());
+        Assert.Equal(
+            "MOCK-STATUS",
+            persistedRequest.GetProperty("organizationStatus").GetString());
+
         var workflowResponse = await client.GetAsync(
             $"/service-requests/{requestId}/workflow-stages");
 
