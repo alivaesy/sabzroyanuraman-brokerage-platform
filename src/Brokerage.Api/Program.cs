@@ -94,4 +94,24 @@ app.MapPost("/service-requests/s01", async (
     });
 });
 
+app.MapGet("/service-requests/{id:guid}", async (
+    Guid id,
+    IServiceRequestRepository repository,
+    CancellationToken cancellationToken) =>
+{
+    var request = await repository.GetByIdAsync(id, cancellationToken);
+
+    return request is null
+        ? Results.NotFound()
+        : Results.Ok(new
+        {
+            request.Id,
+            request.ServiceCode,
+            request.Status,
+            request.CreatedAt,
+            request.UpdatedAt,
+            request.CurrentWorkflowStageId
+        });
+});
+
 app.Run();

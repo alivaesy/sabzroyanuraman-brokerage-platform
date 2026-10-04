@@ -14,7 +14,6 @@ public sealed class ServiceRequestRepository(BrokerageDbContext dbContext) : ISe
     public Task<ServiceRequest?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return dbContext.ServiceRequests
-            .Include(x => x.CurrentWorkflowStageId)
             .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
