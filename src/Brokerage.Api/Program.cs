@@ -198,7 +198,8 @@ app.MapGet("/service-requests/{id:guid}/organization-status", async (
         request.ServiceCode,
         request.Status,
         request.OrganizationTrackingId,
-        request.OrganizationStatus
+        request.OrganizationStatus,
+        request.CurrentWorkflowStageId
     });
 });
 
