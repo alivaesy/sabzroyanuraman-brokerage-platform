@@ -492,13 +492,15 @@ public class OrganizationIntegrationServiceTests
 
             if (Attempts < 3)
             {
-                await Task.Delay(
-                    TimeSpan.FromMilliseconds(200),
-                    cancellationToken);
+                return Task.FromResult(
+                    OrganizationApiResult.Failure(
+                        OrganizationIntegrationErrorType.Timeout,
+                        "Mock timeout."));
             }
 
-            return OrganizationApiResult.Success(
-                   "MOCK-RETRY-SUCCESS");
+            return Task.FromResult(
+                OrganizationApiResult.Success(
+                    "MOCK-RETRY-SUCCESS"));
         }
 
         public Task<OrganizationApiResult> GetStatusAsync(
