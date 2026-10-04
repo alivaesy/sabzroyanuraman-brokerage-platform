@@ -20,139 +20,213 @@ public class BrokerageApiTests
 
     [Fact]
     public async Task CreateS01_WithValidTestIdentity_ReturnsSuccess()
-{
-    await using var application = new WebApplicationFactory<Program>();
-    using var client = application.CreateClient();
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
 
-    var content = new StringContent(
-        """
-        {
-            "nationalIdentifier": "TEST-123"
-        }
-        """,
-        System.Text.Encoding.UTF8,
-        "application/json");
+        var content = new StringContent(
+            """
+            {
+                "nationalIdentifier": "TEST-123"
+            }
+            """,
+            System.Text.Encoding.UTF8,
+            "application/json");
 
-    var response = await client.PostAsync(
-        "/service-requests/s01",
-        content);
+        var response = await client.PostAsync(
+            "/service-requests/s01",
+            content);
 
-    Assert.Equal(
-        System.Net.HttpStatusCode.OK,
-        response.StatusCode);
+        Assert.Equal(
+            System.Net.HttpStatusCode.OK,
+            response.StatusCode);
 
-    var json =
-        await response.Content.ReadFromJsonAsync<
-            System.Text.Json.JsonElement>();
+        var json =
+            await response.Content.ReadFromJsonAsync<
+                System.Text.Json.JsonElement>();
 
-    Assert.True(json.TryGetProperty("id", out var id));
-    Assert.Equal(
-    System.Text.Json.JsonValueKind.String,
-    id.ValueKind);
+        Assert.True(json.TryGetProperty("id", out var id));
+        Assert.Equal(
+            System.Text.Json.JsonValueKind.String,
+            id.ValueKind);
 
-    Assert.True(
-    Guid.TryParse(id.GetString(), out var requestId));
+        Assert.True(
+            Guid.TryParse(id.GetString(), out var requestId));
 
-    Assert.NotEqual(
-    Guid.Empty,
-    requestId);
+        Assert.NotEqual(
+            Guid.Empty,
+            requestId);
 
-    Assert.True(json.TryGetProperty("serviceCode", out var serviceCode));
-    Assert.Equal(
-    System.Text.Json.JsonValueKind.Number,
-    serviceCode.ValueKind);
+        Assert.True(json.TryGetProperty("serviceCode", out var serviceCode));
+        Assert.Equal(
+            System.Text.Json.JsonValueKind.Number,
+            serviceCode.ValueKind);
 
-    Assert.True(
-    serviceCode.GetInt32() > 0);
+        Assert.True(
+            serviceCode.GetInt32() > 0);
 
-    Assert.True(
-    json.TryGetProperty("currentWorkflowStageId", out var stageId));
+        Assert.True(
+            json.TryGetProperty("currentWorkflowStageId", out var stageId));
 
-    Assert.Equal(
-    System.Text.Json.JsonValueKind.String,
-    stageId.ValueKind);
+        Assert.Equal(
+            System.Text.Json.JsonValueKind.String,
+            stageId.ValueKind);
 
-    Assert.True(
-    Guid.TryParse(stageId.GetString(), out var workflowStageId));
+        Assert.True(
+            Guid.TryParse(stageId.GetString(), out var workflowStageId));
 
-    Assert.NotEqual(
-    Guid.Empty,
-    workflowStageId);
+        Assert.NotEqual(
+            Guid.Empty,
+            workflowStageId);
+    }
 
+    [Fact]
+    public async Task GetWorkflowStages_ForCreatedS01_ReturnsPersistedStage()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
 
-}
+        var content = new StringContent(
+            """
+            {
+                "nationalIdentifier": "TEST-123"
+            }
+            """,
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        var createResponse = await client.PostAsync(
+            "/service-requests/s01",
+            content);
+
+        Assert.Equal(
+            System.Net.HttpStatusCode.OK,
+            createResponse.StatusCode);
+
+        var created =
+            await createResponse.Content.ReadFromJsonAsync<
+                System.Text.Json.JsonElement>();
+
+        var requestId =
+            Guid.Parse(created.GetProperty("id").GetString()!);
+
+        var stageId =
+            Guid.Parse(
+                created.GetProperty("currentWorkflowStageId").GetString()!);
+
+        var response = await client.GetAsync(
+            $"/service-requests/{requestId}/workflow-stages");
+
+        Assert.Equal(
+            System.Net.HttpStatusCode.OK,
+            response.StatusCode);
+
+        var stages =
+            await response.Content.ReadFromJsonAsync<
+                System.Text.Json.JsonElement[]>();
+
+        Assert.NotNull(stages);
+        Assert.Single(stages!);
+        Assert.Equal(
+            stageId,
+            Guid.Parse(stages[0].GetProperty("id").GetString()!));
+        Assert.Equal(
+            "IdentityVerification",
+            stages[0].GetProperty("stageCode").GetString());
+        Assert.Equal(
+            requestId,
+            Guid.Parse(
+                stages[0].GetProperty("serviceRequestId").GetString()!));
+    }
+
+    [Fact]
+    public async Task GetWorkflowStages_WhenRequestDoesNotExist_ReturnsNotFound()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var response = await client.GetAsync(
+            $"/service-requests/{Guid.NewGuid()}/workflow-stages");
+
+        Assert.Equal(
+            System.Net.HttpStatusCode.NotFound,
+            response.StatusCode);
+    }
+
     [Fact]
     public async Task CreateS01_WithInvalidTestIdentity_ReturnsBadRequest()
-{
-    await using var application = new WebApplicationFactory<Program>();
-    using var client = application.CreateClient();
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
 
-    var content = new StringContent(
-        """
-        {
-            "nationalIdentifier": "TEST-999"
-        }
-        """,
-        System.Text.Encoding.UTF8,
-        "application/json");
+        var content = new StringContent(
+            """
+            {
+                "nationalIdentifier": "TEST-999"
+            }
+            """,
+            System.Text.Encoding.UTF8,
+            "application/json");
 
-    var response = await client.PostAsync(
-        "/service-requests/s01",
-        content);
+        var response = await client.PostAsync(
+            "/service-requests/s01",
+            content);
 
-    Assert.Equal(
-        System.Net.HttpStatusCode.BadRequest,
-        response.StatusCode);
-}
-[Fact]
-public async Task CreateS01_WithInvalidTestIdentity_ReturnsStandardErrorResponse()
-{
-    await using var application = new WebApplicationFactory<Program>();
-    using var client = application.CreateClient();
+        Assert.Equal(
+            System.Net.HttpStatusCode.BadRequest,
+            response.StatusCode);
+    }
 
-    var content = new StringContent(
-        """
-        {
-            "nationalIdentifier": "TEST-999"
-        }
-        """,
-        System.Text.Encoding.UTF8,
-        "application/json");
+    [Fact]
+    public async Task CreateS01_WithInvalidTestIdentity_ReturnsStandardErrorResponse()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
 
-    var response = await client.PostAsync(
-        "/service-requests/s01",
-        content);
+        var content = new StringContent(
+            """
+            {
+                "nationalIdentifier": "TEST-999"
+            }
+            """,
+            System.Text.Encoding.UTF8,
+            "application/json");
 
-    Assert.Equal(
-        System.Net.HttpStatusCode.BadRequest,
-        response.StatusCode);
+        var response = await client.PostAsync(
+            "/service-requests/s01",
+            content);
 
-    var errorResponse =
-        await response.Content.ReadFromJsonAsync<
-            Brokerage.Application.Models.ErrorResponse>();
+        Assert.Equal(
+            System.Net.HttpStatusCode.BadRequest,
+            response.StatusCode);
 
-    Assert.NotNull(errorResponse);
-    Assert.Equal("BROKERAGE_ERROR", errorResponse.Code);
-    Assert.Equal(
-        "Identity verification failed.",
-        errorResponse.Message);
-    Assert.False(
-        string.IsNullOrWhiteSpace(errorResponse.CorrelationId));
-}
-[Fact]
+        var errorResponse =
+            await response.Content.ReadFromJsonAsync<
+                Brokerage.Application.Models.ErrorResponse>();
+
+        Assert.NotNull(errorResponse);
+        Assert.Equal("BROKERAGE_ERROR", errorResponse.Code);
+        Assert.Equal(
+            "Identity verification failed.",
+            errorResponse.Message);
+        Assert.False(
+            string.IsNullOrWhiteSpace(errorResponse.CorrelationId));
+    }
+
+    [Fact]
     public async Task CreateS01_WhenOrganizationSubmissionFails_ReturnsStandardErrorResponse()
     {
         await using var application =
-        new WebApplicationFactory<Program>()
-        .WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                services.AddScoped<
-                    IOrganizationApiClient,
-                    FailingOrganizationApiClient>();
-            });
-        });
+            new WebApplicationFactory<Program>()
+                .WithWebHostBuilder(builder =>
+                {
+                    builder.ConfigureServices(services =>
+                    {
+                        services.AddScoped<
+                            IOrganizationApiClient,
+                            FailingOrganizationApiClient>();
+                    });
+                });
 
         using var client = application.CreateClient();
 
@@ -190,6 +264,7 @@ public async Task CreateS01_WithInvalidTestIdentity_ReturnsStandardErrorResponse
             string.IsNullOrWhiteSpace(
                 errorResponse.CorrelationId));
     }
+
     private sealed class FailingOrganizationApiClient
         : IOrganizationApiClient
     {
