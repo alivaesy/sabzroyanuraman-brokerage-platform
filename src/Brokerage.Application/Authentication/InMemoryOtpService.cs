@@ -35,13 +35,15 @@ public sealed class InMemoryOtpService : IOtpService
     }
 
     public Task<bool> VerifyAsync(
+        string userId,
         string challengeId,
         string code,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!_challenges.TryGetValue(challengeId, out var challenge))
+        if (!_challenges.TryGetValue(challengeId, out var challenge)
+            || !string.Equals(challenge.UserId, userId, StringComparison.Ordinal))
             return Task.FromResult(false);
 
         if (challenge.ExpiresAt <= DateTimeOffset.UtcNow)
@@ -63,16 +65,12 @@ public sealed class InMemoryOtpService : IOtpService
         var failedAttempts = challenge.FailedAttempts + 1;
 
         if (failedAttempts >= MaxAttempts)
-        {
             _challenges.TryRemove(challengeId, out _);
-        }
         else
-        {
             _challenges.TryUpdate(
                 challengeId,
                 challenge with { FailedAttempts = failedAttempts },
                 challenge);
-        }
 
         return Task.FromResult(false);
     }

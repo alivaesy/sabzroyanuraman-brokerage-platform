@@ -7,6 +7,7 @@ public interface IOtpService
         CancellationToken cancellationToken = default);
 
     Task<bool> VerifyAsync(
+        string userId,
         string challengeId,
         string code,
         CancellationToken cancellationToken = default);
