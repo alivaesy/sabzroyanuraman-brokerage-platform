@@ -69,4 +69,37 @@ public class AuthorizationTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
+
+    [Fact]
+    public async Task MfaProtectedEndpoint_WithoutMfaVerification_ReturnsForbidden()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "TEST-MFA-001");
+        client.DefaultRequestHeaders.Add(
+            "X-Test-User-Role",
+            UserRole.Applicant.ToString());
+
+        var response = await client.GetAsync("/identity/mfa-required");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task MfaProtectedEndpoint_WithMfaVerification_ReturnsSuccess()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "TEST-MFA-002");
+        client.DefaultRequestHeaders.Add(
+            "X-Test-User-Role",
+            UserRole.Applicant.ToString());
+        client.DefaultRequestHeaders.Add("X-Test-Mfa-Verified", "true");
+
+        var response = await client.GetAsync("/identity/mfa-required");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
 }
