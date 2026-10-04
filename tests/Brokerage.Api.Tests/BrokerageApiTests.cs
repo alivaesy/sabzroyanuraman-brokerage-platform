@@ -354,6 +354,20 @@ public class BrokerageApiTests
 
 
     [Fact]
+    public async Task GetOrganizationStatus_WhenRequestDoesNotExist_ReturnsNotFound()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var response = await client.GetAsync(
+            $"/service-requests/{Guid.NewGuid()}/organization-status");
+
+        Assert.Equal(
+            System.Net.HttpStatusCode.NotFound,
+            response.StatusCode);
+    }
+
+    [Fact]
     public async Task GetOrganizationStatus_AdvancesWorkflowToResultNotification()
     {
         await using var application = new WebApplicationFactory<Program>();
