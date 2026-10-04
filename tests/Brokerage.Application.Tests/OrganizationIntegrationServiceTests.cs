@@ -484,7 +484,7 @@ public class OrganizationIntegrationServiceTests
     {
         public int Attempts { get; private set; }
 
-        public async Task<OrganizationApiResult> SubmitAsync(
+        public Task<OrganizationApiResult> SubmitAsync(
             string serviceCode,
             CancellationToken cancellationToken = default)
         {
