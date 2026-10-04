@@ -31,7 +31,7 @@ public class BrokerageApiTests
         var content = new StringContent(
             """
             {
-                "nationalIdentifier": "TEST-123"
+                "nationalIdentifier": "1234567891"
             }
             """,
             System.Text.Encoding.UTF8,
@@ -93,7 +93,7 @@ public class BrokerageApiTests
         var content = new StringContent(
             """
             {
-                "nationalIdentifier": "TEST-123"
+                "nationalIdentifier": "1234567891"
             }
             """,
             System.Text.Encoding.UTF8,
@@ -167,7 +167,7 @@ public class BrokerageApiTests
         var content = new StringContent(
             """
             {
-                "nationalIdentifier": "TEST-123"
+                "nationalIdentifier": "1234567891"
             }
             """,
             System.Text.Encoding.UTF8,
@@ -329,7 +329,7 @@ public class BrokerageApiTests
         var content = new StringContent(
             """
             {
-                "nationalIdentifier": "TEST-123"
+                "nationalIdentifier": "1234567891"
             }
             """,
             System.Text.Encoding.UTF8,
@@ -385,7 +385,7 @@ public class BrokerageApiTests
         var content = new StringContent(
             """
             {
-                "nationalIdentifier": "TEST-123"
+                "nationalIdentifier": "1234567891"
             }
             """,
             System.Text.Encoding.UTF8,
@@ -485,7 +485,7 @@ public class BrokerageApiTests
         var content = new StringContent(
             """
             {
-                "nationalIdentifier": "TEST-123"
+                "nationalIdentifier": "1234567891"
             }
             """,
             System.Text.Encoding.UTF8,
@@ -579,7 +579,7 @@ public class BrokerageApiTests
         var content = new StringContent(
             """
             {
-                "nationalIdentifier": "TEST-123"
+                "nationalIdentifier": "1234567891"
             }
             """,
             System.Text.Encoding.UTF8,
