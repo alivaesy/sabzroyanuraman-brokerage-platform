@@ -26,7 +26,7 @@ public class CreateS01ServiceRequestTests
             organizationIntegrationService);
 
         var request = await useCase.ExecuteAsync(
-            new CreateS01RequestModel { NationalIdentifier = "TEST-123" });
+            new CreateS01RequestModel { NationalIdentifier = "1234567891" });
 
         Assert.Equal(ServiceCode.S01, request.ServiceCode);
         Assert.Equal(RequestStatus.WaitingForOrganization, request.Status);
@@ -48,7 +48,7 @@ public class CreateS01ServiceRequestTests
             organizationIntegrationService);
 
         var request = await useCase.ExecuteAsync(
-            new CreateS01RequestModel { NationalIdentifier = "TEST-123" });
+            new CreateS01RequestModel { NationalIdentifier = "1234567891" });
 
         Assert.Equal("TEST-TRACKING-ID", request.OrganizationTrackingId);
         Assert.Equal(RequestStatus.WaitingForOrganization, request.Status);
@@ -87,7 +87,7 @@ public class CreateS01ServiceRequestTests
             organizationIntegrationService);
 
         await useCase.ExecuteAsync(
-            new CreateS01RequestModel { NationalIdentifier = "TEST-123" });
+            new CreateS01RequestModel { NationalIdentifier = "1234567891" });
 
         Assert.Equal("S01", organizationIntegrationService.SubmittedServiceCode);
     }
@@ -107,7 +107,7 @@ public class CreateS01ServiceRequestTests
         using var cts = new CancellationTokenSource();
 
         await useCase.ExecuteAsync(
-            new CreateS01RequestModel { NationalIdentifier = "TEST-123" },
+            new CreateS01RequestModel { NationalIdentifier = "1234567891" },
             cancellationToken: cts.Token);
 
         Assert.Equal(cts.Token, organizationIntegrationService.ReceivedCancellationToken);
@@ -146,7 +146,7 @@ public class CreateS01ServiceRequestTests
 
         await Assert.ThrowsAsync<BrokerageException>(
             () => useCase.ExecuteAsync(
-                new CreateS01RequestModel { NationalIdentifier = "TEST-123" }));
+                new CreateS01RequestModel { NationalIdentifier = "1234567891" }));
     }
 }
 
