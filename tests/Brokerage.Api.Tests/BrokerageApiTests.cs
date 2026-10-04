@@ -23,6 +23,38 @@ public class BrokerageApiTests
     }
 
     [Fact]
+    public async Task CreateS01_AnonymousUser_ReturnsUnauthorized()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        using var content = new StringContent(
+            """{"nationalIdentifier":"1234567891"}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        var response = await client.PostAsync("/service-requests/s01", content);
+
+        Assert.Equal(System.Net.HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateS01_ApplicantWithoutVerifiedIdentity_ReturnsForbidden()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "unverified-applicant");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", "Applicant");
+        using var content = new StringContent(
+            """{"nationalIdentifier":"1234567891"}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        var response = await client.PostAsync("/service-requests/s01", content);
+
+        Assert.Equal(System.Net.HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task CreateS01_WithValidTestIdentity_ReturnsSuccess()
     {
         await using var application = new WebApplicationFactory<Program>();
