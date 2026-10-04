@@ -44,6 +44,80 @@ public class OrganizationIntegrationServiceTests
             apiClient.Attempts);
     }
     [Fact]
+    public async Task SubmitAsync_WhenApiReturnsServerError_RetriesAndEventuallySucceeds()
+    {
+        var apiClient = new SubmitServerErrorOrganizationApiClient();
+
+        var retryPolicy = new OrganizationRetryPolicy();
+
+        var retryOptions = new OrganizationRetryOptions
+        {
+            MaxRetryCount = 2
+        };
+
+        var timeoutOptions = new OrganizationTimeoutOptions
+        {
+            Timeout = TimeSpan.FromMilliseconds(50)
+        };
+
+        var retryExecutor = new OrganizationRetryExecutor(
+            retryPolicy,
+            retryOptions,
+            timeoutOptions);
+
+        var service = new OrganizationIntegrationService(
+            apiClient,
+            retryExecutor);
+
+        var trackingId = await service.SubmitAsync("S01");
+
+        Assert.Equal(
+            "MOCK-SUBMIT-SERVER-RETRY-SUCCESS",
+            trackingId);
+
+        Assert.Equal(
+            3,
+            apiClient.Attempts);
+    }
+
+    [Fact]
+    public async Task SubmitAsync_WhenApiReturnsRateLimit_RetriesAndEventuallySucceeds()
+    {
+        var apiClient = new SubmitRateLimitOrganizationApiClient();
+
+        var retryPolicy = new OrganizationRetryPolicy();
+
+        var retryOptions = new OrganizationRetryOptions
+        {
+            MaxRetryCount = 2
+        };
+
+        var timeoutOptions = new OrganizationTimeoutOptions
+        {
+            Timeout = TimeSpan.FromMilliseconds(50)
+        };
+
+        var retryExecutor = new OrganizationRetryExecutor(
+            retryPolicy,
+            retryOptions,
+            timeoutOptions);
+
+        var service = new OrganizationIntegrationService(
+            apiClient,
+            retryExecutor);
+
+        var trackingId = await service.SubmitAsync("S01");
+
+        Assert.Equal(
+            "MOCK-SUBMIT-RATELIMIT-RETRY-SUCCESS",
+            trackingId);
+
+        Assert.Equal(
+            3,
+            apiClient.Attempts);
+    }
+
+    [Fact]
     public async Task SubmitAsync_WhenApiReturnsClientError_ThrowsBrokerageExceptionWithoutRetry()
 {
     var apiClient = new ClientErrorOrganizationApiClient();
@@ -573,6 +647,72 @@ public class OrganizationIntegrationServiceTests
                     status: "MOCK-STATUS-RATELIMIT-SUCCESS"));
         }
     }
+    private sealed class SubmitServerErrorOrganizationApiClient
+        : IOrganizationApiClient
+    {
+        public int Attempts { get; private set; }
+
+        public Task<OrganizationApiResult> SubmitAsync(
+            string serviceCode,
+            CancellationToken cancellationToken = default)
+        {
+            Attempts++;
+
+            if (Attempts < 3)
+            {
+                return Task.FromResult(
+                    OrganizationApiResult.Failure(
+                        OrganizationIntegrationErrorType.ServerError,
+                        "Mock submit server error."));
+            }
+
+            return Task.FromResult(
+                OrganizationApiResult.Success(
+                    "MOCK-SUBMIT-SERVER-RETRY-SUCCESS"));
+        }
+
+        public Task<OrganizationApiResult> GetStatusAsync(
+            string trackingId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(
+                OrganizationApiResult.Success(status: "MockStatus"));
+        }
+    }
+
+    private sealed class SubmitRateLimitOrganizationApiClient
+        : IOrganizationApiClient
+    {
+        public int Attempts { get; private set; }
+
+        public Task<OrganizationApiResult> SubmitAsync(
+            string serviceCode,
+            CancellationToken cancellationToken = default)
+        {
+            Attempts++;
+
+            if (Attempts < 3)
+            {
+                return Task.FromResult(
+                    OrganizationApiResult.Failure(
+                        OrganizationIntegrationErrorType.RateLimit,
+                        "Mock submit rate limit."));
+            }
+
+            return Task.FromResult(
+                OrganizationApiResult.Success(
+                    "MOCK-SUBMIT-RATELIMIT-RETRY-SUCCESS"));
+        }
+
+        public Task<OrganizationApiResult> GetStatusAsync(
+            string trackingId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(
+                OrganizationApiResult.Success(status: "MockStatus"));
+        }
+    }
+
     private sealed class ClientErrorOrganizationApiClient
     : IOrganizationApiClient
 {
