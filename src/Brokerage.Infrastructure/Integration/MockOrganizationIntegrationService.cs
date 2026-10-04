@@ -6,37 +6,24 @@ public class MockOrganizationIntegrationService : IOrganizationIntegrationServic
 {
     private readonly IOrganizationApiClient _organizationApiClient;
 
-    public MockOrganizationIntegrationService(
-        IOrganizationApiClient organizationApiClient)
+    public MockOrganizationIntegrationService(IOrganizationApiClient organizationApiClient)
     {
         _organizationApiClient = organizationApiClient;
     }
 
-    public Task<string> SubmitAsync(
+    public async Task<string> SubmitAsync(
         string serviceCode,
         CancellationToken cancellationToken = default)
     {
-        return MapResultAsync(
-            _organizationApiClient.SubmitAsync(
-                serviceCode,
-                cancellationToken));
+        var result = await _organizationApiClient.SubmitAsync(serviceCode, cancellationToken);
+        return result.TrackingId ?? string.Empty;
     }
 
-    public Task<string> GetStatusAsync(
+    public async Task<string> GetStatusAsync(
         string trackingId,
         CancellationToken cancellationToken = default)
     {
-        return MapStatusResultAsync(
-            _organizationApiClient.GetStatusAsync(
-                trackingId,
-                cancellationToken));
-    }
-
-    private static async Task<string> MapStatusResultAsync(
-        Task<OrganizationApiResult> resultTask)
-    {
-        var result = await resultTask;
-
+        var result = await _organizationApiClient.GetStatusAsync(trackingId, cancellationToken);
         return result.Status ?? string.Empty;
     }
 }

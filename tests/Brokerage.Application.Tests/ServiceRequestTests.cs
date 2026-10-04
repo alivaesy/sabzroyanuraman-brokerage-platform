@@ -24,7 +24,6 @@ public class ServiceRequestTests
         Assert.Null(request.OrganizationTrackingId);
         Assert.Null(request.OrganizationStatus);
     }
-}
     [Fact]
     public void SetOrganizationStatus_StoresStatusAndUpdatesTimestamp()
     {

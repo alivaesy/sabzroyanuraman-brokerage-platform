@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc.Testing;
 using System.Net.Http.Json;
 using Brokerage.Application.Integration;
+using IntegrationOrganizationApiClient = Brokerage.Application.Integration.IOrganizationApiClient;
+using Brokerage.Application.Contracts;
 using Brokerage.Domain.Entities;
 using Brokerage.Domain.Enums;
 using Microsoft.Extensions.DependencyInjection;
@@ -125,11 +127,18 @@ public class BrokerageApiTests
             requestId,
             Guid.Parse(request.GetProperty("id").GetString()!));
         Assert.Equal(
-            "WaitingForOrganization",
-            request.GetProperty("status").GetString());
-        Assert.Equal(
-            "MOCK-TRACKING-ID",
-            request.GetProperty("organizationTrackingId").GetString());
+            (int)RequestStatus.WaitingForOrganization,
+            request.GetProperty("status").GetInt32());
+        var trackingId =
+            request.GetProperty("organizationTrackingId").GetString();
+
+        Assert.NotNull(trackingId);
+        Assert.StartsWith("MOCK-ORG-", trackingId);
+        Assert.True(
+            Guid.TryParseExact(
+                trackingId["MOCK-ORG-".Length..],
+                "N",
+                out _));
         Assert.Equal(
             System.Text.Json.JsonValueKind.Null,
             request.GetProperty("organizationStatus").ValueKind);
@@ -310,7 +319,7 @@ public class BrokerageApiTests
                     builder.ConfigureServices(services =>
                     {
                         services.AddScoped<
-                            IOrganizationApiClient,
+                            IntegrationOrganizationApiClient,
                             FailingOrganizationApiClient>();
                     });
                 });
@@ -407,7 +416,7 @@ public class BrokerageApiTests
             await statusResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
 
         Assert.Equal(
-            "MOCK-STATUS",
+            "MockStatus",
             statusJson.GetProperty("organizationStatus").GetString());
 
         var persistedRequestResponse = await client.GetAsync(
@@ -421,7 +430,7 @@ public class BrokerageApiTests
             await persistedRequestResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
 
         Assert.Equal(
-            "MOCK-STATUS",
+            "MockStatus",
             persistedRequest.GetProperty("organizationStatus").GetString());
 
         var workflowResponse = await client.GetAsync(
@@ -466,7 +475,7 @@ public class BrokerageApiTests
                     builder.ConfigureServices(services =>
                     {
                         services.AddScoped<
-                            IOrganizationApiClient,
+                            IntegrationOrganizationApiClient,
                             FailingOrganizationStatusApiClient>();
                     });
                 });
@@ -611,7 +620,7 @@ public class BrokerageApiTests
             firstStatus.GetProperty("currentWorkflowStageId").GetString(),
             secondStatus.GetProperty("currentWorkflowStageId").GetString());
         Assert.Equal(
-            "MOCK-STATUS",
+            "MockStatus",
             secondStatus.GetProperty("organizationStatus").GetString());
 
         var persistedRequestResponse = await client.GetAsync(
@@ -628,7 +637,7 @@ public class BrokerageApiTests
             secondStatus.GetProperty("currentWorkflowStageId").GetString(),
             persistedRequest.GetProperty("currentWorkflowStageId").GetString());
         Assert.Equal(
-            "MOCK-STATUS",
+            "MockStatus",
             persistedRequest.GetProperty("organizationStatus").GetString());
 
         var workflowResponse = await client.GetAsync(
@@ -646,7 +655,7 @@ public class BrokerageApiTests
     }
 
     private sealed class FailingOrganizationStatusApiClient
-        : IOrganizationApiClient
+        : IntegrationOrganizationApiClient
     {
         public Task<OrganizationApiResult> SubmitAsync(
             string serviceCode,
@@ -669,7 +678,7 @@ public class BrokerageApiTests
     }
 
     private sealed class FailingOrganizationApiClient
-        : IOrganizationApiClient
+        : IntegrationOrganizationApiClient
     {
         public Task<OrganizationApiResult> SubmitAsync(
             string serviceCode,
@@ -687,7 +696,7 @@ public class BrokerageApiTests
         {
             return Task.FromResult(
                 OrganizationApiResult.Success(
-                    status: "MOCK-STATUS"));
+                    status: "MockStatus"));
         }
     }
 }

@@ -108,7 +108,7 @@ public class CreateS01ServiceRequestTests
 
         await useCase.ExecuteAsync(
             new CreateS01RequestModel { NationalIdentifier = "TEST-123" },
-            cts.Token);
+            cancellationToken: cts.Token);
 
         Assert.Equal(cts.Token, organizationIntegrationService.ReceivedCancellationToken);
     }

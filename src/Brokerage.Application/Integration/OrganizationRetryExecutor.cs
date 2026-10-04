@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 namespace Brokerage.Application.Integration;
 
 public sealed class OrganizationRetryExecutor
@@ -5,38 +7,24 @@ public sealed class OrganizationRetryExecutor
     private readonly OrganizationRetryPolicy _retryPolicy;
     private readonly OrganizationRetryOptions _retryOptions;
     private readonly OrganizationTimeoutOptions _timeoutOptions;
-    private readonly Microsoft.Extensions.Logging.ILogger<OrganizationRetryExecutor>? _logger;
+    private readonly ILogger<OrganizationRetryExecutor>? _logger;
 
     public OrganizationRetryExecutor(
         OrganizationRetryPolicy retryPolicy,
         OrganizationRetryOptions retryOptions,
         OrganizationTimeoutOptions timeoutOptions,
-        Microsoft.Extensions.Logging.ILogger<OrganizationRetryExecutor>? logger = null)
+        ILogger<OrganizationRetryExecutor>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(retryPolicy);
         ArgumentNullException.ThrowIfNull(retryOptions);
         ArgumentNullException.ThrowIfNull(timeoutOptions);
 
         if (retryOptions.MaxRetryCount < 0)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(retryOptions),
-                "MaxRetryCount cannot be negative.");
-        }
-
+            throw new ArgumentOutOfRangeException(nameof(retryOptions), "MaxRetryCount cannot be negative.");
         if (timeoutOptions.Timeout <= TimeSpan.Zero)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(timeoutOptions),
-                "Timeout must be greater than zero.");
-        }
-
+            throw new ArgumentOutOfRangeException(nameof(timeoutOptions), "Timeout must be greater than zero.");
         if (retryOptions.InitialBackoff < TimeSpan.Zero)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(retryOptions),
-                "InitialBackoff cannot be negative.");
-        }
+            throw new ArgumentOutOfRangeException(nameof(retryOptions), "InitialBackoff cannot be negative.");
 
         _retryPolicy = retryPolicy;
         _retryOptions = retryOptions;
@@ -49,19 +37,14 @@ public sealed class OrganizationRetryExecutor
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(operation);
-
         var attempt = 0;
 
         while (true)
         {
-            using var timeoutCts =
-                CancellationTokenSource.CreateLinkedTokenSource(
-                    cancellationToken);
-
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(_timeoutOptions.Timeout);
 
             OrganizationApiResult result;
-
             try
             {
                 result = await operation(timeoutCts.Token);
@@ -75,22 +58,13 @@ public sealed class OrganizationRetryExecutor
             }
 
             if (result.IsSuccess)
-            {
                 return result;
-            }
-
             if (!_retryPolicy.ShouldRetry(result.ErrorType))
-            {
                 return result;
-            }
-
             if (attempt >= _retryOptions.MaxRetryCount)
-            {
                 return result;
-            }
 
             attempt++;
-
             _logger?.LogWarning(
                 "Organization integration retry scheduled. Attempt={Attempt} ErrorType={ErrorType}",
                 attempt,
@@ -98,9 +72,7 @@ public sealed class OrganizationRetryExecutor
 
             if (_retryOptions.InitialBackoff > TimeSpan.Zero)
             {
-                await Task.Delay(
-                    _retryOptions.InitialBackoff,
-                    cancellationToken);
+                await Task.Delay(_retryOptions.InitialBackoff, cancellationToken);
             }
         }
     }

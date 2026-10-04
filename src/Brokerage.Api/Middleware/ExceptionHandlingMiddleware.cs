@@ -1,4 +1,4 @@
-﻿using Brokerage.Application.Exceptions;
+using Brokerage.Application.Exceptions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Brokerage.Application.Models;
 
@@ -26,6 +26,7 @@ public class ExceptionHandlingMiddleware
         catch (BrokerageException ex)
         {
             _logger.LogWarning(ex, "Brokerage request failed. CorrelationId={CorrelationId}", correlationId);
+            LogAuditFailure(correlationId, "BROKERAGE_ERROR");
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             context.Response.ContentType = "application/json";
 
@@ -40,6 +41,7 @@ public class ExceptionHandlingMiddleware
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled brokerage request failure. CorrelationId={CorrelationId}", correlationId);
+            LogAuditFailure(correlationId, "INTERNAL_ERROR");
             context.Response.StatusCode =
                 StatusCodes.Status500InternalServerError;
 
@@ -53,5 +55,21 @@ public class ExceptionHandlingMiddleware
                     CorrelationId = correlationId
                 });
         }
+    }
+
+    private void LogAuditFailure(string correlationId, string errorCode)
+    {
+        _logger.LogInformation(
+            "AuditEvent {@AuditEvent}",
+            new AuditEvent(
+                Guid.NewGuid(),
+                DateTimeOffset.UtcNow,
+                "RequestFailed",
+                correlationId,
+                null,
+                null,
+                "Failure",
+                null,
+                errorCode));
     }
 }
