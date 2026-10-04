@@ -32,12 +32,15 @@ public class OrganizationIntegrationService
 
         if (!result.IsSuccess)
         {
+            _logger?.LogError("Organization submission failed. ServiceCode={ServiceCode} ErrorType={ErrorType}", serviceCode, result.ErrorType);
             throw new BrokerageException(
                 result.ErrorMessage ??
                 "Organization API submission failed.");
         }
 
-        return result.TrackingId ?? string.Empty;
+        var trackingId = result.TrackingId ?? string.Empty;
+        _logger?.LogInformation("Organization submission completed. ServiceCode={ServiceCode} TrackingId={TrackingId}", serviceCode, trackingId);
+        return trackingId;
     }
 
     public async Task<string> GetStatusAsync(
@@ -52,12 +55,15 @@ public class OrganizationIntegrationService
 
         if (!result.IsSuccess)
         {
+            _logger?.LogError("Organization status request failed. TrackingId={TrackingId} ErrorType={ErrorType}", trackingId, result.ErrorType);
             throw new BrokerageException(
                 result.ErrorMessage ??
                 "Organization API status request failed.");
         }
 
-        return result.Status ?? string.Empty;
+        var status = result.Status ?? string.Empty;
+        _logger?.LogInformation("Organization status received. TrackingId={TrackingId} Status={Status}", trackingId, status);
+        return status;
     }
 
     private async Task<OrganizationApiResult> ExecuteSubmitAsync(
