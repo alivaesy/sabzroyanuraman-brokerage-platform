@@ -1,5 +1,6 @@
 using Brokerage.Application.UseCases;
 using Brokerage.Domain.Enums;
+using Brokerage.Domain.Entities;
 using Brokerage.Application.Contracts;
 using Brokerage.Application.Services;
 using Brokerage.Application.Integration;
@@ -188,6 +189,7 @@ app.MapGet("/service-requests/{id:guid}/organization-status", async (
 
         request.SetCurrentWorkflowStage(resultStage.Id);
     }
+
     await repository.SaveChangesAsync(cancellationToken);
 
     return Results.Ok(new
