@@ -8,14 +8,19 @@ public sealed class OrganizationApiResult
 
     public string? TrackingId { get; init; }
 
+    public string? Status { get; init; }
+
     public string? ErrorMessage { get; init; }
 
-    public static OrganizationApiResult Success(string? trackingId = null)
+    public static OrganizationApiResult Success(
+        string? trackingId = null,
+        string? status = null)
     {
         return new OrganizationApiResult
         {
             IsSuccess = true,
-            TrackingId = trackingId
+            TrackingId = trackingId,
+            Status = status
         };
     }
 

@@ -26,17 +26,17 @@ public class MockOrganizationIntegrationService : IOrganizationIntegrationServic
         string trackingId,
         CancellationToken cancellationToken = default)
     {
-        return MapResultAsync(
+        return MapStatusResultAsync(
             _organizationApiClient.GetStatusAsync(
                 trackingId,
                 cancellationToken));
     }
 
-    private static async Task<string> MapResultAsync(
+    private static async Task<string> MapStatusResultAsync(
         Task<OrganizationApiResult> resultTask)
     {
         var result = await resultTask;
 
-        return result.TrackingId ?? string.Empty;
+        return result.Status ?? string.Empty;
     }
 }

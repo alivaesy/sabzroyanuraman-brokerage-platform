@@ -19,6 +19,6 @@ public class MockOrganizationApiClient : IOrganizationApiClient
         CancellationToken cancellationToken = default)
     {
         return Task.FromResult(
-            OrganizationApiResult.Success("MockStatus"));
+            OrganizationApiResult.Success(status: "MockStatus"));
     }
 }

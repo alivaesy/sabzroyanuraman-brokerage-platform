@@ -23,6 +23,6 @@ public class MockOrganizationApiClientTests
         var result = await client.GetStatusAsync("MOCK-ORG-123");
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("MockStatus", result.TrackingId);
+        Assert.Equal("MockStatus", result.Status);
     }
 }
