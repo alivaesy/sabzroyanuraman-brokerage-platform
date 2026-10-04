@@ -194,6 +194,19 @@ app.MapGet("/service-requests/{id:guid}/organization-status", async (
     if (followUpStage is not null && followUpStage.CompletedAt is null)
     {
         followUpStage.Complete();
+
+        loggerFactory.CreateLogger("Audit").LogInformation(
+            "AuditEvent {@AuditEvent}",
+            new AuditEvent(
+                Guid.NewGuid(),
+                DateTimeOffset.UtcNow,
+                "WorkflowStageCompleted",
+                context.TraceIdentifier,
+                request.Id,
+                followUpStage.StageCode,
+                "Success",
+                followUpStage.StageCode,
+                followUpStage.StageCode));
     }
 
     var resultStage = workflowStages.SingleOrDefault(stage =>
@@ -210,6 +223,19 @@ app.MapGet("/service-requests/{id:guid}/organization-status", async (
             cancellationToken);
 
         request.SetCurrentWorkflowStage(resultStage.Id);
+
+        loggerFactory.CreateLogger("Audit").LogInformation(
+            "AuditEvent {@AuditEvent}",
+            new AuditEvent(
+                Guid.NewGuid(),
+                DateTimeOffset.UtcNow,
+                "WorkflowStageCreated",
+                context.TraceIdentifier,
+                request.Id,
+                resultStage.StageCode,
+                "Success",
+                null,
+                resultStage.StageCode));
     }
 
     await repository.SaveChangesAsync(cancellationToken);
