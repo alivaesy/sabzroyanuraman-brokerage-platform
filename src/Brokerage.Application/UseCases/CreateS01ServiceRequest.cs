@@ -106,7 +106,17 @@ public class CreateS01ServiceRequest
             organizationFollowUpStage.StageCode);
 
         request.SetOrganizationTrackingId(trackingId);
+
+        var previousRequestStatus = request.Status;
         request.ChangeStatus(RequestStatus.WaitingForOrganization);
+
+        LogAudit(
+            "ServiceRequestStatusChanged",
+            request.Id,
+            organizationFollowUpStage.StageCode,
+            correlationId,
+            previousRequestStatus.ToString(),
+            request.Status.ToString());
 
         if (_serviceRequestRepository is not null)
         {
