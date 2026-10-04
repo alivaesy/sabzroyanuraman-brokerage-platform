@@ -13,7 +13,9 @@ using Brokerage.Application.Models;
 using Brokerage.Application.Authorization;
 using Brokerage.Application.Authentication;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,6 +23,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole();
 builder.Services.AddOpenApi();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 
 builder.Services.AddAuthentication(DevelopmentAuthenticationHandler.SchemeName)
     .AddScheme<AuthenticationSchemeOptions, DevelopmentAuthenticationHandler>(
@@ -80,24 +84,21 @@ app.UseAuthorization();
 
 app.MapGet("/", () => Results.Ok(new { service = "Brokerage.Api", status = "running" }));
 
-app.MapGet("/identity/me", (HttpContext context) =>
-{
-    var userId = context.User.FindFirst(IdentityClaims.UserId)?.Value;
-    var role = context.User.FindFirst(IdentityClaims.Role)?.Value;
-    return Results.Ok(new { userId, role });
-}).RequireAuthorization();
+app.MapGet("/identity/me", (ICurrentUser currentUser) =>
+    Results.Ok(new { userId = currentUser.UserId, role = currentUser.Role, isMfaVerified = currentUser.IsMfaVerified }))
+    .RequireAuthorization();
 
 app.MapPost("/identity/otp/challenges", async (
-    HttpContext context,
+    ICurrentUser currentUser,
     IOtpService otpService,
     ILoggerFactory loggerFactory,
+    HttpContext context,
     CancellationToken cancellationToken) =>
 {
-    var userId = context.User.FindFirst(IdentityClaims.UserId)?.Value;
-    if (string.IsNullOrWhiteSpace(userId))
+    if (!currentUser.IsAuthenticated || string.IsNullOrWhiteSpace(currentUser.UserId))
         return Results.Unauthorized();
 
-    var challenge = await otpService.IssueAsync(userId, cancellationToken);
+    var challenge = await otpService.IssueAsync(currentUser.UserId, cancellationToken);
 
     loggerFactory.CreateLogger("Audit").LogInformation(
         "AuditEvent {@AuditEvent}",
@@ -108,21 +109,21 @@ app.MapPost("/identity/otp/challenges", async (
 }).RequireAuthorization();
 
 app.MapPost("/identity/otp/verify", async (
-    HttpContext context,
+    ICurrentUser currentUser,
     OtpVerificationRequest request,
     IOtpService otpService,
     IMfaVerificationStore mfaVerificationStore,
     ILoggerFactory loggerFactory,
+    HttpContext context,
     CancellationToken cancellationToken) =>
 {
-    var userId = context.User.FindFirst(IdentityClaims.UserId)?.Value;
-    if (string.IsNullOrWhiteSpace(userId))
+    if (!currentUser.IsAuthenticated || string.IsNullOrWhiteSpace(currentUser.UserId))
         return Results.Unauthorized();
 
-    var verified = await otpService.VerifyAsync(userId, request.ChallengeId, request.Code, cancellationToken);
+    var verified = await otpService.VerifyAsync(currentUser.UserId, request.ChallengeId, request.Code, cancellationToken);
 
     if (verified)
-        mfaVerificationStore.MarkVerified(userId, DateTimeOffset.UtcNow);
+        mfaVerificationStore.MarkVerified(currentUser.UserId, DateTimeOffset.UtcNow);
 
     loggerFactory.CreateLogger("Audit").LogInformation(
         "AuditEvent {@AuditEvent}",
