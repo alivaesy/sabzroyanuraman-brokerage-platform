@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc.Testing;
 using System.Net.Http.Json;
 using Brokerage.Application.Integration;
+using IntegrationOrganizationApiClient = Brokerage.Application.Integration.IOrganizationApiClient;
 using Brokerage.Application.Contracts;
 using Brokerage.Domain.Entities;
 using Brokerage.Domain.Enums;
@@ -647,7 +648,7 @@ public class BrokerageApiTests
     }
 
     private sealed class FailingOrganizationStatusApiClient
-        : IOrganizationApiClient
+        : IntegrationOrganizationApiClient
     {
         public Task<OrganizationApiResult> SubmitAsync(
             string serviceCode,
