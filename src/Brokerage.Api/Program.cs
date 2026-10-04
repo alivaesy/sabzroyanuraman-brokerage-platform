@@ -170,23 +170,43 @@ app.MapGet("/identity/mfa-required", () => Results.Ok(new { authorized = true })
 app.MapGet("/identity/applicant-only", () => Results.Ok(new { authorized = true }))
     .RequireAuthorization(AuthorizationPolicies.Applicant);
 
-app.MapPost("/service-requests", (CreateServiceRequest useCase, ServiceCode serviceCode) =>
+app.MapPost("/service-requests", async (
+    CreateServiceRequest useCase,
+    ServiceCode serviceCode,
+    ICurrentUser currentUser,
+    IIdentityVerificationStateRepository identityStates,
+    CancellationToken cancellationToken) =>
 {
+    if (string.IsNullOrWhiteSpace(currentUser.UserId))
+        return Results.Unauthorized();
+
+    var identityState = await identityStates.GetAsync(currentUser.UserId, cancellationToken);
+    if (identityState?.IsVerified != true)
+        return Results.Forbid();
+
     var request = useCase.Execute(serviceCode, "INITIAL");
     return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.CreatedAt, request.UpdatedAt });
-});
+}).RequireAuthorization(AuthorizationPolicies.Applicant);
 
 app.MapPost("/service-requests/s01", async (
-    CreateS01ServiceRequest useCase, CreateS01RequestModel model, HttpContext context,
+    CreateS01ServiceRequest useCase, CreateS01RequestModel model, ICurrentUser currentUser,
+    IIdentityVerificationStateRepository identityStates, HttpContext context,
     ILoggerFactory loggerFactory, CancellationToken cancellationToken) =>
 {
+    if (string.IsNullOrWhiteSpace(currentUser.UserId))
+        return Results.Unauthorized();
+
+    var identityState = await identityStates.GetAsync(currentUser.UserId, cancellationToken);
+    if (identityState?.IsVerified != true)
+        return Results.Forbid();
+
     var request = await useCase.ExecuteAsync(model, context.TraceIdentifier, cancellationToken);
     loggerFactory.CreateLogger("Audit").LogInformation("AuditEvent {@AuditEvent}", new AuditEvent(
         Guid.NewGuid(), DateTimeOffset.UtcNow, "ServiceRequestCreated", context.TraceIdentifier,
         request.Id, request.CurrentWorkflowStageId?.ToString(), "Success", null, request.Status.ToString()));
     return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.CreatedAt, request.UpdatedAt,
         request.CurrentWorkflowStageId, request.OrganizationTrackingId });
-});
+}).RequireAuthorization(AuthorizationPolicies.Applicant);
 
 app.MapGet("/service-requests/{id:guid}", async (Guid id, IServiceRequestRepository repository, CancellationToken cancellationToken) =>
 {

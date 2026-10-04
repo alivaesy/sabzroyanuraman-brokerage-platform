@@ -15,7 +15,7 @@ public class BrokerageApiTests
     public async Task RootEndpoint_ReturnsSuccess()
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var response = await client.GetAsync("/");
 
@@ -26,7 +26,7 @@ public class BrokerageApiTests
     public async Task CreateS01_WithValidTestIdentity_ReturnsSuccess()
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var content = new StringContent(
             """
@@ -88,7 +88,7 @@ public class BrokerageApiTests
     public async Task GetServiceRequest_ForCreatedS01_ReturnsPersistedRequest()
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var content = new StringContent(
             """
@@ -148,7 +148,7 @@ public class BrokerageApiTests
     public async Task GetServiceRequest_WhenRequestDoesNotExist_ReturnsNotFound()
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var response = await client.GetAsync(
             $"/service-requests/{Guid.NewGuid()}");
@@ -162,7 +162,7 @@ public class BrokerageApiTests
     public async Task GetWorkflowStages_ForCreatedS01_ReturnsPersistedStagesInOrder()
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var content = new StringContent(
             """
@@ -239,7 +239,7 @@ public class BrokerageApiTests
     public async Task GetWorkflowStages_WhenRequestDoesNotExist_ReturnsNotFound()
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var response = await client.GetAsync(
             $"/service-requests/{Guid.NewGuid()}/workflow-stages");
@@ -253,7 +253,7 @@ public class BrokerageApiTests
     public async Task CreateS01_WithInvalidTestIdentity_ReturnsBadRequest()
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var content = new StringContent(
             """
@@ -277,7 +277,7 @@ public class BrokerageApiTests
     public async Task CreateS01_WithInvalidTestIdentity_ReturnsStandardErrorResponse()
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var content = new StringContent(
             """
@@ -324,7 +324,7 @@ public class BrokerageApiTests
                     });
                 });
 
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var content = new StringContent(
             """
@@ -366,7 +366,7 @@ public class BrokerageApiTests
     public async Task GetOrganizationStatus_WhenRequestDoesNotExist_ReturnsNotFound()
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var response = await client.GetAsync(
             $"/service-requests/{Guid.NewGuid()}/organization-status");
@@ -380,7 +380,7 @@ public class BrokerageApiTests
     public async Task GetOrganizationStatus_AdvancesWorkflowToResultNotification()
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var content = new StringContent(
             """
@@ -480,7 +480,7 @@ public class BrokerageApiTests
                     });
                 });
 
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var content = new StringContent(
             """
@@ -553,7 +553,7 @@ public class BrokerageApiTests
         await repository.AddAsync(request);
         await repository.SaveChangesAsync();
 
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var response = await client.GetAsync(
             $"/service-requests/{request.Id}/organization-status");
@@ -574,7 +574,7 @@ public class BrokerageApiTests
     public async Task GetOrganizationStatus_WhenCalledTwice_DoesNotDuplicateResultNotification()
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var content = new StringContent(
             """
@@ -652,6 +652,18 @@ public class BrokerageApiTests
             1,
             stages.Count(stage =>
                 stage.GetProperty("stageCode").GetString() == "ResultNotification"));
+    }
+
+    private static async Task<HttpClient> CreateVerifiedApplicantClientAsync(WebApplicationFactory<Program> application)
+    {
+        var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "test-applicant");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", "Applicant");
+
+        using var scope = application.Services.CreateScope();
+        var states = scope.ServiceProvider.GetRequiredService<IIdentityVerificationStateRepository>();
+        await states.SaveResultAsync("test-applicant", true, DateTimeOffset.UtcNow);
+        return client;
     }
 
     private sealed class FailingOrganizationStatusApiClient
