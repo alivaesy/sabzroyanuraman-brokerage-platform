@@ -11,6 +11,31 @@ public sealed class OrganizationRetryExecutor
         OrganizationRetryOptions retryOptions,
         OrganizationTimeoutOptions timeoutOptions)
     {
+        ArgumentNullException.ThrowIfNull(retryPolicy);
+        ArgumentNullException.ThrowIfNull(retryOptions);
+        ArgumentNullException.ThrowIfNull(timeoutOptions);
+
+        if (retryOptions.MaxRetryCount < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(retryOptions),
+                "MaxRetryCount cannot be negative.");
+        }
+
+        if (timeoutOptions.Timeout <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(timeoutOptions),
+                "Timeout must be greater than zero.");
+        }
+
+        if (retryOptions.InitialBackoff < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(retryOptions),
+                "InitialBackoff cannot be negative.");
+        }
+
         _retryPolicy = retryPolicy;
         _retryOptions = retryOptions;
         _timeoutOptions = timeoutOptions;
@@ -20,6 +45,8 @@ public sealed class OrganizationRetryExecutor
         Func<CancellationToken, Task<OrganizationApiResult>> operation,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(operation);
+
         var attempt = 0;
 
         while (true)
