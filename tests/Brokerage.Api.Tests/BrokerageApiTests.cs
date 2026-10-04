@@ -329,6 +329,20 @@ public class BrokerageApiTests
             "MOCK-STATUS",
             statusJson.GetProperty("organizationStatus").GetString());
 
+        var persistedRequestResponse = await client.GetAsync(
+            $"/service-requests/{requestId}");
+
+        Assert.Equal(
+            System.Net.HttpStatusCode.OK,
+            persistedRequestResponse.StatusCode);
+
+        var persistedRequest =
+            await persistedRequestResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+
+        Assert.Equal(
+            "MOCK-STATUS",
+            persistedRequest.GetProperty("organizationStatus").GetString());
+
         var workflowResponse = await client.GetAsync(
             $"/service-requests/{requestId}/workflow-stages");
 
@@ -519,6 +533,29 @@ public class BrokerageApiTests
             1,
             stages.Count(stage =>
                 stage.GetProperty("stageCode").GetString() == "ResultNotification"));
+    }
+
+    private sealed class FailingOrganizationStatusApiClient
+        : IOrganizationApiClient
+    {
+        public Task<OrganizationApiResult> SubmitAsync(
+            string serviceCode,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(
+                OrganizationApiResult.Success(
+                    trackingId: "MOCK-TRACKING-ID"));
+        }
+
+        public Task<OrganizationApiResult> GetStatusAsync(
+            string trackingId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(
+                OrganizationApiResult.Failure(
+                    OrganizationIntegrationErrorType.ServerError,
+                    "Mock organization status request failed."));
+        }
     }
 
     private sealed class FailingOrganizationApiClient
