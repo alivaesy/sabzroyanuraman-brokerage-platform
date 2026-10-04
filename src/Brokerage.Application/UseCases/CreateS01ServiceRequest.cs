@@ -41,11 +41,13 @@ public class CreateS01ServiceRequest
                 "Identity verification failed.");
         }
 
-        await _organizationIntegrationService.SubmitAsync(
+        var trackingId = await _organizationIntegrationService.SubmitAsync(
             ServiceCode.S01.ToString(),
             cancellationToken);
 
         var request = new ServiceRequest(ServiceCode.S01);
+        request.SetOrganizationTrackingId(trackingId);
+        request.ChangeStatus(RequestStatus.WaitingForOrganization);
 
         _workflowService.CreateStage(
             request,
