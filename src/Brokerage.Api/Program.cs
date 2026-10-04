@@ -1,15 +1,25 @@
-﻿using Brokerage.Application.UseCases;
+using Brokerage.Application.UseCases;
 using Brokerage.Domain.Enums;
 using Brokerage.Application.Contracts;
 using Brokerage.Application.Services;
 using Brokerage.Application.Integration;
 using Brokerage.Infrastructure.Integration;
+using Brokerage.Infrastructure.Persistence;
 using Brokerage.Api.Middleware;
 using Brokerage.Application.Models;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
+
+builder.Services.AddDbContext<BrokerageDbContext>(options =>
+    options.UseSqlite(
+        builder.Configuration.GetConnectionString("BrokerageDb")
+        ?? "Data Source=brokerage.db"));
+
+builder.Services.AddScoped<IServiceRequestRepository, ServiceRequestRepository>();
+
 builder.Services.AddScoped<CreateServiceRequest>();
 builder.Services.AddScoped<CreateS01ServiceRequest>();
 builder.Services.AddScoped<WorkflowService>();
@@ -27,6 +37,12 @@ builder.Services.AddScoped<IShahkarClient, MockShahkarClient>();
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+    await DatabaseInitializer.InitializeAsync(dbContext);
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -41,6 +57,7 @@ app.MapGet("/", () => Results.Ok(new
     service = "Brokerage.Api",
     status = "running"
 }));
+
 app.MapPost("/service-requests", (
     CreateServiceRequest useCase,
     ServiceCode serviceCode) =>
@@ -56,12 +73,15 @@ app.MapPost("/service-requests", (
         request.UpdatedAt
     });
 });
+
 app.MapPost("/service-requests/s01", async (
     CreateS01ServiceRequest useCase,
-    CreateS01RequestModel model) =>
+    CreateS01RequestModel model,
+    CancellationToken cancellationToken) =>
 {
     var request = await useCase.ExecuteAsync(
-        model);
+        model,
+        cancellationToken);
 
     return Results.Ok(new
     {
@@ -73,4 +93,5 @@ app.MapPost("/service-requests/s01", async (
         request.CurrentWorkflowStageId
     });
 });
+
 app.Run();

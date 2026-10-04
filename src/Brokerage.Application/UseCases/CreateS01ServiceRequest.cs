@@ -1,3 +1,4 @@
+using Brokerage.Application.Contracts;
 using Brokerage.Application.Integration;
 using Brokerage.Application.Services;
 using Brokerage.Domain.Entities;
@@ -12,16 +13,19 @@ public class CreateS01ServiceRequest
     private readonly WorkflowService _workflowService;
     private readonly IIdentityVerificationService _identityVerificationService;
     private readonly IOrganizationIntegrationService _organizationIntegrationService;
+    private readonly IServiceRequestRepository? _serviceRequestRepository;
 
     public CreateS01ServiceRequest(
-    WorkflowService workflowService,
-    IIdentityVerificationService identityVerificationService,
-    IOrganizationIntegrationService organizationIntegrationService)
-{
-    _workflowService = workflowService;
-    _identityVerificationService = identityVerificationService;
-    _organizationIntegrationService = organizationIntegrationService;
-}
+        WorkflowService workflowService,
+        IIdentityVerificationService identityVerificationService,
+        IOrganizationIntegrationService organizationIntegrationService,
+        IServiceRequestRepository? serviceRequestRepository = null)
+    {
+        _workflowService = workflowService;
+        _identityVerificationService = identityVerificationService;
+        _organizationIntegrationService = organizationIntegrationService;
+        _serviceRequestRepository = serviceRequestRepository;
+    }
 
     public async Task<ServiceRequest> ExecuteAsync(
         CreateS01RequestModel model,
@@ -36,7 +40,7 @@ public class CreateS01ServiceRequest
             throw new BrokerageException(
                 "Identity verification failed.");
         }
-        
+
         await _organizationIntegrationService.SubmitAsync(
             ServiceCode.S01.ToString(),
             cancellationToken);
@@ -46,6 +50,12 @@ public class CreateS01ServiceRequest
         _workflowService.CreateStage(
             request,
             S01StageCode.IdentityVerification.ToString());
+
+        if (_serviceRequestRepository is not null)
+        {
+            await _serviceRequestRepository.AddAsync(request, cancellationToken);
+            await _serviceRequestRepository.SaveChangesAsync(cancellationToken);
+        }
 
         return request;
     }
