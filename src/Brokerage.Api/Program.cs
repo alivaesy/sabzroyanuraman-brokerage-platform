@@ -9,6 +9,7 @@ using Brokerage.Infrastructure.Persistence;
 using Brokerage.Api.Middleware;
 using Brokerage.Application.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -77,9 +78,23 @@ app.MapPost("/service-requests", (
 app.MapPost("/service-requests/s01", async (
     CreateS01ServiceRequest useCase,
     CreateS01RequestModel model,
+    HttpContext context,
+    ILoggerFactory loggerFactory,
     CancellationToken cancellationToken) =>
 {
     var request = await useCase.ExecuteAsync(model, cancellationToken);
+
+    var logger = loggerFactory.CreateLogger("Audit");
+    logger.LogInformation(
+        "AuditEvent {@AuditEvent}",
+        new AuditEvent(
+            Guid.NewGuid(),
+            DateTimeOffset.UtcNow,
+            "ServiceRequestCreated",
+            context.TraceIdentifier,
+            request.Id,
+            request.CurrentWorkflowStageId?.ToString(),
+            "Success"));
 
     return Results.Ok(new
     {
@@ -143,6 +158,8 @@ app.MapGet("/service-requests/{id:guid}/organization-status", async (
     Guid id,
     IServiceRequestRepository repository,
     IOrganizationIntegrationService organizationIntegrationService,
+    HttpContext context,
+    ILoggerFactory loggerFactory,
     CancellationToken cancellationToken) =>
 {
     var request = await repository.GetByIdAsync(id, cancellationToken);
@@ -193,6 +210,18 @@ app.MapGet("/service-requests/{id:guid}/organization-status", async (
     }
 
     await repository.SaveChangesAsync(cancellationToken);
+
+    var logger = loggerFactory.CreateLogger("Audit");
+    logger.LogInformation(
+        "AuditEvent {@AuditEvent}",
+        new AuditEvent(
+            Guid.NewGuid(),
+            DateTimeOffset.UtcNow,
+            "OrganizationStatusReceived",
+            context.TraceIdentifier,
+            request.Id,
+            resultStage.StageCode,
+            "Success"));
 
     return Results.Ok(new
     {
