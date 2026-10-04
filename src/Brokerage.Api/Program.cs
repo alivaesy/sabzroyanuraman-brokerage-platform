@@ -246,3 +246,4 @@ app.MapGet("/service-requests/{id:guid}/organization-status", async (
 app.Run();
 
 public sealed record OtpVerificationRequest(string ChallengeId, string Code);
+public sealed record VerifyIdentityRequest(string NationalIdentifier);
