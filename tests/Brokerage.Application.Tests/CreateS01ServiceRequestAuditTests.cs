@@ -1,4 +1,5 @@
 using Brokerage.Application.Integration;
+using Brokerage.Infrastructure.Integration;
 using Brokerage.Application.Models;
 using Brokerage.Application.Services;
 using Brokerage.Application.UseCases;
@@ -36,7 +37,7 @@ public class CreateS01ServiceRequestAuditTests
             .OfType<AuditEvent>()
             .ToList();
 
-        Assert.Equal(5, auditEvents.Count);
+        Assert.Equal(6, auditEvents.Count);
 
         Assert.Contains(auditEvents, x =>
             x.EventType == "WorkflowStageCreated" &&
