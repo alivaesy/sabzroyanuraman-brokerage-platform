@@ -11,6 +11,7 @@ public class ServiceRequest
     public DateTimeOffset UpdatedAt { get; private set; }
     public Guid? CurrentWorkflowStageId { get; private set; }
     public string? OrganizationTrackingId { get; private set; }
+    public string? OrganizationStatus { get; private set; }
 
     private ServiceRequest() { }
 
@@ -35,6 +36,15 @@ public class ServiceRequest
             throw new ArgumentException("Organization tracking ID cannot be empty.", nameof(trackingId));
 
         OrganizationTrackingId = trackingId;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void SetOrganizationStatus(string status)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+            throw new ArgumentException("Organization status cannot be empty.", nameof(status));
+
+        OrganizationStatus = status;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 

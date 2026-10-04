@@ -134,13 +134,16 @@ app.MapGet("/service-requests/{id:guid}/organization-status", async (
         request.OrganizationTrackingId,
         cancellationToken);
 
+    request.SetOrganizationStatus(organizationStatus);
+    await repository.SaveChangesAsync(cancellationToken);
+
     return Results.Ok(new
     {
         request.Id,
         request.ServiceCode,
         request.Status,
         request.OrganizationTrackingId,
-        organizationStatus
+        request.OrganizationStatus
     });
 });
 
