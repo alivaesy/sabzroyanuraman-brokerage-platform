@@ -5,6 +5,7 @@ namespace Brokerage.Domain.Entities;
 public class ServiceRequest
 {
     public Guid Id { get; private set; }
+    public string ApplicantUserId { get; private set; }
     public ServiceCode ServiceCode { get; private set; }
     public RequestStatus Status { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
@@ -15,9 +16,13 @@ public class ServiceRequest
 
     private ServiceRequest() { }
 
-    public ServiceRequest(ServiceCode serviceCode)
+    public ServiceRequest(ServiceCode serviceCode, string applicantUserId)
     {
+        if (string.IsNullOrWhiteSpace(applicantUserId))
+            throw new ArgumentException("Applicant user ID cannot be empty.", nameof(applicantUserId));
+
         Id = Guid.NewGuid();
+        ApplicantUserId = applicantUserId;
         ServiceCode = serviceCode;
         Status = RequestStatus.Created;
         CreatedAt = DateTimeOffset.UtcNow;

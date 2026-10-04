@@ -33,9 +33,13 @@ public class CreateS01ServiceRequest
 
     public async Task<ServiceRequest> ExecuteAsync(
         CreateS01RequestModel model,
+        string applicantUserId,
         string? correlationId = null,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(applicantUserId))
+            throw new ArgumentException("Applicant user ID cannot be empty.", nameof(applicantUserId));
+
         var isVerified = await _identityVerificationService.VerifyAsync(model.NationalIdentifier, cancellationToken);
         if (!isVerified)
             throw new BrokerageException("Identity verification failed.");
@@ -43,7 +47,7 @@ public class CreateS01ServiceRequest
         var trackingId = await _organizationIntegrationService.SubmitAsync(
             ServiceCode.S01.ToString(), cancellationToken);
 
-        var request = new ServiceRequest(ServiceCode.S01);
+        var request = new ServiceRequest(ServiceCode.S01, applicantUserId);
 
         var identityVerificationStage = _workflowService.CreateStage(request, S01StageCode.IdentityVerification.ToString());
         LogAudit("WorkflowStageCreated", request.Id, identityVerificationStage.StageCode, correlationId, null, identityVerificationStage.StageCode);

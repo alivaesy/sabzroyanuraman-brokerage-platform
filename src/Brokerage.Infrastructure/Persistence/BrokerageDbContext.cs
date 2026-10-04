@@ -16,6 +16,8 @@ public sealed class BrokerageDbContext(DbContextOptions<BrokerageDbContext> opti
         {
             entity.ToTable("service_requests");
             entity.HasKey(x => x.Id);
+            entity.Property(x => x.ApplicantUserId).HasMaxLength(200).IsRequired();
+            entity.HasIndex(x => x.ApplicantUserId);
             entity.Property(x => x.ServiceCode).HasConversion<string>().HasMaxLength(50).IsRequired();
             entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(50).IsRequired();
             entity.Property(x => x.OrganizationTrackingId).HasMaxLength(200);

@@ -88,7 +88,6 @@ app.UseAuthorization();
 
 app.MapGet("/", () => Results.Ok(new { service = "Brokerage.Api", status = "running" }));
 
-
 app.MapPost("/identity/verify", async (
     ICurrentUser currentUser,
     VerifyIdentityRequest request,
@@ -184,7 +183,7 @@ app.MapPost("/service-requests", async (
     if (identityState?.IsVerified != true)
         return Results.Forbid();
 
-    var request = useCase.Execute(serviceCode, "INITIAL");
+    var request = useCase.Execute(serviceCode, "INITIAL", currentUser.UserId);
     return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.CreatedAt, request.UpdatedAt });
 }).RequireAuthorization(AuthorizationPolicies.Applicant);
 
@@ -200,7 +199,7 @@ app.MapPost("/service-requests/s01", async (
     if (identityState?.IsVerified != true)
         return Results.Forbid();
 
-    var request = await useCase.ExecuteAsync(model, context.TraceIdentifier, cancellationToken);
+    var request = await useCase.ExecuteAsync(model, currentUser.UserId, context.TraceIdentifier, cancellationToken);
     loggerFactory.CreateLogger("Audit").LogInformation("AuditEvent {@AuditEvent}", new AuditEvent(
         Guid.NewGuid(), DateTimeOffset.UtcNow, "ServiceRequestCreated", context.TraceIdentifier,
         request.Id, request.CurrentWorkflowStageId?.ToString(), "Success", null, request.Status.ToString()));
@@ -208,27 +207,45 @@ app.MapPost("/service-requests/s01", async (
         request.CurrentWorkflowStageId, request.OrganizationTrackingId });
 }).RequireAuthorization(AuthorizationPolicies.Applicant);
 
-app.MapGet("/service-requests/{id:guid}", async (Guid id, IServiceRequestRepository repository, CancellationToken cancellationToken) =>
-{
-    var request = await repository.GetByIdAsync(id, cancellationToken);
-    return request is null ? Results.NotFound() : Results.Ok(new { request.Id, request.ServiceCode, request.Status,
-        request.CreatedAt, request.UpdatedAt, request.CurrentWorkflowStageId, request.OrganizationTrackingId, request.OrganizationStatus });
-});
-
-app.MapGet("/service-requests/{id:guid}/workflow-stages", async (Guid id, IServiceRequestRepository repository, CancellationToken cancellationToken) =>
+app.MapGet("/service-requests/{id:guid}", async (
+    Guid id,
+    IServiceRequestRepository repository,
+    ICurrentUser currentUser,
+    CancellationToken cancellationToken) =>
 {
     var request = await repository.GetByIdAsync(id, cancellationToken);
     if (request is null) return Results.NotFound();
+    if (!CanAccessServiceRequest(currentUser, request))
+        return Results.Forbid();
+
+    return Results.Ok(new { request.Id, request.ServiceCode, request.Status,
+        request.CreatedAt, request.UpdatedAt, request.CurrentWorkflowStageId, request.OrganizationTrackingId, request.OrganizationStatus });
+}).RequireAuthorization();
+
+app.MapGet("/service-requests/{id:guid}/workflow-stages", async (
+    Guid id,
+    IServiceRequestRepository repository,
+    ICurrentUser currentUser,
+    CancellationToken cancellationToken) =>
+{
+    var request = await repository.GetByIdAsync(id, cancellationToken);
+    if (request is null) return Results.NotFound();
+    if (!CanAccessServiceRequest(currentUser, request))
+        return Results.Forbid();
+
     var stages = await repository.GetWorkflowStagesAsync(id, cancellationToken);
     return Results.Ok(stages.Select(stage => new { stage.Id, stage.ServiceRequestId, stage.StageCode, stage.CreatedAt, stage.CompletedAt }));
-});
+}).RequireAuthorization();
 
 app.MapGet("/service-requests/{id:guid}/organization-status", async (
-    Guid id, IServiceRequestRepository repository, IOrganizationIntegrationService organizationIntegrationService,
+    Guid id, IServiceRequestRepository repository, ICurrentUser currentUser,
+    IOrganizationIntegrationService organizationIntegrationService,
     HttpContext context, ILoggerFactory loggerFactory, CancellationToken cancellationToken) =>
 {
     var request = await repository.GetByIdAsync(id, cancellationToken);
     if (request is null) return Results.NotFound();
+    if (!CanAccessServiceRequest(currentUser, request))
+        return Results.Forbid();
     if (string.IsNullOrWhiteSpace(request.OrganizationTrackingId))
         return Results.BadRequest(new { message = "The service request has no organization tracking ID." });
 
@@ -265,7 +282,23 @@ app.MapGet("/service-requests/{id:guid}/organization-status", async (
 
     return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.OrganizationTrackingId,
         request.OrganizationStatus, request.CurrentWorkflowStageId });
-});
+}).RequireAuthorization();
+
+static bool CanAccessServiceRequest(ICurrentUser currentUser, ServiceRequest request)
+{
+    if (string.IsNullOrWhiteSpace(currentUser.UserId))
+        return false;
+
+    if (string.Equals(request.ApplicantUserId, currentUser.UserId, StringComparison.Ordinal))
+        return true;
+
+    return currentUser.Role is
+        nameof(UserRole.Expert) or
+        nameof(UserRole.Support) or
+        nameof(UserRole.TechnicalSecurity) or
+        nameof(UserRole.OrganizationObserver) or
+        nameof(UserRole.Administrator);
+}
 
 app.Run();
 
