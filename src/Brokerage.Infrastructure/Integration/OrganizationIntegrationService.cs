@@ -8,13 +8,16 @@ public class OrganizationIntegrationService
 {
     private readonly IOrganizationApiClient _organizationApiClient;
     private readonly OrganizationRetryExecutor _retryExecutor;
+    private readonly Microsoft.Extensions.Logging.ILogger<OrganizationIntegrationService>? _logger;
 
     public OrganizationIntegrationService(
         IOrganizationApiClient organizationApiClient,
-        OrganizationRetryExecutor retryExecutor)
+        OrganizationRetryExecutor retryExecutor,
+        Microsoft.Extensions.Logging.ILogger<OrganizationIntegrationService>? logger = null)
     {
         _organizationApiClient = organizationApiClient;
         _retryExecutor = retryExecutor;
+        _logger = logger;
     }
 
     public async Task<string> SubmitAsync(
