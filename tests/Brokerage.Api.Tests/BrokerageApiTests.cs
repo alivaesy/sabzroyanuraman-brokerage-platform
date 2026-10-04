@@ -409,7 +409,7 @@ public class BrokerageApiTests
             await statusResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
 
         Assert.Equal(
-            "MOCK-STATUS",
+            "MockStatus",
             statusJson.GetProperty("organizationStatus").GetString());
 
         var persistedRequestResponse = await client.GetAsync(
@@ -423,7 +423,7 @@ public class BrokerageApiTests
             await persistedRequestResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
 
         Assert.Equal(
-            "MOCK-STATUS",
+            "MockStatus",
             persistedRequest.GetProperty("organizationStatus").GetString());
 
         var workflowResponse = await client.GetAsync(
@@ -613,7 +613,7 @@ public class BrokerageApiTests
             firstStatus.GetProperty("currentWorkflowStageId").GetString(),
             secondStatus.GetProperty("currentWorkflowStageId").GetString());
         Assert.Equal(
-            "MOCK-STATUS",
+            "MockStatus",
             secondStatus.GetProperty("organizationStatus").GetString());
 
         var persistedRequestResponse = await client.GetAsync(
@@ -630,7 +630,7 @@ public class BrokerageApiTests
             secondStatus.GetProperty("currentWorkflowStageId").GetString(),
             persistedRequest.GetProperty("currentWorkflowStageId").GetString());
         Assert.Equal(
-            "MOCK-STATUS",
+            "MockStatus",
             persistedRequest.GetProperty("organizationStatus").GetString());
 
         var workflowResponse = await client.GetAsync(
@@ -689,7 +689,7 @@ public class BrokerageApiTests
         {
             return Task.FromResult(
                 OrganizationApiResult.Success(
-                    status: "MOCK-STATUS"));
+                    status: "MockStatus"));
         }
     }
 }

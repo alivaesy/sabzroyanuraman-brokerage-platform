@@ -33,7 +33,7 @@ public class CreateS01ServiceRequestAuditTests
             "CORRELATION-123");
 
         var auditEvents = logger.Events
-            .Select(x => x["AuditEvent"])
+            .SelectMany(x => x.Values)
             .OfType<AuditEvent>()
             .ToList();
 
