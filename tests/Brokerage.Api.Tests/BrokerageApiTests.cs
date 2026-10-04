@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc.Testing;
 using System.Net.Http.Json;
 using Brokerage.Application.Integration;
+using Brokerage.Domain.Entities;
+using Brokerage.Domain.Enums;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Brokerage.Api.Tests;
@@ -353,6 +355,38 @@ public class BrokerageApiTests
         Assert.Equal(
             System.Text.Json.JsonValueKind.Null,
             stages[3].GetProperty("completedAt").ValueKind);
+
+        Assert.Equal(
+            Guid.Parse(stages[3].GetProperty("id").GetString()!),
+            Guid.Parse(statusJson.GetProperty("currentWorkflowStageId").GetString()!));
+    }
+
+    [Fact]
+    public async Task GetOrganizationStatus_WhenTrackingIdIsMissing_ReturnsBadRequest()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var scope = application.Services.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IServiceRequestRepository>();
+
+        var request = new ServiceRequest(ServiceCode.S01);
+        await repository.AddAsync(request);
+        await repository.SaveChangesAsync();
+
+        using var client = application.CreateClient();
+
+        var response = await client.GetAsync(
+            $"/service-requests/{request.Id}/organization-status");
+
+        Assert.Equal(
+            System.Net.HttpStatusCode.BadRequest,
+            response.StatusCode);
+
+        var error =
+            await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+
+        Assert.Equal(
+            "The service request has no organization tracking ID.",
+            error.GetProperty("message").GetString());
     }
 
     [Fact]
