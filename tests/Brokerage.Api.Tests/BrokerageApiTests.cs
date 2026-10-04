@@ -209,7 +209,7 @@ public async Task CreateS01_WithInvalidTestIdentity_ReturnsStandardErrorResponse
         {
             return Task.FromResult(
                 OrganizationApiResult.Success(
-                    "MOCK-STATUS"));
+                    status: "MOCK-STATUS"));
         }
     }
 }

@@ -21,5 +21,28 @@ public class ServiceRequestTests
         Assert.True(request.CreatedAt <= after);
         Assert.Equal(request.CreatedAt, request.UpdatedAt);
         Assert.Null(request.CurrentWorkflowStageId);
+        Assert.Null(request.OrganizationTrackingId);
+        Assert.Null(request.OrganizationStatus);
+    }
+}
+    [Fact]
+    public void SetOrganizationStatus_StoresStatusAndUpdatesTimestamp()
+    {
+        var request = new ServiceRequest(ServiceCode.S01);
+        var before = request.UpdatedAt;
+
+        request.SetOrganizationStatus("Approved");
+
+        Assert.Equal("Approved", request.OrganizationStatus);
+        Assert.True(request.UpdatedAt >= before);
+    }
+
+    [Fact]
+    public void SetOrganizationStatus_WithEmptyValue_Throws()
+    {
+        var request = new ServiceRequest(ServiceCode.S01);
+
+        Assert.Throws<ArgumentException>(
+            () => request.SetOrganizationStatus(" "));
     }
 }

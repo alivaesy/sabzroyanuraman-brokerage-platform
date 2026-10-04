@@ -107,7 +107,8 @@ app.MapGet("/service-requests/{id:guid}", async (
             request.CreatedAt,
             request.UpdatedAt,
             request.CurrentWorkflowStageId,
-            request.OrganizationTrackingId
+            request.OrganizationTrackingId,
+            request.OrganizationStatus
         });
 });
 
