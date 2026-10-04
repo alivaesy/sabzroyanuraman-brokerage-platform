@@ -49,13 +49,14 @@ public class CreateS01ServiceRequest
         request.SetOrganizationTrackingId(trackingId);
         request.ChangeStatus(RequestStatus.WaitingForOrganization);
 
-        _workflowService.CreateStage(
+        var workflowStage = _workflowService.CreateStage(
             request,
             S01StageCode.IdentityVerification.ToString());
 
         if (_serviceRequestRepository is not null)
         {
             await _serviceRequestRepository.AddAsync(request, cancellationToken);
+            await _serviceRequestRepository.AddWorkflowStageAsync(workflowStage, cancellationToken);
             await _serviceRequestRepository.SaveChangesAsync(cancellationToken);
         }
 
