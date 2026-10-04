@@ -1,3 +1,4 @@
+using Brokerage.Application.Contracts;
 using Brokerage.Application.Integration;
 using Brokerage.Domain.Entities;
 using Microsoft.Extensions.Logging;
@@ -9,36 +10,31 @@ public sealed record VerifyIdentityResult(string UserId, bool Verified);
 public sealed class VerifyIdentity
 {
     private readonly IIdentityVerificationService _identityVerificationService;
+    private readonly IIdentityVerificationStateRepository _stateRepository;
     private readonly ILogger<VerifyIdentity> _logger;
 
-    public VerifyIdentity(
-        IIdentityVerificationService identityVerificationService,
-        ILogger<VerifyIdentity> logger)
+    public VerifyIdentity(IIdentityVerificationService identityVerificationService,
+        IIdentityVerificationStateRepository stateRepository, ILogger<VerifyIdentity> logger)
     {
         _identityVerificationService = identityVerificationService;
+        _stateRepository = stateRepository;
         _logger = logger;
     }
 
-    public async Task<VerifyIdentityResult> ExecuteAsync(
-        string authenticatedUserId,
-        string nationalIdentifier,
-        string? correlationId = null,
+    public async Task<VerifyIdentityResult> ExecuteAsync(string authenticatedUserId,
+        string nationalIdentifier, string? correlationId = null,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(authenticatedUserId))
             throw new ArgumentException("Authenticated user is required.", nameof(authenticatedUserId));
 
-        var verified = await _identityVerificationService.VerifyAsync(
-            nationalIdentifier,
-            cancellationToken);
+        var verified = await _identityVerificationService.VerifyAsync(nationalIdentifier, cancellationToken);
+        var occurredAt = DateTimeOffset.UtcNow;
+        await _stateRepository.SaveResultAsync(authenticatedUserId, verified, occurredAt, cancellationToken);
 
-        _logger.LogInformation(
-            "AuditEvent {@AuditEvent}",
-            new AuditEvent(
-                Guid.NewGuid(), DateTimeOffset.UtcNow, "IdentityVerification",
-                correlationId ?? string.Empty, null, "IdentityVerification",
-                verified ? "Success" : "Failure", null,
-                verified ? "Verified" : "Rejected"));
+        _logger.LogInformation("AuditEvent {@AuditEvent}", new AuditEvent(Guid.NewGuid(), occurredAt,
+            "IdentityVerification", correlationId ?? string.Empty, null, "IdentityVerification",
+            verified ? "Success" : "Failure", null, verified ? "Verified" : "Rejected"));
 
         return new VerifyIdentityResult(authenticatedUserId, verified);
     }
