@@ -508,7 +508,7 @@ public class OrganizationIntegrationServiceTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(
-                OrganizationApiResult.Success("MockStatus"));
+                OrganizationApiResult.Success(status: "MockStatus"));
         }
     }
     private sealed class GetStatusRetryOrganizationApiClient
@@ -538,7 +538,7 @@ public class OrganizationIntegrationServiceTests
             }
 
             return OrganizationApiResult.Success(
-                "MOCK-STATUS-RETRY-SUCCESS");
+                status: "MOCK-STATUS-RETRY-SUCCESS");
         }
     }
     private sealed class GetStatusRateLimitOrganizationApiClient
@@ -570,7 +570,7 @@ public class OrganizationIntegrationServiceTests
 
             return Task.FromResult(
                 OrganizationApiResult.Success(
-                    "MOCK-STATUS-RATELIMIT-SUCCESS"));
+                    status: "MOCK-STATUS-RATELIMIT-SUCCESS"));
         }
     }
     private sealed class ClientErrorOrganizationApiClient
@@ -689,7 +689,7 @@ public class OrganizationIntegrationServiceTests
             }
 
             return OrganizationApiResult.Success(
-                "MOCK-STATUS-TIMEOUT-SUCCESS");
+                status: "MOCK-STATUS-TIMEOUT-SUCCESS");
         }
     }
     private sealed class GetStatusServerErrorOrganizationApiClient
