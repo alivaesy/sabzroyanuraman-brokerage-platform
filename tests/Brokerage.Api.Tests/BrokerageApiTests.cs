@@ -127,8 +127,8 @@ public class BrokerageApiTests
             requestId,
             Guid.Parse(request.GetProperty("id").GetString()!));
         Assert.Equal(
-            "WaitingForOrganization",
-            request.GetProperty("status").GetString());
+            (int)RequestStatus.WaitingForOrganization,
+            request.GetProperty("status").GetInt32());
         Assert.Equal(
             "MOCK-TRACKING-ID",
             request.GetProperty("organizationTrackingId").GetString());
