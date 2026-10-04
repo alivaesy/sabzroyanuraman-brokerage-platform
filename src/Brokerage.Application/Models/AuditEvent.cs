@@ -7,4 +7,6 @@ public sealed record AuditEvent(
     string CorrelationId,
     Guid? ServiceRequestId,
     string? WorkflowStage,
-    string Outcome);
+    string Outcome,
+    string? PreviousState = null,
+    string? NewState = null);
