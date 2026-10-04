@@ -19,7 +19,6 @@ builder.Services.AddDbContext<BrokerageDbContext>(options =>
         ?? "Data Source=brokerage.db"));
 
 builder.Services.AddScoped<IServiceRequestRepository, ServiceRequestRepository>();
-
 builder.Services.AddScoped<CreateServiceRequest>();
 builder.Services.AddScoped<CreateS01ServiceRequest>();
 builder.Services.AddScoped<WorkflowService>();
@@ -28,9 +27,7 @@ builder.Services.AddScoped<OrganizationRetryPolicy>();
 builder.Services.AddScoped<OrganizationRetryOptions>();
 builder.Services.AddScoped<OrganizationTimeoutOptions>();
 builder.Services.AddScoped<OrganizationRetryExecutor>();
-builder.Services.AddScoped<
-    Brokerage.Application.Integration.IOrganizationApiClient,
-    MockOrganizationApiClient>();
+builder.Services.AddScoped<Brokerage.Application.Integration.IOrganizationApiClient, MockOrganizationApiClient>();
 builder.Services.AddScoped<IIdentityVerificationService, IdentityVerificationService>();
 builder.Services.AddScoped<ISanaClient, MockSanaClient>();
 builder.Services.AddScoped<IShahkarClient, MockShahkarClient>();
@@ -79,9 +76,7 @@ app.MapPost("/service-requests/s01", async (
     CreateS01RequestModel model,
     CancellationToken cancellationToken) =>
 {
-    var request = await useCase.ExecuteAsync(
-        model,
-        cancellationToken);
+    var request = await useCase.ExecuteAsync(model, cancellationToken);
 
     return Results.Ok(new
     {
@@ -90,7 +85,8 @@ app.MapPost("/service-requests/s01", async (
         request.Status,
         request.CreatedAt,
         request.UpdatedAt,
-        request.CurrentWorkflowStageId
+        request.CurrentWorkflowStageId,
+        request.OrganizationTrackingId
     });
 });
 
@@ -110,7 +106,8 @@ app.MapGet("/service-requests/{id:guid}", async (
             request.Status,
             request.CreatedAt,
             request.UpdatedAt,
-            request.CurrentWorkflowStageId
+            request.CurrentWorkflowStageId,
+            request.OrganizationTrackingId
         });
 });
 
