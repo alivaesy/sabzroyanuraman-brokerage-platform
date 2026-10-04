@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging.Abstractions;
+
 namespace Brokerage.Api.Middleware;
 
 public class CorrelationIdMiddleware
@@ -7,10 +9,10 @@ public class CorrelationIdMiddleware
     private readonly RequestDelegate _next;
     private readonly ILogger<CorrelationIdMiddleware> _logger;
 
-    public CorrelationIdMiddleware(RequestDelegate next, ILogger<CorrelationIdMiddleware> logger)
+    public CorrelationIdMiddleware(RequestDelegate next, ILogger<CorrelationIdMiddleware>? logger = null)
     {
         _next = next;
-        _logger = logger;
+        _logger = logger ?? NullLogger<CorrelationIdMiddleware>.Instance;
     }
 
     public async Task InvokeAsync(HttpContext context)
