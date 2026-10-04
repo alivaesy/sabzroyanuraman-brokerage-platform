@@ -8,4 +8,5 @@ public static class AuthorizationPolicies
     public const string TechnicalSecurity = nameof(TechnicalSecurity);
     public const string OrganizationObserver = nameof(OrganizationObserver);
     public const string Administrator = nameof(Administrator);
+    public const string MfaVerified = nameof(MfaVerified);
 }
