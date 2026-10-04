@@ -1,5 +1,6 @@
 using Brokerage.Application.Contracts;
 using Brokerage.Application.Integration;
+using Brokerage.Application.Models;
 using Brokerage.Domain.Entities;
 using Microsoft.Extensions.Logging;
 
