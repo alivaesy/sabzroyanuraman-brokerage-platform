@@ -283,6 +283,133 @@ public class BrokerageApiTests
                 errorResponse.CorrelationId));
     }
 
+
+    [Fact]
+    public async Task GetOrganizationStatus_AdvancesWorkflowToResultNotification()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var content = new StringContent(
+            """
+            {
+                "nationalIdentifier": "TEST-123"
+            }
+            """,
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        var createResponse = await client.PostAsync(
+            "/service-requests/s01",
+            content);
+
+        Assert.Equal(
+            System.Net.HttpStatusCode.OK,
+            createResponse.StatusCode);
+
+        var created =
+            await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+
+        var requestId = Guid.Parse(
+            created.GetProperty("id").GetString()!);
+
+        var statusResponse = await client.GetAsync(
+            $"/service-requests/{requestId}/organization-status");
+
+        Assert.Equal(
+            System.Net.HttpStatusCode.OK,
+            statusResponse.StatusCode);
+
+        var statusJson =
+            await statusResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+
+        Assert.Equal(
+            "MOCK-STATUS",
+            statusJson.GetProperty("organizationStatus").GetString());
+
+        var workflowResponse = await client.GetAsync(
+            $"/service-requests/{requestId}/workflow-stages");
+
+        Assert.Equal(
+            System.Net.HttpStatusCode.OK,
+            workflowResponse.StatusCode);
+
+        var stages =
+            await workflowResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement[]>();
+
+        Assert.NotNull(stages);
+        Assert.Equal(4, stages!.Length);
+
+        Assert.Equal(
+            "OrganizationFollowUp",
+            stages[2].GetProperty("stageCode").GetString());
+        Assert.NotEqual(
+            System.Text.Json.JsonValueKind.Null,
+            stages[2].GetProperty("completedAt").ValueKind);
+
+        Assert.Equal(
+            "ResultNotification",
+            stages[3].GetProperty("stageCode").GetString());
+        Assert.Equal(
+            System.Text.Json.JsonValueKind.Null,
+            stages[3].GetProperty("completedAt").ValueKind);
+    }
+
+    [Fact]
+    public async Task GetOrganizationStatus_WhenCalledTwice_DoesNotDuplicateResultNotification()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var content = new StringContent(
+            """
+            {
+                "nationalIdentifier": "TEST-123"
+            }
+            """,
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        var createResponse = await client.PostAsync(
+            "/service-requests/s01",
+            content);
+
+        Assert.Equal(
+            System.Net.HttpStatusCode.OK,
+            createResponse.StatusCode);
+
+        var created =
+            await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+
+        var requestId = Guid.Parse(
+            created.GetProperty("id").GetString()!);
+
+        var firstStatusResponse = await client.GetAsync(
+            $"/service-requests/{requestId}/organization-status");
+        var secondStatusResponse = await client.GetAsync(
+            $"/service-requests/{requestId}/organization-status");
+
+        Assert.Equal(
+            System.Net.HttpStatusCode.OK,
+            firstStatusResponse.StatusCode);
+        Assert.Equal(
+            System.Net.HttpStatusCode.OK,
+            secondStatusResponse.StatusCode);
+
+        var workflowResponse = await client.GetAsync(
+            $"/service-requests/{requestId}/workflow-stages");
+
+        var stages =
+            await workflowResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement[]>();
+
+        Assert.NotNull(stages);
+        Assert.Equal(4, stages!.Length);
+        Assert.Equal(
+            1,
+            stages.Count(stage =>
+                stage.GetProperty("stageCode").GetString() == "ResultNotification"));
+    }
+
     private sealed class FailingOrganizationApiClient
         : IOrganizationApiClient
     {
