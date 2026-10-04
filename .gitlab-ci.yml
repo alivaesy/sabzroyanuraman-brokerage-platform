@@ -1,0 +1,48 @@
+stages:
+  - validate
+  - build
+  - test
+
+site_validate:
+  stage: validate
+  image: alpine:3.20
+  script:
+    - echo "Validating Sabz Royan Uraman website..."
+    - test -f sabzroyanuraman-site/index.html
+    - test -f sabzroyanuraman-site/determination-form.html
+    - test -f sabzroyanuraman-site/brokerage-details.html
+    - test -f sabzroyanuraman-site/web-gis.html
+    - test -f sabzroyanuraman-site/web-cad.html
+    - test -f sabzroyanuraman-site/.htaccess
+    - echo "Required website files are present."
+
+php_validate:
+  stage: validate
+  image: php:8.2-cli
+  script:
+    - echo "Checking PHP syntax..."
+    - |
+      files="$(find sabzroyanuraman-site -type f -name '*.php')"
+      if [ -z "$files" ]; then
+        echo "No PHP files found."
+        exit 0
+      fi
+      for file in $files; do
+        echo "Checking $file"
+        php -l "$file"
+      done
+
+dotnet_build:
+  stage: build
+  image: mcr.microsoft.com/dotnet/sdk:10.0
+  script:
+    - dotnet --info
+    - dotnet restore BrokeragePlatform.slnx
+    - dotnet build BrokeragePlatform.slnx --configuration Release --no-restore
+
+dotnet_test:
+  stage: test
+  image: mcr.microsoft.com/dotnet/sdk:10.0
+  script:
+    - dotnet restore BrokeragePlatform.slnx
+    - dotnet test BrokeragePlatform.slnx --configuration Release --no-restore --logger "console;verbosity=normal"
