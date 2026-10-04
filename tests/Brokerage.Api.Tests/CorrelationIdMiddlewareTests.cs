@@ -1,5 +1,6 @@
 using Brokerage.Api.Middleware;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Brokerage.Api.Tests;
 
@@ -13,7 +14,8 @@ public class CorrelationIdMiddlewareTests
             "existing-correlation-id";
 
         var middleware = new CorrelationIdMiddleware(
-            _ => Task.CompletedTask);
+            _ => Task.CompletedTask,
+            NullLogger<CorrelationIdMiddleware>.Instance);
 
         await middleware.InvokeAsync(context);
 

@@ -1,4 +1,5 @@
 ﻿using Brokerage.Application.Exceptions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Brokerage.Application.Models;
 
 namespace Brokerage.Api.Middleware;
@@ -6,10 +7,12 @@ namespace Brokerage.Api.Middleware;
 public class ExceptionHandlingMiddleware
 {
     private readonly RequestDelegate _next;
+    private readonly ILogger<ExceptionHandlingMiddleware> _logger;
 
-    public ExceptionHandlingMiddleware(RequestDelegate next)
+    public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware>? logger = null)
     {
         _next = next;
+        _logger = logger ?? NullLogger<ExceptionHandlingMiddleware>.Instance;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -22,6 +25,7 @@ public class ExceptionHandlingMiddleware
         }
         catch (BrokerageException ex)
         {
+            _logger.LogWarning(ex, "Brokerage request failed. CorrelationId={CorrelationId}", correlationId);
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             context.Response.ContentType = "application/json";
 
@@ -33,8 +37,9 @@ public class ExceptionHandlingMiddleware
                     CorrelationId = correlationId
                 });
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Unhandled brokerage request failure. CorrelationId={CorrelationId}", correlationId);
             context.Response.StatusCode =
                 StatusCodes.Status500InternalServerError;
 
