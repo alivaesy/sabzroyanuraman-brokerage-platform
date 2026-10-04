@@ -1,24 +1,18 @@
-﻿using Brokerage.Domain.Enums;
+using Brokerage.Domain.Enums;
 
 namespace Brokerage.Domain.Entities;
 
 public class ServiceRequest
 {
     public Guid Id { get; private set; }
-
     public ServiceCode ServiceCode { get; private set; }
-
     public RequestStatus Status { get; private set; }
-
     public DateTimeOffset CreatedAt { get; private set; }
-
     public DateTimeOffset UpdatedAt { get; private set; }
-
     public Guid? CurrentWorkflowStageId { get; private set; }
+    public string? OrganizationTrackingId { get; private set; }
 
-    private ServiceRequest()
-    {
-    }
+    private ServiceRequest() { }
 
     public ServiceRequest(ServiceCode serviceCode)
     {
@@ -34,7 +28,16 @@ public class ServiceRequest
         Status = status;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
-    
+
+    public void SetOrganizationTrackingId(string trackingId)
+    {
+        if (string.IsNullOrWhiteSpace(trackingId))
+            throw new ArgumentException("Organization tracking ID cannot be empty.", nameof(trackingId));
+
+        OrganizationTrackingId = trackingId;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
     public void SetCurrentWorkflowStage(Guid workflowStageId)
     {
         CurrentWorkflowStageId = workflowStageId;
