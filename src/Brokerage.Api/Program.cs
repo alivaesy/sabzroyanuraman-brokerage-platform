@@ -14,10 +14,12 @@ using Brokerage.Application.Models;
 using Brokerage.Application.Authorization;
 using Brokerage.Application.Authentication;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,10 +29,37 @@ builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 
-builder.Services.AddAuthentication(DevelopmentAuthenticationHandler.SchemeName)
-    .AddScheme<AuthenticationSchemeOptions, DevelopmentAuthenticationHandler>(
-        DevelopmentAuthenticationHandler.SchemeName,
-        _ => { });
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddAuthentication(DevelopmentAuthenticationHandler.SchemeName)
+        .AddScheme<AuthenticationSchemeOptions, DevelopmentAuthenticationHandler>(
+            DevelopmentAuthenticationHandler.SchemeName,
+            _ => { });
+}
+else
+{
+    var authority = builder.Configuration["Authentication:Production:Authority"];
+    var audience = builder.Configuration["Authentication:Production:Audience"];
+
+    if (string.IsNullOrWhiteSpace(authority) || string.IsNullOrWhiteSpace(audience))
+        throw new InvalidOperationException(
+            "Production authentication is not configured. Set Authentication:Production:Authority and Authentication:Production:Audience.");
+
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            options.Authority = authority;
+            options.Audience = audience;
+            options.RequireHttpsMetadata =
+                builder.Configuration.GetValue("Authentication:Production:RequireHttpsMetadata", true);
+
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                NameClaimType = IdentityClaims.UserId,
+                RoleClaimType = IdentityClaims.Role
+            };
+        });
+}
 
 builder.Services.AddSingleton<IMfaVerificationStore, InMemoryMfaVerificationStore>();
 builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, MfaAuthorizationHandler>();
@@ -261,7 +290,7 @@ app.MapGet("/service-requests/{id:guid}/organization-status", async (
         followUpStage.Complete();
         loggerFactory.CreateLogger("Audit").LogInformation("AuditEvent {@AuditEvent}", new AuditEvent(
             Guid.NewGuid(), DateTimeOffset.UtcNow, "WorkflowStageCompleted", context.TraceIdentifier,
-            request.Id, followUpStage.StageCode, "Success", followUpStage.StageCode, followUpStage.StageCode));
+            request.Id, followUpStage.StageCode, "Success", null, followUpStage.StageCode));
     }
 
     var resultStage = workflowStages.SingleOrDefault(stage => stage.StageCode == S01StageCode.ResultNotification.ToString());
