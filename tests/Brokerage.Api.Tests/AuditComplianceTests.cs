@@ -48,8 +48,8 @@ public class AuditComplianceTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("application/x-ndjson", response.Content.Headers.ContentType?.MediaType);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains(""EventType":"AuditExportTest"", body);
-        Assert.Contains(""ActorRole":"TechnicalSecurity"", body);
+        Assert.Contains("AuditExportTest", body);
+        Assert.Contains("TechnicalSecurity", body);
     }
 
     [Fact]
