@@ -50,16 +50,14 @@ dotnet_migration_generate:
     - dotnet build src/Brokerage.Api/Brokerage.Api.csproj --configuration Release --no-restore
     - rm -rf src/Brokerage.Infrastructure/Persistence/Migrations
     - dotnet ef migrations add InitialCreate --project src/Brokerage.Infrastructure/Brokerage.Infrastructure.csproj --startup-project src/Brokerage.Api/Brokerage.Api.csproj --output-dir Persistence/Migrations --configuration Release --no-build
-    - git config user.name "GitLab Migration Bot"
-    - git config user.email "gitlab-migration-bot@users.noreply.gitlab.com"
-    - git add src/Brokerage.Infrastructure/Persistence/Migrations
+    - echo "EF Core generated migration files:"
+    - find src/Brokerage.Infrastructure/Persistence/Migrations -maxdepth 1 -type f -print
     - |
-      if git diff --cached --quiet; then
-        echo "No migration changes detected."
-        exit 0
-      fi
-      git commit -m "Add EF Core initial migration [skip ci]"
-      git push "https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" "HEAD:${CI_COMMIT_REF_NAME}"
+      for file in src/Brokerage.Infrastructure/Persistence/Migrations/*.cs; do
+        echo "===== BEGIN $file ====="
+        cat "$file"
+        echo "===== END $file ====="
+      done
 
 dotnet_test:
   stage: test
