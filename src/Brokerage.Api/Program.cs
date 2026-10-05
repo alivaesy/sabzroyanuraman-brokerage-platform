@@ -90,6 +90,7 @@ builder.Services.AddScoped<VerifyIdentity>();
 builder.Services.AddScoped<WorkflowService>();
 builder.Services.AddScoped<IOrganizationIntegrationService, OrganizationIntegrationService>();
 builder.Services.AddScoped<OrganizationRetryPolicy>();
+builder.Services.AddScoped<OrganizationRetryOptions>();
 builder.Services.AddScoped<OrganizationTimeoutOptions>();
 builder.Services.AddScoped<OrganizationRetryExecutor>();
 builder.Services.AddScoped<Brokerage.Application.Integration.IOrganizationApiClient, MockOrganizationApiClient>();

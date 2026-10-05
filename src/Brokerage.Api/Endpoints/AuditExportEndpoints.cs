@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Brokerage.Application.Authorization;
-using Brokerage.Application.Authorization;
 using Brokerage.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,7 +20,8 @@ public static class AuditExportEndpoints
             BrokerageDbContext dbContext,
             ICurrentUser currentUser,
             HttpContext context,
-            CancellationToken cancellationToken) =>
+            CancellationToken cancellationToken,
+            IConfiguration configuration) =>
         {
             if (currentUser.Role is not (nameof(UserRole.TechnicalSecurity) or nameof(UserRole.Administrator)))
                 return Results.Forbid();
@@ -29,9 +29,13 @@ public static class AuditExportEndpoints
             if (from.HasValue && to.HasValue && from > to)
                 return Results.BadRequest(new { message = "'from' must be earlier than or equal to 'to'." });
 
-            var requestedLimit = limit ?? DefaultLimit;
-            if (requestedLimit is < 1 or > MaximumLimit)
-                return Results.BadRequest(new { message = $"limit must be between 1 and {MaximumLimit}." });
+            var minimumRetentionDays = Math.Max(configuration.GetValue<int?>("Audit:RetentionDays") ?? MinimumRetentionDays, MinimumRetentionDays);
+            var defaultLimit = Math.Clamp(configuration.GetValue<int?>("Audit:ExportDefaultLimit") ?? DefaultLimit, 1, MaximumLimit);
+            var maximumLimit = Math.Clamp(configuration.GetValue<int?>("Audit:ExportMaximumLimit") ?? MaximumLimit, defaultLimit, MaximumLimit);
+
+            var requestedLimit = limit ?? defaultLimit;
+            if (requestedLimit is < 1 or > maximumLimit)
+                return Results.BadRequest(new { message = $"limit must be between 1 and {maximumLimit}." });
 
             var query = dbContext.AuditEvents
                 .AsNoTracking()
@@ -64,7 +68,7 @@ public static class AuditExportEndpoints
                 })
                 .ToListAsync(cancellationToken);
 
-            context.Response.Headers["X-Audit-Retention-Days"] = MinimumRetentionDays.ToString();
+            context.Response.Headers["X-Audit-Retention-Days"] = minimumRetentionDays.ToString();
 
             var ndjson = string.Join(
                 Environment.NewLine,
