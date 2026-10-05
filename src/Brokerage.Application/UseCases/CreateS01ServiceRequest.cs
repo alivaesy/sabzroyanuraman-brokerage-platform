@@ -58,12 +58,12 @@ public class CreateS01ServiceRequest
         await LogAuditAsync("WorkflowStageCompleted", request.Id, identityVerificationStage.StageCode, correlationId, identityVerificationStage.StageCode, identityVerificationStage.StageCode);
 
         var organizationSubmissionStage = _workflowService.CreateStage(request, S01StageCode.OrganizationSubmission.ToString());
-        LogAudit("WorkflowStageCreated", request.Id, organizationSubmissionStage.StageCode, correlationId, null, organizationSubmissionStage.StageCode);
+        await LogAuditAsync("WorkflowStageCreated", request.Id, organizationSubmissionStage.StageCode, correlationId, null, organizationSubmissionStage.StageCode);
         organizationSubmissionStage.Complete();
-        LogAudit("WorkflowStageCompleted", request.Id, organizationSubmissionStage.StageCode, correlationId, organizationSubmissionStage.StageCode, organizationSubmissionStage.StageCode);
+        await LogAuditAsync("WorkflowStageCompleted", request.Id, organizationSubmissionStage.StageCode, correlationId, organizationSubmissionStage.StageCode, organizationSubmissionStage.StageCode);
 
         var organizationFollowUpStage = _workflowService.CreateStage(request, S01StageCode.OrganizationFollowUp.ToString());
-        LogAudit("WorkflowStageCreated", request.Id, organizationFollowUpStage.StageCode, correlationId, null, organizationFollowUpStage.StageCode);
+        await LogAuditAsync("WorkflowStageCreated", request.Id, organizationFollowUpStage.StageCode, correlationId, null, organizationFollowUpStage.StageCode);
 
         request.SetOrganizationTrackingId(trackingId);
         var previousRequestStatus = request.Status;
