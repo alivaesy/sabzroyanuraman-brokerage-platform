@@ -9,16 +9,14 @@ public class ExceptionHandlingMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<ExceptionHandlingMiddleware> _logger;
-    private readonly IAuditEventWriter? _auditEventWriter;
 
-    public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware>? logger = null, IAuditEventWriter? auditEventWriter = null)
+    public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware>? logger = null)
     {
         _next = next;
         _logger = logger ?? NullLogger<ExceptionHandlingMiddleware>.Instance;
-        _auditEventWriter = auditEventWriter;
     }
 
-    public async Task InvokeAsync(HttpContext context)
+    public async Task InvokeAsync(HttpContext context, IAuditEventWriter auditEventWriter)
     {
         var correlationId = context.TraceIdentifier;
 
@@ -65,9 +63,6 @@ public class ExceptionHandlingMiddleware
         var auditEvent = new AuditEvent(Guid.NewGuid(), DateTimeOffset.UtcNow, "RequestFailed", correlationId,
             null, null, "Failure", null, errorCode, null, null, context.Connection.RemoteIpAddress?.ToString());
 
-        if (_auditEventWriter is not null)
-            await _auditEventWriter.WriteAsync(auditEvent);
-        else
-            _logger.LogInformation("AuditEvent {@AuditEvent}", auditEvent);
+        await auditEventWriter.WriteAsync(auditEvent);
     }
 }
