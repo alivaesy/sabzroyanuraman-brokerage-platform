@@ -8,6 +8,7 @@ using Brokerage.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Brokerage.Api.Tests;
 
@@ -25,7 +26,7 @@ public class AuditComplianceTests
         client.DefaultRequestHeaders.Add("X-Test-User-Id", "AUDIT-SEC-001");
         client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.TechnicalSecurity.ToString());
 
-        await using (var scope = application.Services.CreateAsyncScope())
+        using (var scope = application.Services.CreateScope())
         {
             var writer = scope.ServiceProvider.GetRequiredService<IAuditEventWriter>();
             await writer.WriteAsync(new AuditEvent(
