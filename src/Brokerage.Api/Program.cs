@@ -28,6 +28,7 @@ builder.Logging.AddJsonConsole();
 builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+builder.Services.AddScoped<IAuditEventWriter, AuditEventWriter>();
 
 if (builder.Environment.IsDevelopment())
 {
@@ -148,7 +149,7 @@ app.MapGet("/identity/me", async (ICurrentUser currentUser, IIdentityVerificatio
 app.MapPost("/identity/otp/challenges", async (
     ICurrentUser currentUser,
     IOtpService otpService,
-    ILoggerFactory loggerFactory,
+    IAuditEventWriter auditEventWriter,
     HttpContext context,
     CancellationToken cancellationToken) =>
 {
@@ -157,10 +158,8 @@ app.MapPost("/identity/otp/challenges", async (
 
     var challenge = await otpService.IssueAsync(currentUser.UserId, cancellationToken);
 
-    loggerFactory.CreateLogger("Audit").LogInformation(
-        "AuditEvent {@AuditEvent}",
-        new AuditEvent(Guid.NewGuid(), DateTimeOffset.UtcNow, "OtpChallengeIssued", context.TraceIdentifier,
-            null, null, "Success", null, "Issued"));
+    await auditEventWriter.WriteAsync(new AuditEvent(Guid.NewGuid(), DateTimeOffset.UtcNow, "OtpChallengeIssued", context.TraceIdentifier,
+        null, null, "Success", null, "Issued", currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
 
     return Results.Ok(new { challenge.ChallengeId, challenge.ExpiresAt });
 }).RequireAuthorization();
@@ -170,7 +169,7 @@ app.MapPost("/identity/otp/verify", async (
     OtpVerificationRequest request,
     IOtpService otpService,
     IMfaVerificationStore mfaVerificationStore,
-    ILoggerFactory loggerFactory,
+    IAuditEventWriter auditEventWriter,
     HttpContext context,
     CancellationToken cancellationToken) =>
 {
@@ -182,10 +181,9 @@ app.MapPost("/identity/otp/verify", async (
     if (verified)
         mfaVerificationStore.MarkVerified(currentUser.UserId, DateTimeOffset.UtcNow);
 
-    loggerFactory.CreateLogger("Audit").LogInformation(
-        "AuditEvent {@AuditEvent}",
-        new AuditEvent(Guid.NewGuid(), DateTimeOffset.UtcNow, "OtpVerification", context.TraceIdentifier,
-            null, null, verified ? "Success" : "Failure", null, verified ? "Verified" : "Rejected"));
+    await auditEventWriter.WriteAsync(new AuditEvent(Guid.NewGuid(), DateTimeOffset.UtcNow, "OtpVerification", context.TraceIdentifier,
+        null, null, verified ? "Success" : "Failure", null, verified ? "Verified" : "Rejected",
+        currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
 
     return verified
         ? Results.Ok(new { verified = true })
@@ -219,7 +217,7 @@ app.MapPost("/service-requests", async (
 app.MapPost("/service-requests/s01", async (
     CreateS01ServiceRequest useCase, CreateS01RequestModel model, ICurrentUser currentUser,
     IIdentityVerificationStateRepository identityStates, HttpContext context,
-    ILoggerFactory loggerFactory, CancellationToken cancellationToken) =>
+    IAuditEventWriter auditEventWriter, CancellationToken cancellationToken) =>
 {
     if (string.IsNullOrWhiteSpace(currentUser.UserId))
         return Results.Unauthorized();
@@ -229,9 +227,10 @@ app.MapPost("/service-requests/s01", async (
         return Results.Forbid();
 
     var request = await useCase.ExecuteAsync(model, currentUser.UserId, context.TraceIdentifier, cancellationToken);
-    loggerFactory.CreateLogger("Audit").LogInformation("AuditEvent {@AuditEvent}", new AuditEvent(
+    await auditEventWriter.WriteAsync(new AuditEvent(
         Guid.NewGuid(), DateTimeOffset.UtcNow, "ServiceRequestCreated", context.TraceIdentifier,
-        request.Id, request.CurrentWorkflowStageId?.ToString(), "Success", null, request.Status.ToString()));
+        request.Id, request.CurrentWorkflowStageId?.ToString(), "Success", null, request.Status.ToString(),
+        currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
     return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.CreatedAt, request.UpdatedAt,
         request.CurrentWorkflowStageId, request.OrganizationTrackingId });
 }).RequireAuthorization(AuthorizationPolicies.Applicant);
@@ -269,7 +268,7 @@ app.MapGet("/service-requests/{id:guid}/workflow-stages", async (
 app.MapGet("/service-requests/{id:guid}/organization-status", async (
     Guid id, IServiceRequestRepository repository, ICurrentUser currentUser,
     IOrganizationIntegrationService organizationIntegrationService,
-    HttpContext context, ILoggerFactory loggerFactory, CancellationToken cancellationToken) =>
+    HttpContext context, IAuditEventWriter auditEventWriter, CancellationToken cancellationToken) =>
 {
     var request = await repository.GetByIdAsync(id, cancellationToken);
     if (request is null) return Results.NotFound();
@@ -288,9 +287,10 @@ app.MapGet("/service-requests/{id:guid}/organization-status", async (
     if (followUpStage is not null && followUpStage.CompletedAt is null)
     {
         followUpStage.Complete();
-        loggerFactory.CreateLogger("Audit").LogInformation("AuditEvent {@AuditEvent}", new AuditEvent(
+        await auditEventWriter.WriteAsync(new AuditEvent(
             Guid.NewGuid(), DateTimeOffset.UtcNow, "WorkflowStageCompleted", context.TraceIdentifier,
-            request.Id, followUpStage.StageCode, "Success", null, followUpStage.StageCode));
+            request.Id, followUpStage.StageCode, "Success", null, followUpStage.StageCode,
+            currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
     }
 
     var resultStage = workflowStages.SingleOrDefault(stage => stage.StageCode == S01StageCode.ResultNotification.ToString());
@@ -299,15 +299,17 @@ app.MapGet("/service-requests/{id:guid}/organization-status", async (
         resultStage = new WorkflowStage(request.Id, S01StageCode.ResultNotification.ToString());
         await repository.AddWorkflowStageAsync(resultStage, cancellationToken);
         request.SetCurrentWorkflowStage(resultStage.Id);
-        loggerFactory.CreateLogger("Audit").LogInformation("AuditEvent {@AuditEvent}", new AuditEvent(
+        await auditEventWriter.WriteAsync(new AuditEvent(
             Guid.NewGuid(), DateTimeOffset.UtcNow, "WorkflowStageCreated", context.TraceIdentifier,
-            request.Id, resultStage.StageCode, "Success", null, resultStage.StageCode));
+            request.Id, resultStage.StageCode, "Success", null, resultStage.StageCode,
+            currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
     }
 
     await repository.SaveChangesAsync(cancellationToken);
-    loggerFactory.CreateLogger("Audit").LogInformation("AuditEvent {@AuditEvent}", new AuditEvent(
+    await auditEventWriter.WriteAsync(new AuditEvent(
         Guid.NewGuid(), DateTimeOffset.UtcNow, "OrganizationStatusReceived", context.TraceIdentifier,
-        request.Id, resultStage.StageCode, "Success", previousOrganizationStatus, organizationStatus));
+        request.Id, resultStage.StageCode, "Success", previousOrganizationStatus, organizationStatus,
+        currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
 
     return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.OrganizationTrackingId,
         request.OrganizationStatus, request.CurrentWorkflowStageId });

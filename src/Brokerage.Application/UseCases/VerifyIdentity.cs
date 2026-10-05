@@ -13,13 +13,15 @@ public sealed class VerifyIdentity
     private readonly IIdentityVerificationService _identityVerificationService;
     private readonly IIdentityVerificationStateRepository _stateRepository;
     private readonly ILogger<VerifyIdentity> _logger;
+    private readonly IAuditEventWriter? _auditEventWriter;
 
     public VerifyIdentity(IIdentityVerificationService identityVerificationService,
-        IIdentityVerificationStateRepository stateRepository, ILogger<VerifyIdentity> logger)
+        IIdentityVerificationStateRepository stateRepository, ILogger<VerifyIdentity> logger, IAuditEventWriter? auditEventWriter = null)
     {
         _identityVerificationService = identityVerificationService;
         _stateRepository = stateRepository;
         _logger = logger;
+        _auditEventWriter = auditEventWriter;
     }
 
     public async Task<VerifyIdentityResult> ExecuteAsync(string authenticatedUserId,
@@ -33,9 +35,15 @@ public sealed class VerifyIdentity
         var occurredAt = DateTimeOffset.UtcNow;
         await _stateRepository.SaveResultAsync(authenticatedUserId, verified, occurredAt, cancellationToken);
 
-        _logger.LogInformation("AuditEvent {@AuditEvent}", new AuditEvent(Guid.NewGuid(), occurredAt,
+        var auditEvent = new AuditEvent(Guid.NewGuid(), occurredAt,
             "IdentityVerification", correlationId ?? string.Empty, null, "IdentityVerification",
-            verified ? "Success" : "Failure", null, verified ? "Verified" : "Rejected"));
+            verified ? "Success" : "Failure", null, verified ? "Verified" : "Rejected",
+            authenticatedUserId);
+
+        if (_auditEventWriter is not null)
+            await _auditEventWriter.WriteAsync(auditEvent, cancellationToken);
+        else
+            _logger.LogInformation("AuditEvent {@AuditEvent}", auditEvent);
 
         return new VerifyIdentityResult(authenticatedUserId, verified);
     }
