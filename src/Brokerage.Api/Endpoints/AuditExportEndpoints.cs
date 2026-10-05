@@ -34,7 +34,7 @@ public static class AuditExportEndpoints
             var maximumLimit = Math.Clamp(configuration.GetValue<int?>("Audit:ExportMaximumLimit") ?? MaximumLimit, defaultLimit, MaximumLimit);
 
             var requestedLimit = limit ?? defaultLimit;
-            if (requestedLimit is < 1 or > maximumLimit)
+            if (requestedLimit < 1 || requestedLimit > maximumLimit)
                 return Results.BadRequest(new { message = $"limit must be between 1 and {maximumLimit}." });
 
             var query = dbContext.AuditEvents
@@ -72,7 +72,7 @@ public static class AuditExportEndpoints
 
             var ndjson = string.Join(
                 Environment.NewLine,
-                events.Select(JsonSerializer.Serialize));
+                events.Select(item => JsonSerializer.Serialize(item)));
 
             return Results.Text(
                 events.Count == 0 ? string.Empty : ndjson + Environment.NewLine,
