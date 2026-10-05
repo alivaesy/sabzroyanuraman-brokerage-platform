@@ -40,7 +40,7 @@ dotnet_build:
     - dotnet restore BrokeragePlatform.slnx
     - dotnet build BrokeragePlatform.slnx --configuration Release --no-restore
 
-dotnet_migration_preview:
+dotnet_migration_generate:
   stage: build
   image: mcr.microsoft.com/dotnet/sdk:10.0
   script:
@@ -48,10 +48,18 @@ dotnet_migration_preview:
     - dotnet tool install --global dotnet-ef --version 10.0.11
     - dotnet restore BrokeragePlatform.slnx
     - dotnet build src/Brokerage.Api/Brokerage.Api.csproj --configuration Release --no-restore
-    - rm -rf /tmp/ef-migrations
-    - dotnet ef migrations add InitialCreate --project src/Brokerage.Infrastructure/Brokerage.Infrastructure.csproj --startup-project src/Brokerage.Api/Brokerage.Api.csproj --output-dir /tmp/ef-migrations --configuration Release --no-build
-    - echo "=== GENERATED MIGRATION FILES ==="
-    - find /tmp/ef-migrations -maxdepth 1 -type f -print -exec sh -c 'echo "--- $1 ---"; cat "$1"' _ {} \;
+    - rm -rf src/Brokerage.Infrastructure/Persistence/Migrations
+    - dotnet ef migrations add InitialCreate --project src/Brokerage.Infrastructure/Brokerage.Infrastructure.csproj --startup-project src/Brokerage.Api/Brokerage.Api.csproj --output-dir Persistence/Migrations --configuration Release --no-build
+    - git config user.name "GitLab Migration Bot"
+    - git config user.email "gitlab-migration-bot@users.noreply.gitlab.com"
+    - git add src/Brokerage.Infrastructure/Persistence/Migrations
+    - |
+      if git diff --cached --quiet; then
+        echo "No migration changes detected."
+        exit 0
+      fi
+      git commit -m "Add EF Core initial migration [skip ci]"
+      git push "https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" "HEAD:${CI_COMMIT_REF_NAME}"
 
 dotnet_test:
   stage: test
