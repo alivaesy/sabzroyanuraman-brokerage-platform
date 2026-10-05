@@ -64,7 +64,11 @@ public class AuditComplianceTests
             .Options;
 
         await using var db = new BrokerageDbContext(options);
-        await db.Database.MigrateAsync();
+        await db.Database.EnsureCreatedAsync();
+
+        await db.Database.ExecuteSqlRawAsync("CREATE TRIGGER \"TR_audit_events_no_update\" BEFORE UPDATE ON \"audit_events\" BEGIN SELECT RAISE(ABORT, 'audit_events are immutable and cannot be updated'); END;");
+
+        await db.Database.ExecuteSqlRawAsync("CREATE TRIGGER \"TR_audit_events_no_delete\" BEFORE DELETE ON \"audit_events\" BEGIN SELECT RAISE(ABORT, 'audit_events are immutable and cannot be deleted'); END;");
 
         db.AuditEvents.Add(new AuditEventRecord
         {

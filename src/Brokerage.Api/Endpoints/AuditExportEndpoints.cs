@@ -39,8 +39,7 @@ public static class AuditExportEndpoints
 
             var query = dbContext.AuditEvents
                 .AsNoTracking()
-                .OrderBy(x => x.OccurredAt)
-                .ThenBy(x => x.EventId)
+                .OrderBy(x => x.EventId)
                 .AsQueryable();
 
             if (from.HasValue)
