@@ -46,3 +46,15 @@ dotnet_test:
   script:
     - dotnet restore BrokeragePlatform.slnx
     - dotnet test BrokeragePlatform.slnx --configuration Release --no-restore --logger "console;verbosity=normal"
+
+dotnet_migration_preview:
+  stage: build
+  image: mcr.microsoft.com/dotnet/sdk:10.0
+  script:
+    - export PATH="$PATH:$HOME/.dotnet/tools"
+    - dotnet tool install --global dotnet-ef --version 10.0.11
+    - dotnet restore BrokeragePlatform.slnx
+    - rm -rf /tmp/ef-migrations
+    - dotnet ef migrations add InitialCreate --project src/Brokerage.Infrastructure/Brokerage.Infrastructure.csproj --startup-project src/Brokerage.Api/Brokerage.Api.csproj --output-dir /tmp/ef-migrations --no-build
+    - echo "=== GENERATED MIGRATION FILES ==="
+    - find /tmp/ef-migrations -type f -maxdepth 1 -print -exec sh -c 'echo "--- $1 ---"; cat "$1"' _ {} \;
