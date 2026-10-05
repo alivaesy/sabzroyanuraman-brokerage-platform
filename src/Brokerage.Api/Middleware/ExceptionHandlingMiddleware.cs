@@ -27,7 +27,7 @@ public class ExceptionHandlingMiddleware
         catch (BrokerageException ex)
         {
             _logger.LogWarning(ex, "Brokerage request failed. CorrelationId={CorrelationId}", correlationId);
-            await LogAuditFailure(context, correlationId, "BROKERAGE_ERROR");
+            await LogAuditFailure(context, correlationId, "BROKERAGE_ERROR", auditEventWriter);
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             context.Response.ContentType = "application/json";
 
@@ -42,7 +42,7 @@ public class ExceptionHandlingMiddleware
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled brokerage request failure. CorrelationId={CorrelationId}", correlationId);
-            await LogAuditFailure(context, correlationId, "INTERNAL_ERROR");
+            await LogAuditFailure(context, correlationId, "INTERNAL_ERROR", auditEventWriter);
             context.Response.StatusCode =
                 StatusCodes.Status500InternalServerError;
 
@@ -58,7 +58,7 @@ public class ExceptionHandlingMiddleware
         }
     }
 
-    private async Task LogAuditFailure(HttpContext context, string correlationId, string errorCode)
+    private async Task LogAuditFailure(HttpContext context, string correlationId, string errorCode, IAuditEventWriter auditEventWriter)
     {
         var auditEvent = new AuditEvent(Guid.NewGuid(), DateTimeOffset.UtcNow, "RequestFailed", correlationId,
             null, null, "Failure", null, errorCode, null, null, context.Connection.RemoteIpAddress?.ToString());
