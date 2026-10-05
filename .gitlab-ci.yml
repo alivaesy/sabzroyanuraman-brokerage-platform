@@ -45,7 +45,7 @@ dotnet_migration_verify:
   image: mcr.microsoft.com/dotnet/sdk:10.0
   script:
     - export PATH="$PATH:$HOME/.dotnet/tools"
-    - dotnet tool install --global dotnet-ef --version 10.0.11
+    - dotnet tool install --global dotnet-ef --version 10.0.12
     - dotnet restore BrokeragePlatform.slnx
     - dotnet build src/Brokerage.Api/Brokerage.Api.csproj --configuration Release --no-restore
     - dotnet ef migrations list --project src/Brokerage.Infrastructure/Brokerage.Infrastructure.csproj --startup-project src/Brokerage.Api/Brokerage.Api.csproj --configuration Release --no-build
