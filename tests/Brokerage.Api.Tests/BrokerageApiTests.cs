@@ -1,3 +1,4 @@
+using Brokerage.Application.Authorization;
 using Microsoft.AspNetCore.Mvc.Testing;
 using System.Net.Http.Json;
 using Brokerage.Application.Integration;
