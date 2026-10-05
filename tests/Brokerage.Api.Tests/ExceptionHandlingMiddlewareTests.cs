@@ -1,4 +1,5 @@
 using Brokerage.Api.Middleware;
+using Brokerage.Application.Contracts;
 using Brokerage.Application.Exceptions;
 using Brokerage.Application.Models;
 using Microsoft.Extensions.Logging;
