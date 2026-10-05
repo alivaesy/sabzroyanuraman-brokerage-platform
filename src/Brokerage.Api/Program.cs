@@ -10,6 +10,7 @@ using Brokerage.Infrastructure.Persistence;
 using Brokerage.Api.Middleware;
 using Brokerage.Api.Authentication;
 using Brokerage.Api.Authorization;
+using Brokerage.Api.Endpoints;
 using Brokerage.Application.Models;
 using Brokerage.Application.Authorization;
 using Brokerage.Application.Authentication;
@@ -89,7 +90,6 @@ builder.Services.AddScoped<VerifyIdentity>();
 builder.Services.AddScoped<WorkflowService>();
 builder.Services.AddScoped<IOrganizationIntegrationService, OrganizationIntegrationService>();
 builder.Services.AddScoped<OrganizationRetryPolicy>();
-builder.Services.AddScoped<OrganizationRetryOptions>();
 builder.Services.AddScoped<OrganizationTimeoutOptions>();
 builder.Services.AddScoped<OrganizationRetryExecutor>();
 builder.Services.AddScoped<Brokerage.Application.Integration.IOrganizationApiClient, MockOrganizationApiClient>();
@@ -117,6 +117,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapGet("/", () => Results.Ok(new { service = "Brokerage.Api", status = "running" }));
+AuditExportEndpoints.Map(app);
 
 app.MapPost("/identity/verify", async (
     ICurrentUser currentUser,
