@@ -9,4 +9,7 @@ public sealed record AuditEvent(
     string? WorkflowStage,
     string Outcome,
     string? PreviousState,
-    string? NewState);
+    string? NewState,
+    string? ActorUserId = null,
+    string? ActorRole = null,
+    string? IpAddress = null);

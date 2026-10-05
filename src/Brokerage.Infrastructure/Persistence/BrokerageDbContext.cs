@@ -9,6 +9,7 @@ public sealed class BrokerageDbContext(DbContextOptions<BrokerageDbContext> opti
     public DbSet<WorkflowStage> WorkflowStages => Set<WorkflowStage>();
     public DbSet<Expert> Experts => Set<Expert>();
     public DbSet<IdentityVerificationState> IdentityVerificationStates => Set<IdentityVerificationState>();
+    public DbSet<AuditEventRecord> AuditEvents => Set<AuditEventRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -48,6 +49,24 @@ public sealed class BrokerageDbContext(DbContextOptions<BrokerageDbContext> opti
             entity.Property(x => x.UserId).HasMaxLength(200).IsRequired();
             entity.Property(x => x.IsVerified).IsRequired();
             entity.Property(x => x.UpdatedAt).IsRequired();
+        });
+
+        modelBuilder.Entity<AuditEventRecord>(entity =>
+        {
+            entity.ToTable("audit_events");
+            entity.HasKey(x => x.EventId);
+            entity.Property(x => x.EventType).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.CorrelationId).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.WorkflowStage).HasMaxLength(100);
+            entity.Property(x => x.Outcome).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.PreviousState).HasMaxLength(200);
+            entity.Property(x => x.NewState).HasMaxLength(200);
+            entity.Property(x => x.ActorUserId).HasMaxLength(200);
+            entity.Property(x => x.ActorRole).HasMaxLength(100);
+            entity.Property(x => x.IpAddress).HasMaxLength(64);
+            entity.Property(x => x.OccurredAt).IsRequired();
+            entity.HasIndex(x => x.OccurredAt);
+            entity.HasIndex(x => x.ServiceRequestId);
         });
     }
 }
