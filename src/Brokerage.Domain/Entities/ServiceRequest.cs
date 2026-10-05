@@ -5,7 +5,7 @@ namespace Brokerage.Domain.Entities;
 public class ServiceRequest
 {
     public Guid Id { get; private set; }
-    public string ApplicantUserId { get; private set; }
+    public string ApplicantUserId { get; private set; } = null!;
     public ServiceCode ServiceCode { get; private set; }
     public RequestStatus Status { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
