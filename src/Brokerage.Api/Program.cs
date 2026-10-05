@@ -103,7 +103,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
-    await DatabaseInitializer.InitializeAsync(dbContext, app.Configuration);
+    await DatabaseInitializer.InitializeAsync(dbContext, app.Configuration["DatabaseInitialization:Mode"]);
 }
 
 if (app.Environment.IsDevelopment())

@@ -6,12 +6,10 @@ public static class DatabaseInitializer
 {
     public static async Task InitializeAsync(
         BrokerageDbContext dbContext,
-        IConfiguration configuration,
+        string? mode,
         CancellationToken cancellationToken = default)
     {
-        var mode = configuration["DatabaseInitialization:Mode"]?.Trim();
-
-        switch (mode?.ToUpperInvariant())
+        switch (mode?.Trim().ToUpperInvariant())
         {
             case "BASELINE":
                 await DatabaseBaseline.BaselineAsync(dbContext, cancellationToken);
@@ -29,7 +27,7 @@ public static class DatabaseInitializer
 
             default:
                 throw new InvalidOperationException(
-                    $"Unsupported DatabaseInitialization:Mode '{mode}'. Supported values are EnsureCreated, Baseline, and Migrate.");
+                    $"Unsupported database initialization mode '{mode}'. Supported values are EnsureCreated, Baseline, and Migrate.");
         }
     }
 }
