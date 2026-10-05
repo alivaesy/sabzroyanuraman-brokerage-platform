@@ -53,6 +53,26 @@ namespace Brokerage.Infrastructure.Persistence.Migrations
                     b.ToTable("service_requests", (string)null);
                 });
 
+            modelBuilder.Entity("Brokerage.Infrastructure.Persistence.AuditEventRecord", b =>
+                {
+                    b.Property<Guid>("EventId").ValueGeneratedOnAdd().HasColumnType("TEXT");
+                    b.Property<string>("ActorRole").HasMaxLength(100).HasColumnType("TEXT");
+                    b.Property<string>("ActorUserId").HasMaxLength(200).HasColumnType("TEXT");
+                    b.Property<string>("CorrelationId").IsRequired().HasMaxLength(200).HasColumnType("TEXT");
+                    b.Property<string>("EventType").IsRequired().HasMaxLength(100).HasColumnType("TEXT");
+                    b.Property<string>("IpAddress").HasMaxLength(64).HasColumnType("TEXT");
+                    b.Property<string>("NewState").HasMaxLength(200).HasColumnType("TEXT");
+                    b.Property<string>("Outcome").IsRequired().HasMaxLength(50).HasColumnType("TEXT");
+                    b.Property<string>("PreviousState").HasMaxLength(200).HasColumnType("TEXT");
+                    b.Property<DateTimeOffset>("OccurredAt").HasColumnType("TEXT");
+                    b.Property<Guid?>("ServiceRequestId").HasColumnType("TEXT");
+                    b.Property<string>("WorkflowStage").HasMaxLength(100).HasColumnType("TEXT");
+                    b.HasKey("EventId");
+                    b.HasIndex("OccurredAt");
+                    b.HasIndex("ServiceRequestId");
+                    b.ToTable("audit_events", (string)null);
+                });
+
             modelBuilder.Entity("Brokerage.Domain.Entities.WorkflowStage", b =>
                 {
                     b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("TEXT");
