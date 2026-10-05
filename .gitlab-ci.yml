@@ -40,7 +40,7 @@ dotnet_build:
     - dotnet restore BrokeragePlatform.slnx
     - dotnet build BrokeragePlatform.slnx --configuration Release --no-restore
 
-dotnet_migration_generate:
+dotnet_migration_verify:
   stage: build
   image: mcr.microsoft.com/dotnet/sdk:10.0
   script:
@@ -48,16 +48,7 @@ dotnet_migration_generate:
     - dotnet tool install --global dotnet-ef --version 10.0.11
     - dotnet restore BrokeragePlatform.slnx
     - dotnet build src/Brokerage.Api/Brokerage.Api.csproj --configuration Release --no-restore
-    - rm -rf src/Brokerage.Infrastructure/Persistence/Migrations
-    - dotnet ef migrations add InitialCreate --project src/Brokerage.Infrastructure/Brokerage.Infrastructure.csproj --startup-project src/Brokerage.Api/Brokerage.Api.csproj --output-dir Persistence/Migrations --configuration Release --no-build
-    - echo "EF Core generated migration files:"
-    - find src/Brokerage.Infrastructure/Persistence/Migrations -maxdepth 1 -type f -print
-    - |
-      for file in src/Brokerage.Infrastructure/Persistence/Migrations/*.cs; do
-        echo "===== BEGIN $file ====="
-        cat "$file"
-        echo "===== END $file ====="
-      done
+    - dotnet ef migrations list --project src/Brokerage.Infrastructure/Brokerage.Infrastructure.csproj --startup-project src/Brokerage.Api/Brokerage.Api.csproj --configuration Release --no-build
 
 dotnet_test:
   stage: test
