@@ -61,21 +61,21 @@ public sealed class OperationalMetrics : IOperationalMetrics
         Interlocked.Increment(ref _totalRequestCount);
 
         var clientError = statusCode >= 400 && statusCode < 500;
-        var serverError = failed || statusCode >= 500;
+        var serverError = statusCode >= 500;
+        var error = failed || serverError;
 
         if (clientError)
             Interlocked.Increment(ref _total4xxCount);
-        if (statusCode >= 500)
-            Interlocked.Increment(ref _total5xxCount);
         if (serverError)
+            Interlocked.Increment(ref _total5xxCount);
+        if (error)
             Interlocked.Increment(ref _totalErrorCount);
 
-        var elapsedMicroseconds = ToMicroseconds(elapsedMilliseconds);
-        Interlocked.Add(ref _totalElapsedMicroseconds, elapsedMicroseconds);
+        Interlocked.Add(ref _totalElapsedMicroseconds, ToMicroseconds(elapsedMilliseconds));
 
         if (_endpoints.Count < MaxTrackedEndpoints || _endpoints.ContainsKey(endpoint))
             _endpoints.GetOrAdd(endpoint, _ => new EndpointStats())
-                .Record(elapsedMilliseconds, clientError, serverError);
+                .Record(elapsedMilliseconds, clientError, serverError, error);
     }
 
     public OperationalMetricsSnapshot Snapshot()
@@ -135,14 +135,14 @@ public sealed class OperationalMetrics : IOperationalMetrics
 
         public long RequestCount => Interlocked.Read(ref _requestCount);
 
-        public void Record(double elapsedMilliseconds, bool clientError, bool serverError)
+        public void Record(double elapsedMilliseconds, bool clientError, bool serverError, bool error)
         {
             Interlocked.Increment(ref _requestCount);
             if (clientError)
                 Interlocked.Increment(ref _clientErrorCount);
             if (serverError)
                 Interlocked.Increment(ref _serverErrorCount);
-            if (serverError)
+            if (error)
                 Interlocked.Increment(ref _errorCount);
             Interlocked.Add(ref _totalElapsedMicroseconds, ToMicroseconds(elapsedMilliseconds));
         }
