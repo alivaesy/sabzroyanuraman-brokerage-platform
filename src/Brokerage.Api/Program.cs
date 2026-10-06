@@ -114,12 +114,21 @@ builder.Services.AddScoped<OrganizationRetryPolicy>();
 builder.Services.AddScoped<OrganizationRetryOptions>();
 builder.Services.AddScoped<OrganizationTimeoutOptions>();
 builder.Services.AddScoped<OrganizationRetryExecutor>();
-builder.Services.AddScoped<Brokerage.Application.Integration.IOrganizationApiClient, MockOrganizationApiClient>();
 builder.Services.AddScoped<IIdentityVerificationService, IdentityVerificationService>();
 builder.Services.AddScoped<INationalIdentifierValidator, IranianNationalIdentifierValidator>();
-builder.Services.AddScoped<ISanaClient, MockSanaClient>();
-builder.Services.AddScoped<IShahkarClient, MockShahkarClient>();
 builder.Services.AddScoped<IOtpService, PersistentOtpService>();
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddScoped<Brokerage.Application.Integration.IOrganizationApiClient, MockOrganizationApiClient>();
+    builder.Services.AddScoped<ISanaClient, MockSanaClient>();
+    builder.Services.AddScoped<IShahkarClient, MockShahkarClient>();
+}
+else
+{
+    throw new InvalidOperationException(
+        "Production integrations are not configured. Organization API, Sana, and Shahkar must use approved production adapters; development mocks are not permitted outside Development.");
+}
 
 var app = builder.Build();
 
