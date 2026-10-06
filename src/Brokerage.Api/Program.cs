@@ -11,6 +11,7 @@ using Brokerage.Api.Middleware;
 using Brokerage.Api.Authentication;
 using Brokerage.Api.Authorization;
 using Brokerage.Api.Endpoints;
+using Brokerage.Api.Telemetry;
 using Brokerage.Application.Models;
 using Brokerage.Application.Authorization;
 using Brokerage.Application.Authentication;
@@ -29,6 +30,7 @@ builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole();
 builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<IOperationalMetrics, OperationalMetrics>();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -95,6 +97,8 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(AuthorizationPolicies.TechnicalSecurity, policy => policy.RequireRole(UserRole.TechnicalSecurity.ToString()));
     options.AddPolicy(AuthorizationPolicies.OrganizationObserver, policy => policy.RequireRole(UserRole.OrganizationObserver.ToString()));
     options.AddPolicy(AuthorizationPolicies.Administrator, policy => policy.RequireRole(UserRole.Administrator.ToString()));
+    options.AddPolicy(AuthorizationPolicies.OperationalMonitoring, policy => policy.RequireRole(
+        UserRole.TechnicalSecurity.ToString(), UserRole.Administrator.ToString()));
     options.AddPolicy(AuthorizationPolicies.MfaVerified, policy => policy.AddRequirements(new MfaRequirement()));
 });
 
@@ -177,6 +181,9 @@ app.MapGet("/ready", async (BrokerageDbContext dbContext, CancellationToken canc
         ? Results.Ok(new { status = "ready" })
         : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
 });
+
+app.MapGet("/ops/metrics", (IOperationalMetrics metrics) => Results.Ok(metrics.Snapshot()))
+    .RequireAuthorization(AuthorizationPolicies.OperationalMonitoring);
 AuditExportEndpoints.Map(app);
 
 app.MapPost("/identity/verify", async (

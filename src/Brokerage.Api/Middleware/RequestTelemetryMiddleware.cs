@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Brokerage.Api.Telemetry;
 
 namespace Brokerage.Api.Middleware;
 
@@ -6,13 +7,13 @@ public sealed class RequestTelemetryMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<RequestTelemetryMiddleware> _logger;
+    private readonly IOperationalMetrics _metrics;
 
-    public RequestTelemetryMiddleware(
-        RequestDelegate next,
-        ILogger<RequestTelemetryMiddleware> logger)
+    public RequestTelemetryMiddleware(RequestDelegate next, ILogger<RequestTelemetryMiddleware> logger, IOperationalMetrics metrics)
     {
         _next = next;
         _logger = logger;
+        _metrics = metrics;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -33,8 +34,10 @@ public sealed class RequestTelemetryMiddleware
         finally
         {
             stopwatch.Stop();
-
             var statusCode = context.Response.StatusCode;
+            var elapsedMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
+            _metrics.RecordRequest(endpoint, statusCode, elapsedMilliseconds, failed);
+
             var logLevel = failed || statusCode >= StatusCodes.Status500InternalServerError
                 ? LogLevel.Error
                 : statusCode >= StatusCodes.Status400BadRequest
@@ -48,7 +51,7 @@ public sealed class RequestTelemetryMiddleware
                 context.Request.Method,
                 endpoint,
                 statusCode,
-                stopwatch.Elapsed.TotalMilliseconds,
+                elapsedMilliseconds,
                 failed);
         }
     }

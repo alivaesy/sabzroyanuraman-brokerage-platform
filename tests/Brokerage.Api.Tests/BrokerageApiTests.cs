@@ -902,6 +902,52 @@ public class BrokerageApiTests
     }
 
     [Fact]
+    public async Task OperationalMetrics_AnonymousUser_ReturnsUnauthorized()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var response = await client.GetAsync("/ops/metrics");
+
+        Assert.Equal(System.Net.HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task OperationalMetrics_ApplicantRole_ReturnsForbidden()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "metrics-applicant");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Applicant.ToString());
+
+        var response = await client.GetAsync("/ops/metrics");
+
+        Assert.Equal(System.Net.HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task OperationalMetrics_TechnicalSecurityRole_ReturnsResourceAndRequestMetrics()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "metrics-security");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.TechnicalSecurity.ToString());
+
+        var healthResponse = await client.GetAsync("/health");
+        Assert.Equal(System.Net.HttpStatusCode.OK, healthResponse.StatusCode);
+
+        var response = await client.GetAsync("/ops/metrics");
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        Assert.True(json.GetProperty("totalRequestCount").GetInt64() >= 1);
+        Assert.True(json.GetProperty("processWorkingSetBytes").GetInt64() > 0);
+        Assert.True(json.GetProperty("managedMemoryBytes").GetInt64() > 0);
+        Assert.True(json.GetProperty("threadCount").GetInt32() > 0);
+        Assert.True(json.GetProperty("endpoints").GetArrayLength() >= 1);
+    }
+
+    [Fact]
     public async Task HealthEndpoint_ReturnsHealthyAndSecurityHeaders()
     {
         await using var application = new WebApplicationFactory<Program>();
