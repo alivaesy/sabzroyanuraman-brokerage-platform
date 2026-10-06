@@ -57,6 +57,34 @@ public class AuditComplianceTests
     }
 
     [Fact]
+    public async Task AuditExport_WithLimit_ReturnsNewestEventsFirst()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "AUDIT-SEC-002");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.TechnicalSecurity.ToString());
+
+        var baseTime = DateTimeOffset.UtcNow.AddMinutes(-10);
+        using (var scope = application.Services.CreateScope())
+        {
+            var writer = scope.ServiceProvider.GetRequiredService<IAuditEventWriter>();
+            await writer.WriteAsync(new AuditEvent(Guid.NewGuid(), baseTime.AddMinutes(1), "AuditOrderingOldest", "ordering-test-1", null, null, "Success", null, "Created", "AUDIT-SEC-002", UserRole.TechnicalSecurity.ToString(), "127.0.0.1"));
+            await writer.WriteAsync(new AuditEvent(Guid.NewGuid(), baseTime.AddMinutes(2), "AuditOrderingMiddle", "ordering-test-2", null, null, "Success", null, "Created", "AUDIT-SEC-002", UserRole.TechnicalSecurity.ToString(), "127.0.0.1"));
+            await writer.WriteAsync(new AuditEvent(Guid.NewGuid(), baseTime.AddMinutes(3), "AuditOrderingNewest", "ordering-test-3", null, null, "Success", null, "Created", "AUDIT-SEC-002", UserRole.TechnicalSecurity.ToString(), "127.0.0.1"));
+        }
+
+        var from = Uri.EscapeDataString(baseTime.ToString("O"));
+        var to = Uri.EscapeDataString(baseTime.AddMinutes(4).ToString("O"));
+        var response = await client.GetAsync($"/audit/events/export?from={from}&to={to}&limit=2");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var lines = (await response.Content.ReadAsStringAsync()).Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(2, lines.Length);
+        Assert.Equal("AuditOrderingNewest", System.Text.Json.JsonDocument.Parse(lines[0]).RootElement.GetProperty("eventType").GetString());
+        Assert.Equal("AuditOrderingMiddle", System.Text.Json.JsonDocument.Parse(lines[1]).RootElement.GetProperty("eventType").GetString());
+    }
+
+    [Fact]
     public async Task Migrations_ApplyToEmptyDatabase_AndCreateAuditImmutabilityTriggers()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
