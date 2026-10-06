@@ -14,9 +14,10 @@ public sealed class PersistentOtpService(BrokerageDbContext db, IOtpCodeHasher c
         cancellationToken.ThrowIfCancellationRequested();
 
         var now = DateTimeOffset.UtcNow;
-        await db.OtpChallenges
+        var expiredChallenges = await db.OtpChallenges
             .Where(x => x.ExpiresAt <= now)
-            .ExecuteDeleteAsync(cancellationToken);
+            .ToListAsync(cancellationToken);
+        db.OtpChallenges.RemoveRange(expiredChallenges);
 
         var challengeId = Guid.NewGuid().ToString("N");
         var code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
