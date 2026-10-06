@@ -37,23 +37,28 @@ public static class AuditExportEndpoints
             if (requestedLimit < 1 || requestedLimit > maximumLimit)
                 return Results.BadRequest(new { message = $"limit must be between 1 and {maximumLimit}." });
 
-            IQueryable<AuditEventRecord> query;
+            List<AuditEventRecord> auditRecords;
             var isSqlite = dbContext.Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite";
 
             if (isSqlite)
             {
-                // SQLite cannot translate DateTimeOffset ordering; order by its stored timestamp using julianday.
-                query = dbContext.AuditEvents.FromSqlInterpolated($"""
-                    SELECT *
-                    FROM "audit_events"
-                    WHERE ({from.HasValue} = 0 OR julianday("OccurredAt") >= julianday({from}))
-                      AND ({to.HasValue} = 0 OR julianday("OccurredAt") <= julianday({to}))
-                    ORDER BY julianday("OccurredAt") DESC, "EventId" DESC
-                    """);
+                // SQLite stores DateTimeOffset in a form that EF cannot reliably compare/order.
+                // Filter and order after materialization to keep the export provider-compatible.
+                auditRecords = await dbContext.AuditEvents.AsNoTracking().ToListAsync(cancellationToken);
+                if (from.HasValue)
+                    auditRecords = auditRecords.Where(x => x.OccurredAt >= from.Value).ToList();
+                if (to.HasValue)
+                    auditRecords = auditRecords.Where(x => x.OccurredAt <= to.Value).ToList();
+
+                auditRecords = auditRecords
+                    .OrderByDescending(x => x.OccurredAt)
+                    .ThenByDescending(x => x.EventId)
+                    .Take(requestedLimit)
+                    .ToList();
             }
             else
             {
-                query = dbContext.AuditEvents;
+                IQueryable<AuditEventRecord> query = dbContext.AuditEvents;
 
                 if (from.HasValue)
                     query = query.Where(x => x.OccurredAt >= from.Value);
@@ -61,29 +66,29 @@ public static class AuditExportEndpoints
                 if (to.HasValue)
                     query = query.Where(x => x.OccurredAt <= to.Value);
 
-                query = query.OrderByDescending(x => x.OccurredAt)
-                    .ThenByDescending(x => x.EventId);
+                auditRecords = await query
+                    .OrderByDescending(x => x.OccurredAt)
+                    .ThenByDescending(x => x.EventId)
+                    .Take(requestedLimit)
+                    .AsNoTracking()
+                    .ToListAsync(cancellationToken);
             }
 
-            var events = await query
-                .AsNoTracking()
-                .Take(requestedLimit)
-                .Select(x => new
-                {
-                    x.EventId,
-                    x.OccurredAt,
-                    x.EventType,
-                    x.CorrelationId,
-                    x.ServiceRequestId,
-                    x.WorkflowStage,
-                    x.Outcome,
-                    x.PreviousState,
-                    x.NewState,
-                    x.ActorUserId,
-                    x.ActorRole,
-                    x.IpAddress
-                })
-                .ToListAsync(cancellationToken);
+            var events = auditRecords.Select(x => new
+            {
+                x.EventId,
+                x.OccurredAt,
+                x.EventType,
+                x.CorrelationId,
+                x.ServiceRequestId,
+                x.WorkflowStage,
+                x.Outcome,
+                x.PreviousState,
+                x.NewState,
+                x.ActorUserId,
+                x.ActorRole,
+                x.IpAddress
+            }).ToList();
 
             context.Response.Headers["X-Audit-Retention-Days"] = minimumRetentionDays.ToString();
 

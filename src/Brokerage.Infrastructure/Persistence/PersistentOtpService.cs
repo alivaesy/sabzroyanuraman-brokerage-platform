@@ -14,9 +14,11 @@ public sealed class PersistentOtpService(BrokerageDbContext db, IOtpCodeHasher c
         cancellationToken.ThrowIfCancellationRequested();
 
         var now = DateTimeOffset.UtcNow;
-        var expiredChallenges = await db.OtpChallenges
-            .Where(x => x.ExpiresAt <= now)
-            .ToListAsync(cancellationToken);
+
+        // SQLite cannot translate comparisons over DateTimeOffset consistently.
+        // Materialize the small challenge set, then identify expired records in memory.
+        var existingChallenges = await db.OtpChallenges.ToListAsync(cancellationToken);
+        var expiredChallenges = existingChallenges.Where(x => x.ExpiresAt <= now).ToArray();
         db.OtpChallenges.RemoveRange(expiredChallenges);
 
         var challengeId = Guid.NewGuid().ToString("N");
