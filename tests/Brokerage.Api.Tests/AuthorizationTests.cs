@@ -70,8 +70,11 @@ public class AuthorizationTests
         using var client = application.CreateClient();
         client.DefaultRequestHeaders.Add("X-Test-User-Id", "TEST-MFA-002");
         client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Applicant.ToString());
-        var verificationStore = application.Services.GetRequiredService<IMfaVerificationStore>();
+
+        using var scope = application.Services.CreateScope();
+        var verificationStore = scope.ServiceProvider.GetRequiredService<IMfaVerificationStore>();
         verificationStore.MarkVerified("TEST-MFA-002", DateTimeOffset.UtcNow);
+
         var response = await client.GetAsync("/identity/mfa-required");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -83,8 +86,11 @@ public class AuthorizationTests
         using var client = application.CreateClient();
         client.DefaultRequestHeaders.Add("X-Test-User-Id", "TEST-MFA-003");
         client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Applicant.ToString());
-        var verificationStore = application.Services.GetRequiredService<IMfaVerificationStore>();
+
+        using var scope = application.Services.CreateScope();
+        var verificationStore = scope.ServiceProvider.GetRequiredService<IMfaVerificationStore>();
         verificationStore.MarkVerified("TEST-MFA-003", DateTimeOffset.UtcNow.AddMinutes(-16));
+
         var response = await client.GetAsync("/identity/mfa-required");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
