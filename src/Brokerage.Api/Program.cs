@@ -34,21 +34,29 @@ builder.Services.AddSingleton<IOperationalMetrics, OperationalMetrics>();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    static FixedWindowRateLimiterOptions CreateOptions() => new()
+    {
+        PermitLimit = 5,
+        Window = TimeSpan.FromMinutes(1),
+        QueueLimit = 0,
+        AutoReplenishment = true
+    };
+
     options.AddPolicy("otp", context =>
     {
         var partitionKey = context.User.Identity?.Name
             ?? context.Connection.RemoteIpAddress?.ToString()
             ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => CreateOptions());
+    });
 
-        return RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey,
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 5,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0,
-                AutoReplenishment = true
-            });
+    options.AddPolicy("identity-verification", context =>
+    {
+        var partitionKey = context.User.Identity?.Name
+            ?? context.Connection.RemoteIpAddress?.ToString()
+            ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => CreateOptions());
     });
 });
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
@@ -244,7 +252,7 @@ app.MapPost("/identity/verify", async (
     return result.Verified
         ? Results.Ok(new { verified = true })
         : Results.BadRequest(new { verified = false });
-}).RequireAuthorization(AuthorizationPolicies.Applicant);
+}).RequireAuthorization(AuthorizationPolicies.Applicant).RequireRateLimiting("identity-verification");
 
 app.MapGet("/identity/me", async (ICurrentUser currentUser, IIdentityVerificationStateRepository stateRepository, CancellationToken cancellationToken) =>
 {
