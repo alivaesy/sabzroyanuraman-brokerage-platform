@@ -10,6 +10,7 @@ public static class AuditExportEndpoints
     private const int MinimumRetentionDays = 180;
     private const int DefaultLimit = 1000;
     private const int MaximumLimit = 10000;
+    private static readonly JsonSerializerOptions NdjsonSerializerOptions = new(JsonSerializerDefaults.Web);
 
     public static void Map(WebApplication app)
     {
@@ -94,7 +95,7 @@ public static class AuditExportEndpoints
 
             var ndjson = string.Join(
                 Environment.NewLine,
-                events.Select(item => JsonSerializer.Serialize(item)));
+                events.Select(item => JsonSerializer.Serialize(item, NdjsonSerializerOptions)));
 
             return Results.Text(
                 events.Count == 0 ? string.Empty : ndjson + Environment.NewLine,
