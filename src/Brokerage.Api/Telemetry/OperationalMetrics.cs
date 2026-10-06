@@ -7,6 +7,8 @@ public sealed record EndpointTelemetrySnapshot(string Endpoint, long RequestCoun
 
 public sealed record OperationalMetricsSnapshot(
     DateTimeOffset ObservedAt,
+    DateTimeOffset StartedAt,
+    TimeSpan Uptime,
     long TotalRequestCount,
     long TotalErrorCount,
     double AverageElapsedMilliseconds,
@@ -26,6 +28,7 @@ public interface IOperationalMetrics
 public sealed class OperationalMetrics : IOperationalMetrics
 {
     private const int MaxTrackedEndpoints = 200;
+    private readonly DateTimeOffset _startedAt = DateTimeOffset.UtcNow;
     private readonly ConcurrentDictionary<string, EndpointStats> _endpoints = new(StringComparer.Ordinal);
     private long _totalRequestCount;
     private long _totalErrorCount;
@@ -63,21 +66,23 @@ public sealed class OperationalMetrics : IOperationalMetrics
         var totalErrors = Interlocked.Read(ref _totalErrorCount);
         var totalElapsed = Interlocked.CompareExchange(ref _totalElapsedMilliseconds, 0d, 0d);
         var process = Process.GetCurrentProcess();
+        var observedAt = DateTimeOffset.UtcNow;
 
         double cpuPercent;
         lock (_cpuLock)
         {
-            var now = DateTimeOffset.UtcNow;
             var cpuTime = process.TotalProcessorTime;
-            var wallSeconds = Math.Max((now - _lastCpuSampleAt).TotalSeconds, 0.001);
+            var wallSeconds = Math.Max((observedAt - _lastCpuSampleAt).TotalSeconds, 0.001);
             var cpuSeconds = (cpuTime - _lastCpuTime).TotalSeconds;
             cpuPercent = Math.Clamp(cpuSeconds / wallSeconds / Environment.ProcessorCount * 100d, 0d, 100d);
             _lastCpuTime = cpuTime;
-            _lastCpuSampleAt = now;
+            _lastCpuSampleAt = observedAt;
         }
 
         return new OperationalMetricsSnapshot(
-            DateTimeOffset.UtcNow,
+            observedAt,
+            _startedAt,
+            observedAt - _startedAt,
             totalRequests,
             totalErrors,
             totalRequests == 0 ? 0d : totalElapsed / totalRequests,
