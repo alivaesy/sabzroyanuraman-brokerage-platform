@@ -26,12 +26,14 @@ public class AuditComplianceTests
         client.DefaultRequestHeaders.Add("X-Test-User-Id", "AUDIT-SEC-001");
         client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.TechnicalSecurity.ToString());
 
+        var occurredAt = DateTimeOffset.UtcNow;
+
         using (var scope = application.Services.CreateScope())
         {
             var writer = scope.ServiceProvider.GetRequiredService<IAuditEventWriter>();
             await writer.WriteAsync(new AuditEvent(
                 Guid.NewGuid(),
-                DateTimeOffset.UtcNow,
+                occurredAt,
                 "AuditExportTest",
                 "audit-export-test",
                 null,
@@ -44,7 +46,8 @@ public class AuditComplianceTests
                 "127.0.0.1"));
         }
 
-        var response = await client.GetAsync("/audit/events/export?limit=10");
+        var timestamp = Uri.EscapeDataString(occurredAt.ToString("O"));
+        var response = await client.GetAsync($"/audit/events/export?from={timestamp}&to={timestamp}&limit=10");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("application/x-ndjson", response.Content.Headers.ContentType?.MediaType);
