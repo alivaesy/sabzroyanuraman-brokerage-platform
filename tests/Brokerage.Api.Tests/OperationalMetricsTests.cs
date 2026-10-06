@@ -51,4 +51,22 @@ public class OperationalMetricsTests
         Assert.Equal("unmatched", endpoint.Endpoint);
         Assert.Equal(1, endpoint.RequestCount);
     }
+
+    [Fact]
+    public void RecordRequest_FailedRequestDoesNotBecomeServerErrorWithout500Status()
+    {
+        var metrics = new OperationalMetrics();
+
+        metrics.RecordRequest("failed-request", 200, 15, true);
+
+        var snapshot = metrics.Snapshot();
+        var endpoint = Assert.Single(snapshot.Endpoints);
+
+        Assert.Equal(1, snapshot.TotalRequestCount);
+        Assert.Equal(0, snapshot.Total4xxCount);
+        Assert.Equal(0, snapshot.Total5xxCount);
+        Assert.Equal(1, snapshot.TotalErrorCount);
+        Assert.Equal(0, endpoint.ServerErrorCount);
+        Assert.Equal(1, endpoint.ErrorCount);
+    }
 }
