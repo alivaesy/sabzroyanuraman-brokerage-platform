@@ -3,7 +3,13 @@ using System.Diagnostics;
 
 namespace Brokerage.Api.Telemetry;
 
-public sealed record EndpointTelemetrySnapshot(string Endpoint, long RequestCount, long ErrorCount, double AverageElapsedMilliseconds);
+public sealed record EndpointTelemetrySnapshot(
+    string Endpoint,
+    long RequestCount,
+    long ClientErrorCount,
+    long ServerErrorCount,
+    long ErrorCount,
+    double AverageElapsedMilliseconds);
 
 public sealed record OperationalMetricsSnapshot(
     DateTimeOffset ObservedAt,
@@ -11,6 +17,8 @@ public sealed record OperationalMetricsSnapshot(
     TimeSpan Uptime,
     double RequestsPerMinute,
     long TotalRequestCount,
+    long Total4xxCount,
+    long Total5xxCount,
     long TotalErrorCount,
     double AverageElapsedMilliseconds,
     double ErrorRatePercent,
@@ -32,6 +40,8 @@ public sealed class OperationalMetrics : IOperationalMetrics
     private readonly DateTimeOffset _startedAt = DateTimeOffset.UtcNow;
     private readonly ConcurrentDictionary<string, EndpointStats> _endpoints = new(StringComparer.Ordinal);
     private long _totalRequestCount;
+    private long _total4xxCount;
+    private long _total5xxCount;
     private long _totalErrorCount;
     private long _totalElapsedMicroseconds;
     private readonly object _cpuLock = new();
@@ -49,7 +59,15 @@ public sealed class OperationalMetrics : IOperationalMetrics
     {
         endpoint = string.IsNullOrWhiteSpace(endpoint) ? "unmatched" : endpoint;
         Interlocked.Increment(ref _totalRequestCount);
-        if (failed || statusCode >= 500)
+
+        var clientError = statusCode >= 400 && statusCode < 500;
+        var serverError = failed || statusCode >= 500;
+
+        if (clientError)
+            Interlocked.Increment(ref _total4xxCount);
+        if (statusCode >= 500)
+            Interlocked.Increment(ref _total5xxCount);
+        if (serverError)
             Interlocked.Increment(ref _totalErrorCount);
 
         var elapsedMicroseconds = ToMicroseconds(elapsedMilliseconds);
@@ -57,12 +75,14 @@ public sealed class OperationalMetrics : IOperationalMetrics
 
         if (_endpoints.Count < MaxTrackedEndpoints || _endpoints.ContainsKey(endpoint))
             _endpoints.GetOrAdd(endpoint, _ => new EndpointStats())
-                .Record(elapsedMilliseconds, failed || statusCode >= 500);
+                .Record(elapsedMilliseconds, clientError, serverError);
     }
 
     public OperationalMetricsSnapshot Snapshot()
     {
         var totalRequests = Interlocked.Read(ref _totalRequestCount);
+        var total4xx = Interlocked.Read(ref _total4xxCount);
+        var total5xx = Interlocked.Read(ref _total5xxCount);
         var totalErrors = Interlocked.Read(ref _totalErrorCount);
         var totalElapsedMicroseconds = Interlocked.Read(ref _totalElapsedMicroseconds);
         var process = Process.GetCurrentProcess();
@@ -86,6 +106,8 @@ public sealed class OperationalMetrics : IOperationalMetrics
             uptime,
             uptime.TotalMinutes <= 0d ? 0d : totalRequests / uptime.TotalMinutes,
             totalRequests,
+            total4xx,
+            total5xx,
             totalErrors,
             totalRequests == 0 ? 0d : totalElapsedMicroseconds / 1000d / totalRequests,
             totalRequests == 0 ? 0d : totalErrors * 100d / totalRequests,
@@ -106,15 +128,21 @@ public sealed class OperationalMetrics : IOperationalMetrics
     private sealed class EndpointStats
     {
         private long _requestCount;
+        private long _clientErrorCount;
+        private long _serverErrorCount;
         private long _errorCount;
         private long _totalElapsedMicroseconds;
 
         public long RequestCount => Interlocked.Read(ref _requestCount);
 
-        public void Record(double elapsedMilliseconds, bool failed)
+        public void Record(double elapsedMilliseconds, bool clientError, bool serverError)
         {
             Interlocked.Increment(ref _requestCount);
-            if (failed)
+            if (clientError)
+                Interlocked.Increment(ref _clientErrorCount);
+            if (serverError)
+                Interlocked.Increment(ref _serverErrorCount);
+            if (serverError)
                 Interlocked.Increment(ref _errorCount);
             Interlocked.Add(ref _totalElapsedMicroseconds, ToMicroseconds(elapsedMilliseconds));
         }
@@ -126,6 +154,8 @@ public sealed class OperationalMetrics : IOperationalMetrics
             return new EndpointTelemetrySnapshot(
                 endpoint,
                 count,
+                Interlocked.Read(ref _clientErrorCount),
+                Interlocked.Read(ref _serverErrorCount),
                 Interlocked.Read(ref _errorCount),
                 count == 0 ? 0d : totalMicroseconds / 1000d / count);
         }
