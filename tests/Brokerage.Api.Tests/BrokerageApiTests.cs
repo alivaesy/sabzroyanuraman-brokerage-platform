@@ -926,6 +926,19 @@ public class BrokerageApiTests
     }
 
     [Fact]
+    public async Task OperationalMetrics_AdministratorRole_ReturnsMetrics()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "metrics-admin");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Administrator.ToString());
+
+        var response = await client.GetAsync("/ops/metrics");
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
     public async Task OperationalMetrics_TechnicalSecurityRole_ReturnsResourceAndRequestMetrics()
     {
         await using var application = new WebApplicationFactory<Program>();

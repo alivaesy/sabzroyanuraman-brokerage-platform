@@ -43,6 +43,7 @@ public sealed class OperationalMetrics : IOperationalMetrics
 
     public void RecordRequest(string endpoint, int statusCode, double elapsedMilliseconds, bool failed)
     {
+        endpoint = string.IsNullOrWhiteSpace(endpoint) ? "unmatched" : endpoint;
         Interlocked.Increment(ref _totalRequestCount);
         if (failed || statusCode >= 500)
             Interlocked.Increment(ref _totalErrorCount);
