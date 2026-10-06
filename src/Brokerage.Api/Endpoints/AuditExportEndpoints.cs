@@ -59,7 +59,9 @@ public static class AuditExportEndpoints
                     query = query.Where(x => x.OccurredAt <= to.Value);
             }
 
-            query = query.AsNoTracking().OrderBy(x => x.EventId);
+            query = query.AsNoTracking()
+                .OrderByDescending(x => x.OccurredAt)
+                .ThenByDescending(x => x.EventId);
 
             var events = await query
                 .Take(requestedLimit)
