@@ -43,7 +43,8 @@ public sealed class RequestTelemetryMiddleware
 
             _logger.Log(
                 logLevel,
-                "HTTP request completed. Method={HttpMethod} Endpoint={Endpoint} StatusCode={StatusCode} ElapsedMilliseconds={ElapsedMilliseconds} Failed={Failed}",
+                "HTTP request completed. CorrelationId={CorrelationId} Method={HttpMethod} Endpoint={Endpoint} StatusCode={StatusCode} ElapsedMilliseconds={ElapsedMilliseconds} Failed={Failed}",
+                context.TraceIdentifier,
                 context.Request.Method,
                 endpoint,
                 statusCode,

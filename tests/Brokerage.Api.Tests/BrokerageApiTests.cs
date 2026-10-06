@@ -907,9 +907,11 @@ public class BrokerageApiTests
         await using var application = new WebApplicationFactory<Program>();
         using var client = application.CreateClient();
 
+        client.DefaultRequestHeaders.Add("X-Correlation-Id", "health-test-correlation");
         var response = await client.GetAsync("/health");
 
         Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("health-test-correlation", response.Headers.GetValues("X-Correlation-Id").Single());
         var json = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
         Assert.Equal("healthy", json.GetProperty("status").GetString());
         Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
