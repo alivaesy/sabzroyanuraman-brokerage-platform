@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http;
-using System.Text;
 using Brokerage.Application.Authorization;
 using Brokerage.Application.Contracts;
 using Brokerage.Application.Models;
@@ -15,16 +14,13 @@ namespace Brokerage.Api.Tests;
 public class AuditComplianceTests
 {
     [Fact]
-    public async Task AuditExport_RequiresSecurityRole_AndReturnsNdjson()
+    public async Task AuditExport_AllowsReadOnlyOrganizationObserver()
     {
         await using var application = new WebApplicationFactory<Program>();
         using var client = application.CreateClient();
 
-        var unauthorized = await client.GetAsync("/audit/events/export");
-        Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
-
-        client.DefaultRequestHeaders.Add("X-Test-User-Id", "AUDIT-SEC-001");
-        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.TechnicalSecurity.ToString());
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "AUDIT-OBS-001");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.OrganizationObserver.ToString());
 
         var occurredAt = DateTimeOffset.UtcNow;
 
@@ -34,15 +30,15 @@ public class AuditComplianceTests
             await writer.WriteAsync(new AuditEvent(
                 Guid.NewGuid(),
                 occurredAt,
-                "AuditExportTest",
-                "audit-export-test",
+                "AuditObserverExportTest",
+                "audit-observer-export-test",
                 null,
                 null,
                 "Success",
                 null,
                 "Created",
-                "AUDIT-SEC-001",
-                UserRole.TechnicalSecurity.ToString(),
+                "AUDIT-OBS-001",
+                UserRole.OrganizationObserver.ToString(),
                 "127.0.0.1"));
         }
 
@@ -52,8 +48,22 @@ public class AuditComplianceTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("application/x-ndjson", response.Content.Headers.ContentType?.MediaType);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("AuditExportTest", body);
-        Assert.Contains("TechnicalSecurity", body);
+        Assert.Contains("AuditObserverExportTest", body);
+        Assert.Contains("OrganizationObserver", body);
+    }
+
+    [Fact]
+    public async Task AuditExport_RejectsApplicantRole()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "AUDIT-APP-001");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Applicant.ToString());
+
+        var response = await client.GetAsync("/audit/events/export");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [Fact]

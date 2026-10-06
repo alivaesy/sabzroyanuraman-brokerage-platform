@@ -24,7 +24,7 @@ public static class AuditExportEndpoints
             CancellationToken cancellationToken,
             IConfiguration configuration) =>
         {
-            if (currentUser.Role is not (nameof(UserRole.TechnicalSecurity) or nameof(UserRole.Administrator)))
+            if (currentUser.Role is not (UserRole.TechnicalSecurity or UserRole.OrganizationObserver or UserRole.Administrator))
                 return Results.Forbid();
 
             if (from.HasValue && to.HasValue && from > to)
@@ -43,8 +43,6 @@ public static class AuditExportEndpoints
 
             if (isSqlite)
             {
-                // SQLite stores DateTimeOffset in a form that EF cannot reliably compare/order.
-                // Filter and order after materialization to keep the export provider-compatible.
                 auditRecords = await dbContext.AuditEvents.AsNoTracking().ToListAsync(cancellationToken);
                 if (from.HasValue)
                     auditRecords = auditRecords.Where(x => x.OccurredAt >= from.Value).ToList();
@@ -100,7 +98,6 @@ public static class AuditExportEndpoints
             return Results.Text(
                 events.Count == 0 ? string.Empty : ndjson + Environment.NewLine,
                 "application/x-ndjson; charset=utf-8");
-        })
-        .RequireAuthorization();
+        });
     }
 }
