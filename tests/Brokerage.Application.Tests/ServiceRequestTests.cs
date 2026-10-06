@@ -10,11 +10,12 @@ public class ServiceRequestTests
     {
         var before = DateTimeOffset.UtcNow;
 
-        var request = new ServiceRequest(ServiceCode.S01);
+        var request = new ServiceRequest(ServiceCode.S01, "test-applicant");
 
         var after = DateTimeOffset.UtcNow;
 
         Assert.NotEqual(Guid.Empty, request.Id);
+        Assert.Equal("test-applicant", request.ApplicantUserId);
         Assert.Equal(ServiceCode.S01, request.ServiceCode);
         Assert.Equal(RequestStatus.Created, request.Status);
         Assert.True(request.CreatedAt >= before);
@@ -24,10 +25,18 @@ public class ServiceRequestTests
         Assert.Null(request.OrganizationTrackingId);
         Assert.Null(request.OrganizationStatus);
     }
+
+    [Fact]
+    public void Constructor_WithEmptyApplicantUserId_Throws()
+    {
+        Assert.Throws<ArgumentException>(
+            () => new ServiceRequest(ServiceCode.S01, " "));
+    }
+
     [Fact]
     public void SetOrganizationStatus_StoresStatusAndUpdatesTimestamp()
     {
-        var request = new ServiceRequest(ServiceCode.S01);
+        var request = new ServiceRequest(ServiceCode.S01, "test-applicant");
         var before = request.UpdatedAt;
 
         request.SetOrganizationStatus("Approved");
@@ -39,7 +48,7 @@ public class ServiceRequestTests
     [Fact]
     public void SetOrganizationStatus_WithEmptyValue_Throws()
     {
-        var request = new ServiceRequest(ServiceCode.S01);
+        var request = new ServiceRequest(ServiceCode.S01, "test-applicant");
 
         Assert.Throws<ArgumentException>(
             () => request.SetOrganizationStatus(" "));

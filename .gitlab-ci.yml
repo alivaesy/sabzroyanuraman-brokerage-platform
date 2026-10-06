@@ -40,6 +40,32 @@ dotnet_build:
     - dotnet restore BrokeragePlatform.slnx
     - dotnet build BrokeragePlatform.slnx --configuration Release --no-restore
 
+dotnet_migration_verify:
+  stage: build
+  image: mcr.microsoft.com/dotnet/sdk:10.0
+  script:
+    - export PATH="$PATH:$HOME/.dotnet/tools"
+    - dotnet tool install --global dotnet-ef --version 10.0.12
+    - dotnet restore BrokeragePlatform.slnx
+    - dotnet build src/Brokerage.Api/Brokerage.Api.csproj --configuration Release --no-restore
+    - |
+      set -eu
+      migrations="$(dotnet ef migrations list --project src/Brokerage.Infrastructure/Brokerage.Infrastructure.csproj --startup-project src/Brokerage.Api/Brokerage.Api.csproj --configuration Release --no-build)"
+      printf '%s\n' "$migrations"
+      for migration in \
+        "20261005043933_InitialCreate" \
+        "20261005093520_AddAuditEvents" \
+        "20261005190000_HardenAuditEvents"; do
+        if ! printf '%s\n' "$migrations" | grep -Fq "$migration"; then
+          echo "ERROR: EF migration '$migration' was not discovered."
+          exit 1
+        fi
+      done
+      if printf '%s\n' "$migrations" | grep -Fq "No migrations were found"; then
+        echo "ERROR: EF reported that no migrations were found."
+        exit 1
+      fi
+
 dotnet_test:
   stage: test
   image: mcr.microsoft.com/dotnet/sdk:10.0

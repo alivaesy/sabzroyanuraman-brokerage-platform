@@ -1,4 +1,5 @@
 using Brokerage.Api.Middleware;
+using Brokerage.Application.Contracts;
 using Brokerage.Application.Exceptions;
 using Brokerage.Application.Models;
 using Microsoft.Extensions.Logging;
@@ -18,7 +19,7 @@ public class ExceptionHandlingMiddlewareTests
             _ => throw new BrokerageException(
                 "Identity verification failed."));
 
-        await middleware.InvokeAsync(context);
+        await middleware.InvokeAsync(context, new NoOpAuditEventWriter());
 
         Assert.Equal(
             StatusCodes.Status400BadRequest,
@@ -54,7 +55,7 @@ public class ExceptionHandlingMiddlewareTests
             _ => throw new InvalidOperationException(
                 "Sensitive internal exception details."));
 
-        await middleware.InvokeAsync(context);
+        await middleware.InvokeAsync(context, new NoOpAuditEventWriter());
 
         Assert.Equal(
             StatusCodes.Status500InternalServerError,
@@ -96,7 +97,7 @@ public async Task InvokeAsync_WhenCorrelationIdAlreadyExists_UsesSameIdInErrorRe
         _ => throw new BrokerageException(
             "Identity verification failed."));
 
-    await middleware.InvokeAsync(context);
+    await middleware.InvokeAsync(context, new NoOpAuditEventWriter());
 
     Assert.Equal(
         StatusCodes.Status400BadRequest,
@@ -128,17 +129,13 @@ public async Task InvokeAsync_WhenCorrelationIdAlreadyExists_UsesSameIdInErrorRe
         };
         context.Response.Body = new MemoryStream();
 
-        var logger = new TestLogger<ExceptionHandlingMiddleware>();
+        var auditWriter = new RecordingAuditEventWriter();
         var middleware = new ExceptionHandlingMiddleware(
-            _ => throw new BrokerageException("Identity verification failed."),
-            logger);
+            _ => throw new BrokerageException("Identity verification failed."));
 
-        await middleware.InvokeAsync(context);
+        await middleware.InvokeAsync(context, auditWriter);
 
-        var auditEvent = logger.Events
-            .SelectMany(x => x.Values)
-            .OfType<AuditEvent>()
-            .Single();
+        var auditEvent = Assert.Single(auditWriter.Events);
 
         Assert.Equal("RequestFailed", auditEvent.EventType);
         Assert.Equal("Failure", auditEvent.Outcome);
@@ -158,22 +155,35 @@ public async Task InvokeAsync_WhenCorrelationIdAlreadyExists_UsesSameIdInErrorRe
         };
         context.Response.Body = new MemoryStream();
 
-        var logger = new TestLogger<ExceptionHandlingMiddleware>();
+        var auditWriter = new RecordingAuditEventWriter();
         var middleware = new ExceptionHandlingMiddleware(
-            _ => throw new InvalidOperationException("Sensitive internal detail."),
-            logger);
+            _ => throw new InvalidOperationException("Sensitive internal detail."));
 
-        await middleware.InvokeAsync(context);
+        await middleware.InvokeAsync(context, auditWriter);
 
-        var auditEvent = logger.Events
-            .SelectMany(x => x.Values)
-            .OfType<AuditEvent>()
-            .Single();
+        var auditEvent = Assert.Single(auditWriter.Events);
 
         Assert.Equal("RequestFailed", auditEvent.EventType);
         Assert.Equal("Failure", auditEvent.Outcome);
         Assert.Equal("audit-internal-correlation-id", auditEvent.CorrelationId);
         Assert.Equal("INTERNAL_ERROR", auditEvent.NewState);
+    }
+
+    private sealed class RecordingAuditEventWriter : IAuditEventWriter
+    {
+        public List<AuditEvent> Events { get; } = [];
+
+        public Task WriteAsync(AuditEvent auditEvent, CancellationToken cancellationToken = default)
+        {
+            Events.Add(auditEvent);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class NoOpAuditEventWriter : IAuditEventWriter
+    {
+        public Task WriteAsync(AuditEvent auditEvent, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 
     private sealed class TestLogger<T> : ILogger<T>

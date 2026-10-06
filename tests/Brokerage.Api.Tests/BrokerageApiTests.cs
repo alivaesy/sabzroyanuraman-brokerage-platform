@@ -1,3 +1,4 @@
+using Brokerage.Application.Authorization;
 using Microsoft.AspNetCore.Mvc.Testing;
 using System.Net.Http.Json;
 using Brokerage.Application.Integration;
@@ -15,7 +16,7 @@ public class BrokerageApiTests
     public async Task RootEndpoint_ReturnsSuccess()
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var response = await client.GetAsync("/");
 
@@ -23,15 +24,47 @@ public class BrokerageApiTests
     }
 
     [Fact]
-    public async Task CreateS01_WithValidTestIdentity_ReturnsSuccess()
+    public async Task CreateS01_AnonymousUser_ReturnsUnauthorized()
     {
         await using var application = new WebApplicationFactory<Program>();
         using var client = application.CreateClient();
+        using var content = new StringContent(
+            """{"nationalIdentifier":"1234567891"}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        var response = await client.PostAsync("/service-requests/s01", content);
+
+        Assert.Equal(System.Net.HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateS01_ApplicantWithoutVerifiedIdentity_ReturnsForbidden()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "unverified-applicant");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", "Applicant");
+        using var content = new StringContent(
+            """{"nationalIdentifier":"1234567891"}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        var response = await client.PostAsync("/service-requests/s01", content);
+
+        Assert.Equal(System.Net.HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateS01_WithValidTestIdentity_ReturnsSuccess()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var content = new StringContent(
             """
             {
-                "nationalIdentifier": "TEST-123"
+                "nationalIdentifier": "1234567891"
             }
             """,
             System.Text.Encoding.UTF8,
@@ -88,12 +121,12 @@ public class BrokerageApiTests
     public async Task GetServiceRequest_ForCreatedS01_ReturnsPersistedRequest()
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var content = new StringContent(
             """
             {
-                "nationalIdentifier": "TEST-123"
+                "nationalIdentifier": "1234567891"
             }
             """,
             System.Text.Encoding.UTF8,
@@ -148,7 +181,7 @@ public class BrokerageApiTests
     public async Task GetServiceRequest_WhenRequestDoesNotExist_ReturnsNotFound()
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var response = await client.GetAsync(
             $"/service-requests/{Guid.NewGuid()}");
@@ -162,12 +195,12 @@ public class BrokerageApiTests
     public async Task GetWorkflowStages_ForCreatedS01_ReturnsPersistedStagesInOrder()
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var content = new StringContent(
             """
             {
-                "nationalIdentifier": "TEST-123"
+                "nationalIdentifier": "1234567891"
             }
             """,
             System.Text.Encoding.UTF8,
@@ -239,7 +272,7 @@ public class BrokerageApiTests
     public async Task GetWorkflowStages_WhenRequestDoesNotExist_ReturnsNotFound()
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var response = await client.GetAsync(
             $"/service-requests/{Guid.NewGuid()}/workflow-stages");
@@ -253,7 +286,7 @@ public class BrokerageApiTests
     public async Task CreateS01_WithInvalidTestIdentity_ReturnsBadRequest()
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var content = new StringContent(
             """
@@ -277,7 +310,7 @@ public class BrokerageApiTests
     public async Task CreateS01_WithInvalidTestIdentity_ReturnsStandardErrorResponse()
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var content = new StringContent(
             """
@@ -324,12 +357,12 @@ public class BrokerageApiTests
                     });
                 });
 
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var content = new StringContent(
             """
             {
-                "nationalIdentifier": "TEST-123"
+                "nationalIdentifier": "1234567891"
             }
             """,
             System.Text.Encoding.UTF8,
@@ -366,7 +399,7 @@ public class BrokerageApiTests
     public async Task GetOrganizationStatus_WhenRequestDoesNotExist_ReturnsNotFound()
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var response = await client.GetAsync(
             $"/service-requests/{Guid.NewGuid()}/organization-status");
@@ -380,12 +413,12 @@ public class BrokerageApiTests
     public async Task GetOrganizationStatus_AdvancesWorkflowToResultNotification()
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var content = new StringContent(
             """
             {
-                "nationalIdentifier": "TEST-123"
+                "nationalIdentifier": "1234567891"
             }
             """,
             System.Text.Encoding.UTF8,
@@ -480,12 +513,12 @@ public class BrokerageApiTests
                     });
                 });
 
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var content = new StringContent(
             """
             {
-                "nationalIdentifier": "TEST-123"
+                "nationalIdentifier": "1234567891"
             }
             """,
             System.Text.Encoding.UTF8,
@@ -549,11 +582,11 @@ public class BrokerageApiTests
         using var scope = application.Services.CreateScope();
         var repository = scope.ServiceProvider.GetRequiredService<IServiceRequestRepository>();
 
-        var request = new ServiceRequest(ServiceCode.S01);
+        var request = new ServiceRequest(ServiceCode.S01, "test-applicant");
         await repository.AddAsync(request);
         await repository.SaveChangesAsync();
 
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var response = await client.GetAsync(
             $"/service-requests/{request.Id}/organization-status");
@@ -574,12 +607,12 @@ public class BrokerageApiTests
     public async Task GetOrganizationStatus_WhenCalledTwice_DoesNotDuplicateResultNotification()
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
 
         var content = new StringContent(
             """
             {
-                "nationalIdentifier": "TEST-123"
+                "nationalIdentifier": "1234567891"
             }
             """,
             System.Text.Encoding.UTF8,
@@ -652,6 +685,155 @@ public class BrokerageApiTests
             1,
             stages.Count(stage =>
                 stage.GetProperty("stageCode").GetString() == "ResultNotification"));
+    }
+
+    [Fact]
+    public async Task GetServiceRequest_AnonymousUser_ReturnsUnauthorized()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var response = await client.GetAsync($"/service-requests/{Guid.NewGuid()}");
+
+        Assert.Equal(System.Net.HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetServiceRequest_OwnerApplicant_ReturnsSuccess()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var ownerClient = await CreateVerifiedApplicantClientAsync(application);
+
+        var content = new StringContent(
+            """{"nationalIdentifier":"1234567891"}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        var createResponse = await ownerClient.PostAsync("/service-requests/s01", content);
+        Assert.Equal(System.Net.HttpStatusCode.OK, createResponse.StatusCode);
+
+        var created = await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var requestId = Guid.Parse(created.GetProperty("id").GetString()!);
+
+        var response = await ownerClient.GetAsync($"/service-requests/{requestId}");
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetServiceRequest_DifferentApplicant_ReturnsForbidden()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var ownerClient = await CreateVerifiedApplicantClientAsync(application);
+
+        var content = new StringContent(
+            """{"nationalIdentifier":"1234567891"}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        var createResponse = await ownerClient.PostAsync("/service-requests/s01", content);
+        Assert.Equal(System.Net.HttpStatusCode.OK, createResponse.StatusCode);
+
+        var created = await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var requestId = Guid.Parse(created.GetProperty("id").GetString()!);
+
+        using var otherClient = application.CreateClient();
+        otherClient.DefaultRequestHeaders.Add("X-Test-User-Id", "other-applicant");
+        otherClient.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Applicant.ToString());
+
+        var response = await otherClient.GetAsync($"/service-requests/{requestId}");
+
+        Assert.Equal(System.Net.HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetServiceRequest_ExpertRole_CanAccessAnotherApplicantsRequest()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var ownerClient = await CreateVerifiedApplicantClientAsync(application);
+
+        var content = new StringContent(
+            """{"nationalIdentifier":"1234567891"}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        var createResponse = await ownerClient.PostAsync("/service-requests/s01", content);
+        Assert.Equal(System.Net.HttpStatusCode.OK, createResponse.StatusCode);
+
+        var created = await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var requestId = Guid.Parse(created.GetProperty("id").GetString()!);
+
+        using var expertClient = application.CreateClient();
+        expertClient.DefaultRequestHeaders.Add("X-Test-User-Id", "expert-001");
+        expertClient.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Expert.ToString());
+
+        var response = await expertClient.GetAsync($"/service-requests/{requestId}");
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetWorkflowStages_DifferentApplicant_ReturnsForbidden()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var ownerClient = await CreateVerifiedApplicantClientAsync(application);
+
+        var content = new StringContent(
+            """{"nationalIdentifier":"1234567891"}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        var createResponse = await ownerClient.PostAsync("/service-requests/s01", content);
+        Assert.Equal(System.Net.HttpStatusCode.OK, createResponse.StatusCode);
+
+        var created = await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var requestId = Guid.Parse(created.GetProperty("id").GetString()!);
+
+        using var otherClient = application.CreateClient();
+        otherClient.DefaultRequestHeaders.Add("X-Test-User-Id", "other-applicant");
+        otherClient.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Applicant.ToString());
+
+        var response = await otherClient.GetAsync($"/service-requests/{requestId}/workflow-stages");
+
+        Assert.Equal(System.Net.HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetOrganizationStatus_DifferentApplicant_ReturnsForbidden()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var ownerClient = await CreateVerifiedApplicantClientAsync(application);
+
+        var content = new StringContent(
+            """{"nationalIdentifier":"1234567891"}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        var createResponse = await ownerClient.PostAsync("/service-requests/s01", content);
+        Assert.Equal(System.Net.HttpStatusCode.OK, createResponse.StatusCode);
+
+        var created = await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var requestId = Guid.Parse(created.GetProperty("id").GetString()!);
+
+        using var otherClient = application.CreateClient();
+        otherClient.DefaultRequestHeaders.Add("X-Test-User-Id", "other-applicant");
+        otherClient.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Applicant.ToString());
+
+        var response = await otherClient.GetAsync($"/service-requests/{requestId}/organization-status");
+
+        Assert.Equal(System.Net.HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    private static async Task<HttpClient> CreateVerifiedApplicantClientAsync(WebApplicationFactory<Program> application)
+    {
+        var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "test-applicant");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", "Applicant");
+
+        using var scope = application.Services.CreateScope();
+        var states = scope.ServiceProvider.GetRequiredService<IIdentityVerificationStateRepository>();
+        await states.SaveResultAsync("test-applicant", true, DateTimeOffset.UtcNow);
+        return client;
     }
 
     private sealed class FailingOrganizationStatusApiClient

@@ -4,18 +4,78 @@ using Brokerage.Domain.Entities;
 using Brokerage.Application.Contracts;
 using Brokerage.Application.Services;
 using Brokerage.Application.Integration;
+using Brokerage.Application.Validation;
 using Brokerage.Infrastructure.Integration;
 using Brokerage.Infrastructure.Persistence;
 using Brokerage.Api.Middleware;
+using Brokerage.Api.Authentication;
+using Brokerage.Api.Authorization;
+using Brokerage.Api.Endpoints;
 using Brokerage.Application.Models;
+using Brokerage.Application.Authorization;
+using Brokerage.Application.Authentication;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole();
 builder.Services.AddOpenApi();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+builder.Services.AddScoped<IAuditEventWriter, AuditEventWriter>();
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddAuthentication(DevelopmentAuthenticationHandler.SchemeName)
+        .AddScheme<AuthenticationSchemeOptions, DevelopmentAuthenticationHandler>(
+            DevelopmentAuthenticationHandler.SchemeName,
+            _ => { });
+}
+else
+{
+    var authority = builder.Configuration["Authentication:Production:Authority"];
+    var audience = builder.Configuration["Authentication:Production:Audience"];
+
+    if (string.IsNullOrWhiteSpace(authority) || string.IsNullOrWhiteSpace(audience))
+        throw new InvalidOperationException(
+            "Production authentication is not configured. Set Authentication:Production:Authority and Authentication:Production:Audience.");
+
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            options.Authority = authority;
+            options.Audience = audience;
+            options.RequireHttpsMetadata =
+                builder.Configuration.GetValue("Authentication:Production:RequireHttpsMetadata", true);
+
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                NameClaimType = IdentityClaims.UserId,
+                RoleClaimType = IdentityClaims.Role
+            };
+        });
+}
+
+builder.Services.AddSingleton<IMfaVerificationStore, InMemoryMfaVerificationStore>();
+builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, MfaAuthorizationHandler>();
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(AuthorizationPolicies.Applicant, policy => policy.RequireRole(UserRole.Applicant.ToString()));
+    options.AddPolicy(AuthorizationPolicies.Expert, policy => policy.RequireRole(UserRole.Expert.ToString()));
+    options.AddPolicy(AuthorizationPolicies.Support, policy => policy.RequireRole(UserRole.Support.ToString()));
+    options.AddPolicy(AuthorizationPolicies.TechnicalSecurity, policy => policy.RequireRole(UserRole.TechnicalSecurity.ToString()));
+    options.AddPolicy(AuthorizationPolicies.OrganizationObserver, policy => policy.RequireRole(UserRole.OrganizationObserver.ToString()));
+    options.AddPolicy(AuthorizationPolicies.Administrator, policy => policy.RequireRole(UserRole.Administrator.ToString()));
+    options.AddPolicy(AuthorizationPolicies.MfaVerified, policy => policy.AddRequirements(new MfaRequirement()));
+});
 
 builder.Services.AddDbContext<BrokerageDbContext>(options =>
     options.UseSqlite(
@@ -23,8 +83,10 @@ builder.Services.AddDbContext<BrokerageDbContext>(options =>
         ?? "Data Source=brokerage.db"));
 
 builder.Services.AddScoped<IServiceRequestRepository, ServiceRequestRepository>();
+builder.Services.AddScoped<IIdentityVerificationStateRepository, IdentityVerificationStateRepository>();
 builder.Services.AddScoped<CreateServiceRequest>();
 builder.Services.AddScoped<CreateS01ServiceRequest>();
+builder.Services.AddScoped<VerifyIdentity>();
 builder.Services.AddScoped<WorkflowService>();
 builder.Services.AddScoped<IOrganizationIntegrationService, OrganizationIntegrationService>();
 builder.Services.AddScoped<OrganizationRetryPolicy>();
@@ -33,236 +95,245 @@ builder.Services.AddScoped<OrganizationTimeoutOptions>();
 builder.Services.AddScoped<OrganizationRetryExecutor>();
 builder.Services.AddScoped<Brokerage.Application.Integration.IOrganizationApiClient, MockOrganizationApiClient>();
 builder.Services.AddScoped<IIdentityVerificationService, IdentityVerificationService>();
+builder.Services.AddScoped<INationalIdentifierValidator, IranianNationalIdentifierValidator>();
 builder.Services.AddScoped<ISanaClient, MockSanaClient>();
 builder.Services.AddScoped<IShahkarClient, MockShahkarClient>();
+builder.Services.AddSingleton<IOtpService, InMemoryOtpService>();
 
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
-    await DatabaseInitializer.InitializeAsync(dbContext);
+    await DatabaseInitializer.InitializeAsync(dbContext, app.Configuration["DatabaseInitialization:Mode"]);
 }
 
 if (app.Environment.IsDevelopment())
-{
     app.MapOpenApi();
-}
 
 app.UseHttpsRedirection();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseAuthentication();
+app.UseAuthorization();
 
-app.MapGet("/", () => Results.Ok(new
-{
-    service = "Brokerage.Api",
-    status = "running"
-}));
+app.MapGet("/", () => Results.Ok(new { service = "Brokerage.Api", status = "running" }));
+AuditExportEndpoints.Map(app);
 
-app.MapPost("/service-requests", (
-    CreateServiceRequest useCase,
-    ServiceCode serviceCode) =>
-{
-    var request = useCase.Execute(serviceCode, "INITIAL");
-
-    return Results.Ok(new
-    {
-        request.Id,
-        request.ServiceCode,
-        request.Status,
-        request.CreatedAt,
-        request.UpdatedAt
-    });
-});
-
-app.MapPost("/service-requests/s01", async (
-    CreateS01ServiceRequest useCase,
-    CreateS01RequestModel model,
+app.MapPost("/identity/verify", async (
+    ICurrentUser currentUser,
+    VerifyIdentityRequest request,
+    VerifyIdentity useCase,
     HttpContext context,
-    ILoggerFactory loggerFactory,
     CancellationToken cancellationToken) =>
 {
-    var request = await useCase.ExecuteAsync(model, context.TraceIdentifier, cancellationToken);
+    if (!currentUser.IsAuthenticated || string.IsNullOrWhiteSpace(currentUser.UserId))
+        return Results.Unauthorized();
 
-    var logger = loggerFactory.CreateLogger("Audit");
-    logger.LogInformation(
-        "AuditEvent {@AuditEvent}",
-        new AuditEvent(
-            Guid.NewGuid(),
-            DateTimeOffset.UtcNow,
-            "ServiceRequestCreated",
-            context.TraceIdentifier,
-            request.Id,
-            request.CurrentWorkflowStageId?.ToString(),
-            "Success",
-            null,
-            request.Status.ToString()));
+    var result = await useCase.ExecuteAsync(
+        currentUser.UserId,
+        request.NationalIdentifier,
+        context.TraceIdentifier,
+        cancellationToken);
 
-    return Results.Ok(new
-    {
-        request.Id,
-        request.ServiceCode,
-        request.Status,
-        request.CreatedAt,
-        request.UpdatedAt,
-        request.CurrentWorkflowStageId,
-        request.OrganizationTrackingId
-    });
-});
+    return result.Verified
+        ? Results.Ok(new { verified = true })
+        : Results.BadRequest(new { verified = false });
+}).RequireAuthorization(AuthorizationPolicies.Applicant);
+
+app.MapGet("/identity/me", async (ICurrentUser currentUser, IIdentityVerificationStateRepository stateRepository, CancellationToken cancellationToken) =>
+{
+    var state = currentUser.UserId is null ? null : await stateRepository.GetAsync(currentUser.UserId, cancellationToken);
+    return Results.Ok(new { userId = currentUser.UserId, role = currentUser.Role, isMfaVerified = currentUser.IsMfaVerified,
+        isIdentityVerified = state?.IsVerified == true, identityVerifiedAt = state?.VerifiedAt });
+}).RequireAuthorization();
+
+app.MapPost("/identity/otp/challenges", async (
+    ICurrentUser currentUser,
+    IOtpService otpService,
+    IAuditEventWriter auditEventWriter,
+    HttpContext context,
+    CancellationToken cancellationToken) =>
+{
+    if (!currentUser.IsAuthenticated || string.IsNullOrWhiteSpace(currentUser.UserId))
+        return Results.Unauthorized();
+
+    var challenge = await otpService.IssueAsync(currentUser.UserId, cancellationToken);
+
+    await auditEventWriter.WriteAsync(new AuditEvent(Guid.NewGuid(), DateTimeOffset.UtcNow, "OtpChallengeIssued", context.TraceIdentifier,
+        null, null, "Success", null, "Issued", currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
+
+    return Results.Ok(new { challenge.ChallengeId, challenge.ExpiresAt });
+}).RequireAuthorization();
+
+app.MapPost("/identity/otp/verify", async (
+    ICurrentUser currentUser,
+    OtpVerificationRequest request,
+    IOtpService otpService,
+    IMfaVerificationStore mfaVerificationStore,
+    IAuditEventWriter auditEventWriter,
+    HttpContext context,
+    CancellationToken cancellationToken) =>
+{
+    if (!currentUser.IsAuthenticated || string.IsNullOrWhiteSpace(currentUser.UserId))
+        return Results.Unauthorized();
+
+    var verified = await otpService.VerifyAsync(currentUser.UserId, request.ChallengeId, request.Code, cancellationToken);
+
+    if (verified)
+        mfaVerificationStore.MarkVerified(currentUser.UserId, DateTimeOffset.UtcNow);
+
+    await auditEventWriter.WriteAsync(new AuditEvent(Guid.NewGuid(), DateTimeOffset.UtcNow, "OtpVerification", context.TraceIdentifier,
+        null, null, verified ? "Success" : "Failure", null, verified ? "Verified" : "Rejected",
+        currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
+
+    return verified
+        ? Results.Ok(new { verified = true })
+        : Results.BadRequest(new { verified = false });
+}).RequireAuthorization();
+
+app.MapGet("/identity/mfa-required", () => Results.Ok(new { authorized = true }))
+    .RequireAuthorization(AuthorizationPolicies.MfaVerified);
+
+app.MapGet("/identity/applicant-only", () => Results.Ok(new { authorized = true }))
+    .RequireAuthorization(AuthorizationPolicies.Applicant);
+
+app.MapPost("/service-requests", async (
+    CreateServiceRequest useCase,
+    ServiceCode serviceCode,
+    ICurrentUser currentUser,
+    IIdentityVerificationStateRepository identityStates,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(currentUser.UserId))
+        return Results.Unauthorized();
+
+    var identityState = await identityStates.GetAsync(currentUser.UserId, cancellationToken);
+    if (identityState?.IsVerified != true)
+        return Results.Forbid();
+
+    var request = useCase.Execute(serviceCode, "INITIAL", currentUser.UserId);
+    return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.CreatedAt, request.UpdatedAt });
+}).RequireAuthorization(AuthorizationPolicies.Applicant);
+
+app.MapPost("/service-requests/s01", async (
+    CreateS01ServiceRequest useCase, CreateS01RequestModel model, ICurrentUser currentUser,
+    IIdentityVerificationStateRepository identityStates, HttpContext context,
+    IAuditEventWriter auditEventWriter, CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(currentUser.UserId))
+        return Results.Unauthorized();
+
+    var identityState = await identityStates.GetAsync(currentUser.UserId, cancellationToken);
+    if (identityState?.IsVerified != true)
+        return Results.Forbid();
+
+    var request = await useCase.ExecuteAsync(model, currentUser.UserId, context.TraceIdentifier, cancellationToken);
+    await auditEventWriter.WriteAsync(new AuditEvent(
+        Guid.NewGuid(), DateTimeOffset.UtcNow, "ServiceRequestCreated", context.TraceIdentifier,
+        request.Id, request.CurrentWorkflowStageId?.ToString(), "Success", null, request.Status.ToString(),
+        currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
+    return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.CreatedAt, request.UpdatedAt,
+        request.CurrentWorkflowStageId, request.OrganizationTrackingId });
+}).RequireAuthorization(AuthorizationPolicies.Applicant);
 
 app.MapGet("/service-requests/{id:guid}", async (
     Guid id,
     IServiceRequestRepository repository,
+    ICurrentUser currentUser,
     CancellationToken cancellationToken) =>
 {
     var request = await repository.GetByIdAsync(id, cancellationToken);
+    if (request is null) return Results.NotFound();
+    if (!CanAccessServiceRequest(currentUser, request))
+        return Results.Forbid();
 
-    return request is null
-        ? Results.NotFound()
-        : Results.Ok(new
-        {
-            request.Id,
-            request.ServiceCode,
-            request.Status,
-            request.CreatedAt,
-            request.UpdatedAt,
-            request.CurrentWorkflowStageId,
-            request.OrganizationTrackingId,
-            request.OrganizationStatus
-        });
-});
+    return Results.Ok(new { request.Id, request.ServiceCode, request.Status,
+        request.CreatedAt, request.UpdatedAt, request.CurrentWorkflowStageId, request.OrganizationTrackingId, request.OrganizationStatus });
+}).RequireAuthorization();
 
 app.MapGet("/service-requests/{id:guid}/workflow-stages", async (
     Guid id,
     IServiceRequestRepository repository,
+    ICurrentUser currentUser,
     CancellationToken cancellationToken) =>
 {
     var request = await repository.GetByIdAsync(id, cancellationToken);
+    if (request is null) return Results.NotFound();
+    if (!CanAccessServiceRequest(currentUser, request))
+        return Results.Forbid();
 
-    if (request is null)
-        return Results.NotFound();
-
-    var stages = await repository.GetWorkflowStagesAsync(
-        id,
-        cancellationToken);
-
-    return Results.Ok(stages.Select(stage => new
-    {
-        stage.Id,
-        stage.ServiceRequestId,
-        stage.StageCode,
-        stage.CreatedAt,
-        stage.CompletedAt
-    }));
-});
+    var stages = await repository.GetWorkflowStagesAsync(id, cancellationToken);
+    return Results.Ok(stages.Select(stage => new { stage.Id, stage.ServiceRequestId, stage.StageCode, stage.CreatedAt, stage.CompletedAt }));
+}).RequireAuthorization();
 
 app.MapGet("/service-requests/{id:guid}/organization-status", async (
-    Guid id,
-    IServiceRequestRepository repository,
+    Guid id, IServiceRequestRepository repository, ICurrentUser currentUser,
     IOrganizationIntegrationService organizationIntegrationService,
-    HttpContext context,
-    ILoggerFactory loggerFactory,
-    CancellationToken cancellationToken) =>
+    HttpContext context, IAuditEventWriter auditEventWriter, CancellationToken cancellationToken) =>
 {
     var request = await repository.GetByIdAsync(id, cancellationToken);
-
-    if (request is null)
-        return Results.NotFound();
-
+    if (request is null) return Results.NotFound();
+    if (!CanAccessServiceRequest(currentUser, request))
+        return Results.Forbid();
     if (string.IsNullOrWhiteSpace(request.OrganizationTrackingId))
-    {
-        return Results.BadRequest(new
-        {
-            message = "The service request has no organization tracking ID."
-        });
-    }
+        return Results.BadRequest(new { message = "The service request has no organization tracking ID." });
 
     var previousOrganizationStatus = request.OrganizationStatus;
-    var organizationStatus = await organizationIntegrationService.GetStatusAsync(
-        request.OrganizationTrackingId,
-        cancellationToken);
-
+    var organizationStatus = await organizationIntegrationService.GetStatusAsync(request.OrganizationTrackingId, cancellationToken);
     request.SetOrganizationStatus(organizationStatus);
 
-    var workflowStages = await repository.GetWorkflowStagesAsync(
-        id,
-        cancellationToken);
-
-    var followUpStage = workflowStages.SingleOrDefault(stage =>
-        stage.StageCode == S01StageCode.OrganizationFollowUp.ToString());
+    var workflowStages = await repository.GetWorkflowStagesAsync(id, cancellationToken);
+    var followUpStage = workflowStages.SingleOrDefault(stage => stage.StageCode == S01StageCode.OrganizationFollowUp.ToString());
 
     if (followUpStage is not null && followUpStage.CompletedAt is null)
     {
         followUpStage.Complete();
-
-        loggerFactory.CreateLogger("Audit").LogInformation(
-            "AuditEvent {@AuditEvent}",
-            new AuditEvent(
-                Guid.NewGuid(),
-                DateTimeOffset.UtcNow,
-                "WorkflowStageCompleted",
-                context.TraceIdentifier,
-                request.Id,
-                followUpStage.StageCode,
-                "Success",
-                followUpStage.StageCode,
-                followUpStage.StageCode));
+        await auditEventWriter.WriteAsync(new AuditEvent(
+            Guid.NewGuid(), DateTimeOffset.UtcNow, "WorkflowStageCompleted", context.TraceIdentifier,
+            request.Id, followUpStage.StageCode, "Success", null, followUpStage.StageCode,
+            currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
     }
 
-    var resultStage = workflowStages.SingleOrDefault(stage =>
-        stage.StageCode == S01StageCode.ResultNotification.ToString());
-
+    var resultStage = workflowStages.SingleOrDefault(stage => stage.StageCode == S01StageCode.ResultNotification.ToString());
     if (resultStage is null)
     {
-        resultStage = new WorkflowStage(
-            request.Id,
-            S01StageCode.ResultNotification.ToString());
-
-        await repository.AddWorkflowStageAsync(
-            resultStage,
-            cancellationToken);
-
+        resultStage = new WorkflowStage(request.Id, S01StageCode.ResultNotification.ToString());
+        await repository.AddWorkflowStageAsync(resultStage, cancellationToken);
         request.SetCurrentWorkflowStage(resultStage.Id);
-
-        loggerFactory.CreateLogger("Audit").LogInformation(
-            "AuditEvent {@AuditEvent}",
-            new AuditEvent(
-                Guid.NewGuid(),
-                DateTimeOffset.UtcNow,
-                "WorkflowStageCreated",
-                context.TraceIdentifier,
-                request.Id,
-                resultStage.StageCode,
-                "Success",
-                null,
-                resultStage.StageCode));
+        await auditEventWriter.WriteAsync(new AuditEvent(
+            Guid.NewGuid(), DateTimeOffset.UtcNow, "WorkflowStageCreated", context.TraceIdentifier,
+            request.Id, resultStage.StageCode, "Success", null, resultStage.StageCode,
+            currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
     }
 
     await repository.SaveChangesAsync(cancellationToken);
+    await auditEventWriter.WriteAsync(new AuditEvent(
+        Guid.NewGuid(), DateTimeOffset.UtcNow, "OrganizationStatusReceived", context.TraceIdentifier,
+        request.Id, resultStage.StageCode, "Success", previousOrganizationStatus, organizationStatus,
+        currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
 
-    var logger = loggerFactory.CreateLogger("Audit");
-    logger.LogInformation(
-        "AuditEvent {@AuditEvent}",
-        new AuditEvent(
-            Guid.NewGuid(),
-            DateTimeOffset.UtcNow,
-            "OrganizationStatusReceived",
-            context.TraceIdentifier,
-            request.Id,
-            resultStage.StageCode,
-            "Success",
-            previousOrganizationStatus,
-            organizationStatus));
+    return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.OrganizationTrackingId,
+        request.OrganizationStatus, request.CurrentWorkflowStageId });
+}).RequireAuthorization();
 
-    return Results.Ok(new
-    {
-        request.Id,
-        request.ServiceCode,
-        request.Status,
-        request.OrganizationTrackingId,
-        request.OrganizationStatus,
-        request.CurrentWorkflowStageId
-    });
-});
+static bool CanAccessServiceRequest(ICurrentUser currentUser, ServiceRequest request)
+{
+    if (string.IsNullOrWhiteSpace(currentUser.UserId))
+        return false;
+
+    if (string.Equals(request.ApplicantUserId, currentUser.UserId, StringComparison.Ordinal))
+        return true;
+
+    return currentUser.Role is
+        nameof(UserRole.Expert) or
+        nameof(UserRole.Support) or
+        nameof(UserRole.TechnicalSecurity) or
+        nameof(UserRole.OrganizationObserver) or
+        nameof(UserRole.Administrator);
+}
 
 app.Run();
+
+public sealed record OtpVerificationRequest(string ChallengeId, string Code);
+public sealed record VerifyIdentityRequest(string NationalIdentifier);

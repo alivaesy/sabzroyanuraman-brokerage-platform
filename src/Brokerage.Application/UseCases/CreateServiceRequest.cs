@@ -1,4 +1,4 @@
-﻿using Brokerage.Domain.Entities;
+using Brokerage.Domain.Entities;
 using Brokerage.Domain.Enums;
 using Brokerage.Application.Services;
 
@@ -15,9 +15,10 @@ public class CreateServiceRequest
 
     public ServiceRequest Execute(
         ServiceCode serviceCode,
-        string initialStageCode)
+        string initialStageCode,
+        string applicantUserId)
     {
-        var request = new ServiceRequest(serviceCode);
+        var request = new ServiceRequest(serviceCode, applicantUserId);
 
         _workflowService.CreateStage(
             request,

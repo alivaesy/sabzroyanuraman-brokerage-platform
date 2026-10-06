@@ -10,7 +10,7 @@ public class WorkflowServiceTests
     public void CreateStage_AssignsStageToServiceRequest()
     {
         var workflowService = new WorkflowService();
-        var request = new ServiceRequest(ServiceCode.S01);
+        var request = new ServiceRequest(ServiceCode.S01, "test-applicant");
 
         var stage = workflowService.CreateStage(
             request,

@@ -15,8 +15,7 @@ public class CreateS01ServiceRequestAuditTests
     {
         var workflowService = new WorkflowService();
         var identityService = new MockIdentityVerificationService();
-        var organizationIntegrationService =
-            new TestOrganizationIntegrationService();
+        var organizationIntegrationService = new TestOrganizationIntegrationService();
         var logger = new ListLogger<CreateS01ServiceRequest>();
 
         var useCase = new CreateS01ServiceRequest(
@@ -28,8 +27,9 @@ public class CreateS01ServiceRequestAuditTests
         var request = await useCase.ExecuteAsync(
             new CreateS01RequestModel
             {
-                NationalIdentifier = "TEST-123"
+                NationalIdentifier = "1234567891"
             },
+            "test-applicant",
             "CORRELATION-123");
 
         var auditEvents = logger.Events
@@ -98,10 +98,7 @@ internal sealed class ListLogger<T> : ILogger<T>
         if (state is not IEnumerable<KeyValuePair<string, object?>> values)
             return;
 
-        var eventData = values.ToDictionary(
-            pair => pair.Key,
-            pair => pair.Value);
-
+        var eventData = values.ToDictionary(pair => pair.Key, pair => pair.Value);
         if (eventData.Values.Any(value => value is AuditEvent))
             Events.Add(eventData);
     }
@@ -110,8 +107,6 @@ internal sealed class ListLogger<T> : ILogger<T>
     {
         public static readonly NullScope Instance = new();
 
-        public void Dispose()
-        {
-        }
+        public void Dispose() { }
     }
 }
