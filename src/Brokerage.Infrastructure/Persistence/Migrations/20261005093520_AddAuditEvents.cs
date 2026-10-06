@@ -1,10 +1,13 @@
 using System;
+using Brokerage.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace Brokerage.Infrastructure.Persistence.Migrations
 {
+    [DbContext(typeof(BrokerageDbContext))]
     [Migration("20261005093520_AddAuditEvents")]
     public partial class AddAuditEvents : Migration
     {
