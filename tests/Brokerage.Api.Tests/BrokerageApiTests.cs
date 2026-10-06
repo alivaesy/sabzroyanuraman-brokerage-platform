@@ -900,4 +900,22 @@ public class BrokerageApiTests
                     status: "MockStatus"));
         }
     }
+
+    [Fact]
+    public async Task HealthEndpoint_ReturnsHealthyAndSecurityHeaders()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var response = await client.GetAsync("/health");
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        Assert.Equal("healthy", json.GetProperty("status").GetString());
+        Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
+        Assert.Equal("no-referrer", response.Headers.GetValues("Referrer-Policy").Single());
+        Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
+        Assert.Equal("camera=(), microphone=(), geolocation=()", response.Headers.GetValues("Permissions-Policy").Single());
+    }
+
 }
