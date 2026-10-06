@@ -187,6 +187,28 @@ app.MapGet("/ops/metrics", (HttpContext context, IOperationalMetrics metrics) =>
     context.Response.Headers.CacheControl = "no-store";
     return Results.Ok(metrics.Snapshot());
 }).RequireAuthorization(AuthorizationPolicies.OperationalMonitoring);
+
+app.MapGet("/ops/status", async (
+    HttpContext context,
+    BrokerageDbContext dbContext,
+    IOperationalMetrics metrics,
+    CancellationToken cancellationToken) =>
+{
+    context.Response.Headers.CacheControl = "no-store";
+    var canConnect = await dbContext.Database.CanConnectAsync(cancellationToken);
+    var snapshot = metrics.Snapshot();
+
+    return Results.Ok(new
+    {
+        status = canConnect ? "operational" : "degraded",
+        ready = canConnect,
+        observedAt = snapshot.ObservedAt,
+        startedAt = snapshot.StartedAt,
+        uptime = snapshot.Uptime,
+        totalRequestCount = snapshot.TotalRequestCount,
+        errorRatePercent = snapshot.ErrorRatePercent
+    });
+}).RequireAuthorization(AuthorizationPolicies.OperationalMonitoring);
 AuditExportEndpoints.Map(app);
 
 app.MapPost("/identity/verify", async (
