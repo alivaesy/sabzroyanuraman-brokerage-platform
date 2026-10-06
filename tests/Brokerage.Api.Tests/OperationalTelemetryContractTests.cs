@@ -56,6 +56,11 @@ public class OperationalTelemetryContractTests
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.True(json.GetProperty("observedAt").GetDateTimeOffset() >= json.GetProperty("startedAt").GetDateTimeOffset());
         Assert.False(string.IsNullOrWhiteSpace(json.GetProperty("uptime").GetString()));
+        Assert.True(json.GetProperty("requestsPerMinute").GetDouble() >= 0d);
+        Assert.True(json.GetProperty("totalRequestCount").GetInt64() >= 1);
+        Assert.True(json.GetProperty("total4xxCount").GetInt64() >= 0);
+        Assert.True(json.GetProperty("total5xxCount").GetInt64() >= 0);
+        Assert.True(json.GetProperty("totalErrorCount").GetInt64() >= 0);
         Assert.True(json.GetProperty("processCpuPercent").GetDouble() >= 0d);
         Assert.True(json.GetProperty("processWorkingSetBytes").GetInt64() > 0);
         Assert.True(json.GetProperty("managedMemoryBytes").GetInt64() > 0);
