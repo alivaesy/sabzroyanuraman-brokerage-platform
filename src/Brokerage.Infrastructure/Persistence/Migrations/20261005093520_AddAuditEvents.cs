@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Brokerage.Infrastructure.Persistence.Migrations
 {
+    [Migration("20261005093520_AddAuditEvents")]
     public partial class AddAuditEvents : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)

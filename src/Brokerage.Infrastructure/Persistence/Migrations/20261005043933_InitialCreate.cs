@@ -5,10 +5,9 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Brokerage.Infrastructure.Persistence.Migrations
 {
-    /// <inheritdoc />
+    [Migration("20261005043933_InitialCreate")]
     public partial class InitialCreate : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
@@ -90,7 +89,6 @@ namespace Brokerage.Infrastructure.Persistence.Migrations
                 column: "ServiceRequestId");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(name: "experts");

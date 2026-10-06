@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Brokerage.Infrastructure.Persistence.Migrations;
 
+[Migration("20261005190000_HardenAuditEvents")]
 public partial class HardenAuditEvents : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
