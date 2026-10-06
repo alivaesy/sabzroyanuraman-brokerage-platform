@@ -144,11 +144,25 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        context.Response.Headers["Referrer-Policy"] = "no-referrer";
+        return Task.CompletedTask;
+    });
+
+    await next();
+});
+
 app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapGet("/", () => Results.Ok(new { service = "Brokerage.Api", status = "running" }));
+app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 AuditExportEndpoints.Map(app);
 
 app.MapPost("/identity/verify", async (
