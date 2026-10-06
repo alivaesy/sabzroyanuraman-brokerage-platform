@@ -24,6 +24,25 @@ public class BrokerageApiTests
     }
 
     [Fact]
+    public async Task OtpChallenge_RateLimit_ReturnsTooManyRequestsAfterFiveRequests()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "RATE-LIMIT-USER");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Applicant.ToString());
+
+        for (var attempt = 1; attempt <= 5; attempt++)
+        {
+            var response = await client.PostAsync("/identity/otp/challenges", content: null);
+            Assert.NotEqual(System.Net.HttpStatusCode.TooManyRequests, response.StatusCode);
+        }
+
+        var limitedResponse = await client.PostAsync("/identity/otp/challenges", content: null);
+
+        Assert.Equal(System.Net.HttpStatusCode.TooManyRequests, limitedResponse.StatusCode);
+    }
+
+    [Fact]
     public async Task CreateS01_AnonymousUser_ReturnsUnauthorized()
     {
         await using var application = new WebApplicationFactory<Program>();

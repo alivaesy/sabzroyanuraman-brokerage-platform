@@ -21,6 +21,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,6 +29,26 @@ builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole();
 builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("otp", context =>
+    {
+        var partitionKey = context.User.Identity?.Name
+            ?? context.Connection.RemoteIpAddress?.ToString()
+            ?? "unknown";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey,
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            });
+    });
+});
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddScoped<IAuditEventWriter, AuditEventWriter>();
 
@@ -115,6 +136,7 @@ app.UseHttpsRedirection();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapGet("/", () => Results.Ok(new { service = "Brokerage.Api", status = "running" }));
@@ -164,7 +186,7 @@ app.MapPost("/identity/otp/challenges", async (
         null, null, "Success", null, "Issued", currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
 
     return Results.Ok(new { challenge.ChallengeId, challenge.ExpiresAt });
-}).RequireAuthorization();
+}).RequireAuthorization().RequireRateLimiting("otp");
 
 app.MapPost("/identity/otp/verify", async (
     ICurrentUser currentUser,
@@ -190,7 +212,7 @@ app.MapPost("/identity/otp/verify", async (
     return verified
         ? Results.Ok(new { verified = true })
         : Results.BadRequest(new { verified = false });
-}).RequireAuthorization();
+}).RequireAuthorization().RequireRateLimiting("otp");
 
 app.MapGet("/identity/mfa-required", () => Results.Ok(new { authorized = true }))
     .RequireAuthorization(AuthorizationPolicies.MfaVerified);
