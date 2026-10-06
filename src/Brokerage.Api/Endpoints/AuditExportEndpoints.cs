@@ -38,14 +38,17 @@ public static class AuditExportEndpoints
                 return Results.BadRequest(new { message = $"limit must be between 1 and {maximumLimit}." });
 
             IQueryable<AuditEventRecord> query;
+            var isSqlite = dbContext.Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite";
 
-            if (dbContext.Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite" && (from.HasValue || to.HasValue))
+            if (isSqlite)
             {
+                // SQLite cannot translate DateTimeOffset ordering; order by its stored timestamp using julianday.
                 query = dbContext.AuditEvents.FromSqlInterpolated($"""
                     SELECT *
                     FROM "audit_events"
                     WHERE ({from.HasValue} = 0 OR julianday("OccurredAt") >= julianday({from}))
                       AND ({to.HasValue} = 0 OR julianday("OccurredAt") <= julianday({to}))
+                    ORDER BY julianday("OccurredAt") DESC, "EventId" DESC
                     """);
             }
             else
@@ -57,13 +60,13 @@ public static class AuditExportEndpoints
 
                 if (to.HasValue)
                     query = query.Where(x => x.OccurredAt <= to.Value);
+
+                query = query.OrderByDescending(x => x.OccurredAt)
+                    .ThenByDescending(x => x.EventId);
             }
 
-            query = query.AsNoTracking()
-                .OrderByDescending(x => x.OccurredAt)
-                .ThenByDescending(x => x.EventId);
-
             var events = await query
+                .AsNoTracking()
                 .Take(requestedLimit)
                 .Select(x => new
                 {
