@@ -71,7 +71,8 @@ public class AuditComplianceTests
             [
                 "20261005043933_InitialCreate",
                 "20261005093520_AddAuditEvents",
-                "20261005190000_HardenAuditEvents"
+                "20261005190000_HardenAuditEvents",
+                "20261006100000_PersistOtpMfaState"
             ],
             appliedMigrations);
 
@@ -89,6 +90,8 @@ public class AuditComplianceTests
         Assert.Contains("service_requests", tableNames);
         Assert.Contains("workflow_stages", tableNames);
         Assert.Contains("audit_events", tableNames);
+        Assert.Contains("otp_challenges", tableNames);
+        Assert.Contains("mfa_verifications", tableNames);
         Assert.Contains("__EFMigrationsHistory", tableNames);
 
         var triggerNames = new HashSet<string>(StringComparer.Ordinal);

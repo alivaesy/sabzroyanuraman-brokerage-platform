@@ -53,6 +53,26 @@ namespace Brokerage.Infrastructure.Persistence.Migrations
                     b.ToTable("service_requests", (string)null);
                 });
 
+            modelBuilder.Entity("Brokerage.Infrastructure.Persistence.MfaVerificationRecord", b =>
+                {
+                    b.Property<string>("UserId").HasMaxLength(200).HasColumnType("TEXT");
+                    b.Property<DateTimeOffset>("VerifiedAt").HasColumnType("TEXT");
+                    b.HasKey("UserId");
+                    b.ToTable("mfa_verifications", (string)null);
+                });
+
+            modelBuilder.Entity("Brokerage.Infrastructure.Persistence.OtpChallengeRecord", b =>
+                {
+                    b.Property<string>("ChallengeId").HasMaxLength(64).HasColumnType("TEXT");
+                    b.Property<string>("CodeHash").IsRequired().HasMaxLength(64).HasColumnType("TEXT");
+                    b.Property<DateTimeOffset>("ExpiresAt").HasColumnType("TEXT");
+                    b.Property<int>("FailedAttempts").HasColumnType("INTEGER");
+                    b.Property<string>("UserId").IsRequired().HasMaxLength(200).HasColumnType("TEXT");
+                    b.HasKey("ChallengeId");
+                    b.HasIndex("UserId");
+                    b.ToTable("otp_challenges", (string)null);
+                });
+
             modelBuilder.Entity("Brokerage.Infrastructure.Persistence.AuditEventRecord", b =>
                 {
                     b.Property<Guid>("EventId").ValueGeneratedOnAdd().HasColumnType("TEXT");

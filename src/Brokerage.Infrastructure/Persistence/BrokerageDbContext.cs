@@ -10,6 +10,8 @@ public sealed class BrokerageDbContext(DbContextOptions<BrokerageDbContext> opti
     public DbSet<Expert> Experts => Set<Expert>();
     public DbSet<IdentityVerificationState> IdentityVerificationStates => Set<IdentityVerificationState>();
     public DbSet<AuditEventRecord> AuditEvents => Set<AuditEventRecord>();
+    public DbSet<OtpChallengeRecord> OtpChallenges => Set<OtpChallengeRecord>();
+    public DbSet<MfaVerificationRecord> MfaVerifications => Set<MfaVerificationRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -49,6 +51,26 @@ public sealed class BrokerageDbContext(DbContextOptions<BrokerageDbContext> opti
             entity.Property(x => x.UserId).HasMaxLength(200).IsRequired();
             entity.Property(x => x.IsVerified).IsRequired();
             entity.Property(x => x.UpdatedAt).IsRequired();
+        });
+
+        modelBuilder.Entity<OtpChallengeRecord>(entity =>
+        {
+            entity.ToTable("otp_challenges");
+            entity.HasKey(x => x.ChallengeId);
+            entity.Property(x => x.ChallengeId).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.UserId).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.CodeHash).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.ExpiresAt).IsRequired();
+            entity.Property(x => x.FailedAttempts).IsRequired();
+            entity.HasIndex(x => x.UserId);
+        });
+
+        modelBuilder.Entity<MfaVerificationRecord>(entity =>
+        {
+            entity.ToTable("mfa_verifications");
+            entity.HasKey(x => x.UserId);
+            entity.Property(x => x.UserId).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.VerifiedAt).IsRequired();
         });
 
         modelBuilder.Entity<AuditEventRecord>(entity =>

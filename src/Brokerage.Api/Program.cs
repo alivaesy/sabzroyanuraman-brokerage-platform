@@ -84,8 +84,8 @@ else
         });
 }
 
-builder.Services.AddSingleton<IMfaVerificationStore, InMemoryMfaVerificationStore>();
-builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, MfaAuthorizationHandler>();
+builder.Services.AddScoped<IMfaVerificationStore, PersistentMfaVerificationStore>();
+builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, MfaAuthorizationHandler>();
 
 builder.Services.AddAuthorization(options =>
 {
@@ -119,7 +119,7 @@ builder.Services.AddScoped<IIdentityVerificationService, IdentityVerificationSer
 builder.Services.AddScoped<INationalIdentifierValidator, IranianNationalIdentifierValidator>();
 builder.Services.AddScoped<ISanaClient, MockSanaClient>();
 builder.Services.AddScoped<IShahkarClient, MockShahkarClient>();
-builder.Services.AddSingleton<IOtpService, InMemoryOtpService>();
+builder.Services.AddScoped<IOtpService, PersistentOtpService>();
 
 var app = builder.Build();
 
