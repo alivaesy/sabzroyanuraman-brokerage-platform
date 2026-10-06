@@ -182,8 +182,11 @@ app.MapGet("/ready", async (BrokerageDbContext dbContext, CancellationToken canc
         : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
 });
 
-app.MapGet("/ops/metrics", (IOperationalMetrics metrics) => Results.Ok(metrics.Snapshot()))
-    .RequireAuthorization(AuthorizationPolicies.OperationalMonitoring);
+app.MapGet("/ops/metrics", (HttpContext context, IOperationalMetrics metrics) =>
+{
+    context.Response.Headers.CacheControl = "no-store";
+    return Results.Ok(metrics.Snapshot());
+}).RequireAuthorization(AuthorizationPolicies.OperationalMonitoring);
 AuditExportEndpoints.Map(app);
 
 app.MapPost("/identity/verify", async (

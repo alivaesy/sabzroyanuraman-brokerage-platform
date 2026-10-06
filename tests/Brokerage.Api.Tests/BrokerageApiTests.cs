@@ -939,8 +939,10 @@ public class BrokerageApiTests
         var response = await client.GetAsync("/ops/metrics");
 
         Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
         var json = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
         Assert.True(json.GetProperty("totalRequestCount").GetInt64() >= 1);
+        Assert.True(json.GetProperty("errorRatePercent").GetDouble() >= 0d);
         Assert.True(json.GetProperty("processWorkingSetBytes").GetInt64() > 0);
         Assert.True(json.GetProperty("managedMemoryBytes").GetInt64() > 0);
         Assert.True(json.GetProperty("threadCount").GetInt32() > 0);

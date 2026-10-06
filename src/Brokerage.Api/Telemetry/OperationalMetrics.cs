@@ -10,6 +10,7 @@ public sealed record OperationalMetricsSnapshot(
     long TotalRequestCount,
     long TotalErrorCount,
     double AverageElapsedMilliseconds,
+    double ErrorRatePercent,
     double ProcessCpuPercent,
     long ProcessWorkingSetBytes,
     long ManagedMemoryBytes,
@@ -24,6 +25,7 @@ public interface IOperationalMetrics
 
 public sealed class OperationalMetrics : IOperationalMetrics
 {
+    private const int MaxTrackedEndpoints = 200;
     private readonly ConcurrentDictionary<string, EndpointStats> _endpoints = new(StringComparer.Ordinal);
     private long _totalRequestCount;
     private long _totalErrorCount;
@@ -49,8 +51,9 @@ public sealed class OperationalMetrics : IOperationalMetrics
             ref _totalElapsedMilliseconds,
             Interlocked.CompareExchange(ref _totalElapsedMilliseconds, 0d, 0d) + elapsedMilliseconds);
 
-        _endpoints.GetOrAdd(endpoint, _ => new EndpointStats())
-            .Record(elapsedMilliseconds, failed || statusCode >= 500);
+        if (_endpoints.Count < MaxTrackedEndpoints || _endpoints.ContainsKey(endpoint))
+            _endpoints.GetOrAdd(endpoint, _ => new EndpointStats())
+                .Record(elapsedMilliseconds, failed || statusCode >= 500);
     }
 
     public OperationalMetricsSnapshot Snapshot()
@@ -77,6 +80,7 @@ public sealed class OperationalMetrics : IOperationalMetrics
             totalRequests,
             totalErrors,
             totalRequests == 0 ? 0d : totalElapsed / totalRequests,
+            totalRequests == 0 ? 0d : totalErrors * 100d / totalRequests,
             cpuPercent,
             process.WorkingSet64,
             GC.GetTotalMemory(false),
