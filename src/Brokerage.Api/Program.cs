@@ -11,6 +11,7 @@ using Brokerage.Api.Middleware;
 using Brokerage.Api.Authentication;
 using Brokerage.Api.Authorization;
 using Brokerage.Api.Endpoints;
+using Brokerage.Api.Telemetry;
 using Brokerage.Application.Models;
 using Brokerage.Application.Authorization;
 using Brokerage.Application.Authentication;
@@ -29,24 +30,33 @@ builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole();
 builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<IOperationalMetrics, OperationalMetrics>();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    static FixedWindowRateLimiterOptions CreateOptions() => new()
+    {
+        PermitLimit = 5,
+        Window = TimeSpan.FromMinutes(1),
+        QueueLimit = 0,
+        AutoReplenishment = true
+    };
+
     options.AddPolicy("otp", context =>
     {
         var partitionKey = context.User.Identity?.Name
             ?? context.Connection.RemoteIpAddress?.ToString()
             ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => CreateOptions());
+    });
 
-        return RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey,
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 5,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0,
-                AutoReplenishment = true
-            });
+    options.AddPolicy("identity-verification", context =>
+    {
+        var partitionKey = context.User.Identity?.Name
+            ?? context.Connection.RemoteIpAddress?.ToString()
+            ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => CreateOptions());
     });
 });
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
@@ -95,6 +105,8 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(AuthorizationPolicies.TechnicalSecurity, policy => policy.RequireRole(UserRole.TechnicalSecurity.ToString()));
     options.AddPolicy(AuthorizationPolicies.OrganizationObserver, policy => policy.RequireRole(UserRole.OrganizationObserver.ToString()));
     options.AddPolicy(AuthorizationPolicies.Administrator, policy => policy.RequireRole(UserRole.Administrator.ToString()));
+    options.AddPolicy(AuthorizationPolicies.OperationalMonitoring, policy => policy.RequireRole(
+        UserRole.TechnicalSecurity.ToString(), UserRole.Administrator.ToString()));
     options.AddPolicy(AuthorizationPolicies.MfaVerified, policy => policy.AddRequirements(new MfaRequirement()));
 });
 
@@ -114,12 +126,45 @@ builder.Services.AddScoped<OrganizationRetryPolicy>();
 builder.Services.AddScoped<OrganizationRetryOptions>();
 builder.Services.AddScoped<OrganizationTimeoutOptions>();
 builder.Services.AddScoped<OrganizationRetryExecutor>();
-builder.Services.AddScoped<Brokerage.Application.Integration.IOrganizationApiClient, MockOrganizationApiClient>();
 builder.Services.AddScoped<IIdentityVerificationService, IdentityVerificationService>();
 builder.Services.AddScoped<INationalIdentifierValidator, IranianNationalIdentifierValidator>();
-builder.Services.AddScoped<ISanaClient, MockSanaClient>();
-builder.Services.AddScoped<IShahkarClient, MockShahkarClient>();
+builder.Services.AddSingleton<IOtpCodeHasher>(_ =>
+{
+    var configuredKey = builder.Configuration["Otp:HashKeyBase64"]
+        ?? Environment.GetEnvironmentVariable("BROKERAGE_OTP_HASH_KEY");
+
+    if (!string.IsNullOrWhiteSpace(configuredKey))
+    {
+        try
+        {
+            return new HmacOtpCodeHasher(Convert.FromBase64String(configuredKey));
+        }
+        catch (FormatException ex)
+        {
+            throw new InvalidOperationException("Otp:HashKeyBase64 must contain a valid Base64 key.", ex);
+        }
+    }
+
+    if (!builder.Environment.IsDevelopment())
+        throw new InvalidOperationException(
+            "Production OTP hashing is not configured. Set Otp:HashKeyBase64 or BROKERAGE_OTP_HASH_KEY to a secret key of at least 256 bits.");
+
+    return new HmacOtpCodeHasher(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+});
+
 builder.Services.AddScoped<IOtpService, PersistentOtpService>();
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddScoped<Brokerage.Application.Integration.IOrganizationApiClient, MockOrganizationApiClient>();
+    builder.Services.AddScoped<ISanaClient, MockSanaClient>();
+    builder.Services.AddScoped<IShahkarClient, MockShahkarClient>();
+}
+else
+{
+    throw new InvalidOperationException(
+        "Production integrations are not configured. Organization API, Sana, and Shahkar must use approved production adapters; development mocks are not permitted outside Development.");
+}
 
 var app = builder.Build();
 
@@ -132,14 +177,84 @@ using (var scope = app.Services.CreateScope())
 if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 
+if (!app.Environment.IsDevelopment())
+    app.UseHsts();
+
 app.UseHttpsRedirection();
+app.UseRouting();
 app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseMiddleware<RequestTelemetryMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        context.Response.Headers["Referrer-Policy"] = "no-referrer";
+        context.Response.Headers["X-Frame-Options"] = "DENY";
+        context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+        return Task.CompletedTask;
+    });
+
+    await next();
+});
+
 app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapGet("/", () => Results.Ok(new { service = "Brokerage.Api", status = "running" }));
+app.MapGet("/health", (HttpContext context) =>
+{
+    context.Response.Headers.CacheControl = "no-store";
+    return Results.Ok(new { status = "healthy" });
+});
+app.MapGet("/ready", async (HttpContext context, BrokerageDbContext dbContext, CancellationToken cancellationToken) =>
+{
+    context.Response.Headers.CacheControl = "no-store";
+    var canConnect = await dbContext.Database.CanConnectAsync(cancellationToken);
+    return canConnect
+        ? Results.Ok(new { status = "ready" })
+        : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+});
+
+app.MapGet("/ops/metrics", (HttpContext context, IOperationalMetrics metrics) =>
+{
+    context.Response.Headers.CacheControl = "no-store";
+    return Results.Ok(metrics.Snapshot());
+}).RequireAuthorization(AuthorizationPolicies.OperationalMonitoring);
+
+app.MapGet("/ops/status", async (
+    HttpContext context,
+    BrokerageDbContext dbContext,
+    IOperationalMetrics metrics,
+    CancellationToken cancellationToken) =>
+{
+    context.Response.Headers.CacheControl = "no-store";
+    var databaseCheck = System.Diagnostics.Stopwatch.StartNew();
+    var canConnect = await dbContext.Database.CanConnectAsync(cancellationToken);
+    databaseCheck.Stop();
+
+    var snapshot = metrics.Snapshot();
+    var payload = new
+    {
+        status = canConnect ? "operational" : "degraded",
+        ready = canConnect,
+        observedAt = snapshot.ObservedAt,
+        startedAt = snapshot.StartedAt,
+        uptime = snapshot.Uptime,
+        totalRequestCount = snapshot.TotalRequestCount,
+        errorRatePercent = snapshot.ErrorRatePercent,
+        averageApiLatencyMilliseconds = snapshot.AverageElapsedMilliseconds,
+        requestsPerMinute = snapshot.RequestsPerMinute,
+        databaseCheckElapsedMilliseconds = databaseCheck.Elapsed.TotalMilliseconds
+    };
+
+    return canConnect
+        ? Results.Ok(payload)
+        : Results.Json(payload, statusCode: StatusCodes.Status503ServiceUnavailable);
+}).RequireAuthorization(AuthorizationPolicies.OperationalMonitoring);
 AuditExportEndpoints.Map(app);
 
 app.MapPost("/identity/verify", async (
@@ -161,7 +276,7 @@ app.MapPost("/identity/verify", async (
     return result.Verified
         ? Results.Ok(new { verified = true })
         : Results.BadRequest(new { verified = false });
-}).RequireAuthorization(AuthorizationPolicies.Applicant);
+}).RequireAuthorization(AuthorizationPolicies.Applicant).RequireRateLimiting("identity-verification");
 
 app.MapGet("/identity/me", async (ICurrentUser currentUser, IIdentityVerificationStateRepository stateRepository, CancellationToken cancellationToken) =>
 {

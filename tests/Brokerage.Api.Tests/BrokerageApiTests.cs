@@ -900,4 +900,85 @@ public class BrokerageApiTests
                     status: "MockStatus"));
         }
     }
+
+    [Fact]
+    public async Task OperationalMetrics_AnonymousUser_ReturnsUnauthorized()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var response = await client.GetAsync("/ops/metrics");
+
+        Assert.Equal(System.Net.HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task OperationalMetrics_ApplicantRole_ReturnsForbidden()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "metrics-applicant");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Applicant.ToString());
+
+        var response = await client.GetAsync("/ops/metrics");
+
+        Assert.Equal(System.Net.HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task OperationalMetrics_AdministratorRole_ReturnsMetrics()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "metrics-admin");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Administrator.ToString());
+
+        var response = await client.GetAsync("/ops/metrics");
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task OperationalMetrics_TechnicalSecurityRole_ReturnsResourceAndRequestMetrics()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "metrics-security");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.TechnicalSecurity.ToString());
+
+        var healthResponse = await client.GetAsync("/health");
+        Assert.Equal(System.Net.HttpStatusCode.OK, healthResponse.StatusCode);
+
+        var response = await client.GetAsync("/ops/metrics");
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+        var json = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        Assert.True(json.GetProperty("totalRequestCount").GetInt64() >= 1);
+        Assert.True(json.GetProperty("errorRatePercent").GetDouble() >= 0d);
+        Assert.True(json.GetProperty("processWorkingSetBytes").GetInt64() > 0);
+        Assert.True(json.GetProperty("managedMemoryBytes").GetInt64() > 0);
+        Assert.True(json.GetProperty("threadCount").GetInt32() > 0);
+        Assert.True(json.GetProperty("endpoints").GetArrayLength() >= 1);
+    }
+
+    [Fact]
+    public async Task HealthEndpoint_ReturnsHealthyAndSecurityHeaders()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        client.DefaultRequestHeaders.Add("X-Correlation-Id", "health-test-correlation");
+        var response = await client.GetAsync("/health");
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("health-test-correlation", response.Headers.GetValues("X-Correlation-Id").Single());
+        var json = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        Assert.Equal("healthy", json.GetProperty("status").GetString());
+        Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
+        Assert.Equal("no-referrer", response.Headers.GetValues("Referrer-Policy").Single());
+        Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
+        Assert.Equal("camera=(), microphone=(), geolocation=()", response.Headers.GetValues("Permissions-Policy").Single());
+    }
+
 }

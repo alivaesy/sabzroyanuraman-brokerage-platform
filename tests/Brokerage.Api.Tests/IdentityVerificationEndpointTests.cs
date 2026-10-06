@@ -51,6 +51,24 @@ public class IdentityVerificationEndpointTests
     }
 
     [Fact]
+    public async Task VerifyIdentity_IsRateLimitedAfterFiveRequests()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "RATE-LIMITED-APPLICANT");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Applicant.ToString());
+
+        for (var attempt = 1; attempt <= 5; attempt++)
+        {
+            var response = await client.PostAsJsonAsync("/identity/verify", new { nationalIdentifier = "1234567891" });
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
+        var rejected = await client.PostAsJsonAsync("/identity/verify", new { nationalIdentifier = "1234567891" });
+        Assert.Equal(HttpStatusCode.TooManyRequests, rejected.StatusCode);
+    }
+
+    [Fact]
     public async Task VerifyIdentity_WithInvalidIdentifier_ReturnsBadRequest()
     {
         await using var application = new WebApplicationFactory<Program>();
