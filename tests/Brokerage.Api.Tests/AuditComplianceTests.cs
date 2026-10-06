@@ -54,7 +54,7 @@ public class AuditComplianceTests
     }
 
     [Fact]
-    public async Task AuditMigration_PreventsUpdateAndDelete()
+    public async Task Migrations_ApplyToEmptyDatabase_AndCreateAuditImmutabilityTriggers()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
@@ -64,11 +64,44 @@ public class AuditComplianceTests
             .Options;
 
         await using var db = new BrokerageDbContext(options);
-        await db.Database.EnsureCreatedAsync();
+        await db.Database.MigrateAsync();
 
-        await db.Database.ExecuteSqlRawAsync("CREATE TRIGGER \"TR_audit_events_no_update\" BEFORE UPDATE ON \"audit_events\" BEGIN SELECT RAISE(ABORT, 'audit_events are immutable and cannot be updated'); END;");
+        var appliedMigrations = (await db.Database.GetAppliedMigrationsAsync()).ToArray();
+        Assert.Equal(
+            [
+                "20261005043933_InitialCreate",
+                "20261005093520_AddAuditEvents",
+                "20261005190000_HardenAuditEvents"
+            ],
+            appliedMigrations);
 
-        await db.Database.ExecuteSqlRawAsync("CREATE TRIGGER \"TR_audit_events_no_delete\" BEFORE DELETE ON \"audit_events\" BEGIN SELECT RAISE(ABORT, 'audit_events are immutable and cannot be deleted'); END;");
+        var tableNames = new HashSet<string>(StringComparer.Ordinal);
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "SELECT name FROM sqlite_master WHERE type = 'table';";
+            await using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+                tableNames.Add(reader.GetString(0));
+        }
+
+        Assert.Contains("experts", tableNames);
+        Assert.Contains("identity_verification_states", tableNames);
+        Assert.Contains("service_requests", tableNames);
+        Assert.Contains("workflow_stages", tableNames);
+        Assert.Contains("audit_events", tableNames);
+        Assert.Contains("__EFMigrationsHistory", tableNames);
+
+        var triggerNames = new HashSet<string>(StringComparer.Ordinal);
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "SELECT name FROM sqlite_master WHERE type = 'trigger';";
+            await using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+                triggerNames.Add(reader.GetString(0));
+        }
+
+        Assert.Contains("TR_audit_events_no_update", triggerNames);
+        Assert.Contains("TR_audit_events_no_delete", triggerNames);
 
         db.AuditEvents.Add(new AuditEventRecord
         {
