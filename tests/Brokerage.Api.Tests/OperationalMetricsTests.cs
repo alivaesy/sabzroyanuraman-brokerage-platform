@@ -69,4 +69,19 @@ public class OperationalMetricsTests
         Assert.Equal(0, endpoint.ServerErrorCount);
         Assert.Equal(1, endpoint.ErrorCount);
     }
+
+    [Fact]
+    public void RecordRequest_CalculatesAverageLatencyAndErrorRate()
+    {
+        var metrics = new OperationalMetrics();
+
+        metrics.RecordRequest("fast", 200, 10, false);
+        metrics.RecordRequest("slow", 500, 30, false);
+
+        var snapshot = metrics.Snapshot();
+
+        Assert.Equal(20d, snapshot.AverageElapsedMilliseconds, 6);
+        Assert.Equal(50d, snapshot.ErrorRatePercent, 6);
+        Assert.True(snapshot.RequestsPerMinute >= 0d);
+    }
 }
