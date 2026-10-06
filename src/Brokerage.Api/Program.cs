@@ -348,22 +348,11 @@ app.MapGet("/service-requests/{id:guid}", async (
 {
     var request = await repository.GetByIdAsync(id, cancellationToken);
     if (request is null) return Results.NotFound();
-
-    if (currentUser.Role == UserRole.Applicant.ToString() &&
-        !string.Equals(request.ApplicantUserId, currentUser.UserId, StringComparison.Ordinal))
+    if (!CanAccessServiceRequest(currentUser, request))
         return Results.Forbid();
 
-    return Results.Ok(new
-    {
-        request.Id,
-        request.ServiceCode,
-        request.Status,
-        request.CreatedAt,
-        request.UpdatedAt,
-        request.CurrentWorkflowStageId,
-        request.OrganizationTrackingId,
-        request.OrganizationStatus
-    });
+    return Results.Ok(new { request.Id, request.ServiceCode, request.Status,
+        request.CreatedAt, request.UpdatedAt, request.CurrentWorkflowStageId, request.OrganizationTrackingId, request.OrganizationStatus });
 }).RequireAuthorization();
 
 app.MapGet("/service-requests/{id:guid}/workflow-stages", async (
@@ -374,73 +363,80 @@ app.MapGet("/service-requests/{id:guid}/workflow-stages", async (
 {
     var request = await repository.GetByIdAsync(id, cancellationToken);
     if (request is null) return Results.NotFound();
-
-    if (currentUser.Role == UserRole.Applicant.ToString() &&
-        !string.Equals(request.ApplicantUserId, currentUser.UserId, StringComparison.Ordinal))
+    if (!CanAccessServiceRequest(currentUser, request))
         return Results.Forbid();
 
-    return Results.Ok(request.WorkflowStages
-        .OrderBy(stage => stage.Sequence)
-        .Select(stage => new
-        {
-            stage.Id,
-            stage.StageCode,
-            stage.Sequence,
-            stage.StartedAt,
-            stage.CompletedAt
-        }));
+    var stages = await repository.GetWorkflowStagesAsync(id, cancellationToken);
+    return Results.Ok(stages.Select(stage => new { stage.Id, stage.ServiceRequestId, stage.StageCode, stage.CreatedAt, stage.CompletedAt }));
 }).RequireAuthorization();
 
 app.MapGet("/service-requests/{id:guid}/organization-status", async (
-    Guid id,
-    IServiceRequestRepository repository,
-    ICurrentUser currentUser,
-    IOrganizationIntegrationService organizationIntegration,
-    CancellationToken cancellationToken) =>
+    Guid id, IServiceRequestRepository repository, ICurrentUser currentUser,
+    IOrganizationIntegrationService organizationIntegrationService,
+    HttpContext context, IAuditEventWriter auditEventWriter, CancellationToken cancellationToken) =>
 {
     var request = await repository.GetByIdAsync(id, cancellationToken);
     if (request is null) return Results.NotFound();
-
-    if (currentUser.Role == UserRole.Applicant.ToString() &&
-        !string.Equals(request.ApplicantUserId, currentUser.UserId, StringComparison.Ordinal))
+    if (!CanAccessServiceRequest(currentUser, request))
         return Results.Forbid();
-
     if (string.IsNullOrWhiteSpace(request.OrganizationTrackingId))
-        return Results.BadRequest(new ErrorResponse("BROKERAGE_ERROR", "The service request has no organization tracking ID."));
+        return Results.BadRequest(new { message = "The service request has no organization tracking ID." });
 
-    var result = await organizationIntegration.GetStatusAsync(
-        request.OrganizationTrackingId,
-        cancellationToken);
+    var previousOrganizationStatus = request.OrganizationStatus;
+    var organizationStatus = await organizationIntegrationService.GetStatusAsync(request.OrganizationTrackingId, cancellationToken);
+    request.SetOrganizationStatus(organizationStatus);
 
-    if (!result.Succeeded)
-        return Results.BadRequest(new ErrorResponse("BROKERAGE_ERROR", result.Message));
+    var workflowStages = await repository.GetWorkflowStagesAsync(id, cancellationToken);
+    var followUpStage = workflowStages.SingleOrDefault(stage => stage.StageCode == S01StageCode.OrganizationFollowUp.ToString());
 
-    var completed = WorkflowService.CompleteOrganizationFollowUp(request);
-
-    await repository.UpdateAsync(request);
-    await repository.SaveChangesAsync();
-
-    return Results.Ok(new
+    if (followUpStage is not null && followUpStage.CompletedAt is null)
     {
-        request.Id,
-        request.OrganizationTrackingId,
-        request.OrganizationStatus,
-        currentWorkflowStageId = request.CurrentWorkflowStageId,
-        result = result.Status
-    });
+        followUpStage.Complete();
+        await auditEventWriter.WriteAsync(new AuditEvent(
+            Guid.NewGuid(), DateTimeOffset.UtcNow, "WorkflowStageCompleted", context.TraceIdentifier,
+            request.Id, followUpStage.StageCode, "Success", null, followUpStage.StageCode,
+            currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
+    }
+
+    var resultStage = workflowStages.SingleOrDefault(stage => stage.StageCode == S01StageCode.ResultNotification.ToString());
+    if (resultStage is null)
+    {
+        resultStage = new WorkflowStage(request.Id, S01StageCode.ResultNotification.ToString());
+        await repository.AddWorkflowStageAsync(resultStage, cancellationToken);
+        request.SetCurrentWorkflowStage(resultStage.Id);
+        await auditEventWriter.WriteAsync(new AuditEvent(
+            Guid.NewGuid(), DateTimeOffset.UtcNow, "WorkflowStageCreated", context.TraceIdentifier,
+            request.Id, resultStage.StageCode, "Success", null, resultStage.StageCode,
+            currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
+    }
+
+    await repository.SaveChangesAsync(cancellationToken);
+    await auditEventWriter.WriteAsync(new AuditEvent(
+        Guid.NewGuid(), DateTimeOffset.UtcNow, "OrganizationStatusReceived", context.TraceIdentifier,
+        request.Id, resultStage.StageCode, "Success", previousOrganizationStatus, organizationStatus,
+        currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
+
+    return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.OrganizationTrackingId,
+        request.OrganizationStatus, request.CurrentWorkflowStageId });
 }).RequireAuthorization();
 
-app.MapGet("/workflow/stages", () =>
+static bool CanAccessServiceRequest(ICurrentUser currentUser, ServiceRequest request)
 {
-    return Results.Ok(
-        Enum.GetValues<WorkflowStage>()
-            .Select(stage => new
-            {
-                id = (int)stage,
-                stageCode = stage.ToString()
-            }));
-});
+    if (string.IsNullOrWhiteSpace(currentUser.UserId))
+        return false;
+
+    if (string.Equals(request.ApplicantUserId, currentUser.UserId, StringComparison.Ordinal))
+        return true;
+
+    return currentUser.Role is
+        nameof(UserRole.Expert) or
+        nameof(UserRole.Support) or
+        nameof(UserRole.TechnicalSecurity) or
+        nameof(UserRole.OrganizationObserver) or
+        nameof(UserRole.Administrator);
+}
 
 app.Run();
 
-public partial class Program { }
+public sealed record OtpVerificationRequest(string ChallengeId, string Code);
+public sealed record VerifyIdentityRequest(string NationalIdentifier);
