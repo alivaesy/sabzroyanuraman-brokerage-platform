@@ -49,6 +49,8 @@ public class OperationalStatusTests
         Assert.True(json.GetProperty("ready").GetBoolean());
         Assert.True(json.GetProperty("totalRequestCount").GetInt64() >= 0);
         Assert.True(json.GetProperty("errorRatePercent").GetDouble() >= 0d);
+        Assert.True(json.GetProperty("averageApiLatencyMilliseconds").GetDouble() >= 0d);
+        Assert.True(json.GetProperty("requestsPerMinute").GetDouble() >= 0d);
         Assert.True(json.GetProperty("databaseCheckElapsedMilliseconds").GetDouble() >= 0d);
     }
 }
