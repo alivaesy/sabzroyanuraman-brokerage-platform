@@ -9,6 +9,7 @@ public sealed record OperationalMetricsSnapshot(
     DateTimeOffset ObservedAt,
     DateTimeOffset StartedAt,
     TimeSpan Uptime,
+    double RequestsPerMinute,
     long TotalRequestCount,
     long TotalErrorCount,
     double AverageElapsedMilliseconds,
@@ -66,6 +67,7 @@ public sealed class OperationalMetrics : IOperationalMetrics
         var totalElapsedMicroseconds = Interlocked.Read(ref _totalElapsedMicroseconds);
         var process = Process.GetCurrentProcess();
         var observedAt = DateTimeOffset.UtcNow;
+        var uptime = observedAt - _startedAt;
 
         double cpuPercent;
         lock (_cpuLock)
@@ -81,7 +83,8 @@ public sealed class OperationalMetrics : IOperationalMetrics
         return new OperationalMetricsSnapshot(
             observedAt,
             _startedAt,
-            observedAt - _startedAt,
+            uptime,
+            uptime.TotalMinutes <= 0d ? 0d : totalRequests / uptime.TotalMinutes,
             totalRequests,
             totalErrors,
             totalRequests == 0 ? 0d : totalElapsedMicroseconds / 1000d / totalRequests,
