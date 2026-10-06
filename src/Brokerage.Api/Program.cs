@@ -168,6 +168,13 @@ app.UseAuthorization();
 
 app.MapGet("/", () => Results.Ok(new { service = "Brokerage.Api", status = "running" }));
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
+app.MapGet("/ready", async (BrokerageDbContext dbContext, CancellationToken cancellationToken) =>
+{
+    var canConnect = await dbContext.Database.CanConnectAsync(cancellationToken);
+    return canConnect
+        ? Results.Ok(new { status = "ready" })
+        : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+});
 AuditExportEndpoints.Map(app);
 
 app.MapPost("/identity/verify", async (
