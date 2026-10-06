@@ -32,7 +32,7 @@ public sealed class OperationalMetrics : IOperationalMetrics
     private readonly ConcurrentDictionary<string, EndpointStats> _endpoints = new(StringComparer.Ordinal);
     private long _totalRequestCount;
     private long _totalErrorCount;
-    private double _totalElapsedMilliseconds;
+    private long _totalElapsedMicroseconds;
     private readonly object _cpuLock = new();
     private TimeSpan _lastCpuTime;
     private DateTimeOffset _lastCpuSampleAt;
@@ -51,9 +51,8 @@ public sealed class OperationalMetrics : IOperationalMetrics
         if (failed || statusCode >= 500)
             Interlocked.Increment(ref _totalErrorCount);
 
-        Interlocked.Exchange(
-            ref _totalElapsedMilliseconds,
-            Interlocked.CompareExchange(ref _totalElapsedMilliseconds, 0d, 0d) + elapsedMilliseconds);
+        var elapsedMicroseconds = ToMicroseconds(elapsedMilliseconds);
+        Interlocked.Add(ref _totalElapsedMicroseconds, elapsedMicroseconds);
 
         if (_endpoints.Count < MaxTrackedEndpoints || _endpoints.ContainsKey(endpoint))
             _endpoints.GetOrAdd(endpoint, _ => new EndpointStats())
@@ -64,7 +63,7 @@ public sealed class OperationalMetrics : IOperationalMetrics
     {
         var totalRequests = Interlocked.Read(ref _totalRequestCount);
         var totalErrors = Interlocked.Read(ref _totalErrorCount);
-        var totalElapsed = Interlocked.CompareExchange(ref _totalElapsedMilliseconds, 0d, 0d);
+        var totalElapsedMicroseconds = Interlocked.Read(ref _totalElapsedMicroseconds);
         var process = Process.GetCurrentProcess();
         var observedAt = DateTimeOffset.UtcNow;
 
@@ -85,7 +84,7 @@ public sealed class OperationalMetrics : IOperationalMetrics
             observedAt - _startedAt,
             totalRequests,
             totalErrors,
-            totalRequests == 0 ? 0d : totalElapsed / totalRequests,
+            totalRequests == 0 ? 0d : totalElapsedMicroseconds / 1000d / totalRequests,
             totalRequests == 0 ? 0d : totalErrors * 100d / totalRequests,
             cpuPercent,
             process.WorkingSet64,
@@ -96,11 +95,16 @@ public sealed class OperationalMetrics : IOperationalMetrics
                 .ToArray());
     }
 
+    private static long ToMicroseconds(double elapsedMilliseconds)
+    {
+        return (long)Math.Round(Math.Max(elapsedMilliseconds, 0d) * 1000d);
+    }
+
     private sealed class EndpointStats
     {
         private long _requestCount;
         private long _errorCount;
-        private double _totalElapsedMilliseconds;
+        private long _totalElapsedMicroseconds;
 
         public long RequestCount => Interlocked.Read(ref _requestCount);
 
@@ -109,20 +113,18 @@ public sealed class OperationalMetrics : IOperationalMetrics
             Interlocked.Increment(ref _requestCount);
             if (failed)
                 Interlocked.Increment(ref _errorCount);
-            Interlocked.Exchange(
-                ref _totalElapsedMilliseconds,
-                Interlocked.CompareExchange(ref _totalElapsedMilliseconds, 0d, 0d) + elapsedMilliseconds);
+            Interlocked.Add(ref _totalElapsedMicroseconds, ToMicroseconds(elapsedMilliseconds));
         }
 
         public EndpointTelemetrySnapshot Snapshot(string endpoint)
         {
             var count = RequestCount;
-            var total = Interlocked.CompareExchange(ref _totalElapsedMilliseconds, 0d, 0d);
+            var totalMicroseconds = Interlocked.Read(ref _totalElapsedMicroseconds);
             return new EndpointTelemetrySnapshot(
                 endpoint,
                 count,
                 Interlocked.Read(ref _errorCount),
-                count == 0 ? 0d : total / count);
+                count == 0 ? 0d : totalMicroseconds / 1000d / count);
         }
     }
 }

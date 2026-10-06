@@ -197,8 +197,7 @@ app.MapGet("/ops/status", async (
     context.Response.Headers.CacheControl = "no-store";
     var canConnect = await dbContext.Database.CanConnectAsync(cancellationToken);
     var snapshot = metrics.Snapshot();
-
-    return Results.Ok(new
+    var payload = new
     {
         status = canConnect ? "operational" : "degraded",
         ready = canConnect,
@@ -207,7 +206,11 @@ app.MapGet("/ops/status", async (
         uptime = snapshot.Uptime,
         totalRequestCount = snapshot.TotalRequestCount,
         errorRatePercent = snapshot.ErrorRatePercent
-    });
+    };
+
+    return canConnect
+        ? Results.Ok(payload)
+        : Results.Json(payload, statusCode: StatusCodes.Status503ServiceUnavailable);
 }).RequireAuthorization(AuthorizationPolicies.OperationalMonitoring);
 AuditExportEndpoints.Map(app);
 
