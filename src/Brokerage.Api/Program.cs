@@ -214,6 +214,8 @@ app.MapGet("/ops/status", async (
         uptime = snapshot.Uptime,
         totalRequestCount = snapshot.TotalRequestCount,
         errorRatePercent = snapshot.ErrorRatePercent,
+        averageApiLatencyMilliseconds = snapshot.AverageElapsedMilliseconds,
+        requestsPerMinute = snapshot.RequestsPerMinute,
         databaseCheckElapsedMilliseconds = databaseCheck.Elapsed.TotalMilliseconds
     };
 
