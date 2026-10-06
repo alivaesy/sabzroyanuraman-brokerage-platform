@@ -145,7 +145,9 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 
 app.UseHttpsRedirection();
+app.UseRouting();
 app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseMiddleware<RequestTelemetryMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.Use(async (context, next) =>

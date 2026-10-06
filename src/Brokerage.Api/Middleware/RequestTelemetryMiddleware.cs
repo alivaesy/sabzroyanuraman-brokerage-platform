@@ -1,0 +1,54 @@
+using System.Diagnostics;
+
+namespace Brokerage.Api.Middleware;
+
+public sealed class RequestTelemetryMiddleware
+{
+    private readonly RequestDelegate _next;
+    private readonly ILogger<RequestTelemetryMiddleware> _logger;
+
+    public RequestTelemetryMiddleware(
+        RequestDelegate next,
+        ILogger<RequestTelemetryMiddleware> logger)
+    {
+        _next = next;
+        _logger = logger;
+    }
+
+    public async Task InvokeAsync(HttpContext context)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var endpoint = context.GetEndpoint()?.DisplayName ?? "unmatched";
+        var failed = false;
+
+        try
+        {
+            await _next(context);
+        }
+        catch
+        {
+            failed = true;
+            throw;
+        }
+        finally
+        {
+            stopwatch.Stop();
+
+            var statusCode = context.Response.StatusCode;
+            var logLevel = failed || statusCode >= StatusCodes.Status500InternalServerError
+                ? LogLevel.Error
+                : statusCode >= StatusCodes.Status400BadRequest
+                    ? LogLevel.Warning
+                    : LogLevel.Information;
+
+            _logger.Log(
+                logLevel,
+                "HTTP request completed. Method={HttpMethod} Endpoint={Endpoint} StatusCode={StatusCode} ElapsedMilliseconds={ElapsedMilliseconds} Failed={Failed}",
+                context.Request.Method,
+                endpoint,
+                statusCode,
+                stopwatch.Elapsed.TotalMilliseconds,
+                failed);
+        }
+    }
+}
