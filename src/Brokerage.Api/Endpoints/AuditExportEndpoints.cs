@@ -24,15 +24,26 @@ public static class AuditExportEndpoints
             CancellationToken cancellationToken,
             IConfiguration configuration) =>
         {
-            if (currentUser.Role is not (UserRole.TechnicalSecurity or UserRole.OrganizationObserver or UserRole.Administrator))
+            if (currentUser.Role is not (
+                nameof(UserRole.TechnicalSecurity) or
+                nameof(UserRole.OrganizationObserver) or
+                nameof(UserRole.Administrator)))
                 return Results.Forbid();
 
             if (from.HasValue && to.HasValue && from > to)
                 return Results.BadRequest(new { message = "'from' must be earlier than or equal to 'to'." });
 
-            var minimumRetentionDays = Math.Max(configuration.GetValue<int?>("Audit:RetentionDays") ?? MinimumRetentionDays, MinimumRetentionDays);
-            var defaultLimit = Math.Clamp(configuration.GetValue<int?>("Audit:ExportDefaultLimit") ?? DefaultLimit, 1, MaximumLimit);
-            var maximumLimit = Math.Clamp(configuration.GetValue<int?>("Audit:ExportMaximumLimit") ?? MaximumLimit, defaultLimit, MaximumLimit);
+            var minimumRetentionDays = Math.Max(
+                configuration.GetValue<int?>("Audit:RetentionDays") ?? MinimumRetentionDays,
+                MinimumRetentionDays);
+            var defaultLimit = Math.Clamp(
+                configuration.GetValue<int?>("Audit:ExportDefaultLimit") ?? DefaultLimit,
+                1,
+                MaximumLimit);
+            var maximumLimit = Math.Clamp(
+                configuration.GetValue<int?>("Audit:ExportMaximumLimit") ?? MaximumLimit,
+                defaultLimit,
+                MaximumLimit);
 
             var requestedLimit = limit ?? defaultLimit;
             if (requestedLimit < 1 || requestedLimit > maximumLimit)
@@ -61,7 +72,6 @@ public static class AuditExportEndpoints
 
                 if (from.HasValue)
                     query = query.Where(x => x.OccurredAt >= from.Value);
-
                 if (to.HasValue)
                     query = query.Where(x => x.OccurredAt <= to.Value);
 
