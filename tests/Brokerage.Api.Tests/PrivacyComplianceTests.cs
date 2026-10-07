@@ -58,9 +58,9 @@ public class PrivacyComplianceTests
         await using var application = new WebApplicationFactory<Program>();
         using var client = CreateApplicantClient(application);
 
-        using (var scope = application.Services.CreateScope())
+        using (var verificationScope = application.Services.CreateScope())
         {
-            var states = scope.ServiceProvider.GetRequiredService<IIdentityVerificationStateRepository>();
+            var states = verificationScope.ServiceProvider.GetRequiredService<IIdentityVerificationStateRepository>();
             await states.SaveResultAsync(ApplicantUserId, true, DateTimeOffset.UtcNow);
         }
 
