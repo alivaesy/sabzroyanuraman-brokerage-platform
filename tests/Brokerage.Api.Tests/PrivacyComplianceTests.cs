@@ -76,8 +76,8 @@ public class PrivacyComplianceTests
         var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
         var requestId = Guid.Parse(payload.GetProperty("id").GetString()!);
 
-        using var scope = application.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+        using var requestScope = application.Services.CreateScope();
+        var db = requestScope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
 
         var request = await db.ServiceRequests
             .AsNoTracking()
