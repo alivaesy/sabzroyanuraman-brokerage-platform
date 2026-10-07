@@ -19,9 +19,6 @@ site_validate:
 php_validate:
   stage: validate
   image: php:8.2-cli
-  pull_policy:
-    - always
-    - if-not-present
   script:
     - echo "Checking PHP syntax..."
     - |
