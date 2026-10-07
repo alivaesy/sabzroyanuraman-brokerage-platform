@@ -106,7 +106,9 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(AuthorizationPolicies.OrganizationObserver, policy => policy.RequireRole(UserRole.OrganizationObserver.ToString()));
     options.AddPolicy(AuthorizationPolicies.Administrator, policy => policy.RequireRole(UserRole.Administrator.ToString()));
     options.AddPolicy(AuthorizationPolicies.OperationalMonitoring, policy => policy.RequireRole(
-        UserRole.TechnicalSecurity.ToString(), UserRole.Administrator.ToString()));
+        UserRole.TechnicalSecurity.ToString(),
+        UserRole.OrganizationObserver.ToString(),
+        UserRole.Administrator.ToString()));
     options.AddPolicy(AuthorizationPolicies.MfaVerified, policy => policy.AddRequirements(new MfaRequirement()));
 });
 

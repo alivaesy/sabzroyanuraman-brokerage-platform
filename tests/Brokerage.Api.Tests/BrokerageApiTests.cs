@@ -926,6 +926,37 @@ public class BrokerageApiTests
     }
 
     [Fact]
+    public async Task OperationalMetrics_OrganizationObserverRole_ReturnsMetrics()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "metrics-observer");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.OrganizationObserver.ToString());
+
+        var response = await client.GetAsync("/ops/metrics");
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+    }
+
+    [Fact]
+    public async Task OperationalStatus_OrganizationObserverRole_ReturnsStatus()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "status-observer");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.OrganizationObserver.ToString());
+
+        var response = await client.GetAsync("/ops/status");
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+        var json = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        Assert.True(json.GetProperty("ready").GetBoolean());
+        Assert.Equal("operational", json.GetProperty("status").GetString());
+    }
+
+    [Fact]
     public async Task OperationalMetrics_AdministratorRole_ReturnsMetrics()
     {
         await using var application = new WebApplicationFactory<Program>();
