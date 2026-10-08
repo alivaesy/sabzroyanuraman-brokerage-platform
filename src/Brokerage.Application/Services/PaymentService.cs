@@ -29,7 +29,7 @@ public sealed class PaymentService(
                 "IdempotencyKeyReused",
                 cancellationToken);
 
-            return PaymentCreateResult.AlreadyProcessed(existing);
+            return PaymentCreateResult.FromExisting(existing);
         }
 
         var transaction = new PaymentTransaction(serviceRequestId, amount, "IRR", idempotencyKey);
@@ -98,10 +98,10 @@ public sealed class PaymentService(
             ?? throw new InvalidOperationException("Payment transaction was not found.");
 
         if (transaction.Status == PaymentStatus.Succeeded)
-            return PaymentVerifyResult.AlreadySucceeded(transaction);
+            return PaymentVerifyResult.FromAlreadySucceeded(transaction);
 
         if (transaction.Status != PaymentStatus.Pending || string.IsNullOrWhiteSpace(transaction.GatewayToken))
-            return PaymentVerifyResult.Failed(transaction, "PAYMENT_NOT_VERIFIABLE");
+            return PaymentVerifyResult.Failure(transaction, "PAYMENT_NOT_VERIFIABLE");
 
         transaction.MarkVerifying();
 
@@ -138,7 +138,7 @@ public sealed class PaymentService(
                 gatewayResult.ErrorCode ?? "VERIFY_REJECTED",
                 cancellationToken);
 
-            return PaymentVerifyResult.Failed(transaction, gatewayResult.ErrorCode ?? "VERIFY_REJECTED");
+            return PaymentVerifyResult.Failure(transaction, gatewayResult.ErrorCode ?? "VERIFY_REJECTED");
         }
 
         transaction.MarkSucceeded(gatewayResult.GatewayReference);
@@ -152,7 +152,7 @@ public sealed class PaymentService(
             PaymentStatus.Succeeded.ToString(),
             cancellationToken);
 
-        return PaymentVerifyResult.Succeeded(transaction);
+        return PaymentVerifyResult.Success(transaction);
     }
 
     private Task WriteAuditAsync(
@@ -171,9 +171,12 @@ public sealed class PaymentService(
                 correlationId,
                 null,
                 null,
-                newState is "Success" ? "Success" : "Success",
+                "Success",
                 previousState,
-                newState),
+                newState,
+                null,
+                null,
+                null),
             cancellationToken);
     }
 }
@@ -188,7 +191,7 @@ public sealed record PaymentCreateResult(
     public static PaymentCreateResult Created(PaymentTransaction t, string token) =>
         new(t, token, false, true, null);
 
-    public static PaymentCreateResult AlreadyProcessed(PaymentTransaction t) =>
+    public static PaymentCreateResult FromExisting(PaymentTransaction t) =>
         new(t, t.GatewayToken, true, t.Status == PaymentStatus.Succeeded || t.Status == PaymentStatus.Pending, null);
 
     public static PaymentCreateResult Failed(PaymentTransaction t, string? error) =>
@@ -201,12 +204,12 @@ public sealed record PaymentVerifyResult(
     bool Succeeded,
     string? ErrorCode)
 {
-    public static PaymentVerifyResult Succeeded(PaymentTransaction t) =>
+    public static PaymentVerifyResult Success(PaymentTransaction t) =>
         new(t, false, true, null);
 
-    public static PaymentVerifyResult AlreadySucceeded(PaymentTransaction t) =>
+    public static PaymentVerifyResult FromAlreadySucceeded(PaymentTransaction t) =>
         new(t, true, true, null);
 
-    public static PaymentVerifyResult Failed(PaymentTransaction t, string error) =>
+    public static PaymentVerifyResult Failure(PaymentTransaction t, string error) =>
         new(t, false, false, error);
 }

@@ -113,7 +113,8 @@ public class AuditComplianceTests
                 "20261005043933_InitialCreate",
                 "20261005093520_AddAuditEvents",
                 "20261005190000_HardenAuditEvents",
-                "20261006100000_PersistOtpMfaState"
+                "20261006100000_PersistOtpMfaState",
+                "20261008170000_AddPaymentTransactions"
             ],
             appliedMigrations);
 
