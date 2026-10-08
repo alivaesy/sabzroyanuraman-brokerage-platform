@@ -59,6 +59,7 @@ builder.Services.AddRateLimiter(options =>
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => CreateOptions());
     });
 });
+
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddScoped<IAuditEventWriter, AuditEventWriter>();
 
@@ -118,6 +119,9 @@ builder.Services.AddDbContext<BrokerageDbContext>(options =>
         ?? "Data Source=brokerage.db"));
 
 builder.Services.AddScoped<IServiceRequestRepository, ServiceRequestRepository>();
+builder.Services.AddScoped<IPaymentTransactionRepository, PaymentTransactionRepository>();
+builder.Services.AddScoped<IPaymentGateway, PaymentGateway>();
+builder.Services.AddScoped<PaymentService>();
 builder.Services.AddScoped<IIdentityVerificationStateRepository, IdentityVerificationStateRepository>();
 builder.Services.AddScoped<CreateServiceRequest>();
 builder.Services.AddScoped<CreateS01ServiceRequest>();
@@ -130,31 +134,6 @@ builder.Services.AddScoped<OrganizationTimeoutOptions>();
 builder.Services.AddScoped<OrganizationRetryExecutor>();
 builder.Services.AddScoped<IIdentityVerificationService, IdentityVerificationService>();
 builder.Services.AddScoped<INationalIdentifierValidator, IranianNationalIdentifierValidator>();
-builder.Services.AddSingleton<IOtpCodeHasher>(_ =>
-{
-    var configuredKey = builder.Configuration["Otp:HashKeyBase64"]
-        ?? Environment.GetEnvironmentVariable("BROKERAGE_OTP_HASH_KEY");
-
-    if (!string.IsNullOrWhiteSpace(configuredKey))
-    {
-        try
-        {
-            return new HmacOtpCodeHasher(Convert.FromBase64String(configuredKey));
-        }
-        catch (FormatException ex)
-        {
-            throw new InvalidOperationException("Otp:HashKeyBase64 must contain a valid Base64 key.", ex);
-        }
-    }
-
-    if (!builder.Environment.IsDevelopment())
-        throw new InvalidOperationException(
-            "Production OTP hashing is not configured. Set Otp:HashKeyBase64 or BROKERAGE_OTP_HASH_KEY to a secret key of at least 256 bits.");
-
-    return new HmacOtpCodeHasher(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
-});
-
-builder.Services.AddScoped<IOtpService, PersistentOtpService>();
 
 if (builder.Environment.IsDevelopment())
 {
@@ -167,6 +146,8 @@ else
     throw new InvalidOperationException(
         "Production integrations are not configured. Organization API, Sana, and Shahkar must use approved production adapters; development mocks are not permitted outside Development.");
 }
+
+builder.Services.AddScoped<IOtpService, PersistentOtpService>();
 
 var app = builder.Build();
 

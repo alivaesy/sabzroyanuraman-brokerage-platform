@@ -11,7 +11,6 @@ namespace Brokerage.Infrastructure.Persistence.Migrations
     [DbContext(typeof(BrokerageDbContext))]
     partial class BrokerageDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
@@ -105,12 +104,41 @@ namespace Brokerage.Infrastructure.Persistence.Migrations
                     b.ToTable("workflow_stages", (string)null);
                 });
 
+            modelBuilder.Entity("Brokerage.Domain.Entities.PaymentTransaction", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("TEXT");
+                    b.Property<Guid>("ServiceRequestId").HasColumnType("TEXT");
+                    b.Property<long>("Amount").HasColumnType("INTEGER");
+                    b.Property<string>("Currency").IsRequired().HasMaxLength(3).HasColumnType("TEXT");
+                    b.Property<string>("Status").IsRequired().HasMaxLength(50).HasColumnType("TEXT");
+                    b.Property<string>("IdempotencyKey").IsRequired().HasMaxLength(200).HasColumnType("TEXT");
+                    b.Property<string>("GatewayToken").HasMaxLength(500).HasColumnType("TEXT");
+                    b.Property<string>("GatewayReference").HasMaxLength(200).HasColumnType("TEXT");
+                    b.Property<DateTimeOffset>("CreatedAt").HasColumnType("TEXT");
+                    b.Property<DateTimeOffset>("UpdatedAt").HasColumnType("TEXT");
+                    b.Property<DateTimeOffset?>("VerifiedAt").HasColumnType("TEXT");
+                    b.HasKey("Id");
+                    b.HasIndex("IdempotencyKey").IsUnique();
+                    b.HasIndex("GatewayReference");
+                    b.HasIndex("ServiceRequestId");
+                    b.ToTable("payment_transactions", (string)null);
+                });
+
             modelBuilder.Entity("Brokerage.Domain.Entities.WorkflowStage", b =>
                 {
                     b.HasOne("Brokerage.Domain.Entities.ServiceRequest", null)
                         .WithMany()
                         .HasForeignKey("ServiceRequestId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Brokerage.Domain.Entities.PaymentTransaction", b =>
+                {
+                    b.HasOne("Brokerage.Domain.Entities.ServiceRequest", null)
+                        .WithMany()
+                        .HasForeignKey("ServiceRequestId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 #pragma warning restore 612, 618
