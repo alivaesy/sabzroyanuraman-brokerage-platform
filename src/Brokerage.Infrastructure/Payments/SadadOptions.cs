@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Configuration;
+
 namespace Brokerage.Infrastructure.Payments;
 
 public sealed class SadadOptions
