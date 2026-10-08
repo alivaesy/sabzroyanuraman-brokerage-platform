@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Brokerage.Application.Contracts;
 using Brokerage.Application.Models;
 using Brokerage.Domain.Entities;
@@ -10,25 +12,12 @@ public sealed class PaymentService(
     IPaymentGateway gateway,
     IAuditEventWriter auditEventWriter)
 {
-    public async Task<PaymentCreateResult> CreateAsync(
-        Guid serviceRequestId,
-        long amount,
-        string idempotencyKey,
-        string returnUrl,
-        string correlationId,
-        CancellationToken cancellationToken = default)
+    public async Task<PaymentCreateResult> CreateAsync(Guid serviceRequestId, long amount, string idempotencyKey, string returnUrl, string correlationId, CancellationToken cancellationToken = default)
     {
         var existing = await repository.GetByIdempotencyKeyAsync(idempotencyKey, cancellationToken);
         if (existing is not null)
         {
-            await WriteAuditAsync(
-                "PaymentAlreadyProcessed",
-                correlationId,
-                existing.Id,
-                existing.Status.ToString(),
-                "IdempotencyKeyReused",
-                cancellationToken);
-
+            await WriteAuditAsync("PaymentAlreadyProcessed", correlationId, existing.Id, existing.Status.ToString(), "IdempotencyKeyReused", cancellationToken);
             return PaymentCreateResult.FromExisting(existing);
         }
 
@@ -39,24 +28,14 @@ public sealed class PaymentService(
         try
         {
             gatewayResult = await gateway.CreatePaymentAsync(
-                new PaymentGatewayCreateRequest(
-                    transaction.Id.ToString("N"),
-                    transaction.Amount,
-                    transaction.Currency,
-                    returnUrl),
+                new PaymentGatewayCreateRequest(transaction.Id.ToString("N"), transaction.Amount, transaction.Currency, returnUrl),
                 cancellationToken);
         }
         catch
         {
-            transaction.MarkFailed();
+            // A timeout can happen after the gateway accepts the payment. Keep Pending for reconciliation.
             await repository.SaveChangesAsync(cancellationToken);
-            await WriteAuditAsync(
-                "PaymentFailed",
-                correlationId,
-                transaction.Id,
-                PaymentStatus.Pending.ToString(),
-                PaymentStatus.Failed.ToString(),
-                cancellationToken);
+            await WriteAuditAsync("PaymentGatewayUnavailable", correlationId, transaction.Id, PaymentStatus.Pending.ToString(), "Pending", cancellationToken);
             throw;
         }
 
@@ -64,35 +43,18 @@ public sealed class PaymentService(
         {
             transaction.MarkFailed();
             await repository.SaveChangesAsync(cancellationToken);
-            await WriteAuditAsync(
-                "PaymentFailed",
-                correlationId,
-                transaction.Id,
-                PaymentStatus.Pending.ToString(),
-                gatewayResult.ErrorCode ?? PaymentStatus.Failed.ToString(),
-                cancellationToken);
-
+            await WriteAuditAsync("PaymentFailed", correlationId, transaction.Id, PaymentStatus.Pending.ToString(), gatewayResult.ErrorCode ?? PaymentStatus.Failed.ToString(), cancellationToken);
             return PaymentCreateResult.Failed(transaction, gatewayResult.ErrorCode);
         }
 
         transaction.MarkGatewayCreated(gatewayResult.GatewayToken);
         await repository.SaveChangesAsync(cancellationToken);
-
-        await WriteAuditAsync(
-            "PaymentCreated",
-            correlationId,
-            transaction.Id,
-            null,
-            PaymentStatus.Pending.ToString(),
-            cancellationToken);
+        await WriteAuditAsync("PaymentCreated", correlationId, transaction.Id, null, PaymentStatus.Pending.ToString(), cancellationToken);
 
         return PaymentCreateResult.Created(transaction, gatewayResult.GatewayToken);
     }
 
-    public async Task<PaymentVerifyResult> VerifyAsync(
-        Guid paymentId,
-        string correlationId,
-        CancellationToken cancellationToken = default)
+    public async Task<PaymentVerifyResult> VerifyAsync(Guid paymentId, string? callbackToken, string correlationId, CancellationToken cancellationToken = default)
     {
         var transaction = await repository.GetByIdAsync(paymentId, cancellationToken)
             ?? throw new InvalidOperationException("Payment transaction was not found.");
@@ -102,6 +64,9 @@ public sealed class PaymentService(
 
         if (transaction.Status != PaymentStatus.Pending || string.IsNullOrWhiteSpace(transaction.GatewayToken))
             return PaymentVerifyResult.Failure(transaction, "PAYMENT_NOT_VERIFIABLE");
+
+        if (!string.IsNullOrWhiteSpace(callbackToken) && !CryptographicEquals(callbackToken, transaction.GatewayToken))
+            return PaymentVerifyResult.Failure(transaction, "CALLBACK_TOKEN_MISMATCH");
 
         transaction.MarkVerifying();
 
@@ -113,103 +78,46 @@ public sealed class PaymentService(
         catch
         {
             await repository.SaveChangesAsync(cancellationToken);
-            await WriteAuditAsync(
-                "PaymentFailed",
-                correlationId,
-                transaction.Id,
-                PaymentStatus.Pending.ToString(),
-                "VERIFY_EXCEPTION",
-                cancellationToken);
+            await WriteAuditAsync("PaymentVerifyUnavailable", correlationId, transaction.Id, PaymentStatus.Pending.ToString(), "Pending", cancellationToken);
             throw;
         }
 
-        if (!gatewayResult.Succeeded ||
-            gatewayResult.Amount != transaction.Amount ||
-            string.IsNullOrWhiteSpace(gatewayResult.GatewayReference))
+        if (!gatewayResult.Succeeded || gatewayResult.Amount != transaction.Amount || string.IsNullOrWhiteSpace(gatewayResult.GatewayReference))
         {
             transaction.MarkFailed();
             await repository.SaveChangesAsync(cancellationToken);
-
-            await WriteAuditAsync(
-                "PaymentFailed",
-                correlationId,
-                transaction.Id,
-                PaymentStatus.Pending.ToString(),
-                gatewayResult.ErrorCode ?? "VERIFY_REJECTED",
-                cancellationToken);
-
+            await WriteAuditAsync("PaymentFailed", correlationId, transaction.Id, PaymentStatus.Pending.ToString(), gatewayResult.ErrorCode ?? "VERIFY_REJECTED", cancellationToken);
             return PaymentVerifyResult.Failure(transaction, gatewayResult.ErrorCode ?? "VERIFY_REJECTED");
         }
 
         transaction.MarkSucceeded(gatewayResult.GatewayReference);
         await repository.SaveChangesAsync(cancellationToken);
-
-        await WriteAuditAsync(
-            "PaymentVerified",
-            correlationId,
-            transaction.Id,
-            PaymentStatus.Pending.ToString(),
-            PaymentStatus.Succeeded.ToString(),
-            cancellationToken);
+        await WriteAuditAsync("PaymentVerified", correlationId, transaction.Id, PaymentStatus.Pending.ToString(), PaymentStatus.Succeeded.ToString(), cancellationToken);
 
         return PaymentVerifyResult.Success(transaction);
     }
 
-    private Task WriteAuditAsync(
-        string eventType,
-        string correlationId,
-        Guid paymentId,
-        string? previousState,
-        string newState,
-        CancellationToken cancellationToken)
+    private Task WriteAuditAsync(string eventType, string correlationId, Guid paymentId, string? previousState, string newState, CancellationToken cancellationToken) =>
+        auditEventWriter.WriteAsync(new AuditEvent(Guid.NewGuid(), DateTimeOffset.UtcNow, eventType, correlationId, null, null, "Success", previousState, newState), cancellationToken);
+
+    private static bool CryptographicEquals(string left, string right)
     {
-        return auditEventWriter.WriteAsync(
-            new AuditEvent(
-                Guid.NewGuid(),
-                DateTimeOffset.UtcNow,
-                eventType,
-                correlationId,
-                null,
-                null,
-                "Success",
-                previousState,
-                newState,
-                null,
-                null,
-                null),
-            cancellationToken);
+        var leftBytes = Encoding.UTF8.GetBytes(left);
+        var rightBytes = Encoding.UTF8.GetBytes(right);
+        return leftBytes.Length == rightBytes.Length && CryptographicOperations.FixedTimeEquals(leftBytes, rightBytes);
     }
 }
 
-public sealed record PaymentCreateResult(
-    PaymentTransaction Transaction,
-    string? GatewayToken,
-    bool AlreadyProcessed,
-    bool Succeeded,
-    string? ErrorCode)
+public sealed record PaymentCreateResult(PaymentTransaction Transaction, string? GatewayToken, bool AlreadyProcessed, bool Succeeded, string? ErrorCode)
 {
-    public static PaymentCreateResult Created(PaymentTransaction t, string token) =>
-        new(t, token, false, true, null);
-
-    public static PaymentCreateResult FromExisting(PaymentTransaction t) =>
-        new(t, t.GatewayToken, true, t.Status == PaymentStatus.Succeeded || t.Status == PaymentStatus.Pending, null);
-
-    public static PaymentCreateResult Failed(PaymentTransaction t, string? error) =>
-        new(t, null, false, false, error);
+    public static PaymentCreateResult Created(PaymentTransaction t, string token) => new(t, token, false, true, null);
+    public static PaymentCreateResult FromExisting(PaymentTransaction t) => new(t, t.GatewayToken, true, t.Status is PaymentStatus.Succeeded or PaymentStatus.Pending, null);
+    public static PaymentCreateResult Failed(PaymentTransaction t, string? error) => new(t, null, false, false, error);
 }
 
-public sealed record PaymentVerifyResult(
-    PaymentTransaction Transaction,
-    bool AlreadySucceeded,
-    bool Succeeded,
-    string? ErrorCode)
+public sealed record PaymentVerifyResult(PaymentTransaction Transaction, bool AlreadySucceeded, bool Succeeded, string? ErrorCode)
 {
-    public static PaymentVerifyResult Success(PaymentTransaction t) =>
-        new(t, false, true, null);
-
-    public static PaymentVerifyResult FromAlreadySucceeded(PaymentTransaction t) =>
-        new(t, true, true, null);
-
-    public static PaymentVerifyResult Failure(PaymentTransaction t, string error) =>
-        new(t, false, false, error);
+    public static PaymentVerifyResult Success(PaymentTransaction t) => new(t, false, true, null);
+    public static PaymentVerifyResult FromAlreadySucceeded(PaymentTransaction t) => new(t, true, true, null);
+    public static PaymentVerifyResult Failure(PaymentTransaction t, string error) => new(t, false, false, error);
 }
