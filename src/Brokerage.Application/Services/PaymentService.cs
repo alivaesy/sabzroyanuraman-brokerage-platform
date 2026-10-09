@@ -23,9 +23,6 @@ public sealed class PaymentService(
 
         var transaction = new PaymentTransaction(serviceRequestId, amount, "IRR", idempotencyKey);
         await repository.AddAsync(transaction, cancellationToken);
-
-        // Persist the stable local order ID before making a network call. If the process exits
-        // or the gateway times out after accepting the request, reconciliation can still find it.
         await repository.SaveChangesAsync(cancellationToken);
 
         PaymentGatewayCreateResult gatewayResult;
@@ -37,7 +34,6 @@ public sealed class PaymentService(
         }
         catch
         {
-            // A timeout can happen after the gateway accepts the request. Keep Pending for reconciliation.
             await WriteAuditAsync("PaymentGatewayUnavailable", correlationId, transaction.Id, PaymentStatus.Pending.ToString(), "Pending", cancellationToken);
             throw;
         }
@@ -53,7 +49,6 @@ public sealed class PaymentService(
         transaction.MarkGatewayCreated(gatewayResult.GatewayToken);
         await repository.SaveChangesAsync(cancellationToken);
         await WriteAuditAsync("PaymentCreated", correlationId, transaction.Id, null, PaymentStatus.Pending.ToString(), cancellationToken);
-
         return PaymentCreateResult.Created(transaction, gatewayResult.GatewayToken);
     }
 
@@ -71,8 +66,6 @@ public sealed class PaymentService(
         if (!string.IsNullOrWhiteSpace(callbackToken) && !CryptographicEquals(callbackToken, transaction.GatewayToken))
             return PaymentVerifyResult.Failure(transaction, "CALLBACK_TOKEN_MISMATCH");
 
-        // Atomically claim verification in the database before calling the gateway. Concurrent
-        // callbacks can no longer both enter the external Verify operation.
         if (!await repository.TryBeginVerificationAsync(paymentId, cancellationToken))
             return PaymentVerifyResult.Failure(transaction, "PAYMENT_VERIFICATION_IN_PROGRESS");
 
@@ -86,16 +79,16 @@ public sealed class PaymentService(
         }
         catch
         {
-            transaction.MarkVerificationUnavailable();
+            // The provider may have processed Verify despite a timeout. Do not return to Pending,
+            // because a later callback could repeat the external operation without reconciliation.
+            transaction.MarkVerificationOutcomeUnknown();
             await repository.SaveChangesAsync(cancellationToken);
-            await WriteAuditAsync("PaymentVerifyUnavailable", correlationId, transaction.Id, PaymentStatus.Verifying.ToString(), PaymentStatus.Pending.ToString(), cancellationToken);
+            await WriteAuditAsync("PaymentVerifyOutcomeUnknown", correlationId, transaction.Id, PaymentStatus.Verifying.ToString(), PaymentStatus.ReconciliationRequired.ToString(), cancellationToken);
             throw;
         }
 
         if (!gatewayResult.Succeeded || gatewayResult.Amount != transaction.Amount || string.IsNullOrWhiteSpace(gatewayResult.GatewayReference))
         {
-            // A negative or malformed provider response is not enough to prove that no money moved.
-            // Keep it out of terminal Failed status until the authoritative gateway state is reviewed.
             transaction.MarkReconciliationRequired();
             await repository.SaveChangesAsync(cancellationToken);
             var reason = gatewayResult.ErrorCode
@@ -113,7 +106,6 @@ public sealed class PaymentService(
         transaction.MarkSucceeded(gatewayResult.GatewayReference);
         await repository.SaveChangesAsync(cancellationToken);
         await WriteAuditAsync("PaymentVerified", correlationId, transaction.Id, PaymentStatus.Verifying.ToString(), PaymentStatus.Succeeded.ToString(), cancellationToken);
-
         return PaymentVerifyResult.Success(transaction);
     }
 
