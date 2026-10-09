@@ -62,6 +62,39 @@ public class PaymentPersistenceTests
         await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
     }
 
+    [Fact]
+    public async Task PaymentVerification_OnlyOneConcurrentAttemptCanClaimPendingPayment()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<BrokerageDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using var db = new BrokerageDbContext(options);
+        await db.Database.MigrateAsync();
+
+        var serviceRequest = new ServiceRequest(
+            Brokerage.Domain.Enums.ServiceCode.S01,
+            "payment-concurrency-test-user");
+        db.ServiceRequests.Add(serviceRequest);
+        await db.SaveChangesAsync();
+
+        var payment = new PaymentTransaction(serviceRequest.Id, 1000, "IRR", "claim-once");
+        db.PaymentTransactions.Add(payment);
+        await db.SaveChangesAsync();
+
+        var repository = new PaymentTransactionRepository(db);
+        Assert.True(await repository.TryBeginVerificationAsync(payment.Id));
+        Assert.False(await repository.TryBeginVerificationAsync(payment.Id));
+
+        var persisted = await db.PaymentTransactions
+            .AsNoTracking()
+            .SingleAsync(x => x.Id == payment.Id);
+        Assert.Equal(Brokerage.Domain.Enums.PaymentStatus.Verifying, persisted.Status);
+    }
+
     private static async Task<HashSet<string>> ReadNamesAsync(
         BrokerageDbContext db,
         string sql)

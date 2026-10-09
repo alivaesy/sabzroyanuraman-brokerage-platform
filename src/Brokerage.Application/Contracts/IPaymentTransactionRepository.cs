@@ -17,4 +17,6 @@ public interface IPaymentTransactionRepository
         CancellationToken cancellationToken = default);
 
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    Task<bool> TryBeginVerificationAsync(Guid paymentId, CancellationToken cancellationToken = default);
 }

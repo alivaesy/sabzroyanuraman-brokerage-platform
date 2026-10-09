@@ -90,6 +90,16 @@ public sealed class PaymentTransaction
         if (Status != PaymentStatus.Pending)
             throw new InvalidOperationException($"Only pending payments can be verified; current status is {Status}.");
 
+        Status = PaymentStatus.Verifying;
+        Touch();
+    }
+
+    public void MarkVerificationUnavailable()
+    {
+        if (Status != PaymentStatus.Verifying)
+            return;
+
+        Status = PaymentStatus.Pending;
         Touch();
     }
 

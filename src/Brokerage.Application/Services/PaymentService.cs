@@ -71,7 +71,13 @@ public sealed class PaymentService(
         if (!string.IsNullOrWhiteSpace(callbackToken) && !CryptographicEquals(callbackToken, transaction.GatewayToken))
             return PaymentVerifyResult.Failure(transaction, "CALLBACK_TOKEN_MISMATCH");
 
+        // Atomically claim verification in the database before calling the gateway. Concurrent
+        // callbacks can no longer both enter the external Verify operation.
+        if (!await repository.TryBeginVerificationAsync(paymentId, cancellationToken))
+            return PaymentVerifyResult.Failure(transaction, "PAYMENT_VERIFICATION_IN_PROGRESS");
+
         transaction.MarkVerifying();
+        await repository.SaveChangesAsync(cancellationToken);
 
         PaymentGatewayVerifyResult gatewayResult;
         try
@@ -80,8 +86,9 @@ public sealed class PaymentService(
         }
         catch
         {
+            transaction.MarkVerificationUnavailable();
             await repository.SaveChangesAsync(cancellationToken);
-            await WriteAuditAsync("PaymentVerifyUnavailable", correlationId, transaction.Id, PaymentStatus.Pending.ToString(), "Pending", cancellationToken);
+            await WriteAuditAsync("PaymentVerifyUnavailable", correlationId, transaction.Id, PaymentStatus.Verifying.ToString(), PaymentStatus.Pending.ToString(), cancellationToken);
             throw;
         }
 
