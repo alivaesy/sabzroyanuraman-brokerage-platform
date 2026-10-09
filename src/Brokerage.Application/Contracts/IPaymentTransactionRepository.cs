@@ -24,4 +24,9 @@ public interface IPaymentTransactionRepository
         DateTimeOffset updatedBefore,
         int limit = 100,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<PaymentTransaction>> GetStaleReconciliationCandidatesAsync(
+        DateTimeOffset updatedBefore,
+        int limit = 100,
+        CancellationToken cancellationToken = default);
 }

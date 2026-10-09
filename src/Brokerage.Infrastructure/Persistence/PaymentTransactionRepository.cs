@@ -47,8 +47,7 @@ public sealed class PaymentTransactionRepository(BrokerageDbContext dbContext)
         int limit = 100,
         CancellationToken cancellationToken = default)
     {
-        if (limit is < 1 or > 500)
-            throw new ArgumentOutOfRangeException(nameof(limit), "Limit must be between 1 and 500.");
+        ValidateLimit(limit);
 
         return await dbContext.PaymentTransactions
             .AsNoTracking()
@@ -56,5 +55,31 @@ public sealed class PaymentTransactionRepository(BrokerageDbContext dbContext)
             .OrderBy(x => x.UpdatedAt)
             .Take(limit)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<PaymentTransaction>> GetStaleReconciliationCandidatesAsync(
+        DateTimeOffset updatedBefore,
+        int limit = 100,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateLimit(limit);
+
+        // Pending records are included because a create request may have timed out after
+        // Sadad accepted it, or a successful payment may still be awaiting its callback.
+        // This query is deliberately read-only: it never retries Create or changes status.
+        return await dbContext.PaymentTransactions
+            .AsNoTracking()
+            .Where(x =>
+                (x.Status == PaymentStatus.Pending || x.Status == PaymentStatus.Verifying) &&
+                x.UpdatedAt < updatedBefore)
+            .OrderBy(x => x.UpdatedAt)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+    }
+
+    private static void ValidateLimit(int limit)
+    {
+        if (limit is < 1 or > 500)
+            throw new ArgumentOutOfRangeException(nameof(limit), "Limit must be between 1 and 500.");
     }
 }
