@@ -168,6 +168,18 @@ public class PaymentServiceTests
             return Task.CompletedTask;
         }
 
+        public Task<PaymentTransaction> CreateOrGetByIdempotencyKeyAsync(
+            PaymentTransaction transaction,
+            CancellationToken cancellationToken = default)
+        {
+            var existing = Items.SingleOrDefault(x => x.IdempotencyKey == transaction.IdempotencyKey);
+            if (existing is not null)
+                return Task.FromResult(existing);
+
+            Items.Add(transaction);
+            return Task.FromResult(transaction);
+        }
+
         public Task SaveChangesAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task<bool> TryBeginVerificationAsync(Guid paymentId, CancellationToken cancellationToken = default)

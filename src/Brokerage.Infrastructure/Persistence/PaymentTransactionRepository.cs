@@ -25,6 +25,32 @@ public sealed class PaymentTransactionRepository(BrokerageDbContext dbContext)
         CancellationToken cancellationToken = default) =>
         await dbContext.PaymentTransactions.AddAsync(transaction, cancellationToken);
 
+    public async Task<PaymentTransaction> CreateOrGetByIdempotencyKeyAsync(
+        PaymentTransaction transaction,
+        CancellationToken cancellationToken = default)
+    {
+        await dbContext.PaymentTransactions.AddAsync(transaction, cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return transaction;
+        }
+        catch (DbUpdateException)
+        {
+            // A concurrent request may have inserted the unique idempotency key after
+            // the caller's initial lookup. Detach the failed insert before querying again.
+            dbContext.Entry(transaction).State = EntityState.Detached;
+            var existing = await dbContext.PaymentTransactions
+                .AsNoTracking()
+                .SingleOrDefaultAsync(x => x.IdempotencyKey == transaction.IdempotencyKey, cancellationToken);
+
+            if (existing is not null && existing.Id != transaction.Id)
+                return existing;
+
+            throw;
+        }
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
         dbContext.SaveChangesAsync(cancellationToken);
 

@@ -64,6 +64,35 @@ public class PaymentPersistenceTests
     }
 
     [Fact]
+    public async Task CreateOrGetByIdempotencyKey_ConcurrentDuplicateReturnsPersistedTransaction()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<BrokerageDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using var db = new BrokerageDbContext(options);
+        await db.Database.MigrateAsync();
+
+        var serviceRequest = new ServiceRequest(ServiceCode.S01, "payment-idempotency-race-user");
+        db.ServiceRequests.Add(serviceRequest);
+        await db.SaveChangesAsync();
+
+        var repository = new PaymentTransactionRepository(db);
+        var first = new PaymentTransaction(serviceRequest.Id, 1000, "IRR", "racing-key");
+        var second = new PaymentTransaction(serviceRequest.Id, 1000, "IRR", "racing-key");
+
+        var created = await repository.CreateOrGetByIdempotencyKeyAsync(first);
+        var replayed = await repository.CreateOrGetByIdempotencyKeyAsync(second);
+
+        Assert.Equal(first.Id, created.Id);
+        Assert.Equal(first.Id, replayed.Id);
+        Assert.Single(await db.PaymentTransactions.AsNoTracking().ToListAsync());
+    }
+
+    [Fact]
     public async Task PaymentVerification_OnlyOneConcurrentAttemptCanClaimPendingPayment()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");

@@ -31,8 +31,25 @@ public sealed class PaymentService(
         }
 
         var transaction = new PaymentTransaction(serviceRequestId, amount, "IRR", idempotencyKey);
-        await repository.AddAsync(transaction, cancellationToken);
-        await repository.SaveChangesAsync(cancellationToken);
+        var persistedTransaction = await repository.CreateOrGetByIdempotencyKeyAsync(transaction, cancellationToken);
+
+        // The unique database constraint is the final arbiter when two requests with the
+        // same idempotency key arrive concurrently. Only the request that inserted the row
+        // may contact Sadad; the loser reuses the persisted result without a second Create.
+        if (persistedTransaction.Id != transaction.Id)
+        {
+            if (persistedTransaction.ServiceRequestId != serviceRequestId ||
+                persistedTransaction.Amount != amount ||
+                !string.Equals(persistedTransaction.Currency, "IRR", StringComparison.Ordinal))
+            {
+                const string conflictCode = "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_REQUEST";
+                await WriteAuditAsync("PaymentIdempotencyConflict", correlationId, persistedTransaction, persistedTransaction.Status.ToString(), conflictCode, "Failure", cancellationToken);
+                return PaymentCreateResult.Failed(persistedTransaction, conflictCode);
+            }
+
+            await WriteAuditAsync("PaymentAlreadyProcessed", correlationId, persistedTransaction, persistedTransaction.Status.ToString(), "IdempotencyKeyConcurrentReplay", "Success", cancellationToken);
+            return PaymentCreateResult.FromExisting(persistedTransaction);
+        }
 
         PaymentGatewayCreateResult gatewayResult;
         try
