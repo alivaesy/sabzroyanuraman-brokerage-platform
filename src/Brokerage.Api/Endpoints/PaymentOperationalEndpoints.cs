@@ -1,4 +1,4 @@
-using Brokerage.Api.Authorization;
+using Brokerage.Application.Authorization;
 using Brokerage.Application.Contracts;
 using Brokerage.Application.Models;
 using Microsoft.AspNetCore.Http;
