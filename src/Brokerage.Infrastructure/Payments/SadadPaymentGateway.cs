@@ -18,6 +18,7 @@ public sealed class SadadPaymentGateway(
         if (!string.Equals(request.Currency, "IRR", StringComparison.OrdinalIgnoreCase))
             return new PaymentGatewayCreateResult(false, null, "UNSUPPORTED_CURRENCY");
 
+        options.Validate();
         var signData = Encrypt3Des($"{options.TerminalId};{request.OrderId};{request.Amount}", options.TerminalKey);
         var payload = new
         {
@@ -71,6 +72,7 @@ public sealed class SadadPaymentGateway(
         if (string.IsNullOrWhiteSpace(gatewayToken))
             return new PaymentGatewayVerifyResult(false, null, null, "INVALID_TOKEN");
 
+        options.Validate();
         var payload = new { Token = gatewayToken, SignData = Encrypt3Des(gatewayToken, options.TerminalKey) };
         using var response = await httpClient.PostAsJsonAsync(options.VerifyUrl, payload, cancellationToken);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);

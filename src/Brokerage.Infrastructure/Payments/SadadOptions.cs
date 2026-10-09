@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Configuration;
+using System.Text;\nusing Microsoft.Extensions.Configuration;
 
 namespace Brokerage.Infrastructure.Payments;
 
@@ -35,5 +35,22 @@ public sealed class SadadOptions
         if (string.IsNullOrWhiteSpace(TerminalId)) throw new InvalidOperationException("Sadad TerminalId is not configured.");
         if (string.IsNullOrWhiteSpace(TerminalKey)) throw new InvalidOperationException("Sadad TerminalKey is not configured.");
         if (string.IsNullOrWhiteSpace(CallbackUrl)) throw new InvalidOperationException("Sadad CallbackUrl is not configured.");
+
+        var keyLength = Encoding.UTF8.GetByteCount(TerminalKey);
+        if (keyLength is not (16 or 24))
+            throw new InvalidOperationException("Sadad TerminalKey must encode to a 16-byte or 24-byte Triple-DES key.");
+
+        RequireHttpsUrl(RequestUrl, nameof(RequestUrl));
+        RequireHttpsUrl(VerifyUrl, nameof(VerifyUrl));
+        RequireHttpsUrl(PaymentUrl, nameof(PaymentUrl));
+        RequireHttpsUrl(CallbackUrl, nameof(CallbackUrl));
+    }
+
+    private static void RequireHttpsUrl(string value, string propertyName)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
+            !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"Sadad {propertyName} must be an absolute HTTPS URL.");
+    }
     }
 }

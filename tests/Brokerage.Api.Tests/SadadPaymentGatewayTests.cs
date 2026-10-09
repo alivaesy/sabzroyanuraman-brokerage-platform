@@ -30,6 +30,24 @@ public class SadadPaymentGatewayTests
     }
 
     [Fact]
+    public async Task CreatePayment_InvalidTerminalKeyFailsBeforeCallingProvider()
+    {
+        var handler = new StubHandler("""{"ResCode":"0","Token":"test-token"}""");
+        using var client = new HttpClient(handler);
+        var options = new SadadOptions
+        {
+            MerchantId = "merchant",
+            TerminalId = "terminal",
+            TerminalKey = "invalid-length",
+            CallbackUrl = "https://example.test/payment/callback-sadad"
+        };
+        var gateway = CreateGateway(client, options);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => gateway.CreatePaymentAsync(CreateRequest()));
+        Assert.Null(handler.RequestUri);
+    }
+
+    [Fact]
     public async Task CreatePayment_HttpFailureIsReturnedAsAmbiguousHttpError()
     {
         var handler = new StubHandler("gateway unavailable", HttpStatusCode.BadGateway);
