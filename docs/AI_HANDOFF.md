@@ -8,20 +8,21 @@ This file is the shared handoff point between different ChatGPT accounts working
 
 ## Current Status
 - Active development; do not assume a green local build unless the user confirms it.
-- Latest observed GitLab pipeline for the current branch passed before this change: pipeline 2929715203, SHA f19103e12004af9714fad62fff701c3ce4e40339.
-- This commit updates payment operational endpoint response cache headers and their regression test; its pipeline status must be checked separately.
+- Last confirmed green GitLab pipeline before the latest commits: pipeline 2929715203, SHA f19103e12004af9714fad62fff701c3ce4e40339.
+- Pipeline was not triggered for the subsequent commits; their CI status is not yet confirmed.
 
 ## Current Branch
 feat/payment-foundation-sadad-ready
 
-## Last Known Commit Before This Change
+## Last Known Green Pipeline Commit
 f19103e12004af9714fad62fff701c3ce4e40339
 
 ## Completed Work Relevant To Current Track
 - Sadad payment gateway adapter foundation and configuration validation.
 - Idempotent payment transaction persistence and conservative handling of ambiguous gateway outcomes.
 - Read-only operational endpoints for stale verification and reconciliation candidates.
-- Payment operations endpoints require the PaymentOperations authorization policy; only TechnicalSecurity and Administrator roles are authorized.
+- Payment operations endpoints require PaymentOperations authorization; only TechnicalSecurity and Administrator roles are authorized.
+- Operational payment endpoint responses set Cache-Control: no-store before validation or database work.
 
 ## Currently In Progress
 - Payment Foundation: operational reconciliation safety, endpoint coverage, and Sadad adapter validation.
@@ -47,10 +48,11 @@ f19103e12004af9714fad62fff701c3ce4e40339
 ## Files Recently Changed
 - src/Brokerage.Api/Endpoints/PaymentOperationalEndpoints.cs
 - tests/Brokerage.Api.Tests/PaymentOperationalEndpointAuthorizationTests.cs
+- tests/Brokerage.Api.Tests/PaymentPersistenceTests.cs
 - docs/AI_HANDOFF.md
 
 ## Next Recommended Step
-Add focused persistence and state-transition tests for payment reconciliation safety, then review a bounded/indexed query strategy for stale payment candidates before production-scale use.
+Review Sadad timestamp/signature compatibility and add tests for ambiguous verification outcomes and duplicate callback/replay behavior; later address bounded/indexed stale-candidate querying.
 
 ## Important Rules
 - Inspect the current repository before making changes.

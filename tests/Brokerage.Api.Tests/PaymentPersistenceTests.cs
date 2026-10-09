@@ -164,7 +164,7 @@ public class PaymentPersistenceTests
     }
 
     [Fact]
-    public async Task GetStaleReconciliationCandidatesAsync_IncludesOldPendingAndVerifyingButExcludesFreshAndTerminalPayments()
+    public async Task GetStaleReconciliationCandidatesAsync_IncludesAllNonterminalReviewStatesAndExcludesFreshOrTerminalPayments()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
@@ -183,9 +183,12 @@ public class PaymentPersistenceTests
         var oldPendingWithoutToken = new PaymentTransaction(serviceRequest.Id, 1000, "IRR", "old-pending-no-token");
         var oldPendingWithToken = new PaymentTransaction(serviceRequest.Id, 1100, "IRR", "old-pending-with-token");
         var oldVerifying = new PaymentTransaction(serviceRequest.Id, 1200, "IRR", "old-verifying");
+        var oldReconciliationRequired = new PaymentTransaction(serviceRequest.Id, 1250, "IRR", "old-reconciliation-required");
+        oldReconciliationRequired.MarkVerifying();
+        oldReconciliationRequired.MarkVerificationOutcomeUnknown();
         var freshPending = new PaymentTransaction(serviceRequest.Id, 1300, "IRR", "fresh-pending");
         var terminal = new PaymentTransaction(serviceRequest.Id, 1400, "IRR", "terminal-failed");
-        db.PaymentTransactions.AddRange(oldPendingWithoutToken, oldPendingWithToken, oldVerifying, freshPending, terminal);
+        db.PaymentTransactions.AddRange(oldPendingWithoutToken, oldPendingWithToken, oldVerifying, oldReconciliationRequired, freshPending, terminal);
         await db.SaveChangesAsync();
 
         oldPendingWithToken.MarkGatewayCreated("gateway-token-test");
@@ -203,10 +206,11 @@ public class PaymentPersistenceTests
 
         var candidates = await repository.GetStaleReconciliationCandidatesAsync(cutoff, limit: 10);
 
-        Assert.Equal(3, candidates.Count);
+        Assert.Equal(4, candidates.Count);
         Assert.Contains(candidates, x => x.Id == oldPendingWithoutToken.Id && x.Status == PaymentStatus.Pending && x.GatewayToken == null);
         Assert.Contains(candidates, x => x.Id == oldPendingWithToken.Id && x.Status == PaymentStatus.Pending && x.GatewayToken == "gateway-token-test");
         Assert.Contains(candidates, x => x.Id == oldVerifying.Id && x.Status == PaymentStatus.Verifying);
+        Assert.Contains(candidates, x => x.Id == oldReconciliationRequired.Id && x.Status == PaymentStatus.ReconciliationRequired);
         Assert.DoesNotContain(candidates, x => x.Id == freshPending.Id);
         Assert.DoesNotContain(candidates, x => x.Id == terminal.Id);
     }

@@ -35,16 +35,18 @@ public class PaymentOperationalEndpointAuthorizationTests
     }
 
     [Theory]
-    [InlineData("TechnicalSecurity")]
-    [InlineData("Administrator")]
-    public async Task PaymentOperations_PrivilegedRoleGetsNoStoreOnValidationFailure(string role)
+    [InlineData("TechnicalSecurity", "/ops/payments/reconciliation-candidates?limit=501")]
+    [InlineData("Administrator", "/ops/payments/reconciliation-candidates?limit=501")]
+    [InlineData("TechnicalSecurity", "/ops/payments/stale-verifications?limit=501")]
+    [InlineData("Administrator", "/ops/payments/stale-verifications?limit=501")]
+    public async Task PaymentOperations_PrivilegedRoleGetsNoStoreOnValidationFailure(string role, string path)
     {
         await using var application = new WebApplicationFactory<Program>();
         using var client = application.CreateClient();
         client.DefaultRequestHeaders.Add("X-Test-User-Id", $"payment-ops-{role}");
         client.DefaultRequestHeaders.Add("X-Test-User-Role", role);
 
-        var response = await client.GetAsync("/ops/payments/reconciliation-candidates?limit=501");
+        var response = await client.GetAsync(path);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
