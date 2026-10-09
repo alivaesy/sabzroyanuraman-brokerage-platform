@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.Json;
 using Brokerage.Infrastructure.Payments;
 
 namespace Brokerage.Api.Tests;
@@ -34,8 +33,9 @@ public class SadadPaymentGatewayTests
         Assert.True(result.Succeeded);
         Assert.Equal("test-token", result.GatewayToken);
         Assert.Equal("application/json", handler.RequestContentType);
-        Assert.Contains("TerminalId", handler.RequestBody);
-        Assert.Contains("SignData", handler.RequestBody);
+        // PostAsJsonAsync uses web-default camelCase JSON naming.
+        Assert.Contains("\"terminalId\"", handler.RequestBody);
+        Assert.Contains("\"signData\"", handler.RequestBody);
         Assert.DoesNotContain(options.TerminalKey, handler.RequestBody);
     }
 

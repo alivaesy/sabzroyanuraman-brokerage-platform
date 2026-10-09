@@ -49,12 +49,18 @@ public sealed class PaymentTransactionRepository(BrokerageDbContext dbContext)
     {
         ValidateLimit(limit);
 
-        return await dbContext.PaymentTransactions
+        // SQLite cannot translate DateTimeOffset ordering/comparison consistently. Filter
+        // by the indexed/status column in SQL, then compare normalized timestamps in memory.
+        var verifying = await dbContext.PaymentTransactions
             .AsNoTracking()
-            .Where(x => x.Status == PaymentStatus.Verifying && x.UpdatedAt < updatedBefore)
+            .Where(x => x.Status == PaymentStatus.Verifying)
+            .ToListAsync(cancellationToken);
+
+        return verifying
+            .Where(x => x.UpdatedAt < updatedBefore)
             .OrderBy(x => x.UpdatedAt)
             .Take(limit)
-            .ToListAsync(cancellationToken);
+            .ToList();
     }
 
     public async Task<IReadOnlyList<PaymentTransaction>> GetStaleReconciliationCandidatesAsync(
@@ -64,20 +70,22 @@ public sealed class PaymentTransactionRepository(BrokerageDbContext dbContext)
     {
         ValidateLimit(limit);
 
-        // Pending records are included because a create request may have timed out after
-        // Sadad accepted it, or a successful payment may still be awaiting its callback.
-        // ReconciliationRequired records need explicit operational review; this query never
-        // retries Create/Verify or changes a payment state.
-        return await dbContext.PaymentTransactions
+        // Pending records may represent an unknown Create outcome or a lost callback;
+        // Verifying records may have been interrupted; reconciliation-required records
+        // need explicit review. This query is read-only and never retries gateway calls.
+        var candidates = await dbContext.PaymentTransactions
             .AsNoTracking()
             .Where(x =>
-                (x.Status == PaymentStatus.Pending ||
-                 x.Status == PaymentStatus.Verifying ||
-                 x.Status == PaymentStatus.ReconciliationRequired) &&
-                x.UpdatedAt < updatedBefore)
+                x.Status == PaymentStatus.Pending ||
+                x.Status == PaymentStatus.Verifying ||
+                x.Status == PaymentStatus.ReconciliationRequired)
+            .ToListAsync(cancellationToken);
+
+        return candidates
+            .Where(x => x.UpdatedAt < updatedBefore)
             .OrderBy(x => x.UpdatedAt)
             .Take(limit)
-            .ToListAsync(cancellationToken);
+            .ToList();
     }
 
     private static void ValidateLimit(int limit)
