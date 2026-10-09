@@ -7,7 +7,7 @@ namespace Brokerage.Api.Tests;
 
 public class SadadPaymentGatewayTests
 {
-    private static readonly string TestTerminalKey = string.Concat("test-terminal-", "key");
+    private static readonly string TestTerminalKey = "terminal-key-123";
 
     [Fact]
     public async Task CreatePayment_SendsSadadRequestWithoutExposingTerminalKey()
