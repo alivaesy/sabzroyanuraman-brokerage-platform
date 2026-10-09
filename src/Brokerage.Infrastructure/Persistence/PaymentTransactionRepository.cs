@@ -41,4 +41,20 @@ public sealed class PaymentTransactionRepository(BrokerageDbContext dbContext)
 
         return updated == 1;
     }
+
+    public async Task<IReadOnlyList<PaymentTransaction>> GetStaleVerifyingAsync(
+        DateTimeOffset updatedBefore,
+        int limit = 100,
+        CancellationToken cancellationToken = default)
+    {
+        if (limit is < 1 or > 500)
+            throw new ArgumentOutOfRangeException(nameof(limit), "Limit must be between 1 and 500.");
+
+        return await dbContext.PaymentTransactions
+            .AsNoTracking()
+            .Where(x => x.Status == PaymentStatus.Verifying && x.UpdatedAt < updatedBefore)
+            .OrderBy(x => x.UpdatedAt)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+    }
 }

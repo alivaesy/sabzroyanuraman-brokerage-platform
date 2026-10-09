@@ -1,4 +1,5 @@
 using Brokerage.Domain.Entities;
+using Brokerage.Domain.Enums;
 using Brokerage.Infrastructure.Persistence;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -46,7 +47,7 @@ public class PaymentPersistenceTests
         await db.Database.MigrateAsync();
 
         var serviceRequest = new ServiceRequest(
-            Brokerage.Domain.Enums.ServiceCode.S01,
+            ServiceCode.S01,
             "payment-test-user");
 
         db.ServiceRequests.Add(serviceRequest);
@@ -76,7 +77,7 @@ public class PaymentPersistenceTests
         await db.Database.MigrateAsync();
 
         var serviceRequest = new ServiceRequest(
-            Brokerage.Domain.Enums.ServiceCode.S01,
+            ServiceCode.S01,
             "payment-concurrency-test-user");
         db.ServiceRequests.Add(serviceRequest);
         await db.SaveChangesAsync();
@@ -92,7 +93,62 @@ public class PaymentPersistenceTests
         var persisted = await db.PaymentTransactions
             .AsNoTracking()
             .SingleAsync(x => x.Id == payment.Id);
-        Assert.Equal(Brokerage.Domain.Enums.PaymentStatus.Verifying, persisted.Status);
+        Assert.Equal(PaymentStatus.Verifying, persisted.Status);
+    }
+
+    [Fact]
+    public async Task GetStaleVerifyingAsync_ReturnsOnlyOldVerifyingPaymentsAndHonorsLimit()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<BrokerageDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using var db = new BrokerageDbContext(options);
+        await db.Database.MigrateAsync();
+
+        var serviceRequest = new ServiceRequest(ServiceCode.S01, "payment-stale-test-user");
+        db.ServiceRequests.Add(serviceRequest);
+        await db.SaveChangesAsync();
+
+        var stalePayment = new PaymentTransaction(serviceRequest.Id, 1000, "IRR", "stale-key");
+        var freshPayment = new PaymentTransaction(serviceRequest.Id, 2000, "IRR", "fresh-key");
+        db.PaymentTransactions.AddRange(stalePayment, freshPayment);
+        await db.SaveChangesAsync();
+
+        var repository = new PaymentTransactionRepository(db);
+        Assert.True(await repository.TryBeginVerificationAsync(stalePayment.Id));
+        Assert.True(await repository.TryBeginVerificationAsync(freshPayment.Id));
+
+        var cutoff = DateTimeOffset.UtcNow.AddMinutes(-10);
+        await db.PaymentTransactions
+            .Where(x => x.Id == stalePayment.Id)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.UpdatedAt, cutoff.AddMinutes(-1)));
+
+        var stale = await repository.GetStaleVerifyingAsync(cutoff, limit: 1);
+
+        var onlyPayment = Assert.Single(stale);
+        Assert.Equal(stalePayment.Id, onlyPayment.Id);
+        Assert.Equal(PaymentStatus.Verifying, onlyPayment.Status);
+    }
+
+    [Fact]
+    public async Task GetStaleVerifyingAsync_RejectsInvalidLimit()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<BrokerageDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using var db = new BrokerageDbContext(options);
+        var repository = new PaymentTransactionRepository(db);
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => repository.GetStaleVerifyingAsync(DateTimeOffset.UtcNow, limit: 0));
     }
 
     private static async Task<HashSet<string>> ReadNamesAsync(

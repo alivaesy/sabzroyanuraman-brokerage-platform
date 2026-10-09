@@ -19,4 +19,9 @@ public interface IPaymentTransactionRepository
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 
     Task<bool> TryBeginVerificationAsync(Guid paymentId, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<PaymentTransaction>> GetStaleVerifyingAsync(
+        DateTimeOffset updatedBefore,
+        int limit = 100,
+        CancellationToken cancellationToken = default);
 }
