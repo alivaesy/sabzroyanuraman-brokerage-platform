@@ -10,4 +10,5 @@ public static class AuthorizationPolicies
     public const string Administrator = nameof(Administrator);
     public const string MfaVerified = nameof(MfaVerified);
     public const string OperationalMonitoring = nameof(OperationalMonitoring);
+    public const string PaymentOperations = nameof(PaymentOperations);
 }

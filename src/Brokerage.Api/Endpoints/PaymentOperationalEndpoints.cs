@@ -65,7 +65,7 @@ public static class PaymentOperationalEndpoints
                     recommendedAction = "Check the gateway's authoritative transaction status before changing local payment state. Do not automatically mark this payment successful or failed."
                 })
             });
-        }).RequireAuthorization(AuthorizationPolicies.OperationalMonitoring);
+        }).RequireAuthorization(AuthorizationPolicies.PaymentOperations);
 
         app.MapGet("/ops/payments/reconciliation-candidates", async (
             HttpContext context,
@@ -134,6 +134,6 @@ public static class PaymentOperationalEndpoints
                     }
                 })
             });
-        }).RequireAuthorization(AuthorizationPolicies.OperationalMonitoring);
+        }).RequireAuthorization(AuthorizationPolicies.PaymentOperations);
     }
 }

@@ -110,6 +110,9 @@ builder.Services.AddAuthorization(options =>
         UserRole.TechnicalSecurity.ToString(),
         UserRole.OrganizationObserver.ToString(),
         UserRole.Administrator.ToString()));
+    options.AddPolicy(AuthorizationPolicies.PaymentOperations, policy => policy.RequireRole(
+        UserRole.TechnicalSecurity.ToString(),
+        UserRole.Administrator.ToString()));
     options.AddPolicy(AuthorizationPolicies.MfaVerified, policy => policy.AddRequirements(new MfaRequirement()));
 });
 
