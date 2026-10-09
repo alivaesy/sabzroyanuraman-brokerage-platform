@@ -58,6 +58,20 @@ public class SadadPaymentGatewayTests
     }
 
     [Fact]
+    public async Task CreatePayment_MissingResultCodeIsAmbiguous()
+    {
+        var handler = new StubHandler("""{"Token":"maybe-created-token"}""");
+        using var client = new HttpClient(handler);
+        var gateway = CreateGateway(client, CreateOptions());
+
+        var result = await gateway.CreatePaymentAsync(CreateRequest());
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.GatewayToken);
+        Assert.Equal("INVALID_GATEWAY_RESPONSE", result.ErrorCode);
+    }
+
+    [Fact]
     public async Task CreatePayment_ProviderRejectionIsNotReportedAsSuccess()
     {
         var handler = new StubHandler("""{"ResCode":"42","Description":"declined"}""");

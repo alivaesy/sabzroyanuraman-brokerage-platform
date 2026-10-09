@@ -44,8 +44,15 @@ public sealed class SadadPaymentGateway(
             using var document = JsonDocument.Parse(body);
             var root = document.RootElement;
             var resCode = GetString(root, "ResCode");
+
+            // A successful HTTP response without a provider result code is malformed,
+            // not a definitive rejection: Sadad may have created the order before the
+            // response was truncated or transformed.
+            if (string.IsNullOrWhiteSpace(resCode))
+                return new PaymentGatewayCreateResult(false, null, "INVALID_GATEWAY_RESPONSE");
+
             if (!string.Equals(resCode, "0", StringComparison.Ordinal))
-                return new PaymentGatewayCreateResult(false, null, resCode ?? "SADAD_REJECTED");
+                return new PaymentGatewayCreateResult(false, null, resCode);
 
             var token = GetString(root, "Token");
             return string.IsNullOrWhiteSpace(token)
@@ -79,8 +86,11 @@ public sealed class SadadPaymentGateway(
             using var document = JsonDocument.Parse(body);
             var root = document.RootElement;
             var resCode = GetString(root, "ResCode");
+            if (string.IsNullOrWhiteSpace(resCode))
+                return new PaymentGatewayVerifyResult(false, null, null, "INVALID_GATEWAY_RESPONSE");
+
             if (!string.Equals(resCode, "0", StringComparison.Ordinal))
-                return new PaymentGatewayVerifyResult(false, null, null, resCode ?? "SADAD_VERIFY_REJECTED");
+                return new PaymentGatewayVerifyResult(false, null, null, resCode);
 
             var amount = GetInt64(root, "Amount");
             var reference = GetString(root, "SystemTraceNo") ?? GetString(root, "RetrivalRefNo");
