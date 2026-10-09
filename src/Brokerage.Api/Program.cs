@@ -7,6 +7,7 @@ using Brokerage.Application.Integration;
 using Brokerage.Application.Validation;
 using Brokerage.Infrastructure.Integration;
 using Brokerage.Infrastructure.Persistence;
+using Brokerage.Infrastructure.Payments;
 using Brokerage.Api.Middleware;
 using Brokerage.Api.Authentication;
 using Brokerage.Api.Authorization;
@@ -119,7 +120,9 @@ builder.Services.AddDbContext<BrokerageDbContext>(options =>
 
 builder.Services.AddScoped<IServiceRequestRepository, ServiceRequestRepository>();
 builder.Services.AddScoped<IPaymentTransactionRepository, PaymentTransactionRepository>();
-builder.Services.AddScoped<IPaymentGateway, PaymentGateway>();
+builder.Services.AddSingleton(_ => SadadOptions.FromConfiguration(builder.Configuration));
+builder.Services.AddHttpClient<SadadPaymentGateway>();
+builder.Services.AddScoped<IPaymentGateway>(services => services.GetRequiredService<SadadPaymentGateway>());
 builder.Services.AddScoped<PaymentService>();
 builder.Services.AddScoped<IIdentityVerificationStateRepository, IdentityVerificationStateRepository>();
 builder.Services.AddScoped<CreateServiceRequest>();

@@ -52,6 +52,38 @@ public class PaymentServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_AmbiguousGatewayResponseRemainsPendingAndIsNotRetriedAutomatically()
+    {
+        var requestId = Guid.NewGuid();
+        var repository = new FakePaymentRepository();
+        var gateway = new FakePaymentGateway
+        {
+            CreateResultOverride = new PaymentGatewayCreateResult(false, null, "HTTP_502")
+        };
+        var audit = new FakeAuditEventWriter();
+        var service = new PaymentService(repository, gateway, audit);
+
+        var first = await service.CreateAsync(requestId, 1000, "ambiguous-create-key", "https://example.test/return", "correlation-create-unknown");
+
+        Assert.False(first.Succeeded);
+        Assert.Equal("HTTP_502", first.ErrorCode);
+        Assert.Equal(PaymentStatus.Pending, first.Transaction.Status);
+        Assert.Null(first.Transaction.GatewayToken);
+        Assert.Equal(1, gateway.CreateCalls);
+        var auditEvent = Assert.Single(audit.Events);
+        Assert.Equal("PaymentCreateOutcomeUnknown", auditEvent.EventType);
+        Assert.Equal("ReviewRequired", auditEvent.Outcome);
+
+        var second = await service.CreateAsync(requestId, 1000, "ambiguous-create-key", "https://example.test/return", "correlation-create-replay");
+
+        Assert.False(second.Succeeded);
+        Assert.True(second.AlreadyProcessed);
+        Assert.Equal("PAYMENT_CREATE_OUTCOME_UNKNOWN", second.ErrorCode);
+        Assert.Equal(1, gateway.CreateCalls);
+        Assert.Single(repository.Items);
+    }
+
+    [Fact]
     public async Task VerifyAsync_RejectsMissingCallbackTokenWithoutCallingGateway()
     {
         var requestId = Guid.NewGuid();
@@ -114,9 +146,15 @@ public class PaymentServiceTests
         Assert.Equal(1, gateway.VerifyCalls);
     }
 
-    private sealed class FakePaymentRepository(PaymentTransaction existing) : IPaymentTransactionRepository
+    private sealed class FakePaymentRepository : IPaymentTransactionRepository
     {
-        public List<PaymentTransaction> Items { get; } = [existing];
+        public List<PaymentTransaction> Items { get; } = [];
+
+        public FakePaymentRepository(PaymentTransaction? existing = null)
+        {
+            if (existing is not null)
+                Items.Add(existing);
+        }
 
         public Task<PaymentTransaction?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
             Task.FromResult(Items.SingleOrDefault(x => x.Id == id));
@@ -152,11 +190,12 @@ public class PaymentServiceTests
         public int CreateCalls { get; private set; }
         public int VerifyCalls { get; private set; }
         public bool ThrowOnVerify { get; init; }
+        public PaymentGatewayCreateResult? CreateResultOverride { get; init; }
 
         public Task<PaymentGatewayCreateResult> CreatePaymentAsync(PaymentGatewayCreateRequest request, CancellationToken cancellationToken = default)
         {
             CreateCalls++;
-            return Task.FromResult(new PaymentGatewayCreateResult(true, "new-token"));
+            return Task.FromResult(CreateResultOverride ?? new PaymentGatewayCreateResult(true, "new-token"));
         }
 
         public Task<PaymentGatewayVerifyResult> VerifyPaymentAsync(string gatewayToken, CancellationToken cancellationToken = default)

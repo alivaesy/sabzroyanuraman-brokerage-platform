@@ -49,6 +49,14 @@ public sealed class PaymentService(
 
         if (!gatewayResult.Succeeded || string.IsNullOrWhiteSpace(gatewayResult.GatewayToken))
         {
+            if (IsAmbiguousCreateOutcome(gatewayResult.ErrorCode))
+            {
+                // HTTP failures and malformed/missing gateway responses do not prove that
+                // Sadad rejected the order. Keep the record pending for manual reconciliation.
+                await WriteAuditAsync("PaymentCreateOutcomeUnknown", correlationId, transaction, PaymentStatus.Pending.ToString(), "CreateOutcomeUnknown", "ReviewRequired", cancellationToken);
+                return PaymentCreateResult.RequiresReconciliation(transaction, gatewayResult.ErrorCode ?? "CREATE_OUTCOME_UNKNOWN");
+            }
+
             transaction.MarkFailed();
             await repository.SaveChangesAsync(cancellationToken);
             await WriteAuditAsync("PaymentFailed", correlationId, transaction, PaymentStatus.Pending.ToString(), gatewayResult.ErrorCode ?? PaymentStatus.Failed.ToString(), "Failure", cancellationToken);
@@ -142,6 +150,12 @@ public sealed class PaymentService(
                 newState),
             cancellationToken);
 
+    private static bool IsAmbiguousCreateOutcome(string? errorCode) =>
+        errorCode is not null &&
+        (errorCode.StartsWith("HTTP_", StringComparison.OrdinalIgnoreCase) ||
+         string.Equals(errorCode, "INVALID_GATEWAY_RESPONSE", StringComparison.Ordinal) ||
+         string.Equals(errorCode, "SADAD_TOKEN_MISSING", StringComparison.Ordinal));
+
     private static bool CryptographicEquals(string left, string right)
     {
         var leftBytes = Encoding.UTF8.GetBytes(left);
@@ -153,7 +167,11 @@ public sealed class PaymentService(
 public sealed record PaymentCreateResult(PaymentTransaction Transaction, string? GatewayToken, bool AlreadyProcessed, bool Succeeded, string? ErrorCode)
 {
     public static PaymentCreateResult Created(PaymentTransaction t, string token) => new(t, token, false, true, null);
-    public static PaymentCreateResult FromExisting(PaymentTransaction t) => new(t, t.GatewayToken, true, t.Status is PaymentStatus.Succeeded or PaymentStatus.Pending, null);
+    public static PaymentCreateResult FromExisting(PaymentTransaction t) =>
+        t.Status == PaymentStatus.Pending && string.IsNullOrWhiteSpace(t.GatewayToken)
+            ? RequiresReconciliation(t, "PAYMENT_CREATE_OUTCOME_UNKNOWN")
+            : new(t, t.GatewayToken, true, t.Status is PaymentStatus.Succeeded or PaymentStatus.Pending, null);
+    public static PaymentCreateResult RequiresReconciliation(PaymentTransaction t, string error) => new(t, null, true, false, error);
     public static PaymentCreateResult Failed(PaymentTransaction t, string? error) => new(t, null, false, false, error);
 }
 
