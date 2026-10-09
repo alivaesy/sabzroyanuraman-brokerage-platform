@@ -27,7 +27,9 @@ public sealed class SadadPaymentGateway(
             Amount = request.Amount,
             SignData = signData,
             ReturnUrl = request.ReturnUrl,
-            LocalDateTime = DateTime.Now.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture),
+            // The legacy Shaparak VPG integration uses MM/dd/yyyy h:mm:ss tt.
+            // Keep the format culture-invariant so host locale cannot alter the wire contract.
+            LocalDateTime = DateTime.Now.ToString("MM/dd/yyyy h:mm:ss tt", CultureInfo.InvariantCulture),
             OrderId = request.OrderId
         };
 

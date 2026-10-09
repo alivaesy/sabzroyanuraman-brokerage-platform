@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using Brokerage.Application.Contracts;
 using Brokerage.Infrastructure.Payments;
@@ -27,6 +28,29 @@ public class SadadPaymentGatewayTests
         Assert.Contains("\"signData\"", handler.RequestBody);
         Assert.Contains("\"orderId\"", handler.RequestBody);
         Assert.DoesNotContain(TestTerminalKey, handler.RequestBody);
+    }
+
+    [Fact]
+    public async Task CreatePayment_UsesLegacySadadLocalDateTimeFormat()
+    {
+        var handler = new StubHandler("""{"ResCode":"0","Token":"test-token"}""");
+        using var client = new HttpClient(handler);
+        var gateway = CreateGateway(client, CreateOptions());
+
+        var result = await gateway.CreatePaymentAsync(CreateRequest());
+
+        Assert.True(result.Succeeded);
+        using var document = System.Text.Json.JsonDocument.Parse(handler.RequestBody);
+        var localDateTime = document.RootElement.GetProperty("localDateTime").GetString();
+        Assert.NotNull(localDateTime);
+        Assert.True(
+            DateTime.TryParseExact(
+                localDateTime,
+                "MM/dd/yyyy h:mm:ss tt",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out _),
+            $"Unexpected Sadad LocalDateTime format: {localDateTime}");
     }
 
     [Fact]
@@ -134,6 +158,35 @@ public class SadadPaymentGatewayTests
         Assert.False(result.Succeeded);
         Assert.Null(result.Amount);
         Assert.Equal("SADAD_AMOUNT_MISSING", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task VerifyPayment_MissingReferenceIsRejected()
+    {
+        var handler = new StubHandler("""{"ResCode":"0","Amount":"15000000"}""");
+        using var client = new HttpClient(handler);
+        var gateway = CreateGateway(client, CreateOptions());
+
+        var result = await gateway.VerifyPaymentAsync("issued-token");
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(15000000L, result.Amount);
+        Assert.Null(result.GatewayReference);
+        Assert.Equal("SADAD_REFERENCE_MISSING", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task VerifyPayment_ProviderRejectionIsNotReportedAsSuccess()
+    {
+        var handler = new StubHandler("""{"ResCode":"12","Description":"not verified"}""");
+        using var client = new HttpClient(handler);
+        var gateway = CreateGateway(client, CreateOptions());
+
+        var result = await gateway.VerifyPaymentAsync("issued-token");
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Amount);
+        Assert.Equal("12", result.ErrorCode);
     }
 
     [Fact]
