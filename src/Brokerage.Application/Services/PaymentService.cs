@@ -24,6 +24,10 @@ public sealed class PaymentService(
         var transaction = new PaymentTransaction(serviceRequestId, amount, "IRR", idempotencyKey);
         await repository.AddAsync(transaction, cancellationToken);
 
+        // Persist the stable local order ID before making a network call. If the process exits
+        // or the gateway times out after accepting the request, reconciliation can still find it.
+        await repository.SaveChangesAsync(cancellationToken);
+
         PaymentGatewayCreateResult gatewayResult;
         try
         {
@@ -34,7 +38,6 @@ public sealed class PaymentService(
         catch
         {
             // A timeout can happen after the gateway accepts the payment. Keep Pending for reconciliation.
-            await repository.SaveChangesAsync(cancellationToken);
             await WriteAuditAsync("PaymentGatewayUnavailable", correlationId, transaction.Id, PaymentStatus.Pending.ToString(), "Pending", cancellationToken);
             throw;
         }
