@@ -146,6 +146,72 @@ public class PaymentServiceTests
         Assert.Equal(1, gateway.VerifyCalls);
     }
 
+    [Fact]
+    public async Task VerifyAsync_AmountMismatchRequiresReconciliation()
+    {
+        var requestId = Guid.NewGuid();
+        var existing = new PaymentTransaction(requestId, 1000, "IRR", "verify-amount-mismatch-key");
+        existing.MarkGatewayCreated("gateway-token");
+        var repository = new FakePaymentRepository(existing);
+        var gateway = new FakePaymentGateway
+        {
+            VerifyResultOverride = new PaymentGatewayVerifyResult(true, 999, "trace-mismatch")
+        };
+        var audit = new FakeAuditEventWriter();
+        var service = new PaymentService(repository, gateway, audit);
+
+        var result = await service.VerifyAsync(existing.Id, "gateway-token", "correlation-amount-mismatch");
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("VERIFY_AMOUNT_MISMATCH", result.ErrorCode);
+        Assert.Equal(PaymentStatus.ReconciliationRequired, existing.Status);
+        Assert.Equal(1, gateway.VerifyCalls);
+        Assert.Equal("PaymentReconciliationRequired", Assert.Single(audit.Events).EventType);
+    }
+
+    [Fact]
+    public async Task VerifyAsync_MissingReferenceRequiresReconciliation()
+    {
+        var requestId = Guid.NewGuid();
+        var existing = new PaymentTransaction(requestId, 1000, "IRR", "verify-missing-reference-key");
+        existing.MarkGatewayCreated("gateway-token");
+        var repository = new FakePaymentRepository(existing);
+        var gateway = new FakePaymentGateway
+        {
+            VerifyResultOverride = new PaymentGatewayVerifyResult(true, 1000, null)
+        };
+        var audit = new FakeAuditEventWriter();
+        var service = new PaymentService(repository, gateway, audit);
+
+        var result = await service.VerifyAsync(existing.Id, "gateway-token", "correlation-missing-reference");
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("VERIFY_REFERENCE_MISSING", result.ErrorCode);
+        Assert.Equal(PaymentStatus.ReconciliationRequired, existing.Status);
+        Assert.Equal(1, gateway.VerifyCalls);
+        Assert.Equal("PaymentReconciliationRequired", Assert.Single(audit.Events).EventType);
+    }
+
+    [Fact]
+    public async Task VerifyAsync_SuccessfulReplayDoesNotCallGatewayAgain()
+    {
+        var requestId = Guid.NewGuid();
+        var existing = new PaymentTransaction(requestId, 1000, "IRR", "verify-success-replay-key");
+        existing.MarkGatewayCreated("gateway-token");
+        existing.MarkVerifying();
+        existing.MarkSucceeded("trace-success");
+        var repository = new FakePaymentRepository(existing);
+        var gateway = new FakePaymentGateway();
+        var service = new PaymentService(repository, gateway, new FakeAuditEventWriter());
+
+        var result = await service.VerifyAsync(existing.Id, "gateway-token", "correlation-success-replay");
+
+        Assert.True(result.Succeeded);
+        Assert.True(result.AlreadySucceeded);
+        Assert.Equal(PaymentStatus.Succeeded, existing.Status);
+        Assert.Equal(0, gateway.VerifyCalls);
+    }
+
     private sealed class FakePaymentRepository : IPaymentTransactionRepository
     {
         public List<PaymentTransaction> Items { get; } = [];
@@ -203,6 +269,7 @@ public class PaymentServiceTests
         public int VerifyCalls { get; private set; }
         public bool ThrowOnVerify { get; init; }
         public PaymentGatewayCreateResult? CreateResultOverride { get; init; }
+        public PaymentGatewayVerifyResult? VerifyResultOverride { get; init; }
 
         public Task<PaymentGatewayCreateResult> CreatePaymentAsync(PaymentGatewayCreateRequest request, CancellationToken cancellationToken = default)
         {
@@ -215,7 +282,7 @@ public class PaymentServiceTests
             VerifyCalls++;
             if (ThrowOnVerify)
                 throw new HttpRequestException("Simulated gateway timeout.");
-            return Task.FromResult(new PaymentGatewayVerifyResult(false, null, null, "NOT_IMPLEMENTED"));
+            return Task.FromResult(VerifyResultOverride ?? new PaymentGatewayVerifyResult(false, null, null, "NOT_IMPLEMENTED"));
         }
     }
 
