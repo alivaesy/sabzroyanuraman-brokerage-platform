@@ -1,4 +1,5 @@
-using System.Text;\nusing Microsoft.Extensions.Configuration;
+using System.Text;
+using Microsoft.Extensions.Configuration;
 
 namespace Brokerage.Infrastructure.Payments;
 
