@@ -261,6 +261,7 @@ app.MapGet("/ops/status", async (
         : Results.Json(payload, statusCode: StatusCodes.Status503ServiceUnavailable);
 }).RequireAuthorization(AuthorizationPolicies.OperationalMonitoring);
 AuditExportEndpoints.Map(app);
+PaymentOperationalEndpoints.Map(app);
 
 app.MapPost("/identity/verify", async (
     ICurrentUser currentUser,
