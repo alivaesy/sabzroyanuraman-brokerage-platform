@@ -58,8 +58,8 @@ public sealed class PaymentTransaction
     {
         if (string.IsNullOrWhiteSpace(gatewayReference))
             throw new ArgumentException("Gateway reference cannot be empty.", nameof(gatewayReference));
-        if (Status == PaymentStatus.Cancelled)
-            throw new InvalidOperationException("A cancelled payment cannot succeed.");
+        if (Status is PaymentStatus.Failed or PaymentStatus.Cancelled)
+            throw new InvalidOperationException($"A {Status.ToString().ToLowerInvariant()} payment cannot succeed.");
 
         GatewayReference = gatewayReference;
         Status = PaymentStatus.Succeeded;
