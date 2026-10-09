@@ -12,12 +12,13 @@ This file is the shared handoff point between different ChatGPT accounts working
 - Pipeline 2930344778 for SHA 642a7679 initially had a runner-system failure pulling `mcr.microsoft.com/dotnet/sdk:10.0`; retry job 17059397567 succeeded.
 - Pipeline 2930346858 for SHA 34e7912f completed successfully with all five jobs green.
 - Pipeline 2930436428 for SHA e0287bfe completed successfully with all five jobs green.
+- Pipeline 2930518847 for SHA c424c0d3 completed successfully on 2026-10-09; all five jobs passed: site_validate, php_validate, dotnet_build, dotnet_migration_verify, dotnet_test.
 
 ## Current Branch
 feat/payment-foundation-sadad-ready
 
 ## Latest Known Commit
-e0287bfe44c4969c5ecebf0b169fa3c8eca2cc69 — test: cover payment verification mismatch and replay paths
+c424c0d3f58245323f1c153b6aec45b93cf7c714 — fix: align Sadad timestamp format and expand gateway tests
 
 ## Completed Work Relevant To Current Track
 - Sadad payment gateway adapter foundation and configuration validation.
@@ -30,14 +31,23 @@ e0287bfe44c4969c5ecebf0b169fa3c8eca2cc69 — test: cover payment verification mi
 - Sadad adapter request timestamp format aligned to the legacy Shaparak VPG format `MM/dd/yyyy h:mm:ss tt`, with culture-invariant formatting and a regression test.
 - Sadad adapter tests cover missing verification reference and provider rejection.
 
+## Current Payment Architecture Fact (User-Reported)
+- The currently live PHP website performs the Sadad Verify request itself after the user returns from the gateway and records the result.
+- The sensitive/live PHP payment files are intentionally not stored in this GitLab repository. Keep them private; do not ask the user to commit them or disclose credentials/secrets.
+- The live PHP path is working and must not be modified as part of the .NET foundation work unless the user explicitly asks.
+- Before enabling the new .NET payment path in production, explicitly decide the ownership boundary: either PHP remains the sole final verifier/recorder for the existing flow, or the new .NET flow owns its own transaction lifecycle. Do not allow PHP and .NET to independently act as authoritative final payment recorders for the same transaction.
+- Use only non-sensitive behavioral facts to compare flows (amount units, order IDs, callback/token handling, Verify outcome, duplicate callback behavior, and when the result is recorded). Never request or commit merchant credentials, TerminalKey, raw secrets, or sensitive PHP code.
+
 ## Currently In Progress
 - Payment Foundation: callback concurrency/replay safety and operational reconciliation behavior.
+- Architecture boundary between the existing PHP payment flow and the future .NET flow needs to be made explicit before production integration.
 
 ## Remaining Tasks
 - Review duplicate/concurrent callback behavior and interrupted verification.
 - Confirm timestamp timezone and exact wire format against the merchant's current official Sadad integration pack before production enablement.
 - Confirm TerminalKey encoding/encryption details against the merchant's issued credentials and official contract; never commit secrets.
 - Real provider credentials and end-to-end gateway tests remain environment-dependent; never commit secrets.
+- Define a non-overlapping final-payment ownership boundary between existing PHP and new .NET components before production activation.
 - Real Sana/Shahkar adapters, document integration, production security verification, and microservices separation remain broader project gaps.
 
 ## Known Errors / Issues
@@ -49,6 +59,8 @@ e0287bfe44c4969c5ecebf0b169fa3c8eca2cc69 — test: cover payment verification mi
 - Keep ambiguous gateway outcomes in reconciliation/manual review; do not infer settlement from a callback alone.
 - Do not automatically mark an ambiguous payment succeeded or failed.
 - Do not expose gateway tokens or raw provider response bodies in operational endpoints.
+- Credentials must never be committed.
+- The currently live PHP Verify/recording behavior is user-reported and remains untouched.
 - Do not merge to master without explicit approval.
 
 ## Files Recently Changed
@@ -58,7 +70,7 @@ e0287bfe44c4969c5ecebf0b169fa3c8eca2cc69 — test: cover payment verification mi
 - docs/AI_HANDOFF.md
 
 ## Next Recommended Step
-Review atomic callback/verification claims against the repository implementation and tests. Then design bounded/indexed stale-candidate queries without changing ambiguous-payment safety behavior.
+Review atomic callback/verification claims against the repository implementation and tests. Then design bounded/indexed stale-candidate queries without changing ambiguous-payment safety behavior. Keep the PHP/.NET payment ownership boundary explicit before production integration.
 
 ## Important Rules
 - Inspect the current repository before making changes.
