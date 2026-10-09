@@ -37,7 +37,7 @@ public sealed class PaymentService(
         }
         catch
         {
-            // A timeout can happen after the gateway accepts the payment. Keep Pending for reconciliation.
+            // A timeout can happen after the gateway accepts the request. Keep Pending for reconciliation.
             await WriteAuditAsync("PaymentGatewayUnavailable", correlationId, transaction.Id, PaymentStatus.Pending.ToString(), "Pending", cancellationToken);
             throw;
         }
@@ -94,15 +94,25 @@ public sealed class PaymentService(
 
         if (!gatewayResult.Succeeded || gatewayResult.Amount != transaction.Amount || string.IsNullOrWhiteSpace(gatewayResult.GatewayReference))
         {
-            transaction.MarkFailed();
+            // A negative or malformed provider response is not enough to prove that no money moved.
+            // Keep it out of terminal Failed status until the authoritative gateway state is reviewed.
+            transaction.MarkReconciliationRequired();
             await repository.SaveChangesAsync(cancellationToken);
-            await WriteAuditAsync("PaymentFailed", correlationId, transaction.Id, PaymentStatus.Pending.ToString(), gatewayResult.ErrorCode ?? "VERIFY_REJECTED", cancellationToken);
-            return PaymentVerifyResult.Failure(transaction, gatewayResult.ErrorCode ?? "VERIFY_REJECTED");
+            var reason = gatewayResult.ErrorCode
+                ?? (gatewayResult.Amount != transaction.Amount ? "VERIFY_AMOUNT_MISMATCH" : "VERIFY_REFERENCE_MISSING");
+            await WriteAuditAsync(
+                "PaymentReconciliationRequired",
+                correlationId,
+                transaction.Id,
+                PaymentStatus.Verifying.ToString(),
+                $"{PaymentStatus.ReconciliationRequired}:{reason}",
+                cancellationToken);
+            return PaymentVerifyResult.Failure(transaction, reason);
         }
 
         transaction.MarkSucceeded(gatewayResult.GatewayReference);
         await repository.SaveChangesAsync(cancellationToken);
-        await WriteAuditAsync("PaymentVerified", correlationId, transaction.Id, PaymentStatus.Pending.ToString(), PaymentStatus.Succeeded.ToString(), cancellationToken);
+        await WriteAuditAsync("PaymentVerified", correlationId, transaction.Id, PaymentStatus.Verifying.ToString(), PaymentStatus.Succeeded.ToString(), cancellationToken);
 
         return PaymentVerifyResult.Success(transaction);
     }

@@ -118,16 +118,20 @@ public static class PaymentOperationalEndpoints
                     status = payment.Status.ToString(),
                     payment.CreatedAt,
                     payment.UpdatedAt,
-                    reviewReason = payment.Status == PaymentStatus.Verifying
-                        ? "VerificationStalled"
-                        : payment.GatewayToken is null
-                            ? "GatewayCreateOutcomeUnknown"
-                            : "CallbackOrVerificationPending",
-                    recommendedAction = payment.Status == PaymentStatus.Verifying
-                        ? "Check the gateway's authoritative transaction status before changing local payment state."
-                        : payment.GatewayToken is null
-                            ? "Check gateway and local request logs or the merchant portal before retrying Create; the original request may have been accepted."
-                            : "Check the authoritative gateway status and use the supported verification flow; do not infer settlement from a callback alone."
+                    reviewReason = payment.Status switch
+                    {
+                        PaymentStatus.Verifying => "VerificationStalled",
+                        PaymentStatus.ReconciliationRequired => "GatewayResultNeedsManualReview",
+                        _ when payment.GatewayToken is null => "GatewayCreateOutcomeUnknown",
+                        _ => "CallbackOrVerificationPending"
+                    },
+                    recommendedAction = payment.Status switch
+                    {
+                        PaymentStatus.Verifying => "Check the gateway's authoritative transaction status before changing local payment state.",
+                        PaymentStatus.ReconciliationRequired => "Review the provider's authoritative transaction record and compare amount/reference. Do not retry verification or change status until the provider's supported recovery procedure is confirmed.",
+                        _ when payment.GatewayToken is null => "Check gateway and local request logs or the merchant portal before retrying Create; the original request may have been accepted.",
+                        _ => "Check the authoritative gateway status and use the supported verification flow; do not infer settlement from a callback alone."
+                    }
                 })
             });
         }).RequireAuthorization(AuthorizationPolicies.OperationalMonitoring);

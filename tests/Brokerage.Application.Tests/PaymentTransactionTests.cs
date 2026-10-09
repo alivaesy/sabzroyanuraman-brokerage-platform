@@ -47,4 +47,18 @@ public class PaymentTransactionTests
 
         Assert.Throws<InvalidOperationException>(() => payment.MarkSucceeded("trace"));
     }
+
+    [Fact]
+    public void VerificationWithAmbiguousGatewayResult_CanBeMovedToReconciliationRequiredButNotAutoSettled()
+    {
+        var payment = new PaymentTransaction(Guid.NewGuid(), 1000, "IRR", "idem-reconcile");
+        payment.MarkGatewayCreated("sadad-token");
+        payment.MarkVerifying();
+        payment.MarkReconciliationRequired();
+
+        Assert.Equal(PaymentStatus.ReconciliationRequired, payment.Status);
+        Assert.Throws<InvalidOperationException>(() => payment.MarkSucceeded("trace"));
+        Assert.Throws<InvalidOperationException>(() => payment.MarkFailed());
+        Assert.Throws<InvalidOperationException>(() => payment.MarkCancelled());
+    }
 }

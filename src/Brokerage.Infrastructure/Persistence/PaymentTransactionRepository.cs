@@ -66,11 +66,14 @@ public sealed class PaymentTransactionRepository(BrokerageDbContext dbContext)
 
         // Pending records are included because a create request may have timed out after
         // Sadad accepted it, or a successful payment may still be awaiting its callback.
-        // This query is deliberately read-only: it never retries Create or changes status.
+        // ReconciliationRequired records need explicit operational review; this query never
+        // retries Create/Verify or changes a payment state.
         return await dbContext.PaymentTransactions
             .AsNoTracking()
             .Where(x =>
-                (x.Status == PaymentStatus.Pending || x.Status == PaymentStatus.Verifying) &&
+                (x.Status == PaymentStatus.Pending ||
+                 x.Status == PaymentStatus.Verifying ||
+                 x.Status == PaymentStatus.ReconciliationRequired) &&
                 x.UpdatedAt < updatedBefore)
             .OrderBy(x => x.UpdatedAt)
             .Take(limit)

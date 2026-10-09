@@ -6,5 +6,6 @@ public enum PaymentStatus
     Verifying,
     Succeeded,
     Failed,
-    Cancelled
+    Cancelled,
+    ReconciliationRequired
 }

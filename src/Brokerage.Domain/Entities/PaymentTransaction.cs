@@ -45,7 +45,7 @@ public sealed class PaymentTransaction
 
     public void MarkGatewayCreated(string gatewayToken)
     {
-        if (Status is PaymentStatus.Succeeded or PaymentStatus.Cancelled)
+        if (Status is PaymentStatus.Succeeded or PaymentStatus.Cancelled or PaymentStatus.Failed or PaymentStatus.ReconciliationRequired)
             throw new InvalidOperationException($"Payment cannot receive a gateway token in status {Status}.");
         if (string.IsNullOrWhiteSpace(gatewayToken))
             throw new ArgumentException("Gateway token cannot be empty.", nameof(gatewayToken));
@@ -58,7 +58,7 @@ public sealed class PaymentTransaction
     {
         if (string.IsNullOrWhiteSpace(gatewayReference))
             throw new ArgumentException("Gateway reference cannot be empty.", nameof(gatewayReference));
-        if (Status is PaymentStatus.Failed or PaymentStatus.Cancelled)
+        if (Status is PaymentStatus.Failed or PaymentStatus.Cancelled or PaymentStatus.ReconciliationRequired)
             throw new InvalidOperationException($"A {Status.ToString().ToLowerInvariant()} payment cannot succeed.");
 
         GatewayReference = gatewayReference;
@@ -71,6 +71,8 @@ public sealed class PaymentTransaction
     {
         if (Status == PaymentStatus.Succeeded)
             throw new InvalidOperationException("A succeeded payment cannot be marked failed.");
+        if (Status == PaymentStatus.ReconciliationRequired)
+            throw new InvalidOperationException("A payment requiring reconciliation cannot be marked failed without review.");
 
         Status = PaymentStatus.Failed;
         Touch();
@@ -80,6 +82,8 @@ public sealed class PaymentTransaction
     {
         if (Status == PaymentStatus.Succeeded)
             throw new InvalidOperationException("A succeeded payment cannot be cancelled.");
+        if (Status == PaymentStatus.ReconciliationRequired)
+            throw new InvalidOperationException("A payment requiring reconciliation cannot be cancelled without review.");
 
         Status = PaymentStatus.Cancelled;
         Touch();
@@ -100,6 +104,15 @@ public sealed class PaymentTransaction
             return;
 
         Status = PaymentStatus.Pending;
+        Touch();
+    }
+
+    public void MarkReconciliationRequired()
+    {
+        if (Status != PaymentStatus.Verifying)
+            throw new InvalidOperationException($"Only verifying payments can require reconciliation; current status is {Status}.");
+
+        Status = PaymentStatus.ReconciliationRequired;
         Touch();
     }
 
