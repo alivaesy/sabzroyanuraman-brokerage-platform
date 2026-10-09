@@ -18,6 +18,8 @@ public static class PaymentOperationalEndpoints
             int? limit,
             CancellationToken cancellationToken) =>
         {
+            context.Response.Headers.CacheControl = "no-store";
+
             var ageMinutes = olderThanMinutes ?? 10;
             var resultLimit = limit ?? 100;
 
@@ -44,8 +46,6 @@ public static class PaymentOperationalEndpoints
                 null,
                 null,
                 context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
-
-            context.Response.Headers.CacheControl = "no-store";
 
             return Results.Ok(new
             {
@@ -75,6 +75,8 @@ public static class PaymentOperationalEndpoints
             int? limit,
             CancellationToken cancellationToken) =>
         {
+            context.Response.Headers.CacheControl = "no-store";
+
             var ageMinutes = olderThanMinutes ?? 10;
             var resultLimit = limit ?? 100;
 
@@ -101,8 +103,6 @@ public static class PaymentOperationalEndpoints
                 null,
                 null,
                 context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
-
-            context.Response.Headers.CacheControl = "no-store";
 
             return Results.Ok(new
             {

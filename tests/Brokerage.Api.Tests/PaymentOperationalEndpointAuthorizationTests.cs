@@ -37,7 +37,7 @@ public class PaymentOperationalEndpointAuthorizationTests
     [Theory]
     [InlineData("TechnicalSecurity")]
     [InlineData("Administrator")]
-    public async Task PaymentOperations_PrivilegedRoleReachesRequestValidation(string role)
+    public async Task PaymentOperations_PrivilegedRoleGetsNoStoreOnValidationFailure(string role)
     {
         await using var application = new WebApplicationFactory<Program>();
         using var client = application.CreateClient();
@@ -47,5 +47,6 @@ public class PaymentOperationalEndpointAuthorizationTests
         var response = await client.GetAsync("/ops/payments/reconciliation-candidates?limit=501");
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
     }
 }
