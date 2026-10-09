@@ -24,7 +24,10 @@ public class PaymentServiceTests
         Assert.False(result.Succeeded);
         Assert.Equal("IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_REQUEST", result.ErrorCode);
         Assert.Equal(0, gateway.CreateCalls);
-        Assert.Contains(audit.Events, item => item.EventType == "PaymentIdempotencyConflict");
+        var auditEvent = Assert.Single(audit.Events);
+        Assert.Equal("PaymentIdempotencyConflict", auditEvent.EventType);
+        Assert.Equal("Failure", auditEvent.Outcome);
+        Assert.Equal(requestId, auditEvent.ServiceRequestId);
         Assert.Equal(1, repository.Items.Count);
     }
 
@@ -45,6 +48,43 @@ public class PaymentServiceTests
         Assert.Equal(existing.Id, result.Transaction.Id);
         Assert.Equal("gateway-token", result.GatewayToken);
         Assert.Equal(0, gateway.CreateCalls);
+        Assert.Equal("Success", Assert.Single(audit.Events).Outcome);
+    }
+
+    [Fact]
+    public async Task VerifyAsync_RejectsMissingCallbackTokenWithoutCallingGateway()
+    {
+        var requestId = Guid.NewGuid();
+        var existing = new PaymentTransaction(requestId, 1000, "IRR", "missing-callback-token-key");
+        existing.MarkGatewayCreated("gateway-token");
+        var repository = new FakePaymentRepository(existing);
+        var gateway = new FakePaymentGateway();
+        var service = new PaymentService(repository, gateway, new FakeAuditEventWriter());
+
+        var result = await service.VerifyAsync(existing.Id, null, "correlation-missing-token");
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("CALLBACK_TOKEN_MISMATCH", result.ErrorCode);
+        Assert.Equal(0, gateway.VerifyCalls);
+        Assert.Equal(PaymentStatus.Pending, existing.Status);
+    }
+
+    [Fact]
+    public async Task VerifyAsync_RejectsMismatchedCallbackTokenWithoutCallingGateway()
+    {
+        var requestId = Guid.NewGuid();
+        var existing = new PaymentTransaction(requestId, 1000, "IRR", "mismatch-callback-token-key");
+        existing.MarkGatewayCreated("gateway-token");
+        var repository = new FakePaymentRepository(existing);
+        var gateway = new FakePaymentGateway();
+        var service = new PaymentService(repository, gateway, new FakeAuditEventWriter());
+
+        var result = await service.VerifyAsync(existing.Id, "different-token", "correlation-mismatch-token");
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("CALLBACK_TOKEN_MISMATCH", result.ErrorCode);
+        Assert.Equal(0, gateway.VerifyCalls);
+        Assert.Equal(PaymentStatus.Pending, existing.Status);
     }
 
     [Fact]
@@ -63,7 +103,10 @@ public class PaymentServiceTests
 
         Assert.Equal(PaymentStatus.ReconciliationRequired, existing.Status);
         Assert.Equal(1, gateway.VerifyCalls);
-        Assert.Contains(audit.Events, item => item.EventType == "PaymentVerifyOutcomeUnknown");
+        var auditEvent = Assert.Single(audit.Events);
+        Assert.Equal("PaymentVerifyOutcomeUnknown", auditEvent.EventType);
+        Assert.Equal("ReviewRequired", auditEvent.Outcome);
+        Assert.Equal(requestId, auditEvent.ServiceRequestId);
 
         var retry = await service.VerifyAsync(existing.Id, "gateway-token", "correlation-4");
         Assert.False(retry.Succeeded);

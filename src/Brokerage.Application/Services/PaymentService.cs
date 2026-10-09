@@ -22,11 +22,11 @@ public sealed class PaymentService(
                 !string.Equals(existing.Currency, "IRR", StringComparison.Ordinal))
             {
                 const string conflictCode = "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_REQUEST";
-                await WriteAuditAsync("PaymentIdempotencyConflict", correlationId, existing.Id, existing.Status.ToString(), conflictCode, cancellationToken);
+                await WriteAuditAsync("PaymentIdempotencyConflict", correlationId, existing, existing.Status.ToString(), conflictCode, "Failure", cancellationToken);
                 return PaymentCreateResult.Failed(existing, conflictCode);
             }
 
-            await WriteAuditAsync("PaymentAlreadyProcessed", correlationId, existing.Id, existing.Status.ToString(), "IdempotencyKeyReused", cancellationToken);
+            await WriteAuditAsync("PaymentAlreadyProcessed", correlationId, existing, existing.Status.ToString(), "IdempotencyKeyReused", "Success", cancellationToken);
             return PaymentCreateResult.FromExisting(existing);
         }
 
@@ -43,7 +43,7 @@ public sealed class PaymentService(
         }
         catch
         {
-            await WriteAuditAsync("PaymentGatewayUnavailable", correlationId, transaction.Id, PaymentStatus.Pending.ToString(), "Pending", cancellationToken);
+            await WriteAuditAsync("PaymentGatewayUnavailable", correlationId, transaction, PaymentStatus.Pending.ToString(), "CreateOutcomeUnknown", "ReviewRequired", cancellationToken);
             throw;
         }
 
@@ -51,13 +51,13 @@ public sealed class PaymentService(
         {
             transaction.MarkFailed();
             await repository.SaveChangesAsync(cancellationToken);
-            await WriteAuditAsync("PaymentFailed", correlationId, transaction.Id, PaymentStatus.Pending.ToString(), gatewayResult.ErrorCode ?? PaymentStatus.Failed.ToString(), cancellationToken);
+            await WriteAuditAsync("PaymentFailed", correlationId, transaction, PaymentStatus.Pending.ToString(), gatewayResult.ErrorCode ?? PaymentStatus.Failed.ToString(), "Failure", cancellationToken);
             return PaymentCreateResult.Failed(transaction, gatewayResult.ErrorCode);
         }
 
         transaction.MarkGatewayCreated(gatewayResult.GatewayToken);
         await repository.SaveChangesAsync(cancellationToken);
-        await WriteAuditAsync("PaymentCreated", correlationId, transaction.Id, null, PaymentStatus.Pending.ToString(), cancellationToken);
+        await WriteAuditAsync("PaymentCreated", correlationId, transaction, null, PaymentStatus.Pending.ToString(), "Success", cancellationToken);
         return PaymentCreateResult.Created(transaction, gatewayResult.GatewayToken);
     }
 
@@ -72,7 +72,9 @@ public sealed class PaymentService(
         if (transaction.Status != PaymentStatus.Pending || string.IsNullOrWhiteSpace(transaction.GatewayToken))
             return PaymentVerifyResult.Failure(transaction, "PAYMENT_NOT_VERIFIABLE");
 
-        if (!string.IsNullOrWhiteSpace(callbackToken) && !CryptographicEquals(callbackToken, transaction.GatewayToken))
+        // Callback verification must prove possession of the exact issued token. A missing
+        // token is not equivalent to a trusted callback and must never reach the gateway.
+        if (string.IsNullOrWhiteSpace(callbackToken) || !CryptographicEquals(callbackToken, transaction.GatewayToken))
             return PaymentVerifyResult.Failure(transaction, "CALLBACK_TOKEN_MISMATCH");
 
         if (!await repository.TryBeginVerificationAsync(paymentId, cancellationToken))
@@ -92,7 +94,7 @@ public sealed class PaymentService(
             // because a later callback could repeat the external operation without reconciliation.
             transaction.MarkVerificationOutcomeUnknown();
             await repository.SaveChangesAsync(cancellationToken);
-            await WriteAuditAsync("PaymentVerifyOutcomeUnknown", correlationId, transaction.Id, PaymentStatus.Verifying.ToString(), PaymentStatus.ReconciliationRequired.ToString(), cancellationToken);
+            await WriteAuditAsync("PaymentVerifyOutcomeUnknown", correlationId, transaction, PaymentStatus.Verifying.ToString(), PaymentStatus.ReconciliationRequired.ToString(), "ReviewRequired", cancellationToken);
             throw;
         }
 
@@ -105,21 +107,40 @@ public sealed class PaymentService(
             await WriteAuditAsync(
                 "PaymentReconciliationRequired",
                 correlationId,
-                transaction.Id,
+                transaction,
                 PaymentStatus.Verifying.ToString(),
                 $"{PaymentStatus.ReconciliationRequired}:{reason}",
+                "ReviewRequired",
                 cancellationToken);
             return PaymentVerifyResult.Failure(transaction, reason);
         }
 
         transaction.MarkSucceeded(gatewayResult.GatewayReference);
         await repository.SaveChangesAsync(cancellationToken);
-        await WriteAuditAsync("PaymentVerified", correlationId, transaction.Id, PaymentStatus.Verifying.ToString(), PaymentStatus.Succeeded.ToString(), cancellationToken);
+        await WriteAuditAsync("PaymentVerified", correlationId, transaction, PaymentStatus.Verifying.ToString(), PaymentStatus.Succeeded.ToString(), "Success", cancellationToken);
         return PaymentVerifyResult.Success(transaction);
     }
 
-    private Task WriteAuditAsync(string eventType, string correlationId, Guid paymentId, string? previousState, string newState, CancellationToken cancellationToken) =>
-        auditEventWriter.WriteAsync(new AuditEvent(Guid.NewGuid(), DateTimeOffset.UtcNow, eventType, correlationId, null, null, "Success", previousState, newState), cancellationToken);
+    private Task WriteAuditAsync(
+        string eventType,
+        string correlationId,
+        PaymentTransaction transaction,
+        string? previousState,
+        string newState,
+        string outcome,
+        CancellationToken cancellationToken) =>
+        auditEventWriter.WriteAsync(
+            new AuditEvent(
+                Guid.NewGuid(),
+                DateTimeOffset.UtcNow,
+                eventType,
+                correlationId,
+                transaction.ServiceRequestId,
+                null,
+                outcome,
+                previousState,
+                newState),
+            cancellationToken);
 
     private static bool CryptographicEquals(string left, string right)
     {
