@@ -53,5 +53,4 @@ public sealed class SadadOptions
             !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException($"Sadad {propertyName} must be an absolute HTTPS URL.");
     }
-    }
 }
