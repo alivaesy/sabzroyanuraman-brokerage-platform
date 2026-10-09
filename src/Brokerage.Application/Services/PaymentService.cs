@@ -17,6 +17,15 @@ public sealed class PaymentService(
         var existing = await repository.GetByIdempotencyKeyAsync(idempotencyKey, cancellationToken);
         if (existing is not null)
         {
+            if (existing.ServiceRequestId != serviceRequestId ||
+                existing.Amount != amount ||
+                !string.Equals(existing.Currency, "IRR", StringComparison.Ordinal))
+            {
+                const string conflictCode = "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_REQUEST";
+                await WriteAuditAsync("PaymentIdempotencyConflict", correlationId, existing.Id, existing.Status.ToString(), conflictCode, cancellationToken);
+                return PaymentCreateResult.Failed(existing, conflictCode);
+            }
+
             await WriteAuditAsync("PaymentAlreadyProcessed", correlationId, existing.Id, existing.Status.ToString(), "IdempotencyKeyReused", cancellationToken);
             return PaymentCreateResult.FromExisting(existing);
         }
