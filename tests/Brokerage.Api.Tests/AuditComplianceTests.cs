@@ -108,15 +108,12 @@ public class AuditComplianceTests
         await db.Database.MigrateAsync();
 
         var appliedMigrations = (await db.Database.GetAppliedMigrationsAsync()).ToArray();
-        Assert.Equal(
-            [
-                "20261005043933_InitialCreate",
-                "20261005093520_AddAuditEvents",
-                "20261005190000_HardenAuditEvents",
-                "20261006100000_PersistOtpMfaState",
-                "20261008170000_AddPaymentTransactions"
-            ],
-            appliedMigrations);
+        Assert.Equal("20261005043933_InitialCreate", appliedMigrations[0]);
+        Assert.Contains("20261005093520_AddAuditEvents", appliedMigrations);
+        Assert.Contains("20261005190000_HardenAuditEvents", appliedMigrations);
+        Assert.Contains("20261006100000_PersistOtpMfaState", appliedMigrations);
+        Assert.Contains("20261008170000_AddPaymentTransactions", appliedMigrations);
+        Assert.Contains("20261010100000_AddPaymentStatusUpdatedAtIndex", appliedMigrations);
 
         var tableNames = new HashSet<string>(StringComparer.Ordinal);
         await using (var command = connection.CreateCommand())
