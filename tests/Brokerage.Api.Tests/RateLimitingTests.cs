@@ -61,7 +61,7 @@ public class RateLimitingTests
 
 
     [Fact]
-    public async Task ServiceRequestCreation_IsRateLimitedPerUserAndDoesNotCacheRejections()
+    public async Task ServiceRequestCreationEndpoints_SharePerUserLimitAndDoNotCacheRejections()
     {
         await using var application = new WebApplicationFactory<Program>();
         const string userId = "REQUEST-RATE-LIMIT-USER";
@@ -76,7 +76,13 @@ public class RateLimitingTests
         client.DefaultRequestHeaders.Add("X-Test-User-Id", userId);
         client.DefaultRequestHeaders.Add("X-Test-User-Role", "Applicant");
 
-        for (var attempt = 0; attempt < 10; attempt++)
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            var response = await client.PostAsync("/service-requests?serviceCode=S01", content: null);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
+        for (var attempt = 0; attempt < 5; attempt++)
         {
             var response = await client.PostAsJsonAsync(
                 "/service-requests/s01",
