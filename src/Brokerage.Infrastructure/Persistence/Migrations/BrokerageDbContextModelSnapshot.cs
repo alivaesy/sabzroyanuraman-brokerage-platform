@@ -121,6 +121,7 @@ namespace Brokerage.Infrastructure.Persistence.Migrations
                     b.HasIndex("IdempotencyKey").IsUnique();
                     b.HasIndex("GatewayReference");
                     b.HasIndex("ServiceRequestId");
+                    b.HasIndex("Status", "UpdatedAt");
                     b.ToTable("payment_transactions", (string)null);
                 });
 

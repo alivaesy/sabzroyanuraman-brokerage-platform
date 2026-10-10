@@ -18,7 +18,7 @@ This file is the shared handoff point between different ChatGPT accounts working
 feat/payment-foundation-sadad-ready
 
 ## Latest Known Commit
-c424c0d3f58245323f1c153b6aec45b93cf7c714 — fix: align Sadad timestamp format and expand gateway tests
+See latest branch commit: perf: bound stale payment reconciliation queries in SQLite
 
 ## Completed Work Relevant To Current Track
 - Sadad payment gateway adapter foundation and configuration validation.
@@ -40,6 +40,7 @@ c424c0d3f58245323f1c153b6aec45b93cf7c714 — fix: align Sadad timestamp format a
 
 ## Currently In Progress
 - Payment Foundation: callback concurrency/replay safety and operational reconciliation behavior.
+- Latest work bounds stale-payment SQL queries and adds a composite Status+UpdatedAt index; CI must validate cutoff ordering and query behavior.
 - Architecture boundary between the existing PHP payment flow and the future .NET flow needs to be made explicit before production integration.
 
 ## Remaining Tasks
@@ -70,7 +71,7 @@ c424c0d3f58245323f1c153b6aec45b93cf7c714 — fix: align Sadad timestamp format a
 - docs/AI_HANDOFF.md
 
 ## Next Recommended Step
-Review atomic callback/verification claims against the repository implementation and tests. Then design bounded/indexed stale-candidate queries without changing ambiguous-payment safety behavior. Keep the PHP/.NET payment ownership boundary explicit before production integration.
+Review SQLite stale-query cutoff behavior and CI results. Then add service-level concurrent callback tests without changing ambiguous-payment safety behavior. Keep the PHP/.NET payment ownership boundary explicit before production integration.
 
 ## Important Rules
 - Inspect the current repository before making changes.

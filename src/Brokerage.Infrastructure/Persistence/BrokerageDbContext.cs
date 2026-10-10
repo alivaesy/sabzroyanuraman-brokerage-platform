@@ -108,6 +108,7 @@ public sealed class BrokerageDbContext(DbContextOptions<BrokerageDbContext> opti
             entity.HasIndex(x => x.IdempotencyKey).IsUnique();
             entity.HasIndex(x => x.GatewayReference);
             entity.HasIndex(x => x.ServiceRequestId);
+            entity.HasIndex(x => new { x.Status, x.UpdatedAt });
             entity.HasOne<ServiceRequest>()
                 .WithMany()
                 .HasForeignKey(x => x.ServiceRequestId)

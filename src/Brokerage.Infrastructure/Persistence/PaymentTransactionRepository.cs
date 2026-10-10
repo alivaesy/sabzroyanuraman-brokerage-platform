@@ -1,3 +1,4 @@
+using System.Globalization;
 using Brokerage.Application.Contracts;
 using Brokerage.Domain.Entities;
 using Brokerage.Domain.Enums;
@@ -8,26 +9,16 @@ namespace Brokerage.Infrastructure.Persistence;
 public sealed class PaymentTransactionRepository(BrokerageDbContext dbContext)
     : IPaymentTransactionRepository
 {
-    public Task<PaymentTransaction?> GetByIdAsync(
-        Guid id,
-        CancellationToken cancellationToken = default) =>
+    public Task<PaymentTransaction?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         dbContext.PaymentTransactions.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-    public Task<PaymentTransaction?> GetByIdempotencyKeyAsync(
-        string idempotencyKey,
-        CancellationToken cancellationToken = default) =>
-        dbContext.PaymentTransactions.SingleOrDefaultAsync(
-            x => x.IdempotencyKey == idempotencyKey,
-            cancellationToken);
+    public Task<PaymentTransaction?> GetByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken = default) =>
+        dbContext.PaymentTransactions.SingleOrDefaultAsync(x => x.IdempotencyKey == idempotencyKey, cancellationToken);
 
-    public async Task AddAsync(
-        PaymentTransaction transaction,
-        CancellationToken cancellationToken = default) =>
+    public async Task AddAsync(PaymentTransaction transaction, CancellationToken cancellationToken = default) =>
         await dbContext.PaymentTransactions.AddAsync(transaction, cancellationToken);
 
-    public async Task<PaymentTransaction> CreateOrGetByIdempotencyKeyAsync(
-        PaymentTransaction transaction,
-        CancellationToken cancellationToken = default)
+    public async Task<PaymentTransaction> CreateOrGetByIdempotencyKeyAsync(PaymentTransaction transaction, CancellationToken cancellationToken = default)
     {
         await dbContext.PaymentTransactions.AddAsync(transaction, cancellationToken);
         try
@@ -37,81 +28,53 @@ public sealed class PaymentTransactionRepository(BrokerageDbContext dbContext)
         }
         catch (DbUpdateException)
         {
-            // A concurrent request may have inserted the unique idempotency key after
-            // the caller's initial lookup. Detach the failed insert before querying again.
             dbContext.Entry(transaction).State = EntityState.Detached;
-            var existing = await dbContext.PaymentTransactions
-                .AsNoTracking()
+            var existing = await dbContext.PaymentTransactions.AsNoTracking()
                 .SingleOrDefaultAsync(x => x.IdempotencyKey == transaction.IdempotencyKey, cancellationToken);
-
-            if (existing is not null && existing.Id != transaction.Id)
-                return existing;
-
+            if (existing is not null && existing.Id != transaction.Id) return existing;
             throw;
         }
     }
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
-        dbContext.SaveChangesAsync(cancellationToken);
+    public Task SaveChangesAsync(CancellationToken cancellationToken = default) => dbContext.SaveChangesAsync(cancellationToken);
 
     public async Task<bool> TryBeginVerificationAsync(Guid paymentId, CancellationToken cancellationToken = default)
     {
         var now = DateTimeOffset.UtcNow;
         var updated = await dbContext.PaymentTransactions
             .Where(x => x.Id == paymentId && x.Status == PaymentStatus.Pending)
-            .ExecuteUpdateAsync(
-                setters => setters
-                    .SetProperty(x => x.Status, PaymentStatus.Verifying)
-                    .SetProperty(x => x.UpdatedAt, now),
-                cancellationToken);
-
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(x => x.Status, PaymentStatus.Verifying)
+                .SetProperty(x => x.UpdatedAt, now), cancellationToken);
         return updated == 1;
     }
 
-    public async Task<IReadOnlyList<PaymentTransaction>> GetStaleVerifyingAsync(
-        DateTimeOffset updatedBefore,
-        int limit = 100,
-        CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<PaymentTransaction>> GetStaleVerifyingAsync(
+        DateTimeOffset updatedBefore, int limit = 100, CancellationToken cancellationToken = default)
     {
         ValidateLimit(limit);
-
-        // SQLite cannot translate DateTimeOffset ordering/comparison consistently. Filter
-        // by the indexed/status column in SQL, then compare normalized timestamps in memory.
-        var verifying = await dbContext.PaymentTransactions
-            .AsNoTracking()
-            .Where(x => x.Status == PaymentStatus.Verifying)
-            .ToListAsync(cancellationToken);
-
-        return verifying
-            .Where(x => x.UpdatedAt < updatedBefore)
-            .OrderBy(x => x.UpdatedAt)
-            .Take(limit)
-            .ToList();
+        var cutoff = updatedBefore.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss.FFFFFFF+00:00", CultureInfo.InvariantCulture);
+        return QueryStaleAsync(
+            "SELECT * FROM payment_transactions WHERE Status = 'Verifying' AND UpdatedAt < {0} ORDER BY UpdatedAt LIMIT {1}",
+            cutoff, limit, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<PaymentTransaction>> GetStaleReconciliationCandidatesAsync(
-        DateTimeOffset updatedBefore,
-        int limit = 100,
-        CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<PaymentTransaction>> GetStaleReconciliationCandidatesAsync(
+        DateTimeOffset updatedBefore, int limit = 100, CancellationToken cancellationToken = default)
     {
         ValidateLimit(limit);
+        var cutoff = updatedBefore.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss.FFFFFFF+00:00", CultureInfo.InvariantCulture);
+        return QueryStaleAsync(
+            "SELECT * FROM payment_transactions WHERE Status IN ('Pending', 'Verifying', 'ReconciliationRequired') AND UpdatedAt < {0} ORDER BY UpdatedAt LIMIT {1}",
+            cutoff, limit, cancellationToken);
+    }
 
-        // Pending records may represent an unknown Create outcome or a lost callback;
-        // Verifying records may have been interrupted; reconciliation-required records
-        // need explicit review. This query is read-only and never retries gateway calls.
-        var candidates = await dbContext.PaymentTransactions
-            .AsNoTracking()
-            .Where(x =>
-                x.Status == PaymentStatus.Pending ||
-                x.Status == PaymentStatus.Verifying ||
-                x.Status == PaymentStatus.ReconciliationRequired)
-            .ToListAsync(cancellationToken);
-
-        return candidates
-            .Where(x => x.UpdatedAt < updatedBefore)
-            .OrderBy(x => x.UpdatedAt)
-            .Take(limit)
-            .ToList();
+    private async Task<IReadOnlyList<PaymentTransaction>> QueryStaleAsync(
+        string sql, string cutoff, int limit, CancellationToken cancellationToken)
+    {
+        // FromSqlRaw uses placeholders as parameters. Filtering, ordering, and limiting happen in SQLite.
+        var query = dbContext.PaymentTransactions.FromSqlRaw(sql, cutoff, limit).AsNoTracking();
+        return await query.ToListAsync(cancellationToken);
     }
 
     private static void ValidateLimit(int limit)

@@ -31,6 +31,7 @@ public class PaymentPersistenceTests
             "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'payment_transactions';");
         Assert.Contains("IX_payment_transactions_IdempotencyKey", indexes);
         Assert.Contains("IX_payment_transactions_GatewayReference", indexes);
+        Assert.Contains("IX_payment_transactions_Status_UpdatedAt", indexes);
     }
 
     [Fact]
