@@ -79,6 +79,18 @@ builder.Services.AddRateLimiter(options =>
         });
     });
 
+    options.AddPolicy("service-request-create", context =>
+    {
+        var partitionKey = GetRateLimitPartitionKey(context);
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        });
+    });
+
     options.OnRejected = (context, _) =>
     {
         context.HttpContext.Response.Headers.CacheControl = "no-store";
@@ -411,7 +423,7 @@ app.MapPost("/service-requests", async (
 
     var request = useCase.Execute(serviceCode, "INITIAL", currentUser.UserId);
     return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.CreatedAt, request.UpdatedAt });
-}).RequireAuthorization(AuthorizationPolicies.Applicant);
+}).RequireAuthorization(AuthorizationPolicies.Applicant).RequireRateLimiting("service-request-create");
 
 app.MapPost("/service-requests/s01", async (
     CreateS01ServiceRequest useCase, CreateS01RequestModel model, ICurrentUser currentUser,
@@ -432,7 +444,7 @@ app.MapPost("/service-requests/s01", async (
         currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
     return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.CreatedAt, request.UpdatedAt,
         request.CurrentWorkflowStageId, request.OrganizationTrackingId });
-}).RequireAuthorization(AuthorizationPolicies.Applicant);
+}).RequireAuthorization(AuthorizationPolicies.Applicant).RequireRateLimiting("service-request-create");
 
 app.MapGet("/service-requests/{id:guid}", async (
     Guid id,

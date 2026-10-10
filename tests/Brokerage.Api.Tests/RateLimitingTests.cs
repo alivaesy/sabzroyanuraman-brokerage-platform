@@ -58,6 +58,39 @@ public class RateLimitingTests
         Assert.Equal("no-store", verificationResponse.Headers.CacheControl?.ToString());
     }
 
+
+    [Fact]
+    public async Task ServiceRequestCreation_IsRateLimitedPerUserAndDoesNotCacheRejections()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        const string userId = "REQUEST-RATE-LIMIT-USER";
+
+        using (var scope = application.Services.CreateScope())
+        {
+            var states = scope.ServiceProvider.GetRequiredService<Brokerage.Application.Contracts.IIdentityVerificationStateRepository>();
+            await states.SaveResultAsync(userId, true, DateTimeOffset.UtcNow);
+        }
+
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", userId);
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", "Applicant");
+
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            var response = await client.PostAsJsonAsync(
+                "/service-requests/s01",
+                new { nationalIdentifier = "1234567891" });
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
+        var limitedResponse = await client.PostAsJsonAsync(
+            "/service-requests/s01",
+            new { nationalIdentifier = "1234567891" });
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, limitedResponse.StatusCode);
+        Assert.Equal("no-store", limitedResponse.Headers.CacheControl?.ToString());
+    }
+
     [Fact]
     public async Task IdentityVerification_RateLimitsPerUserAndDoesNotCacheRejections()
     {
