@@ -57,6 +57,15 @@ public class RateLimitingTests
             new { challengeId, code = "definitely-invalid" });
         Assert.Equal(HttpStatusCode.TooManyRequests, verificationResponse.StatusCode);
         Assert.Equal("no-store", verificationResponse.Headers.CacheControl?.ToString());
+
+        using var secondUserClient = application.CreateClient();
+        secondUserClient.DefaultRequestHeaders.Add("X-Test-User-Id", "OTP-SHARED-LIMIT-SECOND-USER");
+        secondUserClient.DefaultRequestHeaders.Add("X-Test-User-Role", "Applicant");
+        var separatePartitionResponse = await secondUserClient.PostAsync(
+            "/identity/otp/challenges",
+            content: null);
+        Assert.Equal(HttpStatusCode.OK, separatePartitionResponse.StatusCode);
+        Assert.Equal("no-store", separatePartitionResponse.Headers.CacheControl?.ToString());
     }
 
 
