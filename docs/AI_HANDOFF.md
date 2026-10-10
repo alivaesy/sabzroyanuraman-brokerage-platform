@@ -9,8 +9,8 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 ## Current Status
 - Active branch: `feat/payment-foundation-sadad-ready`.
 - User reports local build/tests are green; the assistant does not execute tests on the user's machine.
-- Latest commit: `d914c46c7649e82d331a922a515eb6c3afdbe9d2` (`security: rate limit audit exports`); it follows `bc2edb43` (`security: prevent caching of audit exports`).
-- Latest pipeline `2933065024` for commit `d914c46c` was pending when checked; do not report it as green until GitLab confirms completion: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2933065024
+- Latest commit before current batch: `d1b0e5d4256a161cd9c17a973fefe3e8177022f0` (`test: cover identity verification rate limiting`).
+- Pipeline `2933065509` for commit `d1b0e5d4` failed at `site_validate` before any project commands ran: the self-hosted Docker runner could not resolve `registry-1.docker.io` while pulling `alpine:3.20` (`runner_external_dependency_failure`). `php_validate` passed; .NET jobs were skipped. This is a runner/DNS/network dependency failure, not evidence of a code test failure: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2933065509
 - Earlier pipeline `2932874002` failed because `AuditComplianceTests.Migrations_ApplyToEmptyDatabase_AndCreateAuditImmutabilityTriggers` hard-coded the applied migration list and omitted `20261010100000_AddPaymentStatusUpdatedAtIndex`; the concurrent callback test itself passed.
 - Added SQLite stale reconciliation cutoff-boundary and non-UTC-offset coverage, including equivalent strict-cutoff coverage for stale `Verifying` payments.
 
@@ -32,7 +32,8 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 ## Latest Work
 - Fixed migration compliance test to assert required migrations without treating the list as permanently closed; explicitly checks the payment Status+UpdatedAt index migration.
 - Added strict cutoff and UTC-offset regression coverage for stale `Verifying` recovery candidates.
-- Hardened audit export against caching and added regression assertions for successful, forbidden, invalid date-range, and rate-limit rejection responses; confirmed rate-limit buckets are partitioned per user/IP.
+- Hardened audit export against caching and added regression assertions for successful, forbidden, invalid date-range, and rate-limit rejection responses.
+- Corrected rate-limit partition keys to use authenticated user-id/name-identifier claims plus remote IP, instead of relying on `Identity.Name`.
 
 ## Remaining / Release Gates
 - Confirm exact Sadad timestamp format, TerminalKey encoding and encryption details against the current merchant-issued integration pack before production enablement of the separate .NET adapter.
@@ -40,7 +41,7 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Define non-overlapping PHP/.NET payment ownership before production activation of .NET payment flow.
 - Real Sana/Shahkar adapters, document integration, production security verification, and broader scaling/monitoring remain outside the current payment foundation.
 - Audit NDJSON export has its own fixed-window rate limit (10 requests per minute per authenticated user/IP partition); rate-limit rejection responses also carry Cache-Control: no-store.
-- Identity verification has regression coverage for its five-requests-per-minute per-user limit, separate user partitions, and no-store on 429 responses.
+- Identity verification has regression coverage for its five-requests-per-minute per-user/IP limit, separate user partitions, and no-store on 429 responses. All three policies (OTP issue/verify, identity verification, audit export) derive partition identity from the authenticated user-id/name-identifier claim plus remote IP; do not rely on `ClaimsPrincipal.Identity.Name`, which is not populated by the development test handler.
 - Keep ambiguous payment outcomes in reconciliation/manual review; never infer settlement from callback alone or automatically mark ambiguous transactions succeeded/failed.
 - Do not expose gateway tokens/provider raw bodies from operational endpoints.
 - Do not merge to master without explicit approval.

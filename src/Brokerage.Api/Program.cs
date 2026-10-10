@@ -32,6 +32,17 @@ builder.Logging.AddJsonConsole();
 builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IOperationalMetrics, OperationalMetrics>();
+
+static string GetRateLimitPartitionKey(HttpContext context)
+{
+    var userId = context.User.FindFirst(IdentityClaims.UserId)?.Value
+        ?? context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+        ?? context.User.Identity?.Name
+        ?? "anonymous";
+    var remoteIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    return $"{userId}:{remoteIp}";
+}
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -46,23 +57,19 @@ builder.Services.AddRateLimiter(options =>
 
     options.AddPolicy("otp", context =>
     {
-        var partitionKey = context.User.Identity?.Name
-            ?? context.Connection.RemoteIpAddress?.ToString()
-            ?? "unknown";
+        var partitionKey = GetRateLimitPartitionKey(context);
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => CreateOptions());
     });
 
     options.AddPolicy("identity-verification", context =>
     {
-        var partitionKey = context.User.Identity?.Name
-            ?? context.Connection.RemoteIpAddress?.ToString()
-            ?? "unknown";
+        var partitionKey = GetRateLimitPartitionKey(context);
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => CreateOptions());
     });
 
     options.AddPolicy("audit-export", context =>
     {
-        var partitionKey = $"{context.User.Identity?.Name ?? "anonymous"}:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+        var partitionKey = GetRateLimitPartitionKey(context);
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = 10,
