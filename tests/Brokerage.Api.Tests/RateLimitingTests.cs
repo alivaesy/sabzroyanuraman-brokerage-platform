@@ -26,9 +26,35 @@ public class RateLimitingTests
 
         var verificationResponse = await client.PostAsJsonAsync(
             "/identity/otp/verify",
-            new { challengeId, code = "000000" });
+            new { challengeId, code = "definitely-invalid" });
 
         Assert.Equal(HttpStatusCode.BadRequest, verificationResponse.StatusCode);
+        Assert.Equal("no-store", verificationResponse.Headers.CacheControl?.ToString());
+    }
+
+    [Fact]
+    public async Task OtpIssueAndVerifyShareFiveRequestsPerMinuteLimit()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "OTP-SHARED-LIMIT-USER");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", "Applicant");
+
+        for (var attempt = 0; attempt < 4; attempt++)
+        {
+            var response = await client.PostAsync("/identity/otp/challenges", content: null);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
+        var challengeResponse = await client.PostAsync("/identity/otp/challenges", content: null);
+        Assert.Equal(HttpStatusCode.OK, challengeResponse.StatusCode);
+        var challenge = await challengeResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var challengeId = challenge.GetProperty("challengeId").GetString();
+
+        var verificationResponse = await client.PostAsJsonAsync(
+            "/identity/otp/verify",
+            new { challengeId, code = "definitely-invalid" });
+        Assert.Equal(HttpStatusCode.TooManyRequests, verificationResponse.StatusCode);
         Assert.Equal("no-store", verificationResponse.Headers.CacheControl?.ToString());
     }
 
