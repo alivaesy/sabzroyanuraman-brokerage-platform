@@ -124,6 +124,32 @@ public class PrivacyComplianceTests
         Assert.Contains("IdentityVerification", exported, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task IdentityMe_DisablesCachingForAccountSpecificState()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = CreateApplicantClient(application);
+
+        var response = await client.GetAsync("/identity/me");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+    }
+
+    [Fact]
+    public async Task ServiceRequestAuthorizationFailure_DisablesCaching()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "privacy-support");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Support.ToString());
+
+        var response = await client.GetAsync($"/service-requests/{Guid.NewGuid()}");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+    }
+
     private static HttpClient CreateApplicantClient(WebApplicationFactory<Program> application)
     {
         var client = application.CreateClient();

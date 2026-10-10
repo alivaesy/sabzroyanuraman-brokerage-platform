@@ -236,6 +236,23 @@ app.Use(async (context, next) =>
     await next();
 });
 
+// Identity and service-request APIs return account-specific or case-specific data.
+// Apply no-store before authorization/endpoint execution so error responses are covered too.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/identity") ||
+        context.Request.Path.StartsWithSegments("/service-requests"))
+    {
+        context.Response.OnStarting(() =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            return Task.CompletedTask;
+        });
+    }
+
+    await next();
+});
+
 app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
