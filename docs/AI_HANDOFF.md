@@ -10,15 +10,14 @@ This file is the shared handoff point between different ChatGPT accounts working
 - Active development on the payment foundation branch.
 - User reports local build and tests are green; this is user-reported and was not executed by the assistant.
 - Pipeline 2930344778 for SHA 642a7679 initially had a runner-system failure pulling `mcr.microsoft.com/dotnet/sdk:10.0`; retry job 17059397567 succeeded.
-- Pipeline 2930346858 for SHA 34e7912f completed successfully with all five jobs green.
-- Pipeline 2930436428 for SHA e0287bfe completed successfully with all five jobs green.
-- Pipeline 2930518847 for SHA c424c0d3 completed successfully on 2026-10-09; all five jobs passed: site_validate, php_validate, dotnet_build, dotnet_migration_verify, dotnet_test.
+- Pipelines 2930346858 (SHA 34e7912f), 2930436428 (SHA e0287bfe), and 2930518847 (SHA c424c0d3) completed successfully.
+- Pipeline 2932817146 for SHA cba0c58b was still pending at the last check; all five jobs were created/pending, with validation jobs queued for about 44 minutes and no runner assigned. User reports local build/tests are green. Recheck pipeline before relying on remote CI.
 
 ## Current Branch
 feat/payment-foundation-sadad-ready
 
 ## Latest Known Commit
-See latest branch commit: perf: bound stale payment reconciliation queries in SQLite
+See latest branch commit: payment stale-query/index optimization; check the branch for the current SHA.
 
 ## Completed Work Relevant To Current Track
 - Sadad payment gateway adapter foundation and configuration validation.
@@ -27,9 +26,11 @@ See latest branch commit: perf: bound stale payment reconciliation queries in SQ
 - Payment operations endpoints require PaymentOperations authorization; only TechnicalSecurity and Administrator roles are authorized.
 - Operational payment endpoint responses set Cache-Control: no-store before validation or database work.
 - Reconciliation candidate query test includes ReconciliationRequired state.
-- Payment service tests cover verify amount mismatch, missing reference, and replay of an already-succeeded transaction.
+- Payment service tests cover verify amount mismatch, missing reference, replay of an already-succeeded transaction, and transport failure leading to reconciliation.
 - Sadad adapter request timestamp format aligned to the legacy Shaparak VPG format `MM/dd/yyyy h:mm:ss tt`, with culture-invariant formatting and a regression test.
 - Sadad adapter tests cover missing verification reference and provider rejection.
+- Stale payment queries are bounded in SQLite with timestamp cutoff, ordering, and limit applied in SQL; a composite Status+UpdatedAt index and migration were added.
+- Added service-level concurrency coverage: a second callback while the first gateway verification is in flight must not issue a second Verify call.
 
 ## Current Payment Architecture Fact (User-Reported)
 - The currently live PHP website performs the Sadad Verify request itself after the user returns from the gateway and records the result.
@@ -40,11 +41,10 @@ See latest branch commit: perf: bound stale payment reconciliation queries in SQ
 
 ## Currently In Progress
 - Payment Foundation: callback concurrency/replay safety and operational reconciliation behavior.
-- Latest work bounds stale-payment SQL queries and adds a composite Status+UpdatedAt index; CI must validate cutoff ordering and query behavior.
+- Confirm SQLite timestamp cutoff ordering and query behavior through CI and existing tests.
 - Architecture boundary between the existing PHP payment flow and the future .NET flow needs to be made explicit before production integration.
 
 ## Remaining Tasks
-- Review duplicate/concurrent callback behavior and interrupted verification.
 - Confirm timestamp timezone and exact wire format against the merchant's current official Sadad integration pack before production enablement.
 - Confirm TerminalKey encoding/encryption details against the merchant's issued credentials and official contract; never commit secrets.
 - Real provider credentials and end-to-end gateway tests remain environment-dependent; never commit secrets.
@@ -52,7 +52,7 @@ See latest branch commit: perf: bound stale payment reconciliation queries in SQ
 - Real Sana/Shahkar adapters, document integration, production security verification, and microservices separation remain broader project gaps.
 
 ## Known Errors / Issues
-- SQLite DateTimeOffset ordering/comparison is handled by loading status-filtered records and filtering timestamps in memory; this can become unbounded as payment volume grows and needs a deliberate indexed storage/query design.
+- The latest SQLite stale-query/index commit has not yet been confirmed by a completed GitLab pipeline in the last observed state.
 - The local CI script is ci-local.ps1; the user runs local build/tests and reports the result. Do not claim local tests passed unless confirmed by the user.
 - GitLab pipelines are triggered automatically by pushes in this repository. Avoid unnecessary commits; group related edits into one commit when practical.
 
@@ -66,12 +66,14 @@ See latest branch commit: perf: bound stale payment reconciliation queries in SQ
 
 ## Files Recently Changed
 - src/Brokerage.Infrastructure/Payments/SadadPaymentGateway.cs
-- tests/Brokerage.Api.Tests/SadadPaymentGatewayTests.cs
+- src/Brokerage.Infrastructure/Persistence/PaymentTransactionRepository.cs
+- src/Brokerage.Infrastructure/Persistence/BrokerageDbContext.cs
+- tests/Brokerage.Api.Tests/PaymentPersistenceTests.cs
 - tests/Brokerage.Application.Tests/PaymentServiceTests.cs
 - docs/AI_HANDOFF.md
 
 ## Next Recommended Step
-Review SQLite stale-query cutoff behavior and CI results. Then add service-level concurrent callback tests without changing ambiguous-payment safety behavior. Keep the PHP/.NET payment ownership boundary explicit before production integration.
+Check the latest GitLab pipeline status, then continue hardening payment reconciliation/query behavior and verify the Sadad contract details before production enablement. Keep the PHP/.NET payment ownership boundary explicit.
 
 ## Important Rules
 - Inspect the current repository before making changes.
