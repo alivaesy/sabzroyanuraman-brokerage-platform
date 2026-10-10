@@ -168,6 +168,29 @@ public class PrivacyComplianceTests
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
     }
 
+    [Fact]
+    public async Task SecurityHeaders_ArePresentOnSuccessAndAuthorizationFailureResponses()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var success = await client.GetAsync("/health");
+        var unauthorized = await client.GetAsync("/ops/metrics");
+
+        Assert.Equal(HttpStatusCode.OK, success.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
+
+        foreach (var response in new[] { success, unauthorized })
+        {
+            Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
+            Assert.Equal("no-referrer", response.Headers.GetValues("Referrer-Policy").Single());
+            Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
+            Assert.Equal(
+                "camera=(), microphone=(), geolocation=()",
+                response.Headers.GetValues("Permissions-Policy").Single());
+        }
+    }
+
     private static HttpClient CreateApplicantClient(WebApplicationFactory<Program> application)
     {
         var client = application.CreateClient();

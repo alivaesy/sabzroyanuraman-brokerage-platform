@@ -51,9 +51,11 @@ public class ExceptionHandlingMiddlewareTests
         var context = new DefaultHttpContext();
         context.Response.Body = new MemoryStream();
 
+        var logger = new RecordingLogger<ExceptionHandlingMiddleware>();
         var middleware = new ExceptionHandlingMiddleware(
             _ => throw new InvalidOperationException(
-                "Sensitive internal exception details."));
+                "Sensitive internal exception details."),
+            logger);
 
         await middleware.InvokeAsync(context, new NoOpAuditEventWriter());
 
@@ -80,6 +82,11 @@ public class ExceptionHandlingMiddlewareTests
         Assert.DoesNotContain(
             "Sensitive internal exception details.",
             response.Message);
+        Assert.DoesNotContain(logger.Entries, entry => entry.Exception is not null);
+        Assert.DoesNotContain(logger.Entries, entry =>
+            entry.Message.Contains("Sensitive internal exception details.", StringComparison.Ordinal));
+        Assert.Contains(logger.Entries, entry =>
+            entry.Message.Contains("ErrorType=InvalidOperationException", StringComparison.Ordinal));
         Assert.False(
             string.IsNullOrWhiteSpace(response.CorrelationId));
     }
@@ -167,6 +174,25 @@ public async Task InvokeAsync_WhenCorrelationIdAlreadyExists_UsesSameIdInErrorRe
         Assert.Equal("Failure", auditEvent.Outcome);
         Assert.Equal("audit-internal-correlation-id", auditEvent.CorrelationId);
         Assert.Equal("INTERNAL_ERROR", auditEvent.NewState);
+    }
+
+    private sealed class RecordingLogger<T> : ILogger<T>
+    {
+        public List<(LogLevel Level, string Message, Exception? Exception)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            Entries.Add((logLevel, formatter(state, exception), exception));
+        }
     }
 
     private sealed class RecordingAuditEventWriter : IAuditEventWriter
