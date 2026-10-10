@@ -301,6 +301,8 @@ app.MapPost("/identity/verify", async (
     HttpContext context,
     CancellationToken cancellationToken) =>
 {
+    context.Response.Headers.CacheControl = "no-store";
+
     if (!currentUser.IsAuthenticated || string.IsNullOrWhiteSpace(currentUser.UserId))
         return Results.Unauthorized();
 
@@ -329,6 +331,8 @@ app.MapPost("/identity/otp/challenges", async (
     HttpContext context,
     CancellationToken cancellationToken) =>
 {
+    context.Response.Headers.CacheControl = "no-store";
+
     if (!currentUser.IsAuthenticated || string.IsNullOrWhiteSpace(currentUser.UserId))
         return Results.Unauthorized();
 
@@ -349,6 +353,8 @@ app.MapPost("/identity/otp/verify", async (
     HttpContext context,
     CancellationToken cancellationToken) =>
 {
+    context.Response.Headers.CacheControl = "no-store";
+
     if (!currentUser.IsAuthenticated || string.IsNullOrWhiteSpace(currentUser.UserId))
         return Results.Unauthorized();
 

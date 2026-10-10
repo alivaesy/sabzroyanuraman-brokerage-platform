@@ -1,11 +1,37 @@
 using System.Net;
 using System.Text;
 using Microsoft.AspNetCore.Mvc.Testing;
+using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace Brokerage.Api.Tests;
 
 public class RateLimitingTests
 {
+    [Fact]
+    public async Task OtpChallengeAndVerificationResponses_DisableCaching()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "OTP-NO-STORE-USER");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", "Applicant");
+
+        var challengeResponse = await client.PostAsync("/identity/otp/challenges", content: null);
+        Assert.Equal(HttpStatusCode.OK, challengeResponse.StatusCode);
+        Assert.Equal("no-store", challengeResponse.Headers.CacheControl?.ToString());
+
+        var challenge = await challengeResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var challengeId = challenge.GetProperty("challengeId").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(challengeId));
+
+        var verificationResponse = await client.PostAsJsonAsync(
+            "/identity/otp/verify",
+            new { challengeId, code = "000000" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, verificationResponse.StatusCode);
+        Assert.Equal("no-store", verificationResponse.Headers.CacheControl?.ToString());
+    }
+
     [Fact]
     public async Task IdentityVerification_RateLimitsPerUserAndDoesNotCacheRejections()
     {
