@@ -68,11 +68,12 @@ public class PaymentServiceConcurrencyTests
     {
         private readonly TaskCompletionSource<PaymentGatewayVerifyResult> _verifyResult =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _verifyCalls;
 
         public TaskCompletionSource<bool> VerifyStarted { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public int VerifyCalls { get; private set; }
+        public int VerifyCalls => Volatile.Read(ref _verifyCalls);
 
         public Task<PaymentGatewayCreateResult> CreatePaymentAsync(
             PaymentGatewayCreateRequest request, CancellationToken cancellationToken = default) =>
@@ -81,7 +82,7 @@ public class PaymentServiceConcurrencyTests
         public Task<PaymentGatewayVerifyResult> VerifyPaymentAsync(
             string gatewayToken, CancellationToken cancellationToken = default)
         {
-            Interlocked.Increment(ref VerifyCalls);
+            Interlocked.Increment(ref _verifyCalls);
             VerifyStarted.TrySetResult(true);
             return _verifyResult.Task;
         }
