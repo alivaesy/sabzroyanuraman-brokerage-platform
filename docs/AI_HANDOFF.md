@@ -9,8 +9,8 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 ## Current Status
 - Active branch: `feat/payment-foundation-sadad-ready`.
 - User reports local build/tests are green; the assistant does not execute tests on the user's machine.
-- Latest commit before this batch: `41634a1e278a7ca2800e57b6aa44e39c7a9ff4c9` (`test: fix migration assertion and cover stale verifying cutoff`).
-- Pipeline `2932945351` for that commit was still running / queued when checked; do not report it as green until GitLab confirms completion: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2932945351
+- Latest commit: `d914c46c7649e82d331a922a515eb6c3afdbe9d2` (`security: rate limit audit exports`); it follows `bc2edb43` (`security: prevent caching of audit exports`).
+- Latest pipeline `2933065024` for commit `d914c46c` was pending when checked; do not report it as green until GitLab confirms completion: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2933065024
 - Earlier pipeline `2932874002` failed because `AuditComplianceTests.Migrations_ApplyToEmptyDatabase_AndCreateAuditImmutabilityTriggers` hard-coded the applied migration list and omitted `20261010100000_AddPaymentStatusUpdatedAtIndex`; the concurrent callback test itself passed.
 - Added SQLite stale reconciliation cutoff-boundary and non-UTC-offset coverage, including equivalent strict-cutoff coverage for stale `Verifying` payments.
 
@@ -40,6 +40,7 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Define non-overlapping PHP/.NET payment ownership before production activation of .NET payment flow.
 - Real Sana/Shahkar adapters, document integration, production security verification, and broader scaling/monitoring remain outside the current payment foundation.
 - Audit NDJSON export has its own fixed-window rate limit (10 requests per minute per authenticated user/IP partition); rate-limit rejection responses also carry Cache-Control: no-store.
+- Identity verification has regression coverage for its five-requests-per-minute per-user limit, separate user partitions, and no-store on 429 responses.
 - Keep ambiguous payment outcomes in reconciliation/manual review; never infer settlement from callback alone or automatically mark ambiguous transactions succeeded/failed.
 - Do not expose gateway tokens/provider raw bodies from operational endpoints.
 - Do not merge to master without explicit approval.
