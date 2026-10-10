@@ -9,7 +9,7 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 ## Current Status
 - Active branch: `feat/payment-foundation-sadad-ready`.
 - User reports local build/tests are green; the assistant does not execute tests on the user's machine.
-- Latest code commit: `b7ac05cd481d011b4d2e37b4f3cf4475092841db` (`security: rate limit service request creation`). Pipeline `2933238151` was pending when last checked: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2933238151.
+- Latest code commit before this fix: `5df171fec1abddf5f628452827b85a0ed781732a` (`docs: record request throttling and current branch head`). Pipeline `2933238376` failed at compile time because the new service-request throttling test lacked the `Microsoft.Extensions.DependencyInjection` using for `CreateScope`; this is being corrected on the same feature branch: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2933238376.
 - Pipeline `2933065509` for commit `d1b0e5d4` failed at `site_validate` before any project commands ran: the self-hosted Docker runner could not resolve `registry-1.docker.io` while pulling `alpine:3.20` (`runner_external_dependency_failure`). `php_validate` passed; .NET jobs were skipped. This is a runner/DNS/network dependency failure, not evidence of a code test failure: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2933065509
 - Earlier pipeline `2932874002` failed because `AuditComplianceTests.Migrations_ApplyToEmptyDatabase_AndCreateAuditImmutabilityTriggers` hard-coded the applied migration list and omitted `20261010100000_AddPaymentStatusUpdatedAtIndex`; the concurrent callback test itself passed.
 - Added SQLite stale reconciliation cutoff-boundary and non-UTC-offset coverage, including equivalent strict-cutoff coverage for stale `Verifying` payments.
@@ -53,4 +53,5 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - The live PHP website payment flow is working and must not be reimplemented as part of .NET foundation work.
 - Pushes trigger GitLab pipelines; avoid unnecessary commits and group related work.
 - CI migration verification explicitly checks `20261010100000_AddPaymentStatusUpdatedAtIndex` so the required migration list matches the current schema. The local test/build result reported by the user remains green; latest GitLab pipeline status must be checked independently before calling CI green.
+- CI build log identified a compile-only test issue: `RateLimitingTests.cs` uses `IServiceProvider.CreateScope()` and must import `Microsoft.Extensions.DependencyInjection`.
 - Update this file after significant work and record the latest branch/commit.
