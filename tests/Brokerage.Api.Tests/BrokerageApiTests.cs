@@ -405,7 +405,7 @@ public class BrokerageApiTests
             errorResponse.Code);
 
         Assert.Equal(
-            "Mock organization submission failed.",
+            "Organization API submission failed.",
             errorResponse.Message);
 
         Assert.False(
@@ -571,7 +571,7 @@ public class BrokerageApiTests
         Assert.NotNull(errorResponse);
         Assert.Equal("BROKERAGE_ERROR", errorResponse.Code);
         Assert.Equal(
-            "Mock organization status request failed.",
+            "Organization API status request failed.",
             errorResponse.Message);
 
         var workflowResponse = await client.GetAsync(

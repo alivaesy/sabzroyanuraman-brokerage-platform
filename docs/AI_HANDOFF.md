@@ -63,3 +63,8 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Update this file after significant work and record the latest branch/commit.
 
 - Privacy/logging hardening: incoming `X-Correlation-Id` is now accepted only when it is 1–64 characters from the safe ASCII set [A-Za-z0-9._-]. Invalid, oversized, or potentially identifying values are replaced with a server-generated ID before being echoed or included in logs; middleware regression tests cover unsafe inputs.
+
+## Latest CI (2026-10-10)
+- Pipeline `2933884019` for commit `b3de4aa337ccbc3cacc8f3e96eb43cf3458cb797` failed only in `dotnet_test`; build, migration verification, PHP validation, and site validation passed: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2933884019
+- Failure diagnosis: two API tests still asserted the old mock-specific error strings, while the integration service now deliberately returns generic non-provider-revealing messages. Updated the assertions to match the generic public API contract. Operational rate-limit regression and privacy/security-header tests passed in this pipeline.
+- Next: rerun CI, then continue with safe production-readiness hardening in bounded batches. Do not alter the live PHP/Sadad payment flow; do not merge to master without explicit approval.
