@@ -46,6 +46,7 @@ public class AuditComplianceTests
         var response = await client.GetAsync($"/audit/events/export?from={timestamp}&to={timestamp}&limit=10");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
         Assert.Equal("application/x-ndjson", response.Content.Headers.ContentType?.MediaType);
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("AuditObserverExportTest", body);
@@ -64,6 +65,23 @@ public class AuditComplianceTests
         var response = await client.GetAsync("/audit/events/export");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+    }
+
+    [Fact]
+    public async Task AuditExport_InvalidDateRangeReturnsBadRequestWithoutCaching()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "AUDIT-SEC-RANGE");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.TechnicalSecurity.ToString());
+
+        var from = Uri.EscapeDataString(DateTimeOffset.UtcNow.ToString("O"));
+        var to = Uri.EscapeDataString(DateTimeOffset.UtcNow.AddMinutes(-1).ToString("O"));
+        var response = await client.GetAsync($"/audit/events/export?from={from}&to={to}");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
     }
 
     [Fact]

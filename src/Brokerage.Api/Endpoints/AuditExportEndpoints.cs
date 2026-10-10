@@ -24,6 +24,10 @@ public static class AuditExportEndpoints
             CancellationToken cancellationToken,
             IConfiguration configuration) =>
         {
+            // Audit exports contain sensitive operational metadata; prevent browser and intermediary caching
+            // for successful responses and every early-return path alike.
+            context.Response.Headers.CacheControl = "no-store";
+
             if (currentUser.Role is not (
                 nameof(UserRole.TechnicalSecurity) or
                 nameof(UserRole.OrganizationObserver) or
