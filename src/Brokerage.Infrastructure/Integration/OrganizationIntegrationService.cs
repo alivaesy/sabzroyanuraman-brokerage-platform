@@ -35,16 +35,13 @@ public class OrganizationIntegrationService
                 "Organization submission failed. ServiceCode={ServiceCode} ErrorType={ErrorType}",
                 serviceCode,
                 result.ErrorType);
-            throw new BrokerageException(
-                result.ErrorMessage ??
-                "Organization API submission failed.");
+            throw new BrokerageException("Organization API submission failed.");
         }
 
         var trackingId = result.TrackingId ?? string.Empty;
         _logger?.LogInformation(
-            "Organization submission completed. ServiceCode={ServiceCode} TrackingId={TrackingId}",
-            serviceCode,
-            trackingId);
+            "Organization submission completed. ServiceCode={ServiceCode}",
+            serviceCode);
         return trackingId;
     }
 
@@ -59,12 +56,9 @@ public class OrganizationIntegrationService
         if (!result.IsSuccess)
         {
             _logger?.LogError(
-                "Organization status request failed. TrackingId={TrackingId} ErrorType={ErrorType}",
-                trackingId,
+                "Organization status request failed. ErrorType={ErrorType}",
                 result.ErrorType);
-            throw new BrokerageException(
-                result.ErrorMessage ??
-                "Organization API status request failed.");
+            throw new BrokerageException("Organization API status request failed.");
         }
 
         var status = result.Status ?? string.Empty;

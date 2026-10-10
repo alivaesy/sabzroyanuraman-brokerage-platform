@@ -384,7 +384,7 @@ public class OrganizationIntegrationServiceTests
             () => service.GetStatusAsync("MOCK-TRACKING-ID"));
 
         Assert.Equal(
-            "Mock server error.",
+            "Organization API status request failed.",
             exception.Message);
 
         Assert.Equal(
