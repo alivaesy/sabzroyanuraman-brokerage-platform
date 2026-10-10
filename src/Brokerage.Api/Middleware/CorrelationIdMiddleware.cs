@@ -5,6 +5,7 @@ namespace Brokerage.Api.Middleware;
 public class CorrelationIdMiddleware
 {
     private const string HeaderName = "X-Correlation-Id";
+    private const int MaxCorrelationIdLength = 64;
 
     private readonly RequestDelegate _next;
     private readonly ILogger<CorrelationIdMiddleware> _logger;
@@ -20,7 +21,7 @@ public class CorrelationIdMiddleware
         var correlationId =
             context.Request.Headers[HeaderName].FirstOrDefault();
 
-        if (string.IsNullOrWhiteSpace(correlationId))
+        if (!IsSafeCorrelationId(correlationId))
         {
             correlationId = Guid.NewGuid().ToString("N");
         }
@@ -36,4 +37,13 @@ public class CorrelationIdMiddleware
             await _next(context);
         }
     }
+
+    private static bool IsSafeCorrelationId(string? value) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        value.Length <= MaxCorrelationIdLength &&
+        value.All(character =>
+            character is >= 'a' and <= 'z' or
+            >= 'A' and <= 'Z' or
+            >= '0' and <= '9' or
+            '-' or '_' or '.');
 }
