@@ -188,6 +188,9 @@ public class PrivacyComplianceTests
             Assert.Equal(
                 "camera=(), microphone=(), geolocation=()",
                 response.Headers.GetValues("Permissions-Policy").Single());
+            Assert.Equal(
+                "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+                response.Headers.GetValues("Content-Security-Policy").Single());
         }
     }
 

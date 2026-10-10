@@ -242,6 +242,7 @@ app.Use(async (context, next) =>
         context.Response.Headers["Referrer-Policy"] = "no-referrer";
         context.Response.Headers["X-Frame-Options"] = "DENY";
         context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+        context.Response.Headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
         return Task.CompletedTask;
     });
 
