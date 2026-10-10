@@ -68,3 +68,5 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Pipeline `2933884019` for commit `b3de4aa337ccbc3cacc8f3e96eb43cf3458cb797` failed only in `dotnet_test`; build, migration verification, PHP validation, and site validation passed: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2933884019
 - Failure diagnosis: two API tests still asserted the old mock-specific error strings, while the integration service now deliberately returns generic non-provider-revealing messages. Updated the assertions to match the generic public API contract. Operational rate-limit regression and privacy/security-header tests passed in this pipeline.
 - Next: rerun CI, then continue with safe production-readiness hardening in bounded batches. Do not alter the live PHP/Sadad payment flow; do not merge to master without explicit approval.
+
+- Follow-up privacy review found one remaining successful organization-status log that still included the tracking ID despite earlier redaction. Removed that field from the log and added a regression test using a distinctive sensitive tracking ID; no provider tracking ID should be emitted to application logs.

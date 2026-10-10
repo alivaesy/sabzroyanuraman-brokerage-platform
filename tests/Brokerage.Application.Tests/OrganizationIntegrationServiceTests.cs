@@ -1,6 +1,7 @@
 using Brokerage.Application.Integration;
 using Brokerage.Infrastructure.Integration;
 using Brokerage.Application.Exceptions;
+using Microsoft.Extensions.Logging;
 
 namespace Brokerage.Application.Tests;
 
@@ -243,6 +244,43 @@ public class OrganizationIntegrationServiceTests
         "MockStatus",
         status);
 }
+    [Fact]
+    public async Task GetStatusAsync_DoesNotLogOrganizationTrackingId()
+    {
+        var apiClient = new RetryTestOrganizationApiClient();
+        var retryExecutor = new OrganizationRetryExecutor(
+            new OrganizationRetryPolicy(),
+            new OrganizationRetryOptions { MaxRetryCount = 0 },
+            new OrganizationTimeoutOptions { Timeout = TimeSpan.FromSeconds(1) });
+        var logger = new CapturingLogger<OrganizationIntegrationService>();
+        var service = new OrganizationIntegrationService(apiClient, retryExecutor, logger);
+        const string trackingId = "SENSITIVE-TRACKING-ID-DO-NOT-LOG";
+
+        var status = await service.GetStatusAsync(trackingId);
+
+        Assert.Equal("MockStatus", status);
+        Assert.DoesNotContain(logger.Messages, message => message.Contains(trackingId, StringComparison.Ordinal));
+    }
+
+    private sealed class CapturingLogger<T> : ILogger<T>
+    {
+        public List<string> Messages { get; } = new();
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            Messages.Add(formatter(state, exception));
+        }
+    }
+
     [Fact]
     public async Task GetStatusAsync_WhenApiReturnsServerError_RetriesAndEventuallySucceeds()
     {

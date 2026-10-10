@@ -63,8 +63,7 @@ public class OrganizationIntegrationService
 
         var status = result.Status ?? string.Empty;
         _logger?.LogInformation(
-            "Organization status received. TrackingId={TrackingId} Status={Status}",
-            trackingId,
+            "Organization status received. Status={Status}",
             status);
         return status;
     }
