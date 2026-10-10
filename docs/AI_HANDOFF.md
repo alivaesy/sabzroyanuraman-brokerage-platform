@@ -70,3 +70,5 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Next: rerun CI, then continue with safe production-readiness hardening in bounded batches. Do not alter the live PHP/Sadad payment flow; do not merge to master without explicit approval.
 
 - Follow-up privacy review found one remaining successful organization-status log that still included the tracking ID despite earlier redaction. Removed that field from the log and added a regression test using a distinctive sensitive tracking ID; no provider tracking ID should be emitted to application logs.
+
+- Added Sadad Verify-path regression coverage for HTTP 502 and malformed JSON responses. The adapter returns stable error codes and does not propagate raw provider response bodies; these outcomes remain failures requiring conservative reconciliation behavior at the payment-service layer.

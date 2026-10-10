@@ -176,6 +176,37 @@ public class SadadPaymentGatewayTests
     }
 
     [Fact]
+    public async Task VerifyPayment_HttpFailureReturnsStableHttpErrorWithoutProviderBody()
+    {
+        var handler = new StubHandler("sensitive provider response body", HttpStatusCode.BadGateway);
+        using var client = new HttpClient(handler);
+        var gateway = CreateGateway(client, CreateOptions());
+
+        var result = await gateway.VerifyPaymentAsync("issued-token");
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Amount);
+        Assert.Null(result.GatewayReference);
+        Assert.Equal("HTTP_502", result.ErrorCode);
+        Assert.DoesNotContain("sensitive provider response body", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task VerifyPayment_InvalidJsonReturnsAmbiguousResponse()
+    {
+        var handler = new StubHandler("not-json");
+        using var client = new HttpClient(handler);
+        var gateway = CreateGateway(client, CreateOptions());
+
+        var result = await gateway.VerifyPaymentAsync("issued-token");
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Amount);
+        Assert.Null(result.GatewayReference);
+        Assert.Equal("INVALID_GATEWAY_RESPONSE", result.ErrorCode);
+    }
+
+    [Fact]
     public async Task VerifyPayment_ProviderRejectionIsNotReportedAsSuccess()
     {
         var handler = new StubHandler("""{"ResCode":"12","Description":"not verified"}""");
