@@ -9,7 +9,7 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 ## Current Status
 - Active branch: `feat/payment-foundation-sadad-ready`.
 - User reports local build/tests are green; the assistant does not execute tests on the user's machine.
-- Latest commit before current batch: `45b126b91c3907fa3ccfe397c2ec6d7d8a364761` (`fix: bound operational telemetry cardinality`).
+- Latest commit before current batch: `d8635e8dfece7b484fe179d2f30fe97014f859d3` (`security: disable caching for identity and OTP responses`).
 - Pipeline `2933065509` for commit `d1b0e5d4` failed at `site_validate` before any project commands ran: the self-hosted Docker runner could not resolve `registry-1.docker.io` while pulling `alpine:3.20` (`runner_external_dependency_failure`). `php_validate` passed; .NET jobs were skipped. This is a runner/DNS/network dependency failure, not evidence of a code test failure: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2933065509
 - Earlier pipeline `2932874002` failed because `AuditComplianceTests.Migrations_ApplyToEmptyDatabase_AndCreateAuditImmutabilityTriggers` hard-coded the applied migration list and omitted `20261010100000_AddPaymentStatusUpdatedAtIndex`; the concurrent callback test itself passed.
 - Added SQLite stale reconciliation cutoff-boundary and non-UTC-offset coverage, including equivalent strict-cutoff coverage for stale `Verifying` payments.
@@ -34,7 +34,7 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Added strict cutoff and UTC-offset regression coverage for stale `Verifying` recovery candidates.
 - Hardened audit export against caching and added regression assertions for successful, forbidden, invalid date-range, and rate-limit rejection responses. Identity verification and OTP issue/verify responses now also set `Cache-Control: no-store`, with regression coverage for successful identity verification, invalid identifiers, OTP challenge issuance, and rejected OTP verification.
 - Corrected rate-limit partition keys to use authenticated user-id/name-identifier claims plus remote IP, instead of relying on `Identity.Name`.
-- Bounded operational telemetry endpoint cardinality to 200 labels under concurrent traffic, preventing unique-path floods from bypassing the previous approximate count guard; total request aggregates remain accurate.
+- Bounded operational telemetry endpoint cardinality to 200 labels under concurrent traffic, preventing unique-path floods from bypassing the previous approximate count guard; total request aggregates remain accurate. Regression test confirms the global request count remains 2,000 while per-endpoint tracking stays at 200.
 
 ## Remaining / Release Gates
 - Confirm exact Sadad timestamp format, TerminalKey encoding and encryption details against the current merchant-issued integration pack before production enablement of the separate .NET adapter.

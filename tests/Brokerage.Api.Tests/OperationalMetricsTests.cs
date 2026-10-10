@@ -84,7 +84,8 @@ public class OperationalMetricsTests
 
         Assert.Equal(2000, snapshot.TotalRequestCount);
         Assert.True(snapshot.Endpoints.Count <= 200);
-        Assert.Equal(snapshot.Endpoints.Sum(x => x.RequestCount), snapshot.TotalRequestCount);
+        Assert.Equal(200, snapshot.Endpoints.Count);
+        Assert.Equal(200, snapshot.Endpoints.Sum(x => x.RequestCount));
     }
 
     [Fact]
