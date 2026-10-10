@@ -30,6 +30,7 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - The .NET payment foundation is separate from the live PHP flow. Do not activate it against live transactions until ownership is explicitly decided; PHP and .NET must not independently finalize the same transaction.
 
 ## Latest Work
+- Added a shared per-user/IP limit of 60 reads per minute to protected operational metrics and status endpoints, with regression coverage for 429 and no-store on rejection. This protects the status endpoint's database readiness probe from unbounded polling.
 - Organization integration failures no longer forward adapter-supplied error text to the API response; responses use stable generic messages. Integration logs no longer include organization tracking IDs, reducing exposure of case-linked identifiers.
 - Added a restrictive API Content-Security-Policy (`default-src 'none'`, no framing, no base URI, no form submissions) and expanded response-header tests to cover it on success and authorization failure.
 - Next hardening batch: exception logs record correlation ID and exception type only, not the exception object/message/stack; regression test asserts exception details are not emitted to the application logger. Added regression coverage for security headers on both successful and authorization-failure responses.

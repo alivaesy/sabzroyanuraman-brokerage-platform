@@ -78,6 +78,18 @@ builder.Services.AddRateLimiter(options =>
             AutoReplenishment = true
         });
     });
+ 
+    options.AddPolicy("operational-read", context =>
+    {
+        var partitionKey = GetRateLimitPartitionKey(context);
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 60,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        });
+    });
 
     options.AddPolicy("service-request-create", context =>
     {
@@ -289,7 +301,7 @@ app.MapGet("/ops/metrics", (HttpContext context, IOperationalMetrics metrics) =>
 {
     context.Response.Headers.CacheControl = "no-store";
     return Results.Ok(metrics.Snapshot());
-}).RequireAuthorization(AuthorizationPolicies.OperationalMonitoring);
+}).RequireAuthorization(AuthorizationPolicies.OperationalMonitoring).RequireRateLimiting("operational-read");
 
 app.MapGet("/ops/status", async (
     HttpContext context,
@@ -320,7 +332,7 @@ app.MapGet("/ops/status", async (
     return canConnect
         ? Results.Ok(payload)
         : Results.Json(payload, statusCode: StatusCodes.Status503ServiceUnavailable);
-}).RequireAuthorization(AuthorizationPolicies.OperationalMonitoring);
+}).RequireAuthorization(AuthorizationPolicies.OperationalMonitoring).RequireRateLimiting("operational-read");
 AuditExportEndpoints.Map(app);
 PaymentOperationalEndpoints.Map(app);
 
