@@ -140,11 +140,29 @@ public class PrivacyComplianceTests
     public async Task ServiceRequestAuthorizationFailure_DisablesCaching()
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
-        client.DefaultRequestHeaders.Add("X-Test-User-Id", "privacy-support");
-        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Support.ToString());
+        using var applicantClient = CreateApplicantClient(application);
 
-        var response = await client.GetAsync($"/service-requests/{Guid.NewGuid()}");
+        using (var verificationScope = application.Services.CreateScope())
+        {
+            var states = verificationScope.ServiceProvider.GetRequiredService<IIdentityVerificationStateRepository>();
+            await states.SaveResultAsync(ApplicantUserId, true, DateTimeOffset.UtcNow);
+        }
+
+        using var content = new StringContent(
+            """{"nationalIdentifier":"1234567891"}""",
+            Encoding.UTF8,
+            "application/json");
+        var createResponse = await applicantClient.PostAsync("/service-requests/s01", content);
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+
+        var payload = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var requestId = payload.GetProperty("id").GetString();
+
+        using var otherApplicantClient = application.CreateClient();
+        otherApplicantClient.DefaultRequestHeaders.Add("X-Test-User-Id", "different-applicant");
+        otherApplicantClient.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Applicant.ToString());
+
+        var response = await otherApplicantClient.GetAsync($"/service-requests/{requestId}");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());

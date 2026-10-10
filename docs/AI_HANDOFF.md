@@ -47,6 +47,8 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Do not expose gateway tokens/provider raw bodies from operational endpoints.
 - Do not merge to master without explicit approval.
 
+- Latest CI investigation: pipeline for commit 2c32d77e passed build, PHP/site validation, and migration verification; the rate-limit shared-bucket test passed. The test job had one unrelated pre-existing privacy test failure because it requested a random non-existent service-request ID (correct response is 404, not 403). The regression test was corrected to create an S01 request as one applicant and request it as a different applicant, asserting 403 plus Cache-Control: no-store. Recheck the next pipeline before treating CI as green.
+
 ## Workflow Rules
 - Inspect current repository and history before changing files.
 - User runs local build/tests and reports results; do not claim to have run them locally.
