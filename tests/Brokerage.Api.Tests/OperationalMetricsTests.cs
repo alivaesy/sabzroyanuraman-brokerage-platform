@@ -71,6 +71,23 @@ public class OperationalMetricsTests
     }
 
     [Fact]
+    public void RecordRequest_BoundsEndpointCardinalityUnderConcurrency()
+    {
+        var metrics = new OperationalMetrics();
+
+        Parallel.For(0, 2000, i =>
+        {
+            metrics.RecordRequest($"/unbounded/{i}", 200, 1, false);
+        });
+
+        var snapshot = metrics.Snapshot();
+
+        Assert.Equal(2000, snapshot.TotalRequestCount);
+        Assert.True(snapshot.Endpoints.Count <= 200);
+        Assert.Equal(snapshot.Endpoints.Sum(x => x.RequestCount), snapshot.TotalRequestCount);
+    }
+
+    [Fact]
     public void RecordRequest_CalculatesAverageLatencyAndErrorRate()
     {
         var metrics = new OperationalMetrics();

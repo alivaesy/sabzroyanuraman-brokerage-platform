@@ -39,6 +39,7 @@ public sealed class OperationalMetrics : IOperationalMetrics
     private const int MaxTrackedEndpoints = 200;
     private readonly DateTimeOffset _startedAt = DateTimeOffset.UtcNow;
     private readonly ConcurrentDictionary<string, EndpointStats> _endpoints = new(StringComparer.Ordinal);
+    private readonly object _endpointRegistrationLock = new();
     private long _totalRequestCount;
     private long _total4xxCount;
     private long _total5xxCount;
@@ -73,9 +74,22 @@ public sealed class OperationalMetrics : IOperationalMetrics
 
         Interlocked.Add(ref _totalElapsedMicroseconds, ToMicroseconds(elapsedMilliseconds));
 
-        if (_endpoints.Count < MaxTrackedEndpoints || _endpoints.ContainsKey(endpoint))
-            _endpoints.GetOrAdd(endpoint, _ => new EndpointStats())
-                .Record(elapsedMilliseconds, clientError, serverError, error);
+        EndpointStats? endpointStats;
+        if (!_endpoints.TryGetValue(endpoint, out endpointStats))
+        {
+            lock (_endpointRegistrationLock)
+            {
+                if (!_endpoints.TryGetValue(endpoint, out endpointStats) &&
+                    _endpoints.Count < MaxTrackedEndpoints)
+                {
+                    endpointStats = new EndpointStats();
+                    _endpoints.TryAdd(endpoint, endpointStats);
+                }
+            }
+        }
+
+        // Keep endpoint-label cardinality bounded even under concurrent requests with attacker-controlled paths.
+        endpointStats?.Record(elapsedMilliseconds, clientError, serverError, error);
     }
 
     public OperationalMetricsSnapshot Snapshot()
