@@ -96,6 +96,21 @@ public class RateLimitingTests
 
         Assert.Equal(HttpStatusCode.TooManyRequests, limitedResponse.StatusCode);
         Assert.Equal("no-store", limitedResponse.Headers.CacheControl?.ToString());
+
+        const string secondUserId = "REQUEST-RATE-LIMIT-SECOND-USER";
+        using (var secondUserScope = application.Services.CreateScope())
+        {
+            var states = secondUserScope.ServiceProvider.GetRequiredService<Brokerage.Application.Contracts.IIdentityVerificationStateRepository>();
+            await states.SaveResultAsync(secondUserId, true, DateTimeOffset.UtcNow);
+        }
+
+        using var secondUserClient = application.CreateClient();
+        secondUserClient.DefaultRequestHeaders.Add("X-Test-User-Id", secondUserId);
+        secondUserClient.DefaultRequestHeaders.Add("X-Test-User-Role", "Applicant");
+        var separatePartitionResponse = await secondUserClient.PostAsync(
+            "/service-requests?serviceCode=S01",
+            content: null);
+        Assert.Equal(HttpStatusCode.OK, separatePartitionResponse.StatusCode);
     }
 
     [Fact]
