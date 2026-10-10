@@ -32,14 +32,14 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 ## Latest Work
 - Fixed migration compliance test to assert required migrations without treating the list as permanently closed; explicitly checks the payment Status+UpdatedAt index migration.
 - Added strict cutoff and UTC-offset regression coverage for stale `Verifying` recovery candidates.
-- Hardened audit export against caching and added regression assertions for successful, forbidden, and invalid date-range responses.
+- Hardened audit export against caching and added regression assertions for successful, forbidden, invalid date-range, and rate-limit rejection responses; confirmed rate-limit buckets are partitioned per user/IP.
 
 ## Remaining / Release Gates
 - Confirm exact Sadad timestamp format, TerminalKey encoding and encryption details against the current merchant-issued integration pack before production enablement of the separate .NET adapter.
 - Real provider credentials and end-to-end tests are environment-dependent; never commit secrets.
 - Define non-overlapping PHP/.NET payment ownership before production activation of .NET payment flow.
 - Real Sana/Shahkar adapters, document integration, production security verification, and broader scaling/monitoring remain outside the current payment foundation.
-- Rate-limit audit export separately from OTP/identity verification before production exposure; keep its response limits bounded.
+- Audit NDJSON export has its own fixed-window rate limit (10 requests per minute per authenticated user/IP partition); rate-limit rejection responses also carry Cache-Control: no-store.
 - Keep ambiguous payment outcomes in reconciliation/manual review; never infer settlement from callback alone or automatically mark ambiguous transactions succeeded/failed.
 - Do not expose gateway tokens/provider raw bodies from operational endpoints.
 - Do not merge to master without explicit approval.

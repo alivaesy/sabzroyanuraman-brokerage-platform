@@ -85,6 +85,34 @@ public class AuditComplianceTests
     }
 
     [Fact]
+    public async Task AuditExport_RateLimitsPerUserAndDoesNotCacheRejections()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var firstClient = application.CreateClient();
+        firstClient.DefaultRequestHeaders.Add("X-Test-User-Id", "AUDIT-RATE-LIMIT-ONE");
+        firstClient.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.TechnicalSecurity.ToString());
+
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            var response = await firstClient.GetAsync("/audit/events/export?limit=1");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+        }
+
+        var limitedResponse = await firstClient.GetAsync("/audit/events/export?limit=1");
+        Assert.Equal(HttpStatusCode.TooManyRequests, limitedResponse.StatusCode);
+        Assert.Equal("no-store", limitedResponse.Headers.CacheControl?.ToString());
+
+        using var secondClient = application.CreateClient();
+        secondClient.DefaultRequestHeaders.Add("X-Test-User-Id", "AUDIT-RATE-LIMIT-TWO");
+        secondClient.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.TechnicalSecurity.ToString());
+
+        var separatePartitionResponse = await secondClient.GetAsync("/audit/events/export?limit=1");
+        Assert.Equal(HttpStatusCode.OK, separatePartitionResponse.StatusCode);
+        Assert.Equal("no-store", separatePartitionResponse.Headers.CacheControl?.ToString());
+    }
+
+    [Fact]
     public async Task AuditExport_WithLimit_ReturnsNewestEventsFirst()
     {
         await using var application = new WebApplicationFactory<Program>();

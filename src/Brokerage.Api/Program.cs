@@ -59,6 +59,24 @@ builder.Services.AddRateLimiter(options =>
             ?? "unknown";
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => CreateOptions());
     });
+
+    options.AddPolicy("audit-export", context =>
+    {
+        var partitionKey = $"{context.User.Identity?.Name ?? "anonymous"}:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        });
+    });
+
+    options.OnRejected = (context, _) =>
+    {
+        context.HttpContext.Response.Headers.CacheControl = "no-store";
+        return ValueTask.CompletedTask;
+    };
 });
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddScoped<IAuditEventWriter, AuditEventWriter>();

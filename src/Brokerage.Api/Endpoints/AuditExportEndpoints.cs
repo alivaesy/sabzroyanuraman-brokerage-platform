@@ -112,6 +112,6 @@ public static class AuditExportEndpoints
             return Results.Text(
                 events.Count == 0 ? string.Empty : ndjson + Environment.NewLine,
                 "application/x-ndjson; charset=utf-8");
-        });
+        }).RequireRateLimiting("audit-export");
     }
 }
