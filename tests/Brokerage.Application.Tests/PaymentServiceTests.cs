@@ -221,6 +221,27 @@ public class PaymentServiceTests
     }
 
     [Fact]
+    public async Task VerifyAsync_SucceededPaymentDoesNotDiscloseStateForMismatchedCallbackToken()
+    {
+        var requestId = Guid.NewGuid();
+        var existing = new PaymentTransaction(requestId, 1000, "IRR", "verify-success-invalid-replay-key");
+        existing.MarkGatewayCreated("gateway-token");
+        existing.MarkVerifying();
+        existing.MarkSucceeded("trace-success");
+        var repository = new FakePaymentRepository(existing);
+        var gateway = new FakePaymentGateway();
+        var service = new PaymentService(repository, gateway, new FakeAuditEventWriter());
+
+        var result = await service.VerifyAsync(existing.Id, "attacker-supplied-token", "correlation-invalid-success-replay");
+
+        Assert.False(result.Succeeded);
+        Assert.False(result.AlreadySucceeded);
+        Assert.Equal("CALLBACK_TOKEN_MISMATCH", result.ErrorCode);
+        Assert.Equal(PaymentStatus.Succeeded, existing.Status);
+        Assert.Equal(0, gateway.VerifyCalls);
+    }
+
+    [Fact]
     public async Task VerifyAsync_SuccessfulReplayDoesNotCallGatewayAgain()
     {
         var requestId = Guid.NewGuid();

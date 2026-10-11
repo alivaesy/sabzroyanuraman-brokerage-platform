@@ -91,16 +91,18 @@ public sealed class PaymentService(
         var transaction = await repository.GetByIdAsync(paymentId, cancellationToken)
             ?? throw new InvalidOperationException("Payment transaction was not found.");
 
+        // Callback verification must prove possession of the exact issued token even when
+        // the payment already succeeded; otherwise an arbitrary caller could probe payment state.
+        if (string.IsNullOrWhiteSpace(callbackToken) ||
+            string.IsNullOrWhiteSpace(transaction.GatewayToken) ||
+            !CryptographicEquals(callbackToken, transaction.GatewayToken))
+            return PaymentVerifyResult.Failure(transaction, "CALLBACK_TOKEN_MISMATCH");
+
         if (transaction.Status == PaymentStatus.Succeeded)
             return PaymentVerifyResult.FromAlreadySucceeded(transaction);
 
-        if (transaction.Status != PaymentStatus.Pending || string.IsNullOrWhiteSpace(transaction.GatewayToken))
+        if (transaction.Status != PaymentStatus.Pending)
             return PaymentVerifyResult.Failure(transaction, "PAYMENT_NOT_VERIFIABLE");
-
-        // Callback verification must prove possession of the exact issued token. A missing
-        // token is not equivalent to a trusted callback and must never reach the gateway.
-        if (string.IsNullOrWhiteSpace(callbackToken) || !CryptographicEquals(callbackToken, transaction.GatewayToken))
-            return PaymentVerifyResult.Failure(transaction, "CALLBACK_TOKEN_MISMATCH");
 
         if (!await repository.TryBeginVerificationAsync(paymentId, cancellationToken))
             return PaymentVerifyResult.Failure(transaction, "PAYMENT_VERIFICATION_IN_PROGRESS");
