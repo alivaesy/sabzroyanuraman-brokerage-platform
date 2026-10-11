@@ -151,3 +151,9 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Added a no-auto-redirect policy for the Sadad typed HTTP client so signed payment request bodies are not silently forwarded to a redirect target. HTTP 3xx responses are handled as non-success provider responses and remain subject to conservative reconciliation rules.
 
 - Latest Sadad batch (2026-10-11): fixed C# escaping in provider request assertions (`84a00c7a`); added HTTPS validation regression coverage for all four configured URLs (`a28fcc71`); disabled automatic HTTP redirects for the Sadad client to avoid forwarding signed payment payloads to redirect targets (`e3988efb`); added create/verify tests that 302 responses are not treated as successful gateway operations (`e2bfb1ba`). The current head pipeline must be green before this batch is considered validated.
+
+
+## CI correction — 2026-10-11
+- Pipeline `2935720459` failed in `PaymentServiceTests.CreateAsync_AmbiguousGatewayResponseRemainsPendingAndIsNotRetriedAutomatically`: `GATEWAY_RESPONSE_TOO_LARGE` was missing from `IsAmbiguousCreateOutcome`, so the transaction was marked Failed despite the provider outcome being unknown.
+- Corrected the classification so oversized provider responses remain Pending for reconciliation and cannot trigger automatic duplicate creation. The existing theory case covers the regression. CI must rerun on the new commit before this fix is considered validated.
+- The user also reported a C# syntax error at line 222 in `SadadPaymentGatewayTests.cs`; the current branch content at that line is syntactically valid. The current pipeline failure trace identifies the application test above instead, so inspect the exact commit/job associated with the user's separate compile log if that syntax error recurs.

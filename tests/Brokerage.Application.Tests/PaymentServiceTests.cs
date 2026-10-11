@@ -28,7 +28,7 @@ public class PaymentServiceTests
         Assert.Equal("PaymentIdempotencyConflict", auditEvent.EventType);
         Assert.Equal("Failure", auditEvent.Outcome);
         Assert.Equal(requestId, auditEvent.ServiceRequestId);
-        Assert.Equal(1, repository.Items.Count);
+        Assert.Single(repository.Items);
     }
 
     [Fact]

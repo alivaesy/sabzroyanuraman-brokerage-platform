@@ -177,6 +177,7 @@ public sealed class PaymentService(
         errorCode is not null &&
         (errorCode.StartsWith("HTTP_", StringComparison.OrdinalIgnoreCase) ||
          string.Equals(errorCode, "INVALID_GATEWAY_RESPONSE", StringComparison.Ordinal) ||
+         string.Equals(errorCode, "GATEWAY_RESPONSE_TOO_LARGE", StringComparison.Ordinal) ||
          string.Equals(errorCode, "SADAD_TOKEN_MISSING", StringComparison.Ordinal));
 
     private static bool CryptographicEquals(string left, string right)
