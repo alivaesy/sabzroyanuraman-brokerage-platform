@@ -173,7 +173,11 @@ builder.Services.AddDbContext<BrokerageDbContext>(options =>
 builder.Services.AddScoped<IServiceRequestRepository, ServiceRequestRepository>();
 builder.Services.AddScoped<IPaymentTransactionRepository, PaymentTransactionRepository>();
 builder.Services.AddSingleton(_ => SadadOptions.FromConfiguration(builder.Configuration));
-builder.Services.AddHttpClient<SadadPaymentGateway>();
+// A bounded provider timeout prevents a stalled gateway from holding request resources indefinitely.
+builder.Services.AddHttpClient<SadadPaymentGateway>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 builder.Services.AddScoped<IPaymentGateway>(services => services.GetRequiredService<SadadPaymentGateway>());
 builder.Services.AddScoped<PaymentService>();
 builder.Services.AddScoped<IIdentityVerificationStateRepository, IdentityVerificationStateRepository>();

@@ -115,3 +115,10 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - This remains a conservative ambiguity outcome; it does not mark a payment settled or rejected and must flow through existing reconciliation behavior.
 
 - Follow-up review of the response-boundary patch corrected the two result types/read paths before the next CI result: create oversize returns `PaymentGatewayCreateResult`, verify oversize returns `PaymentGatewayVerifyResult`, and both provider bodies use the bounded reader.
+
+
+## Sadad Response Parsing and Timeout Hardening (2026-10-11)
+- Guarded both Sadad create and verify response parsers against valid JSON whose root is not an object (for example arrays, strings, or `null`). These responses now return the stable `INVALID_GATEWAY_RESPONSE` result instead of allowing `JsonElement.TryGetProperty` to throw an unexpected `InvalidOperationException`.
+- Added regression tests for all three non-object JSON root shapes in both create and verify paths.
+- Configured the typed Sadad HTTP client with a 30-second timeout to bound time spent waiting on a stalled provider. Existing payment-service handling treats transport/time-out outcomes conservatively; no automatic retry or settlement was introduced.
+- These changes are committed on `feat/payment-foundation-sadad-ready`; validate through the resulting GitLab pipeline and the user's local `.\cci-local.ps1` before treating the batch as complete.

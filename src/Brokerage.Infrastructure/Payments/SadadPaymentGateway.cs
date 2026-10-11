@@ -50,6 +50,9 @@ public sealed class SadadPaymentGateway(
         {
             using var document = JsonDocument.Parse(body);
             var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+                return new PaymentGatewayCreateResult(false, null, "INVALID_GATEWAY_RESPONSE");
+
             var resCode = GetString(root, "ResCode");
 
             // A successful HTTP response without a provider result code is malformed,
@@ -95,6 +98,9 @@ public sealed class SadadPaymentGateway(
         {
             using var document = JsonDocument.Parse(body);
             var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+                return new PaymentGatewayVerifyResult(false, null, null, "INVALID_GATEWAY_RESPONSE");
+
             var resCode = GetString(root, "ResCode");
             if (string.IsNullOrWhiteSpace(resCode))
                 return new PaymentGatewayVerifyResult(false, null, null, "INVALID_GATEWAY_RESPONSE");

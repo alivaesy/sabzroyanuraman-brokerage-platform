@@ -263,6 +263,38 @@ public class SadadPaymentGatewayTests
         Assert.Equal("GATEWAY_RESPONSE_TOO_LARGE", result.ErrorCode);
     }
 
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("null")]
+    [InlineData("\"unexpected-root\"")]
+    public async Task CreatePayment_NonObjectJsonResponseReturnsStableInvalidResponse(string responseBody)
+    {
+        var handler = new StubHandler(responseBody);
+        using var client = new HttpClient(handler);
+        var gateway = CreateGateway(client, CreateOptions());
+
+        var result = await gateway.CreatePaymentAsync(CreateRequest());
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("INVALID_GATEWAY_RESPONSE", result.ErrorCode);
+    }
+
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("null")]
+    [InlineData("\"unexpected-root\"")]
+    public async Task VerifyPayment_NonObjectJsonResponseReturnsStableInvalidResponse(string responseBody)
+    {
+        var handler = new StubHandler(responseBody);
+        using var client = new HttpClient(handler);
+        var gateway = CreateGateway(client, CreateOptions());
+
+        var result = await gateway.VerifyPaymentAsync("issued-token");
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("INVALID_GATEWAY_RESPONSE", result.ErrorCode);
+    }
+
     private static SadadOptions CreateOptions() => new()
     {
         MerchantId = "merchant",
