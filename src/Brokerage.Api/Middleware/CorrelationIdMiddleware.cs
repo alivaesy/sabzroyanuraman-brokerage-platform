@@ -21,17 +21,16 @@ public class CorrelationIdMiddleware
         var correlationId =
             context.Request.Headers[HeaderName].FirstOrDefault();
 
-        if (!IsSafeCorrelationId(correlationId))
-        {
-            correlationId = Guid.NewGuid().ToString("N");
-        }
+        var safeCorrelationId = IsSafeCorrelationId(correlationId)
+            ? correlationId!
+            : Guid.NewGuid().ToString("N");
 
-        context.TraceIdentifier = correlationId;
-        context.Response.Headers[HeaderName] = correlationId;
+        context.TraceIdentifier = safeCorrelationId;
+        context.Response.Headers[HeaderName] = safeCorrelationId;
 
         using (_logger.BeginScope(new Dictionary<string, object>
         {
-            ["CorrelationId"] = correlationId
+            ["CorrelationId"] = safeCorrelationId
         }))
         {
             await _next(context);
