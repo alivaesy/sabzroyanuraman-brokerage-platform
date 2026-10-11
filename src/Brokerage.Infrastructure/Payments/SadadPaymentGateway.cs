@@ -38,7 +38,7 @@ public sealed class SadadPaymentGateway(
         using var response = await httpClient.PostAsJsonAsync(options.RequestUrl, payload, cancellationToken);
         var body = await ReadBoundedResponseBodyAsync(response.Content, cancellationToken);
         if (body is null)
-            return new PaymentGatewayVerifyResult(false, null, null, "GATEWAY_RESPONSE_TOO_LARGE");
+            return new PaymentGatewayCreateResult(false, null, "GATEWAY_RESPONSE_TOO_LARGE");
 
         if (!response.IsSuccessStatusCode)
         {
@@ -81,7 +81,9 @@ public sealed class SadadPaymentGateway(
         options.Validate();
         var payload = new { Token = gatewayToken, SignData = Encrypt3Des(gatewayToken, options.TerminalKey) };
         using var response = await httpClient.PostAsJsonAsync(options.VerifyUrl, payload, cancellationToken);
-        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        var body = await ReadBoundedResponseBodyAsync(response.Content, cancellationToken);
+        if (body is null)
+            return new PaymentGatewayVerifyResult(false, null, null, "GATEWAY_RESPONSE_TOO_LARGE");
 
         if (!response.IsSuccessStatusCode)
         {

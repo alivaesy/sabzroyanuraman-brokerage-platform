@@ -113,3 +113,5 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Added a 64 KiB maximum for Sadad create/verify response bodies. The adapter reads bounded chunks instead of unconditionally materializing arbitrary provider response bodies, and oversized responses produce the stable `GATEWAY_RESPONSE_TOO_LARGE` error without exposing provider content.
 - Added regression tests for oversized create and verify responses. These are code-level changes only until the new GitLab `dotnet_build` and `dotnet_test` jobs pass; no local execution is claimed.
 - This remains a conservative ambiguity outcome; it does not mark a payment settled or rejected and must flow through existing reconciliation behavior.
+
+- Follow-up review of the response-boundary patch corrected the two result types/read paths before the next CI result: create oversize returns `PaymentGatewayCreateResult`, verify oversize returns `PaymentGatewayVerifyResult`, and both provider bodies use the bounded reader.
