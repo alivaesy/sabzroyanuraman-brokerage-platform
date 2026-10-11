@@ -207,6 +207,44 @@ public class SadadPaymentGatewayTests
     }
 
     [Fact]
+    public async Task VerifyPayment_SendsSignedRequestWithoutExposingTerminalKey()
+    {
+        var handler = new StubHandler("""{"ResCode":"12"}""");
+        using var client = new HttpClient(handler);
+        var options = CreateOptions();
+        var gateway = CreateGateway(client, options);
+
+        var result = await gateway.VerifyPaymentAsync("issued-token");
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(options.VerifyUrl, handler.RequestUri);
+        Assert.Contains("\\"token\\"", handler.RequestBody);
+        Assert.Contains("\\"signData\\"", handler.RequestBody);
+        Assert.DoesNotContain(TestTerminalKey, handler.RequestBody);
+    }
+
+    [Fact]
+    public async Task CreatePayment_RejectsNonHttpsProviderEndpointBeforeNetworkRequest()
+    {
+        var handler = new StubHandler("""{"ResCode":"0","Token":"test-token"}""");
+        using var client = new HttpClient(handler);
+        var options = CreateOptions() with { };
+        options = new SadadOptions
+        {
+            MerchantId = options.MerchantId,
+            TerminalId = options.TerminalId,
+            TerminalKey = options.TerminalKey,
+            CallbackUrl = options.CallbackUrl,
+            RequestUrl = "http://sadad.example.test/request"
+        };
+        var gateway = CreateGateway(client, options);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => gateway.CreatePaymentAsync(CreateRequest()));
+
+        Assert.Null(handler.RequestUri);
+    }
+
+    [Fact]
     public async Task VerifyPayment_ProviderRejectionIsNotReportedAsSuccess()
     {
         var handler = new StubHandler("""{"ResCode":"12","Description":"not verified"}""");

@@ -134,3 +134,9 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Commit `5d1b744c` validates the exact Sadad callback token before returning an already-succeeded replay result, preventing payment-state disclosure to callers that do not possess the issued token; regression test added. Pipeline must be checked for this commit and later commits before considering it CI-verified.
 - Next patch distinguishes a provider rejection with no explicit error code (`VERIFY_REJECTED`) from an actual amount mismatch, with regression coverage. This avoids misleading reconciliation reasons; provider outcomes still remain in manual reconciliation when not conclusively verified.
 - Latest known completed pipeline for the previous commit is `2935632862` (commit `0712e0f4`); it passed. It does not validate newer commits.
+
+
+## Sadad Follow-up Hardening (2026-10-11)
+- Expanded payment-service regression coverage so HTTP errors, malformed provider JSON, oversized responses, and a successful provider code without a token all remain in an ambiguous/pending state and cannot trigger an automatic second Create call.
+- Added adapter tests asserting the Verify request never includes the raw TerminalKey and that non-HTTPS provider request endpoints are rejected before any network request.
+- CI must be checked against the newest branch head after these tests; do not treat the previous green pipeline as validating this batch. Merchant-specific encryption/timestamp details and sandbox E2E remain explicit release gates.

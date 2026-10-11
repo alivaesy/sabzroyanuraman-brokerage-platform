@@ -79,14 +79,18 @@ public class PaymentServiceTests
         Assert.Single(repository.Items);
     }
 
-    [Fact]
-    public async Task CreateAsync_AmbiguousGatewayResponseRemainsPendingAndIsNotRetriedAutomatically()
+    [Theory]
+    [InlineData("HTTP_502")]
+    [InlineData("INVALID_GATEWAY_RESPONSE")]
+    [InlineData("GATEWAY_RESPONSE_TOO_LARGE")]
+    [InlineData("SADAD_TOKEN_MISSING")]
+    public async Task CreateAsync_AmbiguousGatewayResponseRemainsPendingAndIsNotRetriedAutomatically(string errorCode)
     {
         var requestId = Guid.NewGuid();
         var repository = new FakePaymentRepository();
         var gateway = new FakePaymentGateway
         {
-            CreateResultOverride = new PaymentGatewayCreateResult(false, null, "HTTP_502")
+            CreateResultOverride = new PaymentGatewayCreateResult(false, null, errorCode)
         };
         var audit = new FakeAuditEventWriter();
         var service = new PaymentService(repository, gateway, audit);
@@ -94,7 +98,7 @@ public class PaymentServiceTests
         var first = await service.CreateAsync(requestId, 1000, "ambiguous-create-key", "https://example.test/return", "correlation-create-unknown");
 
         Assert.False(first.Succeeded);
-        Assert.Equal("HTTP_502", first.ErrorCode);
+        Assert.Equal(errorCode, first.ErrorCode);
         Assert.Equal(PaymentStatus.Pending, first.Transaction.Status);
         Assert.Null(first.Transaction.GatewayToken);
         Assert.Equal(1, gateway.CreateCalls);
