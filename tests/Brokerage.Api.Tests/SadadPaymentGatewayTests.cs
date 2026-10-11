@@ -218,8 +218,8 @@ public class SadadPaymentGatewayTests
 
         Assert.False(result.Succeeded);
         Assert.Equal(options.VerifyUrl, handler.RequestUri);
-        Assert.Contains("\\"token\\"", handler.RequestBody);
-        Assert.Contains("\\"signData\\"", handler.RequestBody);
+        Assert.Contains("\"token\"", handler.RequestBody);
+        Assert.Contains("\"signData\"", handler.RequestBody);
         Assert.DoesNotContain(TestTerminalKey, handler.RequestBody);
     }
 
