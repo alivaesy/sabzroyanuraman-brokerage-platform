@@ -16,6 +16,7 @@ public class PaymentOperationalEndpointAuthorizationTests
         var response = await client.GetAsync(path);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
     }
 
     [Theory]
@@ -32,6 +33,7 @@ public class PaymentOperationalEndpointAuthorizationTests
         var response = await client.GetAsync("/ops/payments/reconciliation-candidates");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
     }
 
     [Theory]

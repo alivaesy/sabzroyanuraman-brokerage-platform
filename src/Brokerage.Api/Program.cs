@@ -266,7 +266,8 @@ app.Use(async (context, next) =>
 app.Use(async (context, next) =>
 {
     if (context.Request.Path.StartsWithSegments("/identity") ||
-        context.Request.Path.StartsWithSegments("/service-requests"))
+        context.Request.Path.StartsWithSegments("/service-requests") ||
+        context.Request.Path.StartsWithSegments("/ops/payments"))
     {
         context.Response.OnStarting(() =>
         {
