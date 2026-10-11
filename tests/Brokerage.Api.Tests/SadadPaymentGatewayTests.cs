@@ -375,6 +375,22 @@ public class SadadPaymentGatewayTests
         Assert.Equal("GATEWAY_RESPONSE_TOO_LARGE", result.ErrorCode);
     }
 
+    [Fact]
+    public async Task VerifyPayment_OversizedStreamingResponseWithoutContentLengthIsRejected()
+    {
+        using var content = new UnknownLengthContent(new byte[64 * 1024 + 1]);
+        var handler = new StubHandler(content);
+        using var client = new HttpClient(handler);
+        var gateway = CreateGateway(client, CreateOptions());
+
+        var result = await gateway.VerifyPaymentAsync("issued-token");
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Amount);
+        Assert.Null(result.GatewayReference);
+        Assert.Equal("GATEWAY_RESPONSE_TOO_LARGE", result.ErrorCode);
+    }
+
     [Theory]
     [InlineData("[]")]
     [InlineData("null")]
