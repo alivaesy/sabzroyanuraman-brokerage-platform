@@ -14,6 +14,12 @@ site_validate:
     - test -f sabzroyanuraman-site/web-gis.html
     - test -f sabzroyanuraman-site/web-cad.html
     - test -f sabzroyanuraman-site/.htaccess
+    - test -f sabzroyanuraman-site/آپ.png
+    - test -f sabzroyanuraman-site/سداد.png
+    - grep -Fq 'src="/آپ.png"' sabzroyanuraman-site/brokerage-details.html
+    - grep -Fq 'src="/سداد.png"' sabzroyanuraman-site/brokerage-details.html
+    - if grep -Fq 'src="/payment/آپ.png"' sabzroyanuraman-site/brokerage-details.html; then echo "Broken tracked path: /payment/آپ.png"; exit 1; fi
+    - if grep -Fq 'src="/payment/سداد.png"' sabzroyanuraman-site/brokerage-details.html; then echo "Broken tracked path: /payment/سداد.png"; exit 1; fi
     - echo "Required website files are present."
 
 php_validate:
