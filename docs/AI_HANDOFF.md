@@ -107,3 +107,9 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - A concrete “recorded but missing” mismatch was found and fixed: payment logos `آپ.png` and `سداد.png` are committed at the site root, not in a tracked `payment/` folder. `brokerage-details.html` now references the root assets; the separate deployed legacy paths `/payment/asan-logo.png`, `/payment/sadad-logo.png`, and PHP payment flow remain untouched.
 - Follow-up: make both GitLab `site_validate` and `ci-local.ps1` assert the two committed logo files and matching references, so this path mismatch cannot silently recur. Also align local migration verification with GitLab CI by checking `20261008170000_AddPaymentTransactions` and `20261010100000_AddPaymentStatusUpdatedAtIndex` in addition to the earlier migrations.
 - Current source tree is not proof of what is deployed on hosting or what exists on another branch. If a different recorded item is still missing, its exact name/path and expected location must be identified; do not assume it was deleted or modify the live PHP payment flow.
+
+
+## Sadad Response-Boundary Hardening (2026-10-11)
+- Added a 64 KiB maximum for Sadad create/verify response bodies. The adapter reads bounded chunks instead of unconditionally materializing arbitrary provider response bodies, and oversized responses produce the stable `GATEWAY_RESPONSE_TOO_LARGE` error without exposing provider content.
+- Added regression tests for oversized create and verify responses. These are code-level changes only until the new GitLab `dotnet_build` and `dotnet_test` jobs pass; no local execution is claimed.
+- This remains a conservative ambiguity outcome; it does not mark a payment settled or rejected and must flow through existing reconciliation behavior.

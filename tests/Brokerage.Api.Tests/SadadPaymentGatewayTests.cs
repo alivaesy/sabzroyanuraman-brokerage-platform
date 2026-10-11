@@ -234,6 +234,35 @@ public class SadadPaymentGatewayTests
         Assert.Null(handler.RequestUri);
     }
 
+    [Fact]
+    public async Task CreatePayment_OversizedProviderResponseIsRejectedWithoutReturningBody()
+    {
+        var handler = new StubHandler(new string('x', 64 * 1024 + 1));
+        using var client = new HttpClient(handler);
+        var gateway = CreateGateway(client, CreateOptions());
+
+        var result = await gateway.CreatePaymentAsync(CreateRequest());
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.GatewayToken);
+        Assert.Equal("GATEWAY_RESPONSE_TOO_LARGE", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task VerifyPayment_OversizedProviderResponseIsRejectedWithoutReturningBody()
+    {
+        var handler = new StubHandler(new string('x', 64 * 1024 + 1));
+        using var client = new HttpClient(handler);
+        var gateway = CreateGateway(client, CreateOptions());
+
+        var result = await gateway.VerifyPaymentAsync("issued-token");
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Amount);
+        Assert.Null(result.GatewayReference);
+        Assert.Equal("GATEWAY_RESPONSE_TOO_LARGE", result.ErrorCode);
+    }
+
     private static SadadOptions CreateOptions() => new()
     {
         MerchantId = "merchant",

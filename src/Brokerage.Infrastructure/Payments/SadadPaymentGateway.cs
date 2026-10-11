@@ -13,6 +13,8 @@ public sealed class SadadPaymentGateway(
     SadadOptions options,
     ILogger<SadadPaymentGateway> logger) : IPaymentGateway
 {
+    private const int MaxProviderResponseBytes = 64 * 1024;
+
     public async Task<PaymentGatewayCreateResult> CreatePaymentAsync(PaymentGatewayCreateRequest request, CancellationToken cancellationToken = default)
     {
         if (!string.Equals(request.Currency, "IRR", StringComparison.OrdinalIgnoreCase))
@@ -34,7 +36,9 @@ public sealed class SadadPaymentGateway(
         };
 
         using var response = await httpClient.PostAsJsonAsync(options.RequestUrl, payload, cancellationToken);
-        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        var body = await ReadBoundedResponseBodyAsync(response.Content, cancellationToken);
+        if (body is null)
+            return new PaymentGatewayVerifyResult(false, null, null, "GATEWAY_RESPONSE_TOO_LARGE");
 
         if (!response.IsSuccessStatusCode)
         {
@@ -109,6 +113,31 @@ public sealed class SadadPaymentGateway(
             logger.LogWarning("Sadad verify returned invalid JSON.");
             return new PaymentGatewayVerifyResult(false, null, null, "INVALID_GATEWAY_RESPONSE");
         }
+    }
+
+    private static async Task<string?> ReadBoundedResponseBodyAsync(HttpContent content, CancellationToken cancellationToken)
+    {
+        // Bound memory use even when the provider omits Content-Length or streams a large body.
+        if (content.Headers.ContentLength is > MaxProviderResponseBytes)
+            return null;
+
+        await using var stream = await content.ReadAsStreamAsync(cancellationToken);
+        using var buffer = new MemoryStream();
+        var chunk = new byte[8192];
+
+        while (true)
+        {
+            var read = await stream.ReadAsync(chunk.AsMemory(), cancellationToken);
+            if (read == 0)
+                break;
+
+            if (buffer.Length + read > MaxProviderResponseBytes)
+                return null;
+
+            buffer.Write(chunk, 0, read);
+        }
+
+        return Encoding.UTF8.GetString(buffer.ToArray());
     }
 
     private static string Encrypt3Des(string value, string key)
