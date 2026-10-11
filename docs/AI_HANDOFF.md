@@ -149,3 +149,5 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 
 - Commit `84a00c7a` corrected malformed string escaping that broke C# compilation in the Sadad verify tests. Commit `a28fcc71` adds parameterized HTTPS checks for all configured Sadad URLs. The latest pipeline for `a28fcc71` is pending at the time of this update.
 - Added a no-auto-redirect policy for the Sadad typed HTTP client so signed payment request bodies are not silently forwarded to a redirect target. HTTP 3xx responses are handled as non-success provider responses and remain subject to conservative reconciliation rules.
+
+- Latest Sadad batch (2026-10-11): fixed C# escaping in provider request assertions (`84a00c7a`); added HTTPS validation regression coverage for all four configured URLs (`a28fcc71`); disabled automatic HTTP redirects for the Sadad client to avoid forwarding signed payment payloads to redirect targets (`e3988efb`); added create/verify tests that 302 responses are not treated as successful gateway operations (`e2bfb1ba`). The current head pipeline must be green before this batch is considered validated.
