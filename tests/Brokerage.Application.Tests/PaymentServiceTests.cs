@@ -52,6 +52,34 @@ public class PaymentServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_TransportExceptionDoesNotRetryGatewayCreationOnReplay()
+    {
+        var requestId = Guid.NewGuid();
+        var repository = new FakePaymentRepository();
+        var gateway = new FakePaymentGateway { ThrowOnCreate = true };
+        var audit = new FakeAuditEventWriter();
+        var service = new PaymentService(repository, gateway, audit);
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => service.CreateAsync(
+            requestId, 1000, "create-transport-exception-key", "https://example.test/payment/callback-sadad", "correlation-create-transport-error"));
+
+        var persisted = Assert.Single(repository.Items);
+        Assert.Equal(PaymentStatus.Pending, persisted.Status);
+        Assert.Null(persisted.GatewayToken);
+        Assert.Equal("PaymentGatewayUnavailable", Assert.Single(audit.Events).EventType);
+        Assert.Equal("ReviewRequired", audit.Events[0].Outcome);
+        Assert.Equal(1, gateway.CreateCalls);
+
+        var replay = await service.CreateAsync(
+            requestId, 1000, "create-transport-exception-key", "https://example.test/payment/callback-sadad", "correlation-create-transport-replay");
+
+        Assert.False(replay.Succeeded);
+        Assert.Equal("PAYMENT_CREATE_OUTCOME_UNKNOWN", replay.ErrorCode);
+        Assert.Equal(1, gateway.CreateCalls);
+        Assert.Single(repository.Items);
+    }
+
+    [Fact]
     public async Task CreateAsync_AmbiguousGatewayResponseRemainsPendingAndIsNotRetriedAutomatically()
     {
         var requestId = Guid.NewGuid();
@@ -267,6 +295,7 @@ public class PaymentServiceTests
     {
         public int CreateCalls { get; private set; }
         public int VerifyCalls { get; private set; }
+        public bool ThrowOnCreate { get; init; }
         public bool ThrowOnVerify { get; init; }
         public PaymentGatewayCreateResult? CreateResultOverride { get; init; }
         public PaymentGatewayVerifyResult? VerifyResultOverride { get; init; }
@@ -274,6 +303,8 @@ public class PaymentServiceTests
         public Task<PaymentGatewayCreateResult> CreatePaymentAsync(PaymentGatewayCreateRequest request, CancellationToken cancellationToken = default)
         {
             CreateCalls++;
+            if (ThrowOnCreate)
+                throw new HttpRequestException("Simulated gateway timeout.");
             return Task.FromResult(CreateResultOverride ?? new PaymentGatewayCreateResult(true, "new-token"));
         }
 

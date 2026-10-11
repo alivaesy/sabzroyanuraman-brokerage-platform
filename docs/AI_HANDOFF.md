@@ -122,3 +122,9 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Added regression tests for all three non-object JSON root shapes in both create and verify paths.
 - Configured the typed Sadad HTTP client with a 30-second timeout to bound time spent waiting on a stalled provider. Existing payment-service handling treats transport/time-out outcomes conservatively; no automatic retry or settlement was introduced.
 - These changes are committed on `feat/payment-foundation-sadad-ready`; validate through the resulting GitLab pipeline and the user's local `.\cci-local.ps1` before treating the batch as complete.
+
+
+## Payment Create Transport-Exception Regression (2026-10-11)
+- Added an application-level regression test for a transport exception during Sadad payment creation: the already-persisted transaction remains Pending without a gateway token, the outcome is audited as requiring review, and replaying the same idempotency key does not call Sadad Create a second time.
+- This complements the existing ambiguous HTTP/malformed-response tests and protects the uncertain-outcome path when HttpClient times out or throws before receiving a response.
+- Await the newest GitLab pipeline and the user's local `.\cci-local.ps1` before marking the current batch verified.
