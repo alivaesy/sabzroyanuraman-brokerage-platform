@@ -346,6 +346,21 @@ public class SadadPaymentGatewayTests
     }
 
     [Fact]
+    public async Task CreatePayment_OversizedStreamingResponseWithoutContentLengthIsRejected()
+    {
+        using var content = new UnknownLengthContent(new byte[64 * 1024 + 1]);
+        var handler = new StubHandler(content);
+        using var client = new HttpClient(handler);
+        var gateway = CreateGateway(client, CreateOptions());
+
+        var result = await gateway.CreatePaymentAsync(CreateRequest());
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.GatewayToken);
+        Assert.Equal("GATEWAY_RESPONSE_TOO_LARGE", result.ErrorCode);
+    }
+
+    [Fact]
     public async Task VerifyPayment_OversizedProviderResponseIsRejectedWithoutReturningBody()
     {
         var handler = new StubHandler(new string('x', 64 * 1024 + 1));
@@ -409,6 +424,13 @@ public class SadadPaymentGatewayTests
 
     private sealed class StubHandler(string response, HttpStatusCode statusCode = HttpStatusCode.OK) : HttpMessageHandler
     {
+        private HttpContent? _customResponseContent;
+
+        public StubHandler(HttpContent responseContent) : this(string.Empty)
+        {
+            _customResponseContent = responseContent;
+        }
+
         public string RequestBody { get; private set; } = string.Empty;
         public string? RequestContentType { get; private set; }
         public string? RequestUri { get; private set; }
@@ -425,8 +447,23 @@ public class SadadPaymentGatewayTests
 
             return new HttpResponseMessage(statusCode)
             {
-                Content = new StringContent(response, System.Text.Encoding.UTF8, "application/json")
+                Content = _customResponseContent ?? new StringContent(response, System.Text.Encoding.UTF8, "application/json")
             };
         }
+    }
+
+    private sealed class UnknownLengthContent(byte[] bytes) : HttpContent
+    {
+        protected override Task SerializeToStreamAsync(Stream stream, System.Net.TransportContext? context) =>
+            stream.WriteAsync(bytes, 0, bytes.Length);
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
+        }
+
+        protected override Task<Stream> CreateContentReadStreamAsync() =>
+            Task.FromResult<Stream>(new MemoryStream(bytes, writable: false));
     }
 }
