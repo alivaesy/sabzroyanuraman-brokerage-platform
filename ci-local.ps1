@@ -34,13 +34,13 @@ function Run-Check {
 
 Run-Check "site_validate" 'docker run --rm -v "${PWD}:/workspace" -w /workspace alpine:3.20 sh -c "test -f sabzroyanuraman-site/index.html && test -f sabzroyanuraman-site/determination-form.html && test -f sabzroyanuraman-site/brokerage-details.html && test -f sabzroyanuraman-site/web-gis.html && test -f sabzroyanuraman-site/web-cad.html && test -f sabzroyanuraman-site/.htaccess && echo Required-website-files-are-present"'
 
-Run-Check "php_validate" 'docker run --rm -v "${PWD}:/workspace" -w /workspace php:8.2-cli sh -c "find sabzroyanuraman-site -type f -name \"*.php\" -print0 | xargs -0 -r -n1 php -l"'
+Run-Check "php_validate" 'docker run --rm -v "${PWD}:/workspace" -w /workspace php:8.2-cli sh -c "find sabzroyanuraman-site -type f -name \\*.php -exec php -l {} +"'
 
 Run-Check "dotnet_build" 'docker run --rm -v "${PWD}:/workspace" -w /workspace mcr.microsoft.com/dotnet/sdk:10.0 sh -c "dotnet restore BrokeragePlatform.slnx && dotnet build BrokeragePlatform.slnx --configuration Release --no-restore"'
 
 Run-Check "dotnet_migration_verify" 'docker run --rm -v "${PWD}:/workspace" -w /workspace mcr.microsoft.com/dotnet/sdk:10.0 sh -c "dotnet tool install --global dotnet-ef --version 10.0.12 && dotnet restore BrokeragePlatform.slnx && dotnet build src/Brokerage.Api/Brokerage.Api.csproj --configuration Release --no-restore && /root/.dotnet/tools/dotnet-ef migrations list --project src/Brokerage.Infrastructure/Brokerage.Infrastructure.csproj --startup-project src/Brokerage.Api/Brokerage.Api.csproj --configuration Release --no-build | tee /tmp/ef-migrations.txt && grep -Fq 20261005043933_InitialCreate /tmp/ef-migrations.txt && grep -Fq 20261005093520_AddAuditEvents /tmp/ef-migrations.txt && grep -Fq 20261005190000_HardenAuditEvents /tmp/ef-migrations.txt && grep -Fq 20261006100000_PersistOtpMfaState /tmp/ef-migrations.txt && echo Expected-EF-migrations-verified"'
 
-Run-Check "dotnet_test" 'docker run --rm -v "${PWD}:/workspace" -w /workspace mcr.microsoft.com/dotnet/sdk:10.0 sh -c "dotnet restore BrokeragePlatform.slnx && dotnet test BrokeragePlatform.slnx --configuration Release --no-restore --logger \"console;verbosity=normal\""'
+Run-Check "dotnet_test" 'docker run --rm -v "${PWD}:/workspace" -w /workspace mcr.microsoft.com/dotnet/sdk:10.0 sh -c "dotnet restore BrokeragePlatform.slnx && dotnet test BrokeragePlatform.slnx --configuration Release --no-restore --logger ""console;verbosity=normal"""'
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Green
