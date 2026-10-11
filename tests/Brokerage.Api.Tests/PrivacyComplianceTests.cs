@@ -194,6 +194,19 @@ public class PrivacyComplianceTests
         }
     }
 
+
+    [Fact]
+    public async Task AuditExportAuthorizationFailure_DisablesCaching()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var response = await client.GetAsync("/audit/events/export");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+    }
+
     private static HttpClient CreateApplicantClient(WebApplicationFactory<Program> application)
     {
         var client = application.CreateClient();

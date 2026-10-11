@@ -19,6 +19,26 @@ public class PaymentOperationalEndpointAuthorizationTests
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
     }
 
+
+    [Fact]
+    public async Task PaymentOperations_ReconciliationReadsAreRateLimitedAndNoStoreOnRejection()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "payment-ops-rate-limit-user");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", "TechnicalSecurity");
+
+        for (var i = 0; i < 60; i++)
+        {
+            var allowed = await client.GetAsync("/ops/payments/reconciliation-candidates");
+            Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
+        }
+
+        var rejected = await client.GetAsync("/ops/payments/reconciliation-candidates");
+        Assert.Equal(HttpStatusCode.TooManyRequests, rejected.StatusCode);
+        Assert.Equal("no-store", rejected.Headers.CacheControl?.ToString());
+    }
+
     [Theory]
     [InlineData("Applicant")]
     [InlineData("Support")]
