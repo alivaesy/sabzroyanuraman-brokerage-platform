@@ -244,6 +244,34 @@ public class SadadPaymentGatewayTests
         Assert.Null(handler.RequestUri);
     }
 
+    [Theory]
+    [InlineData("RequestUrl")]
+    [InlineData("VerifyUrl")]
+    [InlineData("PaymentUrl")]
+    [InlineData("CallbackUrl")]
+    public async Task CreatePayment_RejectsAnyNonHttpsSadadUrlBeforeNetworkRequest(string invalidProperty)
+    {
+        var handler = new StubHandler("""{"ResCode":"0","Token":"test-token"}""");
+        using var client = new HttpClient(handler);
+        var defaults = CreateOptions();
+        const string invalidUrl = "http://sadad.example.test/endpoint";
+        var options = new SadadOptions
+        {
+            MerchantId = defaults.MerchantId,
+            TerminalId = defaults.TerminalId,
+            TerminalKey = defaults.TerminalKey,
+            CallbackUrl = invalidProperty == "CallbackUrl" ? invalidUrl : defaults.CallbackUrl,
+            RequestUrl = invalidProperty == "RequestUrl" ? invalidUrl : defaults.RequestUrl,
+            VerifyUrl = invalidProperty == "VerifyUrl" ? invalidUrl : defaults.VerifyUrl,
+            PaymentUrl = invalidProperty == "PaymentUrl" ? invalidUrl : defaults.PaymentUrl
+        };
+        var gateway = CreateGateway(client, options);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => gateway.CreatePaymentAsync(CreateRequest()));
+
+        Assert.Null(handler.RequestUri);
+    }
+
     [Fact]
     public async Task VerifyPayment_ProviderRejectionIsNotReportedAsSuccess()
     {

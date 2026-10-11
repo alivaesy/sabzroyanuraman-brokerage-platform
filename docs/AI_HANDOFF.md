@@ -140,3 +140,9 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Expanded payment-service regression coverage so HTTP errors, malformed provider JSON, oversized responses, and a successful provider code without a token all remain in an ambiguous/pending state and cannot trigger an automatic second Create call.
 - Added adapter tests asserting the Verify request never includes the raw TerminalKey and that non-HTTPS provider request endpoints are rejected before any network request.
 - CI must be checked against the newest branch head after these tests; do not treat the previous green pipeline as validating this batch. Merchant-specific encryption/timestamp details and sandbox E2E remain explicit release gates.
+
+
+## Sadad Validation and CI Follow-up (2026-10-11)
+- Fixed invalid C# escaping in the Sadad verify request assertions (commit `84a00c7a`); the previous pipeline failed compilation at those assertions, not because of gateway runtime behavior.
+- Added parameterized regression coverage proving all four configured Sadad URLs (RequestUrl, VerifyUrl, PaymentUrl, CallbackUrl) must use HTTPS before any provider request is sent. The latest pipeline for `84a00c7a` is running; do not mark this batch green until its result is successful.
+- Continue to keep live PHP payments untouched; Sadad merchant contract and sandbox behavior still require confirmation from the merchant-specific integration pack/environment.
