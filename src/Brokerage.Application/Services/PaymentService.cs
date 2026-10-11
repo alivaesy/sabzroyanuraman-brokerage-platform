@@ -125,7 +125,8 @@ public sealed class PaymentService(
             throw;
         }
 
-        if (!gatewayResult.Succeeded || gatewayResult.Amount != transaction.Amount || string.IsNullOrWhiteSpace(gatewayResult.GatewayReference))
+        if (!gatewayResult.Succeeded || gatewayResult.Amount != transaction.Amount || string.IsNullOrWhiteSpace(gatewayResult.GatewayReference) ||
+            !string.Equals(gatewayResult.OrderId, transaction.Id.ToString("N"), StringComparison.OrdinalIgnoreCase))
         {
             transaction.MarkReconciliationRequired();
             await repository.SaveChangesAsync(cancellationToken);
@@ -134,7 +135,9 @@ public sealed class PaymentService(
                     ? "VERIFY_REJECTED"
                     : gatewayResult.Amount != transaction.Amount
                         ? "VERIFY_AMOUNT_MISMATCH"
-                        : "VERIFY_REFERENCE_MISSING");
+                        : string.IsNullOrWhiteSpace(gatewayResult.GatewayReference)
+                            ? "VERIFY_REFERENCE_MISSING"
+                            : "VERIFY_ORDER_MISMATCH");
             await WriteAuditAsync(
                 "PaymentReconciliationRequired",
                 correlationId,

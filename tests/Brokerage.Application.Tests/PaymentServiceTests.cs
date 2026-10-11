@@ -234,7 +234,7 @@ public class PaymentServiceTests
         var repository = new FakePaymentRepository(existing);
         var gateway = new FakePaymentGateway
         {
-            VerifyResultOverride = new PaymentGatewayVerifyResult(true, 999, "trace-mismatch")
+            VerifyResultOverride = new PaymentGatewayVerifyResult(true, 999, "trace-mismatch", null, existing.Id.ToString("N"))
         };
         var audit = new FakeAuditEventWriter();
         var service = new PaymentService(repository, gateway, audit);
@@ -257,7 +257,7 @@ public class PaymentServiceTests
         var repository = new FakePaymentRepository(existing);
         var gateway = new FakePaymentGateway
         {
-            VerifyResultOverride = new PaymentGatewayVerifyResult(true, 1000, null)
+            VerifyResultOverride = new PaymentGatewayVerifyResult(true, 1000, null, null, existing.Id.ToString("N"))
         };
         var audit = new FakeAuditEventWriter();
         var service = new PaymentService(repository, gateway, audit);

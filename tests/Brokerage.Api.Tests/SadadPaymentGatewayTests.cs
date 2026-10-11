@@ -145,7 +145,7 @@ public class SadadPaymentGatewayTests
     [Fact]
     public async Task VerifyPayment_ParsesAmountAndGatewayReference()
     {
-        var handler = new StubHandler("""{"ResCode":"0","Amount":"15000000","SystemTraceNo":"trace-123"}""");
+        var handler = new StubHandler("""{"ResCode":"0","Amount":"15000000","SystemTraceNo":"trace-123","OrderId":"order-123"}""");
         using var client = new HttpClient(handler);
         var options = CreateOptions();
         var gateway = CreateGateway(client, options);
@@ -155,6 +155,7 @@ public class SadadPaymentGatewayTests
         Assert.True(result.Succeeded);
         Assert.Equal(15000000L, result.Amount);
         Assert.Equal("trace-123", result.GatewayReference);
+        Assert.Equal("order-123", result.OrderId);
         Assert.Equal(options.VerifyUrl, handler.RequestUri);
         Assert.Contains("\"token\":\"issued-token\"", handler.RequestBody);
         Assert.Contains("\"signData\"", handler.RequestBody);
@@ -188,6 +189,19 @@ public class SadadPaymentGatewayTests
         Assert.Equal(15000000L, result.Amount);
         Assert.Null(result.GatewayReference);
         Assert.Equal("SADAD_REFERENCE_MISSING", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task VerifyPayment_MissingOrderIdIsRejected()
+    {
+        var handler = new StubHandler("""{"ResCode":"0","Amount":"15000000","SystemTraceNo":"trace-123"}""");
+        using var client = new HttpClient(handler);
+        var gateway = CreateGateway(client, CreateOptions());
+
+        var result = await gateway.VerifyPaymentAsync("issued-token");
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("SADAD_ORDER_ID_MISSING", result.ErrorCode);
     }
 
     [Fact]

@@ -10,4 +10,4 @@ public sealed record PaymentGatewayCreateRequest(string OrderId, long Amount, st
 
 public sealed record PaymentGatewayCreateResult(bool Succeeded, string? GatewayToken, string? ErrorCode = null);
 
-public sealed record PaymentGatewayVerifyResult(bool Succeeded, long? Amount, string? GatewayReference, string? ErrorCode = null);
+public sealed record PaymentGatewayVerifyResult(bool Succeeded, long? Amount, string? GatewayReference, string? ErrorCode = null, string? OrderId = null);

@@ -28,7 +28,7 @@ public class PaymentServiceConcurrencyTests
         Assert.Equal("PAYMENT_NOT_VERIFIABLE", secondAttempt.ErrorCode);
         Assert.Equal(1, gateway.VerifyCalls);
 
-        gateway.Complete(new PaymentGatewayVerifyResult(true, 1000, "trace-concurrent-success"));
+        gateway.Complete(new PaymentGatewayVerifyResult(true, 1000, "trace-concurrent-success", null, payment.Id.ToString("N")));
         var firstResult = await firstAttempt;
 
         Assert.True(firstResult.Succeeded);

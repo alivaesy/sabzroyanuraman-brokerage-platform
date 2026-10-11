@@ -110,11 +110,13 @@ public sealed class SadadPaymentGateway(
 
             var amount = GetInt64(root, "Amount");
             var reference = GetString(root, "SystemTraceNo") ?? GetString(root, "RetrivalRefNo");
+            var orderId = GetString(root, "OrderId") ?? GetString(root, "OrderID");
 
-            if (amount is null) return new PaymentGatewayVerifyResult(false, null, reference, "SADAD_AMOUNT_MISSING");
-            if (string.IsNullOrWhiteSpace(reference)) return new PaymentGatewayVerifyResult(false, amount, null, "SADAD_REFERENCE_MISSING");
+            if (amount is null) return new PaymentGatewayVerifyResult(false, null, reference, "SADAD_AMOUNT_MISSING", orderId);
+            if (string.IsNullOrWhiteSpace(reference)) return new PaymentGatewayVerifyResult(false, amount, null, "SADAD_REFERENCE_MISSING", orderId);
+            if (string.IsNullOrWhiteSpace(orderId)) return new PaymentGatewayVerifyResult(false, amount, reference, "SADAD_ORDER_ID_MISSING");
 
-            return new PaymentGatewayVerifyResult(true, amount, reference);
+            return new PaymentGatewayVerifyResult(true, amount, reference, null, orderId);
         }
         catch (JsonException)
         {
