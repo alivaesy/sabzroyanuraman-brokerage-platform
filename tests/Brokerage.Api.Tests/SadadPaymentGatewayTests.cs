@@ -228,13 +228,13 @@ public class SadadPaymentGatewayTests
     {
         var handler = new StubHandler("""{"ResCode":"0","Token":"test-token"}""");
         using var client = new HttpClient(handler);
-        var options = CreateOptions() with { };
-        options = new SadadOptions
+        var defaults = CreateOptions();
+        var options = new SadadOptions
         {
-            MerchantId = options.MerchantId,
-            TerminalId = options.TerminalId,
-            TerminalKey = options.TerminalKey,
-            CallbackUrl = options.CallbackUrl,
+            MerchantId = defaults.MerchantId,
+            TerminalId = defaults.TerminalId,
+            TerminalKey = defaults.TerminalKey,
+            CallbackUrl = defaults.CallbackUrl,
             RequestUrl = "http://sadad.example.test/request"
         };
         var gateway = CreateGateway(client, options);
