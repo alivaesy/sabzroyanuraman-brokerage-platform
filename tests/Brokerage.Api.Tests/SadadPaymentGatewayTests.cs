@@ -86,6 +86,21 @@ public class SadadPaymentGatewayTests
     }
 
     [Fact]
+    public async Task CreatePayment_RedirectResponseIsNotTreatedAsSuccessfulGatewayCreation()
+    {
+        var handler = new StubHandler("redirect body", HttpStatusCode.Redirect);
+        using var client = new HttpClient(handler);
+        var gateway = CreateGateway(client, CreateOptions());
+
+        var result = await gateway.CreatePaymentAsync(CreateRequest());
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.GatewayToken);
+        Assert.Equal("HTTP_302", result.ErrorCode);
+        Assert.Equal(1, handler.SendCount);
+    }
+
+    [Fact]
     public async Task CreatePayment_InvalidJsonIsReturnedAsAmbiguousResponse()
     {
         var handler = new StubHandler("not-json");
@@ -189,6 +204,22 @@ public class SadadPaymentGatewayTests
         Assert.Null(result.GatewayReference);
         Assert.Equal("HTTP_502", result.ErrorCode);
         Assert.DoesNotContain("sensitive provider response body", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task VerifyPayment_RedirectResponseIsNotTreatedAsSuccessfulVerification()
+    {
+        var handler = new StubHandler("redirect body", HttpStatusCode.Redirect);
+        using var client = new HttpClient(handler);
+        var gateway = CreateGateway(client, CreateOptions());
+
+        var result = await gateway.VerifyPaymentAsync("issued-token");
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Amount);
+        Assert.Null(result.GatewayReference);
+        Assert.Equal("HTTP_302", result.ErrorCode);
+        Assert.Equal(1, handler.SendCount);
     }
 
     [Fact]
@@ -381,9 +412,11 @@ public class SadadPaymentGatewayTests
         public string RequestBody { get; private set; } = string.Empty;
         public string? RequestContentType { get; private set; }
         public string? RequestUri { get; private set; }
+        public int SendCount { get; private set; }
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            SendCount++;
             RequestUri = request.RequestUri?.ToString();
             RequestBody = request.Content is null
                 ? string.Empty
