@@ -157,3 +157,9 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Pipeline `2935720459` failed in `PaymentServiceTests.CreateAsync_AmbiguousGatewayResponseRemainsPendingAndIsNotRetriedAutomatically`: `GATEWAY_RESPONSE_TOO_LARGE` was missing from `IsAmbiguousCreateOutcome`, so the transaction was marked Failed despite the provider outcome being unknown.
 - Corrected the classification so oversized provider responses remain Pending for reconciliation and cannot trigger automatic duplicate creation. The existing theory case covers the regression. CI must rerun on the new commit before this fix is considered validated.
 - The user also reported a C# syntax error at line 222 in `SadadPaymentGatewayTests.cs`; the current branch content at that line is syntactically valid. The current pipeline failure trace identifies the application test above instead, so inspect the exact commit/job associated with the user's separate compile log if that syntax error recurs.
+
+
+## Consolidated Sadad CI correction (2026-10-11)
+- The latest failed pipeline `2935720459` passed `dotnet_build` and `dotnet_migration_verify`; `dotnet_test` failed in the ambiguous-create theory for `GATEWAY_RESPONSE_TOO_LARGE` (expected Pending, observed Failed). The user separately reported a C# syntax error at SadadPaymentGatewayTests.cs line 222; the checked-in line is now syntactically valid and the current pipeline failure is a runtime assertion, not a compile error.
+- Commit for this correction normalizes gateway error codes (trim + case-insensitive matching) before classifying ambiguous create outcomes and adds regression cases for casing/whitespace variants. This is deliberately conservative: oversized/truncated provider responses must remain Pending for reconciliation and must not invite a duplicate gateway Create.
+- Run the latest branch pipeline and local `.\ci-local.ps1` before treating this batch as green. PHP live payment flow and `master` remain untouched.

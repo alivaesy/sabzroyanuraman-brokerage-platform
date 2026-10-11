@@ -80,6 +80,30 @@ public class PaymentServiceTests
     }
 
     [Theory]
+    [InlineData("gateway_response_too_large")]
+    [InlineData(" GATEWAY_RESPONSE_TOO_LARGE ")]
+    public async Task CreateAsync_OversizedResponseCodeIsClassifiedAsAmbiguousRegardlessOfFormatting(string errorCode)
+    {
+        var requestId = Guid.NewGuid();
+        var repository = new FakePaymentRepository();
+        var gateway = new FakePaymentGateway
+        {
+            CreateResultOverride = new PaymentGatewayCreateResult(false, null, errorCode)
+        };
+        var audit = new FakeAuditEventWriter();
+        var service = new PaymentService(repository, gateway, audit);
+
+        var result = await service.CreateAsync(requestId, 1000, $"oversized-response-{Guid.NewGuid():N}",
+            "https://example.test/return", "correlation-oversized-response");
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(errorCode, result.ErrorCode);
+        Assert.Equal(PaymentStatus.Pending, result.Transaction.Status);
+        Assert.Equal("PaymentCreateOutcomeUnknown", Assert.Single(audit.Events).EventType);
+        Assert.Equal(1, gateway.CreateCalls);
+    }
+
+    [Theory]
     [InlineData("HTTP_502")]
     [InlineData("INVALID_GATEWAY_RESPONSE")]
     [InlineData("GATEWAY_RESPONSE_TOO_LARGE")]

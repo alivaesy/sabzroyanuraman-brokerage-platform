@@ -173,12 +173,22 @@ public sealed class PaymentService(
                 newState),
             cancellationToken);
 
-    private static bool IsAmbiguousCreateOutcome(string? errorCode) =>
-        errorCode is not null &&
-        (errorCode.StartsWith("HTTP_", StringComparison.OrdinalIgnoreCase) ||
-         string.Equals(errorCode, "INVALID_GATEWAY_RESPONSE", StringComparison.Ordinal) ||
-         string.Equals(errorCode, "GATEWAY_RESPONSE_TOO_LARGE", StringComparison.Ordinal) ||
-         string.Equals(errorCode, "SADAD_TOKEN_MISSING", StringComparison.Ordinal));
+    private static bool IsAmbiguousCreateOutcome(string? errorCode)
+    {
+        if (string.IsNullOrWhiteSpace(errorCode))
+            return false;
+
+        // Provider response classification is intentionally conservative: a truncated or
+        // oversized body cannot establish that Sadad rejected the order. Normalize the
+        // code defensively so casing/outer whitespace cannot turn an unknown outcome into
+        // a terminal Failed transaction and invite a duplicate payment attempt.
+        var normalizedCode = errorCode.Trim();
+
+        return normalizedCode.StartsWith("HTTP_", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalizedCode, "INVALID_GATEWAY_RESPONSE", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalizedCode, "GATEWAY_RESPONSE_TOO_LARGE", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalizedCode, "SADAD_TOKEN_MISSING", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static bool CryptographicEquals(string left, string right)
     {
