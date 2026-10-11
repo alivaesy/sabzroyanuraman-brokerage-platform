@@ -146,3 +146,6 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Fixed invalid C# escaping in the Sadad verify request assertions (commit `84a00c7a`); the previous pipeline failed compilation at those assertions, not because of gateway runtime behavior.
 - Added parameterized regression coverage proving all four configured Sadad URLs (RequestUrl, VerifyUrl, PaymentUrl, CallbackUrl) must use HTTPS before any provider request is sent. The latest pipeline for `84a00c7a` is running; do not mark this batch green until its result is successful.
 - Continue to keep live PHP payments untouched; Sadad merchant contract and sandbox behavior still require confirmation from the merchant-specific integration pack/environment.
+
+- Commit `84a00c7a` corrected malformed string escaping that broke C# compilation in the Sadad verify tests. Commit `a28fcc71` adds parameterized HTTPS checks for all configured Sadad URLs. The latest pipeline for `a28fcc71` is pending at the time of this update.
+- Added a no-auto-redirect policy for the Sadad typed HTTP client so signed payment request bodies are not silently forwarded to a redirect target. HTTP 3xx responses are handled as non-success provider responses and remain subject to conservative reconciliation rules.

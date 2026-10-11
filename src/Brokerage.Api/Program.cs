@@ -177,6 +177,12 @@ builder.Services.AddSingleton(_ => SadadOptions.FromConfiguration(builder.Config
 builder.Services.AddHttpClient<SadadPaymentGateway>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(30);
+})
+.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    // Sadad request bodies include signed payment data. Do not forward them automatically
+    // if a configured provider endpoint responds with a redirect to another host.
+    AllowAutoRedirect = false
 });
 builder.Services.AddScoped<IPaymentGateway>(services => services.GetRequiredService<SadadPaymentGateway>());
 builder.Services.AddScoped<PaymentService>();
