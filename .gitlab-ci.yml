@@ -1,3 +1,12 @@
+.dotnet_cache: &dotnet_cache
+  cache:
+    key: "nuget-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .nuget/packages/
+    policy: pull-push
+  variables:
+    NUGET_PACKAGES: "$CI_PROJECT_DIR/.nuget/packages"
+
 stages:
   - validate
   - build
@@ -39,16 +48,22 @@ php_validate:
       done
 
 dotnet_build:
+  <<: *dotnet_cache
   stage: build
-  image: mcr.microsoft.com/dotnet/sdk:10.0
+  image:
+    name: mcr.microsoft.com/dotnet/sdk:10.0
+    pull_policy: if-not-present
   script:
     - dotnet --info
     - dotnet restore BrokeragePlatform.slnx
     - dotnet build BrokeragePlatform.slnx --configuration Release --no-restore
 
 dotnet_migration_verify:
+  <<: *dotnet_cache
   stage: build
-  image: mcr.microsoft.com/dotnet/sdk:10.0
+  image:
+    name: mcr.microsoft.com/dotnet/sdk:10.0
+    pull_policy: if-not-present
   script:
     - export PATH="$PATH:$HOME/.dotnet/tools"
     - dotnet tool install --global dotnet-ef --version 10.0.12
@@ -76,8 +91,11 @@ dotnet_migration_verify:
       fi
 
 dotnet_test:
+  <<: *dotnet_cache
   stage: test
-  image: mcr.microsoft.com/dotnet/sdk:10.0
+  image:
+    name: mcr.microsoft.com/dotnet/sdk:10.0
+    pull_policy: if-not-present
   script:
     - dotnet restore BrokeragePlatform.slnx
     - dotnet test BrokeragePlatform.slnx --configuration Release --no-restore --logger "console;verbosity=normal"
