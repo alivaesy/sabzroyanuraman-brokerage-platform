@@ -130,7 +130,11 @@ public sealed class PaymentService(
             transaction.MarkReconciliationRequired();
             await repository.SaveChangesAsync(cancellationToken);
             var reason = gatewayResult.ErrorCode
-                ?? (gatewayResult.Amount != transaction.Amount ? "VERIFY_AMOUNT_MISMATCH" : "VERIFY_REFERENCE_MISSING");
+                ?? (!gatewayResult.Succeeded
+                    ? "VERIFY_REJECTED"
+                    : gatewayResult.Amount != transaction.Amount
+                        ? "VERIFY_AMOUNT_MISMATCH"
+                        : "VERIFY_REFERENCE_MISSING");
             await WriteAuditAsync(
                 "PaymentReconciliationRequired",
                 correlationId,

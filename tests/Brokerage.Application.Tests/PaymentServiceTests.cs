@@ -175,6 +175,29 @@ public class PaymentServiceTests
     }
 
     [Fact]
+    public async Task VerifyAsync_RejectedProviderResultWithoutErrorCodeIsNotReportedAsAmountMismatch()
+    {
+        var requestId = Guid.NewGuid();
+        var existing = new PaymentTransaction(requestId, 1000, "IRR", "verify-rejected-no-code-key");
+        existing.MarkGatewayCreated("gateway-token");
+        var repository = new FakePaymentRepository(existing);
+        var gateway = new FakePaymentGateway
+        {
+            VerifyResultOverride = new PaymentGatewayVerifyResult(false, null, null)
+        };
+        var audit = new FakeAuditEventWriter();
+        var service = new PaymentService(repository, gateway, audit);
+
+        var result = await service.VerifyAsync(existing.Id, "gateway-token", "correlation-verify-rejected-no-code");
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("VERIFY_REJECTED", result.ErrorCode);
+        Assert.Equal(PaymentStatus.ReconciliationRequired, existing.Status);
+        Assert.Equal("PaymentReconciliationRequired", Assert.Single(audit.Events).EventType);
+        Assert.Equal(1, gateway.VerifyCalls);
+    }
+
+    [Fact]
     public async Task VerifyAsync_AmountMismatchRequiresReconciliation()
     {
         var requestId = Guid.NewGuid();

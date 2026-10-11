@@ -128,3 +128,9 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Added an application-level regression test for a transport exception during Sadad payment creation: the already-persisted transaction remains Pending without a gateway token, the outcome is audited as requiring review, and replaying the same idempotency key does not call Sadad Create a second time.
 - This complements the existing ambiguous HTTP/malformed-response tests and protects the uncertain-outcome path when HttpClient times out or throws before receiving a response.
 - Await the newest GitLab pipeline and the user's local `.\ci-local.ps1` before marking the current batch verified.
+
+
+## Payment Hardening Update (2026-10-11)
+- Commit `5d1b744c` validates the exact Sadad callback token before returning an already-succeeded replay result, preventing payment-state disclosure to callers that do not possess the issued token; regression test added. Pipeline must be checked for this commit and later commits before considering it CI-verified.
+- Next patch distinguishes a provider rejection with no explicit error code (`VERIFY_REJECTED`) from an actual amount mismatch, with regression coverage. This avoids misleading reconciliation reasons; provider outcomes still remain in manual reconciliation when not conclusively verified.
+- Latest known completed pipeline for the previous commit is `2935632862` (commit `0712e0f4`); it passed. It does not validate newer commits.
