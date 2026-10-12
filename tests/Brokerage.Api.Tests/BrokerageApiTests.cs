@@ -865,6 +865,23 @@ public class BrokerageApiTests
             1,
             stages.Count(stage =>
                 stage.GetProperty("stageCode").GetString() == "ResultNotification"));
+
+        // Sequential refreshes should record each status response, but should not
+        // recreate or re-complete workflow stages after the first successful refresh.
+        using var scope = application.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+        var auditEvents = await dbContext.AuditEvents.AsNoTracking()
+            .Where(auditEvent => auditEvent.ServiceRequestId == requestId)
+            .ToListAsync();
+
+        Assert.Equal(2, auditEvents.Count(auditEvent =>
+            auditEvent.EventType == "OrganizationStatusReceived"));
+        Assert.Single(auditEvents, auditEvent =>
+            auditEvent.EventType == "WorkflowStageCreated" &&
+            auditEvent.WorkflowStage == "ResultNotification");
+        Assert.Single(auditEvents, auditEvent =>
+            auditEvent.EventType == "WorkflowStageCompleted" &&
+            auditEvent.WorkflowStage == "OrganizationFollowUp");
     }
 
     [Fact]

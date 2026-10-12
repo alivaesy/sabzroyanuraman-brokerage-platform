@@ -235,3 +235,10 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - The organization-status GET now starts a scoped EF transaction after the external status call and commits the request status, workflow-stage changes, and audit writes together. A regression test injects failure at the final `OrganizationStatusReceived` audit write and asserts the local status/stages/audit additions are rolled back. This new change must pass its own pipeline before it is considered verified.
 - This transaction does not prove race-free concurrent refresh: the remote status fetch is outside the transaction, no optimistic concurrency token or stage uniqueness rule has been introduced, and provider-specific concurrent-write behavior still needs a dedicated test/design.
 - Remote-success/local-failure on S01 submit still needs an approved reconciliation/idempotency policy. Keep payment disabled, PHP live payment untouched, and do not merge without explicit approval.
+
+
+## Next status-refresh hardening batch — 2026-10-12
+- Pipeline `2939580658` passed all five configured jobs for commit `51eac5102ffa98dce2cf542aa2757511826691dc`.
+- Strengthen the existing sequential repeat-refresh test to assert audit behavior as well as stage count: every successful refresh produces a status-received audit event, while result-stage creation and follow-up completion occur once.
+- Keep concurrent refresh marked unresolved. The request is loaded before the external call and transaction; there is no concurrency token or unique `(ServiceRequestId, StageCode)` constraint. Do not implement a speculative schema/locking change without provider and existing-data review.
+- Keep `Payment:Enabled=false`, preserve the live PHP payment path, and do not merge without explicit approval.
