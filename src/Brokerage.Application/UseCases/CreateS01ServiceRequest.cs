@@ -17,6 +17,7 @@ public class CreateS01ServiceRequest
     private readonly IServiceRequestRepository? _serviceRequestRepository;
     private readonly ILogger<CreateS01ServiceRequest>? _logger;
     private readonly IAuditEventWriter? _auditEventWriter;
+    private readonly IUnitOfWork? _unitOfWork;
 
     public CreateS01ServiceRequest(
         WorkflowService workflowService,
@@ -24,7 +25,8 @@ public class CreateS01ServiceRequest
         IOrganizationIntegrationService organizationIntegrationService,
         IServiceRequestRepository? serviceRequestRepository = null,
         ILogger<CreateS01ServiceRequest>? logger = null,
-        IAuditEventWriter? auditEventWriter = null)
+        IAuditEventWriter? auditEventWriter = null,
+        IUnitOfWork? unitOfWork = null)
     {
         _workflowService = workflowService;
         _identityVerificationService = identityVerificationService;
@@ -32,13 +34,16 @@ public class CreateS01ServiceRequest
         _serviceRequestRepository = serviceRequestRepository;
         _logger = logger;
         _auditEventWriter = auditEventWriter;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<ServiceRequest> ExecuteAsync(
         CreateS01RequestModel model,
         string applicantUserId,
         string? correlationId = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? actorRole = null,
+        string? ipAddress = null)
     {
         if (string.IsNullOrWhiteSpace(applicantUserId))
             throw new ArgumentException("Applicant user ID cannot be empty.", nameof(applicantUserId));
@@ -47,8 +52,16 @@ public class CreateS01ServiceRequest
         if (!isVerified)
             throw new BrokerageException("Identity verification failed.");
 
+        // Keep the external call outside the local database transaction. The external
+        // submission cannot be rolled back by a local database rollback.
         var trackingId = await _organizationIntegrationService.SubmitAsync(
             ServiceCode.S01.ToString(), cancellationToken);
+
+        // All local request, workflow, and audit writes share the scoped DbContext
+        // transaction in production. Disposal without CommitAsync rolls back local writes.
+        await using var transaction = _unitOfWork is null
+            ? null
+            : await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
         var request = new ServiceRequest(ServiceCode.S01, applicantUserId);
 
@@ -79,14 +92,24 @@ public class CreateS01ServiceRequest
             await _serviceRequestRepository.SaveChangesAsync(cancellationToken);
         }
 
+        await LogAuditAsync(
+            "ServiceRequestCreated", request.Id, request.CurrentWorkflowStageId?.ToString() ?? string.Empty,
+            correlationId, null, request.Status.ToString(), applicantUserId, actorRole, ipAddress);
+
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
+
         return request;
     }
 
-    private async Task LogAuditAsync(string eventType, Guid serviceRequestId, string workflowStage, string? correlationId, string? previousState, string? newState)
+    private async Task LogAuditAsync(
+        string eventType, Guid serviceRequestId, string workflowStage, string? correlationId,
+        string? previousState, string? newState, string? actorUserId = null,
+        string? actorRole = null, string? ipAddress = null)
     {
         var auditEvent = new AuditEvent(Guid.NewGuid(), DateTimeOffset.UtcNow, eventType,
             correlationId ?? string.Empty, serviceRequestId, workflowStage,
-            "Success", previousState, newState);
+            "Success", previousState, newState, actorUserId, actorRole, ipAddress);
 
         if (_auditEventWriter is not null)
             await _auditEventWriter.WriteAsync(auditEvent);

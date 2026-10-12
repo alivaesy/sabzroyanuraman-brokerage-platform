@@ -135,6 +135,7 @@ builder.Services.AddRateLimiter(options =>
 });
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddScoped<IAuditEventWriter, AuditEventWriter>();
+builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 
 if (builder.Environment.IsDevelopment())
 {
@@ -484,7 +485,7 @@ app.MapPost("/service-requests", async (
 app.MapPost("/service-requests/s01", async (
     CreateS01ServiceRequest useCase, CreateS01RequestModel model, ICurrentUser currentUser,
     IIdentityVerificationStateRepository identityStates, HttpContext context,
-    IAuditEventWriter auditEventWriter, CancellationToken cancellationToken) =>
+    CancellationToken cancellationToken) =>
 {
     if (string.IsNullOrWhiteSpace(currentUser.UserId))
         return Results.Unauthorized();
@@ -493,11 +494,9 @@ app.MapPost("/service-requests/s01", async (
     if (identityState?.IsVerified != true)
         return Results.Forbid();
 
-    var request = await useCase.ExecuteAsync(model, currentUser.UserId, context.TraceIdentifier, cancellationToken);
-    await auditEventWriter.WriteAsync(new AuditEvent(
-        Guid.NewGuid(), DateTimeOffset.UtcNow, "ServiceRequestCreated", context.TraceIdentifier,
-        request.Id, request.CurrentWorkflowStageId?.ToString(), "Success", null, request.Status.ToString(),
-        currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
+    var request = await useCase.ExecuteAsync(
+        model, currentUser.UserId, context.TraceIdentifier, cancellationToken,
+        currentUser.Role, context.Connection.RemoteIpAddress?.ToString());
     return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.CreatedAt, request.UpdatedAt,
         request.CurrentWorkflowStageId, request.OrganizationTrackingId });
 }).RequireAuthorization(AuthorizationPolicies.Applicant).RequireRateLimiting("service-request-create");
