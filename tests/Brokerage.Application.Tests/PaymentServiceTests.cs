@@ -117,6 +117,50 @@ public class PaymentServiceTests
         Assert.Equal(1, gateway.CreateCalls);
     }
 
+
+    [Fact]
+    public async Task VerifyAsync_PersistsReconciliationWhenCallerCancelsAfterMismatchedGatewayResult()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var payment = new PaymentTransaction(Guid.NewGuid(), 100_000, "IRR", "verify-mismatch-cancel-test");
+        payment.MarkGatewayCreated("sandbox-token");
+        var repository = new CapturingPaymentRepository(payment);
+        var gateway = new CancellingMismatchedVerifyGateway(cancellation, payment.Id);
+        var audit = new CapturingAuditWriter();
+        var service = new PaymentService(repository, gateway, audit);
+
+        var result = await service.VerifyAsync(payment.Id, "sandbox-token", "verify-mismatch-correlation", cancellation.Token);
+
+        Assert.True(cancellation.IsCancellationRequested);
+        Assert.False(result.Succeeded);
+        Assert.Equal("VERIFY_AMOUNT_MISMATCH", result.ErrorCode);
+        Assert.Equal(PaymentStatus.ReconciliationRequired, payment.Status);
+        Assert.Contains(audit.Events, item => item.EventType == "PaymentReconciliationRequired");
+        Assert.All(repository.SaveTokens, token => Assert.False(token.IsCancellationRequested));
+        Assert.All(audit.Tokens, token => Assert.False(token.IsCancellationRequested));
+    }
+
+    [Fact]
+    public async Task VerifyAsync_PersistsUnknownOutcomeWhenGatewayThrowsAfterCallerCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var payment = new PaymentTransaction(Guid.NewGuid(), 100_000, "IRR", "verify-unknown-cancel-test");
+        payment.MarkGatewayCreated("sandbox-token");
+        var repository = new CapturingPaymentRepository(payment);
+        var gateway = new CancellingThrowingVerifyGateway(cancellation);
+        var audit = new CapturingAuditWriter();
+        var service = new PaymentService(repository, gateway, audit);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            service.VerifyAsync(payment.Id, "sandbox-token", "verify-unknown-correlation", cancellation.Token));
+
+        Assert.True(cancellation.IsCancellationRequested);
+        Assert.Equal(PaymentStatus.ReconciliationRequired, payment.Status);
+        Assert.Contains(audit.Events, item => item.EventType == "PaymentVerifyOutcomeUnknown");
+        Assert.All(repository.SaveTokens, token => Assert.False(token.IsCancellationRequested));
+        Assert.All(audit.Tokens, token => Assert.False(token.IsCancellationRequested));
+    }
+
     private sealed class CapturingPaymentRepository : IPaymentTransactionRepository
     {
         public CapturingPaymentRepository(PaymentTransaction? transaction = null) => Transaction = transaction;
@@ -203,6 +247,36 @@ public class PaymentServiceTests
             cancellation.Cancel();
             return Task.FromResult(new PaymentGatewayVerifyResult(
                 true, 100_000, "sandbox-reference", null, paymentId.ToString("N")));
+        }
+    }
+
+
+    private sealed class CancellingMismatchedVerifyGateway(CancellationTokenSource cancellation, Guid paymentId) : IPaymentGateway
+    {
+        public Task<PaymentGatewayCreateResult> CreatePaymentAsync(
+            PaymentGatewayCreateRequest request, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PaymentGatewayCreateResult(true, "unused"));
+
+        public Task<PaymentGatewayVerifyResult> VerifyPaymentAsync(
+            string gatewayToken, CancellationToken cancellationToken = default)
+        {
+            cancellation.Cancel();
+            return Task.FromResult(new PaymentGatewayVerifyResult(
+                true, 99_000, "sandbox-reference", null, paymentId.ToString("N")));
+        }
+    }
+
+    private sealed class CancellingThrowingVerifyGateway(CancellationTokenSource cancellation) : IPaymentGateway
+    {
+        public Task<PaymentGatewayCreateResult> CreatePaymentAsync(
+            PaymentGatewayCreateRequest request, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PaymentGatewayCreateResult(true, "unused"));
+
+        public Task<PaymentGatewayVerifyResult> VerifyPaymentAsync(
+            string gatewayToken, CancellationToken cancellationToken = default)
+        {
+            cancellation.Cancel();
+            throw new OperationCanceledException(cancellation.Token);
         }
     }
 
