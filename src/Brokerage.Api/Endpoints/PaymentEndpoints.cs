@@ -66,13 +66,35 @@ public static class PaymentEndpoints
                     extensions: new Dictionary<string, object?> { ["code"] = "PAYMENT_GATEWAY_NOT_CONFIGURED" });
             }
 
-            var result = await paymentService.CreateAsync(
-                serviceRequest.Id,
-                amount.Value,
-                idempotencyKey,
-                sadadOptions.CallbackUrl,
-                context.TraceIdentifier,
-                cancellationToken);
+            PaymentCreateResult result;
+            try
+            {
+                result = await paymentService.CreateAsync(
+                    serviceRequest.Id,
+                    amount.Value,
+                    idempotencyKey,
+                    sadadOptions.CallbackUrl,
+                    context.TraceIdentifier,
+                    cancellationToken);
+            }
+            catch (HttpRequestException)
+            {
+                // The provider may have accepted the order even though the response was lost.
+                // The service persists the pending transaction; never turn this into a retryable 500.
+                return Results.Accepted(value: new
+                {
+                    status = Brokerage.Domain.Enums.PaymentStatus.Pending.ToString(),
+                    error = "PAYMENT_CREATE_OUTCOME_UNKNOWN"
+                });
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                return Results.Accepted(value: new
+                {
+                    status = Brokerage.Domain.Enums.PaymentStatus.Pending.ToString(),
+                    error = "PAYMENT_CREATE_OUTCOME_UNKNOWN"
+                });
+            }
 
             if (string.Equals(result.ErrorCode, "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_REQUEST", StringComparison.Ordinal))
                 return Results.Conflict(new { error = result.ErrorCode });
@@ -140,7 +162,8 @@ public static class PaymentEndpoints
                     context.Request.Query["orderId"].ToString());
             }
 
-            if (string.IsNullOrWhiteSpace(token) ||
+            // Bound untrusted callback fields before database/provider work.
+            if (string.IsNullOrWhiteSpace(token) || token.Length > 512 || orderId.Length > 64 ||
                 !Guid.TryParseExact(orderId, "N", out var paymentId))
                 return CallbackPage("اطلاعات بازگشت پرداخت معتبر نیست. وضعیت پرداخت باید بررسی شود.");
 

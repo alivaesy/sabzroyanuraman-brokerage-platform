@@ -80,6 +80,22 @@ public class PaymentEndpointTests
     }
 
     [Fact]
+    public async Task SadadCallback_OversizedTokenIsRejectedBeforePaymentLookup()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var paymentId = Guid.NewGuid().ToString("N");
+        var oversizedToken = new string('x', 513);
+        using var response = await client.GetAsync($"/payments/sadad/callback?OrderId={paymentId}&Token={oversizedToken}");
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("اطلاعات بازگشت پرداخت معتبر نیست", html);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+    }
+
+    [Fact]
     public async Task CreatePayment_UsesServerTariffAndFailsClosedWhenTariffIsNotConfigured()
     {
         await using var application = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
