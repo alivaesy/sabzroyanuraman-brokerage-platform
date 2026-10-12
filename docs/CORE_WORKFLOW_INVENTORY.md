@@ -60,3 +60,14 @@ Status: repository-derived engineering inventory, not a compliance certification
 - A follow-up change removes the actual organization-returned status value from general logs and adds a regression test asserting a sensitive status marker is returned to the caller but never logged. This follow-up still requires its own pipeline result.
 - Architecture compliance remains unproven: layered projects do not establish a deployed microservices topology or a completed Angular/Vue/React SPA. Treat both as evidence gaps, not completed requirements.
 - Concurrency, partial persistence, external idempotency, and audit/request transaction boundaries remain open release gates.
+
+
+## Latest verified state and consistency risks (2026-10-12)
+- Current branch HEAD: `5808352357792b0ff1ae14e623a2403fbdf785d9`. Pipeline `2939258054` passed all five configured jobs: `site_validate`, `php_validate`, `dotnet_build`, `dotnet_migration_verify`, and `dotnet_test`. https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2939258054
+- Organization status validation now fails closed for missing/blank values. General logs omit the returned status and status-request tracking ID; the privacy regression tests passed in the latest pipeline.
+- **Important scope distinction:** the status value is still returned to the workflow and persisted on the service request; the current status audit event also stores the old/new status fields. Logging redaction alone does not establish that persistence is compliant with the approved data-retention policy.
+- **Persistence risk:** S01 audit events are written and saved before the request/stages are persisted. Each audit write saves independently. A failure can leave audit events without a durable request or leave a partially completed sequence.
+- **Concurrency risk:** organization-status refresh performs a read/modify/write sequence in a GET handler without an explicit optimistic-concurrency check or transaction around request, stage and audit writes. The existing sequential repeat test does not prove two concurrent requests cannot race.
+- **External side-effect risk:** organization submission precedes local persistence. A remote success followed by local failure needs an approved reconciliation/idempotency policy; a local DB transaction cannot roll back the remote organization's submission.
+- Do not add a global unique constraint on `(ServiceRequestId, StageCode)` until stage multiplicity rules and existing deployed data are checked. Do not change the public GET method until client compatibility is reviewed.
+- A proposed test/design matrix and safe implementation order are recorded in `docs/WORKFLOW_CONSISTENCY_REVIEW.md`. Payment remains disabled and no production-readiness claim is implied by CI success.

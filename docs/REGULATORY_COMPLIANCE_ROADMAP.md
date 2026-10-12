@@ -96,3 +96,12 @@ Track these separately from software completion:
 - The latest verified core-workflow pipeline at the time of this snapshot is `2939200020`, which passed the five configured CI jobs for commit `23330b0f2f6bc543ab475f7497189652d679dafb`: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2939200020. Any subsequent code/doc batch requires its own pipeline verification.
 - Organization status values are now intended to be excluded from general application logs; the marker-based regression test in the follow-up batch must pass before considering this privacy change verified.
 - CI does not establish domestic hosting approval, disaster recovery, SLA, Zero Data Retention, legal authorization, third-party integration approval, or production readiness. Each requires independent documentary or environment evidence.
+
+
+## Updated repository evidence — 2026-10-12
+- Latest verified branch head is `5808352357792b0ff1ae14e623a2403fbdf785d9`; pipeline `2939258054` passed all five configured checks: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2939258054.
+- Status responses missing a usable status now fail closed, and general logs no longer include the organization-returned status or the status-query tracking ID. Regression coverage passed on the current branch head.
+- The current workflow still persists the organization status on the service request and copies previous/new status values into audit records. Confirm classification, retention, access and deletion requirements before claiming data-minimization compliance for persisted status.
+- S01 request/stage/audit writes are not currently one local transaction; organization submission is an external side effect before local persistence. Status refresh also has a read/modify/write concurrency gap. Track these as release blockers until failure semantics, concurrency behavior and reconciliation are approved and tested.
+- Microservice deployment, completed Angular/Vue/React SPA, domestic hosting, disaster recovery, SLA, ZDR, legal authorization and external integration approval remain evidence gaps unless separately proven. A green pipeline does not close these gaps.
+- See `docs/WORKFLOW_CONSISTENCY_REVIEW.md` for the staged design and regression-test plan. Keep `Payment:Enabled=false` and preserve the live PHP payment flow.
