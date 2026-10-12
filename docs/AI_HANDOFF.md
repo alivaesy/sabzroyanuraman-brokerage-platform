@@ -228,3 +228,10 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - The current test before this follow-up used a fake unit of work and only proved orchestration. A new SQLite-backed failure-injection test is being added to force failure after local request/stage rows are saved and assert that request, stage, and audit tables remain empty after rollback. Do not treat this stronger test as verified until its own pipeline passes.
 - The remote-success/local-failure reconciliation and external submit idempotency contract remain release blockers. Organization-status GET still has a separate concurrency/partial-failure gap and is the next workflow area for characterization tests.
 - Keep `Payment:Enabled=false`, do not change the live PHP payment flow, and do not merge to `master` without explicit approval.
+
+ 
+## Organization-status local transaction follow-up — 2026-10-12
+- The SQLite rollback regression test for S01 local creation passed with pipeline `2939513854`: all five configured jobs succeeded. https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2939513854
+- The organization-status GET now starts a scoped EF transaction after the external status call and commits the request status, workflow-stage changes, and audit writes together. A regression test injects failure at the final `OrganizationStatusReceived` audit write and asserts the local status/stages/audit additions are rolled back. This new change must pass its own pipeline before it is considered verified.
+- This transaction does not prove race-free concurrent refresh: the remote status fetch is outside the transaction, no optimistic concurrency token or stage uniqueness rule has been introduced, and provider-specific concurrent-write behavior still needs a dedicated test/design.
+- Remote-success/local-failure on S01 submit still needs an approved reconciliation/idempotency policy. Keep payment disabled, PHP live payment untouched, and do not merge without explicit approval.

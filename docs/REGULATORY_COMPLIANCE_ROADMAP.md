@@ -111,4 +111,10 @@ Track these separately from software completion:
 - S01 local request/stage/audit persistence now uses a scoped EF transaction on branch commit `530c87f97cdfbfe516adf769e3416a59df1b273a`; pipeline `2939464325` passed the five configured CI jobs: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2939464325
 - This code-level improvement does not close the external side-effect gap: the organization submit occurs before the local transaction and cannot be undone by a database rollback. Documented idempotency/reconciliation evidence remains required.
 - Organization-status refresh still needs concurrency and partial-failure tests. Hosting, deployment topology, frontend completeness, SLA/DR/ZDR, official integrations, legal licensing and security assessment remain independent evidence gates.
-- A SQLite-backed rollback test is being added and must pass its own pipeline before claiming real EF/SQLite rollback behavior has been verified. Payment remains disabled and the live PHP flow is out of scope.
+- A SQLite-backed rollback test passed pipeline `2939513854`, verifying local EF/SQLite rollback for S01 persistence. Payment remains disabled and the live PHP flow is out of scope.
+
+ 
+## Organization-status transaction evidence — 2026-10-12
+- S01 local creation rollback is verified by the passing SQLite regression in pipeline `2939513854`: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2939513854
+- Organization-status refresh now wraps local request/stage/audit changes in a scoped EF transaction after the remote status call. A new audit-failure injection test checks rollback of these local changes; do not count it as verified until this commit's CI passes.
+- This does not establish concurrency safety, provider-independent locking, or resolution of external submit reconciliation/idempotency. Other hosting, legal, integration, SLA/DR/ZDR and security evidence gates remain open. Payment stays disabled.

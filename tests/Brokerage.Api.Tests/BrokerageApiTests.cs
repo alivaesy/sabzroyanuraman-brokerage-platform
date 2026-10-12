@@ -7,6 +7,10 @@ using Brokerage.Application.Contracts;
 using Brokerage.Domain.Entities;
 using Brokerage.Domain.Enums;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
+using Brokerage.Application.Models;
+using Brokerage.Infrastructure.Persistence;
 
 namespace Brokerage.Api.Tests;
 
@@ -569,6 +573,59 @@ public class BrokerageApiTests
             Guid.Parse(statusJson.GetProperty("currentWorkflowStageId").GetString()!));
     }
 
+
+    [Fact]
+    public async Task GetOrganizationStatus_WhenAuditWriteFails_RollsBackAllLocalStatusChanges()
+    {
+        await using var application =
+            new WebApplicationFactory<Program>()
+                .WithWebHostBuilder(builder =>
+                {
+                    builder.ConfigureServices(services =>
+                    {
+                        services.AddScoped<IAuditEventWriter, FailingOrganizationStatusAuditWriter>();
+                    });
+                });
+
+        using var client = await CreateVerifiedApplicantClientAsync(application);
+        using var content = new StringContent(
+            """{"nationalIdentifier":"1234567891"}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        var createResponse = await client.PostAsync("/service-requests/s01", content);
+        Assert.Equal(System.Net.HttpStatusCode.OK, createResponse.StatusCode);
+        var created = await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var requestId = Guid.Parse(created.GetProperty("id").GetString()!);
+
+        var statusResponse = await client.GetAsync($"/service-requests/{requestId}/organization-status");
+        Assert.Equal(System.Net.HttpStatusCode.InternalServerError, statusResponse.StatusCode);
+
+        using var scope = application.Services.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IServiceRequestRepository>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+        var request = await repository.GetByIdAsync(requestId);
+        Assert.NotNull(request);
+        Assert.Null(request!.OrganizationStatus);
+
+        var stages = await repository.GetWorkflowStagesAsync(requestId);
+        Assert.Equal(3, stages.Count);
+        var followUp = Assert.Single(stages, stage => stage.StageCode == "OrganizationFollowUp");
+        Assert.Null(followUp.CompletedAt);
+        Assert.DoesNotContain(stages, stage => stage.StageCode == "ResultNotification");
+
+        var persistedEvents = await dbContext.AuditEvents.AsNoTracking()
+            .Where(auditEvent => auditEvent.ServiceRequestId == requestId)
+            .ToListAsync();
+        Assert.DoesNotContain(persistedEvents, auditEvent => auditEvent.EventType == "OrganizationStatusReceived");
+        Assert.DoesNotContain(persistedEvents, auditEvent =>
+            auditEvent.EventType == "WorkflowStageCreated" &&
+            auditEvent.WorkflowStage == "ResultNotification");
+        Assert.DoesNotContain(persistedEvents, auditEvent =>
+            auditEvent.EventType == "WorkflowStageCompleted" &&
+            auditEvent.WorkflowStage == "OrganizationFollowUp");
+    }
+
     [Fact]
     public async Task GetOrganizationStatus_WhenOrganizationApiFails_DoesNotAdvanceWorkflow()
     {
@@ -957,6 +1014,20 @@ public class BrokerageApiTests
         var states = scope.ServiceProvider.GetRequiredService<IIdentityVerificationStateRepository>();
         await states.SaveResultAsync("test-applicant", true, DateTimeOffset.UtcNow);
         return client;
+    }
+
+
+    private sealed class FailingOrganizationStatusAuditWriter(
+        BrokerageDbContext dbContext,
+        ILogger<AuditEventWriter> logger) : IAuditEventWriter
+    {
+        public Task WriteAsync(AuditEvent auditEvent, CancellationToken cancellationToken = default)
+        {
+            if (auditEvent.EventType == "OrganizationStatusReceived")
+                throw new InvalidOperationException("Simulated audit write failure.");
+
+            return new AuditEventWriter(dbContext, logger).WriteAsync(auditEvent, cancellationToken);
+        }
     }
 
     private sealed class FailingOrganizationStatusApiClient

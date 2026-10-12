@@ -105,5 +105,12 @@ These are engineering constraints for the next implementation phase, not assumpt
 - Commit `530c87f97cdfbfe516adf769e3416a59df1b273a` passed pipeline `2939464325` (all five configured jobs): https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2939464325
 - The S01 use case now starts a local EF transaction after the external organization submission and before any local request/stage/audit writes. Those local writes share the scoped `BrokerageDbContext`; the `ServiceRequestCreated` event is now written before transaction commit.
 - The external organization call is deliberately not inside the transaction. Remote success followed by local failure still requires a documented reconciliation/idempotency policy; do not automatically resubmit.
-- The existing fake-unit-of-work failure test only verifies commit ordering. A SQLite-backed failure-injection test is being added to verify that persisted request/stage/audit rows are rolled back after a failure. This test is not yet verified until CI passes.
+- The SQLite-backed failure-injection test passed pipeline `2939513854` and verifies persisted request/stage/audit rows are rolled back after local persistence failure.
 - The organization-status GET remains outside this change and still needs targeted concurrent-refresh and partial-failure tests. Do not change the public method or add stage uniqueness constraints without compatibility and data review.
+
+ 
+## Organization-status implementation follow-up — 2026-10-12
+- The SQLite-backed S01 local transaction rollback test passed in pipeline `2939513854`: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2939513854
+- The status refresh endpoint now opens a local EF transaction after the organization API returns and commits request status, stage completion/creation, and all associated audit records together. An API regression test injects failure when writing the final status audit event and checks that request status, stages, and audit records revert.
+- The new endpoint test is not verified until this commit's pipeline passes. This change is atomicity work, not a concurrency guarantee: external status retrieval remains outside the transaction; optimistic concurrency and stage uniqueness are unchanged and require separate analysis/testing.
+- S01 external submit reconciliation/idempotency remains unresolved. Do not change HTTP method, infer organization contract, or add uniqueness constraints without evidence.

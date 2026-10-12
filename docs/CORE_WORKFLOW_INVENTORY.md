@@ -77,4 +77,10 @@ Status: repository-derived engineering inventory, not a compliance certification
 - Commit `530c87f97cdfbfe516adf769e3416a59df1b273a` passed all five configured CI jobs in pipeline `2939464325`: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2939464325
 - S01 local request, workflow-stage and audit writes are now coordinated by a scoped EF transaction; the `ServiceRequestCreated` audit event is emitted inside the use case before commit.
 - The external organization submit remains outside the local transaction. If the organization accepts a request and local persistence subsequently fails, the remote case may still exist; approved reconciliation/idempotency behavior is required before production use.
-- A SQLite-backed rollback regression test is the next verification step; until its pipeline passes, the earlier fake-unit-of-work test alone is not proof of real database rollback. Organization-status GET concurrency and partial-failure behavior remains open.
+- A SQLite-backed rollback regression test passed pipeline `2939513854`, providing real local rollback evidence for S01 persistence. Organization-status GET consistency work is described below; concurrency remains open.
+
+ 
+## Organization-status consistency update — 2026-10-12
+- The S01 SQLite rollback test passed in pipeline `2939513854`: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2939513854
+- Organization-status GET now groups local request status, stage updates, and audit writes in one scoped EF transaction after the external status response is received. A new injected-audit-failure test verifies local rollback; verification awaits the pipeline for this commit.
+- Concurrency is not claimed as solved: external fetch remains outside the transaction and no optimistic concurrency token or unique stage constraint was added. Concurrent refresh testing and provider-specific semantics remain open.

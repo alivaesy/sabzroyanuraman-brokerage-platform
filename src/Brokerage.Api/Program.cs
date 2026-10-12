@@ -534,7 +534,8 @@ app.MapGet("/service-requests/{id:guid}/workflow-stages", async (
 app.MapGet("/service-requests/{id:guid}/organization-status", async (
     Guid id, IServiceRequestRepository repository, ICurrentUser currentUser,
     IOrganizationIntegrationService organizationIntegrationService,
-    HttpContext context, IAuditEventWriter auditEventWriter, CancellationToken cancellationToken) =>
+    HttpContext context, IAuditEventWriter auditEventWriter, IUnitOfWork unitOfWork,
+    CancellationToken cancellationToken) =>
 {
     var request = await repository.GetByIdAsync(id, cancellationToken);
     if (request is null) return Results.NotFound();
@@ -543,8 +544,12 @@ app.MapGet("/service-requests/{id:guid}/organization-status", async (
     if (string.IsNullOrWhiteSpace(request.OrganizationTrackingId))
         return Results.BadRequest(new { message = "The service request has no organization tracking ID." });
 
+    // Keep the remote call outside the database transaction; the local request/stage/audit
+    // updates below must commit or roll back together.
     var previousOrganizationStatus = request.OrganizationStatus;
     var organizationStatus = await organizationIntegrationService.GetStatusAsync(request.OrganizationTrackingId, cancellationToken);
+
+    await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
     request.SetOrganizationStatus(organizationStatus);
 
     var workflowStages = await repository.GetWorkflowStagesAsync(id, cancellationToken);
@@ -576,6 +581,8 @@ app.MapGet("/service-requests/{id:guid}/organization-status", async (
         Guid.NewGuid(), DateTimeOffset.UtcNow, "OrganizationStatusReceived", context.TraceIdentifier,
         request.Id, resultStage.StageCode, "Success", previousOrganizationStatus, organizationStatus,
         currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
+
+    await transaction.CommitAsync(cancellationToken);
 
     return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.OrganizationTrackingId,
         request.OrganizationStatus, request.CurrentWorkflowStageId });
