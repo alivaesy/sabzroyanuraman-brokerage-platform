@@ -56,6 +56,67 @@ public class PaymentServiceTests
         Assert.All(audit.Tokens, token => Assert.False(token.IsCancellationRequested));
     }
 
+    [Fact]
+    public async Task CreateAsync_ReplaysExistingIdempotencyKeyWithoutCallingGateway()
+    {
+        var payment = new PaymentTransaction(Guid.NewGuid(), 100_000, "IRR", "replay-test");
+        payment.MarkGatewayCreated("persisted-token");
+        var repository = new CapturingPaymentRepository(payment);
+        var gateway = new CountingGateway(new PaymentGatewayCreateResult(true, "unexpected-token"));
+        var service = new PaymentService(repository, gateway, new CapturingAuditWriter());
+
+        var result = await service.CreateAsync(
+            payment.ServiceRequestId, payment.Amount, payment.IdempotencyKey,
+            "https://example.test/payments/sadad/callback", "replay-correlation");
+
+        Assert.True(result.AlreadyProcessed);
+        Assert.True(result.Succeeded);
+        Assert.Equal("persisted-token", result.GatewayToken);
+        Assert.Equal(0, gateway.CreateCalls);
+    }
+
+    [Fact]
+    public async Task CreateAsync_RejectsIdempotencyKeyReusedWithDifferentAmount()
+    {
+        var payment = new PaymentTransaction(Guid.NewGuid(), 100_000, "IRR", "conflict-test");
+        var repository = new CapturingPaymentRepository(payment);
+        var gateway = new CountingGateway(new PaymentGatewayCreateResult(true, "unexpected-token"));
+        var service = new PaymentService(repository, gateway, new CapturingAuditWriter());
+
+        var result = await service.CreateAsync(
+            payment.ServiceRequestId, 200_000, payment.IdempotencyKey,
+            "https://example.test/payments/sadad/callback", "conflict-correlation");
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_REQUEST", result.ErrorCode);
+        Assert.Equal(0, gateway.CreateCalls);
+        Assert.Equal(PaymentStatus.Pending, payment.Status);
+    }
+
+    [Fact]
+    public async Task CreateAsync_DoesNotRepeatGatewayCreateAfterAmbiguousOutcome()
+    {
+        var repository = new CapturingPaymentRepository();
+        var gateway = new CountingGateway(new PaymentGatewayCreateResult(false, null, "HTTP_504"));
+        var service = new PaymentService(repository, gateway, new CapturingAuditWriter());
+        var serviceRequestId = Guid.NewGuid();
+
+        var first = await service.CreateAsync(
+            serviceRequestId, 100_000, "ambiguous-create-test",
+            "https://example.test/payments/sadad/callback", "first-correlation");
+        var replay = await service.CreateAsync(
+            serviceRequestId, 100_000, "ambiguous-create-test",
+            "https://example.test/payments/sadad/callback", "replay-correlation");
+
+        Assert.False(first.Succeeded);
+        Assert.Equal("HTTP_504", first.ErrorCode);
+        Assert.Equal(PaymentStatus.Pending, first.Transaction.Status);
+        Assert.False(replay.Succeeded);
+        Assert.True(replay.AlreadyProcessed);
+        Assert.Equal("PAYMENT_CREATE_OUTCOME_UNKNOWN", replay.ErrorCode);
+        Assert.Equal(1, gateway.CreateCalls);
+    }
+
     private sealed class CapturingPaymentRepository : IPaymentTransactionRepository
     {
         public CapturingPaymentRepository(PaymentTransaction? transaction = null) => Transaction = transaction;
@@ -89,7 +150,7 @@ public class PaymentServiceTests
         }
 
         public Task<bool> TryBeginVerificationAsync(Guid paymentId, CancellationToken cancellationToken = default) =>
-            Task.FromResult(Transaction?.Id == paymentId && Transaction.Status == PaymentStatus.Pending);
+            Task.FromResult(Transaction is { } current && current.Id == paymentId && current.Status == PaymentStatus.Pending);
 
         public Task<IReadOnlyList<PaymentTransaction>> GetStaleVerifyingAsync(
             DateTimeOffset updatedBefore, int limit = 100, CancellationToken cancellationToken = default) =>
@@ -98,6 +159,22 @@ public class PaymentServiceTests
         public Task<IReadOnlyList<PaymentTransaction>> GetStaleReconciliationCandidatesAsync(
             DateTimeOffset updatedBefore, int limit = 100, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<PaymentTransaction>>(Array.Empty<PaymentTransaction>());
+    }
+
+    private sealed class CountingGateway(PaymentGatewayCreateResult createResult) : IPaymentGateway
+    {
+        public int CreateCalls { get; private set; }
+
+        public Task<PaymentGatewayCreateResult> CreatePaymentAsync(
+            PaymentGatewayCreateRequest request, CancellationToken cancellationToken = default)
+        {
+            CreateCalls++;
+            return Task.FromResult(createResult);
+        }
+
+        public Task<PaymentGatewayVerifyResult> VerifyPaymentAsync(
+            string gatewayToken, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PaymentGatewayVerifyResult(false, null, null, "NOT_USED"));
     }
 
     private sealed class CancellingSuccessfulGateway(CancellationTokenSource cancellation) : IPaymentGateway
