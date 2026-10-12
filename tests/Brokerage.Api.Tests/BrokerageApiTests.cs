@@ -647,6 +647,58 @@ public class BrokerageApiTests
     }
 
     [Fact]
+    public async Task GetOrganizationStatus_WhenOrganizationApiReturnsEmptyStatus_DoesNotAdvanceWorkflow()
+    {
+        await using var application =
+            new WebApplicationFactory<Program>()
+                .WithWebHostBuilder(builder =>
+                {
+                    builder.ConfigureServices(services =>
+                    {
+                        services.AddScoped<
+                            IntegrationOrganizationApiClient,
+                            EmptyOrganizationStatusApiClient>();
+                    });
+                });
+
+        using var client = await CreateVerifiedApplicantClientAsync(application);
+        var content = new StringContent(
+            """
+            {
+                "nationalIdentifier": "1234567891"
+            }
+            """,
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        var createResponse = await client.PostAsync("/service-requests/s01", content);
+        Assert.Equal(System.Net.HttpStatusCode.OK, createResponse.StatusCode);
+        var created = await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var requestId = Guid.Parse(created.GetProperty("id").GetString()!);
+
+        var statusResponse = await client.GetAsync(
+            $"/service-requests/{requestId}/organization-status");
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, statusResponse.StatusCode);
+        var error = await statusResponse.Content.ReadFromJsonAsync<Brokerage.Application.Models.ErrorResponse>();
+        Assert.NotNull(error);
+        Assert.Equal("Organization API status request failed.", error.Message);
+
+        var workflowResponse = await client.GetAsync(
+            $"/service-requests/{requestId}/workflow-stages");
+        Assert.Equal(System.Net.HttpStatusCode.OK, workflowResponse.StatusCode);
+        var stages = await workflowResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement[]>();
+        Assert.NotNull(stages);
+        Assert.Equal(3, stages!.Length);
+        Assert.Equal(
+            System.Text.Json.JsonValueKind.Null,
+            stages[2].GetProperty("completedAt").ValueKind);
+        Assert.Equal(
+            "OrganizationFollowUp",
+            stages[2].GetProperty("stageCode").GetString());
+    }
+
+    [Fact]
     public async Task GetOrganizationStatus_WhenTrackingIdIsMissing_ReturnsBadRequest()
     {
         await using var application = new WebApplicationFactory<Program>();
@@ -927,6 +979,24 @@ public class BrokerageApiTests
                 OrganizationApiResult.Failure(
                     OrganizationIntegrationErrorType.ServerError,
                     "Mock organization status request failed."));
+        }
+    }
+
+    private sealed class EmptyOrganizationStatusApiClient
+        : IntegrationOrganizationApiClient
+    {
+        public Task<OrganizationApiResult> SubmitAsync(
+            string serviceCode,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(OrganizationApiResult.Success(trackingId: "MOCK-TRACKING-ID"));
+        }
+
+        public Task<OrganizationApiResult> GetStatusAsync(
+            string trackingId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(OrganizationApiResult.Success());
         }
     }
 

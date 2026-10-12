@@ -71,7 +71,15 @@ public class OrganizationIntegrationService
             throw new BrokerageException("Organization API status request failed.");
         }
 
-        var status = result.Status ?? string.Empty;
+        var status = result.Status;
+        if (string.IsNullOrWhiteSpace(status))
+        {
+            // A successful response without a status is not actionable. Treat it as
+            // an integration failure so the API does not advance the workflow.
+            _logger?.LogError("Organization status response did not include a status.");
+            throw new BrokerageException("Organization API status request failed.");
+        }
+
         _logger?.LogInformation(
             "Organization status received. Status={Status}",
             status);
