@@ -87,7 +87,7 @@ public class RateLimitingTests
 
         for (var attempt = 0; attempt < 5; attempt++)
         {
-            var response = await client.PostAsync("/service-requests?serviceCode=S01", content: null);
+            var response = await client.PostAsync("/service-requests?serviceCode=S02", content: null);
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
 
@@ -117,7 +117,7 @@ public class RateLimitingTests
         secondUserClient.DefaultRequestHeaders.Add("X-Test-User-Id", secondUserId);
         secondUserClient.DefaultRequestHeaders.Add("X-Test-User-Role", "Applicant");
         var separatePartitionResponse = await secondUserClient.PostAsync(
-            "/service-requests?serviceCode=S01",
+            "/service-requests?serviceCode=S02",
             content: null);
         Assert.Equal(HttpStatusCode.OK, separatePartitionResponse.StatusCode);
     }
