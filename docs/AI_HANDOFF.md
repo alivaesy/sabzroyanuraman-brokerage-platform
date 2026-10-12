@@ -163,3 +163,13 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - The latest failed pipeline `2935720459` passed `dotnet_build` and `dotnet_migration_verify`; `dotnet_test` failed in the ambiguous-create theory for `GATEWAY_RESPONSE_TOO_LARGE` (expected Pending, observed Failed). The user separately reported a C# syntax error at SadadPaymentGatewayTests.cs line 222; the checked-in line is now syntactically valid and the current pipeline failure is a runtime assertion, not a compile error.
 - Commit for this correction normalizes gateway error codes (trim + case-insensitive matching) before classifying ambiguous create outcomes and adds regression cases for casing/whitespace variants. This is deliberately conservative: oversized/truncated provider responses must remain Pending for reconciliation and must not invite a duplicate gateway Create.
 - Run the latest branch pipeline and local `.\ci-local.ps1` before treating this batch as green. PHP live payment flow and `master` remain untouched.
+
+
+## Current CI and Priority Shift (2026-10-12)
+- Latest branch head: `e29c8b3f4917bb70bb23686c9c5207e89b760497` (`test: cover Sadad verification reconciliation on cancellation`).
+- Pipeline `2938317613` completed successfully; all five required jobs passed: `site_validate`, `php_validate`, `dotnet_build`, `dotnet_migration_verify`, and `dotnet_test`. https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2938317613
+- The payment foundation's current safety tests are green. Do not keep expanding payment work without a concrete blocker; leave `Payment:Enabled=false` and preserve the working live PHP flow.
+- Priority is shifting to the core brokerage platform and regulatory readiness. See `docs/REGULATORY_COMPLIANCE_ROADMAP.md` for a source-grounded separation of software work, external integrations, licensing evidence, and unresolved regulatory interpretations.
+- The official source text distinguishes a brokerage operating system from the existing informational/legacy website and separates the brokerage license prerequisites from the activity-permit prerequisites. Do not claim legal compliance from code or this roadmap alone.
+- Production launch remains blocked by unconfigured approved organization/Sana/Shahkar adapters, production authentication, approved domestic hosting/deployment controls, and external approvals. Do not replace development mocks with guessed production protocols.
+- Merge to `master` remains prohibited without explicit approval; review the complete branch diff first because it includes a wide range of website and application changes.
