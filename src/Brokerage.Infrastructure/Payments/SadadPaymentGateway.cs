@@ -65,9 +65,16 @@ public sealed class SadadPaymentGateway(
                 return new PaymentGatewayCreateResult(false, null, resCode);
 
             var token = GetString(root, "Token");
-            return string.IsNullOrWhiteSpace(token)
-                ? new PaymentGatewayCreateResult(false, null, "SADAD_TOKEN_MISSING")
-                : new PaymentGatewayCreateResult(true, token);
+            if (string.IsNullOrWhiteSpace(token))
+                return new PaymentGatewayCreateResult(false, null, "SADAD_TOKEN_MISSING");
+
+            // The persistence model allows at most 500 characters. Treat an oversized token
+            // as an ambiguous provider outcome rather than failing after Sadad may have created
+            // the order but before its token can be durably stored.
+            if (token.Length > 500)
+                return new PaymentGatewayCreateResult(false, null, "INVALID_GATEWAY_RESPONSE");
+
+            return new PaymentGatewayCreateResult(true, token);
         }
         catch (JsonException)
         {
