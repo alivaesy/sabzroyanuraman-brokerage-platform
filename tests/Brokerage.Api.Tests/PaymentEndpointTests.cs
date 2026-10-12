@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Brokerage.Api.Tests;
 
@@ -133,6 +134,56 @@ public class PaymentEndpointTests
     }
 
     [Fact]
+    public async Task CreatePayment_IgnoresClientAmountAndUsesApprovedServerTariff()
+    {
+        await using var application = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureAppConfiguration((_, configuration) =>
+                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Payment:Enabled"] = "true",
+                    ["Payment:Tariffs:S01"] = "100000",
+                    ["Payment:Sadad:MerchantId"] = "test-merchant",
+                    ["Payment:Sadad:TerminalId"] = "test-terminal",
+                    ["Payment:Sadad:TerminalKey"] = "1234567890123456",
+                    ["Payment:Sadad:CallbackUrl"] = "https://example.test/payments/sadad/callback"
+                }));
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<IPaymentGateway>();
+                services.AddSingleton<IPaymentGateway>(new SuccessfulPaymentGateway());
+            });
+        });
+
+        var userId = $"payment-server-tariff-{Guid.NewGuid():N}";
+        var serviceRequest = new ServiceRequest(ServiceCode.S01, userId);
+        using (var scope = application.Services.CreateScope())
+        {
+            var repository = scope.ServiceProvider.GetRequiredService<IServiceRequestRepository>();
+            await repository.AddAsync(serviceRequest);
+            await repository.SaveChangesAsync();
+            scope.ServiceProvider.GetRequiredService<IMfaVerificationStore>()
+                .MarkVerified(userId, DateTimeOffset.UtcNow);
+        }
+
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", userId);
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Applicant.ToString());
+        client.DefaultRequestHeaders.Add("Idempotency-Key", $"server-tariff-{Guid.NewGuid():N}");
+
+        using var response = await client.PostAsJsonAsync("/payments", new
+        {
+            serviceRequestId = serviceRequest.Id,
+            amount = 1
+        });
+        var body = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(100000, body.GetProperty("amount").GetInt64());
+        Assert.Equal("IRR", body.GetProperty("currency").GetString());
+    }
+
+    [Fact]
     public async Task CreatePayment_CannotChargeAnotherApplicantsRequest()
     {
         await using var application = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
@@ -178,5 +229,18 @@ public class PaymentEndpointTests
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
         Assert.Contains("وضعیت پرداخت", html);
         Assert.Contains("باید بررسی شود", html);
+    }
+
+    private sealed class SuccessfulPaymentGateway : IPaymentGateway
+    {
+        public Task<PaymentGatewayCreateResult> CreatePaymentAsync(
+            PaymentGatewayCreateRequest request,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PaymentGatewayCreateResult(true, "sandbox-token"));
+
+        public Task<PaymentGatewayVerifyResult> VerifyPaymentAsync(
+            string gatewayToken,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PaymentGatewayVerifyResult(false, null, null, "NOT_IMPLEMENTED"));
     }
 }
