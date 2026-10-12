@@ -167,6 +167,17 @@ public class BrokerageApiTests
     }
 
     [Fact]
+    public async Task CreateGenericServiceRequest_CannotBypassS01Workflow_ReturnsBadRequest()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
+
+        var response = await client.PostAsync("/service-requests?serviceCode=S01", content: null);
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task CreateGenericServiceRequest_WithUnsupportedServiceCode_ReturnsBadRequest()
     {
         await using var application = new WebApplicationFactory<Program>();

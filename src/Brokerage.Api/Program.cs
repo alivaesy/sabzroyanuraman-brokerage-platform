@@ -467,6 +467,9 @@ app.MapPost("/service-requests", async (
     if (!Enum.IsDefined(serviceCode))
         return Results.BadRequest(new { message = "Unsupported service code." });
 
+    if (serviceCode == ServiceCode.S01)
+        return Results.BadRequest(new { message = "S01 requests must use the dedicated S01 workflow." });
+
     if (string.IsNullOrWhiteSpace(currentUser.UserId))
         return Results.Unauthorized();
 
