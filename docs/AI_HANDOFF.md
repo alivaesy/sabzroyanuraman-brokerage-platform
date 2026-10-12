@@ -192,3 +192,12 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Pipeline for this exact commit was queued at the last check: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2938818686. Do not call the fix verified until the pipeline passes.
 - Additional verified risks are recorded in `docs/CORE_WORKFLOW_INVENTORY.md`: organization submission retries lack a documented idempotency contract; S01 audit writes and local request persistence are not atomic; organization-status GET mutates state and still needs concurrent/partial-failure tests.
 - Keep `Payment:Enabled=false`, leave the live PHP payment flow untouched, and do not merge to `master` without explicit approval.
+
+
+## Verified core-workflow continuation (2026-10-12, latest check)
+- Branch HEAD: `59b971df4a306a25c37461981c9be03cd1e1b302` (`test: update rate limiting request code`).
+- Pipeline `2938914890` passed for that exact SHA. All five required jobs passed: `site_validate`, `php_validate`, `dotnet_build`, `dotnet_migration_verify`, and `dotnet_test`. https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2938914890
+- The S01-specific route guard now prevents the generic `POST /service-requests` path from bypassing S01 identity verification and organization-submission workflow. The rate-limit regression test was updated to exercise the generic route with S02. New persistence and S01-bypass API tests passed in the successful pipeline.
+- Next priority remains organization-status concurrency/partial-failure behavior and the S01 audit/persistence boundary. The route currently writes request/stage state and audit events from a GET; do not change the public HTTP method without client-compatibility review.
+- Production submission retries remain unsafe to enable until the organization adapter's idempotency contract is documented. Do not invent request keys or external fields.
+- `Payment:Enabled=false`; live PHP payment paths untouched; no merge to `master` without explicit approval.
