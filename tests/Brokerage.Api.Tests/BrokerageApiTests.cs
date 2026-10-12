@@ -137,6 +137,47 @@ public class BrokerageApiTests
     }
 
     [Fact]
+    public async Task CreateGenericServiceRequest_PersistsRequestAndInitialWorkflowStage()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
+
+        var createResponse = await client.PostAsync("/service-requests?serviceCode=S02", content: null);
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, createResponse.StatusCode);
+        var created = await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var requestId = Guid.Parse(created.GetProperty("id").GetString()!);
+        var stageId = Guid.Parse(created.GetProperty("currentWorkflowStageId").GetString()!);
+        Assert.Equal((int)RequestStatus.Created, created.GetProperty("status").GetInt32());
+
+        var requestResponse = await client.GetAsync($"/service-requests/{requestId}");
+        Assert.Equal(System.Net.HttpStatusCode.OK, requestResponse.StatusCode);
+        var persistedRequest = await requestResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        Assert.Equal(requestId, Guid.Parse(persistedRequest.GetProperty("id").GetString()!));
+        Assert.Equal((int)ServiceCode.S02, persistedRequest.GetProperty("serviceCode").GetInt32());
+        Assert.Equal(stageId, Guid.Parse(persistedRequest.GetProperty("currentWorkflowStageId").GetString()!));
+
+        var stagesResponse = await client.GetAsync($"/service-requests/{requestId}/workflow-stages");
+        Assert.Equal(System.Net.HttpStatusCode.OK, stagesResponse.StatusCode);
+        var stages = await stagesResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement[]>();
+        Assert.NotNull(stages);
+        var stage = Assert.Single(stages!);
+        Assert.Equal(stageId, Guid.Parse(stage.GetProperty("id").GetString()!));
+        Assert.Equal("INITIAL", stage.GetProperty("stageCode").GetString());
+    }
+
+    [Fact]
+    public async Task CreateGenericServiceRequest_WithUnsupportedServiceCode_ReturnsBadRequest()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
+
+        var response = await client.PostAsync("/service-requests?serviceCode=9999", content: null);
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task GetServiceRequest_ForCreatedS01_ReturnsPersistedRequest()
     {
         await using var application = new WebApplicationFactory<Program>();

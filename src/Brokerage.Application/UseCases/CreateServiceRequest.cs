@@ -1,28 +1,38 @@
+using Brokerage.Application.Contracts;
+using Brokerage.Application.Services;
 using Brokerage.Domain.Entities;
 using Brokerage.Domain.Enums;
-using Brokerage.Application.Services;
 
 namespace Brokerage.Application.UseCases;
 
 public class CreateServiceRequest
 {
     private readonly WorkflowService _workflowService;
+    private readonly IServiceRequestRepository _serviceRequestRepository;
 
-    public CreateServiceRequest(WorkflowService workflowService)
+    public CreateServiceRequest(
+        WorkflowService workflowService,
+        IServiceRequestRepository serviceRequestRepository)
     {
         _workflowService = workflowService;
+        _serviceRequestRepository = serviceRequestRepository;
     }
 
-    public ServiceRequest Execute(
+    public async Task<ServiceRequest> ExecuteAsync(
         ServiceCode serviceCode,
         string initialStageCode,
-        string applicantUserId)
+        string applicantUserId,
+        CancellationToken cancellationToken = default)
     {
-        var request = new ServiceRequest(serviceCode, applicantUserId);
+        if (!Enum.IsDefined(serviceCode))
+            throw new ArgumentOutOfRangeException(nameof(serviceCode), "Unsupported service code.");
 
-        _workflowService.CreateStage(
-            request,
-            initialStageCode);
+        var request = new ServiceRequest(serviceCode, applicantUserId);
+        var initialStage = _workflowService.CreateStage(request, initialStageCode);
+
+        await _serviceRequestRepository.AddAsync(request, cancellationToken);
+        await _serviceRequestRepository.AddWorkflowStageAsync(initialStage, cancellationToken);
+        await _serviceRequestRepository.SaveChangesAsync(cancellationToken);
 
         return request;
     }

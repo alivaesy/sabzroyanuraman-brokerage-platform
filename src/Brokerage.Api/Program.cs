@@ -464,6 +464,9 @@ app.MapPost("/service-requests", async (
     IIdentityVerificationStateRepository identityStates,
     CancellationToken cancellationToken) =>
 {
+    if (!Enum.IsDefined(serviceCode))
+        return Results.BadRequest(new { message = "Unsupported service code." });
+
     if (string.IsNullOrWhiteSpace(currentUser.UserId))
         return Results.Unauthorized();
 
@@ -471,8 +474,8 @@ app.MapPost("/service-requests", async (
     if (identityState?.IsVerified != true)
         return Results.Forbid();
 
-    var request = useCase.Execute(serviceCode, "INITIAL", currentUser.UserId);
-    return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.CreatedAt, request.UpdatedAt });
+    var request = await useCase.ExecuteAsync(serviceCode, "INITIAL", currentUser.UserId, cancellationToken);
+    return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.CreatedAt, request.UpdatedAt, request.CurrentWorkflowStageId });
 }).RequireAuthorization(AuthorizationPolicies.Applicant).RequireRateLimiting("service-request-create");
 
 app.MapPost("/service-requests/s01", async (
