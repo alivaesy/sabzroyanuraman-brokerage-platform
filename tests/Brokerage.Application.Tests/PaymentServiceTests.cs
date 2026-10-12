@@ -34,8 +34,32 @@ public class PaymentServiceTests
         Assert.All(audit.Tokens, token => Assert.False(token.IsCancellationRequested));
     }
 
+    [Fact]
+    public async Task VerifyAsync_PersistsVerifiedSuccessWhenCallerCancelsAfterGatewayReturns()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var payment = new PaymentTransaction(Guid.NewGuid(), 100_000, "IRR", "verify-cancellation-test");
+        payment.MarkGatewayCreated("sandbox-token");
+        var repository = new CapturingPaymentRepository(payment);
+        var gateway = new CancellingSuccessfulVerifyGateway(cancellation, payment.Id);
+        var audit = new CapturingAuditWriter();
+        var service = new PaymentService(repository, gateway, audit);
+
+        var result = await service.VerifyAsync(payment.Id, "sandbox-token", "verify-correlation", cancellation.Token);
+
+        Assert.True(cancellation.IsCancellationRequested);
+        Assert.True(result.Succeeded);
+        Assert.Equal(PaymentStatus.Succeeded, payment.Status);
+        Assert.Equal("sandbox-reference", payment.GatewayReference);
+        Assert.Contains(audit.Events, item => item.EventType == "PaymentVerified");
+        Assert.All(repository.SaveTokens, token => Assert.False(token.IsCancellationRequested));
+        Assert.All(audit.Tokens, token => Assert.False(token.IsCancellationRequested));
+    }
+
     private sealed class CapturingPaymentRepository : IPaymentTransactionRepository
     {
+        public CapturingPaymentRepository(PaymentTransaction? transaction = null) => Transaction = transaction;
+
         public PaymentTransaction? Transaction { get; private set; }
         public List<CancellationToken> SaveTokens { get; } = new();
 
@@ -65,7 +89,7 @@ public class PaymentServiceTests
         }
 
         public Task<bool> TryBeginVerificationAsync(Guid paymentId, CancellationToken cancellationToken = default) =>
-            Task.FromResult(false);
+            Task.FromResult(Transaction?.Id == paymentId && Transaction.Status == PaymentStatus.Pending);
 
         public Task<IReadOnlyList<PaymentTransaction>> GetStaleVerifyingAsync(
             DateTimeOffset updatedBefore, int limit = 100, CancellationToken cancellationToken = default) =>
@@ -88,6 +112,21 @@ public class PaymentServiceTests
         public Task<PaymentGatewayVerifyResult> VerifyPaymentAsync(
             string gatewayToken, CancellationToken cancellationToken = default) =>
             Task.FromResult(new PaymentGatewayVerifyResult(false, null, null, "NOT_USED"));
+    }
+
+    private sealed class CancellingSuccessfulVerifyGateway(CancellationTokenSource cancellation, Guid paymentId) : IPaymentGateway
+    {
+        public Task<PaymentGatewayCreateResult> CreatePaymentAsync(
+            PaymentGatewayCreateRequest request, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PaymentGatewayCreateResult(true, "unused"));
+
+        public Task<PaymentGatewayVerifyResult> VerifyPaymentAsync(
+            string gatewayToken, CancellationToken cancellationToken = default)
+        {
+            cancellation.Cancel();
+            return Task.FromResult(new PaymentGatewayVerifyResult(
+                true, 100_000, "sandbox-reference", null, paymentId.ToString("N")));
+        }
     }
 
     private sealed class CapturingAuditWriter : IAuditEventWriter

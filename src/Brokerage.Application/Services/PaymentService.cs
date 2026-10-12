@@ -136,7 +136,9 @@ public sealed class PaymentService(
             !string.Equals(gatewayResult.OrderId, transaction.Id.ToString("N"), StringComparison.OrdinalIgnoreCase))
         {
             transaction.MarkReconciliationRequired();
-            await repository.SaveChangesAsync(cancellationToken);
+            // The provider has returned a result, so the local state must be durable even if
+            // the browser disconnects while this request is being completed.
+            await repository.SaveChangesAsync(CancellationToken.None);
             var reason = gatewayResult.ErrorCode
                 ?? (!gatewayResult.Succeeded
                     ? "VERIFY_REJECTED"
@@ -152,13 +154,14 @@ public sealed class PaymentService(
                 PaymentStatus.Verifying.ToString(),
                 $"{PaymentStatus.ReconciliationRequired}:{reason}",
                 "ReviewRequired",
-                cancellationToken);
+                CancellationToken.None);
             return PaymentVerifyResult.Failure(transaction, reason);
         }
 
         transaction.MarkSucceeded(gatewayResult.GatewayReference);
-        await repository.SaveChangesAsync(cancellationToken);
-        await WriteAuditAsync("PaymentVerified", correlationId, transaction, PaymentStatus.Verifying.ToString(), PaymentStatus.Succeeded.ToString(), "Success", cancellationToken);
+        // A verified payment must not remain Verifying merely because the caller disconnected.
+        await repository.SaveChangesAsync(CancellationToken.None);
+        await WriteAuditAsync("PaymentVerified", correlationId, transaction, PaymentStatus.Verifying.ToString(), PaymentStatus.Succeeded.ToString(), "Success", CancellationToken.None);
         return PaymentVerifyResult.Success(transaction);
     }
 
