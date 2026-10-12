@@ -45,6 +45,23 @@ public class OrganizationIntegrationServiceTests
             apiClient.Attempts);
     }
     [Fact]
+    public async Task SubmitAsync_WhenApiReportsSuccessWithoutTrackingId_ThrowsBrokerageException()
+    {
+        var apiClient = new MissingTrackingIdOrganizationApiClient();
+        var retryExecutor = new OrganizationRetryExecutor(
+            new OrganizationRetryPolicy(),
+            new OrganizationRetryOptions { MaxRetryCount = 2 },
+            new OrganizationTimeoutOptions { Timeout = TimeSpan.FromSeconds(1) });
+        var service = new OrganizationIntegrationService(apiClient, retryExecutor);
+
+        var exception = await Assert.ThrowsAsync<BrokerageException>(
+            () => service.SubmitAsync("S01"));
+
+        Assert.Equal("Organization API submission failed.", exception.Message);
+        Assert.Equal(1, apiClient.Attempts);
+    }
+
+    [Fact]
     public async Task SubmitAsync_WhenApiReturnsServerError_RetriesAndEventuallySucceeds()
     {
         var apiClient = new SubmitServerErrorOrganizationApiClient();
@@ -562,6 +579,26 @@ public class OrganizationIntegrationServiceTests
 
         Assert.Equal(1, apiClient.Attempts);
     }
+    private sealed class MissingTrackingIdOrganizationApiClient : IOrganizationApiClient
+    {
+        public int Attempts { get; private set; }
+
+        public Task<OrganizationApiResult> SubmitAsync(
+            string serviceCode,
+            CancellationToken cancellationToken = default)
+        {
+            Attempts++;
+            return Task.FromResult(OrganizationApiResult.Success());
+        }
+
+        public Task<OrganizationApiResult> GetStatusAsync(
+            string trackingId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(OrganizationApiResult.Success(status: "MockStatus"));
+        }
+    }
+
     private sealed class AuthenticationFailureOrganizationApiClient
         : IOrganizationApiClient
 {

@@ -38,7 +38,17 @@ public class OrganizationIntegrationService
             throw new BrokerageException("Organization API submission failed.");
         }
 
-        var trackingId = result.TrackingId ?? string.Empty;
+        var trackingId = result.TrackingId;
+        if (string.IsNullOrWhiteSpace(trackingId))
+        {
+            // A successful transport result without a tracking identifier cannot be
+            // correlated with later status checks. Do not persist an unusable request.
+            _logger?.LogError(
+                "Organization submission returned no tracking identifier. ServiceCode={ServiceCode}",
+                serviceCode);
+            throw new BrokerageException("Organization API submission failed.");
+        }
+
         _logger?.LogInformation(
             "Organization submission completed. ServiceCode={ServiceCode}",
             serviceCode);
