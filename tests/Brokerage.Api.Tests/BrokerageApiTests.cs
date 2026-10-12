@@ -598,6 +598,14 @@ public class BrokerageApiTests
         var created = await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
         var requestId = Guid.Parse(created.GetProperty("id").GetString()!);
 
+        int initialAuditEventCount;
+        using (var baselineScope = application.Services.CreateScope())
+        {
+            var baselineDbContext = baselineScope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+            initialAuditEventCount = await baselineDbContext.AuditEvents.AsNoTracking()
+                .CountAsync(auditEvent => auditEvent.ServiceRequestId == requestId);
+        }
+
         var statusResponse = await client.GetAsync($"/service-requests/{requestId}/organization-status");
         Assert.Equal(System.Net.HttpStatusCode.InternalServerError, statusResponse.StatusCode);
 
@@ -624,6 +632,7 @@ public class BrokerageApiTests
         Assert.DoesNotContain(persistedEvents, auditEvent =>
             auditEvent.EventType == "WorkflowStageCompleted" &&
             auditEvent.WorkflowStage == "OrganizationFollowUp");
+        Assert.Equal(initialAuditEventCount, persistedEvents.Count);
     }
 
     [Fact]

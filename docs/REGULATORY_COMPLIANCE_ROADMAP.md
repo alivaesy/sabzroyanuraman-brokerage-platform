@@ -116,5 +116,5 @@ Track these separately from software completion:
  
 ## Organization-status transaction evidence — 2026-10-12
 - S01 local creation rollback is verified by the passing SQLite regression in pipeline `2939513854`: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2939513854
-- Organization-status refresh now wraps local request/stage/audit changes in a scoped EF transaction after the remote status call. A new audit-failure injection test checks rollback of these local changes; do not count it as verified until this commit's CI passes.
+- Organization-status refresh now wraps local request/stage/audit changes in a scoped EF transaction after the remote status call. A new audit-failure injection test checks rollback of these local changes and passed in pipeline `2939580658` for commit `51eac5102ffa98dce2cf542aa2757511826691dc`.
 - This does not establish concurrency safety, provider-independent locking, or resolution of external submit reconciliation/idempotency. Other hosting, legal, integration, SLA/DR/ZDR and security evidence gates remain open. Payment stays disabled.

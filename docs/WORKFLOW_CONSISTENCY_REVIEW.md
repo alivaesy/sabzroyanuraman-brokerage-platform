@@ -120,3 +120,8 @@ These are engineering constraints for the next implementation phase, not assumpt
 - The sequential repeat-refresh API test now checks both persisted workflow state and audit history: two successful refresh responses are recorded, while `ResultNotification` creation and `OrganizationFollowUp` completion are each recorded only once.
 - This is a sequential idempotency assertion only. It does not exercise overlapping requests. The endpoint reads the request and its prior status before the remote call and opens the local transaction only after the remote call returns; overlapping requests can therefore act on stale tracked request state.
 - `workflow_stages` currently has a primary key but no uniqueness rule on `(ServiceRequestId, StageCode)`, and `ServiceRequest` has no EF concurrency token. Do not add a unique index until stage multiplicity and existing data are reviewed. Before claiming race safety, choose and test a provider-supported strategy (e.g. optimistic concurrency with conflict handling or a transaction/locking design), including its migration and client-visible retry/error semantics.
+
+
+## Rollback regression follow-up — 2026-10-12
+- Extend the organization-status audit-failure regression to capture the request's audit-event count before the refresh and assert that the count is unchanged after the injected failure. This protects both sides of the rollback contract: no partial status/stage/audit additions, and no loss of pre-existing audit history.
+- This assertion complements the existing checks for unchanged request status, incomplete `OrganizationFollowUp`, absent `ResultNotification`, and absent status-refresh audit events. It does not address concurrent refresh races.

@@ -82,5 +82,5 @@ Status: repository-derived engineering inventory, not a compliance certification
  
 ## Organization-status consistency update — 2026-10-12
 - The S01 SQLite rollback test passed in pipeline `2939513854`: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2939513854
-- Organization-status GET now groups local request status, stage updates, and audit writes in one scoped EF transaction after the external status response is received. A new injected-audit-failure test verifies local rollback; verification awaits the pipeline for this commit.
+- Organization-status GET now groups local request status, stage updates, and audit writes in one scoped EF transaction after the external status response is received. A new injected-audit-failure test verifies local rollback and passed in pipeline `2939580658` for commit `51eac5102ffa98dce2cf542aa2757511826691dc`.
 - Concurrency is not claimed as solved: external fetch remains outside the transaction and no optimistic concurrency token or unique stage constraint was added. Concurrent refresh testing and provider-specific semantics remain open.
