@@ -173,3 +173,13 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - The official source text distinguishes a brokerage operating system from the existing informational/legacy website and separates the brokerage license prerequisites from the activity-permit prerequisites. Do not claim legal compliance from code or this roadmap alone.
 - Production launch remains blocked by unconfigured approved organization/Sana/Shahkar adapters, production authentication, approved domestic hosting/deployment controls, and external approvals. Do not replace development mocks with guessed production protocols.
 - Merge to `master` remains prohibited without explicit approval; review the complete branch diff first because it includes a wide range of website and application changes.
+
+
+## Latest verified continuation (2026-10-12)
+- Branch `feat/payment-foundation-sadad-ready` HEAD: `7f124dca64a5c2c4404b0491a9fc2bff791b9578`.
+- Pipeline `2938398693` for that exact SHA completed successfully: `site_validate`, `php_validate`, `dotnet_build`, `dotnet_migration_verify`, and `dotnet_test` all passed. Pipeline: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2938398693.
+- `master` remains at `625c03dcadb47182e41edc62d74afd4c56e877e5`. Compare reports 118 commits and 53 changed files; do not merge without explicit user approval and a reviewed diff.
+- A core workflow inventory was added in `docs/CORE_WORKFLOW_INVENTORY.md`. It describes existing routes and separates implemented application behavior from mocks and external approval blockers.
+- Important review finding: `GET /service-requests/{id}/organization-status` currently performs a remote status lookup and writes organization status, completes/creates workflow stages, and writes audit events. This is a state-changing operation behind GET; assess and test idempotency/concurrency before changing its public method or behavior. Do not silently break clients.
+- Payment remains disabled by default (`Payment:Enabled=false`). Keep the live PHP payment flow untouched. Do not infer service mappings/tariffs or Sadad merchant contract details.
+- Next engineering batch should prioritize a focused review/test of organization-status workflow side effects and concurrency, then core service workflow authorization/data-minimization. Avoid expanding the payment foundation unless a concrete release-blocking defect is demonstrated.
