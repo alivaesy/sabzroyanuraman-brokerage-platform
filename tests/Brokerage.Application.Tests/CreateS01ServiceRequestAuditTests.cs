@@ -7,6 +7,10 @@ using Brokerage.Application.Services;
 using Brokerage.Application.UseCases;
 using Brokerage.Domain.Enums;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
+using Brokerage.Infrastructure.Persistence;
 
 namespace Brokerage.Application.Tests;
 
@@ -104,6 +108,38 @@ public class CreateS01ServiceRequestAuditTests
         Assert.False(unitOfWork.Transaction!.Committed);
         Assert.True(unitOfWork.Transaction.Disposed);
     }
+
+    [Fact]
+    public async Task ExecuteAsync_WithSqliteTransaction_RollsBackRequestStagesAndAuditAfterPersistenceFailure()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<BrokerageDbContext>()
+            .UseSqlite(connection)
+            .Options;
+        await using var dbContext = new BrokerageDbContext(options);
+        await dbContext.Database.EnsureCreatedAsync();
+
+        var repository = new SaveThenFailServiceRequestRepository(new ServiceRequestRepository(dbContext));
+        var useCase = new CreateS01ServiceRequest(
+            new WorkflowService(),
+            new MockIdentityVerificationService(),
+            new TestOrganizationIntegrationService(),
+            serviceRequestRepository: repository,
+            auditEventWriter: new AuditEventWriter(dbContext, NullLogger<AuditEventWriter>.Instance),
+            unitOfWork: new EfUnitOfWork(dbContext));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(
+            new CreateS01RequestModel { NationalIdentifier = "1234567891" },
+            "test-applicant",
+            "SQLITE-ROLLBACK-TEST"));
+
+        Assert.Equal(0, await dbContext.ServiceRequests.AsNoTracking().CountAsync());
+        Assert.Equal(0, await dbContext.WorkflowStages.AsNoTracking().CountAsync());
+        Assert.Equal(0, await dbContext.AuditEvents.AsNoTracking().CountAsync());
+    }
+
 }
 
 internal sealed class RecordingUnitOfWork : IUnitOfWork
@@ -147,6 +183,28 @@ internal sealed class FailingSaveServiceRequestRepository : IServiceRequestRepos
         => Task.FromResult<ServiceRequest?>(null);
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => throw new InvalidOperationException("Simulated local persistence failure.");
+}
+
+
+internal sealed class SaveThenFailServiceRequestRepository(IServiceRequestRepository inner) : IServiceRequestRepository
+{
+    public Task AddAsync(ServiceRequest request, CancellationToken cancellationToken = default)
+        => inner.AddAsync(request, cancellationToken);
+
+    public Task AddWorkflowStageAsync(WorkflowStage stage, CancellationToken cancellationToken = default)
+        => inner.AddWorkflowStageAsync(stage, cancellationToken);
+
+    public Task<IReadOnlyList<WorkflowStage>> GetWorkflowStagesAsync(Guid serviceRequestId, CancellationToken cancellationToken = default)
+        => inner.GetWorkflowStagesAsync(serviceRequestId, cancellationToken);
+
+    public Task<ServiceRequest?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        => inner.GetByIdAsync(id, cancellationToken);
+
+    public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        await inner.SaveChangesAsync(cancellationToken);
+        throw new InvalidOperationException("Simulated failure after local rows were written inside the transaction.");
+    }
 }
 
 internal sealed class ListLogger<T> : ILogger<T>

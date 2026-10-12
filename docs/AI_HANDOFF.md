@@ -220,3 +220,11 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Next safe step is a design-and-test batch for transaction boundaries, concurrency, and external-submit reconciliation. Do not introduce a new stage code, status enum, external idempotency field, or database uniqueness constraint until its business semantics and existing-data impact are confirmed.
 - The returned organization status is persisted in the service request and included in audit state fields by the current workflow. Log redaction does not resolve data-minimization or retention requirements for those database fields; confirm the approved classification/retention policy before changing storage.
 - Preserve `Payment:Enabled=false`, leave the live PHP payment flow untouched, and do not merge to `master` without explicit approval.
+
+ 
+## Verified S01 local transaction follow-up — 2026-10-12
+- Branch commit `530c87f97cdfbfe516adf769e3416a59df1b273a` passed pipeline `2939464325`: `site_validate`, `php_validate`, `dotnet_build`, `dotnet_migration_verify`, and `dotnet_test` all succeeded. https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2939464325
+- S01 now wraps local service-request, workflow-stage and audit writes in a scoped EF transaction; the organization submission remains outside that local transaction because a local database rollback cannot undo a remote side effect. The API's `ServiceRequestCreated` audit event is now emitted within the use case before commit.
+- The current test before this follow-up used a fake unit of work and only proved orchestration. A new SQLite-backed failure-injection test is being added to force failure after local request/stage rows are saved and assert that request, stage, and audit tables remain empty after rollback. Do not treat this stronger test as verified until its own pipeline passes.
+- The remote-success/local-failure reconciliation and external submit idempotency contract remain release blockers. Organization-status GET still has a separate concurrency/partial-failure gap and is the next workflow area for characterization tests.
+- Keep `Payment:Enabled=false`, do not change the live PHP payment flow, and do not merge to `master` without explicit approval.

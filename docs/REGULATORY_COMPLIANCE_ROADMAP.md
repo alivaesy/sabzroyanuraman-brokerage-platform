@@ -105,3 +105,10 @@ Track these separately from software completion:
 - S01 request/stage/audit writes are not currently one local transaction; organization submission is an external side effect before local persistence. Status refresh also has a read/modify/write concurrency gap. Track these as release blockers until failure semantics, concurrency behavior and reconciliation are approved and tested.
 - Microservice deployment, completed Angular/Vue/React SPA, domestic hosting, disaster recovery, SLA, ZDR, legal authorization and external integration approval remain evidence gaps unless separately proven. A green pipeline does not close these gaps.
 - See `docs/WORKFLOW_CONSISTENCY_REVIEW.md` for the staged design and regression-test plan. Keep `Payment:Enabled=false` and preserve the live PHP payment flow.
+
+ 
+## Current engineering evidence update — 2026-10-12
+- S01 local request/stage/audit persistence now uses a scoped EF transaction on branch commit `530c87f97cdfbfe516adf769e3416a59df1b273a`; pipeline `2939464325` passed the five configured CI jobs: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2939464325
+- This code-level improvement does not close the external side-effect gap: the organization submit occurs before the local transaction and cannot be undone by a database rollback. Documented idempotency/reconciliation evidence remains required.
+- Organization-status refresh still needs concurrency and partial-failure tests. Hosting, deployment topology, frontend completeness, SLA/DR/ZDR, official integrations, legal licensing and security assessment remain independent evidence gates.
+- A SQLite-backed rollback test is being added and must pass its own pipeline before claiming real EF/SQLite rollback behavior has been verified. Payment remains disabled and the live PHP flow is out of scope.

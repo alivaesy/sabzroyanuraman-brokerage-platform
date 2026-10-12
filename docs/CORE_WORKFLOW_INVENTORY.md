@@ -71,3 +71,10 @@ Status: repository-derived engineering inventory, not a compliance certification
 - **External side-effect risk:** organization submission precedes local persistence. A remote success followed by local failure needs an approved reconciliation/idempotency policy; a local DB transaction cannot roll back the remote organization's submission.
 - Do not add a global unique constraint on `(ServiceRequestId, StageCode)` until stage multiplicity rules and existing deployed data are checked. Do not change the public GET method until client compatibility is reviewed.
 - A proposed test/design matrix and safe implementation order are recorded in `docs/WORKFLOW_CONSISTENCY_REVIEW.md`. Payment remains disabled and no production-readiness claim is implied by CI success.
+
+ 
+## Current branch evidence — S01 transaction work (2026-10-12)
+- Commit `530c87f97cdfbfe516adf769e3416a59df1b273a` passed all five configured CI jobs in pipeline `2939464325`: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2939464325
+- S01 local request, workflow-stage and audit writes are now coordinated by a scoped EF transaction; the `ServiceRequestCreated` audit event is emitted inside the use case before commit.
+- The external organization submit remains outside the local transaction. If the organization accepts a request and local persistence subsequently fails, the remote case may still exist; approved reconciliation/idempotency behavior is required before production use.
+- A SQLite-backed rollback regression test is the next verification step; until its pipeline passes, the earlier fake-unit-of-work test alone is not proof of real database rollback. Organization-status GET concurrency and partial-failure behavior remains open.

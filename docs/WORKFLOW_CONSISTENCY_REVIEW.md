@@ -99,3 +99,11 @@ These are engineering constraints for the next implementation phase, not assumpt
 - Modifying the live PHP payment flow.
 - Merging this branch to `master`.
 - Claiming production readiness, regulatory compliance, or external API approval from repository tests alone.
+
+ 
+## Implementation update — S01 local transaction boundary (2026-10-12)
+- Commit `530c87f97cdfbfe516adf769e3416a59df1b273a` passed pipeline `2939464325` (all five configured jobs): https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2939464325
+- The S01 use case now starts a local EF transaction after the external organization submission and before any local request/stage/audit writes. Those local writes share the scoped `BrokerageDbContext`; the `ServiceRequestCreated` event is now written before transaction commit.
+- The external organization call is deliberately not inside the transaction. Remote success followed by local failure still requires a documented reconciliation/idempotency policy; do not automatically resubmit.
+- The existing fake-unit-of-work failure test only verifies commit ordering. A SQLite-backed failure-injection test is being added to verify that persisted request/stage/audit rows are rolled back after a failure. This test is not yet verified until CI passes.
+- The organization-status GET remains outside this change and still needs targeted concurrent-refresh and partial-failure tests. Do not change the public method or add stage uniqueness constraints without compatibility and data review.
