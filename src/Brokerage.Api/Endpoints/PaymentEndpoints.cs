@@ -24,6 +24,12 @@ public static class PaymentEndpoints
         {
             context.Response.Headers.CacheControl = "no-store";
 
+            if (!configuration.GetValue<bool>("Payment:Enabled"))
+                return Results.Problem(
+                    statusCode: StatusCodes.Status503ServiceUnavailable,
+                    title: "Payment initiation is disabled.",
+                    extensions: new Dictionary<string, object?> { ["code"] = "PAYMENT_NOT_ENABLED" });
+
             if (request.ServiceRequestId == Guid.Empty || string.IsNullOrWhiteSpace(currentUser.UserId))
                 return Results.BadRequest(new { error = "INVALID_PAYMENT_REQUEST" });
 

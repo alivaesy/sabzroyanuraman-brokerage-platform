@@ -24,6 +24,31 @@ public class PaymentEndpointTests
     }
 
     [Fact]
+    public async Task CreatePayment_IsDisabledByDefaultEvenForMfaVerifiedApplicant()
+    {
+        await using var application = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.ConfigureAppConfiguration((_, configuration) =>
+                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Payment:Enabled"] = "false"
+                })));
+
+        var userId = $"payment-disabled-{Guid.NewGuid():N}";
+        using (var scope = application.Services.CreateScope())
+            scope.ServiceProvider.GetRequiredService<IMfaVerificationStore>()
+                .MarkVerified(userId, DateTimeOffset.UtcNow);
+
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", userId);
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Applicant.ToString());
+
+        using var response = await client.PostAsJsonAsync("/payments", new { serviceRequestId = Guid.NewGuid() });
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+    }
+
+    [Fact]
     public async Task CreatePayment_ApplicantWithoutRecentMfa_ReturnsForbidden()
     {
         await using var application = new WebApplicationFactory<Program>();
@@ -43,6 +68,7 @@ public class PaymentEndpointTests
             builder.ConfigureAppConfiguration((_, configuration) =>
                 configuration.AddInMemoryCollection(new Dictionary<string, string?>
                 {
+                    ["Payment:Enabled"] = "true",
                     ["Payment:Tariffs:S01"] = "0"
                 })));
 
@@ -79,6 +105,7 @@ public class PaymentEndpointTests
             builder.ConfigureAppConfiguration((_, configuration) =>
                 configuration.AddInMemoryCollection(new Dictionary<string, string?>
                 {
+                    ["Payment:Enabled"] = "true",
                     ["Payment:Tariffs:S01"] = "100000"
                 })));
 
