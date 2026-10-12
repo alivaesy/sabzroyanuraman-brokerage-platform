@@ -203,6 +203,29 @@ public class PaymentServiceTests
     }
 
     [Fact]
+    public async Task VerifyAsync_CancelledRequestStillPersistsReconciliationState()
+    {
+        var requestId = Guid.NewGuid();
+        var existing = new PaymentTransaction(requestId, 1000, "IRR", "verify-cancelled-key");
+        existing.MarkGatewayCreated("gateway-token");
+        var repository = new FakePaymentRepository(existing);
+        var gateway = new FakePaymentGateway { ThrowOnVerifyCancellation = true };
+        var audit = new FakeAuditEventWriter();
+        var service = new PaymentService(repository, gateway, audit);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            service.VerifyAsync(existing.Id, "gateway-token", "correlation-cancelled", cancellation.Token));
+
+        Assert.Equal(PaymentStatus.ReconciliationRequired, existing.Status);
+        Assert.Equal(1, gateway.VerifyCalls);
+        var auditEvent = Assert.Single(audit.Events);
+        Assert.Equal("PaymentVerifyOutcomeUnknown", auditEvent.EventType);
+        Assert.Equal("ReviewRequired", auditEvent.Outcome);
+    }
+
+    [Fact]
     public async Task VerifyAsync_RejectedProviderResultWithoutErrorCodeIsNotReportedAsAmountMismatch()
     {
         var requestId = Guid.NewGuid();
@@ -369,6 +392,7 @@ public class PaymentServiceTests
         public int VerifyCalls { get; private set; }
         public bool ThrowOnCreate { get; init; }
         public bool ThrowOnVerify { get; init; }
+        public bool ThrowOnVerifyCancellation { get; init; }
         public PaymentGatewayCreateResult? CreateResultOverride { get; init; }
         public PaymentGatewayVerifyResult? VerifyResultOverride { get; init; }
 
@@ -383,6 +407,8 @@ public class PaymentServiceTests
         public Task<PaymentGatewayVerifyResult> VerifyPaymentAsync(string gatewayToken, CancellationToken cancellationToken = default)
         {
             VerifyCalls++;
+            if (ThrowOnVerifyCancellation)
+                throw new OperationCanceledException("Simulated caller cancellation during gateway verification.", cancellationToken);
             if (ThrowOnVerify)
                 throw new HttpRequestException("Simulated gateway timeout.");
             return Task.FromResult(VerifyResultOverride ?? new PaymentGatewayVerifyResult(false, null, null, "NOT_IMPLEMENTED"));

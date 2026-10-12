@@ -108,7 +108,9 @@ public sealed class PaymentService(
             return PaymentVerifyResult.Failure(transaction, "PAYMENT_VERIFICATION_IN_PROGRESS");
 
         transaction.MarkVerifying();
-        await repository.SaveChangesAsync(cancellationToken);
+        // Once verification is claimed, persist the state transition even if the browser disconnects.
+        // TryBeginVerificationAsync has already atomically moved the database row to Verifying.
+        await repository.SaveChangesAsync(CancellationToken.None);
 
         PaymentGatewayVerifyResult gatewayResult;
         try
@@ -120,8 +122,11 @@ public sealed class PaymentService(
             // The provider may have processed Verify despite a timeout. Do not return to Pending,
             // because a later callback could repeat the external operation without reconciliation.
             transaction.MarkVerificationOutcomeUnknown();
-            await repository.SaveChangesAsync(cancellationToken);
-            await WriteAuditAsync("PaymentVerifyOutcomeUnknown", correlationId, transaction, PaymentStatus.Verifying.ToString(), PaymentStatus.ReconciliationRequired.ToString(), "ReviewRequired", cancellationToken);
+            // The request token may be cancelled precisely because the provider timed out or
+            // the browser disconnected. Use an independent token for the durable safety state
+            // and audit event; otherwise the payment could remain Verifying indefinitely.
+            await repository.SaveChangesAsync(CancellationToken.None);
+            await WriteAuditAsync("PaymentVerifyOutcomeUnknown", correlationId, transaction, PaymentStatus.Verifying.ToString(), PaymentStatus.ReconciliationRequired.ToString(), "ReviewRequired", CancellationToken.None);
             throw;
         }
 
