@@ -103,6 +103,30 @@ builder.Services.AddRateLimiter(options =>
         });
     });
 
+    options.AddPolicy("payment-create", context =>
+    {
+        var partitionKey = GetRateLimitPartitionKey(context);
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        });
+    });
+
+    options.AddPolicy("payment-callback", context =>
+    {
+        var partitionKey = GetRateLimitPartitionKey(context);
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 30,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        });
+    });
+
     options.OnRejected = (context, _) =>
     {
         context.HttpContext.Response.Headers.CacheControl = "no-store";
@@ -347,6 +371,7 @@ app.MapGet("/ops/status", async (
 }).RequireAuthorization(AuthorizationPolicies.OperationalMonitoring).RequireRateLimiting("operational-read");
 AuditExportEndpoints.Map(app);
 PaymentOperationalEndpoints.Map(app);
+PaymentEndpoints.Map(app);
 
 app.MapPost("/identity/verify", async (
     ICurrentUser currentUser,
