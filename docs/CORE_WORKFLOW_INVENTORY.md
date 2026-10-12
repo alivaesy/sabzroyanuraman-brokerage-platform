@@ -52,3 +52,11 @@ Status: repository-derived engineering inventory, not a compliance certification
 - Pipeline `2938914890` passed all five jobs (`site_validate`, `php_validate`, `dotnet_build`, `dotnet_migration_verify`, `dotnet_test`): https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2938914890
 - Generic request persistence and initial workflow-stage tests passed. The generic route now rejects S01 so service-specific S01 processing cannot be bypassed; the rate-limiting test was aligned to test the generic route with S02.
 - CI success does not resolve the documented organization idempotency, audit atomicity, or status-refresh concurrency risks.
+
+
+## Latest verification and privacy follow-up (2026-10-12)
+- Commit `23330b0f2f6bc543ab475f7497189652d679dafb` passed pipeline `2939200020`; all five required jobs passed: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2939200020.
+- Organization status responses without a non-empty status are rejected, and regression coverage verifies the S01 workflow does not advance on that invalid response.
+- A follow-up change removes the actual organization-returned status value from general logs and adds a regression test asserting a sensitive status marker is returned to the caller but never logged. This follow-up still requires its own pipeline result.
+- Architecture compliance remains unproven: layered projects do not establish a deployed microservices topology or a completed Angular/Vue/React SPA. Treat both as evidence gaps, not completed requirements.
+- Concurrency, partial persistence, external idempotency, and audit/request transaction boundaries remain open release gates.

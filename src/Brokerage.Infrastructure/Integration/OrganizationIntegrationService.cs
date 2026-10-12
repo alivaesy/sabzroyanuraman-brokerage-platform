@@ -80,9 +80,9 @@ public class OrganizationIntegrationService
             throw new BrokerageException("Organization API status request failed.");
         }
 
-        _logger?.LogInformation(
-            "Organization status received. Status={Status}",
-            status);
+        // Organization-provided status may contain case-specific or otherwise sensitive data.
+        // Keep the status available to the caller, but never copy its value into general logs.
+        _logger?.LogInformation("Organization status received.");
         return status;
     }
 

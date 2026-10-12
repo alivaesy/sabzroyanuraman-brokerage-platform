@@ -278,6 +278,40 @@ public class OrganizationIntegrationServiceTests
         "MockStatus",
         status);
 }
+
+    [Fact]
+    public async Task GetStatusAsync_DoesNotLogOrganizationReturnedStatus()
+    {
+        const string sensitiveStatus = "PRIVATE-ORG-STATUS-MARKER";
+        var apiClient = new StatusMarkerOrganizationApiClient(sensitiveStatus);
+        var retryExecutor = new OrganizationRetryExecutor(
+            new OrganizationRetryPolicy(),
+            new OrganizationRetryOptions { MaxRetryCount = 0 },
+            new OrganizationTimeoutOptions { Timeout = TimeSpan.FromSeconds(1) });
+        var logger = new CapturingLogger<OrganizationIntegrationService>();
+        var service = new OrganizationIntegrationService(apiClient, retryExecutor, logger);
+
+        var status = await service.GetStatusAsync("MOCK-TRACKING-ID");
+
+        Assert.Equal(sensitiveStatus, status);
+        Assert.DoesNotContain(
+            logger.Messages,
+            message => message.Contains(sensitiveStatus, StringComparison.Ordinal));
+    }
+
+    private sealed class StatusMarkerOrganizationApiClient(string status) : IOrganizationApiClient
+    {
+        public Task<OrganizationApiResult> SubmitAsync(
+            string serviceCode,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(OrganizationApiResult.Success("MOCK-TRACKING-ID"));
+
+        public Task<OrganizationApiResult> GetStatusAsync(
+            string trackingId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(OrganizationApiResult.Success(status: status));
+    }
+
     [Fact]
     public async Task GetStatusAsync_DoesNotLogOrganizationTrackingId()
     {

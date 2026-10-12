@@ -89,3 +89,10 @@ Track these separately from software completion:
 6. Review the full release diff, validate in approved test environments, and obtain explicit release approval.
 
 **Definition of done:** implemented behavior is tested, external integrations have authoritative contract evidence, operational controls are verified, external approvals are recorded, and the exact release diff is reviewed. Never equate “CI green” with “ready for production” or “legally compliant.”
+
+
+## Repository evidence snapshot — 2026-10-12
+- The repository currently demonstrates layered Domain/Application/Infrastructure code and a backend API, but that alone does **not** demonstrate that the required microservices architecture is deployed or that a modern frontend SPA (Angular, Vue, or React) is complete. Track architecture topology, service boundaries, deployment evidence, and frontend completeness as explicit gaps until reviewed evidence is available.
+- The latest verified core-workflow pipeline at the time of this snapshot is `2939200020`, which passed the five configured CI jobs for commit `23330b0f2f6bc543ab475f7497189652d679dafb`: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2939200020. Any subsequent code/doc batch requires its own pipeline verification.
+- Organization status values are now intended to be excluded from general application logs; the marker-based regression test in the follow-up batch must pass before considering this privacy change verified.
+- CI does not establish domestic hosting approval, disaster recovery, SLA, Zero Data Retention, legal authorization, third-party integration approval, or production readiness. Each requires independent documentary or environment evidence.

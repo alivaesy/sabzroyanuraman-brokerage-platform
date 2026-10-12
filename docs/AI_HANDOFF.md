@@ -201,3 +201,12 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Next priority remains organization-status concurrency/partial-failure behavior and the S01 audit/persistence boundary. The route currently writes request/stage state and audit events from a GET; do not change the public HTTP method without client-compatibility review.
 - Production submission retries remain unsafe to enable until the organization adapter's idempotency contract is documented. Do not invent request keys or external fields.
 - `Payment:Enabled=false`; live PHP payment paths untouched; no merge to `master` without explicit approval.
+
+
+## Latest verified core workflow and privacy batch (2026-10-12)
+- Branch head before this batch: `23330b0f2f6bc543ab475f7497189652d679dafb`. Pipeline `2939200020` passed all five jobs (`site_validate`, `php_validate`, `dotnet_build`, `dotnet_migration_verify`, `dotnet_test`): https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2939200020.
+- Organization status responses that report success without a non-empty status now fail closed; a regression test verifies the API does not advance the S01 workflow in that case.
+- Follow-up privacy batch removes the organization-returned status value from general application logs and adds a marker-based regression test. The returned status remains available to the workflow caller.
+- Compliance gap remains: repository evidence does not establish a deployed microservices architecture or a completed modern SPA frontend. Layered Domain/Application/Infrastructure code is not proof of microservice deployment. See `docs/REGULATORY_COMPLIANCE_ROADMAP.md`.
+- Outstanding workflow risks: external organization submission retry/idempotency contract; atomic local persistence of request/stages/audit; and concurrent/partial-failure behavior of the state-changing organization-status GET. These require explicit design and targeted tests, not assumptions.
+- Keep `Payment:Enabled=false`, preserve the live PHP payment flow, and do not merge to `master` without explicit approval. CI success is not production or legal readiness.
