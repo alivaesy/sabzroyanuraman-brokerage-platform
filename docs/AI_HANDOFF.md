@@ -183,3 +183,12 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Important review finding: `GET /service-requests/{id}/organization-status` currently performs a remote status lookup and writes organization status, completes/creates workflow stages, and writes audit events. This is a state-changing operation behind GET; assess and test idempotency/concurrency before changing its public method or behavior. Do not silently break clients.
 - Payment remains disabled by default (`Payment:Enabled=false`). Keep the live PHP payment flow untouched. Do not infer service mappings/tariffs or Sadad merchant contract details.
 - Next engineering batch should prioritize a focused review/test of organization-status workflow side effects and concurrency, then core service workflow authorization/data-minimization. Avoid expanding the payment foundation unless a concrete release-blocking defect is demonstrated.
+
+
+## Latest core workflow fix (2026-10-12)
+- Branch head: `4f23b9b8d794e1cdec2ad4a999c348e588997151` (`fix: persist generic service requests and initial stages`).
+- Fixed `POST /service-requests`: the use case now persists the service request and its `INITIAL` workflow stage instead of returning a transient in-memory entity. The response also includes `CurrentWorkflowStageId`; undefined numeric service codes are rejected.
+- Added API regression tests for retrieving the created generic request and its initial stage, and for rejecting an unsupported service code.
+- Pipeline for this exact commit was queued at the last check: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2938818686. Do not call the fix verified until the pipeline passes.
+- Additional verified risks are recorded in `docs/CORE_WORKFLOW_INVENTORY.md`: organization submission retries lack a documented idempotency contract; S01 audit writes and local request persistence are not atomic; organization-status GET mutates state and still needs concurrent/partial-failure tests.
+- Keep `Payment:Enabled=false`, leave the live PHP payment flow untouched, and do not merge to `master` without explicit approval.
