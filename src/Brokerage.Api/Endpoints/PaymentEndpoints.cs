@@ -119,6 +119,9 @@ public static class PaymentEndpoints
             CancellationToken cancellationToken) =>
         {
             context.Response.Headers.CacheControl = "no-store";
+            context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+            context.Response.Headers["Referrer-Policy"] = "no-referrer";
+            context.Response.Headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'";
             string token;
             string orderId;
 
@@ -149,6 +152,10 @@ public static class PaymentEndpoints
                 return result.Succeeded
                     ? CallbackPage("پرداخت با موفقیت تأیید شد.")
                     : CallbackPage("وضعیت پرداخت هنوز قابل تأیید نیست و نیازمند بررسی است.");
+            }
+            catch (PaymentTransactionNotFoundException)
+            {
+                return CallbackPage("وضعیت پرداخت قابل شناسایی نیست و نیازمند بررسی است.");
             }
             catch (HttpRequestException)
             {

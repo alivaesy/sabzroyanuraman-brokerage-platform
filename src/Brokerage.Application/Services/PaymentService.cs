@@ -89,7 +89,7 @@ public sealed class PaymentService(
     public async Task<PaymentVerifyResult> VerifyAsync(Guid paymentId, string? callbackToken, string correlationId, CancellationToken cancellationToken = default)
     {
         var transaction = await repository.GetByIdAsync(paymentId, cancellationToken)
-            ?? throw new InvalidOperationException("Payment transaction was not found.");
+            ?? throw new PaymentTransactionNotFoundException();
 
         // Callback verification must prove possession of the exact issued token even when
         // the payment already succeeded; otherwise an arbitrary caller could probe payment state.
@@ -218,3 +218,6 @@ public sealed record PaymentVerifyResult(PaymentTransaction Transaction, bool Al
     public static PaymentVerifyResult FromAlreadySucceeded(PaymentTransaction t) => new(t, true, true, null);
     public static PaymentVerifyResult Failure(PaymentTransaction t, string error) => new(t, false, false, error);
 }
+
+
+public sealed class PaymentTransactionNotFoundException() : Exception("Payment transaction was not found.");

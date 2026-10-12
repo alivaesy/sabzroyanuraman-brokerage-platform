@@ -62,6 +62,24 @@ public class PaymentEndpointTests
     }
 
     [Fact]
+    public async Task SadadCallback_UnknownPaymentReturnsGenericReviewPageWithSecurityHeaders()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var unknownPaymentId = Guid.NewGuid().ToString("N");
+        using var response = await client.GetAsync($"/payments/sadad/callback?OrderId={unknownPaymentId}&Token=untrusted-token");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("نیازمند بررسی است", body);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+        Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
+        Assert.Equal("no-referrer", response.Headers.GetValues("Referrer-Policy").Single());
+        Assert.Contains("default-src 'none'", response.Headers.GetValues("Content-Security-Policy").Single());
+    }
+
+    [Fact]
     public async Task CreatePayment_UsesServerTariffAndFailsClosedWhenTariffIsNotConfigured()
     {
         await using var application = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
