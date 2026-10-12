@@ -116,6 +116,6 @@ public class PaymentEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
         Assert.Contains("وضعیت پرداخت", html);
-        Assert.Contains("نیازمند بررسی", html);
+        Assert.Contains("باید بررسی شود", html);
     }
 }
