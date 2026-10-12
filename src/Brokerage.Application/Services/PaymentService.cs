@@ -60,7 +60,7 @@ public sealed class PaymentService(
         }
         catch
         {
-            await WriteAuditAsync("PaymentGatewayUnavailable", correlationId, transaction, PaymentStatus.Pending.ToString(), "CreateOutcomeUnknown", "ReviewRequired", cancellationToken);
+            await WriteAuditAsync("PaymentGatewayUnavailable", correlationId, transaction, PaymentStatus.Pending.ToString(), "CreateOutcomeUnknown", "ReviewRequired", CancellationToken.None);
             throw;
         }
 
@@ -70,19 +70,21 @@ public sealed class PaymentService(
             {
                 // HTTP failures and malformed/missing gateway responses do not prove that
                 // Sadad rejected the order. Keep the record pending for manual reconciliation.
-                await WriteAuditAsync("PaymentCreateOutcomeUnknown", correlationId, transaction, PaymentStatus.Pending.ToString(), "CreateOutcomeUnknown", "ReviewRequired", cancellationToken);
+                await WriteAuditAsync("PaymentCreateOutcomeUnknown", correlationId, transaction, PaymentStatus.Pending.ToString(), "CreateOutcomeUnknown", "ReviewRequired", CancellationToken.None);
                 return PaymentCreateResult.RequiresReconciliation(transaction, gatewayResult.ErrorCode ?? "CREATE_OUTCOME_UNKNOWN");
             }
 
             transaction.MarkFailed();
-            await repository.SaveChangesAsync(cancellationToken);
-            await WriteAuditAsync("PaymentFailed", correlationId, transaction, PaymentStatus.Pending.ToString(), gatewayResult.ErrorCode ?? PaymentStatus.Failed.ToString(), "Failure", cancellationToken);
+            await repository.SaveChangesAsync(CancellationToken.None);
+            await WriteAuditAsync("PaymentFailed", correlationId, transaction, PaymentStatus.Pending.ToString(), gatewayResult.ErrorCode ?? PaymentStatus.Failed.ToString(), "Failure", CancellationToken.None);
             return PaymentCreateResult.Failed(transaction, gatewayResult.ErrorCode);
         }
 
         transaction.MarkGatewayCreated(gatewayResult.GatewayToken);
-        await repository.SaveChangesAsync(cancellationToken);
-        await WriteAuditAsync("PaymentCreated", correlationId, transaction, null, PaymentStatus.Pending.ToString(), "Success", cancellationToken);
+        // Once Sadad has returned a token, persist it even if the browser disconnects;
+        // otherwise the provider-side order could exist without a locally stored token.
+        await repository.SaveChangesAsync(CancellationToken.None);
+        await WriteAuditAsync("PaymentCreated", correlationId, transaction, null, PaymentStatus.Pending.ToString(), "Success", CancellationToken.None);
         return PaymentCreateResult.Created(transaction, gatewayResult.GatewayToken);
     }
 
