@@ -7,6 +7,43 @@ namespace Brokerage.Api.Tests;
 public class PaymentCallbackPostTests
 {
     [Fact]
+    public async Task SadadCallback_OversizedPostFormIsRejectedBeforeParsing()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        using var form = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["OrderId"] = Guid.NewGuid().ToString("N"),
+            ["Token"] = new string('x', 20 * 1024)
+        });
+
+        using var response = await client.PostAsync("/payments/sadad/callback", form);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("اطلاعات بازگشت پرداخت معتبر نیست", body);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+    }
+
+    [Fact]
+    public async Task SadadCallback_MultipartPostIsRejected()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent(Guid.NewGuid().ToString("N")), "OrderId");
+        form.Add(new StringContent("untrusted-token"), "Token");
+
+        using var response = await client.PostAsync("/payments/sadad/callback", form);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("اطلاعات بازگشت پرداخت معتبر نیست", body);
+    }
+
+    [Fact]
     public async Task SadadCallback_PostedForm_UsesSupportedFieldNamesAndSecurityHeaders()
     {
         await using var application = new WebApplicationFactory<Program>();

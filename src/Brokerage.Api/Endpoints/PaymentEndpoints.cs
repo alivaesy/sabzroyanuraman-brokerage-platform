@@ -149,6 +149,20 @@ public static class PaymentEndpoints
 
             if (context.Request.HasFormContentType)
             {
+                // Sadad only needs a small URL-encoded callback. Bound the body before parsing
+                // so an anonymous callback cannot force an unbounded form allocation.
+                const long maxCallbackBodyBytes = 16 * 1024;
+                if (context.Request.ContentLength is > maxCallbackBodyBytes ||
+                    !string.Equals(
+                        context.Request.ContentType?.Split(';', 2)[0].Trim(),
+                        "application/x-www-form-urlencoded",
+                        StringComparison.OrdinalIgnoreCase))
+                    return CallbackPage("اطلاعات بازگشت پرداخت معتبر نیست. وضعیت پرداخت باید بررسی شود.");
+
+                var bodySizeFeature = context.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
+                if (bodySizeFeature is { IsReadOnly: false })
+                    bodySizeFeature.MaxRequestBodySize = maxCallbackBodyBytes;
+
                 var form = await context.Request.ReadFormAsync(cancellationToken);
                 token = FirstNonEmpty(form["Token"].ToString(), form["token"].ToString());
                 orderId = FirstNonEmpty(form["OrderId"].ToString(), form["OrderID"].ToString(), form["orderId"].ToString());
