@@ -310,3 +310,10 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Do not make a new commit until the current pipeline is terminal; it is now terminal and successful. Continue in coherent batches and run one pipeline after each batch.
 - Still blocked by external evidence/architecture decisions: merchant-specific Sadad contract and authorized sandbox, approved service/tariff mapping, deployed PHP handler review and payment ownership decision, production database provider and migration/restore procedure, secret manager/persistent key ring/rotation, distributed rate limiter provider, official Sana/Shahkar/organization contracts, ZDR data-flow evidence, official WMS/WFS, completed frontend, SIEM/DR, and independent SAST/DAST/penetration testing.
 - Keep `Payment:Enabled=false`. Do not merge. Never claim compliance or production readiness from green CI alone.
+
+
+## Repository secret hygiene batch — 2026-10-13
+- Added a pinned Gitleaks directory scan to the required CI pipeline. It scans the checked-out working tree for detectable secret patterns; it does not scan full Git history, deployment hosts, CI variable stores, backups, or external secret managers.
+- Root .gitignore now excludes common local environment files (while allowing .env.example), SQLite database/WAL files, PFX/P12/key files, secrets directories, and Data Protection key directories. Ignore rules prevent accidental addition but do not remove already tracked files or revoke exposed credentials.
+- Treat scanner findings as security incidents to investigate. Verify context without printing secret values into logs; revoke/rotate any credential confirmed exposed and scan history separately.
+- Keep production credentials out of repository configuration. Keep Payment:Enabled=false; no merge or production-readiness claim follows from this control alone.

@@ -151,3 +151,9 @@ Track these separately from software completion:
 - The website's hard-coded amount display is removed and guarded by CI; the deployed `/payment/order.php` source is absent from this repository, so its calculation and Sadad behavior remain unverified.
 - No change to this evidence status closes ZDR, domestic hosting, production database, secret/key management, distributed rate limiting, official integration contracts, WMS/WFS, frontend completeness, SIEM/DR, legal approvals, or independent security testing. Keep each as an explicit release gate until authoritative evidence is attached.
 - `Payment:Enabled=false` remains mandatory; a passing pipeline is not a compliance certificate or production release approval.
+
+
+## Repository secret scanning control — 2026-10-13
+- A pinned Gitleaks job is now part of CI to inspect the checked-out repository tree for detectable secret patterns. This is a current-tree check only, not a historical Git scan or an audit of CI variables, deployment hosts, logs, backups, or external secret stores.
+- Root ignore rules exclude common local environment, SQLite database/WAL, certificate/private-key, secrets-directory, and Data Protection key artifacts. Ignore rules are preventative convenience, not a remediation for already committed secrets.
+- Any confirmed credential exposure requires revocation/rotation and a history review; do not print secret values in logs or issue reports. This control does not establish ZDR or production compliance.
