@@ -603,12 +603,38 @@ public class BrokerageApiTests
         await organizationService.SecondStatusCallStarted.WaitAsync(TimeSpan.FromSeconds(10));
 
         organizationService.ReleaseFirstStatusCall();
-        using var firstResponse = await firstRefresh.WaitAsync(TimeSpan.FromSeconds(10));
-        Assert.Equal(System.Net.HttpStatusCode.OK, firstResponse.StatusCode);
+
+        // Do not assume which HTTP request reached the controlled integration service first.
+        // Wait for the first invocation's local transaction to commit before releasing the stale writer.
+        using (var pollingScope = application.Services.CreateScope())
+        {
+            var pollingDbContext = pollingScope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+            ServiceRequest? persistedRequest = null;
+            for (var attempt = 0; attempt < 100; attempt++)
+            {
+                pollingDbContext.ChangeTracker.Clear();
+                persistedRequest = await pollingDbContext.ServiceRequests.AsNoTracking()
+                    .SingleOrDefaultAsync(request => request.Id == requestId);
+                if (persistedRequest?.OrganizationStatus == "FirstStatus")
+                    break;
+
+                await Task.Delay(TimeSpan.FromMilliseconds(25));
+            }
+
+            Assert.Equal("FirstStatus", persistedRequest?.OrganizationStatus);
+        }
 
         organizationService.ReleaseSecondStatusCall();
-        using var secondResponse = await secondRefresh.WaitAsync(TimeSpan.FromSeconds(10));
-        Assert.Equal(System.Net.HttpStatusCode.Conflict, secondResponse.StatusCode);
+        var responses = await Task.WhenAll(firstRefresh, secondRefresh).WaitAsync(TimeSpan.FromSeconds(10));
+        using var firstResponse = responses[0];
+        using var secondResponse = responses[1];
+        Assert.Equal(1, responses.Count(response => response.StatusCode == System.Net.HttpStatusCode.OK));
+        Assert.Equal(1, responses.Count(response => response.StatusCode == System.Net.HttpStatusCode.Conflict));
+        Assert.All(responses, response => Assert.Contains(response.StatusCode, new[]
+        {
+            System.Net.HttpStatusCode.OK,
+            System.Net.HttpStatusCode.Conflict
+        }));
 
         using var scope = application.Services.CreateScope();
         var repository = scope.ServiceProvider.GetRequiredService<IServiceRequestRepository>();
