@@ -243,3 +243,10 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Strengthen the existing sequential repeat-refresh test to assert audit behavior as well as stage count: every successful refresh produces a status-received audit event, while result-stage creation and follow-up completion occur once.
 - Keep concurrent refresh marked unresolved. The request is loaded before the external call and transaction; there is no concurrency token or unique `(ServiceRequestId, StageCode)` constraint. Do not implement a speculative schema/locking change without provider and existing-data review.
 - Keep `Payment:Enabled=false`, preserve the live PHP payment path, and do not merge without explicit approval.
+
+
+## Latest verified CI and S01 external-side-effect boundary — 2026-10-13
+- Pipeline [2941032895](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2941032895) passed all five configured jobs for commit `6c72b0ebd0f12e9081f90ef6578e2ede2ab512b5`: site validation, PHP validation, .NET build, migration verification, and .NET tests. This verifies the deterministic concurrent-refresh regression in that commit; it does not prove production-provider behavior or external API readiness.
+- Next regression batch strengthens the SQLite S01 rollback test to explicitly assert the organization submission was invoked exactly once and returned a tracking identifier before the injected local persistence failure. Expected invariant: local request/stage/audit rows roll back, while the already-completed remote side effect cannot be rolled back by the local transaction.
+- The external-success/local-failure and timeout-after-acceptance cases remain unresolved business/integration blockers. Do not add blind retries, invent external idempotency keys or query fields, or claim reconciliation is implemented without the authoritative organization API contract and an approved recovery process.
+- Keep `Payment:Enabled=false`, leave the live PHP payment flow untouched, and do not merge to `master` without explicit approval.

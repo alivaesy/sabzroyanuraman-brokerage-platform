@@ -122,10 +122,11 @@ public class CreateS01ServiceRequestAuditTests
         await dbContext.Database.EnsureCreatedAsync();
 
         var repository = new SaveThenFailServiceRequestRepository(new ServiceRequestRepository(dbContext));
+        var organizationIntegrationService = new CountingOrganizationIntegrationService();
         var useCase = new CreateS01ServiceRequest(
             new WorkflowService(),
             new MockIdentityVerificationService(),
-            new TestOrganizationIntegrationService(),
+            organizationIntegrationService,
             serviceRequestRepository: repository,
             auditEventWriter: new AuditEventWriter(dbContext, NullLogger<AuditEventWriter>.Instance),
             unitOfWork: new EfUnitOfWork(dbContext));
@@ -135,11 +136,31 @@ public class CreateS01ServiceRequestAuditTests
             "test-applicant",
             "SQLITE-ROLLBACK-TEST"));
 
+        // The remote submission succeeded before local persistence failed. The local
+        // rollback cannot undo it, and this use case must not silently submit again.
+        Assert.Equal(1, organizationIntegrationService.SubmitCallCount);
+        Assert.Equal("S01", organizationIntegrationService.SubmittedServiceCode);
         Assert.Equal(0, await dbContext.ServiceRequests.AsNoTracking().CountAsync());
         Assert.Equal(0, await dbContext.WorkflowStages.AsNoTracking().CountAsync());
         Assert.Equal(0, await dbContext.AuditEvents.AsNoTracking().CountAsync());
     }
 
+}
+
+internal sealed class CountingOrganizationIntegrationService : IOrganizationIntegrationService
+{
+    public int SubmitCallCount { get; private set; }
+    public string? SubmittedServiceCode { get; private set; }
+
+    public Task<string> SubmitAsync(string serviceCode, CancellationToken cancellationToken = default)
+    {
+        SubmitCallCount++;
+        SubmittedServiceCode = serviceCode;
+        return Task.FromResult("REMOTE-TRACKING-ID");
+    }
+
+    public Task<string> GetStatusAsync(string trackingId, CancellationToken cancellationToken = default)
+        => Task.FromResult("TEST-STATUS");
 }
 
 internal sealed class RecordingUnitOfWork : IUnitOfWork

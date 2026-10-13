@@ -84,3 +84,11 @@ Status: repository-derived engineering inventory, not a compliance certification
 - The S01 SQLite rollback test passed in pipeline `2939513854`: https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2939513854
 - Organization-status GET now groups local request status, stage updates, and audit writes in one scoped EF transaction after the external status response is received. A new injected-audit-failure test verifies local rollback and passed in pipeline `2939580658` for commit `51eac5102ffa98dce2cf542aa2757511826691dc`.
 - Concurrency is not claimed as solved: external fetch remains outside the transaction and no optimistic concurrency token or unique stage constraint was added. Concurrent refresh testing and provider-specific semantics remain open.
+
+
+## S01 submission recovery boundary — verified CI follow-up (2026-10-13)
+- The local S01 transaction protects request, workflow-stage, and audit persistence from partial local commits when a later local write fails.
+- It does not provide a distributed transaction with the organization API. If the external submission is accepted and local persistence later fails, the external case may exist without a durable local request; a timeout may also leave acceptance ambiguous.
+- Regression coverage is being strengthened to assert one successful external submit followed by complete local rollback under injected persistence failure. This characterizes the failure window; it does not itself reconcile the external case.
+- Required before production-safe retry/recovery: authoritative organization API documentation for idempotency/correlation and status lookup, plus an approved operator recovery procedure. Do not guess headers, keys, statuses, stages, or retry semantics.
+- Pipeline [2941032895](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2941032895) passed all five configured jobs for the prior commit. The next commit's test/documentation changes must pass their own pipeline.
