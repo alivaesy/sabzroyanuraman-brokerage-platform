@@ -317,3 +317,11 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Root .gitignore now excludes common local environment files (while allowing .env.example), SQLite database/WAL files, PFX/P12/key files, secrets directories, and Data Protection key directories. Ignore rules prevent accidental addition but do not remove already tracked files or revoke exposed credentials.
 - Treat scanner findings as security incidents to investigate. Verify context without printing secret values into logs; revoke/rotate any credential confirmed exposed and scan history separately.
 - Keep production credentials out of repository configuration. Keep Payment:Enabled=false; no merge or production-readiness claim follows from this control alone.
+
+
+## Secret-scan triage and GPS viewer containment — 2026-10-13
+- The first enforced Gitleaks run on commit `eefc1ee5cb96b60b5a671f030f21a29ca90b8c81` failed with three generic-api-key findings: a shared GPS live-view key duplicated in the API and public viewer page, plus a MapTiler-style tile-service key in the GIS page. Finding locations were inspected with redaction; raw values were not copied into the handoff.
+- The shared GPS viewer key was embedded in client-delivered HTML and therefore could not be treated as a secret. As immediate containment, the live GPS read action now fails closed with HTTP 503 and the public viewer no longer requests or renders live coordinates until server-side authenticated access/authorization is implemented. GPS ingestion actions were not intentionally changed by this containment.
+- The keyed MapTiler tile layer was removed from the GIS page; the other map layers remain. This removes the in-repository key but does not revoke it at the provider. If the key is a real provider credential, rotate/restrict it in the provider console and review usage.
+- Gitleaks runs with redacted verbose findings so file/line/rule details can be triaged without printing raw secret values. A green scan is still limited to detectable patterns in the current tree, not historical commits or deployment secrets.
+- This is a privacy containment, not a completed GPS authentication feature. Do not re-enable live location output until session-based authentication, authorization, abuse controls, and regression tests are reviewed.

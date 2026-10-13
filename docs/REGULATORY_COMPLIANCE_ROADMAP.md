@@ -157,3 +157,9 @@ Track these separately from software completion:
 - A pinned Gitleaks job is now part of CI to inspect the checked-out repository tree for detectable secret patterns. This is a current-tree check only, not a historical Git scan or an audit of CI variables, deployment hosts, logs, backups, or external secret stores.
 - Root ignore rules exclude common local environment, SQLite database/WAL, certificate/private-key, secrets-directory, and Data Protection key artifacts. Ignore rules are preventative convenience, not a remediation for already committed secrets.
 - Any confirmed credential exposure requires revocation/rotation and a history review; do not print secret values in logs or issue reports. This control does not establish ZDR or production compliance.
+
+
+## Security finding and containment — 2026-10-13
+- Gitleaks detected a shared live-GPS viewer key duplicated in the API and browser-delivered page, and a keyed GIS tile-service URL. The GPS viewer key was not a safe secret because it was delivered to every browser accessing the page.
+- Immediate containment disables the live GPS read action with HTTP 503 and removes the embedded viewer key/UI data fetch. The keyed GIS tile layer was removed; remaining map layers are preserved.
+- Before re-enabling live GPS display, implement and test server-side authentication/authorization and abuse controls. If the removed tile-service key is a real credential, revoke/rotate or restrict it with the provider. CI scanning does not revoke already exposed credentials or scan deployment secrets/history.
