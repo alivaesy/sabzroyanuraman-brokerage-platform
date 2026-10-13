@@ -99,6 +99,37 @@ public static class PaymentEndpoints
             if (string.Equals(result.ErrorCode, "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_REQUEST", StringComparison.Ordinal))
                 return Results.Conflict(new { error = result.ErrorCode });
 
+            // An idempotent replay must not send a user back to Sadad after the
+            // transaction has left Pending. In particular, reconciliation-required
+            // payments must be reviewed against the provider's authoritative record.
+            if (result.AlreadyProcessed && result.Transaction.Status != Brokerage.Domain.Enums.PaymentStatus.Pending)
+            {
+                var replay = new
+                {
+                    paymentId = result.Transaction.Id,
+                    amount = result.Transaction.Amount,
+                    currency = result.Transaction.Currency,
+                    status = result.Transaction.Status.ToString(),
+                    alreadyProcessed = true,
+                    error = result.Transaction.Status switch
+                    {
+                        Brokerage.Domain.Enums.PaymentStatus.ReconciliationRequired => "PAYMENT_REQUIRES_RECONCILIATION",
+                        Brokerage.Domain.Enums.PaymentStatus.Verifying => "PAYMENT_VERIFICATION_IN_PROGRESS",
+                        Brokerage.Domain.Enums.PaymentStatus.Succeeded => (string?)null,
+                        _ => "PAYMENT_NOT_PENDING"
+                    }
+                };
+
+                if (result.Transaction.Status == Brokerage.Domain.Enums.PaymentStatus.Succeeded)
+                    return Results.Ok(replay);
+
+                if (result.Transaction.Status is Brokerage.Domain.Enums.PaymentStatus.ReconciliationRequired
+                    or Brokerage.Domain.Enums.PaymentStatus.Verifying)
+                    return Results.Accepted(value: replay);
+
+                return Results.Conflict(replay);
+            }
+
             if (string.IsNullOrWhiteSpace(result.GatewayToken))
             {
                 if (result.Transaction.Status is Brokerage.Domain.Enums.PaymentStatus.Pending or Brokerage.Domain.Enums.PaymentStatus.ReconciliationRequired)
