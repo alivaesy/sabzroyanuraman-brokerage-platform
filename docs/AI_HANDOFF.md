@@ -294,3 +294,10 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - This latest commit is documentation-only. The code behavior described above was already covered by pipeline `2941850499` for commit `00927789eed4a206fc29b9888895502023780178`; the current pipeline revalidated the exact latest branch commit.
 - Open release boundary: the external organization submit and local database commit are not atomic. A process crash, local database failure after remote acceptance, or timeout with unknown remote acceptance still requires the authoritative organization API contract and an approved reconciliation procedure. Do not invent keys, headers, statuses, or retry semantics.
 - Keep `Payment:Enabled=false`, preserve the live PHP payment flow, and do not merge without explicit approval.
+
+
+## Release blockers reviewed — 2026-10-13
+- Migration verification is being hardened to compare all timestamped migration source files with EF-discovered migration IDs, not just a fixed list. The CI result for the commit containing that check is the required verification.
+- Website display: the hard-coded 5,000-toman amount label in `sabzroyanuraman-site/brokerage-details.html` was replaced with tariff-based wording, and `site_validate` checks that the fixed display does not return. This does not prove backend amount correctness: the form posts to `/payment/order.php`, which is not tracked in this repository tree.
+- Sadad remains blocked on the current merchant-specific integration contract, approved service-code/tariff mapping, and authorized sandbox evidence. Keep `Payment:Enabled=false`; do not modify the live PHP handler or activate .NET payment in parallel.
+- ZDR, production database/provider, persistent Data Protection keys and secret-manager operations, production Sana/Shahkar/organization adapters, distributed rate limiting, WMS/WFS, complete frontend, SIEM/DR, and independent SAST/DAST/penetration testing remain open evidence gates. Do not represent these as completed from CI alone.

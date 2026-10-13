@@ -13,6 +13,23 @@ Keep these deliverables separate:
 3. **Hosting and operations** — approved domestic hosting, deployment separation, backup/recovery, monitoring, and secure logs.
 4. **License and activity-permit evidence** — organizational documents, qualified personnel, branch/support operations, approvals, and other non-code prerequisites.
 
+## Current release-blocker snapshot — 2026-10-13
+
+This snapshot is the current engineering status; older dated notes later in this file are historical. A green CI pipeline proves only the checks it executes.
+
+| Priority | Work item | Current evidence and remaining gate |
+| --- | --- | --- |
+| Immediate | Sadad payment | Application-level validation exists for server-owned amount, persisted idempotency, callback-token matching, provider order/amount/reference matching, and ambiguous-result reconciliation. The merchant-specific contract, approved tariff/service mapping, and sandbox end-to-end evidence are not approved; keep initiation disabled. |
+| Immediate | Migration verification | CI now compares timestamped migration source filenames against IDs emitted by EF, while retaining the explicit required-migration baseline. Verify the pipeline for the commit that introduces this check. |
+| Immediate | Website payment and PHP/.NET boundary | The static 5,000-toman display was replaced with tariff-based wording and CI guards against its return. The HTML points to `/payment/order.php`, but that handler is absent from this repository; its server-side amount logic and transaction ownership cannot be confirmed from this checkout. |
+| High | Zero Data Retention | Unverified. Application state, SQLite records, payment tokens/references, audit events, logs, backups and exports require a documented data-flow/retention assessment and environment evidence. Do not claim ZDR based on tests alone. |
+| High | Sana/Shahkar/organization APIs | Development uses mocks and non-Development startup fails closed until approved adapters are supplied. Official specifications, credentials, allowlists, and sandbox evidence remain external blockers. |
+| High | Production persistence | `Program.cs` registers SQLite. A production-grade database/provider, multi-instance transaction/concurrency tests, controlled migrations, backup and restore evidence are still required. |
+| High | Secrets and Data Protection | Environment/configuration inputs exist for Sadad and OTP HMAC, and production startup fails closed for a missing OTP hash key. A persistent protected Data Protection key ring, secret-manager integration, rotation and access policy are not evidenced. |
+| Next | Distributed rate limiting | The configured ASP.NET rate-limit policies are process-local. A shared limiter for multi-instance deployment and its failure behavior are not implemented/verified. |
+| Next | WMS/WFS, complete frontend, monitoring/SIEM, DR | Official geospatial contracts, complete frontend workflows, production telemetry/SIEM wiring, and a successful restore/DR exercise remain unverified. |
+| Before release | SAST/DAST and penetration testing | Independent security assessment and remediation/retest evidence are absent from this repository checkpoint. A green build/test pipeline is insufficient. |
+
 ## Work plan and acceptance evidence
 
 ### A. Repository and architecture baseline — start here

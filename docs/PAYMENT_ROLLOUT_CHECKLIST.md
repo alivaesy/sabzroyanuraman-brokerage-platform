@@ -3,7 +3,7 @@
 ## Current safety posture
 
 - [x] Payment initiation is disabled by default with `Payment:Enabled=false`.
-- [x] Amounts are loaded server-side; client-submitted amounts are not trusted.
+- [x] The .NET payment API loads amounts from server-side tariff configuration; client-submitted amounts are not trusted. This does not certify the separate legacy PHP payment handler.
 - [x] Payment creation requires Applicant authorization, recent MFA, request ownership, an idempotency key, a configured tariff, and valid gateway configuration.
 - [x] Callback tokens are treated as untrusted correlation values; a successful browser return is not proof of payment.
 - [x] Verification is server-to-server and ambiguous outcomes are left pending or sent to reconciliation rather than automatically retried.
@@ -22,6 +22,7 @@
 - [ ] Run end-to-end tests in the provider's approved test environment for success, provider rejection, duplicate initiation, duplicate callback, invalid/mismatched token, amount/order mismatch, timeout, malformed/oversized responses, and reconciliation recovery.
 - [ ] Verify monitoring and an operator runbook for stale pending/verifying/reconciliation-required payments; no job may automatically mark ambiguous payments successful or failed without authoritative provider evidence.
 - [ ] Decide explicitly whether the website continues using the existing live PHP flow or migrates to .NET. Never allow both implementations to initiate/finalize the same business transaction.
+- [ ] Inspect and test the deployed PHP `/payment/order.php` source and its server-side tariff lookup in the deployment repository/environment; that handler is not present in this Git repository, so its actual amount calculation and Sadad request cannot be verified here.
 - [ ] Confirm all CI jobs pass on the exact release commit and review the complete merge-request diff for unrelated changes.
 
 ## Activation procedure
@@ -35,4 +36,22 @@
 
 ## Known integration blocker
 
-The existing website form uses legacy values such as `duplicate` and `partition`, while the .NET API resolves tariffs using `ServiceCode` values such as `S01`–`S05`. A reviewed mapping and approved tariff table are prerequisites for a safe integration. The legacy PHP payment implementation and live payment page must remain unchanged until a separate migration decision is approved.
+The existing website form uses legacy values such as `duplicate` and `partition`, while the .NET API resolves tariffs using `ServiceCode` values such as `S01`–`S05`. A reviewed mapping and approved tariff table are prerequisites for a safe integration. The website previously displayed a fixed `۵٬۰۰۰ تومان` amount; the display has been changed to say the final amount is determined by the approved tariff/payment system, and CI checks that this fixed display does not return. This is only a display correction: `/payment/order.php` is referenced by the page but is absent from this repository, so its server-side tariff calculation, provider calls, and callback behavior remain unverified. Do not claim the website payment flow is fully confirmed until that deployed source is reviewed. The legacy PHP payment implementation must not be modified or run in parallel with .NET payment finalization without a separate approved migration decision.
+
+
+## Release blocker status — 2026-10-13
+
+| Priority | Item | Evidence status / next gate |
+| --- | --- | --- |
+| Immediate | Sadad end-to-end completion | Application-level tests cover amount/order checks, idempotency, callback token validation, and ambiguous outcomes. Merchant-specific signing/date/response contract and authorized sandbox tests are still unverified; keep payment disabled. |
+| Immediate | Migration verification | CI now compares the complete set of timestamped migration source files with EF-discovered migration IDs, in addition to checking required baseline IDs. Confirm this exact commit's pipeline before treating the gate as verified. |
+| Immediate | Website payment amount and PHP/.NET boundary | The fixed amount display was removed and CI guards against its return. The referenced PHP order handler is not in this repository, so backend amount lookup and PHP/.NET transaction ownership remain unverified. |
+| High | Zero Data Retention | Not proven. SQLite persistence, payment transaction records, audit events, and other stateful storage exist. Requires an approved data-flow/retention definition and evidence across logs, database, cache, telemetry, backups, and exports. |
+| High | Sana/Shahkar/organization APIs | Production startup currently fails closed because approved adapters are not configured; Development uses mocks. Official contracts, credentials, allowlists, and authorized sandbox/production evidence are missing. |
+| High | Production database | Current registration uses SQLite. Production database choice, multi-instance transaction/concurrency behavior, migration and restore procedure remain open. |
+| High | Secrets and key management | Sadad/OTP secrets are read from configuration/environment and production OTP hashing fails closed if no key is configured. Persistent Data Protection key storage, secret rotation, and target-environment secret-manager evidence are not established. |
+| Next | Distributed rate limiting | Current ASP.NET rate-limit policies are in-process. A shared/distributed limiter and its deployment dependency are not implemented or verified. |
+| Next | WMS/WFS, complete frontend, monitoring/SIEM, DR | Official geospatial contracts, completed user-facing frontend, production monitoring/SIEM integration, and tested disaster recovery remain open. |
+| Before release | SAST/DAST and penetration test | No independent penetration-test report or complete SAST/DAST evidence is available in this repository checkpoint. CI green is not a substitute. |
+
+These are tracked as release gates, not claims of compliance or production readiness. Do not enable `Payment:Enabled` until the relevant evidence is reviewed and approved.
