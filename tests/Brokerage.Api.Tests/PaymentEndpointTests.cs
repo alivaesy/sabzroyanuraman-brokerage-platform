@@ -28,12 +28,7 @@ public class PaymentEndpointTests
     [Fact]
     public async Task CreatePayment_IsDisabledByDefaultEvenForMfaVerifiedApplicant()
     {
-        await using var application = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-            builder.ConfigureAppConfiguration((_, configuration) =>
-                configuration.AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    ["Payment:Enabled"] = "false"
-                })));
+        await using var application = new WebApplicationFactory<Program>();
 
         var userId = $"payment-disabled-{Guid.NewGuid():N}";
         using (var scope = application.Services.CreateScope())
@@ -48,6 +43,8 @@ public class PaymentEndpointTests
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+        var body = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        Assert.Equal("PAYMENT_NOT_ENABLED", body.GetProperty("code").GetString());
     }
 
     [Fact]
