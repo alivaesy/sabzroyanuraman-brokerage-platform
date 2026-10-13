@@ -27,7 +27,8 @@ public class OrganizationIntegrationService
     {
         var result = await _retryExecutor.ExecuteAsync(
             token => ExecuteSubmitAsync(serviceCode, token),
-            cancellationToken);
+            cancellationToken,
+            allowRetries: false);
 
         if (!result.IsSuccess)
         {

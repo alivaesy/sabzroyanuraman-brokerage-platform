@@ -34,7 +34,8 @@ public sealed class OrganizationRetryExecutor
 
     public async Task<OrganizationApiResult> ExecuteAsync(
         Func<CancellationToken, Task<OrganizationApiResult>> operation,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool allowRetries = true)
     {
         ArgumentNullException.ThrowIfNull(operation);
         var attempt = 0;
@@ -59,7 +60,9 @@ public sealed class OrganizationRetryExecutor
 
             if (result.IsSuccess)
                 return result;
-            if (!_retryPolicy.ShouldRetry(result.ErrorType))
+            // A submission may have been accepted remotely even when its response is lost.
+            // Retry only when the caller explicitly permits it (e.g. a read-only status query).
+            if (!allowRetries || !_retryPolicy.ShouldRetry(result.ErrorType))
                 return result;
             if (attempt >= _retryOptions.MaxRetryCount)
                 return result;

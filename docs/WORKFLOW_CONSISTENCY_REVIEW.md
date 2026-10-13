@@ -139,3 +139,10 @@ These are engineering constraints for the next implementation phase, not assumpt
 - The next test change makes the existing SQLite rollback scenario assert the complete failure window explicitly: the external S01 submit returns a tracking ID exactly once; local request, workflow-stage, and audit rows are then written inside the local transaction; an injected persistence failure rolls all local rows back.
 - This test documents an important distributed-systems boundary, not a complete recovery mechanism. A local rollback cannot undo an accepted external submission. Until the official organization API contract specifies idempotency/correlation and lookup/reconciliation behavior, automatic resubmission is unsafe and no new external fields or stages should be invented.
 - Keep the external network call outside the local database transaction. Payment remains disabled, the live PHP payment flow remains untouched, and no merge is authorized.
+
+
+## External submission retry-safety follow-up — 2026-10-13
+- Pipeline [2941145121](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2941145121) passed all five configured jobs for commit `0bf0dab425a937dbd8697c044577e48121b8e0d9`.
+- Review identified that the shared organization retry executor's policy permits retrying timeouts, server errors, and rate limits. Applied to a non-idempotent submit without a verified external idempotency contract, that can duplicate a case when the remote side accepted the request but its response was lost.
+- Proposed/implemented guard for verification: submission explicitly disables executor retries; status lookup retains the existing configurable retry behavior. Tests should prove one attempt for submit failures and preserve status-read retry coverage.
+- This reduces automatic duplicate-submission risk; it does not reconcile an ambiguous result. An authoritative external API contract and an approved recovery procedure are still required. No API fields, headers, keys, or business stages are invented.

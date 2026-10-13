@@ -92,3 +92,9 @@ Status: repository-derived engineering inventory, not a compliance certification
 - Regression coverage is being strengthened to assert one successful external submit followed by complete local rollback under injected persistence failure. This characterizes the failure window; it does not itself reconcile the external case.
 - Required before production-safe retry/recovery: authoritative organization API documentation for idempotency/correlation and status lookup, plus an approved operator recovery procedure. Do not guess headers, keys, statuses, stages, or retry semantics.
 - Pipeline [2941032895](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2941032895) passed all five configured jobs for the prior commit. The next commit's test/documentation changes must pass their own pipeline.
+
+
+## External organization submission retry boundary — 2026-10-13
+- A configured retry count above zero previously allowed S01 submission attempts to repeat after timeout, server-error, or rate-limit results. Such results do not prove the organization rejected the request.
+- Submission now explicitly opts out of automatic retries pending a verified external idempotency/correlation contract. Status lookups keep configurable retries because they are read operations. CI must verify this change before it is treated as validated.
+- This is a safety guard, not an external reconciliation mechanism. Ambiguous submissions still require authoritative organization lookup and approved operator recovery. Payment remains disabled; live PHP payment is unchanged.

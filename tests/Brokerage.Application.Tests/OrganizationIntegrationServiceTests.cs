@@ -8,7 +8,7 @@ namespace Brokerage.Application.Tests;
 public class OrganizationIntegrationServiceTests
 {
     [Fact]
-    public async Task SubmitAsync_WhenApiTimesOut_RetriesAndEventuallySucceeds()
+    public async Task SubmitAsync_WhenApiTimesOut_DoesNotRetryAmbiguousSubmission()
     {
         var apiClient = new RetryTestOrganizationApiClient();
 
@@ -33,16 +33,10 @@ public class OrganizationIntegrationServiceTests
             apiClient,
             retryExecutor);
 
-        var trackingId =
-            await service.SubmitAsync("S01");
+        await Assert.ThrowsAsync<BrokerageException>(
+            () => service.SubmitAsync("S01"));
 
-        Assert.Equal(
-            "MOCK-RETRY-SUCCESS",
-            trackingId);
-
-        Assert.Equal(
-            3,
-            apiClient.Attempts);
+        Assert.Equal(1, apiClient.Attempts);
     }
     [Fact]
     public async Task SubmitAsync_WhenApiReportsSuccessWithoutTrackingId_ThrowsBrokerageException()
@@ -79,7 +73,7 @@ public class OrganizationIntegrationServiceTests
     }
 
     [Fact]
-    public async Task SubmitAsync_WhenApiReturnsServerError_RetriesAndEventuallySucceeds()
+    public async Task SubmitAsync_WhenApiReturnsServerError_DoesNotRetrySubmission()
     {
         var apiClient = new SubmitServerErrorOrganizationApiClient();
 
@@ -104,19 +98,14 @@ public class OrganizationIntegrationServiceTests
             apiClient,
             retryExecutor);
 
-        var trackingId = await service.SubmitAsync("S01");
+        await Assert.ThrowsAsync<BrokerageException>(
+            () => service.SubmitAsync("S01"));
 
-        Assert.Equal(
-            "MOCK-SUBMIT-SERVER-RETRY-SUCCESS",
-            trackingId);
-
-        Assert.Equal(
-            3,
-            apiClient.Attempts);
+        Assert.Equal(1, apiClient.Attempts);
     }
 
     [Fact]
-    public async Task SubmitAsync_WhenApiReturnsRateLimit_RetriesAndEventuallySucceeds()
+    public async Task SubmitAsync_WhenApiReturnsRateLimit_DoesNotRetrySubmission()
     {
         var apiClient = new SubmitRateLimitOrganizationApiClient();
 
@@ -141,15 +130,10 @@ public class OrganizationIntegrationServiceTests
             apiClient,
             retryExecutor);
 
-        var trackingId = await service.SubmitAsync("S01");
+        await Assert.ThrowsAsync<BrokerageException>(
+            () => service.SubmitAsync("S01"));
 
-        Assert.Equal(
-            "MOCK-SUBMIT-RATELIMIT-RETRY-SUCCESS",
-            trackingId);
-
-        Assert.Equal(
-            3,
-            apiClient.Attempts);
+        Assert.Equal(1, apiClient.Attempts);
     }
 
     [Fact]
