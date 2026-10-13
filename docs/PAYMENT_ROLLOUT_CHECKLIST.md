@@ -55,3 +55,14 @@ The existing website form uses legacy values such as `duplicate` and `partition`
 | Before release | SAST/DAST and penetration test | No independent penetration-test report or complete SAST/DAST evidence is available in this repository checkpoint. CI green is not a substitute. |
 
 These are tracked as release gates, not claims of compliance or production readiness. Do not enable `Payment:Enabled` until the relevant evidence is reviewed and approved.
+
+
+## Verification update — 2026-10-13
+
+- [x] The exact branch commit `ffcddc69bdc65f4e96b4406f9e27ca1760697fab` passed pipeline [2942405294](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2942405294), including site validation, PHP syntax validation, .NET Release build, EF migration discovery consistency, and the .NET test suite.
+- [x] CI migration discovery check now compares every timestamped migration source file with the migration IDs discovered by EF, in addition to requiring the baseline migration IDs.
+- [x] Website fixed-amount display regression check passed. This only validates displayed copy and does not validate the absent deployed `/payment/order.php` backend.
+- [ ] Production schema application, backup/restore, and recovery remain unverified; a migration-discovery pass is not evidence that a production database was migrated safely.
+- [ ] Sadad merchant contract, approved tariff/service mapping, and authorized sandbox end-to-end evidence remain incomplete.
+
+Payment remains disabled. This update records CI evidence only; it does not approve rollout.

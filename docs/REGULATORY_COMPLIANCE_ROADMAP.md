@@ -142,3 +142,12 @@ Track these separately from software completion:
 - Current code-level evidence now includes S01 request/stage/audit persistence in one local transaction after the external organization adapter returns a tracking ID, persistence after caller cancellation once that ID is known, a SQLite rollback regression for injected local persistence failure, disabled automatic retries for S01 submission, and deterministic organization-status concurrency handling with HTTP 409 on a stale local write.
 - These controls do not make remote acceptance and local persistence atomic and do not resolve process crashes, database failure after remote acceptance, or timeout with unknown remote acceptance. Authoritative external idempotency/status-lookup documentation and an approved recovery procedure remain release gates.
 - Older dated snapshots above are historical and are superseded wherever they describe local S01 writes as non-transactional or organization-status concurrency as wholly unimplemented. Production-provider behavior, hosting approvals, deployment architecture, legal/licensing evidence, external integration approval, SLA/DR/ZDR, and security assessment remain independent evidence gates. Keep `Payment:Enabled=false` and preserve the live PHP payment flow.
+
+
+## Evidence update — 2026-10-13
+
+- Pipeline [2942405294](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2942405294) passed all five configured jobs on commit `ffcddc69bdc65f4e96b4406f9e27ca1760697fab`. This confirms the repository's configured site/PHP validation, .NET build/tests, and migration discovery consistency only.
+- The migration verification now detects disagreement between timestamped migration source files and EF-discovered IDs. It does not verify a live database's schema, backup, restore, or deployment sequence.
+- The website's hard-coded amount display is removed and guarded by CI; the deployed `/payment/order.php` source is absent from this repository, so its calculation and Sadad behavior remain unverified.
+- No change to this evidence status closes ZDR, domestic hosting, production database, secret/key management, distributed rate limiting, official integration contracts, WMS/WFS, frontend completeness, SIEM/DR, legal approvals, or independent security testing. Keep each as an explicit release gate until authoritative evidence is attached.
+- `Payment:Enabled=false` remains mandatory; a passing pipeline is not a compliance certificate or production release approval.
