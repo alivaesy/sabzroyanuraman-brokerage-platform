@@ -159,3 +159,9 @@ These are engineering constraints for the next implementation phase, not assumpt
 - Pipeline [2941371827](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2941371827) failed in `dotnet_build` before test execution: the follow-up commit inserted a second `CancellationOrganizationApiClient` and a redundant cancellation test even though the file already contained both cancellation coverage and its helper.
 - The corrective change removes only the duplicate test/helper, preserving the pre-existing `SubmitAsync_WhenCancellationIsRequested_PropagatesCancellation` regression test. The existing cancellation test remains the source of truth; no runtime behavior change is intended.
 - The next pipeline must verify the correction. The previous failed pipeline is not evidence that the cancellation behavior failed; it exposed compile-time duplicate definitions.
+
+
+## Caller cancellation before retry — 2026-10-13
+- Pipeline `2941486180` passed all five configured jobs for commit `a066667beba65b9140e50fa74a71a2023a966692`.
+- Additional hardening checks the caller cancellation token after a failed operation result and before retry evaluation. A regression simulates an adapter returning a retryable server-error result after the caller cancels; the expected result is propagated cancellation and exactly one invocation.
+- This is limited to cancellation/retry semantics. It does not change submission retry policy, external API contracts, workflow stages, payment behavior, or reconciliation claims. Verify only after the next pipeline completes.

@@ -60,6 +60,11 @@ public sealed class OrganizationRetryExecutor
 
             if (result.IsSuccess)
                 return result;
+
+            // Honor caller cancellation even if the operation returned a failure result
+            // instead of observing the cancellation token.
+            cancellationToken.ThrowIfCancellationRequested();
+
             // A submission may have been accepted remotely even when its response is lost.
             // Retry only when the caller explicitly permits it (e.g. a read-only status query).
             if (!allowRetries || !_retryPolicy.ShouldRetry(result.ErrorType))

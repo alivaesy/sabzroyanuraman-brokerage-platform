@@ -271,3 +271,10 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Pipeline [2941371827](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2941371827) failed in `dotnet_build` before test execution: the follow-up commit inserted a second `CancellationOrganizationApiClient` and a redundant cancellation test even though the file already contained both cancellation coverage and its helper.
 - The corrective change removes only the duplicate test/helper, preserving the pre-existing `SubmitAsync_WhenCancellationIsRequested_PropagatesCancellation` regression test. The existing cancellation test remains the source of truth; no runtime behavior change is intended.
 - The next pipeline must verify the correction. The previous failed pipeline is not evidence that the cancellation behavior failed; it exposed compile-time duplicate definitions.
+
+
+## Caller-cancellation retry guard — 2026-10-13
+- Pipeline `2941486180` passed all five configured jobs for commit `a066667beba65b9140e50fa74a71a2023a966692`: site validation, PHP validation, .NET build, migration verification, and .NET tests.
+- The next focused hardening change makes `OrganizationRetryExecutor` check the caller token after a failed operation result and before deciding whether to retry. This covers adapters that return a failure result despite caller cancellation rather than throwing `OperationCanceledException`.
+- A regression test cancels the caller token inside an adapter that returns a transient server-error result and asserts cancellation propagates after exactly one attempt. This change remains unverified until the new commit's pipeline passes.
+- Submission retries remain disabled; status-read retry coverage remains. Remote-success/local-failure reconciliation still requires the official organization API contract and an approved recovery procedure. Keep `Payment:Enabled=false`, leave live PHP payment untouched, and do not merge without explicit approval.
