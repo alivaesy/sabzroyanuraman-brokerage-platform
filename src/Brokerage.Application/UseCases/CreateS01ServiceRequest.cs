@@ -57,11 +57,16 @@ public class CreateS01ServiceRequest
         var trackingId = await _organizationIntegrationService.SubmitAsync(
             ServiceCode.S01.ToString(), cancellationToken);
 
+        // Once the external API has returned a tracking ID, caller/request cancellation
+        // must not prevent us from recording that known remote side effect locally.
+        // This does not solve process crashes or database failures after remote success.
+        var persistenceCancellationToken = CancellationToken.None;
+
         // All local request, workflow, and audit writes share the scoped DbContext
         // transaction in production. Disposal without CommitAsync rolls back local writes.
         await using var transaction = _unitOfWork is null
             ? null
-            : await _unitOfWork.BeginTransactionAsync(cancellationToken);
+            : await _unitOfWork.BeginTransactionAsync(persistenceCancellationToken);
 
         var request = new ServiceRequest(ServiceCode.S01, applicantUserId);
 
@@ -85,11 +90,11 @@ public class CreateS01ServiceRequest
 
         if (_serviceRequestRepository is not null)
         {
-            await _serviceRequestRepository.AddAsync(request, cancellationToken);
-            await _serviceRequestRepository.AddWorkflowStageAsync(identityVerificationStage, cancellationToken);
-            await _serviceRequestRepository.AddWorkflowStageAsync(organizationSubmissionStage, cancellationToken);
-            await _serviceRequestRepository.AddWorkflowStageAsync(organizationFollowUpStage, cancellationToken);
-            await _serviceRequestRepository.SaveChangesAsync(cancellationToken);
+            await _serviceRequestRepository.AddAsync(request, persistenceCancellationToken);
+            await _serviceRequestRepository.AddWorkflowStageAsync(identityVerificationStage, persistenceCancellationToken);
+            await _serviceRequestRepository.AddWorkflowStageAsync(organizationSubmissionStage, persistenceCancellationToken);
+            await _serviceRequestRepository.AddWorkflowStageAsync(organizationFollowUpStage, persistenceCancellationToken);
+            await _serviceRequestRepository.SaveChangesAsync(persistenceCancellationToken);
         }
 
         await LogAuditAsync(
@@ -97,7 +102,7 @@ public class CreateS01ServiceRequest
             correlationId, null, request.Status.ToString(), applicantUserId, actorRole, ipAddress);
 
         if (transaction is not null)
-            await transaction.CommitAsync(cancellationToken);
+            await transaction.CommitAsync(persistenceCancellationToken);
 
         return request;
     }

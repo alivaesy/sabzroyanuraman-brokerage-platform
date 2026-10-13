@@ -110,6 +110,42 @@ public class CreateS01ServiceRequestAuditTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_WhenCallerCancelsAfterRemoteSubmission_PersistsKnownTrackingId()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<BrokerageDbContext>()
+            .UseSqlite(connection)
+            .Options;
+        await using var dbContext = new BrokerageDbContext(options);
+        await dbContext.Database.EnsureCreatedAsync();
+
+        using var cancellationTokenSource = new CancellationTokenSource();
+        var organizationIntegrationService =
+            new CancellingAfterSubmitOrganizationIntegrationService(cancellationTokenSource);
+        var useCase = new CreateS01ServiceRequest(
+            new WorkflowService(),
+            new MockIdentityVerificationService(),
+            organizationIntegrationService,
+            serviceRequestRepository: new ServiceRequestRepository(dbContext),
+            auditEventWriter: new AuditEventWriter(dbContext, NullLogger<AuditEventWriter>.Instance),
+            unitOfWork: new EfUnitOfWork(dbContext));
+
+        var request = await useCase.ExecuteAsync(
+            new CreateS01RequestModel { NationalIdentifier = "1234567891" },
+            "test-applicant",
+            "CANCEL-AFTER-REMOTE-SUCCESS",
+            cancellationTokenSource.Token);
+
+        Assert.True(cancellationTokenSource.IsCancellationRequested);
+        Assert.Equal("REMOTE-TRACKING-ID", request.OrganizationTrackingId);
+        Assert.Equal(1, await dbContext.ServiceRequests.AsNoTracking().CountAsync());
+        Assert.Equal(3, await dbContext.WorkflowStages.AsNoTracking().CountAsync());
+        Assert.Equal(7, await dbContext.AuditEvents.AsNoTracking().CountAsync());
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WithSqliteTransaction_RollsBackRequestStagesAndAuditAfterPersistenceFailure()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
@@ -145,6 +181,19 @@ public class CreateS01ServiceRequestAuditTests
         Assert.Equal(0, await dbContext.AuditEvents.AsNoTracking().CountAsync());
     }
 
+}
+
+internal sealed class CancellingAfterSubmitOrganizationIntegrationService(
+    CancellationTokenSource cancellationTokenSource) : IOrganizationIntegrationService
+{
+    public Task<string> SubmitAsync(string serviceCode, CancellationToken cancellationToken = default)
+    {
+        cancellationTokenSource.Cancel();
+        return Task.FromResult("REMOTE-TRACKING-ID");
+    }
+
+    public Task<string> GetStatusAsync(string trackingId, CancellationToken cancellationToken = default)
+        => Task.FromResult("TEST-STATUS");
 }
 
 internal sealed class CountingOrganizationIntegrationService : IOrganizationIntegrationService

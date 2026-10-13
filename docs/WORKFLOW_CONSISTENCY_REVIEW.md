@@ -165,3 +165,9 @@ These are engineering constraints for the next implementation phase, not assumpt
 - Pipeline `2941486180` passed all five configured jobs for commit `a066667beba65b9140e50fa74a71a2023a966692`.
 - Additional hardening checks the caller cancellation token after a failed operation result and before retry evaluation. A regression simulates an adapter returning a retryable server-error result after the caller cancels; the expected result is propagated cancellation and exactly one invocation.
 - This is limited to cancellation/retry semantics. It does not change submission retry policy, external API contracts, workflow stages, payment behavior, or reconciliation claims. Verify only after the next pipeline completes.
+
+
+## Cancellation after known remote success — 2026-10-13
+- Pipeline `2941591856` passed all five configured jobs for commit `239cd8216fc11f1c49086cd7ffe50ba2e291d6ac`.
+- A further regression targets the narrow window where the organization adapter returns a tracking ID and the caller token is then cancelled. Local transaction creation, repository writes and commit now use `CancellationToken.None` after this confirmed remote response, to avoid abandoning the known remote case solely because the HTTP caller disconnected.
+- SQLite-backed coverage asserts that the request, three workflow stages and seven audit events persist in that scenario. This does not solve process crashes or local persistence failures, and it does not make remote submission and local persistence atomic. Verify in the next pipeline before treating this guard as established.

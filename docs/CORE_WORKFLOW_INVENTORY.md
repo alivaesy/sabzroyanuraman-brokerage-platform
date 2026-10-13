@@ -118,3 +118,9 @@ Status: repository-derived engineering inventory, not a compliance certification
 - Pipeline `2941486180` passed all five configured jobs for branch commit `a066667beba65b9140e50fa74a71a2023a966692`.
 - A focused follow-up checks the caller cancellation token after a failed adapter result and before any retry decision. This prevents a non-cooperative adapter that returns a transient failure after cancellation from triggering further attempts.
 - The regression test and implementation require the next pipeline for verification; no new external API semantics are assumed. S01 submit remains non-retrying, status reads retain configured retries, and ambiguous remote outcomes remain a manual/contract-driven recovery boundary.
+
+
+## S01 persistence after caller cancellation — 2026-10-13
+- The latest pipeline `2941591856` passed all five jobs for commit `239cd8216fc11f1c49086cd7ffe50ba2e291d6ac`.
+- After the external organization adapter returns a tracking ID, local persistence now uses a non-cancelled token so a disconnected/cancelled HTTP request does not itself abort recording a known remote submission. A SQLite regression test verifies the request, workflow stages and audit rows persist when the caller token is cancelled immediately after remote success.
+- This narrows but does not eliminate the distributed failure window. Process termination, database failure, or timeout-after-acceptance remain unresolved without an approved reconciliation/idempotency contract. Payment stays disabled and the PHP live flow remains unchanged.

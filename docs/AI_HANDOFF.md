@@ -278,3 +278,10 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - The next focused hardening change makes `OrganizationRetryExecutor` check the caller token after a failed operation result and before deciding whether to retry. This covers adapters that return a failure result despite caller cancellation rather than throwing `OperationCanceledException`.
 - A regression test cancels the caller token inside an adapter that returns a transient server-error result and asserts cancellation propagates after exactly one attempt. This change remains unverified until the new commit's pipeline passes.
 - Submission retries remain disabled; status-read retry coverage remains. Remote-success/local-failure reconciliation still requires the official organization API contract and an approved recovery procedure. Keep `Payment:Enabled=false`, leave live PHP payment untouched, and do not merge without explicit approval.
+
+
+## Persist known remote submission despite caller cancellation — 2026-10-13
+- Pipeline `2941591856` passed all five jobs for commit `239cd8216fc11f1c49086cd7ffe50ba2e291d6ac`, including .NET build, migration verification and tests.
+- Follow-up hardening addresses a specific cancellation window: after organization submission returns a tracking ID, request cancellation must not cancel the local transaction/repository save/commit that records this known remote side effect. A SQLite-backed regression cancels the caller token immediately after the external adapter returns, then asserts the request, three stages, and seven audit events are persisted.
+- This reduces one avoidable orphan-case path; it does not protect against process crashes, database failures, or timeouts with unknown remote acceptance. Those still require the authoritative organization API contract and an approved reconciliation procedure.
+- Verify this change in its own pipeline. Keep `Payment:Enabled=false`, leave live PHP payment untouched, and do not merge without explicit approval.
