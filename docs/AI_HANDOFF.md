@@ -7,6 +7,8 @@ Brokerage Platform / Sabz Royan Orouaman
 Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 
 ## Current Status
+
+- **Latest verified checkpoint (2026-10-13):** commit `3e0c9929a999101989bac0ef87abacdc78a8c4a1`, pipeline [2941747645](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2941747645), passed all five configured jobs: site validation, PHP validation, .NET build, migration verification, and .NET tests. The test report summary endpoint returned no published test-report artifact, so use the successful `dotnet_test` job—not that empty summary—as CI evidence. This checkpoint verifies the cancellation-after-known-remote-success persistence regression in CI; it does not eliminate process-crash/database-failure recovery gaps or establish an external idempotency contract. Keep payment disabled and do not modify the live PHP payment flow.
 - Active branch: `feat/payment-foundation-sadad-ready`.
 - User reports local build/tests are green; the assistant does not execute tests on the user's machine.
 - Latest pipeline for concurrency-hardening commit `82989d7733d41c49c46a3ffaf9b3c2c3f816018c` is failed: four jobs passed (site, PHP, .NET build, migration verification) and `dotnet_test` reported 158 passed / 1 failed. https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2940869925. The concurrent-refresh regression was reviewed for an ordering flaw: it assumed the first HTTP task necessarily reached the controlled integration service first. The test now waits for the first service invocation's persisted local status before releasing the stale writer; this correction is unverified until a new pipeline completes.

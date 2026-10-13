@@ -4,7 +4,11 @@
 **Branch reviewed:** `feat/payment-foundation-sadad-ready`  
 **Evidence snapshot:** commit `5808352357792b0ff1ae14e623a2403fbdf785d9`, pipeline `2939258054` passed.
 
-## 1. Scope and current observed behavior
+## Current implementation checkpoint (2026-10-13)
+
+The original review below records an earlier implementation snapshot; where it conflicts with this checkpoint, this section is authoritative. Commit `3e0c9929a999101989bac0ef87abacdc78a8c4a1` passed pipeline [2941747645](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2941747645), including all five configured jobs. The S01 path now opens the local unit-of-work transaction after the organization adapter returns a tracking ID, writes the request/stages/audit records under that transaction, and commits with `CancellationToken.None` once remote success is known. SQLite tests cover cancellation after remote success and rollback of local request/stage/audit rows after an injected persistence failure. Submission retries remain disabled because remote acceptance can be ambiguous; there is no evidence here of an approved idempotency or reconciliation contract. This still does not make remote submission and local persistence atomic, and does not solve process crashes or database failures.
+
+## 1. Scope and observed behavior at original review snapshot (superseded where noted above)
 
 This review focuses on the S01 submission path and the organization-status refresh path. It does not change public API behavior, external organization contracts, stage codes, or payment behavior.
 
