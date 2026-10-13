@@ -265,3 +265,9 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - This does not resolve remote-success/local-failure or timeout-after-acceptance. No automated replay/reconciliation is claimed; obtain the authoritative organization API contract and approve a recovery procedure first.
 - A follow-up test checks caller cancellation is propagated and is not converted into a retryable timeout. It is unverified until the next pipeline completes.
 - Older sections above are historical snapshots; use this latest section and current source/tests for branch state. Keep `Payment:Enabled=false`, preserve the live PHP flow, and do not merge without explicit approval.
+
+
+## CI failure and correction — 2026-10-13
+- Pipeline [2941371827](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2941371827) failed in `dotnet_build` before test execution: the follow-up commit inserted a second `CancellationOrganizationApiClient` and a redundant cancellation test even though the file already contained both cancellation coverage and its helper.
+- The corrective change removes only the duplicate test/helper, preserving the pre-existing `SubmitAsync_WhenCancellationIsRequested_PropagatesCancellation` regression test. The existing cancellation test remains the source of truth; no runtime behavior change is intended.
+- The next pipeline must verify the correction. The previous failed pipeline is not evidence that the cancellation behavior failed; it exposed compile-time duplicate definitions.

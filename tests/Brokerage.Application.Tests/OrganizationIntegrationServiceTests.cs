@@ -39,24 +39,6 @@ public class OrganizationIntegrationServiceTests
         Assert.Equal(1, apiClient.Attempts);
     }
     [Fact]
-    public async Task SubmitAsync_WhenCallerCancels_PropagatesCancellationWithoutRetry()
-    {
-        var apiClient = new CancellationOrganizationApiClient();
-        var retryExecutor = new OrganizationRetryExecutor(
-            new OrganizationRetryPolicy(),
-            new OrganizationRetryOptions { MaxRetryCount = 2 },
-            new OrganizationTimeoutOptions { Timeout = TimeSpan.FromSeconds(1) });
-        var service = new OrganizationIntegrationService(apiClient, retryExecutor);
-        using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
-
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => service.SubmitAsync("S01", cancellation.Token));
-
-        Assert.Equal(1, apiClient.Attempts);
-    }
-
-    [Fact]
     public async Task SubmitAsync_WhenApiReportsSuccessWithoutTrackingId_ThrowsBrokerageException()
     {
         var apiClient = new MissingTrackingIdOrganizationApiClient();
@@ -701,26 +683,6 @@ public class OrganizationIntegrationServiceTests
                 "Mock authentication failure."));
     }
 }
-    private sealed class CancellationOrganizationApiClient : IOrganizationApiClient
-    {
-        public int Attempts { get; private set; }
-
-        public Task<OrganizationApiResult> SubmitAsync(
-            string serviceCode,
-            CancellationToken cancellationToken = default)
-        {
-            Attempts++;
-            throw new OperationCanceledException(cancellationToken);
-        }
-
-        public Task<OrganizationApiResult> GetStatusAsync(
-            string trackingId,
-            CancellationToken cancellationToken = default)
-        {
-            throw new OperationCanceledException(cancellationToken);
-        }
-    }
-
     private sealed class RetryTestOrganizationApiClient
         : IOrganizationApiClient
     {

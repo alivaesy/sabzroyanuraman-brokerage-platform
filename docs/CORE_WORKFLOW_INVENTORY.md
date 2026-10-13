@@ -106,3 +106,9 @@ Status: repository-derived engineering inventory, not a compliance certification
 - This supersedes the older risk-review wording above that described submission as automatically retrying in the current code. The underlying external-side-effect risk remains: no authoritative idempotency/correlation contract or automated reconciliation has been established.
 - Local transactions cannot undo a completed remote submission. Keep ambiguous cases unresolved for manual, evidence-based investigation until the organization's documented contract and an approved recovery policy exist.
 - Caller-cancellation propagation is being added as a regression check and remains unverified until its pipeline passes.
+
+
+## CI failure and correction — 2026-10-13
+- Pipeline [2941371827](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2941371827) failed in `dotnet_build` before test execution: the follow-up commit inserted a second `CancellationOrganizationApiClient` and a redundant cancellation test even though the file already contained both cancellation coverage and its helper.
+- The corrective change removes only the duplicate test/helper, preserving the pre-existing `SubmitAsync_WhenCancellationIsRequested_PropagatesCancellation` regression test. The existing cancellation test remains the source of truth; no runtime behavior change is intended.
+- The next pipeline must verify the correction. The previous failed pipeline is not evidence that the cancellation behavior failed; it exposed compile-time duplicate definitions.

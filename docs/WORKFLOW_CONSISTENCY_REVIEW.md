@@ -153,3 +153,9 @@ These are engineering constraints for the next implementation phase, not assumpt
 - S01 submission retry is disabled at the call site because an accepted remote request may have lost its response; no official organization idempotency/correlation contract is present in the repository evidence. Status lookup still has retry coverage for timeout, server error, and rate limit.
 - The next regression asserts caller-requested cancellation propagates without being mistaken for an integration timeout and without another submission attempt. This is a test-only behavior check; do not claim it verified until the next CI run passes.
 - Recovery for remote success followed by local failure remains manual and contract-driven. Do not invent a replay key, status, stage or external request field.
+
+
+## CI failure and correction — 2026-10-13
+- Pipeline [2941371827](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2941371827) failed in `dotnet_build` before test execution: the follow-up commit inserted a second `CancellationOrganizationApiClient` and a redundant cancellation test even though the file already contained both cancellation coverage and its helper.
+- The corrective change removes only the duplicate test/helper, preserving the pre-existing `SubmitAsync_WhenCancellationIsRequested_PropagatesCancellation` regression test. The existing cancellation test remains the source of truth; no runtime behavior change is intended.
+- The next pipeline must verify the correction. The previous failed pipeline is not evidence that the cancellation behavior failed; it exposed compile-time duplicate definitions.
