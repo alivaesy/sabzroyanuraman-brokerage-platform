@@ -575,6 +575,59 @@ public class BrokerageApiTests
 
 
     [Fact]
+    public async Task GetOrganizationStatus_ConcurrentRefreshRejectsStaleWriterAndPreservesSingleTransition()
+    {
+        var organizationService = new ControlledOrganizationIntegrationService();
+        await using var application =
+            new WebApplicationFactory<Program>()
+                .WithWebHostBuilder(builder =>
+                {
+                    builder.ConfigureServices(services =>
+                    {
+                        services.AddSingleton<IOrganizationIntegrationService>(organizationService);
+                    });
+                });
+
+        using var client = await CreateVerifiedApplicantClientAsync(application);
+        using var content = new StringContent(
+            """{"nationalIdentifier":"1234567891"}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+        var createResponse = await client.PostAsync("/service-requests/s01", content);
+        Assert.Equal(System.Net.HttpStatusCode.OK, createResponse.StatusCode);
+        var created = await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var requestId = Guid.Parse(created.GetProperty("id").GetString()!);
+
+        var firstRefresh = client.GetAsync($"/service-requests/{requestId}/organization-status");
+        var secondRefresh = client.GetAsync($"/service-requests/{requestId}/organization-status");
+        await organizationService.SecondStatusCallStarted.WaitAsync(TimeSpan.FromSeconds(10));
+
+        organizationService.ReleaseFirstStatusCall();
+        using var firstResponse = await firstRefresh.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Equal(System.Net.HttpStatusCode.OK, firstResponse.StatusCode);
+
+        organizationService.ReleaseSecondStatusCall();
+        using var secondResponse = await secondRefresh.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Equal(System.Net.HttpStatusCode.Conflict, secondResponse.StatusCode);
+
+        using var scope = application.Services.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IServiceRequestRepository>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+        var request = await repository.GetByIdAsync(requestId);
+        Assert.NotNull(request);
+        Assert.Equal("FirstStatus", request!.OrganizationStatus);
+
+        var stages = await repository.GetWorkflowStagesAsync(requestId);
+        Assert.Single(stages, stage => stage.StageCode == "ResultNotification");
+        Assert.Equal(1, await dbContext.AuditEvents.AsNoTracking().CountAsync(auditEvent =>
+            auditEvent.ServiceRequestId == requestId && auditEvent.EventType == "OrganizationStatusReceived"));
+        Assert.Equal(1, await dbContext.AuditEvents.AsNoTracking().CountAsync(auditEvent =>
+            auditEvent.ServiceRequestId == requestId &&
+            auditEvent.EventType == "WorkflowStageCreated" &&
+            auditEvent.WorkflowStage == "ResultNotification"));
+    }
+
+    [Fact]
     public async Task GetOrganizationStatus_WhenAuditWriteFails_RollsBackAllLocalStatusChanges()
     {
         await using var application =
@@ -1042,6 +1095,49 @@ public class BrokerageApiTests
         return client;
     }
 
+
+    private sealed class ControlledOrganizationIntegrationService : IOrganizationIntegrationService
+    {
+        private readonly TaskCompletionSource _secondStatusCallStarted =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _releaseFirstStatusCall =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _releaseSecondStatusCall =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _statusCallCount;
+
+        public Task SecondStatusCallStarted => _secondStatusCallStarted.Task;
+
+        public Task<string> SubmitAsync(string serviceCode, CancellationToken cancellationToken = default)
+            => Task.FromResult("MOCK-TRACKING-ID");
+
+        public Task<string> GetStatusAsync(string trackingId, CancellationToken cancellationToken = default)
+        {
+            var call = Interlocked.Increment(ref _statusCallCount);
+            if (call == 1)
+                return WaitForReleaseAsync(_releaseFirstStatusCall.Task, "FirstStatus", cancellationToken);
+
+            if (call == 2)
+            {
+                _secondStatusCallStarted.TrySetResult();
+                return WaitForReleaseAsync(_releaseSecondStatusCall.Task, "SecondStatus", cancellationToken);
+            }
+
+            throw new InvalidOperationException("Unexpected organization status call in concurrency test.");
+        }
+
+        public void ReleaseFirstStatusCall() => _releaseFirstStatusCall.TrySetResult();
+        public void ReleaseSecondStatusCall() => _releaseSecondStatusCall.TrySetResult();
+
+        private static async Task<string> WaitForReleaseAsync(
+            Task release,
+            string status,
+            CancellationToken cancellationToken)
+        {
+            await release.WaitAsync(cancellationToken);
+            return status;
+        }
+    }
 
     private sealed class FailingOrganizationStatusAuditWriter(
         BrokerageDbContext dbContext,

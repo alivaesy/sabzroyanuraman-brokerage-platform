@@ -549,43 +549,55 @@ app.MapGet("/service-requests/{id:guid}/organization-status", async (
     var previousOrganizationStatus = request.OrganizationStatus;
     var organizationStatus = await organizationIntegrationService.GetStatusAsync(request.OrganizationTrackingId, cancellationToken);
 
-    await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
-    request.SetOrganizationStatus(organizationStatus);
-
-    var workflowStages = await repository.GetWorkflowStagesAsync(id, cancellationToken);
-    var followUpStage = workflowStages.SingleOrDefault(stage => stage.StageCode == S01StageCode.OrganizationFollowUp.ToString());
-
-    if (followUpStage is not null && followUpStage.CompletedAt is null)
+    try
     {
-        followUpStage.Complete();
-        await auditEventWriter.WriteAsync(new AuditEvent(
-            Guid.NewGuid(), DateTimeOffset.UtcNow, "WorkflowStageCompleted", context.TraceIdentifier,
-            request.Id, followUpStage.StageCode, "Success", null, followUpStage.StageCode,
-            currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
-    }
+        await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
+        request.SetOrganizationStatus(organizationStatus);
 
-    var resultStage = workflowStages.SingleOrDefault(stage => stage.StageCode == S01StageCode.ResultNotification.ToString());
-    if (resultStage is null)
+        var workflowStages = await repository.GetWorkflowStagesAsync(id, cancellationToken);
+        var followUpStage = workflowStages.SingleOrDefault(stage => stage.StageCode == S01StageCode.OrganizationFollowUp.ToString());
+
+        if (followUpStage is not null && followUpStage.CompletedAt is null)
+        {
+            followUpStage.Complete();
+            await auditEventWriter.WriteAsync(new AuditEvent(
+                Guid.NewGuid(), DateTimeOffset.UtcNow, "WorkflowStageCompleted", context.TraceIdentifier,
+                request.Id, followUpStage.StageCode, "Success", null, followUpStage.StageCode,
+                currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
+        }
+
+        var resultStage = workflowStages.SingleOrDefault(stage => stage.StageCode == S01StageCode.ResultNotification.ToString());
+        if (resultStage is null)
+        {
+            resultStage = new WorkflowStage(request.Id, S01StageCode.ResultNotification.ToString());
+            await repository.AddWorkflowStageAsync(resultStage, cancellationToken);
+            request.SetCurrentWorkflowStage(resultStage.Id);
+            await auditEventWriter.WriteAsync(new AuditEvent(
+                Guid.NewGuid(), DateTimeOffset.UtcNow, "WorkflowStageCreated", context.TraceIdentifier,
+                request.Id, resultStage.StageCode, "Success", null, resultStage.StageCode,
+                currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
+        }
+
+        await repository.SaveChangesAsync(cancellationToken);
+        await auditEventWriter.WriteAsync(new AuditEvent(
+            Guid.NewGuid(), DateTimeOffset.UtcNow, "OrganizationStatusReceived", context.TraceIdentifier,
+            request.Id, resultStage.StageCode, "Success", previousOrganizationStatus, organizationStatus,
+            currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.OrganizationTrackingId,
+            request.OrganizationStatus, request.CurrentWorkflowStageId });
+    }
+    catch (DbUpdateConcurrencyException)
     {
-        resultStage = new WorkflowStage(request.Id, S01StageCode.ResultNotification.ToString());
-        await repository.AddWorkflowStageAsync(resultStage, cancellationToken);
-        request.SetCurrentWorkflowStage(resultStage.Id);
-        await auditEventWriter.WriteAsync(new AuditEvent(
-            Guid.NewGuid(), DateTimeOffset.UtcNow, "WorkflowStageCreated", context.TraceIdentifier,
-            request.Id, resultStage.StageCode, "Success", null, resultStage.StageCode,
-            currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
+        // Another refresh committed after this request read the old request version.
+        // Do not retry the external call or overwrite the newer local transition.
+        return Results.Conflict(new
+        {
+            message = "Organization status changed while this refresh was in progress. Retry the refresh."
+        });
     }
-
-    await repository.SaveChangesAsync(cancellationToken);
-    await auditEventWriter.WriteAsync(new AuditEvent(
-        Guid.NewGuid(), DateTimeOffset.UtcNow, "OrganizationStatusReceived", context.TraceIdentifier,
-        request.Id, resultStage.StageCode, "Success", previousOrganizationStatus, organizationStatus,
-        currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
-
-    await transaction.CommitAsync(cancellationToken);
-
-    return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.OrganizationTrackingId,
-        request.OrganizationStatus, request.CurrentWorkflowStageId });
 }).RequireAuthorization();
 
 static bool CanAccessServiceRequest(ICurrentUser currentUser, ServiceRequest request)

@@ -46,7 +46,7 @@ namespace Brokerage.Infrastructure.Persistence.Migrations
                     b.Property<string>("OrganizationTrackingId").HasMaxLength(200).HasColumnType("TEXT");
                     b.Property<string>("ServiceCode").IsRequired().HasMaxLength(50).HasColumnType("TEXT");
                     b.Property<string>("Status").IsRequired().HasMaxLength(50).HasColumnType("TEXT");
-                    b.Property<DateTimeOffset>("UpdatedAt").HasColumnType("TEXT");
+                    b.Property<DateTimeOffset>("UpdatedAt").IsConcurrencyToken().HasColumnType("TEXT");
                     b.HasKey("Id");
                     b.HasIndex("ApplicantUserId");
                     b.ToTable("service_requests", (string)null);

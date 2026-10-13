@@ -125,3 +125,9 @@ These are engineering constraints for the next implementation phase, not assumpt
 ## Rollback regression follow-up — 2026-10-12
 - Extend the organization-status audit-failure regression to capture the request's audit-event count before the refresh and assert that the count is unchanged after the injected failure. This protects both sides of the rollback contract: no partial status/stage/audit additions, and no loss of pre-existing audit history.
 - This assertion complements the existing checks for unchanged request status, incomplete `OrganizationFollowUp`, absent `ResultNotification`, and absent status-refresh audit events. It does not address concurrent refresh races.
+
+
+## Optimistic concurrency implementation follow-up — 2026-10-13
+- Configure `ServiceRequest.UpdatedAt` as an EF Core concurrency token. The organization-status endpoint maps `DbUpdateConcurrencyException` to HTTP 409 and does not automatically repeat the external status request.
+- Add a controlled API regression that pauses two status calls after both requests have loaded the same local version, allows the first transition to commit, then releases the stale request and checks that it receives 409. The test also checks that the stored organization status, result stage, and status audit reflect only the winning transition.
+- This is optimistic concurrency protection for writes to the service-request row, not a distributed lock or proof of every production-provider race mode. Keep external calls outside the transaction; do not add stage uniqueness constraints or infer external idempotency semantics. Verify the regression and model consistency in CI before treating the change as validated.
