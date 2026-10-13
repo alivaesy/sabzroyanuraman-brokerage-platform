@@ -236,6 +236,88 @@ public class PaymentEndpointTests
         Assert.False(body.TryGetProperty("redirectUrl", out _));
     }
 
+    [Theory]
+    [InlineData("Succeeded", HttpStatusCode.OK, null)]
+    [InlineData("Verifying", HttpStatusCode.Accepted, "PAYMENT_VERIFICATION_IN_PROGRESS")]
+    [InlineData("Failed", HttpStatusCode.Conflict, "PAYMENT_NOT_PENDING")]
+    [InlineData("Cancelled", HttpStatusCode.Conflict, "PAYMENT_NOT_PENDING")]
+    public async Task CreatePayment_IdempotentReplayOfNonPendingPaymentNeverRedirectsToGateway(
+        string existingStatus,
+        HttpStatusCode expectedStatusCode,
+        string? expectedError)
+    {
+        await using var application = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.ConfigureAppConfiguration((_, configuration) =>
+                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Payment:Enabled"] = "true",
+                    ["Payment:Tariffs:S01"] = "100000",
+                    ["Payment:Sadad:MerchantId"] = "test-merchant",
+                    ["Payment:Sadad:TerminalId"] = "test-terminal",
+                    ["Payment:Sadad:TerminalKey"] = "1234567890123456",
+                    ["Payment:Sadad:CallbackUrl"] = "https://example.test/payments/sadad/callback"
+                })));
+
+        var userId = $"payment-replay-{existingStatus}-{Guid.NewGuid():N}";
+        var idempotencyKey = $"replay-{existingStatus}-{Guid.NewGuid():N}";
+        var serviceRequest = new ServiceRequest(ServiceCode.S01, userId);
+        var payment = new PaymentTransaction(serviceRequest.Id, 100000, "IRR", idempotencyKey);
+        switch (existingStatus)
+        {
+            case "Succeeded":
+                payment.MarkGatewayCreated("stored-gateway-token");
+                payment.MarkVerifying();
+                payment.MarkSucceeded("verified-reference");
+                break;
+            case "Verifying":
+                payment.MarkGatewayCreated("stored-gateway-token");
+                payment.MarkVerifying();
+                break;
+            case "Failed":
+                payment.MarkFailed();
+                break;
+            case "Cancelled":
+                payment.MarkCancelled();
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(existingStatus));
+        }
+
+        using (var scope = application.Services.CreateScope())
+        {
+            var serviceRequests = scope.ServiceProvider.GetRequiredService<IServiceRequestRepository>();
+            await serviceRequests.AddAsync(serviceRequest);
+            await serviceRequests.SaveChangesAsync();
+
+            var payments = scope.ServiceProvider.GetRequiredService<IPaymentTransactionRepository>();
+            await payments.AddAsync(payment);
+            await payments.SaveChangesAsync();
+
+            scope.ServiceProvider.GetRequiredService<IMfaVerificationStore>()
+                .MarkVerified(userId, DateTimeOffset.UtcNow);
+        }
+
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", userId);
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Applicant.ToString());
+        client.DefaultRequestHeaders.Add("Idempotency-Key", idempotencyKey);
+
+        using var response = await client.PostAsJsonAsync("/payments", new
+        {
+            serviceRequestId = serviceRequest.Id,
+            amount = 1
+        });
+        var body = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+
+        Assert.Equal(expectedStatusCode, response.StatusCode);
+        Assert.Equal(existingStatus, body.GetProperty("status").GetString());
+        Assert.False(body.TryGetProperty("redirectUrl", out _));
+        if (expectedError is null)
+            Assert.Equal(System.Text.Json.JsonValueKind.Null, body.GetProperty("error").ValueKind);
+        else
+            Assert.Equal(expectedError, body.GetProperty("error").GetString());
+    }
+
     [Fact]
     public async Task CreatePayment_CannotChargeAnotherApplicantsRequest()
     {
