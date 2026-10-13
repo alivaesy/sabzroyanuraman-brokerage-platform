@@ -98,3 +98,11 @@ Status: repository-derived engineering inventory, not a compliance certification
 - A configured retry count above zero previously allowed S01 submission attempts to repeat after timeout, server-error, or rate-limit results. Such results do not prove the organization rejected the request.
 - Submission now explicitly opts out of automatic retries pending a verified external idempotency/correlation contract. Status lookups keep configurable retries because they are read operations. CI must verify this change before it is treated as validated.
 - This is a safety guard, not an external reconciliation mechanism. Ambiguous submissions still require authoritative organization lookup and approved operator recovery. Payment remains disabled; live PHP payment is unchanged.
+
+
+## Current verified retry boundary — 2026-10-13
+- Pipeline [2941232829](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2941232829) passed all five configured jobs for commit `0c8998db8d9b16943bc35ea927d0319c42d5a09e`.
+- S01 submission now calls the shared retry executor with `allowRetries: false`; regression tests cover timeout, server error, and rate-limit outcomes and expect one attempt. Status-read retry tests still cover timeout, server error, and rate limiting.
+- This supersedes the older risk-review wording above that described submission as automatically retrying in the current code. The underlying external-side-effect risk remains: no authoritative idempotency/correlation contract or automated reconciliation has been established.
+- Local transactions cannot undo a completed remote submission. Keep ambiguous cases unresolved for manual, evidence-based investigation until the organization's documented contract and an approved recovery policy exist.
+- Caller-cancellation propagation is being added as a regression check and remains unverified until its pipeline passes.

@@ -257,3 +257,11 @@ Shared handoff between ChatGPT accounts; GitLab is the source of truth.
 - Retry review found that the shared executor could retry S01 submissions on timeout/server/rate-limit errors when `MaxRetryCount` was configured above zero. Since the official organization API idempotency/correlation contract is not established here, an accepted submission with a lost response could be duplicated.
 - The next change adds an explicit per-operation retry switch, disables automatic retries for submission, and retains configured retries for status reads. Regression tests now assert submission makes only one attempt for timeout/server/rate-limit failures while existing status-read retry tests remain in place. This change remains unverified until its own pipeline passes.
 - Do not treat a timeout as proof the organization rejected the submission. Keep recovery manual/contract-driven until authoritative lookup/idempotency semantics are approved. Keep `Payment:Enabled=false`, the live PHP flow untouched, and do not merge without explicit approval.
+
+
+## Latest verified retry-safety state — 2026-10-13
+- Pipeline [2941232829](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2941232829) passed all five configured jobs for commit `0c8998db8d9b16943bc35ea927d0319c42d5a09e`, including .NET tests.
+- `OrganizationIntegrationService.SubmitAsync` now explicitly disables automatic retries; timeout, server-error and rate-limit tests assert a single submission attempt. Read-only status lookup retains retry behavior for timeout/server-error/rate-limit cases.
+- This does not resolve remote-success/local-failure or timeout-after-acceptance. No automated replay/reconciliation is claimed; obtain the authoritative organization API contract and approve a recovery procedure first.
+- A follow-up test checks caller cancellation is propagated and is not converted into a retryable timeout. It is unverified until the next pipeline completes.
+- Older sections above are historical snapshots; use this latest section and current source/tests for branch state. Keep `Payment:Enabled=false`, preserve the live PHP flow, and do not merge without explicit approval.

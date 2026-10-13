@@ -146,3 +146,10 @@ These are engineering constraints for the next implementation phase, not assumpt
 - Review identified that the shared organization retry executor's policy permits retrying timeouts, server errors, and rate limits. Applied to a non-idempotent submit without a verified external idempotency contract, that can duplicate a case when the remote side accepted the request but its response was lost.
 - Proposed/implemented guard for verification: submission explicitly disables executor retries; status lookup retains the existing configurable retry behavior. Tests should prove one attempt for submit failures and preserve status-read retry coverage.
 - This reduces automatic duplicate-submission risk; it does not reconcile an ambiguous result. An authoritative external API contract and an approved recovery procedure are still required. No API fields, headers, keys, or business stages are invented.
+
+
+## Current CI checkpoint and cancellation follow-up — 2026-10-13
+- Pipeline [2941232829](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2941232829) passed all five configured jobs for commit `0c8998db8d9b16943bc35ea927d0319c42d5a09e`.
+- S01 submission retry is disabled at the call site because an accepted remote request may have lost its response; no official organization idempotency/correlation contract is present in the repository evidence. Status lookup still has retry coverage for timeout, server error, and rate limit.
+- The next regression asserts caller-requested cancellation propagates without being mistaken for an integration timeout and without another submission attempt. This is a test-only behavior check; do not claim it verified until the next CI run passes.
+- Recovery for remote success followed by local failure remains manual and contract-driven. Do not invent a replay key, status, stage or external request field.
