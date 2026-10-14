@@ -131,3 +131,9 @@ Status: repository-derived engineering inventory, not a compliance certification
 - Verified code behavior: S01 submit is non-retrying; caller cancellation after a known tracking ID does not cancel local persistence; injected local persistence failure rolls back local request/stage/audit rows; organization-status concurrent-refresh regression passes.
 - Remaining boundaries: external acceptance and local database persistence are not atomic; process crashes/database failures and unknown acceptance after timeout still require contract-driven reconciliation. Production database/provider behavior and external API idempotency are not certified by CI.
 - Keep `Payment:Enabled=false`, preserve the live PHP payment flow, and do not merge without explicit approval.
+
+
+## OTP expiration cleanup
+
+- Issuing an OTP removes expired challenges with a targeted database delete; the persistent model now indexes `ExpiresAt` so this cleanup can avoid a full-table scan as the table grows.
+- The migration and its SQLite regression test are in the audit hardening branch. This is a query-path improvement only; OTP lifetime and attempt limits are unchanged.

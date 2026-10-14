@@ -64,6 +64,7 @@ public sealed class BrokerageDbContext(DbContextOptions<BrokerageDbContext> opti
             entity.Property(x => x.ExpiresAt).IsRequired();
             entity.Property(x => x.FailedAttempts).IsRequired();
             entity.HasIndex(x => x.UserId);
+            entity.HasIndex(x => x.ExpiresAt);
         });
 
         modelBuilder.Entity<MfaVerificationRecord>(entity =>

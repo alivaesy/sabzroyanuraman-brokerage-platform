@@ -68,6 +68,7 @@ namespace Brokerage.Infrastructure.Persistence.Migrations
                     b.Property<int>("FailedAttempts").HasColumnType("INTEGER");
                     b.Property<string>("UserId").IsRequired().HasMaxLength(200).HasColumnType("TEXT");
                     b.HasKey("ChallengeId");
+                    b.HasIndex("ExpiresAt");
                     b.HasIndex("UserId");
                     b.ToTable("otp_challenges", (string)null);
                 });

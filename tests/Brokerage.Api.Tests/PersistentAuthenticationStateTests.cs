@@ -99,6 +99,23 @@ public class PersistentAuthenticationStateTests
     }
 
     [Fact]
+    public async Task OtpChallenge_Migration_CreatesExpirationIndex()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<BrokerageDbContext>().UseSqlite(connection).Options;
+        await using (var db = new BrokerageDbContext(options))
+            await db.Database.MigrateAsync();
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'IX_otp_challenges_ExpiresAt'";
+        var indexCount = Convert.ToInt32(await command.ExecuteScalarAsync());
+
+        Assert.Equal(1, indexCount);
+    }
+
+    [Fact]
     public void MfaVerification_PersistsAcrossStoreInstances()
     {
         using var connection = new SqliteConnection("Data Source=:memory:");

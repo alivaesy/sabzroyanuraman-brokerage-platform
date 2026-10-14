@@ -19,7 +19,8 @@ for migration in \
     "20261005190000_HardenAuditEvents" \
     "20261006100000_PersistOtpMfaState" \
     "20261008170000_AddPaymentTransactions" \
-    "20261010100000_AddPaymentStatusUpdatedAtIndex"; do
+    "20261010100000_AddPaymentStatusUpdatedAtIndex" \
+    "20261014120000_AddOtpChallengeExpiresAtIndex"; do
     if ! printf '%s\n' "$migrations" | grep -Fq "$migration"; then
         echo "ERROR: EF migration '$migration' was not discovered."
         exit 1
