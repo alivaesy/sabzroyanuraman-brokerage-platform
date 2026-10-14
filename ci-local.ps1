@@ -36,7 +36,7 @@ Run-Check "site_validate" 'docker run --rm -v "${PWD}:/workspace" -w /workspace 
 
 Run-Check "php_validate" 'docker run --rm -v "${PWD}:/workspace" -w /workspace php:8.2-cli sh -c "find sabzroyanuraman-site -type f -name \\*.php -exec php -l {} +"'
 
-Run-Check "dotnet_verify" 'docker run --rm -v "${PWD}:/workspace" -w /workspace mcr.microsoft.com/dotnet/sdk:10.0 sh -c "dotnet --info && dotnet restore BrokeragePlatform.slnx && dotnet build BrokeragePlatform.slnx --configuration Release --no-restore && dotnet tool install --global dotnet-ef --version 10.0.12 && export PATH=\"\$PATH:\$HOME/.dotnet/tools\" && sh scripts/verify-ef-migrations.sh && dotnet test BrokeragePlatform.slnx --configuration Release --no-build --no-restore --logger \"console;verbosity=normal\""'
+Run-Check "dotnet_verify" 'docker run --rm -v "${PWD}:/workspace" -w /workspace mcr.microsoft.com/dotnet/sdk:10.0 sh -c "dotnet --info && dotnet restore BrokeragePlatform.slnx && dotnet build BrokeragePlatform.slnx --configuration Release --no-restore && dotnet tool install --global dotnet-ef --version 10.0.12 && export PATH=\"$PATH:$HOME/.dotnet/tools\" && sh scripts/verify-ef-migrations.sh && dotnet test BrokeragePlatform.slnx --configuration Release --no-build --no-restore --logger \"console;verbosity=normal\""'
 
 
 Write-Host ""
