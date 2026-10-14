@@ -9,8 +9,7 @@
 
 stages:
   - validate
-  - build
-  - test
+  - verify
 
 site_validate:
   stage: validate
@@ -42,30 +41,15 @@ php_validate:
         php -l "$file"
       done
 
-dotnet_build:
+dotnet_verify:
   <<: *dotnet_cache
-  stage: build
+  stage: verify
   image: mcr.microsoft.com/dotnet/sdk:10.0
   script:
     - dotnet --info
     - dotnet restore BrokeragePlatform.slnx
     - dotnet build BrokeragePlatform.slnx --configuration Release --no-restore
-
-dotnet_migration_verify:
-  <<: *dotnet_cache
-  stage: build
-  image: mcr.microsoft.com/dotnet/sdk:10.0
-  script:
     - export PATH="$PATH:$HOME/.dotnet/tools"
     - dotnet tool install --global dotnet-ef --version 10.0.12
-    - dotnet restore BrokeragePlatform.slnx
-    - dotnet build src/Brokerage.Api/Brokerage.Api.csproj --configuration Release --no-restore
     - sh scripts/verify-ef-migrations.sh
-
-dotnet_test:
-  <<: *dotnet_cache
-  stage: test
-  image: mcr.microsoft.com/dotnet/sdk:10.0
-  script:
-    - dotnet restore BrokeragePlatform.slnx
-    - dotnet test BrokeragePlatform.slnx --configuration Release --no-restore --logger "console;verbosity=normal"
+    - dotnet test BrokeragePlatform.slnx --configuration Release --no-build --no-restore --logger "console;verbosity=normal"
