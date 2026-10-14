@@ -125,6 +125,35 @@ public class RateLimitingTests
     }
 
     [Fact]
+    public async Task ServiceRequestReads_LimitPerUserAndDoNotCacheRejections()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "REQUEST-READ-RATE-LIMIT-USER");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", "Applicant");
+
+        var requestId = Guid.NewGuid();
+        for (var attempt = 0; attempt < 60; attempt++)
+        {
+            var response = await client.GetAsync($"/service-requests/{requestId}/organization-status");
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
+
+        var limitedResponse = await client.GetAsync($"/service-requests/{requestId}/organization-status");
+        Assert.Equal(HttpStatusCode.TooManyRequests, limitedResponse.StatusCode);
+        Assert.Equal("no-store", limitedResponse.Headers.CacheControl?.ToString());
+        Assert.NotNull(limitedResponse.Headers.RetryAfter?.Delta);
+        Assert.InRange(limitedResponse.Headers.RetryAfter!.Delta!.Value.TotalSeconds, 1, 60);
+
+        using var secondUserClient = application.CreateClient();
+        secondUserClient.DefaultRequestHeaders.Add("X-Test-User-Id", "REQUEST-READ-RATE-LIMIT-SECOND-USER");
+        secondUserClient.DefaultRequestHeaders.Add("X-Test-User-Role", "Applicant");
+        var separatePartitionResponse = await secondUserClient.GetAsync(
+            $"/service-requests/{requestId}/organization-status");
+        Assert.Equal(HttpStatusCode.NotFound, separatePartitionResponse.StatusCode);
+    }
+
+    [Fact]
     public async Task IdentityVerification_RateLimitsPerUserAndDoesNotCacheRejections()
     {
         await using var application = new WebApplicationFactory<Program>();

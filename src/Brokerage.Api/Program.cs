@@ -92,6 +92,18 @@ builder.Services.AddRateLimiter(options =>
         });
     });
 
+    options.AddPolicy("service-request-read", context =>
+    {
+        var partitionKey = GetRateLimitPartitionKey(context);
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 60,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        });
+    });
+
     options.AddPolicy("service-request-create", context =>
     {
         var partitionKey = GetRateLimitPartitionKey(context);
@@ -523,7 +535,7 @@ app.MapGet("/service-requests/{id:guid}", async (
 
     return Results.Ok(new { request.Id, request.ServiceCode, request.Status,
         request.CreatedAt, request.UpdatedAt, request.CurrentWorkflowStageId, request.OrganizationTrackingId, request.OrganizationStatus });
-}).RequireAuthorization();
+}).RequireAuthorization().RequireRateLimiting("service-request-read");
 
 app.MapGet("/service-requests/{id:guid}/workflow-stages", async (
     Guid id,
@@ -538,7 +550,7 @@ app.MapGet("/service-requests/{id:guid}/workflow-stages", async (
 
     var stages = await repository.GetWorkflowStagesAsync(id, cancellationToken);
     return Results.Ok(stages.Select(stage => new { stage.Id, stage.ServiceRequestId, stage.StageCode, stage.CreatedAt, stage.CompletedAt }));
-}).RequireAuthorization();
+}).RequireAuthorization().RequireRateLimiting("service-request-read");
 
 app.MapGet("/service-requests/{id:guid}/organization-status", async (
     Guid id, IServiceRequestRepository repository, ICurrentUser currentUser,
@@ -607,7 +619,7 @@ app.MapGet("/service-requests/{id:guid}/organization-status", async (
             message = "Organization status changed while this refresh was in progress. Retry the refresh."
         });
     }
-}).RequireAuthorization();
+}).RequireAuthorization().RequireRateLimiting("service-request-read");
 
 static bool CanAccessServiceRequest(ICurrentUser currentUser, ServiceRequest request)
 {
