@@ -79,17 +79,19 @@ public sealed class OperationalMetrics : IOperationalMetrics
         {
             lock (_endpointRegistrationLock)
             {
-                if (!_endpoints.TryGetValue(endpoint, out endpointStats) &&
-                    _endpoints.Count < MaxTrackedEndpoints)
+                if (!_endpoints.TryGetValue(endpoint, out endpointStats))
                 {
-                    endpointStats = new EndpointStats();
-                    _endpoints.TryAdd(endpoint, endpointStats);
+                    // Reserve one bounded label for all paths beyond the cardinality limit.
+                    // This keeps aggregate endpoint telemetry complete without retaining arbitrary paths.
+                    var trackedEndpoint = _endpoints.Count < MaxTrackedEndpoints - 1 && endpoint != "other"
+                        ? endpoint
+                        : "other";
+                    endpointStats = _endpoints.GetOrAdd(trackedEndpoint, _ => new EndpointStats());
                 }
             }
         }
 
-        // Keep endpoint-label cardinality bounded even under concurrent requests with attacker-controlled paths.
-        endpointStats?.Record(elapsedMilliseconds, clientError, serverError, error);
+        endpointStats.Record(elapsedMilliseconds, clientError, serverError, error);
     }
 
     public OperationalMetricsSnapshot Snapshot()

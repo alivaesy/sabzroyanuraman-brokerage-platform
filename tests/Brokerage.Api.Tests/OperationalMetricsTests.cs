@@ -83,9 +83,28 @@ public class OperationalMetricsTests
         var snapshot = metrics.Snapshot();
 
         Assert.Equal(2000, snapshot.TotalRequestCount);
-        Assert.True(snapshot.Endpoints.Count <= 200);
         Assert.Equal(200, snapshot.Endpoints.Count);
-        Assert.Equal(200, snapshot.Endpoints.Sum(x => x.RequestCount));
+        Assert.Equal(2000, snapshot.Endpoints.Sum(x => x.RequestCount));
+        Assert.Contains(snapshot.Endpoints, x => x.Endpoint == "other");
+    }
+
+    [Fact]
+    public void RecordRequest_AggregatesOverflowEndpointTelemetry()
+    {
+        var metrics = new OperationalMetrics();
+
+        for (var i = 0; i < 250; i++)
+            metrics.RecordRequest($"/unique/{i}", i == 249 ? 500 : 200, i + 1, false);
+
+        var snapshot = metrics.Snapshot();
+        var overflow = Assert.Single(snapshot.Endpoints, x => x.Endpoint == "other");
+
+        Assert.Equal(51, overflow.RequestCount);
+        Assert.Equal(0, overflow.ClientErrorCount);
+        Assert.Equal(1, overflow.ServerErrorCount);
+        Assert.Equal(1, overflow.ErrorCount);
+        Assert.Equal(224d, overflow.AverageElapsedMilliseconds, 6);
+        Assert.Equal(snapshot.TotalRequestCount, snapshot.Endpoints.Sum(x => x.RequestCount));
     }
 
     [Fact]
