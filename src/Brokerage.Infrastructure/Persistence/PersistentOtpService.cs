@@ -53,10 +53,12 @@ public sealed class PersistentOtpService(BrokerageDbContext db, IOtpCodeHasher c
         if (challenge is null)
             return false;
 
-        if (challenge.ExpiresAt <= DateTimeOffset.UtcNow)
+        var now = DateTimeOffset.UtcNow;
+        if (challenge.ExpiresAt <= now)
         {
-            db.OtpChallenges.Remove(challenge);
-            await db.SaveChangesAsync(cancellationToken);
+            await db.OtpChallenges
+                .Where(x => x.ChallengeId == challengeId && x.UserId == userId && x.ExpiresAt <= now)
+                .ExecuteDeleteAsync(cancellationToken);
             return false;
         }
 
@@ -67,16 +69,33 @@ public sealed class PersistentOtpService(BrokerageDbContext db, IOtpCodeHasher c
 
         if (valid)
         {
-            db.OtpChallenges.Remove(challenge);
-            await db.SaveChangesAsync(cancellationToken);
-            return true;
+            var consumed = await db.OtpChallenges
+                .Where(x => x.ChallengeId == challengeId
+                    && x.UserId == userId
+                    && x.ExpiresAt > now
+                    && x.FailedAttempts < MaxAttempts)
+                .ExecuteDeleteAsync(cancellationToken);
+            return consumed == 1;
         }
 
-        challenge.FailedAttempts++;
-        if (challenge.FailedAttempts >= MaxAttempts)
-            db.OtpChallenges.Remove(challenge);
+        var incremented = await db.OtpChallenges
+            .Where(x => x.ChallengeId == challengeId
+                && x.UserId == userId
+                && x.ExpiresAt > now
+                && x.FailedAttempts < MaxAttempts)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(x => x.FailedAttempts, x => x.FailedAttempts + 1),
+                cancellationToken);
 
-        await db.SaveChangesAsync(cancellationToken);
+        if (incremented == 0)
+            return false;
+
+        await db.OtpChallenges
+            .Where(x => x.ChallengeId == challengeId
+                && x.UserId == userId
+                && x.FailedAttempts >= MaxAttempts)
+            .ExecuteDeleteAsync(cancellationToken);
+
         return false;
     }
 }

@@ -24,6 +24,13 @@ Status: repository-derived engineering inventory, not a compliance certification
 - If the organization accepts a submission but its response times out, the outcome may remain unknown. Disabling automatic retries reduces duplicate-submission risk but does not find or reconcile the remote case.
 - **Release gate:** obtain the organization's documented idempotency/correlation and status-lookup contract and approve an ambiguous-outcome recovery procedure before enabling submission retries. Do not invent an external field or assume a tracking ID can be supplied before submission.
 
+### Organization API client contract compatibility
+
+- `Brokerage.Application.Integration.IOrganizationApiClient` is the current contract used by the integration service and represents failures with `OrganizationApiResult`.
+- `Brokerage.Application.Contracts.IOrganizationApiClient` is a legacy string-returning public interface. Its signature is retained unchanged for source compatibility; no in-repository implementation or consumer was found on this branch.
+- The duplicated short type name can be ambiguous when both namespaces are imported. Use a namespace-qualified name or alias in code that references both.
+- Do not remove or reshape the legacy contract until downstream consumers are inventoried and a migration path is approved.
+
 ### 2. S01 local persistence is transactional; the external side effect is not
 
 - `CreateS01ServiceRequest.ExecuteAsync` calls the organization adapter before opening the local transaction, then writes the request, workflow stages, and associated audit events using the scoped persistence context before committing.

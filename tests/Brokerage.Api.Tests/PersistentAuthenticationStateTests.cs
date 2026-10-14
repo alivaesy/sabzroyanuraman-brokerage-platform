@@ -44,6 +44,108 @@ public class PersistentAuthenticationStateTests
     }
 
     [Fact]
+    public async Task OtpChallenge_ConcurrentValidVerifications_OnlyOneConsumesChallenge()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"otp-valid-race-{Guid.NewGuid():N}.db");
+        try
+        {
+            var options = CreateFileDatabaseOptions(databasePath);
+            await using (var setup = new BrokerageDbContext(options))
+            {
+                await setup.Database.MigrateAsync();
+                setup.OtpChallenges.Add(new OtpChallengeRecord
+                {
+                    ChallengeId = "valid-race",
+                    UserId = "concurrent-user",
+                    CodeHash = TestOtpCodeHasher.Instance.Hash("123456"),
+                    ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(2),
+                    FailedAttempts = 0
+                });
+                await setup.SaveChangesAsync();
+            }
+
+            var start = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var verifications = Enumerable.Range(0, 12).Select(async _ =>
+            {
+                await start.Task;
+                await using var db = new BrokerageDbContext(options);
+                var service = new PersistentOtpService(db, TestOtpCodeHasher.Instance);
+                return await service.VerifyAsync("concurrent-user", "valid-race", "123456");
+            }).ToArray();
+
+            start.SetResult(true);
+            var results = await Task.WhenAll(verifications);
+
+            Assert.Single(results.Where(result => result));
+            await using var verifyDb = new BrokerageDbContext(options);
+            Assert.False(await verifyDb.OtpChallenges.AnyAsync(x => x.ChallengeId == "valid-race"));
+        }
+        finally
+        {
+            if (File.Exists(databasePath))
+                File.Delete(databasePath);
+        }
+    }
+
+    [Fact]
+    public async Task OtpChallenge_ConcurrentFailedVerifications_ReachAttemptLimitAtomically()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"otp-failed-race-{Guid.NewGuid():N}.db");
+        try
+        {
+            var options = CreateFileDatabaseOptions(databasePath);
+            await using (var setup = new BrokerageDbContext(options))
+            {
+                await setup.Database.MigrateAsync();
+                setup.OtpChallenges.Add(new OtpChallengeRecord
+                {
+                    ChallengeId = "failed-race",
+                    UserId = "concurrent-user",
+                    CodeHash = TestOtpCodeHasher.Instance.Hash("123456"),
+                    ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(2),
+                    FailedAttempts = 0
+                });
+                await setup.SaveChangesAsync();
+            }
+
+            var start = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var verifications = Enumerable.Range(0, 12).Select(async _ =>
+            {
+                await start.Task;
+                await using var db = new BrokerageDbContext(options);
+                var service = new PersistentOtpService(db, TestOtpCodeHasher.Instance);
+                return await service.VerifyAsync("concurrent-user", "failed-race", "000000");
+            }).ToArray();
+
+            start.SetResult(true);
+            var results = await Task.WhenAll(verifications);
+
+            Assert.All(results, result => Assert.False(result));
+            await using var verifyDb = new BrokerageDbContext(options);
+            Assert.False(await verifyDb.OtpChallenges.AnyAsync(x => x.ChallengeId == "failed-race"));
+        }
+        finally
+        {
+            if (File.Exists(databasePath))
+                File.Delete(databasePath);
+        }
+    }
+
+    private static DbContextOptions<BrokerageDbContext> CreateFileDatabaseOptions(string databasePath)
+    {
+        var connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = databasePath,
+            Pooling = false,
+            DefaultTimeout = 30
+        }.ToString();
+
+        return new DbContextOptionsBuilder<BrokerageDbContext>()
+            .UseSqlite(connectionString)
+            .Options;
+    }
+
+    [Fact]
     public async Task OtpChallenge_Issue_CleansUpExpiredChallenges()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
