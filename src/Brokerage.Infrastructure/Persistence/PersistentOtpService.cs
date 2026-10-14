@@ -54,11 +54,23 @@ public sealed class PersistentOtpService(BrokerageDbContext db, IOtpCodeHasher c
             return false;
 
         var now = DateTimeOffset.UtcNow;
+        var isSqlite = db.Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite";
+
         if (challenge.ExpiresAt <= now)
         {
-            await db.OtpChallenges
-                .Where(x => x.ChallengeId == challengeId && x.UserId == userId && x.ExpiresAt <= now)
-                .ExecuteDeleteAsync(cancellationToken);
+            if (isSqlite)
+            {
+                await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"DELETE FROM otp_challenges WHERE ChallengeId = {challengeId} AND UserId = {userId} AND ExpiresAt <= {now}",
+                    cancellationToken);
+            }
+            else
+            {
+                await db.OtpChallenges
+                    .Where(x => x.ChallengeId == challengeId && x.UserId == userId && x.ExpiresAt <= now)
+                    .ExecuteDeleteAsync(cancellationToken);
+            }
+
             return false;
         }
 
@@ -69,32 +81,50 @@ public sealed class PersistentOtpService(BrokerageDbContext db, IOtpCodeHasher c
 
         if (valid)
         {
-            var consumed = await db.OtpChallenges
+            var consumed = isSqlite
+                ? await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"DELETE FROM otp_challenges WHERE ChallengeId = {challengeId} AND UserId = {userId} AND ExpiresAt > {now} AND FailedAttempts < {MaxAttempts}",
+                    cancellationToken)
+                : await db.OtpChallenges
+                    .Where(x => x.ChallengeId == challengeId
+                        && x.UserId == userId
+                        && x.ExpiresAt > now
+                        && x.FailedAttempts < MaxAttempts)
+                    .ExecuteDeleteAsync(cancellationToken);
+
+            return consumed == 1;
+        }
+
+        var incremented = isSqlite
+            ? await db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE otp_challenges SET FailedAttempts = FailedAttempts + 1 WHERE ChallengeId = {challengeId} AND UserId = {userId} AND ExpiresAt > {now} AND FailedAttempts < {MaxAttempts}",
+                cancellationToken)
+            : await db.OtpChallenges
                 .Where(x => x.ChallengeId == challengeId
                     && x.UserId == userId
                     && x.ExpiresAt > now
                     && x.FailedAttempts < MaxAttempts)
-                .ExecuteDeleteAsync(cancellationToken);
-            return consumed == 1;
-        }
-
-        var incremented = await db.OtpChallenges
-            .Where(x => x.ChallengeId == challengeId
-                && x.UserId == userId
-                && x.ExpiresAt > now
-                && x.FailedAttempts < MaxAttempts)
-            .ExecuteUpdateAsync(
-                setters => setters.SetProperty(x => x.FailedAttempts, x => x.FailedAttempts + 1),
-                cancellationToken);
+                .ExecuteUpdateAsync(
+                    setters => setters.SetProperty(x => x.FailedAttempts, x => x.FailedAttempts + 1),
+                    cancellationToken);
 
         if (incremented == 0)
             return false;
 
-        await db.OtpChallenges
-            .Where(x => x.ChallengeId == challengeId
-                && x.UserId == userId
-                && x.FailedAttempts >= MaxAttempts)
-            .ExecuteDeleteAsync(cancellationToken);
+        if (isSqlite)
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"DELETE FROM otp_challenges WHERE ChallengeId = {challengeId} AND UserId = {userId} AND FailedAttempts >= {MaxAttempts}",
+                cancellationToken);
+        }
+        else
+        {
+            await db.OtpChallenges
+                .Where(x => x.ChallengeId == challengeId
+                    && x.UserId == userId
+                    && x.FailedAttempts >= MaxAttempts)
+                .ExecuteDeleteAsync(cancellationToken);
+        }
 
         return false;
     }
