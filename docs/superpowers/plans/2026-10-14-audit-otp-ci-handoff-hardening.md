@@ -18,7 +18,7 @@
 - Do not merge, change GitLab merge settings, deploy, modify production infrastructure, or request secrets.
 - Preserve timestamp precision and confirm application timestamp producers remain UTC before relying on SQLite text ordering.
 - Add no unrelated cleanup or documentation rewrite.
-- Do not manually create or retry intermediate pipelines. GitLab has already auto-started branch/documentation pipelines; let the integrated implementation commit trigger the final code-validation pipeline and do not retry it.
+- Do not manually create or retry intermediate pipelines. GitLab has auto-started branch/documentation pipelines. If the integrated validation run exposes a test defect, correct the defect and let that corrective commit trigger one final-head validation pipeline.
 
 ## Review Focus
 
@@ -89,9 +89,10 @@
 - [x] Preserve historical implementation notes and payment safety statements.
 - [ ] Confirm the written commit and pipeline URL match live GitLab after the final pipeline is created.
 
-### Final verification (one pipeline)
+### Final verification (corrected final-head pipeline)
 
 - [x] Inspect the integrated change list; it is limited to this plan, its design, targeted code/tests/CI scripts, and the two handoff docs.
-- [ ] Review the one final code-validation pipeline triggered by the integrated branch commit.
-- [ ] Review all jobs and test output; report failures without retrying or creating another pipeline unless the user later asks.
+- [x] Review initial integrated pipeline 2945622710; build and migration jobs passed, while the new audit SQL test exposed an assertion that counted EF diagnostic log entries. Corrected the assertion to target the executed-command log entry.
+- [ ] Review the corrective commit’s final-head validation pipeline.
+- [ ] Review all jobs and test output for the corrected final HEAD; report any remaining failure without another retry.
 - [ ] Confirm payment remains disabled and no merge/production action occurred.

@@ -150,7 +150,7 @@ public class AuditComplianceTests
         var commands = new List<string>();
         var options = new DbContextOptionsBuilder<BrokerageDbContext>()
             .UseSqlite(connection)
-            .LogTo(commands.Add)
+            .LogTo(commands.Add, Microsoft.Extensions.Logging.LogLevel.Information)
             .Options;
         await using var db = new BrokerageDbContext(options);
         await db.Database.MigrateAsync();
@@ -198,8 +198,8 @@ public class AuditComplianceTests
         Assert.Equal("TieHigher", selected[1].EventType);
         Assert.Equal("TieLower", selected[2].EventType);
 
-        var query = Assert.Single(commands.Where(command =>
-            command.Contains("SELECT * FROM audit_events", StringComparison.Ordinal)));
+        var query = Assert.Single(commands, command =>
+            command.Contains("Executed DbCommand", StringComparison.Ordinal));
         Assert.Contains("OccurredAt >=", query, StringComparison.Ordinal);
         Assert.Contains("OccurredAt <=", query, StringComparison.Ordinal);
         Assert.Contains("ORDER BY OccurredAt DESC, EventId DESC", query, StringComparison.Ordinal);

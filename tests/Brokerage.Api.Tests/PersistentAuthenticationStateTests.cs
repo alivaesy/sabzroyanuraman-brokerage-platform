@@ -52,7 +52,7 @@ public class PersistentAuthenticationStateTests
         var commands = new List<string>();
         var options = new DbContextOptionsBuilder<BrokerageDbContext>()
             .UseSqlite(connection)
-            .LogTo(commands.Add)
+            .LogTo(commands.Add, Microsoft.Extensions.Logging.LogLevel.Information)
             .Options;
         await using (var setup = new BrokerageDbContext(options))
             await setup.Database.MigrateAsync();
