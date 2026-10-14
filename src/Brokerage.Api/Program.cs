@@ -24,6 +24,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
+using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -129,7 +130,15 @@ builder.Services.AddRateLimiter(options =>
 
     options.OnRejected = (context, _) =>
     {
-        context.HttpContext.Response.Headers.CacheControl = "no-store";
+        var response = context.HttpContext.Response;
+        response.Headers.CacheControl = "no-store";
+
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+        {
+            var seconds = Math.Max(1L, (long)Math.Ceiling(retryAfter.TotalSeconds));
+            response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
+        }
+
         return ValueTask.CompletedTask;
     };
 });

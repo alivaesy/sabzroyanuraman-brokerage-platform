@@ -57,6 +57,8 @@ public class RateLimitingTests
             new { challengeId, code = "definitely-invalid" });
         Assert.Equal(HttpStatusCode.TooManyRequests, verificationResponse.StatusCode);
         Assert.Equal("no-store", verificationResponse.Headers.CacheControl?.ToString());
+        Assert.NotNull(verificationResponse.Headers.RetryAfter?.Delta);
+        Assert.InRange(verificationResponse.Headers.RetryAfter!.Delta!.Value.TotalSeconds, 1, 60);
 
         using var secondUserClient = application.CreateClient();
         secondUserClient.DefaultRequestHeaders.Add("X-Test-User-Id", "OTP-SHARED-LIMIT-SECOND-USER");

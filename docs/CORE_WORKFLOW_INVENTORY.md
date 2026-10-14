@@ -47,6 +47,7 @@ Status: repository-derived engineering inventory, not a compliance certification
 ## Boundary and release rules
 
 - A green CI pipeline proves only the checks in that pipeline passed for that commit. It does not establish legal compliance, production connectivity, merchant approval, or end-to-end readiness.
+- API rate-limit partitions are process-local and keyed by authenticated user plus the connection's remote IP. In multi-replica deployments, the configured thresholds apply per replica; use shared rate limiting or ingress enforcement before public rollout. Behind a reverse proxy, configure and trust forwarded headers before relying on the remote IP component.
 - The organization, Sana/Shahkar and geospatial adapters must be classified individually as mock, contract-defined, sandbox-tested, or production-approved.
 - Do not invent missing service stages, service-code mappings, tariffs, external API behavior, or legal interpretations.
 - Keep sensitive identity/registry payloads out of logs, telemetry, caches, fixtures and durable storage unless the approved data policy explicitly permits them.
