@@ -1,8 +1,16 @@
 # Workflow Consistency and Failure-Semantics Review
 
-**Status:** design review only; no business contract or release gate is presumed approved.  
-**Branch reviewed:** `feat/payment-foundation-sadad-ready`  
-**Latest branch evidence:** documentation-only commit `f46e7607352840d9b0288a90e1da96ba08ec475f`, pipeline [2942086092](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2942086092) passed all five configured jobs. Code/test checkpoint: `00927789eed4a206fc29b9888895502023780178`, pipeline [2941850499](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2941850499) passed.
+**Status:** design review; no business contract or release gate is presumed approved.  
+**Current implementation branch:** `codex/audit-otp-ci-handoff-hardening`, based on `feat/payment-foundation-sadad-ready` at `7d76a81b`.  
+**Current validation:** the integrated commit’s pipeline is linked from the [branch pipeline list](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines?ref=codex%2Faudit-otp-ci-handoff-hardening). The earlier planning-only pipeline [2945576068](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2945576068) does not verify the code changes. Payment remains disabled; the live PHP payment flow is outside this work.
+
+## Current hardening checkpoint (2026-10-14)
+
+The current branch bounds SQLite audit export with database-side date predicates, deterministic timestamp/EventId ordering, and LIMIT; removes expired OTP rows with a targeted database delete; and makes the local PowerShell checks call the same site and EF-migration validation scripts as GitLab CI. New SQLite regressions check equivalent non-UTC date bounds, tie ordering, bounded query SQL, and expired versus active OTP rows. The integrated commit’s pipeline must pass before these changes are described as CI-verified. No deployment or production database was inspected.
+
+## Prior implementation checkpoint (2026-10-13; historical)
+
+The sections below preserve the earlier workflow review and payment-branch implementation notes. Their references to branch heads and pipelines are historical and do not supersede the current hardening checkpoint above.
 
 ## Current implementation checkpoint (2026-10-13)
 

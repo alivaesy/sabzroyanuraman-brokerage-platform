@@ -4,7 +4,7 @@
 
 **Goal:** Bound SQLite work in audit export and OTP cleanup, align local checks with GitLab CI, and refresh handoff status without changing payment or production operations.
 
-**Architecture:** Keep API behavior and the provider-neutral audit path intact. Add SQLite-specific database-side filtering/deletion using UTC DateTimeOffset parameters and existing indexes. Update the PowerShell mirror checks and only the current-status sections of the two handoff documents.
+**Architecture:** Keep API behavior and the provider-neutral audit path intact. Add SQLite-specific database-side filtering/deletion using UTC DateTimeOffset parameters and existing indexes. Extract shared site and EF-migration checks for GitLab CI and the PowerShell mirror, then refresh only the current-status sections of the two handoff documents.
 
 **Tech Stack:** .NET 10, EF Core 10, SQLite, xUnit, PowerShell, GitLab CI.
 
@@ -18,7 +18,7 @@
 - Do not merge, change GitLab merge settings, deploy, modify production infrastructure, or request secrets.
 - Preserve timestamp precision and confirm application timestamp producers remain UTC before relying on SQLite text ordering.
 - Add no unrelated cleanup or documentation rewrite.
-- Do not run intermediate pipelines; run one GitLab pipeline after all planned changes are committed.
+- Do not manually create or retry intermediate pipelines. GitLab has already auto-started branch/documentation pipelines; let the integrated implementation commit trigger the final code-validation pipeline and do not retry it.
 
 ## Review Focus
 
@@ -41,37 +41,39 @@
 - Consumes: current `AuditEventRecord.OccurredAt` mapping and existing audit index.
 - Produces: unchanged `GET /audit/events/export` response, with SQLite date predicates/order/limit executed by the database.
 
-- [ ] Add a test for non-UTC bounds and equal timestamp tie ordering; include a larger fixture with a small requested limit.
-- [ ] Add a SQLite command interceptor assertion that the export query includes its timestamp predicates, descending ordering, and SQL limit, and does not issue an unbounded audit-table SELECT.
-- [ ] Implement a SQLite raw SQL query with parameterized nullable UTC bounds and requested limit; normalize incoming bounds to UTC. Keep the current LINQ behavior for non-SQLite providers.
+- [x] Add a test for non-UTC bounds and equal timestamp tie ordering; include a larger fixture with a small requested limit.
+- [ ] Capture SQLite command logging and assert that the export query includes its timestamp predicates, descending ordering, and SQL limit, and does not issue an unbounded audit-table SELECT.
+- [x] Implement a SQLite raw SQL query with parameterized nullable UTC bounds and requested limit; normalize incoming bounds to UTC. Keep the current LINQ behavior for non-SQLite providers.
 - [ ] Run the single final pipeline only after all tasks; expect the new audit tests and existing suite to pass.
 
 ### Task 2: Delete expired OTP rows in the database
 
 **Files:**
 - Modify: `src/Brokerage.Infrastructure/Persistence/PersistentOtpService.cs`
-- Test: `tests/Brokerage.Api.Tests/PersistentOtpServiceTests.cs` (new SQLite persistence tests)
+- Test: `tests/Brokerage.Api.Tests/PersistentAuthenticationStateTests.cs` (existing SQLite persistence tests)
 
 **Interfaces:**
 - Consumes: `BrokerageDbContext.OtpChallenges`, current SQLite DateTimeOffset mapping, and existing `UserId` index.
 - Produces: unchanged `IssueAsync`/verification contract; expired-row cleanup is a targeted SQL delete on SQLite and a translated filtered delete on other providers.
 
-- [ ] Add a persistence test that seeds expired and unexpired challenges and captures SQL to assert a predicate-based DELETE, with no table-wide challenge SELECT.
-- [ ] Replace full-table materialization with provider-specific targeted deletion; retain cancellation propagation and the current two-minute expiry.
+- [x] Add a persistence test that seeds expired and unexpired challenges and captures SQL to assert a predicate-based DELETE, with no table-wide challenge SELECT.
+- [x] Replace full-table materialization with provider-specific targeted deletion; retain cancellation propagation and the current two-minute expiry.
 - [ ] Confirm the final pipeline passes the new and existing OTP tests.
 
 ### Task 3: Align local CI with GitLab CI
 
 **Files:**
-- Modify: `ci-local.ps1`
+- Modify: `.gitlab-ci.yml`, `ci-local.ps1`
+- Create: `scripts/validate-site.sh`
+- Create: `scripts/verify-ef-migrations.sh`
 
 **Interfaces:**
 - Consumes: current `.gitlab-ci.yml` shell checks for site copy and migration source/discovery equality.
 - Produces: local Docker-based checks that detect the same targeted regressions; no Git or remote mutations.
 
-- [ ] Extend `dotnet_migration_verify` to enumerate timestamped migration source IDs and compare them with EF-discovered IDs, including missing or unexpected entries.
-- [ ] Add the exact website payment copy assertion and forbidden fixed-amount check used by GitLab CI.
-- [ ] Inspect the script diff for PowerShell/shell quoting and ensure no command invokes GitLab or writes repository state.
+- [x] Extract the EF migration source/discovery comparison into a shared script invoked by GitLab and local CI.
+- [x] Extract the GitLab site-copy and fixed-amount assertions into a shared script invoked by GitLab and local CI.
+- [x] Inspect the CI commands; both run shared shell checks without GitLab mutations or repository writes.
 
 ### Task 4: Refresh handoff status without rewriting history
 
@@ -83,13 +85,13 @@
 - Consumes: final branch commit and the single final Pipeline result.
 - Produces: concise current-status headers with older checkpoint notes retained as historical.
 
-- [ ] Update only the top/current status sections to identify `codex/audit-otp-ci-handoff-hardening`, its final commit, and the associated pipeline state/link; mark older `f46e7607` entries historical.
-- [ ] Preserve all historical implementation notes and payment safety statements.
+- [x] Update only current-status sections to identify `codex/audit-otp-ci-handoff-hardening` and the associated branch pipeline list; preserve prior checkpoints as historical.
+- [x] Preserve historical implementation notes and payment safety statements.
 - [ ] Confirm the written commit and pipeline URL match live GitLab after the final pipeline is created.
 
 ### Final verification (one pipeline)
 
-- [ ] Inspect the four-task diff and confirm only the listed files changed.
-- [ ] Run exactly one GitLab pipeline for the final branch head.
+- [x] Inspect the integrated change list; it is limited to this plan, its design, targeted code/tests/CI scripts, and the two handoff docs.
+- [ ] Review the one final code-validation pipeline triggered by the integrated branch commit.
 - [ ] Review all jobs and test output; report failures without retrying or creating another pipeline unless the user later asks.
 - [ ] Confirm payment remains disabled and no merge/production action occurred.

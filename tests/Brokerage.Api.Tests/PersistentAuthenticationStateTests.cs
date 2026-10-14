@@ -49,31 +49,53 @@ public class PersistentAuthenticationStateTests
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
 
-        var options = new DbContextOptionsBuilder<BrokerageDbContext>().UseSqlite(connection).Options;
+        var commands = new List<string>();
+        var options = new DbContextOptionsBuilder<BrokerageDbContext>()
+            .UseSqlite(connection)
+            .LogTo(commands.Add)
+            .Options;
         await using (var setup = new BrokerageDbContext(options))
             await setup.Database.MigrateAsync();
 
         await using (var db = new BrokerageDbContext(options))
         {
-            db.OtpChallenges.Add(new OtpChallengeRecord
-            {
-                ChallengeId = "expired-challenge",
-                UserId = "expired-user",
-                CodeHash = TestOtpCodeHasher.Instance.Hash("123456"),
-                ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(-1),
-                FailedAttempts = 0
-            });
+            db.OtpChallenges.AddRange(
+                new OtpChallengeRecord
+                {
+                    ChallengeId = "expired-challenge",
+                    UserId = "expired-user",
+                    CodeHash = TestOtpCodeHasher.Instance.Hash("123456"),
+                    ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(-1),
+                    FailedAttempts = 0
+                },
+                new OtpChallengeRecord
+                {
+                    ChallengeId = "active-challenge",
+                    UserId = "active-user",
+                    CodeHash = TestOtpCodeHasher.Instance.Hash("654321"),
+                    ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(5),
+                    FailedAttempts = 0
+                });
             await db.SaveChangesAsync();
         }
 
+        commands.Clear();
         await using (var db = new BrokerageDbContext(options))
         {
             var service = new PersistentOtpService(db, TestOtpCodeHasher.Instance);
             await service.IssueAsync("new-user");
         }
 
+        Assert.Contains(commands, command =>
+            command.Contains("DELETE FROM otp_challenges", StringComparison.OrdinalIgnoreCase) &&
+            command.Contains("ExpiresAt", StringComparison.Ordinal));
+        Assert.DoesNotContain(commands, command =>
+            command.Contains("FROM \"otp_challenges\"", StringComparison.OrdinalIgnoreCase) &&
+            command.Contains("SELECT", StringComparison.OrdinalIgnoreCase));
+
         await using var verifyDb = new BrokerageDbContext(options);
         Assert.False(await verifyDb.OtpChallenges.AnyAsync(x => x.ChallengeId == "expired-challenge"));
+        Assert.True(await verifyDb.OtpChallenges.AnyAsync(x => x.ChallengeId == "active-challenge"));
     }
 
     [Fact]

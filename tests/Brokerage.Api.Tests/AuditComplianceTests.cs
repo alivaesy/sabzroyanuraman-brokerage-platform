@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http;
+using Brokerage.Api.Endpoints;
 using Brokerage.Application.Authorization;
 using Brokerage.Application.Contracts;
 using Brokerage.Application.Models;
@@ -139,6 +140,84 @@ public class AuditComplianceTests
         Assert.Equal("AuditOrderingNewest", System.Text.Json.JsonDocument.Parse(lines[0]).RootElement.GetProperty("eventType").GetString());
         Assert.Equal("AuditOrderingMiddle", System.Text.Json.JsonDocument.Parse(lines[1]).RootElement.GetProperty("eventType").GetString());
     }
+
+    [Fact]
+    public async Task AuditExport_SqliteAppliesUtcBoundsOrderAndLimitInDatabase()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        var commands = new List<string>();
+        var options = new DbContextOptionsBuilder<BrokerageDbContext>()
+            .UseSqlite(connection)
+            .LogTo(commands.Add)
+            .Options;
+        await using var db = new BrokerageDbContext(options);
+        await db.Database.MigrateAsync();
+
+        var baseTime = DateTimeOffset.UtcNow.AddHours(-1);
+        var records = new List<AuditEventRecord>();
+        for (var second = 0; second <= 40; second++)
+        {
+            if (second == 15)
+            {
+                records.Add(CreateAuditRecord(
+                    Guid.Parse("00000000-0000-0000-0000-000000000100"),
+                    baseTime.AddSeconds(second),
+                    "TieLower"));
+                records.Add(CreateAuditRecord(
+                    Guid.Parse("00000000-0000-0000-0000-000000000101"),
+                    baseTime.AddSeconds(second),
+                    "TieHigher"));
+            }
+            else
+            {
+                records.Add(CreateAuditRecord(
+                    Guid.Parse($"00000000-0000-0000-0000-{second:D12}"),
+                    baseTime.AddSeconds(second),
+                    $"Event{second}"));
+            }
+        }
+
+        db.AuditEvents.AddRange(records);
+        await db.SaveChangesAsync();
+        commands.Clear();
+
+        var utcFrom = baseTime.AddSeconds(10);
+        var utcTo = baseTime.AddSeconds(16);
+        var nonUtcOffset = TimeSpan.FromMinutes(210);
+        var selected = await AuditExportEndpoints.LoadRecordsAsync(
+            db,
+            utcFrom.ToOffset(nonUtcOffset),
+            utcTo.ToOffset(nonUtcOffset),
+            limit: 3,
+            CancellationToken.None);
+
+        Assert.Equal(3, selected.Count);
+        Assert.Equal("Event16", selected[0].EventType);
+        Assert.Equal("TieHigher", selected[1].EventType);
+        Assert.Equal("TieLower", selected[2].EventType);
+
+        var query = Assert.Single(commands.Where(command =>
+            command.Contains("SELECT * FROM audit_events", StringComparison.Ordinal)));
+        Assert.Contains("OccurredAt >=", query, StringComparison.Ordinal);
+        Assert.Contains("OccurredAt <=", query, StringComparison.Ordinal);
+        Assert.Contains("ORDER BY OccurredAt DESC, EventId DESC", query, StringComparison.Ordinal);
+        Assert.Contains("LIMIT", query, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static AuditEventRecord CreateAuditRecord(
+        Guid eventId,
+        DateTimeOffset occurredAt,
+        string eventType)
+        => new()
+        {
+            EventId = eventId,
+            OccurredAt = occurredAt,
+            EventType = eventType,
+            CorrelationId = $"audit-query-{eventType}",
+            Outcome = "Success"
+        };
 
     [Fact]
     public async Task Migrations_ApplyToEmptyDatabase_AndCreateAuditImmutabilityTriggers()

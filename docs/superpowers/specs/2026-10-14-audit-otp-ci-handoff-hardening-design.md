@@ -34,7 +34,7 @@ Bound database work for SQLite audit exports and expired OTP cleanup, bring loca
 
 - SQLite audit export returns the correct filtered, ordered, limited results without materializing the full table in application memory; verification covers date boundaries, non-UTC request bounds, tie ordering, and a small limit over a larger fixture.
 - OTP issue removes expired rows with a targeted database operation, without enumerating/materializing the challenge table; verification proves expired rows are removed and unexpired rows remain.
-- Local migration and site checks detect the same classes of regression guarded by GitLab CI.
+- Local PowerShell and GitLab CI invoke the same migration-discovery and site-copy scripts.
 - Handoff current-status text matches the exact branch head and successful pipeline at the time of implementation; older evidence remains visibly historical.
 - The final diff is limited to these behaviors and documentation. Verification results and any provider/data limitation are reported explicitly.
 

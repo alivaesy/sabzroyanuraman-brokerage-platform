@@ -16,22 +16,7 @@ site_validate:
   stage: validate
   image: alpine:3.20
   script:
-    - echo "Validating Sabz Royan Uraman website..."
-    - test -f sabzroyanuraman-site/index.html
-    - test -f sabzroyanuraman-site/determination-form.html
-    - test -f sabzroyanuraman-site/brokerage-details.html
-    - test -f sabzroyanuraman-site/web-gis.html
-    - test -f sabzroyanuraman-site/web-cad.html
-    - test -f sabzroyanuraman-site/.htaccess
-    - test -f sabzroyanuraman-site/آپ.png
-    - test -f sabzroyanuraman-site/سداد.png
-    - grep -Fq 'src="/آپ.png"' sabzroyanuraman-site/brokerage-details.html
-    - grep -Fq 'src="/سداد.png"' sabzroyanuraman-site/brokerage-details.html
-    - grep -Fq 'مبلغ نهایی بر اساس تعرفه مصوب و در سامانه پرداخت محاسبه می‌شود.' sabzroyanuraman-site/brokerage-details.html
-    - if grep -Fq '۵٬۰۰۰ تومان' sabzroyanuraman-site/brokerage-details.html; then echo "hardcoded-payment-amount-display"; exit 1; fi
-    - if grep -Fq 'src="/payment/آپ.png"' sabzroyanuraman-site/brokerage-details.html; then echo "broken-logo-path"; exit 1; fi
-    - if grep -Fq 'src="/payment/سداد.png"' sabzroyanuraman-site/brokerage-details.html; then echo "broken-logo-path"; exit 1; fi
-    - echo "Required website files are present."
+    - sh scripts/validate-site.sh
 
 secret_scan:
   stage: validate
@@ -75,49 +60,7 @@ dotnet_migration_verify:
     - dotnet tool install --global dotnet-ef --version 10.0.12
     - dotnet restore BrokeragePlatform.slnx
     - dotnet build src/Brokerage.Api/Brokerage.Api.csproj --configuration Release --no-restore
-    - |
-      set -eu
-      migrations="$(dotnet ef migrations list --project src/Brokerage.Infrastructure/Brokerage.Infrastructure.csproj --startup-project src/Brokerage.Api/Brokerage.Api.csproj --configuration Release --no-build)"
-      printf '%s\n' "$migrations"
-      for migration in \
-        "20261005043933_InitialCreate" \
-        "20261005093520_AddAuditEvents" \
-        "20261005190000_HardenAuditEvents" \
-        "20261006100000_PersistOtpMfaState" \
-        "20261008170000_AddPaymentTransactions" \
-        "20261010100000_AddPaymentStatusUpdatedAtIndex"; do
-        if ! printf '%s\n' "$migrations" | grep -Fq "$migration"; then
-          echo "ERROR: EF migration '$migration' was not discovered."
-          exit 1
-        fi
-      done
-      if printf '%s\n' "$migrations" | grep -Fq "No migrations were found"; then
-        echo "ERROR: EF reported that no migrations were found."
-        exit 1
-      fi
-
-      # Compare every tracked migration source file with EF's discovered migration IDs.
-      # The fixed required list above is a baseline; this comparison also catches newly
-      # added source migrations that EF fails to discover and unexpected EF-only entries.
-      source_migrations="$(find src/Brokerage.Infrastructure/Persistence/Migrations -maxdepth 1 -type f -name '[0-9]*_*.cs' ! -name '*.Designer.cs' -printf '%f\n' | sed 's/\.cs$//' | sort)"
-      discovered_migrations="$(printf '%s\n' "$migrations" | sed -nE 's/^([0-9]{14}_[A-Za-z0-9_]+)([[:space:]]+\(Pending\))?$/\1/p' | sort)"
-
-      if [ -z "$source_migrations" ]; then
-        echo "ERROR: No migration source files were found."
-        exit 1
-      fi
-      if [ -z "$discovered_migrations" ]; then
-        echo "ERROR: EF did not report any parseable migration IDs."
-        exit 1
-      fi
-      if [ "$source_migrations" != "$discovered_migrations" ]; then
-        echo "ERROR: Migration source files and EF-discovered migration IDs differ."
-        echo "Migration source files:"
-        printf '%s\n' "$source_migrations"
-        echo "EF-discovered migration IDs:"
-        printf '%s\n' "$discovered_migrations"
-        exit 1
-      fi
+    - sh scripts/verify-ef-migrations.sh
 
 dotnet_test:
   <<: *dotnet_cache
