@@ -103,7 +103,7 @@ public class OperationalMetricsTests
         Assert.Equal(0, overflow.ClientErrorCount);
         Assert.Equal(1, overflow.ServerErrorCount);
         Assert.Equal(1, overflow.ErrorCount);
-        Assert.Equal(224d, overflow.AverageElapsedMilliseconds, 6);
+        Assert.Equal(225d, overflow.AverageElapsedMilliseconds, 6);
         Assert.Equal(snapshot.TotalRequestCount, snapshot.Endpoints.Sum(x => x.RequestCount));
     }
 

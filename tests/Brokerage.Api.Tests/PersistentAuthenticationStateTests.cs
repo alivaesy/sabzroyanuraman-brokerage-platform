@@ -29,7 +29,7 @@ public class PersistentAuthenticationStateTests
             await using var db = new BrokerageDbContext(options);
             var service = new PersistentOtpService(db, TestOtpCodeHasher.Instance);
             Assert.False(await service.VerifyAsync("persistent-user", challengeId, "not-a-code"));
-            var record = await db.OtpChallenges.SingleAsync(x => x.ChallengeId == challengeId);
+            var record = await db.OtpChallenges.AsNoTracking().SingleAsync(x => x.ChallengeId == challengeId);
             Assert.Equal(expectedAttempts, record.FailedAttempts);
         }
 
