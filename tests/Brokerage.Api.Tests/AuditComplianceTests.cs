@@ -116,7 +116,10 @@ public class AuditComplianceTests
     [Fact]
     public async Task AuditExport_WithLimit_ReturnsNewestEventsFirst()
     {
-        await using var application = new WebApplicationFactory<Program>();
+        await using var temporaryDatabase = new TemporarySqliteDatabase();
+        await using var application = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, configuration) =>
+                configuration.AddInMemoryCollection(temporaryDatabase.Configuration)));
         using var client = application.CreateClient();
         client.DefaultRequestHeaders.Add("X-Test-User-Id", "AUDIT-SEC-002");
         client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.TechnicalSecurity.ToString());

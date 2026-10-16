@@ -184,9 +184,10 @@ public class PaymentEndpointTests
     [Fact]
     public async Task CreatePayment_IdempotentReplayOfReconciliationRequiredPaymentDoesNotRedirectToGateway()
     {
+        await using var temporaryDatabase = new TemporarySqliteDatabase();
         await using var application = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
             builder.ConfigureAppConfiguration((_, configuration) =>
-                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                configuration.AddInMemoryCollection(new Dictionary<string, string?>(temporaryDatabase.Configuration)
                 {
                     ["Payment:Enabled"] = "true",
                     ["Payment:Tariffs:S01"] = "100000",
@@ -197,7 +198,7 @@ public class PaymentEndpointTests
                 })));
 
         var userId = $"payment-reconciliation-replay-{Guid.NewGuid():N}";
-        const string idempotencyKey = "reconciliation-replay-key";
+        var idempotencyKey = $"reconciliation-replay-key-{Guid.NewGuid():N}";
         var serviceRequest = new ServiceRequest(ServiceCode.S01, userId);
         var payment = new PaymentTransaction(serviceRequest.Id, 100000, "IRR", idempotencyKey);
         payment.MarkGatewayCreated("stored-gateway-token");
