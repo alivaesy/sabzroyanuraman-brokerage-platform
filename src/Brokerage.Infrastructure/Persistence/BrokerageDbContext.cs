@@ -12,6 +12,7 @@ public sealed class BrokerageDbContext(DbContextOptions<BrokerageDbContext> opti
     public DbSet<AuditEventRecord> AuditEvents => Set<AuditEventRecord>();
     public DbSet<OtpChallengeRecord> OtpChallenges => Set<OtpChallengeRecord>();
     public DbSet<MfaVerificationRecord> MfaVerifications => Set<MfaVerificationRecord>();
+    public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -26,7 +27,7 @@ public sealed class BrokerageDbContext(DbContextOptions<BrokerageDbContext> opti
             entity.Property(x => x.OrganizationTrackingId).HasMaxLength(200);
             entity.Property(x => x.OrganizationStatus).HasMaxLength(100);
             entity.Property(x => x.CreatedAt).IsRequired();
-            entity.Property(x => x.UpdatedAt).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired().IsConcurrencyToken();
             entity.HasMany<WorkflowStage>().WithOne().HasForeignKey(x => x.ServiceRequestId).OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -63,6 +64,7 @@ public sealed class BrokerageDbContext(DbContextOptions<BrokerageDbContext> opti
             entity.Property(x => x.ExpiresAt).IsRequired();
             entity.Property(x => x.FailedAttempts).IsRequired();
             entity.HasIndex(x => x.UserId);
+            entity.HasIndex(x => x.ExpiresAt);
         });
 
         modelBuilder.Entity<MfaVerificationRecord>(entity =>
@@ -89,6 +91,29 @@ public sealed class BrokerageDbContext(DbContextOptions<BrokerageDbContext> opti
             entity.Property(x => x.OccurredAt).IsRequired();
             entity.HasIndex(x => x.OccurredAt);
             entity.HasIndex(x => x.ServiceRequestId);
+        });
+
+        modelBuilder.Entity<PaymentTransaction>(entity =>
+        {
+            entity.ToTable("payment_transactions");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Amount).IsRequired();
+            entity.Property(x => x.Currency).HasMaxLength(3).IsRequired();
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(50).IsRequired();
+            entity.Property(x => x.IdempotencyKey).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.GatewayToken).HasMaxLength(500);
+            entity.Property(x => x.GatewayReference).HasMaxLength(200);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired();
+            entity.Property(x => x.VerifiedAt);
+            entity.HasIndex(x => x.IdempotencyKey).IsUnique();
+            entity.HasIndex(x => x.GatewayReference);
+            entity.HasIndex(x => x.ServiceRequestId);
+            entity.HasIndex(x => new { x.Status, x.UpdatedAt });
+            entity.HasOne<ServiceRequest>()
+                .WithMany()
+                .HasForeignKey(x => x.ServiceRequestId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

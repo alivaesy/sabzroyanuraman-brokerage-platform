@@ -7,6 +7,23 @@ namespace Brokerage.Application.Tests;
 public class WorkflowServiceTests
 {
     [Fact]
+    public void CreateStage_WithEmptyStageCode_Throws()
+    {
+        var workflowService = new WorkflowService();
+        var request = new ServiceRequest(ServiceCode.S01, "test-applicant");
+
+        Assert.Throws<ArgumentException>(
+            () => workflowService.CreateStage(request, " "));
+    }
+
+    [Fact]
+    public void WorkflowStage_WithEmptyServiceRequestId_Throws()
+    {
+        Assert.Throws<ArgumentException>(
+            () => new WorkflowStage(Guid.Empty, "IdentityVerification"));
+    }
+
+    [Fact]
     public void CreateStage_AssignsStageToServiceRequest()
     {
         var workflowService = new WorkflowService();

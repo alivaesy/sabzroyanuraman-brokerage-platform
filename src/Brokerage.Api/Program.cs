@@ -7,6 +7,7 @@ using Brokerage.Application.Integration;
 using Brokerage.Application.Validation;
 using Brokerage.Infrastructure.Integration;
 using Brokerage.Infrastructure.Persistence;
+using Brokerage.Infrastructure.Payments;
 using Brokerage.Api.Middleware;
 using Brokerage.Api.Authentication;
 using Brokerage.Api.Authorization;
@@ -23,6 +24,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
+using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,6 +33,17 @@ builder.Logging.AddJsonConsole();
 builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IOperationalMetrics, OperationalMetrics>();
+
+static string GetRateLimitPartitionKey(HttpContext context)
+{
+    var userId = context.User.FindFirst(IdentityClaims.UserId)?.Value
+        ?? context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+        ?? context.User.Identity?.Name
+        ?? "anonymous";
+    var remoteIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    return $"{userId}:{remoteIp}";
+}
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -45,22 +58,105 @@ builder.Services.AddRateLimiter(options =>
 
     options.AddPolicy("otp", context =>
     {
-        var partitionKey = context.User.Identity?.Name
-            ?? context.Connection.RemoteIpAddress?.ToString()
-            ?? "unknown";
+        var partitionKey = GetRateLimitPartitionKey(context);
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => CreateOptions());
     });
 
     options.AddPolicy("identity-verification", context =>
     {
-        var partitionKey = context.User.Identity?.Name
-            ?? context.Connection.RemoteIpAddress?.ToString()
-            ?? "unknown";
+        var partitionKey = GetRateLimitPartitionKey(context);
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => CreateOptions());
     });
+
+    options.AddPolicy("audit-export", context =>
+    {
+        var partitionKey = GetRateLimitPartitionKey(context);
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        });
+    });
+ 
+    options.AddPolicy("operational-read", context =>
+    {
+        var partitionKey = GetRateLimitPartitionKey(context);
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 60,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        });
+    });
+
+    options.AddPolicy("service-request-read", context =>
+    {
+        var partitionKey = GetRateLimitPartitionKey(context);
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 60,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        });
+    });
+
+    options.AddPolicy("service-request-create", context =>
+    {
+        var partitionKey = GetRateLimitPartitionKey(context);
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        });
+    });
+
+    options.AddPolicy("payment-create", context =>
+    {
+        var partitionKey = GetRateLimitPartitionKey(context);
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        });
+    });
+
+    options.AddPolicy("payment-callback", context =>
+    {
+        var partitionKey = GetRateLimitPartitionKey(context);
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 30,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        });
+    });
+
+    options.OnRejected = (context, _) =>
+    {
+        var response = context.HttpContext.Response;
+        response.Headers.CacheControl = "no-store";
+
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+        {
+            var seconds = Math.Max(1L, (long)Math.Ceiling(retryAfter.TotalSeconds));
+            response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
+        }
+
+        return ValueTask.CompletedTask;
+    };
 });
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddScoped<IAuditEventWriter, AuditEventWriter>();
+builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 
 if (builder.Environment.IsDevelopment())
 {
@@ -109,6 +205,9 @@ builder.Services.AddAuthorization(options =>
         UserRole.TechnicalSecurity.ToString(),
         UserRole.OrganizationObserver.ToString(),
         UserRole.Administrator.ToString()));
+    options.AddPolicy(AuthorizationPolicies.PaymentOperations, policy => policy.RequireRole(
+        UserRole.TechnicalSecurity.ToString(),
+        UserRole.Administrator.ToString()));
     options.AddPolicy(AuthorizationPolicies.MfaVerified, policy => policy.AddRequirements(new MfaRequirement()));
 });
 
@@ -118,6 +217,21 @@ builder.Services.AddDbContext<BrokerageDbContext>(options =>
         ?? "Data Source=brokerage.db"));
 
 builder.Services.AddScoped<IServiceRequestRepository, ServiceRequestRepository>();
+builder.Services.AddScoped<IPaymentTransactionRepository, PaymentTransactionRepository>();
+builder.Services.AddSingleton(_ => SadadOptions.FromConfiguration(builder.Configuration));
+// A bounded provider timeout prevents a stalled gateway from holding request resources indefinitely.
+builder.Services.AddHttpClient<SadadPaymentGateway>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+})
+.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    // Sadad request bodies include signed payment data. Do not forward them automatically
+    // if a configured provider endpoint responds with a redirect to another host.
+    AllowAutoRedirect = false
+});
+builder.Services.AddScoped<IPaymentGateway>(services => services.GetRequiredService<SadadPaymentGateway>());
+builder.Services.AddScoped<PaymentService>();
 builder.Services.AddScoped<IIdentityVerificationStateRepository, IdentityVerificationStateRepository>();
 builder.Services.AddScoped<CreateServiceRequest>();
 builder.Services.AddScoped<CreateS01ServiceRequest>();
@@ -196,8 +310,28 @@ app.Use(async (context, next) =>
         context.Response.Headers["Referrer-Policy"] = "no-referrer";
         context.Response.Headers["X-Frame-Options"] = "DENY";
         context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+        context.Response.Headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
         return Task.CompletedTask;
     });
+
+    await next();
+});
+
+// Identity and service-request APIs return account-specific or case-specific data.
+// Apply no-store before authorization/endpoint execution so error responses are covered too.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/identity") ||
+        context.Request.Path.StartsWithSegments("/service-requests") ||
+        context.Request.Path.StartsWithSegments("/ops/payments") ||
+        context.Request.Path.StartsWithSegments("/audit/events/export"))
+    {
+        context.Response.OnStarting(() =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            return Task.CompletedTask;
+        });
+    }
 
     await next();
 });
@@ -225,7 +359,7 @@ app.MapGet("/ops/metrics", (HttpContext context, IOperationalMetrics metrics) =>
 {
     context.Response.Headers.CacheControl = "no-store";
     return Results.Ok(metrics.Snapshot());
-}).RequireAuthorization(AuthorizationPolicies.OperationalMonitoring);
+}).RequireAuthorization(AuthorizationPolicies.OperationalMonitoring).RequireRateLimiting("operational-read");
 
 app.MapGet("/ops/status", async (
     HttpContext context,
@@ -256,8 +390,10 @@ app.MapGet("/ops/status", async (
     return canConnect
         ? Results.Ok(payload)
         : Results.Json(payload, statusCode: StatusCodes.Status503ServiceUnavailable);
-}).RequireAuthorization(AuthorizationPolicies.OperationalMonitoring);
+}).RequireAuthorization(AuthorizationPolicies.OperationalMonitoring).RequireRateLimiting("operational-read");
 AuditExportEndpoints.Map(app);
+PaymentOperationalEndpoints.Map(app);
+PaymentEndpoints.Map(app);
 
 app.MapPost("/identity/verify", async (
     ICurrentUser currentUser,
@@ -266,6 +402,8 @@ app.MapPost("/identity/verify", async (
     HttpContext context,
     CancellationToken cancellationToken) =>
 {
+    context.Response.Headers.CacheControl = "no-store";
+
     if (!currentUser.IsAuthenticated || string.IsNullOrWhiteSpace(currentUser.UserId))
         return Results.Unauthorized();
 
@@ -294,6 +432,8 @@ app.MapPost("/identity/otp/challenges", async (
     HttpContext context,
     CancellationToken cancellationToken) =>
 {
+    context.Response.Headers.CacheControl = "no-store";
+
     if (!currentUser.IsAuthenticated || string.IsNullOrWhiteSpace(currentUser.UserId))
         return Results.Unauthorized();
 
@@ -314,6 +454,8 @@ app.MapPost("/identity/otp/verify", async (
     HttpContext context,
     CancellationToken cancellationToken) =>
 {
+    context.Response.Headers.CacheControl = "no-store";
+
     if (!currentUser.IsAuthenticated || string.IsNullOrWhiteSpace(currentUser.UserId))
         return Results.Unauthorized();
 
@@ -344,6 +486,12 @@ app.MapPost("/service-requests", async (
     IIdentityVerificationStateRepository identityStates,
     CancellationToken cancellationToken) =>
 {
+    if (!Enum.IsDefined(serviceCode))
+        return Results.BadRequest(new { message = "Unsupported service code." });
+
+    if (serviceCode == ServiceCode.S01)
+        return Results.BadRequest(new { message = "S01 requests must use the dedicated S01 workflow." });
+
     if (string.IsNullOrWhiteSpace(currentUser.UserId))
         return Results.Unauthorized();
 
@@ -351,14 +499,14 @@ app.MapPost("/service-requests", async (
     if (identityState?.IsVerified != true)
         return Results.Forbid();
 
-    var request = useCase.Execute(serviceCode, "INITIAL", currentUser.UserId);
-    return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.CreatedAt, request.UpdatedAt });
-}).RequireAuthorization(AuthorizationPolicies.Applicant);
+    var request = await useCase.ExecuteAsync(serviceCode, "INITIAL", currentUser.UserId, cancellationToken);
+    return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.CreatedAt, request.UpdatedAt, request.CurrentWorkflowStageId });
+}).RequireAuthorization(AuthorizationPolicies.Applicant).RequireRateLimiting("service-request-create");
 
 app.MapPost("/service-requests/s01", async (
     CreateS01ServiceRequest useCase, CreateS01RequestModel model, ICurrentUser currentUser,
     IIdentityVerificationStateRepository identityStates, HttpContext context,
-    IAuditEventWriter auditEventWriter, CancellationToken cancellationToken) =>
+    CancellationToken cancellationToken) =>
 {
     if (string.IsNullOrWhiteSpace(currentUser.UserId))
         return Results.Unauthorized();
@@ -367,14 +515,12 @@ app.MapPost("/service-requests/s01", async (
     if (identityState?.IsVerified != true)
         return Results.Forbid();
 
-    var request = await useCase.ExecuteAsync(model, currentUser.UserId, context.TraceIdentifier, cancellationToken);
-    await auditEventWriter.WriteAsync(new AuditEvent(
-        Guid.NewGuid(), DateTimeOffset.UtcNow, "ServiceRequestCreated", context.TraceIdentifier,
-        request.Id, request.CurrentWorkflowStageId?.ToString(), "Success", null, request.Status.ToString(),
-        currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
+    var request = await useCase.ExecuteAsync(
+        model, currentUser.UserId, context.TraceIdentifier, cancellationToken,
+        currentUser.Role, context.Connection.RemoteIpAddress?.ToString());
     return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.CreatedAt, request.UpdatedAt,
         request.CurrentWorkflowStageId, request.OrganizationTrackingId });
-}).RequireAuthorization(AuthorizationPolicies.Applicant);
+}).RequireAuthorization(AuthorizationPolicies.Applicant).RequireRateLimiting("service-request-create");
 
 app.MapGet("/service-requests/{id:guid}", async (
     Guid id,
@@ -389,7 +535,7 @@ app.MapGet("/service-requests/{id:guid}", async (
 
     return Results.Ok(new { request.Id, request.ServiceCode, request.Status,
         request.CreatedAt, request.UpdatedAt, request.CurrentWorkflowStageId, request.OrganizationTrackingId, request.OrganizationStatus });
-}).RequireAuthorization();
+}).RequireAuthorization().RequireRateLimiting("service-request-read");
 
 app.MapGet("/service-requests/{id:guid}/workflow-stages", async (
     Guid id,
@@ -404,12 +550,13 @@ app.MapGet("/service-requests/{id:guid}/workflow-stages", async (
 
     var stages = await repository.GetWorkflowStagesAsync(id, cancellationToken);
     return Results.Ok(stages.Select(stage => new { stage.Id, stage.ServiceRequestId, stage.StageCode, stage.CreatedAt, stage.CompletedAt }));
-}).RequireAuthorization();
+}).RequireAuthorization().RequireRateLimiting("service-request-read");
 
 app.MapGet("/service-requests/{id:guid}/organization-status", async (
     Guid id, IServiceRequestRepository repository, ICurrentUser currentUser,
     IOrganizationIntegrationService organizationIntegrationService,
-    HttpContext context, IAuditEventWriter auditEventWriter, CancellationToken cancellationToken) =>
+    HttpContext context, IAuditEventWriter auditEventWriter, IUnitOfWork unitOfWork,
+    CancellationToken cancellationToken) =>
 {
     var request = await repository.GetByIdAsync(id, cancellationToken);
     if (request is null) return Results.NotFound();
@@ -418,43 +565,61 @@ app.MapGet("/service-requests/{id:guid}/organization-status", async (
     if (string.IsNullOrWhiteSpace(request.OrganizationTrackingId))
         return Results.BadRequest(new { message = "The service request has no organization tracking ID." });
 
+    // Keep the remote call outside the database transaction; the local request/stage/audit
+    // updates below must commit or roll back together.
     var previousOrganizationStatus = request.OrganizationStatus;
     var organizationStatus = await organizationIntegrationService.GetStatusAsync(request.OrganizationTrackingId, cancellationToken);
-    request.SetOrganizationStatus(organizationStatus);
 
-    var workflowStages = await repository.GetWorkflowStagesAsync(id, cancellationToken);
-    var followUpStage = workflowStages.SingleOrDefault(stage => stage.StageCode == S01StageCode.OrganizationFollowUp.ToString());
-
-    if (followUpStage is not null && followUpStage.CompletedAt is null)
+    try
     {
-        followUpStage.Complete();
-        await auditEventWriter.WriteAsync(new AuditEvent(
-            Guid.NewGuid(), DateTimeOffset.UtcNow, "WorkflowStageCompleted", context.TraceIdentifier,
-            request.Id, followUpStage.StageCode, "Success", null, followUpStage.StageCode,
-            currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
-    }
+        await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
+        request.SetOrganizationStatus(organizationStatus);
 
-    var resultStage = workflowStages.SingleOrDefault(stage => stage.StageCode == S01StageCode.ResultNotification.ToString());
-    if (resultStage is null)
+        var workflowStages = await repository.GetWorkflowStagesAsync(id, cancellationToken);
+        var followUpStage = workflowStages.SingleOrDefault(stage => stage.StageCode == S01StageCode.OrganizationFollowUp.ToString());
+
+        if (followUpStage is not null && followUpStage.CompletedAt is null)
+        {
+            followUpStage.Complete();
+            await auditEventWriter.WriteAsync(new AuditEvent(
+                Guid.NewGuid(), DateTimeOffset.UtcNow, "WorkflowStageCompleted", context.TraceIdentifier,
+                request.Id, followUpStage.StageCode, "Success", null, followUpStage.StageCode,
+                currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
+        }
+
+        var resultStage = workflowStages.SingleOrDefault(stage => stage.StageCode == S01StageCode.ResultNotification.ToString());
+        if (resultStage is null)
+        {
+            resultStage = new WorkflowStage(request.Id, S01StageCode.ResultNotification.ToString());
+            await repository.AddWorkflowStageAsync(resultStage, cancellationToken);
+            request.SetCurrentWorkflowStage(resultStage.Id);
+            await auditEventWriter.WriteAsync(new AuditEvent(
+                Guid.NewGuid(), DateTimeOffset.UtcNow, "WorkflowStageCreated", context.TraceIdentifier,
+                request.Id, resultStage.StageCode, "Success", null, resultStage.StageCode,
+                currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
+        }
+
+        await repository.SaveChangesAsync(cancellationToken);
+        await auditEventWriter.WriteAsync(new AuditEvent(
+            Guid.NewGuid(), DateTimeOffset.UtcNow, "OrganizationStatusReceived", context.TraceIdentifier,
+            request.Id, resultStage.StageCode, "Success", previousOrganizationStatus, organizationStatus,
+            currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.OrganizationTrackingId,
+            request.OrganizationStatus, request.CurrentWorkflowStageId });
+    }
+    catch (DbUpdateConcurrencyException)
     {
-        resultStage = new WorkflowStage(request.Id, S01StageCode.ResultNotification.ToString());
-        await repository.AddWorkflowStageAsync(resultStage, cancellationToken);
-        request.SetCurrentWorkflowStage(resultStage.Id);
-        await auditEventWriter.WriteAsync(new AuditEvent(
-            Guid.NewGuid(), DateTimeOffset.UtcNow, "WorkflowStageCreated", context.TraceIdentifier,
-            request.Id, resultStage.StageCode, "Success", null, resultStage.StageCode,
-            currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
+        // Another refresh committed after this request read the old request version.
+        // Do not retry the external call or overwrite the newer local transition.
+        return Results.Conflict(new
+        {
+            message = "Organization status changed while this refresh was in progress. Retry the refresh."
+        });
     }
-
-    await repository.SaveChangesAsync(cancellationToken);
-    await auditEventWriter.WriteAsync(new AuditEvent(
-        Guid.NewGuid(), DateTimeOffset.UtcNow, "OrganizationStatusReceived", context.TraceIdentifier,
-        request.Id, resultStage.StageCode, "Success", previousOrganizationStatus, organizationStatus,
-        currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
-
-    return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.OrganizationTrackingId,
-        request.OrganizationStatus, request.CurrentWorkflowStageId });
-}).RequireAuthorization();
+}).RequireAuthorization().RequireRateLimiting("service-request-read");
 
 static bool CanAccessServiceRequest(ICurrentUser currentUser, ServiceRequest request)
 {

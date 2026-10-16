@@ -124,6 +124,89 @@ public class PrivacyComplianceTests
         Assert.Contains("IdentityVerification", exported, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task IdentityMe_DisablesCachingForAccountSpecificState()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = CreateApplicantClient(application);
+
+        var response = await client.GetAsync("/identity/me");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+    }
+
+    [Fact]
+    public async Task ServiceRequestAuthorizationFailure_DisablesCaching()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var applicantClient = CreateApplicantClient(application);
+
+        using (var verificationScope = application.Services.CreateScope())
+        {
+            var states = verificationScope.ServiceProvider.GetRequiredService<IIdentityVerificationStateRepository>();
+            await states.SaveResultAsync(ApplicantUserId, true, DateTimeOffset.UtcNow);
+        }
+
+        using var content = new StringContent(
+            """{"nationalIdentifier":"1234567891"}""",
+            Encoding.UTF8,
+            "application/json");
+        var createResponse = await applicantClient.PostAsync("/service-requests/s01", content);
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+
+        var payload = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var requestId = payload.GetProperty("id").GetString();
+
+        using var otherApplicantClient = application.CreateClient();
+        otherApplicantClient.DefaultRequestHeaders.Add("X-Test-User-Id", "different-applicant");
+        otherApplicantClient.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Applicant.ToString());
+
+        var response = await otherApplicantClient.GetAsync($"/service-requests/{requestId}");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+    }
+
+    [Fact]
+    public async Task SecurityHeaders_ArePresentOnSuccessAndAuthorizationFailureResponses()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var success = await client.GetAsync("/health");
+        var unauthorized = await client.GetAsync("/ops/metrics");
+
+        Assert.Equal(HttpStatusCode.OK, success.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
+
+        foreach (var response in new[] { success, unauthorized })
+        {
+            Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
+            Assert.Equal("no-referrer", response.Headers.GetValues("Referrer-Policy").Single());
+            Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
+            Assert.Equal(
+                "camera=(), microphone=(), geolocation=()",
+                response.Headers.GetValues("Permissions-Policy").Single());
+            Assert.Equal(
+                "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+                response.Headers.GetValues("Content-Security-Policy").Single());
+        }
+    }
+
+
+    [Fact]
+    public async Task AuditExportAuthorizationFailure_DisablesCaching()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var response = await client.GetAsync("/audit/events/export");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+    }
+
     private static HttpClient CreateApplicantClient(WebApplicationFactory<Program> application)
     {
         var client = application.CreateClient();

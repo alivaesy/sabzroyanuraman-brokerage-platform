@@ -10,7 +10,6 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, private');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
-const GPS_TRACK_VIEW_KEY = '49494c7bcd0c8f31958c54e7d76a7cfcd4f4d3fa1cb26e982e8f930ce4897188';
 
 function gps_reply(int $status, array $body): never {
     http_response_code($status);
@@ -40,10 +39,9 @@ if (!is_array($data)) gps_reply(400, ['ok'=>false,'error'=>'Invalid JSON']);
 $action = (string)($data['action'] ?? '');
 $sid = (string)($data['session_id'] ?? '');
 if ($action === 'live') {
-    $viewerKey = (string)($data['viewer_key'] ?? '');
-    if (!hash_equals(GPS_TRACK_VIEW_KEY, $viewerKey)) {
-        gps_reply(403, ['ok'=>false,'error'=>'Viewer link rejected']);
-    }
+    // Live GPS data must not be exposed through a shared key embedded in public HTML.
+    // Re-enable only after server-side authenticated access and authorization are implemented.
+    gps_reply(503, ['ok'=>false,'error'=>'Live viewer disabled pending authenticated access']);
 } elseif (!preg_match('/^[a-zA-Z0-9-]{12,80}$/', $sid)) {
     gps_reply(400, ['ok'=>false,'error'=>'Invalid session id']);
 }
@@ -67,31 +65,6 @@ try {
 } catch (Throwable $e) {
     error_log('GPS track DB initialization failed: ' . $e->getMessage());
     gps_reply(500, ['ok'=>false,'error'=>'Storage initialization failed']);
-}
-if ($action === 'live') {
-    try {
-        $cutoff = gmdate('c', time() - 86400);
-        $trackQuery = $db->prepare('SELECT session_id,started_at,stopped_at,last_seen_at,point_count FROM tracks WHERE last_seen_at >= :cutoff ORDER BY last_seen_at DESC LIMIT 30');
-        $trackQuery->execute([':cutoff'=>$cutoff]);
-        $tracks = [];
-        $pointsQuery = $db->prepare('SELECT latitude,longitude,accuracy,speed,recorded_at,received_at FROM track_points WHERE session_id=:sid ORDER BY id DESC LIMIT 1000');
-        foreach ($trackQuery->fetchAll() as $track) {
-            $pointsQuery->execute([':sid'=>$track['session_id']]);
-            $trackPoints = array_reverse($pointsQuery->fetchAll());
-            $tracks[] = [
-                'display_id'=>substr(hash_hmac('sha256', $track['session_id'], GPS_TRACK_VIEW_KEY), 0, 10),
-                'started_at'=>$track['started_at'],
-                'stopped_at'=>$track['stopped_at'],
-                'last_seen_at'=>$track['last_seen_at'],
-                'point_count'=>(int)$track['point_count'],
-                'points'=>$trackPoints
-            ];
-        }
-        gps_reply(200, ['ok'=>true,'generated_at'=>gmdate('c'),'tracks'=>$tracks]);
-    } catch (Throwable $e) {
-        error_log('GPS live viewer request failed: ' . $e->getMessage());
-        gps_reply(500, ['ok'=>false,'error'=>'Unable to load live tracks']);
-    }
 }
 $now = gmdate('c');
 try {

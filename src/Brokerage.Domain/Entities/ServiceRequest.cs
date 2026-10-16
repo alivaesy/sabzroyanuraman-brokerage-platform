@@ -18,6 +18,9 @@ public class ServiceRequest
 
     public ServiceRequest(ServiceCode serviceCode, string applicantUserId)
     {
+        if (!Enum.IsDefined(serviceCode))
+            throw new ArgumentOutOfRangeException(nameof(serviceCode), "Unsupported service code.");
+
         if (string.IsNullOrWhiteSpace(applicantUserId))
             throw new ArgumentException("Applicant user ID cannot be empty.", nameof(applicantUserId));
 
@@ -31,6 +34,9 @@ public class ServiceRequest
 
     public void ChangeStatus(RequestStatus status)
     {
+        if (!Enum.IsDefined(status))
+            throw new ArgumentOutOfRangeException(nameof(status), "Unsupported request status.");
+
         Status = status;
         UpdatedAt = DateTimeOffset.UtcNow;
     }

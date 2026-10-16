@@ -34,6 +34,26 @@ public class ServiceRequestTests
     }
 
     [Fact]
+    public void Constructor_WithUndefinedServiceCode_Throws()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => new ServiceRequest((ServiceCode)9999, "test-applicant"));
+    }
+
+    [Fact]
+    public void ChangeStatus_WithUndefinedStatus_ThrowsAndPreservesCurrentStatus()
+    {
+        var request = new ServiceRequest(ServiceCode.S01, "test-applicant");
+        var before = request.UpdatedAt;
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => request.ChangeStatus((RequestStatus)9999));
+
+        Assert.Equal(RequestStatus.Created, request.Status);
+        Assert.Equal(before, request.UpdatedAt);
+    }
+
+    [Fact]
     public void SetOrganizationStatus_StoresStatusAndUpdatesTimestamp()
     {
         var request = new ServiceRequest(ServiceCode.S01, "test-applicant");

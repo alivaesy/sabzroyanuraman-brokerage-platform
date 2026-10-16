@@ -7,6 +7,10 @@ using Brokerage.Application.Contracts;
 using Brokerage.Domain.Entities;
 using Brokerage.Domain.Enums;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
+using Brokerage.Application.Models;
+using Brokerage.Infrastructure.Persistence;
 
 namespace Brokerage.Api.Tests;
 
@@ -134,6 +138,58 @@ public class BrokerageApiTests
         Assert.NotEqual(
             Guid.Empty,
             workflowStageId);
+    }
+
+    [Fact]
+    public async Task CreateGenericServiceRequest_PersistsRequestAndInitialWorkflowStage()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
+
+        var createResponse = await client.PostAsync("/service-requests?serviceCode=S02", content: null);
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, createResponse.StatusCode);
+        var created = await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var requestId = Guid.Parse(created.GetProperty("id").GetString()!);
+        var stageId = Guid.Parse(created.GetProperty("currentWorkflowStageId").GetString()!);
+        Assert.Equal((int)RequestStatus.Created, created.GetProperty("status").GetInt32());
+
+        var requestResponse = await client.GetAsync($"/service-requests/{requestId}");
+        Assert.Equal(System.Net.HttpStatusCode.OK, requestResponse.StatusCode);
+        var persistedRequest = await requestResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        Assert.Equal(requestId, Guid.Parse(persistedRequest.GetProperty("id").GetString()!));
+        Assert.Equal((int)ServiceCode.S02, persistedRequest.GetProperty("serviceCode").GetInt32());
+        Assert.Equal(stageId, Guid.Parse(persistedRequest.GetProperty("currentWorkflowStageId").GetString()!));
+
+        var stagesResponse = await client.GetAsync($"/service-requests/{requestId}/workflow-stages");
+        Assert.Equal(System.Net.HttpStatusCode.OK, stagesResponse.StatusCode);
+        var stages = await stagesResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement[]>();
+        Assert.NotNull(stages);
+        var stage = Assert.Single(stages!);
+        Assert.Equal(stageId, Guid.Parse(stage.GetProperty("id").GetString()!));
+        Assert.Equal("INITIAL", stage.GetProperty("stageCode").GetString());
+    }
+
+    [Fact]
+    public async Task CreateGenericServiceRequest_CannotBypassS01Workflow_ReturnsBadRequest()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
+
+        var response = await client.PostAsync("/service-requests?serviceCode=S01", content: null);
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateGenericServiceRequest_WithUnsupportedServiceCode_ReturnsBadRequest()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
+
+        var response = await client.PostAsync("/service-requests?serviceCode=9999", content: null);
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
@@ -405,7 +461,7 @@ public class BrokerageApiTests
             errorResponse.Code);
 
         Assert.Equal(
-            "Mock organization submission failed.",
+            "Organization API submission failed.",
             errorResponse.Message);
 
         Assert.False(
@@ -517,6 +573,147 @@ public class BrokerageApiTests
             Guid.Parse(statusJson.GetProperty("currentWorkflowStageId").GetString()!));
     }
 
+
+    [Fact]
+    public async Task GetOrganizationStatus_ConcurrentRefreshRejectsStaleWriterAndPreservesSingleTransition()
+    {
+        var organizationService = new ControlledOrganizationIntegrationService();
+        await using var application =
+            new WebApplicationFactory<Program>()
+                .WithWebHostBuilder(builder =>
+                {
+                    builder.ConfigureServices(services =>
+                    {
+                        services.AddSingleton<IOrganizationIntegrationService>(organizationService);
+                    });
+                });
+
+        using var client = await CreateVerifiedApplicantClientAsync(application);
+        using var content = new StringContent(
+            """{"nationalIdentifier":"1234567891"}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+        var createResponse = await client.PostAsync("/service-requests/s01", content);
+        Assert.Equal(System.Net.HttpStatusCode.OK, createResponse.StatusCode);
+        var created = await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var requestId = Guid.Parse(created.GetProperty("id").GetString()!);
+
+        var firstRefresh = client.GetAsync($"/service-requests/{requestId}/organization-status");
+        var secondRefresh = client.GetAsync($"/service-requests/{requestId}/organization-status");
+        await organizationService.SecondStatusCallStarted.WaitAsync(TimeSpan.FromSeconds(10));
+
+        organizationService.ReleaseFirstStatusCall();
+
+        // Do not assume which HTTP request reached the controlled integration service first.
+        // Wait for the first invocation's local transaction to commit before releasing the stale writer.
+        using (var pollingScope = application.Services.CreateScope())
+        {
+            var pollingDbContext = pollingScope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+            ServiceRequest? persistedRequest = null;
+            for (var attempt = 0; attempt < 100; attempt++)
+            {
+                pollingDbContext.ChangeTracker.Clear();
+                persistedRequest = await pollingDbContext.ServiceRequests.AsNoTracking()
+                    .SingleOrDefaultAsync(request => request.Id == requestId);
+                if (persistedRequest?.OrganizationStatus == "FirstStatus")
+                    break;
+
+                await Task.Delay(TimeSpan.FromMilliseconds(25));
+            }
+
+            Assert.Equal("FirstStatus", persistedRequest?.OrganizationStatus);
+        }
+
+        organizationService.ReleaseSecondStatusCall();
+        var responses = await Task.WhenAll(firstRefresh, secondRefresh).WaitAsync(TimeSpan.FromSeconds(10));
+        using var firstResponse = responses[0];
+        using var secondResponse = responses[1];
+        Assert.Equal(1, responses.Count(response => response.StatusCode == System.Net.HttpStatusCode.OK));
+        Assert.Equal(1, responses.Count(response => response.StatusCode == System.Net.HttpStatusCode.Conflict));
+        Assert.All(responses, response => Assert.Contains(response.StatusCode, new[]
+        {
+            System.Net.HttpStatusCode.OK,
+            System.Net.HttpStatusCode.Conflict
+        }));
+
+        using var scope = application.Services.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IServiceRequestRepository>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+        var request = await repository.GetByIdAsync(requestId);
+        Assert.NotNull(request);
+        Assert.Equal("FirstStatus", request!.OrganizationStatus);
+
+        var stages = await repository.GetWorkflowStagesAsync(requestId);
+        Assert.Single(stages, stage => stage.StageCode == "ResultNotification");
+        Assert.Equal(1, await dbContext.AuditEvents.AsNoTracking().CountAsync(auditEvent =>
+            auditEvent.ServiceRequestId == requestId && auditEvent.EventType == "OrganizationStatusReceived"));
+        Assert.Equal(1, await dbContext.AuditEvents.AsNoTracking().CountAsync(auditEvent =>
+            auditEvent.ServiceRequestId == requestId &&
+            auditEvent.EventType == "WorkflowStageCreated" &&
+            auditEvent.WorkflowStage == "ResultNotification"));
+    }
+
+    [Fact]
+    public async Task GetOrganizationStatus_WhenAuditWriteFails_RollsBackAllLocalStatusChanges()
+    {
+        await using var application =
+            new WebApplicationFactory<Program>()
+                .WithWebHostBuilder(builder =>
+                {
+                    builder.ConfigureServices(services =>
+                    {
+                        services.AddScoped<IAuditEventWriter, FailingOrganizationStatusAuditWriter>();
+                    });
+                });
+
+        using var client = await CreateVerifiedApplicantClientAsync(application);
+        using var content = new StringContent(
+            """{"nationalIdentifier":"1234567891"}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        var createResponse = await client.PostAsync("/service-requests/s01", content);
+        Assert.Equal(System.Net.HttpStatusCode.OK, createResponse.StatusCode);
+        var created = await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var requestId = Guid.Parse(created.GetProperty("id").GetString()!);
+
+        int initialAuditEventCount;
+        using (var baselineScope = application.Services.CreateScope())
+        {
+            var baselineDbContext = baselineScope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+            initialAuditEventCount = await baselineDbContext.AuditEvents.AsNoTracking()
+                .CountAsync(auditEvent => auditEvent.ServiceRequestId == requestId);
+        }
+
+        var statusResponse = await client.GetAsync($"/service-requests/{requestId}/organization-status");
+        Assert.Equal(System.Net.HttpStatusCode.InternalServerError, statusResponse.StatusCode);
+
+        using var scope = application.Services.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IServiceRequestRepository>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+        var request = await repository.GetByIdAsync(requestId);
+        Assert.NotNull(request);
+        Assert.Null(request!.OrganizationStatus);
+
+        var stages = await repository.GetWorkflowStagesAsync(requestId);
+        Assert.Equal(3, stages.Count);
+        var followUp = Assert.Single(stages, stage => stage.StageCode == "OrganizationFollowUp");
+        Assert.Null(followUp.CompletedAt);
+        Assert.DoesNotContain(stages, stage => stage.StageCode == "ResultNotification");
+
+        var persistedEvents = await dbContext.AuditEvents.AsNoTracking()
+            .Where(auditEvent => auditEvent.ServiceRequestId == requestId)
+            .ToListAsync();
+        Assert.DoesNotContain(persistedEvents, auditEvent => auditEvent.EventType == "OrganizationStatusReceived");
+        Assert.DoesNotContain(persistedEvents, auditEvent =>
+            auditEvent.EventType == "WorkflowStageCreated" &&
+            auditEvent.WorkflowStage == "ResultNotification");
+        Assert.DoesNotContain(persistedEvents, auditEvent =>
+            auditEvent.EventType == "WorkflowStageCompleted" &&
+            auditEvent.WorkflowStage == "OrganizationFollowUp");
+        Assert.Equal(initialAuditEventCount, persistedEvents.Count);
+    }
+
     [Fact]
     public async Task GetOrganizationStatus_WhenOrganizationApiFails_DoesNotAdvanceWorkflow()
     {
@@ -571,7 +768,7 @@ public class BrokerageApiTests
         Assert.NotNull(errorResponse);
         Assert.Equal("BROKERAGE_ERROR", errorResponse.Code);
         Assert.Equal(
-            "Mock organization status request failed.",
+            "Organization API status request failed.",
             errorResponse.Message);
 
         var workflowResponse = await client.GetAsync(
@@ -592,6 +789,58 @@ public class BrokerageApiTests
         Assert.Equal(
             System.Text.Json.JsonValueKind.Null,
             stages[2].GetProperty("completedAt").ValueKind);
+    }
+
+    [Fact]
+    public async Task GetOrganizationStatus_WhenOrganizationApiReturnsEmptyStatus_DoesNotAdvanceWorkflow()
+    {
+        await using var application =
+            new WebApplicationFactory<Program>()
+                .WithWebHostBuilder(builder =>
+                {
+                    builder.ConfigureServices(services =>
+                    {
+                        services.AddScoped<
+                            IntegrationOrganizationApiClient,
+                            EmptyOrganizationStatusApiClient>();
+                    });
+                });
+
+        using var client = await CreateVerifiedApplicantClientAsync(application);
+        var content = new StringContent(
+            """
+            {
+                "nationalIdentifier": "1234567891"
+            }
+            """,
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        var createResponse = await client.PostAsync("/service-requests/s01", content);
+        Assert.Equal(System.Net.HttpStatusCode.OK, createResponse.StatusCode);
+        var created = await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var requestId = Guid.Parse(created.GetProperty("id").GetString()!);
+
+        var statusResponse = await client.GetAsync(
+            $"/service-requests/{requestId}/organization-status");
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, statusResponse.StatusCode);
+        var error = await statusResponse.Content.ReadFromJsonAsync<Brokerage.Application.Models.ErrorResponse>();
+        Assert.NotNull(error);
+        Assert.Equal("Organization API status request failed.", error.Message);
+
+        var workflowResponse = await client.GetAsync(
+            $"/service-requests/{requestId}/workflow-stages");
+        Assert.Equal(System.Net.HttpStatusCode.OK, workflowResponse.StatusCode);
+        var stages = await workflowResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement[]>();
+        Assert.NotNull(stages);
+        Assert.Equal(3, stages!.Length);
+        Assert.Equal(
+            System.Text.Json.JsonValueKind.Null,
+            stages[2].GetProperty("completedAt").ValueKind);
+        Assert.Equal(
+            "OrganizationFollowUp",
+            stages[2].GetProperty("stageCode").GetString());
     }
 
     [Fact]
@@ -704,6 +953,23 @@ public class BrokerageApiTests
             1,
             stages.Count(stage =>
                 stage.GetProperty("stageCode").GetString() == "ResultNotification"));
+
+        // Sequential refreshes should record each status response, but should not
+        // recreate or re-complete workflow stages after the first successful refresh.
+        using var scope = application.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+        var auditEvents = await dbContext.AuditEvents.AsNoTracking()
+            .Where(auditEvent => auditEvent.ServiceRequestId == requestId)
+            .ToListAsync();
+
+        Assert.Equal(2, auditEvents.Count(auditEvent =>
+            auditEvent.EventType == "OrganizationStatusReceived"));
+        Assert.Single(auditEvents, auditEvent =>
+            auditEvent.EventType == "WorkflowStageCreated" &&
+            auditEvent.WorkflowStage == "ResultNotification");
+        Assert.Single(auditEvents, auditEvent =>
+            auditEvent.EventType == "WorkflowStageCompleted" &&
+            auditEvent.WorkflowStage == "OrganizationFollowUp");
     }
 
     [Fact]
@@ -855,6 +1121,63 @@ public class BrokerageApiTests
         return client;
     }
 
+
+    private sealed class ControlledOrganizationIntegrationService : IOrganizationIntegrationService
+    {
+        private readonly TaskCompletionSource _secondStatusCallStarted =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _releaseFirstStatusCall =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _releaseSecondStatusCall =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _statusCallCount;
+
+        public Task SecondStatusCallStarted => _secondStatusCallStarted.Task;
+
+        public Task<string> SubmitAsync(string serviceCode, CancellationToken cancellationToken = default)
+            => Task.FromResult("MOCK-TRACKING-ID");
+
+        public Task<string> GetStatusAsync(string trackingId, CancellationToken cancellationToken = default)
+        {
+            var call = Interlocked.Increment(ref _statusCallCount);
+            if (call == 1)
+                return WaitForReleaseAsync(_releaseFirstStatusCall.Task, "FirstStatus", cancellationToken);
+
+            if (call == 2)
+            {
+                _secondStatusCallStarted.TrySetResult();
+                return WaitForReleaseAsync(_releaseSecondStatusCall.Task, "SecondStatus", cancellationToken);
+            }
+
+            throw new InvalidOperationException("Unexpected organization status call in concurrency test.");
+        }
+
+        public void ReleaseFirstStatusCall() => _releaseFirstStatusCall.TrySetResult();
+        public void ReleaseSecondStatusCall() => _releaseSecondStatusCall.TrySetResult();
+
+        private static async Task<string> WaitForReleaseAsync(
+            Task release,
+            string status,
+            CancellationToken cancellationToken)
+        {
+            await release.WaitAsync(cancellationToken);
+            return status;
+        }
+    }
+
+    private sealed class FailingOrganizationStatusAuditWriter(
+        BrokerageDbContext dbContext,
+        ILogger<AuditEventWriter> logger) : IAuditEventWriter
+    {
+        public Task WriteAsync(AuditEvent auditEvent, CancellationToken cancellationToken = default)
+        {
+            if (auditEvent.EventType == "OrganizationStatusReceived")
+                throw new InvalidOperationException("Simulated audit write failure.");
+
+            return new AuditEventWriter(dbContext, logger).WriteAsync(auditEvent, cancellationToken);
+        }
+    }
+
     private sealed class FailingOrganizationStatusApiClient
         : IntegrationOrganizationApiClient
     {
@@ -875,6 +1198,24 @@ public class BrokerageApiTests
                 OrganizationApiResult.Failure(
                     OrganizationIntegrationErrorType.ServerError,
                     "Mock organization status request failed."));
+        }
+    }
+
+    private sealed class EmptyOrganizationStatusApiClient
+        : IntegrationOrganizationApiClient
+    {
+        public Task<OrganizationApiResult> SubmitAsync(
+            string serviceCode,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(OrganizationApiResult.Success(trackingId: "MOCK-TRACKING-ID"));
+        }
+
+        public Task<OrganizationApiResult> GetStatusAsync(
+            string trackingId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(OrganizationApiResult.Success());
         }
     }
 

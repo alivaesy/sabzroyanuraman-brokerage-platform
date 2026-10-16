@@ -28,6 +28,27 @@ public class CorrelationIdMiddlewareTests
             context.Response.Headers["X-Correlation-Id"].ToString());
     }
 
+    [Theory]
+    [InlineData("customer@example.com")]
+    [InlineData("contains spaces")]
+    [InlineData("bad\\r\\nvalue")]
+    [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    public async Task InvokeAsync_WhenCorrelationIdHeaderIsUnsafe_GeneratesNewId(string suppliedId)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Correlation-Id"] = suppliedId;
+
+        var middleware = new CorrelationIdMiddleware(
+            _ => Task.CompletedTask,
+            NullLogger<CorrelationIdMiddleware>.Instance);
+
+        await middleware.InvokeAsync(context);
+
+        Assert.NotEqual(suppliedId, context.TraceIdentifier);
+        Assert.Matches("^[a-f0-9]{32}$", context.TraceIdentifier);
+        Assert.Equal(context.TraceIdentifier, context.Response.Headers["X-Correlation-Id"].ToString());
+    }
+
     [Fact]
     public async Task InvokeAsync_WhenCorrelationIdHeaderIsMissing_GeneratesNewId()
     {

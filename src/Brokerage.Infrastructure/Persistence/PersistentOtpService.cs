@@ -15,11 +15,18 @@ public sealed class PersistentOtpService(BrokerageDbContext db, IOtpCodeHasher c
 
         var now = DateTimeOffset.UtcNow;
 
-        // SQLite cannot translate comparisons over DateTimeOffset consistently.
-        // Materialize the small challenge set, then identify expired records in memory.
-        var existingChallenges = await db.OtpChallenges.ToListAsync(cancellationToken);
-        var expiredChallenges = existingChallenges.Where(x => x.ExpiresAt <= now).ToArray();
-        db.OtpChallenges.RemoveRange(expiredChallenges);
+        if (db.Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"DELETE FROM otp_challenges WHERE ExpiresAt <= {now}",
+                cancellationToken);
+        }
+        else
+        {
+            await db.OtpChallenges
+                .Where(x => x.ExpiresAt <= now)
+                .ExecuteDeleteAsync(cancellationToken);
+        }
 
         var challengeId = Guid.NewGuid().ToString("N");
         var code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
@@ -46,10 +53,24 @@ public sealed class PersistentOtpService(BrokerageDbContext db, IOtpCodeHasher c
         if (challenge is null)
             return false;
 
-        if (challenge.ExpiresAt <= DateTimeOffset.UtcNow)
+        var now = DateTimeOffset.UtcNow;
+        var isSqlite = db.Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite";
+
+        if (challenge.ExpiresAt <= now)
         {
-            db.OtpChallenges.Remove(challenge);
-            await db.SaveChangesAsync(cancellationToken);
+            if (isSqlite)
+            {
+                await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"DELETE FROM otp_challenges WHERE ChallengeId = {challengeId} AND UserId = {userId} AND ExpiresAt <= {now}",
+                    cancellationToken);
+            }
+            else
+            {
+                await db.OtpChallenges
+                    .Where(x => x.ChallengeId == challengeId && x.UserId == userId && x.ExpiresAt <= now)
+                    .ExecuteDeleteAsync(cancellationToken);
+            }
+
             return false;
         }
 
@@ -60,16 +81,51 @@ public sealed class PersistentOtpService(BrokerageDbContext db, IOtpCodeHasher c
 
         if (valid)
         {
-            db.OtpChallenges.Remove(challenge);
-            await db.SaveChangesAsync(cancellationToken);
-            return true;
+            var consumed = isSqlite
+                ? await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"DELETE FROM otp_challenges WHERE ChallengeId = {challengeId} AND UserId = {userId} AND ExpiresAt > {now} AND FailedAttempts < {MaxAttempts}",
+                    cancellationToken)
+                : await db.OtpChallenges
+                    .Where(x => x.ChallengeId == challengeId
+                        && x.UserId == userId
+                        && x.ExpiresAt > now
+                        && x.FailedAttempts < MaxAttempts)
+                    .ExecuteDeleteAsync(cancellationToken);
+
+            return consumed == 1;
         }
 
-        challenge.FailedAttempts++;
-        if (challenge.FailedAttempts >= MaxAttempts)
-            db.OtpChallenges.Remove(challenge);
+        var incremented = isSqlite
+            ? await db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE otp_challenges SET FailedAttempts = FailedAttempts + 1 WHERE ChallengeId = {challengeId} AND UserId = {userId} AND ExpiresAt > {now} AND FailedAttempts < {MaxAttempts}",
+                cancellationToken)
+            : await db.OtpChallenges
+                .Where(x => x.ChallengeId == challengeId
+                    && x.UserId == userId
+                    && x.ExpiresAt > now
+                    && x.FailedAttempts < MaxAttempts)
+                .ExecuteUpdateAsync(
+                    setters => setters.SetProperty(x => x.FailedAttempts, x => x.FailedAttempts + 1),
+                    cancellationToken);
 
-        await db.SaveChangesAsync(cancellationToken);
+        if (incremented == 0)
+            return false;
+
+        if (isSqlite)
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"DELETE FROM otp_challenges WHERE ChallengeId = {challengeId} AND UserId = {userId} AND FailedAttempts >= {MaxAttempts}",
+                cancellationToken);
+        }
+        else
+        {
+            await db.OtpChallenges
+                .Where(x => x.ChallengeId == challengeId
+                    && x.UserId == userId
+                    && x.FailedAttempts >= MaxAttempts)
+                .ExecuteDeleteAsync(cancellationToken);
+        }
+
         return false;
     }
 }

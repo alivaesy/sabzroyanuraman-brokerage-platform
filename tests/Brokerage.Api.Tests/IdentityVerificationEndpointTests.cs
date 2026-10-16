@@ -31,6 +31,7 @@ public class IdentityVerificationEndpointTests
             "/identity/verify", new { nationalIdentifier = "1234567891" });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
         var body = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
         Assert.True(body.GetProperty("verified").GetBoolean());
         Assert.False(body.TryGetProperty("userId", out _));
@@ -80,5 +81,6 @@ public class IdentityVerificationEndpointTests
             "/identity/verify", new { nationalIdentifier = "1234567890" });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
     }
 }

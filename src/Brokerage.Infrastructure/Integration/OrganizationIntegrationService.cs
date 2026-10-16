@@ -27,7 +27,8 @@ public class OrganizationIntegrationService
     {
         var result = await _retryExecutor.ExecuteAsync(
             token => ExecuteSubmitAsync(serviceCode, token),
-            cancellationToken);
+            cancellationToken,
+            allowRetries: false);
 
         if (!result.IsSuccess)
         {
@@ -35,16 +36,23 @@ public class OrganizationIntegrationService
                 "Organization submission failed. ServiceCode={ServiceCode} ErrorType={ErrorType}",
                 serviceCode,
                 result.ErrorType);
-            throw new BrokerageException(
-                result.ErrorMessage ??
-                "Organization API submission failed.");
+            throw new BrokerageException("Organization API submission failed.");
         }
 
-        var trackingId = result.TrackingId ?? string.Empty;
+        var trackingId = result.TrackingId;
+        if (string.IsNullOrWhiteSpace(trackingId))
+        {
+            // A successful transport result without a tracking identifier cannot be
+            // correlated with later status checks. Do not persist an unusable request.
+            _logger?.LogError(
+                "Organization submission returned no tracking identifier. ServiceCode={ServiceCode}",
+                serviceCode);
+            throw new BrokerageException("Organization API submission failed.");
+        }
+
         _logger?.LogInformation(
-            "Organization submission completed. ServiceCode={ServiceCode} TrackingId={TrackingId}",
-            serviceCode,
-            trackingId);
+            "Organization submission completed. ServiceCode={ServiceCode}",
+            serviceCode);
         return trackingId;
     }
 
@@ -59,19 +67,23 @@ public class OrganizationIntegrationService
         if (!result.IsSuccess)
         {
             _logger?.LogError(
-                "Organization status request failed. TrackingId={TrackingId} ErrorType={ErrorType}",
-                trackingId,
+                "Organization status request failed. ErrorType={ErrorType}",
                 result.ErrorType);
-            throw new BrokerageException(
-                result.ErrorMessage ??
-                "Organization API status request failed.");
+            throw new BrokerageException("Organization API status request failed.");
         }
 
-        var status = result.Status ?? string.Empty;
-        _logger?.LogInformation(
-            "Organization status received. TrackingId={TrackingId} Status={Status}",
-            trackingId,
-            status);
+        var status = result.Status;
+        if (string.IsNullOrWhiteSpace(status))
+        {
+            // A successful response without a status is not actionable. Treat it as
+            // an integration failure so the API does not advance the workflow.
+            _logger?.LogError("Organization status response did not include a status.");
+            throw new BrokerageException("Organization API status request failed.");
+        }
+
+        // Organization-provided status may contain case-specific or otherwise sensitive data.
+        // Keep the status available to the caller, but never copy its value into general logs.
+        _logger?.LogInformation("Organization status received.");
         return status;
     }
 

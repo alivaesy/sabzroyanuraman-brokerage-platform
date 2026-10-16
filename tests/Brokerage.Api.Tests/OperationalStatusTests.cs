@@ -32,6 +32,26 @@ public class OperationalStatusTests
     }
 
     [Fact]
+    public async Task OperationalMetrics_RateLimitsRepeatedReadsAndDisablesCachingOnRejection()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "metrics-rate-limit-user");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", "TechnicalSecurity");
+
+        for (var i = 0; i < 60; i++)
+        {
+            var allowed = await client.GetAsync("/ops/metrics");
+            Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
+        }
+
+        var rejected = await client.GetAsync("/ops/metrics");
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, rejected.StatusCode);
+        Assert.Equal("no-store", rejected.Headers.CacheControl?.ToString());
+    }
+
+    [Fact]
     public async Task OperationalStatus_TechnicalSecurityRole_ReturnsOperationalStatus()
     {
         await using var application = new WebApplicationFactory<Program>();

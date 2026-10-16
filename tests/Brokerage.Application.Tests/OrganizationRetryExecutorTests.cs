@@ -185,6 +185,36 @@ public async Task ExecuteAsync_WhenCancellationIsRequested_PropagatesCancellatio
     Assert.IsType<TaskCanceledException>(exception);
 }
 [Fact]
+public async Task ExecuteAsync_WhenCallerCancelsAfterFailureResult_DoesNotRetry()
+{
+    var executor = new OrganizationRetryExecutor(
+        new OrganizationRetryPolicy(),
+        new OrganizationRetryOptions { MaxRetryCount = 3 },
+        new OrganizationTimeoutOptions { Timeout = TimeSpan.FromSeconds(30) });
+
+    using var cancellationTokenSource = new CancellationTokenSource();
+    var attempts = 0;
+
+    await Assert.ThrowsAnyAsync<OperationCanceledException>(
+        () => executor.ExecuteAsync(
+            _ =>
+            {
+                attempts++;
+                cancellationTokenSource.Cancel();
+
+                // Simulate an adapter that returns a failure instead of throwing
+                // after the caller has requested cancellation.
+                return Task.FromResult(
+                    OrganizationApiResult.Failure(
+                        OrganizationIntegrationErrorType.ServerError,
+                        "Server error."));
+            },
+            cancellationTokenSource.Token));
+
+    Assert.Equal(1, attempts);
+}
+
+[Fact]
 public async Task ExecuteAsync_WhenCancellationOccursDuringBackoff_StopsRetry()
 {
     var policy = new OrganizationRetryPolicy();

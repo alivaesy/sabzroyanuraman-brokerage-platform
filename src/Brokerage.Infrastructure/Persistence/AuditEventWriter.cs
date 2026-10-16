@@ -27,6 +27,11 @@ public sealed class AuditEventWriter(
         });
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("AuditEvent {@AuditEvent}", auditEvent);
+        // Persist the complete audit record in the protected audit table, but do not duplicate
+        // actor identifiers, IP addresses, case references, or state details into general logs.
+        logger.LogInformation(
+            "Audit event persisted. EventType={EventType} Outcome={Outcome}",
+            auditEvent.EventType,
+            auditEvent.Outcome);
     }
 }

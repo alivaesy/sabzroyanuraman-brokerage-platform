@@ -1,22 +1,28 @@
-﻿using Brokerage.Application.Contracts;
+using Brokerage.Application.Contracts;
 
 namespace Brokerage.Application.Services;
 
-public class PaymentGateway : IPaymentGateway
+public sealed class PaymentGateway : IPaymentGateway
 {
-    public Task<string> CreatePaymentAsync(
-        string requestId,
+    public Task<PaymentGatewayCreateResult> CreatePaymentAsync(
+        PaymentGatewayCreateRequest request,
         CancellationToken cancellationToken = default)
     {
-        var paymentId = Guid.NewGuid().ToString();
+        if (request.Amount <= 0)
+            return Task.FromResult(new PaymentGatewayCreateResult(false, null, "INVALID_AMOUNT"));
 
-        return Task.FromResult(paymentId);
+        var token = Guid.NewGuid().ToString("N");
+        return Task.FromResult(new PaymentGatewayCreateResult(true, token));
     }
 
-    public Task<bool> VerifyPaymentAsync(
-        string paymentId,
+    public Task<PaymentGatewayVerifyResult> VerifyPaymentAsync(
+        string gatewayToken,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(!string.IsNullOrWhiteSpace(paymentId));
+        if (string.IsNullOrWhiteSpace(gatewayToken))
+            return Task.FromResult(new PaymentGatewayVerifyResult(false, null, null, "INVALID_TOKEN"));
+
+        return Task.FromResult(
+            new PaymentGatewayVerifyResult(true, null, gatewayToken));
     }
 }

@@ -42,36 +42,46 @@ public sealed class InMemoryOtpService : IOtpService
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!_challenges.TryGetValue(challengeId, out var challenge)
-            || !string.Equals(challenge.UserId, userId, StringComparison.Ordinal))
-            return Task.FromResult(false);
-
-        if (challenge.ExpiresAt <= DateTimeOffset.UtcNow)
+        while (_challenges.TryGetValue(challengeId, out var challenge))
         {
-            _challenges.TryRemove(challengeId, out _);
+            if (!string.Equals(challenge.UserId, userId, StringComparison.Ordinal))
+                return Task.FromResult(false);
+
+            if (challenge.ExpiresAt <= DateTimeOffset.UtcNow
+                || challenge.FailedAttempts >= MaxAttempts)
+            {
+                if (TryRemoveExact(challengeId, challenge))
+                    return Task.FromResult(false);
+
+                continue;
+            }
+
+            var valid = CryptographicOperations.FixedTimeEquals(
+                System.Text.Encoding.UTF8.GetBytes(challenge.Code),
+                System.Text.Encoding.UTF8.GetBytes(code ?? string.Empty));
+
+            if (valid)
+            {
+                if (TryRemoveExact(challengeId, challenge))
+                    return Task.FromResult(true);
+
+                continue;
+            }
+
+            var updated = challenge with { FailedAttempts = challenge.FailedAttempts + 1 };
+            if (!_challenges.TryUpdate(challengeId, updated, challenge))
+                continue;
+
+            if (updated.FailedAttempts >= MaxAttempts)
+                TryRemoveExact(challengeId, updated);
+
             return Task.FromResult(false);
         }
-
-        var valid = CryptographicOperations.FixedTimeEquals(
-            System.Text.Encoding.UTF8.GetBytes(challenge.Code),
-            System.Text.Encoding.UTF8.GetBytes(code ?? string.Empty));
-
-        if (valid)
-        {
-            _challenges.TryRemove(challengeId, out _);
-            return Task.FromResult(true);
-        }
-
-        var failedAttempts = challenge.FailedAttempts + 1;
-
-        if (failedAttempts >= MaxAttempts)
-            _challenges.TryRemove(challengeId, out _);
-        else
-            _challenges.TryUpdate(
-                challengeId,
-                challenge with { FailedAttempts = failedAttempts },
-                challenge);
 
         return Task.FromResult(false);
     }
+
+    private bool TryRemoveExact(string challengeId, PendingChallenge expected)
+        => ((ICollection<KeyValuePair<string, PendingChallenge>>)_challenges)
+            .Remove(new KeyValuePair<string, PendingChallenge>(challengeId, expected));
 }

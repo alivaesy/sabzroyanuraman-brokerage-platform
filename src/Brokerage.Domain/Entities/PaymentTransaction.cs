@@ -1,0 +1,101 @@
+using Brokerage.Domain.Enums;
+
+namespace Brokerage.Domain.Entities;
+
+// Payment state transitions must remain conservative when a gateway response is ambiguous.
+public sealed class PaymentTransaction
+{
+    public Guid Id { get; private set; }
+    public Guid ServiceRequestId { get; private set; }
+    public long Amount { get; private set; }
+    public string Currency { get; private set; } = null!;
+    public PaymentStatus Status { get; private set; }
+    public string IdempotencyKey { get; private set; } = null!;
+    public string? GatewayToken { get; private set; }
+    public string? GatewayReference { get; private set; }
+    public DateTimeOffset CreatedAt { get; private set; }
+    public DateTimeOffset UpdatedAt { get; private set; }
+    public DateTimeOffset? VerifiedAt { get; private set; }
+
+    private PaymentTransaction() { }
+
+    public PaymentTransaction(Guid serviceRequestId, long amount, string currency, string idempotencyKey)
+    {
+        if (serviceRequestId == Guid.Empty) throw new ArgumentException("Service request ID cannot be empty.", nameof(serviceRequestId));
+        if (amount <= 0) throw new ArgumentOutOfRangeException(nameof(amount), "Payment amount must be positive.");
+        if (string.IsNullOrWhiteSpace(currency)) throw new ArgumentException("Currency cannot be empty.", nameof(currency));
+        if (string.IsNullOrWhiteSpace(idempotencyKey)) throw new ArgumentException("Idempotency key cannot be empty.", nameof(idempotencyKey));
+
+        Id = Guid.NewGuid();
+        ServiceRequestId = serviceRequestId;
+        Amount = amount;
+        Currency = currency.Trim().ToUpperInvariant();
+        IdempotencyKey = idempotencyKey.Trim();
+        Status = PaymentStatus.Pending;
+        CreatedAt = DateTimeOffset.UtcNow;
+        UpdatedAt = CreatedAt;
+    }
+
+    public void MarkGatewayCreated(string gatewayToken)
+    {
+        if (Status is PaymentStatus.Succeeded or PaymentStatus.Cancelled or PaymentStatus.Failed or PaymentStatus.ReconciliationRequired)
+            throw new InvalidOperationException($"Payment cannot receive a gateway token in status {Status}.");
+        if (string.IsNullOrWhiteSpace(gatewayToken)) throw new ArgumentException("Gateway token cannot be empty.", nameof(gatewayToken));
+        GatewayToken = gatewayToken;
+        Touch();
+    }
+
+    public void MarkSucceeded(string gatewayReference, DateTimeOffset? verifiedAt = null)
+    {
+        if (string.IsNullOrWhiteSpace(gatewayReference)) throw new ArgumentException("Gateway reference cannot be empty.", nameof(gatewayReference));
+        if (Status is PaymentStatus.Failed or PaymentStatus.Cancelled or PaymentStatus.ReconciliationRequired)
+            throw new InvalidOperationException($"A {Status.ToString().ToLowerInvariant()} payment cannot succeed.");
+        GatewayReference = gatewayReference;
+        Status = PaymentStatus.Succeeded;
+        VerifiedAt = verifiedAt ?? DateTimeOffset.UtcNow;
+        Touch();
+    }
+
+    public void MarkFailed()
+    {
+        if (Status == PaymentStatus.Succeeded) throw new InvalidOperationException("A succeeded payment cannot be marked failed.");
+        if (Status == PaymentStatus.ReconciliationRequired) throw new InvalidOperationException("A payment requiring reconciliation cannot be marked failed without review.");
+        Status = PaymentStatus.Failed;
+        Touch();
+    }
+
+    public void MarkCancelled()
+    {
+        if (Status == PaymentStatus.Succeeded) throw new InvalidOperationException("A succeeded payment cannot be cancelled.");
+        if (Status == PaymentStatus.ReconciliationRequired) throw new InvalidOperationException("A payment requiring reconciliation cannot be cancelled without review.");
+        Status = PaymentStatus.Cancelled;
+        Touch();
+    }
+
+    public void MarkVerifying()
+    {
+        if (Status != PaymentStatus.Pending) throw new InvalidOperationException($"Only pending payments can be verified; current status is {Status}.");
+        Status = PaymentStatus.Verifying;
+        Touch();
+    }
+
+    public void MarkVerificationOutcomeUnknown()
+    {
+        if (Status != PaymentStatus.Verifying)
+            throw new InvalidOperationException($"Only verifying payments can have an unknown verification outcome; current status is {Status}.");
+        // A timeout does not prove that the provider did not process the request.
+        // Keep callbacks from automatically issuing another Verify request.
+        Status = PaymentStatus.ReconciliationRequired;
+        Touch();
+    }
+
+    public void MarkReconciliationRequired()
+    {
+        if (Status != PaymentStatus.Verifying)
+            throw new InvalidOperationException($"Only verifying payments can require reconciliation; current status is {Status}.");
+        Status = PaymentStatus.ReconciliationRequired;
+        Touch();
+    }
+
+    private void Touch() => UpdatedAt = DateTimeOffset.UtcNow;
+}

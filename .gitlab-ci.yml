@@ -1,20 +1,29 @@
+.dotnet_cache: &dotnet_cache
+  cache:
+    key: "nuget-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .nuget/packages/
+    policy: pull-push
+  variables:
+    NUGET_PACKAGES: "$CI_PROJECT_DIR/.nuget/packages"
+
 stages:
   - validate
-  - build
-  - test
+  - verify
 
 site_validate:
   stage: validate
   image: alpine:3.20
   script:
-    - echo "Validating Sabz Royan Uraman website..."
-    - test -f sabzroyanuraman-site/index.html
-    - test -f sabzroyanuraman-site/determination-form.html
-    - test -f sabzroyanuraman-site/brokerage-details.html
-    - test -f sabzroyanuraman-site/web-gis.html
-    - test -f sabzroyanuraman-site/web-cad.html
-    - test -f sabzroyanuraman-site/.htaccess
-    - echo "Required website files are present."
+    - sh scripts/validate-site.sh
+
+secret_scan:
+  stage: validate
+  image:
+    name: zricethezav/gitleaks:v8.24.2
+    entrypoint: [""]
+  script:
+    - gitleaks dir --redact --verbose --exit-code 1 .
 
 php_validate:
   stage: validate
@@ -32,44 +41,15 @@ php_validate:
         php -l "$file"
       done
 
-dotnet_build:
-  stage: build
+dotnet_verify:
+  <<: *dotnet_cache
+  stage: verify
   image: mcr.microsoft.com/dotnet/sdk:10.0
   script:
     - dotnet --info
     - dotnet restore BrokeragePlatform.slnx
     - dotnet build BrokeragePlatform.slnx --configuration Release --no-restore
-
-dotnet_migration_verify:
-  stage: build
-  image: mcr.microsoft.com/dotnet/sdk:10.0
-  script:
     - export PATH="$PATH:$HOME/.dotnet/tools"
     - dotnet tool install --global dotnet-ef --version 10.0.12
-    - dotnet restore BrokeragePlatform.slnx
-    - dotnet build src/Brokerage.Api/Brokerage.Api.csproj --configuration Release --no-restore
-    - |
-      set -eu
-      migrations="$(dotnet ef migrations list --project src/Brokerage.Infrastructure/Brokerage.Infrastructure.csproj --startup-project src/Brokerage.Api/Brokerage.Api.csproj --configuration Release --no-build)"
-      printf '%s\n' "$migrations"
-      for migration in \
-        "20261005043933_InitialCreate" \
-        "20261005093520_AddAuditEvents" \
-        "20261005190000_HardenAuditEvents" \
-        "20261006100000_PersistOtpMfaState"; do
-        if ! printf '%s\n' "$migrations" | grep -Fq "$migration"; then
-          echo "ERROR: EF migration '$migration' was not discovered."
-          exit 1
-        fi
-      done
-      if printf '%s\n' "$migrations" | grep -Fq "No migrations were found"; then
-        echo "ERROR: EF reported that no migrations were found."
-        exit 1
-      fi
-
-dotnet_test:
-  stage: test
-  image: mcr.microsoft.com/dotnet/sdk:10.0
-  script:
-    - dotnet restore BrokeragePlatform.slnx
-    - dotnet test BrokeragePlatform.slnx --configuration Release --no-restore --logger "console;verbosity=normal"
+    - sh scripts/verify-ef-migrations.sh
+    - dotnet test BrokeragePlatform.slnx --configuration Release --no-build --no-restore --logger "console;verbosity=normal"

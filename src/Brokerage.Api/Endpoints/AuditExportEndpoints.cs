@@ -12,6 +12,49 @@ public static class AuditExportEndpoints
     private const int MaximumLimit = 10000;
     private static readonly JsonSerializerOptions NdjsonSerializerOptions = new(JsonSerializerDefaults.Web);
 
+    public static async Task<List<AuditEventRecord>> LoadRecordsAsync(
+        BrokerageDbContext dbContext,
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        if (dbContext.Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")
+        {
+            var fromUtc = from?.ToUniversalTime();
+            var toUtc = to?.ToUniversalTime();
+
+            IQueryable<AuditEventRecord> query = (fromUtc.HasValue, toUtc.HasValue) switch
+            {
+                (true, true) => dbContext.AuditEvents.FromSqlInterpolated(
+                    $"SELECT * FROM audit_events WHERE OccurredAt >= {fromUtc!.Value} AND OccurredAt <= {toUtc!.Value} ORDER BY OccurredAt DESC, EventId DESC LIMIT {limit}"),
+                (true, false) => dbContext.AuditEvents.FromSqlInterpolated(
+                    $"SELECT * FROM audit_events WHERE OccurredAt >= {fromUtc!.Value} ORDER BY OccurredAt DESC, EventId DESC LIMIT {limit}"),
+                (false, true) => dbContext.AuditEvents.FromSqlInterpolated(
+                    $"SELECT * FROM audit_events WHERE OccurredAt <= {toUtc!.Value} ORDER BY OccurredAt DESC, EventId DESC LIMIT {limit}"),
+                _ => dbContext.AuditEvents.FromSqlInterpolated(
+                    $"SELECT * FROM audit_events ORDER BY OccurredAt DESC, EventId DESC LIMIT {limit}")
+            };
+
+            return await query
+                .AsNoTracking()
+                .ToListAsync(cancellationToken);
+        }
+
+        IQueryable<AuditEventRecord> providerQuery = dbContext.AuditEvents;
+        if (from.HasValue)
+            providerQuery = providerQuery.Where(x => x.OccurredAt >= from.Value);
+        if (to.HasValue)
+            providerQuery = providerQuery.Where(x => x.OccurredAt <= to.Value);
+
+        return await providerQuery
+            .OrderByDescending(x => x.OccurredAt)
+            .ThenByDescending(x => x.EventId)
+            .Take(limit)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+    }
+
     public static void Map(WebApplication app)
     {
         app.MapGet("/audit/events/export", async (
@@ -24,6 +67,10 @@ public static class AuditExportEndpoints
             CancellationToken cancellationToken,
             IConfiguration configuration) =>
         {
+            // Audit exports contain sensitive operational metadata; prevent browser and intermediary caching
+            // for successful responses and every early-return path alike.
+            context.Response.Headers.CacheControl = "no-store";
+
             if (currentUser.Role is not (
                 nameof(UserRole.TechnicalSecurity) or
                 nameof(UserRole.OrganizationObserver) or
@@ -49,39 +96,12 @@ public static class AuditExportEndpoints
             if (requestedLimit < 1 || requestedLimit > maximumLimit)
                 return Results.BadRequest(new { message = $"limit must be between 1 and {maximumLimit}." });
 
-            List<AuditEventRecord> auditRecords;
-            var isSqlite = dbContext.Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite";
-
-            if (isSqlite)
-            {
-                auditRecords = await dbContext.AuditEvents.AsNoTracking().ToListAsync(cancellationToken);
-                if (from.HasValue)
-                    auditRecords = auditRecords.Where(x => x.OccurredAt >= from.Value).ToList();
-                if (to.HasValue)
-                    auditRecords = auditRecords.Where(x => x.OccurredAt <= to.Value).ToList();
-
-                auditRecords = auditRecords
-                    .OrderByDescending(x => x.OccurredAt)
-                    .ThenByDescending(x => x.EventId)
-                    .Take(requestedLimit)
-                    .ToList();
-            }
-            else
-            {
-                IQueryable<AuditEventRecord> query = dbContext.AuditEvents;
-
-                if (from.HasValue)
-                    query = query.Where(x => x.OccurredAt >= from.Value);
-                if (to.HasValue)
-                    query = query.Where(x => x.OccurredAt <= to.Value);
-
-                auditRecords = await query
-                    .OrderByDescending(x => x.OccurredAt)
-                    .ThenByDescending(x => x.EventId)
-                    .Take(requestedLimit)
-                    .AsNoTracking()
-                    .ToListAsync(cancellationToken);
-            }
+            var auditRecords = await LoadRecordsAsync(
+                dbContext,
+                from,
+                to,
+                requestedLimit,
+                cancellationToken);
 
             var events = auditRecords.Select(x => new
             {
@@ -108,6 +128,6 @@ public static class AuditExportEndpoints
             return Results.Text(
                 events.Count == 0 ? string.Empty : ndjson + Environment.NewLine,
                 "application/x-ndjson; charset=utf-8");
-        });
+        }).RequireRateLimiting("audit-export");
     }
 }

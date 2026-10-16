@@ -4,3 +4,16 @@ obj/
 .vscode/
 *.user
 *.suo
+
+# Local environment and runtime secrets/data must not enter source control.
+.env
+.env.*
+!.env.example
+*.db
+*.db-shm
+*.db-wal
+*.pfx
+*.p12
+*.key
+**/secrets/
+**/DataProtection-Keys/

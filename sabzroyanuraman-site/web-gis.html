@@ -425,7 +425,6 @@ const base={
  osm:L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"}),
  topo:L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",{maxZoom:17,attribution:"© OpenTopoMap contributors"}),
  sat:L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"© Esri"}),
- giscloud:L.tileLayer("https://maps.tilehosting.com/styles/streets/{z}/{x}/{y}@2x.png?key=YorAZF63uBWqKs6t27lY",{maxZoom:19,attribution:"© OpenStreetMap contributors © MapTiler"})
 };
 Object.entries(base).forEach(([key,layer])=>{
   layer.on("tileerror",()=>status("خطا در دریافت نقشه پایه "+key+"؛ دسترسی اینترنت یا سرویس Tile را بررسی کن."));
