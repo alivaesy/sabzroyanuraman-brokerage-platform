@@ -18,6 +18,22 @@ public class IdentityVerificationServiceTests
         Assert.True(result);
     }
 
+    [Theory]
+    [InlineData("۱۲۳۴۵۶۷۸۹۱")]
+    [InlineData("١٢٣٤٥٦٧٨٩١")]
+    public async Task VerifyAsync_NormalizesUnicodeDigitsBeforeCallingExternalClients(string nationalIdentifier)
+    {
+        var sanaClient = new StubSanaClient(true);
+        var shahkarClient = new StubShahkarClient(true);
+        var service = CreateService(sanaClient, shahkarClient);
+
+        var result = await service.VerifyAsync(nationalIdentifier);
+
+        Assert.True(result);
+        Assert.Equal(ValidNationalIdentifier, sanaClient.ReceivedIdentifier);
+        Assert.Equal(ValidNationalIdentifier, shahkarClient.ReceivedIdentifier);
+    }
+
     [Fact]
     public async Task VerifyAsync_WithInvalidNationalIdentifier_ReturnsFalseWithoutCallingExternalClients()
     {
@@ -65,12 +81,14 @@ public class IdentityVerificationServiceTests
     {
         private readonly bool _result;
         public bool WasCalled { get; private set; }
+        public string? ReceivedIdentifier { get; private set; }
 
         public StubSanaClient(bool result) => _result = result;
 
         public Task<bool> IsAuthenticatedAsync(string nationalIdentifier, CancellationToken cancellationToken = default)
         {
             WasCalled = true;
+            ReceivedIdentifier = nationalIdentifier;
             return Task.FromResult(_result);
         }
     }
@@ -79,12 +97,14 @@ public class IdentityVerificationServiceTests
     {
         private readonly bool _result;
         public bool WasCalled { get; private set; }
+        public string? ReceivedIdentifier { get; private set; }
 
         public StubShahkarClient(bool result) => _result = result;
 
         public Task<bool> IsMobileMatchedAsync(string nationalIdentifier, CancellationToken cancellationToken = default)
         {
             WasCalled = true;
+            ReceivedIdentifier = nationalIdentifier;
             return Task.FromResult(_result);
         }
     }
