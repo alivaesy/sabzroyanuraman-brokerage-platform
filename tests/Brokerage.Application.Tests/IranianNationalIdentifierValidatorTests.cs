@@ -9,6 +9,8 @@ public class IranianNationalIdentifierValidatorTests
     [Theory]
     [InlineData("1234567891")]
     [InlineData("1231231238")]
+    [InlineData("۱۲۳۴۵۶۷۸۹۱")]
+    [InlineData("١٢٣٤٥٦٧٨٩١")]
     public void IsValid_WithValidNationalIdentifier_ReturnsTrue(string nationalIdentifier)
     {
         Assert.True(_validator.IsValid(nationalIdentifier));
@@ -20,6 +22,10 @@ public class IranianNationalIdentifierValidatorTests
     [InlineData("123456789")]
     [InlineData("12345678901")]
     [InlineData("1234567890")]
+    [InlineData("0000000000")]
+    [InlineData("1111111111")]
+    [InlineData("9999999999")]
+    [InlineData("１２３４５６７８９１")]
     [InlineData("TEST-123")]
     public void IsValid_WithInvalidNationalIdentifier_ReturnsFalse(string? nationalIdentifier)
     {
