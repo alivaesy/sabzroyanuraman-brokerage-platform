@@ -45,7 +45,7 @@ The repository's `الزامات_کارگزاری.html` contains the supplied th
 
 1. **Repository evidence:** keep this checkpoint and `docs/AI_HANDOFF.md` aligned with the live branch/commit/pipeline state.
 2. **Workflow traceability:** source-derived route matrix now exists in `docs/CORE_WORKFLOW_TRACEABILITY_2026-10-17.md`. It identifies S01 as the only service-specific creation route currently visible and does not count generic creation as proof of three approved services. Continue by mapping each approved service requirement to state transitions, authorization, persistence, adapter and tests.
-3. **Security regressions:** review ownership/authorization, no-store, rate-limit, audit export and OTP behavior against the exact source and tests; fix only concrete, testable gaps.
+3. **Security and schema regressions:** the empty-database migration test now asserts both discovery/application of `20261014120000_AddOtpChallengeExpiresAtIndex` and creation of `IX_otp_challenges_ExpiresAt`. The change needs the new commit's CI result before it is considered verified. Continue reviewing ownership/authorization, no-store, rate-limit, audit export and OTP behavior against exact source and tests.
 4. **Deployment readiness:** document approved target database, hosting, secret management, distributed throttling, backup/restore, monitoring and rollback responsibilities before implementing environment-specific choices.
 5. **Payment readiness:** do not activate the .NET path until tariff/business approval, merchant contract, sandbox evidence and single-owner transaction routing are complete.
 6. **Review:** inspect the complete branch diff and pipeline; propose a merge request for review but do not merge into protected `master` without explicit authorization.

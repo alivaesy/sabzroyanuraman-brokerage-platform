@@ -239,6 +239,7 @@ public class AuditComplianceTests
         Assert.Contains("20261006100000_PersistOtpMfaState", appliedMigrations);
         Assert.Contains("20261008170000_AddPaymentTransactions", appliedMigrations);
         Assert.Contains("20261010100000_AddPaymentStatusUpdatedAtIndex", appliedMigrations);
+        Assert.Contains("20261014120000_AddOtpChallengeExpiresAtIndex", appliedMigrations);
 
         var tableNames = new HashSet<string>(StringComparer.Ordinal);
         await using (var command = connection.CreateCommand())
@@ -257,6 +258,17 @@ public class AuditComplianceTests
         Assert.Contains("otp_challenges", tableNames);
         Assert.Contains("mfa_verifications", tableNames);
         Assert.Contains("__EFMigrationsHistory", tableNames);
+
+        var indexNames = new HashSet<string>(StringComparer.Ordinal);
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "SELECT name FROM sqlite_master WHERE type = 'index';";
+            await using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+                indexNames.Add(reader.GetString(0));
+        }
+
+        Assert.Contains("IX_otp_challenges_ExpiresAt", indexNames);
 
         var triggerNames = new HashSet<string>(StringComparer.Ordinal);
         await using (var command = connection.CreateCommand())
