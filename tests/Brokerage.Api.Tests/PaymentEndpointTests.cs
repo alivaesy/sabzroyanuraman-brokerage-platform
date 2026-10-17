@@ -49,6 +49,36 @@ public class PaymentEndpointTests
     }
 
     [Fact]
+    public async Task CreatePayment_RateLimitRejectionDisablesCaching()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        var userId = $"payment-rate-limit-{Guid.NewGuid():N}";
+        using (var scope = application.Services.CreateScope())
+            scope.ServiceProvider.GetRequiredService<IMfaVerificationStore>()
+                .MarkVerified(userId, DateTimeOffset.UtcNow);
+
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", userId);
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Applicant.ToString());
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            using var response = await client.PostAsJsonAsync(
+                "/payments",
+                new { serviceRequestId = Guid.NewGuid() });
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+            Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+        }
+
+        using var limitedResponse = await client.PostAsJsonAsync(
+            "/payments",
+            new { serviceRequestId = Guid.NewGuid() });
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, limitedResponse.StatusCode);
+        Assert.Equal("no-store", limitedResponse.Headers.CacheControl?.ToString());
+    }
+
+    [Fact]
     public async Task CreatePayment_ApplicantWithoutRecentMfa_ReturnsForbidden()
     {
         await using var application = new WebApplicationFactory<Program>();
