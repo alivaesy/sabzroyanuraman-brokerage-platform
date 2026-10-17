@@ -323,6 +323,7 @@ app.Use(async (context, next) =>
 {
     if (context.Request.Path.StartsWithSegments("/identity") ||
         context.Request.Path.StartsWithSegments("/service-requests") ||
+        context.Request.Path.StartsWithSegments("/payments") ||
         context.Request.Path.StartsWithSegments("/ops/payments") ||
         context.Request.Path.StartsWithSegments("/audit/events/export"))
     {

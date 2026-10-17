@@ -23,6 +23,7 @@ public class PaymentEndpointTests
         using var response = await client.PostAsJsonAsync("/payments", new { serviceRequestId = Guid.NewGuid() });
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
     }
 
     [Fact]
@@ -58,6 +59,7 @@ public class PaymentEndpointTests
         using var response = await client.PostAsJsonAsync("/payments", new { serviceRequestId = Guid.NewGuid() });
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
     }
 
     [Fact]
