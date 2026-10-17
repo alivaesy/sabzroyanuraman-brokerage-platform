@@ -33,8 +33,8 @@ public sealed class IranianNationalIdentifierValidator : INationalIdentifierVali
 
     private static char NormalizeDigit(char character) => character switch
     {
-        >= '\\u06F0' and <= '\\u06F9' => (char)('0' + character - '\\u06F0'),
-        >= '\\u0660' and <= '\\u0669' => (char)('0' + character - '\\u0660'),
+        >= '\u06F0' and <= '\u06F9' => (char)('0' + character - '\u06F0'),
+        >= '\u0660' and <= '\u0669' => (char)('0' + character - '\u0660'),
         _ => character
     };
 }
