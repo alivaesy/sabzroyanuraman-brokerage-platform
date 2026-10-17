@@ -15,7 +15,7 @@ This repository contains the brokerage service API, its application/domain/infra
 - `tests/Brokerage.Api.Tests` — API/integration behavior and security regressions.
 - `tests/Brokerage.Application.Tests` — application-level behavior.
 - `sabzroyanuraman-site` — public website and legacy PHP endpoints.
-- `docs` — workflow inventory, setup notes, payment gates, and regulatory-readiness tracking. Start with `docs/PROJECT_READINESS_CHECKPOINT_2026-10-17.md` for the latest verified baseline and ordered next steps.
+- `docs` — workflow inventory, setup notes, payment gates, and regulatory-readiness tracking. Start with `docs/PROJECT_READINESS_CHECKPOINT_2026-10-17.md` for the latest verified baseline and `docs/CORE_WORKFLOW_TRACEABILITY_2026-10-17.md` for route-to-requirement gaps and ordered workflow work.
 - `scripts` — website validation and EF migration consistency checks.
 
 ## Local verification

@@ -44,7 +44,7 @@ The repository's `الزامات_کارگزاری.html` contains the supplied th
 ## Ordered continuation plan
 
 1. **Repository evidence:** keep this checkpoint and `docs/AI_HANDOFF.md` aligned with the live branch/commit/pipeline state.
-2. **Workflow traceability:** create a service-by-service matrix from approved requirements to API endpoint, state transitions, authorization, persistence, integration adapter and tests. Label unknown rules as blockers instead of inventing them.
+2. **Workflow traceability:** source-derived route matrix now exists in `docs/CORE_WORKFLOW_TRACEABILITY_2026-10-17.md`. It identifies S01 as the only service-specific creation route currently visible and does not count generic creation as proof of three approved services. Continue by mapping each approved service requirement to state transitions, authorization, persistence, adapter and tests.
 3. **Security regressions:** review ownership/authorization, no-store, rate-limit, audit export and OTP behavior against the exact source and tests; fix only concrete, testable gaps.
 4. **Deployment readiness:** document approved target database, hosting, secret management, distributed throttling, backup/restore, monitoring and rollback responsibilities before implementing environment-specific choices.
 5. **Payment readiness:** do not activate the .NET path until tariff/business approval, merchant contract, sandbox evidence and single-owner transaction routing are complete.
