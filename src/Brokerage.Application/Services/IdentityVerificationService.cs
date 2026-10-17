@@ -44,8 +44,8 @@ public class IdentityVerificationService : IIdentityVerificationService
     private static string NormalizeDigits(string value) =>
         new(value.Select(character => character switch
         {
-            >= '\\u06F0' and <= '\\u06F9' => (char)('0' + character - '\\u06F0'),
-            >= '\\u0660' and <= '\\u0669' => (char)('0' + character - '\\u0660'),
+            >= '\u06F0' and <= '\u06F9' => (char)('0' + character - '\u06F0'),
+            >= '\u0660' and <= '\u0669' => (char)('0' + character - '\u0660'),
             _ => character
         }).ToArray());
 }
