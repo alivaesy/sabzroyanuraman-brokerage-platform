@@ -44,6 +44,29 @@ public class PaymentCallbackPostTests
     }
 
     [Fact]
+    public async Task SadadCallback_RateLimitRejectionRetainsSecurityHeaders()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        for (var attempt = 0; attempt < 30; attempt++)
+        {
+            using var response = await client.GetAsync(
+                $"/payments/sadad/callback?Token=untrusted&OrderId=not-a-guid-{attempt}");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
+        using var limitedResponse = await client.GetAsync(
+            "/payments/sadad/callback?Token=untrusted&OrderId=not-a-guid-limited");
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, limitedResponse.StatusCode);
+        Assert.Equal("no-store", limitedResponse.Headers.CacheControl?.ToString());
+        Assert.Equal("nosniff", limitedResponse.Headers.GetValues("X-Content-Type-Options").Single());
+        Assert.Equal("no-referrer", limitedResponse.Headers.GetValues("Referrer-Policy").Single());
+        Assert.Contains("default-src 'none'", limitedResponse.Headers.GetValues("Content-Security-Policy").Single());
+    }
+
+    [Fact]
     public async Task SadadCallback_PostedForm_UsesSupportedFieldNamesAndSecurityHeaders()
     {
         await using var application = new WebApplicationFactory<Program>();

@@ -145,6 +145,13 @@ builder.Services.AddRateLimiter(options =>
         var response = context.HttpContext.Response;
         response.Headers.CacheControl = "no-store";
 
+        if (context.HttpContext.Request.Path.StartsWithSegments("/payments/sadad/callback"))
+        {
+            response.Headers["X-Content-Type-Options"] = "nosniff";
+            response.Headers["Referrer-Policy"] = "no-referrer";
+            response.Headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'";
+        }
+
         if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
         {
             var seconds = Math.Max(1L, (long)Math.Ceiling(retryAfter.TotalSeconds));
