@@ -28,9 +28,9 @@ public class CreateS01ServiceRequest
         IUnitOfWork unitOfWork,
         ILogger<CreateS01ServiceRequest>? logger = null)
     {
-        _workflowService = workflowService;
-        _identityVerificationService = identityVerificationService;
-        _organizationIntegrationService = organizationIntegrationService;
+        _workflowService = workflowService ?? throw new ArgumentNullException(nameof(workflowService));
+        _identityVerificationService = identityVerificationService ?? throw new ArgumentNullException(nameof(identityVerificationService));
+        _organizationIntegrationService = organizationIntegrationService ?? throw new ArgumentNullException(nameof(organizationIntegrationService));
         _serviceRequestRepository = serviceRequestRepository ?? throw new ArgumentNullException(nameof(serviceRequestRepository));
         _logger = logger;
         _auditEventWriter = auditEventWriter ?? throw new ArgumentNullException(nameof(auditEventWriter));
@@ -45,6 +45,8 @@ public class CreateS01ServiceRequest
         string? actorRole = null,
         string? ipAddress = null)
     {
+        ArgumentNullException.ThrowIfNull(model);
+
         if (string.IsNullOrWhiteSpace(applicantUserId))
             throw new ArgumentException("Applicant user ID cannot be empty.", nameof(applicantUserId));
 
