@@ -1,5 +1,6 @@
 using Brokerage.Application.Authentication;
 using Brokerage.Application.Contracts;
+using Brokerage.Application.Models;
 using Brokerage.Infrastructure.Persistence;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;

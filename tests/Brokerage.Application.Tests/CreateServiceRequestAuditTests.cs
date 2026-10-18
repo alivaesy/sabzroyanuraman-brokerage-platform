@@ -40,7 +40,7 @@ public class CreateServiceRequestAuditTests
         var events = await db.AuditEvents.AsNoTracking().OrderBy(x => x.EventType).ToListAsync();
         Assert.Equal(2, events.Count);
 
-        var created = Assert.Single(events.Where(x => x.EventType == "ServiceRequestCreated"));
+        var created = Assert.Single(events, x => x.EventType == "ServiceRequestCreated");
         Assert.Equal(request.Id, created.ServiceRequestId);
         Assert.Equal("INITIAL", created.WorkflowStage);
         Assert.Equal("Created", created.NewState);
