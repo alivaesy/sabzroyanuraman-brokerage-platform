@@ -29,12 +29,13 @@ public class WorkflowStage
 
         Id = Guid.NewGuid();
         ServiceRequestId = serviceRequestId;
-        StageCode = stageCode;
+        StageCode = stageCode.Trim();
         CreatedAt = DateTimeOffset.UtcNow;
     }
 
     public void Complete()
     {
-        CompletedAt = DateTimeOffset.UtcNow;
+        // Preserve the original completion time if a caller repeats the transition.
+        CompletedAt ??= DateTimeOffset.UtcNow;
     }
 }

@@ -34,14 +34,33 @@ public class WorkflowServiceTests
             "IdentityVerification");
 
         Assert.NotEqual(Guid.Empty, stage.Id);
-        Assert.Equal(
-            stage.Id,
-            request.CurrentWorkflowStageId);
-        Assert.Equal(
-            request.Id,
-            stage.ServiceRequestId);
-        Assert.Equal(
-            "IdentityVerification",
-            stage.StageCode);
+        Assert.Equal(stage.Id, request.CurrentWorkflowStageId);
+        Assert.Equal(request.Id, stage.ServiceRequestId);
+        Assert.Equal("IdentityVerification", stage.StageCode);
+    }
+
+    [Fact]
+    public void CreateStage_TrimsSurroundingWhitespaceFromStageCode()
+    {
+        var workflowService = new WorkflowService();
+        var request = new ServiceRequest(ServiceCode.S01, "test-applicant");
+
+        var stage = workflowService.CreateStage(request, "  IdentityVerification  ");
+
+        Assert.Equal("IdentityVerification", stage.StageCode);
+    }
+
+    [Fact]
+    public void Complete_PreservesFirstCompletionTimestamp()
+    {
+        var stage = new WorkflowStage(Guid.NewGuid(), "IdentityVerification");
+
+        stage.Complete();
+        var firstCompletion = stage.CompletedAt;
+
+        stage.Complete();
+
+        Assert.NotNull(firstCompletion);
+        Assert.Equal(firstCompletion, stage.CompletedAt);
     }
 }
