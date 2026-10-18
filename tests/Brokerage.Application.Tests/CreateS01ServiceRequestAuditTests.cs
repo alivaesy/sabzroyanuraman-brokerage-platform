@@ -41,7 +41,9 @@ public class CreateS01ServiceRequestAuditTests
                 NationalIdentifier = "1234567891"
             },
             "test-applicant",
-            "CORRELATION-123");
+            "CORRELATION-123",
+            actorRole: "Applicant",
+            ipAddress: "127.0.0.1");
 
         // Audit events are captured through the audit boundary, not application logs.
         // This keeps sensitive audit payloads out of routine logs while preserving test coverage.
@@ -89,6 +91,9 @@ public class CreateS01ServiceRequestAuditTests
             Assert.Equal(request.Id, x.ServiceRequestId);
             Assert.Equal("Success", x.Outcome);
             Assert.Equal("CORRELATION-123", x.CorrelationId);
+            Assert.Equal("test-applicant", x.ActorUserId);
+            Assert.Equal("Applicant", x.ActorRole);
+            Assert.Equal("127.0.0.1", x.IpAddress);
         });
     }
 

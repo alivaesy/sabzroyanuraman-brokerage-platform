@@ -86,22 +86,22 @@ public class CreateS01ServiceRequest
         var request = new ServiceRequest(ServiceCode.S01, applicantUserId);
 
         var identityVerificationStage = _workflowService.CreateStage(request, S01StageCode.IdentityVerification.ToString());
-        await LogAuditAsync("WorkflowStageCreated", request.Id, identityVerificationStage.StageCode, correlationId, null, identityVerificationStage.StageCode);
+        await LogAuditAsync("WorkflowStageCreated", request.Id, identityVerificationStage.StageCode, correlationId, null, identityVerificationStage.StageCode, applicantUserId, actorRole, ipAddress);
         identityVerificationStage.Complete();
-        await LogAuditAsync("WorkflowStageCompleted", request.Id, identityVerificationStage.StageCode, correlationId, identityVerificationStage.StageCode, identityVerificationStage.StageCode);
+        await LogAuditAsync("WorkflowStageCompleted", request.Id, identityVerificationStage.StageCode, correlationId, identityVerificationStage.StageCode, identityVerificationStage.StageCode, applicantUserId, actorRole, ipAddress);
 
         var organizationSubmissionStage = _workflowService.CreateStage(request, S01StageCode.OrganizationSubmission.ToString());
-        await LogAuditAsync("WorkflowStageCreated", request.Id, organizationSubmissionStage.StageCode, correlationId, null, organizationSubmissionStage.StageCode);
+        await LogAuditAsync("WorkflowStageCreated", request.Id, organizationSubmissionStage.StageCode, correlationId, null, organizationSubmissionStage.StageCode, applicantUserId, actorRole, ipAddress);
         organizationSubmissionStage.Complete();
-        await LogAuditAsync("WorkflowStageCompleted", request.Id, organizationSubmissionStage.StageCode, correlationId, organizationSubmissionStage.StageCode, organizationSubmissionStage.StageCode);
+        await LogAuditAsync("WorkflowStageCompleted", request.Id, organizationSubmissionStage.StageCode, correlationId, organizationSubmissionStage.StageCode, organizationSubmissionStage.StageCode, applicantUserId, actorRole, ipAddress);
 
         var organizationFollowUpStage = _workflowService.CreateStage(request, S01StageCode.OrganizationFollowUp.ToString());
-        await LogAuditAsync("WorkflowStageCreated", request.Id, organizationFollowUpStage.StageCode, correlationId, null, organizationFollowUpStage.StageCode);
+        await LogAuditAsync("WorkflowStageCreated", request.Id, organizationFollowUpStage.StageCode, correlationId, null, organizationFollowUpStage.StageCode, applicantUserId, actorRole, ipAddress);
 
         request.SetOrganizationTrackingId(trackingId);
         var previousRequestStatus = request.Status;
         request.ChangeStatus(RequestStatus.WaitingForOrganization);
-        await LogAuditAsync("ServiceRequestStatusChanged", request.Id, organizationFollowUpStage.StageCode, correlationId, previousRequestStatus.ToString(), request.Status.ToString());
+        await LogAuditAsync("ServiceRequestStatusChanged", request.Id, organizationFollowUpStage.StageCode, correlationId, previousRequestStatus.ToString(), request.Status.ToString(), applicantUserId, actorRole, ipAddress);
 
         await _serviceRequestRepository.AddAsync(request, persistenceCancellationToken);
         await _serviceRequestRepository.AddWorkflowStageAsync(identityVerificationStage, persistenceCancellationToken);

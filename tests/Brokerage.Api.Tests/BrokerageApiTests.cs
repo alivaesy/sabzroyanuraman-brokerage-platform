@@ -257,6 +257,12 @@ public class BrokerageApiTests
 
         Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+
+        using var scope = application.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+        Assert.Equal(0, await db.ServiceRequests.AsNoTracking().CountAsync());
+        Assert.Equal(0, await db.WorkflowStages.AsNoTracking().CountAsync());
+        Assert.Equal(0, await db.AuditEvents.AsNoTracking().CountAsync());
     }
 
     [Theory]
