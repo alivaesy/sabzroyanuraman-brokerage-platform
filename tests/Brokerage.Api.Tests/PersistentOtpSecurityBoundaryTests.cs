@@ -51,6 +51,39 @@ public class PersistentOtpSecurityBoundaryTests
     }
 
     [Fact]
+    public async Task Verify_MalformedStoredHashFailsClosedAndRemovesCorruptChallenge()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<BrokerageDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using (var setup = new BrokerageDbContext(options))
+        {
+            await setup.Database.MigrateAsync();
+            setup.OtpChallenges.Add(new OtpChallengeRecord
+            {
+                ChallengeId = "corrupt-hash",
+                UserId = "otp-user",
+                CodeHash = "not-a-hex-hash",
+                ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(2),
+                FailedAttempts = 0
+            });
+            await setup.SaveChangesAsync();
+        }
+
+        await using (var db = new BrokerageDbContext(options))
+        {
+            var service = new PersistentOtpService(db, TestHasher.Instance);
+            Assert.False(await service.VerifyAsync("otp-user", "corrupt-hash", "123456"));
+        }
+
+        await using var verifyDb = new BrokerageDbContext(options);
+        Assert.False(await verifyDb.OtpChallenges.AnyAsync(x => x.ChallengeId == "corrupt-hash"));
+    }
+
+    [Fact]
     public async Task Verify_WrongUserCannotConsumeOrIncrementAnotherUsersChallenge()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
