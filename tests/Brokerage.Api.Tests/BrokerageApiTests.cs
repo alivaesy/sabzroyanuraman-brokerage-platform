@@ -552,7 +552,7 @@ public class BrokerageApiTests
     }
 
     [Fact]
-    public async Task GetOrganizationStatus_AdvancesWorkflowToResultNotification()
+    public async Task PostOrganizationStatus_AdvancesWorkflowToResultNotification()
     {
         await using var application = new WebApplicationFactory<Program>();
         using var client = await CreateVerifiedApplicantClientAsync(application);
@@ -665,7 +665,7 @@ public class BrokerageApiTests
         var created = await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
         var requestId = Guid.Parse(created.GetProperty("id").GetString()!);
 
-        var firstRefresh = client.GetAsync($"/service-requests/{requestId}/organization-status");
+        var firstRefresh = client.PostAsync($"/service-requests/{requestId}/organization-status", content: null);
         var secondRefresh = client.GetAsync($"/service-requests/{requestId}/organization-status");
         await organizationService.SecondStatusCallStarted.WaitAsync(TimeSpan.FromSeconds(10));
 

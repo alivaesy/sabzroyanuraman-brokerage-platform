@@ -578,11 +578,11 @@ app.MapGet("/service-requests/{id:guid}/workflow-stages", async (
     return Results.Ok(stages.Select(stage => new { stage.Id, stage.ServiceRequestId, stage.StageCode, stage.CreatedAt, stage.CompletedAt }));
 }).RequireAuthorization().RequireRateLimiting("service-request-read");
 
-app.MapGet("/service-requests/{id:guid}/organization-status", async (
+static async Task<IResult> RefreshOrganizationStatusAsync(
     Guid id, IServiceRequestRepository repository, ICurrentUser currentUser,
     IOrganizationIntegrationService organizationIntegrationService,
     HttpContext context, IAuditEventWriter auditEventWriter, IUnitOfWork unitOfWork,
-    CancellationToken cancellationToken) =>
+    CancellationToken cancellationToken)
 {
     var request = await repository.GetByIdAsync(id, cancellationToken);
     if (request is null) return Results.NotFound();
@@ -645,7 +645,12 @@ app.MapGet("/service-requests/{id:guid}/organization-status", async (
             message = "Organization status changed while this refresh was in progress. Retry the refresh."
         });
     }
-}).RequireAuthorization().RequireRateLimiting("service-request-read");
+}
+
+app.MapGet("/service-requests/{id:guid}/organization-status", RefreshOrganizationStatusAsync)
+    .RequireAuthorization().RequireRateLimiting("service-request-read");
+app.MapPost("/service-requests/{id:guid}/organization-status", RefreshOrganizationStatusAsync)
+    .RequireAuthorization().RequireRateLimiting("service-request-read");
 
 static bool CanAccessServiceRequest(ICurrentUser currentUser, ServiceRequest request)
 {
