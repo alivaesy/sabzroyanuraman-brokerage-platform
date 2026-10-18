@@ -580,8 +580,9 @@ public class BrokerageApiTests
         var requestId = Guid.Parse(
             created.GetProperty("id").GetString()!);
 
-        var statusResponse = await client.GetAsync(
-            $"/service-requests/{requestId}/organization-status");
+        var statusResponse = await client.PostAsync(
+            $"/service-requests/{requestId}/organization-status",
+            content: null);
 
         Assert.Equal(
             System.Net.HttpStatusCode.OK,
