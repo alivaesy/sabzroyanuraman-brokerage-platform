@@ -51,6 +51,52 @@ public class PersistentOtpSecurityBoundaryTests
     }
 
     [Fact]
+    public async Task Issue_NewChallengeInvalidatesPreviousActiveChallengeForSameUser()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<BrokerageDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using (var setup = new BrokerageDbContext(options))
+        {
+            await setup.Database.MigrateAsync();
+            setup.OtpChallenges.AddRange(
+                new OtpChallengeRecord
+                {
+                    ChallengeId = "previous-active",
+                    UserId = "resend-user",
+                    CodeHash = TestHasher.Instance.Hash("123456"),
+                    ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(2),
+                    FailedAttempts = 0
+                },
+                new OtpChallengeRecord
+                {
+                    ChallengeId = "other-user-active",
+                    UserId = "other-user",
+                    CodeHash = TestHasher.Instance.Hash("654321"),
+                    ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(2),
+                    FailedAttempts = 0
+                });
+            await setup.SaveChangesAsync();
+        }
+
+        string newChallengeId;
+        await using (var db = new BrokerageDbContext(options))
+        {
+            var service = new PersistentOtpService(db, TestHasher.Instance);
+            newChallengeId = (await service.IssueAsync("resend-user")).ChallengeId;
+        }
+
+        await using var verifyDb = new BrokerageDbContext(options);
+        Assert.False(await verifyDb.OtpChallenges.AnyAsync(x => x.ChallengeId == "previous-active"));
+        Assert.True(await verifyDb.OtpChallenges.AnyAsync(x => x.ChallengeId == newChallengeId && x.UserId == "resend-user"));
+        Assert.True(await verifyDb.OtpChallenges.AnyAsync(x => x.ChallengeId == "other-user-active"));
+        Assert.Equal(1, await verifyDb.OtpChallenges.CountAsync(x => x.UserId == "resend-user"));
+    }
+
+    [Fact]
     public async Task Verify_MalformedStoredHashFailsClosedAndRemovesCorruptChallenge()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");

@@ -30,6 +30,21 @@ public sealed class PersistentOtpService(BrokerageDbContext db, IOtpCodeHasher c
                 .ExecuteDeleteAsync(cancellationToken);
         }
 
+        // Issuing a new challenge invalidates prior active challenges for this account.
+        // This prevents an older code from remaining usable after a resend.
+        if (db.Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"DELETE FROM otp_challenges WHERE UserId = {userId} AND ExpiresAt > {now}",
+                cancellationToken);
+        }
+        else
+        {
+            await db.OtpChallenges
+                .Where(x => x.UserId == userId && x.ExpiresAt > now)
+                .ExecuteDeleteAsync(cancellationToken);
+        }
+
         var challengeId = Guid.NewGuid().ToString("N");
         var code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
         var expiresAt = now.AddMinutes(2);
