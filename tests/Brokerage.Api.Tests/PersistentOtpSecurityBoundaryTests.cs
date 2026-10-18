@@ -86,6 +86,43 @@ public class PersistentOtpSecurityBoundaryTests
         Assert.Equal(0, challenge.FailedAttempts);
     }
 
+
+    [Fact]
+    public async Task Verify_FifthIncorrectCodeConsumesChallengeAndCorrectCodeCannotBeReused()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<BrokerageDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using (var setup = new BrokerageDbContext(options))
+        {
+            await setup.Database.MigrateAsync();
+            setup.OtpChallenges.Add(new OtpChallengeRecord
+            {
+                ChallengeId = "attempt-limited-challenge",
+                UserId = "attempt-limited-user",
+                CodeHash = TestHasher.Instance.Hash("123456"),
+                ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(2),
+                FailedAttempts = 0
+            });
+            await setup.SaveChangesAsync();
+        }
+
+        await using (var db = new BrokerageDbContext(options))
+        {
+            var service = new PersistentOtpService(db, TestHasher.Instance);
+            for (var attempt = 0; attempt < 5; attempt++)
+                Assert.False(await service.VerifyAsync("attempt-limited-user", "attempt-limited-challenge", "000000"));
+
+            Assert.False(await service.VerifyAsync("attempt-limited-user", "attempt-limited-challenge", "123456"));
+        }
+
+        await using var verifyDb = new BrokerageDbContext(options);
+        Assert.False(await verifyDb.OtpChallenges.AnyAsync(x => x.ChallengeId == "attempt-limited-challenge"));
+    }
+
     private sealed class TestHasher : IOtpCodeHasher
     {
         public static readonly TestHasher Instance = new();
