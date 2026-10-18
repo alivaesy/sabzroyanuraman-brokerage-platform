@@ -918,6 +918,13 @@ public class BrokerageApiTests
         Assert.Equal(
             "OrganizationFollowUp",
             stages[2].GetProperty("stageCode").GetString());
+
+        using var scope = application.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+        var failureAudit = await db.AuditEvents.AsNoTracking().SingleAsync(
+            x => x.EventType == "OrganizationStatusRefreshFailed" && x.ServiceRequestId == requestId);
+        Assert.Equal("Failure", failureAudit.Outcome);
+        Assert.Equal("ProviderError", failureAudit.NewState);
     }
 
     [Fact]
