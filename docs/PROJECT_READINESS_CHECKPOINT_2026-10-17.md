@@ -1,72 +1,48 @@
-# Project Readiness Checkpoint — 2026-10-17
+# Project Readiness Checkpoint — 2026-10-18
 
-## Live continuation update — 2026-10-18 (latest branch review)
+## Live branch and CI status
 
-- Current working branch HEAD: `5c3b38e59442912cee0d060104621655d4a391f1`; latest pipeline `2959878699` was running at the last live query. Its terminal result is not assumed here.
-- Pipeline `2959874595` for `e1e8176d` failed during NuGet restore because downloads from `api.nuget.org` timed out; the job log does not show a source compile/test failure. Pipeline `2959875562` was canceled when the next push superseded it.
-- Generic `POST /service-requests` now records `WorkflowStageCreated` and `ServiceRequestCreated` within the same local transaction as the request and initial stage; SQLite success and injected audit-failure rollback regressions were added in `CreateServiceRequestAuditTests.cs`.
-- The next hardening makes audit writer and unit-of-work dependencies mandatory so request creation cannot silently skip audit/transaction behavior when instantiated outside the configured API DI container.
-- `master` remains at `54e224d8b09eb9dbd882a0ba61e97d153af0136b`; no merge request or merge has been made. Payment stays disabled and the live PHP payment flow remains untouched.
+- Working branch: `codex/project-readiness-baseline`.
+- Current HEAD at this checkpoint update: `0203dde2504a41326af747ecbd300529c9baedfd` (`fix: require transactional audit for generic requests`).
+- Pipeline [2959886605](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2959886605): **success** for that exact SHA. Pipeline [2959878699](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2959878699): **success** for parent `5c3b38e5`.
+- Pipeline [2959874595](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2959874595) failed during NuGet restore due to `api.nuget.org` download timeouts; evidence points to package retrieval, not a reported source compile/test failure. Pipeline `2959875562` was canceled after a later push superseded it.
+- `master` remains at `54e224d8b09eb9dbd882a0ba61e97d153af0136b`; no merge has been made. The branch is not merged.
+- These results describe the exact commits listed; later changes require their own CI evidence. Work may continue without waiting for CI, but test success must not be inferred.
 
-## Earlier continuation update — 2026-10-18
+## Verified engineering progress
 
-- Working branch `codex/project-readiness-baseline` has advanced beyond the historical baseline below; `master` remains untouched.
-- Pipelines for the latest grouped identity/workflow/OTP changes were subsequently observed as successful: `2959753669` (identity no-store tests), `2959766131` (workflow stage stability), and `2959766415` (in-memory OTP input guards). These are not evidence for any later, uncommitted change.
-- Persistent OTP still needed matching blank-input guards and regression coverage; the current continuation addresses that gap. Verify the pipeline for its resulting commit separately.
+- Generic `POST /service-requests` now requires audit writer and unit of work and commits request, initial stage and audit events in one local transaction. Regression coverage includes SQLite persistence and rollback on audit failure.
+- Persistent OTP rejects blank/incomplete inputs before database mutations; regression tests were added.
+- Workflow stage identifiers are trimmed and completion timestamps remain stable on repeated completion.
+- Identity error responses have `Cache-Control: no-store` regression coverage.
+- S01 workflow tests cover local rollback after persistence failure and preservation of a known remote tracking ID after caller cancellation.
 
-## Verified repository baseline
+## Immediate engineering gap
 
-- Default branch: `master`, commit `54e224d8b09eb9dbd882a0ba61e97d153af0136b`.
-- Master pipeline `2954049140`: **success** for that exact commit.
-- Working branch: `codex/project-readiness-baseline`, based on that master commit.
-- README documentation commit: `41e5049572e9fc560ceffa03bc93b5752aba5701`.
-- Pipeline `2955142185`: **success** for the README commit; all four jobs succeeded: `site_validate`, `secret_scan`, `php_validate`, and `dotnet_verify`.
-- Pipeline `2954999694` on `codex/local-test-isolation`: **failed before tests ran** because jobs remained pending without a matching runner (`stuck_pending_no_matching_runners`). This is runner/scheduling evidence, not a code-test failure. Do not call that branch's tests green.
+`CreateS01ServiceRequest` still declares its repository, audit writer and unit of work as optional. API dependency injection currently registers these services, but direct/manual construction can silently skip durable persistence, transaction and persisted audit. This is inconsistent with the hardened generic request use case. The next code step is to make those dependencies mandatory, adapt test fixtures, and retain tests for remote submission followed by local failure. The organization accepts the remote submission outside the local transaction, so local rollback cannot undo remote success.
 
-## Regulatory requirements that must be evidenced
+## Regulatory and production gates
 
-The repository's `الزامات_کارگزاری.html` contains the supplied three-article licensing/activity-permit guideline. This checkpoint records implementation and evidence implications; it does not replace legal review of the authoritative, currently applicable documents.
+The supplied `الزامات_کارگزاری.html` requires evidence beyond CI, including at least three services built against their own approved requirements for the relevant gate (subject to the stated exception), approved-lab penetration testing/software technical approval, approved domestic hosting, direct legal-entity payment gateway, uptime evidence, read-only regulator dashboard and organizational support/contractual evidence.
 
-### License / technical test access — Article 2
+The repository currently shows S01 as the only dedicated service-specific creation route. Generic creation does not prove S02–S05 are complete. Obtain approved service requirements before inventing stages, fields or validations.
 
-- Corporate/legal application documents, required undertakings, named technical liaison, and organizational evidence are non-code deliverables.
-- The brokerage system must demonstrate at least three services implemented according to their own approved requirements for the relevant licensing gate, subject to the guideline's stated exception for qualifying existing system-development entities.
-- Receiving a brokerage license alone does not authorize commercial service delivery; activity permission is a separate gate.
+## Prioritized continuation
 
-### Commercial activity permission — Article 3
-
-- Qualified registration/legal and surveying specialists, branch evidence, approved penetration-test lab report, and software technical approval are external release gates.
-- Production and test systems must be hosted exclusively in approved domestic data centers, with evidence for the actual deployment.
-- Payment must be a direct gateway connected to the brokerage legal entity's account; intermediary accounts are prohibited by the supplied text.
-- NDA, SLA evidence (the supplied guideline states at least 99% monthly uptime), read-only regulatory dashboards, support/call center, required security deposit, and prescribed corporate-purpose wording require documented evidence and accountable owners.
-- A green software pipeline cannot prove any of these organizational, contractual, hosting, or regulatory conditions.
-
-## Engineering status and release gates
-
-| Priority | Area | Evidence / next action |
+| Priority | Workstream | Required outcome |
 |---|---|---|
-| Immediate | CI baseline | README commit's four-job pipeline passed. Continue checking the exact head pipeline after each grouped change. |
-| Immediate | Sadad payment | Keep `Payment:Enabled=false`. Obtain the current merchant integration pack, approved tariff mapping and named approvals; execute authorized sandbox scenarios. |
-| Immediate | PHP/.NET boundary | The public page references `/payment/order.php`, which is absent from this repository. Preserve the live PHP flow; establish transaction ownership before any .NET activation. |
-| High | Official integrations | Obtain versioned contracts and authorized test access for registry/Sana/Shahkar and any geospatial APIs. Development mocks are not evidence of production connectivity. |
-| High | Persistence and deployment | SQLite is currently configured. Approve the production database, multi-instance concurrency, migration, backup/restore and recovery evidence. |
-| High | Privacy / ZDR | Produce a data-flow and retention inventory covering database, audit, logs, telemetry, caches, exports and backups; do not claim ZDR from CI results. |
-| High | Security approval | Obtain the required approved-lab penetration-test report and software technical approval; track findings through remediation and retest. |
-| Next | Operations | Implement/approve distributed rate limiting for multi-instance deployment, read-only monitoring dashboards, SIEM integration, support and a tested DR plan. |
-| Next | Product readiness | Map each of the minimum three services to approved requirements, stage transitions, authorization, data handling, integration contract and acceptance tests. |
+| Immediate | S01 reliability | Make persistence, audit and transaction dependencies mandatory; retain rollback and cancellation regressions. |
+| Immediate | Payment safety | Keep `Payment:Enabled=false`; complete `docs/PAYMENT_SERVICE_MAPPING_APPROVAL.md` from authoritative tariff and Sadad merchant documents. |
+| Immediate | PHP/.NET boundary | Website points to `/payment/order.php`, which is absent from this repository. Do not touch the live PHP path or allow two implementations to finalize one transaction. |
+| High | Service acceptance | Map at least three approved service requirements end-to-end; do not treat generic creation as service completion. |
+| High | Deployment | Approve production database, multi-instance concurrency, migrations, backups/restoration and recovery runbook. SQLite is currently registered. |
+| High | Security/privacy | Evidence for approved penetration test, ZDR/data-flow and retention, secret management, logs/telemetry/export handling. |
+| Next | Operations | Shared rate limiting, production monitoring/SIEM, alerts, read-only regulator dashboard and tested disaster recovery. |
+| External gate | Integrations | Obtain versioned official identity/organization contracts, approved adapters and authorized sandbox evidence. Development mocks are not production proof. |
 
-## Ordered continuation plan
+## Boundaries
 
-1. **Repository evidence:** keep this checkpoint and `docs/AI_HANDOFF.md` aligned with the live branch/commit/pipeline state.
-2. **Workflow traceability:** source-derived route matrix now exists in `docs/CORE_WORKFLOW_TRACEABILITY_2026-10-17.md`. It identifies S01 as the only service-specific creation route currently visible and does not count generic creation as proof of three approved services. Continue by mapping each approved service requirement to state transitions, authorization, persistence, adapter and tests.
-3. **Security and schema regressions:** the empty-database migration test now asserts both discovery/application of `20261014120000_AddOtpChallengeExpiresAtIndex` and creation of `IX_otp_challenges_ExpiresAt`. The change needs the new commit's CI result before it is considered verified. Continue reviewing ownership/authorization, no-store, rate-limit, audit export and OTP behavior against exact source and tests.
-4. **Deployment readiness:** document approved target database, hosting, secret management, distributed throttling, backup/restore, monitoring and rollback responsibilities before implementing environment-specific choices.
-5. **Payment readiness:** do not activate the .NET path until tariff/business approval, merchant contract, sandbox evidence and single-owner transaction routing are complete.
-6. **Review:** inspect the complete branch diff and pipeline; propose a merge request for review but do not merge into protected `master` without explicit authorization.
-
-## Safety and scope boundaries
-
-- No changes to the live PHP payment handler, payment secrets, production credentials, or production transactions.
-- No invented tariffs, official API behavior, regulatory interpretations, or service workflow rules.
-- No production-readiness claim based solely on a green pipeline.
-- Prefer grouped commits to avoid unnecessary pipeline runs; do not repeatedly retry jobs that have no matching runner.
+- Do not change live PHP payment handling, credentials, secrets or production transactions.
+- Do not enable .NET payments until the merchant contract, tariff approval, sandbox tests, single-owner transaction routing and operations checklist are signed off.
+- Do not invent external API behavior or business workflow rules.
+- Keep grouped changes on the working branch; no merge to `master` without explicit authorization.

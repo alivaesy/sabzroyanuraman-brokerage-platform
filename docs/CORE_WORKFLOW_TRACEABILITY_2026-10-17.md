@@ -1,47 +1,45 @@
-# Core Workflow Traceability — 2026-10-17
+# Core Workflow Traceability — 2026-10-18
 
-Status: source-derived inventory originally captured from `master` and updated as a working-branch traceability baseline; not a certification that licensing requirements or external integrations are satisfied. Route names and behavior were inspected in `Program.cs`, endpoint classes, use cases, and test-file inventory.
+Status: source-derived inventory for the working branch, not a certification that licensing requirements or external integrations are satisfied.
 
 ## API workflows observed
 
 | Workflow | Route(s) | Current behavior evidenced in repository | Tests / evidence | Open gate |
 |---|---|---|---|---|
-| Identity verification | `POST /identity/verify`, `GET /identity/me` | Verification endpoint uses Applicant authorization; identity state is queried for the current user. | `IdentityVerificationEndpointTests.cs`, `PrivacyComplianceTests.cs` | Official identity-provider contract, approved adapter, sandbox and production approval. |
-| OTP and MFA | `POST /identity/otp/challenges`, `POST /identity/otp/verify`, `GET /identity/mfa-required` | OTP challenge issuance/verification are authorized and rate-limited; MFA-verified policy exists. | `PersistentAuthenticationStateTests.cs`, `RateLimitingTests.cs`, authorization tests; persistent OTP blank-input guards are covered on the continuation branch | Production identity/session configuration, key management and approved delivery channel evidence. |
-| Generic service request | `POST /service-requests` | Applicant-authorized creation requires verified identity and persists request, initial stage, and two audit events within one local transaction. | `BrokerageApiTests.cs`, `AuthorizationTests.cs`, `CreateServiceRequestAuditTests.cs` | Verify service-specific validation and stage definitions against each service's approved requirement; do not let generic creation bypass service-specific flows. |
-| S01 service request | `POST /service-requests/s01` | Applicant-authorized, verified-identity path calls the organization adapter and persists request/stages/audit locally. | Workflow tests in `BrokerageApiTests.cs`; rollback and concurrency evidence documented in `CORE_WORKFLOW_INVENTORY.md` | Organization acceptance vs local persistence is not atomic. Official idempotency/correlation/status-lookup contract and recovery runbook are required. |
-| Read case and workflow history | `GET /service-requests/{id}`, `GET /service-requests/{id}/workflow-stages` | Authorization is required; request-level access checks protect case and stage history. | `AuthorizationTests.cs`, `PrivacyComplianceTests.cs` | Review the returned fields against data minimization and role matrix from approved requirements. |
-| Refresh organization status | `GET /service-requests/{id}/organization-status` | Reads remote status and updates request/stages/audit; optimistic concurrency maps stale local writes to HTTP 409. | `BrokerageApiTests.cs` and workflow consistency notes | GET has write side effects; preserve compatibility until client contract is reviewed. Production-provider concurrency remains unverified. |
-| Create payment | `POST /payments` | Applicant/MFA/ownership, server-owned tariff and idempotency controls exist; initiation checks `Payment:Enabled`, false by default. | `PaymentEndpointTests.cs`, `PaymentPersistenceTests.cs`, `SadadPaymentGatewayTests.cs` | Keep disabled until merchant contract, approved tariff/service mapping, sandbox and PHP/.NET ownership are signed off. |
-| Sadad callback | `GET/POST /payments/sadad/callback` | Callback is not treated as final settlement alone; server-side verification and conservative ambiguous-outcome handling are implemented. | `PaymentCallbackPostTests.cs`, payment tests | Confirm exact request/signature/date/response behavior against the current merchant pack and authorized sandbox. |
-| Payment operations | `GET /ops/payments/stale-verifications`, `GET /ops/payments/reconciliation-candidates` | Read-only operational views are authorization- and rate-limit-protected. | `PaymentOperationalEndpointAuthorizationTests.cs`, `PaymentStaleTimestampBoundaryTests.cs` | Assign named operators, alerts and runbook; verify target-environment role mappings. |
-| Audit export | `GET /audit/events/export` | Role-restricted NDJSON export with bounded result count, DB-side filtering/order/limit, and no-store response. | `AuditComplianceTests.cs` | Retention header is not by itself a retention enforcement policy; approve retention/deletion, access review and export audit requirements. |
-| Operational monitoring | `GET /ops/metrics`, `GET /ops/status`, `GET /health`, `GET /ready` | Health/readiness and operational metrics/status endpoints exist; privileged monitoring routes have authorization and read limits. | `OperationalMetricsTests.cs`, `OperationalStatusTests.cs`, `OperationalTelemetryContractTests.cs` | Dashboard is not equivalent to organization-accessible read-only monitoring; production SIEM, alerting, support and multi-instance limits remain open. |
+| Identity verification | `POST /identity/verify`, `GET /identity/me` | Applicant verification and current-user identity state. Identity errors are covered by no-store tests. | `IdentityVerificationEndpointTests.cs`, `PrivacyComplianceTests.cs` | Official provider contract, approved adapter, sandbox and production approval. |
+| OTP and MFA | `POST /identity/otp/challenges`, `POST /identity/otp/verify`, `GET /identity/mfa-required` | Persistent OTP validates incomplete inputs before database mutation; authorization and rate-limit policies exist. | `PersistentAuthenticationStateTests.cs`, rate-limit and authorization tests | Production session/key configuration and approved delivery channel evidence. |
+| Generic service request | `POST /service-requests` | Applicant-authorized creation checks verified identity; persists request and initial stage, and writes creation/stage audit events within one local transaction. S01 is rejected from this generic path. | `CreateServiceRequestAuditTests.cs`; pipeline `2959886605` succeeded for commit `0203dde2`. | Approved per-service required fields, workflow stages and acceptance criteria are still missing for S02–S05. Generic creation is not proof of complete services. |
+| S01 service request | `POST /service-requests/s01` | Verifies identity, submits to organization adapter, then attempts to persist request/stages/audit in a local transaction. Known tracking IDs are persisted despite caller cancellation. | `CreateS01ServiceRequestAuditTests.cs` covers rollback and cancellation cases. | **Code gap:** constructor still permits missing repository, audit writer and unit of work; direct/manual construction can return a request without durable persistence or persisted audit. Production DI registers these services, but the use case itself does not enforce the invariant. Make dependencies mandatory and update unit tests before treating this as hardened. External acceptance and local commit remain non-atomic; obtain idempotency/status-lookup and recovery contract. |
+| Read case and stage history | `GET /service-requests/{id}`, `GET /service-requests/{id}/workflow-stages` | Authorization/access predicate checks request access before returning data. | `AuthorizationTests.cs`, `PrivacyComplianceTests.cs` | Check returned fields against data minimization and approved role matrix. |
+| Organization status refresh | `GET /service-requests/{id}/organization-status` | Reads remote status and updates local status/stages/audit; optimistic concurrency can return 409. | `BrokerageApiTests.cs`, workflow consistency tests | GET has write side effects; preserve compatibility until clients are reviewed. Production provider behavior and client conflict handling remain unverified. |
+| Payment creation | `POST /payments` | Server-side tariff, idempotency and ownership controls; `Payment:Enabled=false` by default. | Payment endpoint/persistence tests | Keep disabled until approved tariff/service mapping, current Sadad merchant pack, sandbox evidence and PHP/.NET ownership decision. |
+| Sadad callback | `GET/POST /payments/sadad/callback` | Callback alone does not finalize payment; server verification and conservative ambiguous-outcome handling exist. | Callback and gateway tests | Verify exact fields, cryptography, date/time, response codes and callback behavior against current merchant pack and sandbox. |
+| Payment operations | `GET /ops/payments/stale-verifications`, `GET /ops/payments/reconciliation-candidates` | Bounded, role-protected operational views. | Payment operational authorization and boundary tests | Named operators, alerts and recovery runbook. |
+| Audit export | `GET /audit/events/export` | Role-restricted NDJSON with database-side filters/order/limit and no-store. | `AuditComplianceTests.cs` | Retention header is not retention enforcement; approve retention, access review and export auditing. |
+| Monitoring | `GET /ops/metrics`, `GET /ops/status`, `GET /health`, `GET /ready` | Health/readiness and process metrics endpoints exist. | Operational metrics/status/telemetry tests | Production SIEM, alerting, organization-accessible read-only dashboard and multi-instance controls remain open. |
 
-## Licensing requirement cross-check
+## Licensing and production acceptance gates
 
-The supplied `الزامات_کارگزاری.html` describes a separate license and activity-permission process. The most material software acceptance gates from that source are:
+The supplied `الزامات_کارگزاری.html` describes licensing/activity-permission requirements. Key evidence gates include:
+1. At least three services implemented against their own approved requirements for the applicable licensing gate (subject to the stated exception).
+2. Approved-lab penetration test, complete report and software technical approval.
+3. Approved domestic hosting for production and test environments.
+4. Direct payment gateway linked to the legal entity, not an intermediary account.
+5. Evidence for the stated 99% monthly uptime, read-only regulator dashboard, support/call center, NDA/SLA, deposit and corporate-purpose requirements.
 
-1. A working brokerage system implementing at least three services according to their own requirements for the relevant licensing gate (subject to the explicit exception in the supplied text).
-2. Qualified penetration test by an approved lab, complete report, and software technical approval.
-3. Production and test environments hosted exclusively in approved domestic data centers.
-4. Direct payment gateway connected to the legal entity's account, without intermediary accounts.
-5. At least 99% monthly uptime as stated in the supplied guideline, plus evidence for read-only regulator dashboards covering service status, resource use, API latency, error rates and relevant logs.
-6. Support/call center, NDA, SLA, required security deposit and prescribed corporate-purpose wording; these are organizational/contractual evidence, not API tests.
+Repository evidence does **not** establish three complete approved service workflows. S01 is the only dedicated service-specific creation route observed; do not count generic creation as completed S02–S05. Confirm authoritative service requirements before implementing stages or validations.
 
-Current repository evidence does **not** establish that the minimum three complete, approved service workflows exist. S01 is the only service-specific creation route visible in the current API route inventory; generic request creation is not proof that multiple independently approved services are complete. Confirm the exact approved service requirements before implementing additional workflows.
+## Ordered next work
 
-## Required next work, ordered
-
-1. Obtain/identify the approved requirement for each service and create one acceptance checklist per service.
-2. For each service, trace: public entry point → API route → authorization/identity → validation → domain state/stages → persistence/audit → external adapter → failure/retry/reconciliation → regression tests.
-3. Mark each external adapter as `mock`, `contract-defined`, `sandbox-tested`, or `production-approved`; do not promote a status without evidence.
-4. Add only missing regressions tied to explicit approved rules; avoid broad refactors while the service rules and external contracts are unknown.
-5. Track legal, hosting, security certification, uptime, support, dashboard, and payment-account evidence separately from CI.
+1. Enforce mandatory persistence/audit/transaction dependencies in S01 and preserve regression coverage for remote success followed by local failure.
+2. Obtain the approved requirements for each of at least three services and map entry point → authorization/identity → validation → stages/state → persistence/audit → adapter → failure/recovery → tests.
+3. Obtain the organization integration's idempotency/correlation/status-lookup contract; do not add automatic submission retries without it.
+4. Approve production database, multi-instance concurrency, migration, backup/restore, recovery, distributed rate limiting and monitoring.
+5. Keep payment disabled until the tariff, merchant contract, sandbox, PHP/.NET ownership and operational release gates are signed off.
+6. Track legal, hosting, security certification, uptime, support and dashboard evidence separately from CI.
 
 ## Scope protections
 
 - Do not alter the live PHP payment handler or expose secrets.
-- Do not activate the .NET payment flow while its release checklist is incomplete.
-- Do not infer tariffs, undocumented external API fields, or workflow stages.
-- A green pipeline verifies the checks it ran, not the external/legal requirements above.
+- Do not infer tariffs, undocumented provider fields or service workflow rules.
+- A green pipeline verifies only the checks it ran; it does not certify external/legal requirements.
