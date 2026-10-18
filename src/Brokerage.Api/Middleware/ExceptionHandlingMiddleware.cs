@@ -2,6 +2,8 @@ using Brokerage.Application.Exceptions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Brokerage.Application.Models;
 using Brokerage.Application.Contracts;
+using Brokerage.Application.Authorization;
+using System.Security.Claims;
 
 namespace Brokerage.Api.Middleware;
 
@@ -77,8 +79,14 @@ public class ExceptionHandlingMiddleware
 
     private async Task LogAuditFailure(HttpContext context, string correlationId, string errorCode, IAuditEventWriter auditEventWriter)
     {
+        var actorUserId = context.User.FindFirst(IdentityClaims.UserId)?.Value
+            ?? context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var actorRole = context.User.FindFirst(IdentityClaims.Role)?.Value
+            ?? context.User.FindFirst(ClaimTypes.Role)?.Value;
+
         var auditEvent = new AuditEvent(Guid.NewGuid(), DateTimeOffset.UtcNow, "RequestFailed", correlationId,
-            null, null, "Failure", null, errorCode, null, null, context.Connection.RemoteIpAddress?.ToString());
+            null, null, "Failure", null, errorCode, actorUserId, actorRole,
+            context.Connection.RemoteIpAddress?.ToString());
 
         await auditEventWriter.WriteAsync(auditEvent);
     }

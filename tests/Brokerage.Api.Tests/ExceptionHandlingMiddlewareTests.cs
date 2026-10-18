@@ -4,6 +4,8 @@ using Brokerage.Application.Exceptions;
 using Brokerage.Application.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
+using Brokerage.Application.Authorization;
 
 namespace Brokerage.Api.Tests;
 
@@ -136,6 +138,11 @@ public async Task InvokeAsync_WhenCorrelationIdAlreadyExists_UsesSameIdInErrorRe
         {
             TraceIdentifier = "audit-correlation-id"
         };
+        context.User = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim(IdentityClaims.UserId, "failed-applicant"),
+            new Claim(IdentityClaims.Role, "Applicant")
+        ], "test"));
         context.Response.Body = new MemoryStream();
 
         var auditWriter = new RecordingAuditEventWriter();
@@ -153,6 +160,8 @@ public async Task InvokeAsync_WhenCorrelationIdAlreadyExists_UsesSameIdInErrorRe
         Assert.Null(auditEvent.WorkflowStage);
         Assert.Null(auditEvent.PreviousState);
         Assert.Equal("BROKERAGE_ERROR", auditEvent.NewState);
+        Assert.Equal("failed-applicant", auditEvent.ActorUserId);
+        Assert.Equal("Applicant", auditEvent.ActorRole);
     }
 
     [Fact]
