@@ -112,7 +112,7 @@ public class CreateS01ServiceRequest
             correlationId ?? string.Empty, serviceRequestId, workflowStage,
             "Success", previousState, newState, actorUserId, actorRole, ipAddress);
 
-        _logger?.LogInformation("AuditEvent {@AuditEvent}", auditEvent);
+        _logger?.LogInformation("Audit event prepared. EventType={EventType} Outcome={Outcome}", eventType, auditEvent.Outcome);
         await _auditEventWriter.WriteAsync(auditEvent, CancellationToken.None);
     }
 }
