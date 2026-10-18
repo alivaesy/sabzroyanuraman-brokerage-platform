@@ -21,6 +21,8 @@ This is an execution checklist derived from the repository's requirements and cu
 ## Gate C — Audit and data protection
 
 - [x] Audit export applies date filters, stable ordering, and a bounded limit in the database query.
+- [x] Audit export rejects malformed date/limit query values and invalid ranges/limits with non-cacheable client errors.
+- [x] Rate-limited audit export responses are non-cacheable and provide a bounded `Retry-After` interval.
 - [x] Export output omits national identifiers and export access is itself audited without copying exported payloads.
 - [x] The response names retention configuration as a target, not proof of enforced retention.
 - [ ] Approve and implement the actual retention/archival policy, including protection against premature deletion, then retain operational evidence.
