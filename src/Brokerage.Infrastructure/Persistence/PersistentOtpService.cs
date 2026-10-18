@@ -12,9 +12,8 @@ public sealed class PersistentOtpService(BrokerageDbContext db, IOtpCodeHasher c
     public async Task<OtpChallenge> IssueAsync(string userId, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-
         if (string.IsNullOrWhiteSpace(userId))
-            throw new ArgumentException("User ID cannot be empty.", nameof(userId));
+            throw new ArgumentException("User ID must not be blank.", nameof(userId));
 
         var now = DateTimeOffset.UtcNow;
 
@@ -50,11 +49,12 @@ public sealed class PersistentOtpService(BrokerageDbContext db, IOtpCodeHasher c
     public async Task<bool> VerifyAsync(string userId, string challengeId, string code, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-
-        if (string.IsNullOrWhiteSpace(userId) ||
-            string.IsNullOrWhiteSpace(challengeId) ||
-            string.IsNullOrWhiteSpace(code))
+        if (string.IsNullOrWhiteSpace(userId)
+            || string.IsNullOrWhiteSpace(challengeId)
+            || string.IsNullOrWhiteSpace(code))
+        {
             return false;
+        }
 
         var challenge = await db.OtpChallenges.SingleOrDefaultAsync(
             x => x.ChallengeId == challengeId && x.UserId == userId, cancellationToken);
@@ -83,7 +83,7 @@ public sealed class PersistentOtpService(BrokerageDbContext db, IOtpCodeHasher c
             return false;
         }
 
-        var suppliedHash = codeHasher.Hash(code ?? string.Empty);
+        var suppliedHash = codeHasher.Hash(code);
         var valid = CryptographicOperations.FixedTimeEquals(
             Convert.FromHexString(challenge.CodeHash),
             Convert.FromHexString(suppliedHash));
