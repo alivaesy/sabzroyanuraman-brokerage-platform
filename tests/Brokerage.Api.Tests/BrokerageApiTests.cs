@@ -195,6 +195,33 @@ public class BrokerageApiTests
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
     }
 
+    [Theory]
+    [InlineData("S02")]
+    [InlineData("S03")]
+    public async Task GenericServiceRequest_DifferentApplicantCannotReadCaseOrStages(
+        string serviceCodeQuery)
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var ownerClient = await CreateVerifiedApplicantClientAsync(application);
+
+        var createResponse = await ownerClient.PostAsync($"/service-requests?serviceCode={serviceCodeQuery}", content: null);
+        Assert.Equal(System.Net.HttpStatusCode.OK, createResponse.StatusCode);
+        var created = await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var requestId = created.GetProperty("id").GetString();
+
+        using var otherApplicant = application.CreateClient();
+        otherApplicant.DefaultRequestHeaders.Add("X-Test-User-Id", "different-generic-applicant");
+        otherApplicant.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Applicant.ToString());
+
+        var requestResponse = await otherApplicant.GetAsync($"/service-requests/{requestId}");
+        Assert.Equal(System.Net.HttpStatusCode.Forbidden, requestResponse.StatusCode);
+        Assert.Equal("no-store", requestResponse.Headers.CacheControl?.ToString());
+
+        var stagesResponse = await otherApplicant.GetAsync($"/service-requests/{requestId}/workflow-stages");
+        Assert.Equal(System.Net.HttpStatusCode.Forbidden, stagesResponse.StatusCode);
+        Assert.Equal("no-store", stagesResponse.Headers.CacheControl?.ToString());
+    }
+
     [Fact]
     public async Task CreateGenericServiceRequest_CannotBypassS01Workflow_ReturnsBadRequest()
     {
