@@ -19,10 +19,10 @@ public class CreateServiceRequest
         IAuditEventWriter auditEventWriter,
         IUnitOfWork unitOfWork)
     {
-        _workflowService = workflowService;
-        _serviceRequestRepository = serviceRequestRepository;
-        _auditEventWriter = auditEventWriter;
-        _unitOfWork = unitOfWork;
+        _workflowService = workflowService ?? throw new ArgumentNullException(nameof(workflowService));
+        _serviceRequestRepository = serviceRequestRepository ?? throw new ArgumentNullException(nameof(serviceRequestRepository));
+        _auditEventWriter = auditEventWriter ?? throw new ArgumentNullException(nameof(auditEventWriter));
+        _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
     }
 
     public async Task<ServiceRequest> ExecuteAsync(
@@ -36,6 +36,13 @@ public class CreateServiceRequest
     {
         if (!Enum.IsDefined(serviceCode))
             throw new ArgumentOutOfRangeException(nameof(serviceCode), "Unsupported service code.");
+
+        // Reject invalid request data before opening a transaction or mutating persistence.
+        if (string.IsNullOrWhiteSpace(applicantUserId))
+            throw new ArgumentException("Applicant user ID cannot be empty.", nameof(applicantUserId));
+
+        if (string.IsNullOrWhiteSpace(initialStageCode))
+            throw new ArgumentException("Initial workflow stage code cannot be empty.", nameof(initialStageCode));
 
         await using var transaction = await _unitOfWork.BeginTransactionAsync(cancellationToken);
 

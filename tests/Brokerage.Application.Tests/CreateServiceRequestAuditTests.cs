@@ -55,6 +55,35 @@ public class CreateServiceRequestAuditTests
             x.WorkflowStage == "INITIAL");
     }
 
+    [Theory]
+    [InlineData("", "valid-applicant")]
+    [InlineData("   ", "valid-applicant")]
+    [InlineData("INITIAL", "")]
+    [InlineData("INITIAL", "   ")]
+    public async Task ExecuteAsync_InvalidInitialDataDoesNotPersistAnything(
+        string initialStageCode,
+        string applicantUserId)
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<BrokerageDbContext>().UseSqlite(connection).Options;
+        await using var db = new BrokerageDbContext(options);
+        await db.Database.EnsureCreatedAsync();
+
+        var useCase = new CreateServiceRequest(
+            new WorkflowService(),
+            new ServiceRequestRepository(db),
+            new AuditEventWriter(db, NullLogger<AuditEventWriter>.Instance),
+            new EfUnitOfWork(db));
+
+        await Assert.ThrowsAsync<ArgumentException>(() => useCase.ExecuteAsync(
+            ServiceCode.S02, initialStageCode, applicantUserId));
+
+        Assert.Equal(0, await db.ServiceRequests.AsNoTracking().CountAsync());
+        Assert.Equal(0, await db.WorkflowStages.AsNoTracking().CountAsync());
+        Assert.Equal(0, await db.AuditEvents.AsNoTracking().CountAsync());
+    }
+
     [Fact]
     public async Task ExecuteAsync_WhenAuditWriteFails_RollsBackRequestAndStage()
     {
