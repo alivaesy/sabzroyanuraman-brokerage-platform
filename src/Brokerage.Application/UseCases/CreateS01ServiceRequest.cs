@@ -56,8 +56,23 @@ public class CreateS01ServiceRequest
 
         // Keep the external call outside the local database transaction. The external
         // submission cannot be rolled back by a local database rollback.
-        var trackingId = await _organizationIntegrationService.SubmitAsync(
-            ServiceCode.S01.ToString(), cancellationToken);
+        string trackingId;
+        try
+        {
+            trackingId = await _organizationIntegrationService.SubmitAsync(
+                ServiceCode.S01.ToString(), cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // No local request ID exists yet. Record a minimal failure event without
+            // persisting provider payloads, exception text, or the applicant identifier.
+            await _auditEventWriter.WriteAsync(new AuditEvent(
+                Guid.NewGuid(), DateTimeOffset.UtcNow, "OrganizationSubmissionFailed",
+                correlationId ?? string.Empty, null, S01StageCode.OrganizationSubmission.ToString(),
+                "Failure", null, "ProviderError", applicantUserId, actorRole, ipAddress),
+                CancellationToken.None);
+            throw;
+        }
 
         // Once the external API has returned a tracking ID, caller/request cancellation
         // must not prevent us from recording that known remote side effect locally.

@@ -1,4 +1,5 @@
 using Brokerage.Application.Integration;
+using Brokerage.Application.Exceptions;
 using Brokerage.Application.Contracts;
 using Brokerage.Domain.Entities;
 using Brokerage.Infrastructure.Integration;
@@ -89,6 +90,38 @@ public class CreateS01ServiceRequestAuditTests
             Assert.Equal("Success", x.Outcome);
             Assert.Equal("CORRELATION-123", x.CorrelationId);
         });
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenOrganizationSubmissionFails_RecordsMinimalFailureAudit()
+    {
+        var auditWriter = new RecordingAuditEventWriter();
+        var useCase = new CreateS01ServiceRequest(
+            new WorkflowService(),
+            new MockIdentityVerificationService(),
+            new FailingOrganizationIntegrationService(),
+            serviceRequestRepository: S01TestDoubles.Repository(),
+            auditEventWriter: auditWriter,
+            unitOfWork: S01TestDoubles.UnitOfWork());
+
+        await Assert.ThrowsAsync<BrokerageException>(() => useCase.ExecuteAsync(
+            new CreateS01RequestModel { NationalIdentifier = "1234567891" },
+            "failed-submit-applicant",
+            "FAILED-SUBMIT-CORRELATION",
+            actorRole: "Applicant",
+            ipAddress: "127.0.0.1"));
+
+        var failure = Assert.Single(auditWriter.Events);
+        Assert.Equal("OrganizationSubmissionFailed", failure.EventType);
+        Assert.Equal("Failure", failure.Outcome);
+        Assert.Equal("ProviderError", failure.NewState);
+        Assert.Null(failure.ServiceRequestId);
+        Assert.Equal(S01StageCode.OrganizationSubmission.ToString(), failure.WorkflowStage);
+        Assert.Equal("FAILED-SUBMIT-CORRELATION", failure.CorrelationId);
+        Assert.Equal("failed-submit-applicant", failure.ActorUserId);
+        Assert.Equal("Applicant", failure.ActorRole);
+        Assert.Equal("127.0.0.1", failure.IpAddress);
+        Assert.Equal(0, await Task.FromResult(0)); // No local request is created before provider success.
     }
 
     [Fact]
@@ -185,6 +218,15 @@ public class CreateS01ServiceRequestAuditTests
         Assert.Equal(0, await dbContext.AuditEvents.AsNoTracking().CountAsync());
     }
 
+}
+
+internal sealed class FailingOrganizationIntegrationService : IOrganizationIntegrationService
+{
+    public Task<string> SubmitAsync(string serviceCode, CancellationToken cancellationToken = default)
+        => throw new BrokerageException("Organization API submission failed.");
+
+    public Task<string> GetStatusAsync(string trackingId, CancellationToken cancellationToken = default)
+        => Task.FromResult("TEST-STATUS");
 }
 
 internal sealed class CancellingAfterSubmitOrganizationIntegrationService(
