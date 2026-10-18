@@ -140,29 +140,37 @@ public class BrokerageApiTests
             workflowStageId);
     }
 
-    [Fact]
-    public async Task CreateGenericServiceRequest_PersistsRequestAndInitialWorkflowStage()
+    [Theory]
+    [InlineData("S02", ServiceCode.S02)]
+    [InlineData("S03", ServiceCode.S03)]
+    public async Task CreateGenericServiceRequest_PersistsRequestAndInitialWorkflowStage(
+        string serviceCodeQuery,
+        ServiceCode expectedServiceCode)
     {
         await using var application = new WebApplicationFactory<Program>();
         using var client = await CreateVerifiedApplicantClientAsync(application);
 
-        var createResponse = await client.PostAsync("/service-requests?serviceCode=S02", content: null);
+        var createResponse = await client.PostAsync($"/service-requests?serviceCode={serviceCodeQuery}", content: null);
 
         Assert.Equal(System.Net.HttpStatusCode.OK, createResponse.StatusCode);
+        Assert.Equal("no-store", createResponse.Headers.CacheControl?.ToString());
         var created = await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
         var requestId = Guid.Parse(created.GetProperty("id").GetString()!);
         var stageId = Guid.Parse(created.GetProperty("currentWorkflowStageId").GetString()!);
         Assert.Equal((int)RequestStatus.Created, created.GetProperty("status").GetInt32());
+        Assert.Equal((int)expectedServiceCode, created.GetProperty("serviceCode").GetInt32());
 
         var requestResponse = await client.GetAsync($"/service-requests/{requestId}");
         Assert.Equal(System.Net.HttpStatusCode.OK, requestResponse.StatusCode);
+        Assert.Equal("no-store", requestResponse.Headers.CacheControl?.ToString());
         var persistedRequest = await requestResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
         Assert.Equal(requestId, Guid.Parse(persistedRequest.GetProperty("id").GetString()!));
-        Assert.Equal((int)ServiceCode.S02, persistedRequest.GetProperty("serviceCode").GetInt32());
+        Assert.Equal((int)expectedServiceCode, persistedRequest.GetProperty("serviceCode").GetInt32());
         Assert.Equal(stageId, Guid.Parse(persistedRequest.GetProperty("currentWorkflowStageId").GetString()!));
 
         var stagesResponse = await client.GetAsync($"/service-requests/{requestId}/workflow-stages");
         Assert.Equal(System.Net.HttpStatusCode.OK, stagesResponse.StatusCode);
+        Assert.Equal("no-store", stagesResponse.Headers.CacheControl?.ToString());
         var stages = await stagesResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement[]>();
         Assert.NotNull(stages);
         var stage = Assert.Single(stages!);
