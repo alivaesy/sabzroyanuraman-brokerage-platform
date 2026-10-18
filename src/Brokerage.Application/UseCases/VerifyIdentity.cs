@@ -29,7 +29,9 @@ public sealed class VerifyIdentity
         string authenticatedUserId,
         string nationalIdentifier,
         string? correlationId = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? actorRole = null,
+        string? ipAddress = null)
     {
         if (string.IsNullOrWhiteSpace(authenticatedUserId))
             throw new ArgumentException("Authenticated user is required.", nameof(authenticatedUserId));
@@ -53,7 +55,9 @@ public sealed class VerifyIdentity
                 "Failure",
                 null,
                 "ProviderError",
-                authenticatedUserId), CancellationToken.None);
+                authenticatedUserId,
+                actorRole,
+                ipAddress), CancellationToken.None);
             throw;
         }
 
@@ -73,7 +77,9 @@ public sealed class VerifyIdentity
             verified ? "Success" : "Failure",
             null,
             verified ? "Verified" : "Rejected",
-            authenticatedUserId), cancellationToken);
+            authenticatedUserId,
+            actorRole,
+            ipAddress), cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
         return new VerifyIdentityResult(authenticatedUserId, verified);

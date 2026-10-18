@@ -422,7 +422,9 @@ app.MapPost("/identity/verify", async (
         currentUser.UserId,
         request.NationalIdentifier,
         context.TraceIdentifier,
-        cancellationToken);
+        cancellationToken,
+        currentUser.Role,
+        context.Connection.RemoteIpAddress?.ToString());
 
     return result.Verified
         ? Results.Ok(new { verified = true })

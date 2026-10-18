@@ -58,7 +58,9 @@ public sealed class VerifyIdentityAtomicityTests
 
         const string nationalIdentifier = "IDENTIFIER-MUST-NOT-PERSIST";
         await Assert.ThrowsAsync<HttpRequestException>(() =>
-            useCase.ExecuteAsync("provider-failure-user", nationalIdentifier, "provider-failure-correlation"));
+            useCase.ExecuteAsync(
+                "provider-failure-user", nationalIdentifier, "provider-failure-correlation",
+                actorRole: "Applicant", ipAddress: "127.0.0.1"));
 
         Assert.False(await db.IdentityVerificationStates.AsNoTracking()
             .AnyAsync(x => x.UserId == "provider-failure-user"));
@@ -68,6 +70,8 @@ public sealed class VerifyIdentityAtomicityTests
         Assert.Equal("Failure", audit.Outcome);
         Assert.Equal("ProviderError", audit.NewState);
         Assert.Equal("provider-failure-correlation", audit.CorrelationId);
+        Assert.Equal("Applicant", audit.ActorRole);
+        Assert.Equal("127.0.0.1", audit.IpAddress);
         Assert.DoesNotContain(nationalIdentifier, System.Text.Json.JsonSerializer.Serialize(audit), StringComparison.Ordinal);
         Assert.DoesNotContain("private identity provider details", System.Text.Json.JsonSerializer.Serialize(audit), StringComparison.Ordinal);
     }
@@ -92,7 +96,9 @@ public sealed class VerifyIdentityAtomicityTests
             new EfUnitOfWork(db),
             new AuditEventWriter(db, Microsoft.Extensions.Logging.Abstractions.NullLogger<AuditEventWriter>.Instance));
 
-        var result = await useCase.ExecuteAsync("atomic-success-user", "test-identifier", "test-correlation");
+        var result = await useCase.ExecuteAsync(
+            "atomic-success-user", "test-identifier", "test-correlation",
+            actorRole: "Applicant", ipAddress: "127.0.0.1");
 
         Assert.True(result.Verified);
         Assert.True(await db.IdentityVerificationStates.AsNoTracking()
@@ -100,6 +106,10 @@ public sealed class VerifyIdentityAtomicityTests
         Assert.True(await db.AuditEvents.AsNoTracking()
             .AnyAsync(x => x.ActorUserId == "atomic-success-user" && x.EventType == "IdentityVerification"
                 && x.CorrelationId == "test-correlation" && x.Outcome == "Success"));
+        var audit = await db.AuditEvents.AsNoTracking()
+            .SingleAsync(x => x.ActorUserId == "atomic-success-user" && x.EventType == "IdentityVerification");
+        Assert.Equal("Applicant", audit.ActorRole);
+        Assert.Equal("127.0.0.1", audit.IpAddress);
     }
 
     [Fact]
