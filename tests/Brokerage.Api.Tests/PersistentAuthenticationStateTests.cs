@@ -51,6 +51,7 @@ public class PersistentAuthenticationStateTests
 
         var response = await client.PostAsync("/identity/otp/challenges", content: null);
         Assert.Equal(System.Net.HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
 
         using var scope = application.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
