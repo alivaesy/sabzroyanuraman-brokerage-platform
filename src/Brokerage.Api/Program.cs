@@ -440,6 +440,7 @@ app.MapPost("/identity/otp/challenges", async (
     ICurrentUser currentUser,
     IOtpService otpService,
     IAuditEventWriter auditEventWriter,
+    IUnitOfWork unitOfWork,
     HttpContext context,
     CancellationToken cancellationToken) =>
 {
@@ -448,11 +449,15 @@ app.MapPost("/identity/otp/challenges", async (
     if (!currentUser.IsAuthenticated || string.IsNullOrWhiteSpace(currentUser.UserId))
         return Results.Unauthorized();
 
+    // Challenge persistence and its mandatory audit record are one local transaction.
+    // If audit persistence fails, the challenge must not remain usable but undisclosed.
+    await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
     var challenge = await otpService.IssueAsync(currentUser.UserId, cancellationToken);
 
     await auditEventWriter.WriteAsync(new AuditEvent(Guid.NewGuid(), DateTimeOffset.UtcNow, "OtpChallengeIssued", context.TraceIdentifier,
         null, null, "Success", null, "Issued", currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
 
+    await transaction.CommitAsync(cancellationToken);
     return Results.Ok(new { challenge.ChallengeId, challenge.ExpiresAt });
 }).RequireAuthorization().RequireRateLimiting("otp");
 

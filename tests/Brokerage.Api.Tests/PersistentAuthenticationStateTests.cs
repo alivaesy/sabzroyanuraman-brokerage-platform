@@ -1,7 +1,9 @@
 using Brokerage.Application.Authentication;
+using Brokerage.Application.Contracts;
 using Brokerage.Infrastructure.Persistence;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Brokerage.Api.Tests;
 
@@ -34,6 +36,25 @@ public class PersistentAuthenticationStateTests
         await Assert.ThrowsAsync<ArgumentException>(() => service.IssueAsync("  "));
         Assert.True(await db.OtpChallenges.AnyAsync(x => x.ChallengeId == "expired-preserved"));
         Assert.Equal(1, await db.OtpChallenges.CountAsync());
+    }
+
+    [Fact]
+    public async Task OtpChallenge_AuditFailureRollsBackNewChallenge()
+    {
+        const string userId = "otp-audit-rollback-user";
+        await using var application = new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+                services.AddScoped<IAuditEventWriter, FailOtpIssueAuditWriter>()));
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", userId);
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", Brokerage.Application.Authorization.UserRole.Applicant.ToString());
+
+        var response = await client.PostAsync("/identity/otp/challenges", content: null);
+        Assert.Equal(System.Net.HttpStatusCode.InternalServerError, response.StatusCode);
+
+        using var scope = application.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+        Assert.False(await db.OtpChallenges.AsNoTracking().AnyAsync(x => x.UserId == userId));
     }
 
     [Fact]
@@ -303,6 +324,14 @@ public class PersistentAuthenticationStateTests
     }
 }
 
+
+file sealed class FailOtpIssueAuditWriter : IAuditEventWriter
+{
+    public Task WriteAsync(AuditEvent auditEvent, CancellationToken cancellationToken = default)
+        => auditEvent.EventType == "OtpChallengeIssued"
+            ? throw new InvalidOperationException("Simulated OTP audit failure.")
+            : Task.CompletedTask;
+}
 
 file sealed class TestOtpCodeHasher : IOtpCodeHasher
 {
