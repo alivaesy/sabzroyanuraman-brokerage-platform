@@ -26,7 +26,9 @@ public class IdentityVerificationService : IIdentityVerificationService
         if (!_nationalIdentifierValidator.IsValid(nationalIdentifier))
             return false;
 
-        var normalizedIdentifier = NormalizeDigits(nationalIdentifier);
+        // The validator accepts surrounding whitespace; send the canonical value
+        // to both external providers so they receive the same identifier we validated.
+        var normalizedIdentifier = NormalizeDigits(nationalIdentifier.Trim());
 
         var sanaAuthenticated =
             await _sanaClient.IsAuthenticatedAsync(

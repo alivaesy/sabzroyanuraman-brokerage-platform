@@ -21,7 +21,10 @@ public class IdentityVerificationServiceTests
     [Theory]
     [InlineData("۱۲۳۴۵۶۷۸۹۱")]
     [InlineData("١٢٣٤٥٦٧٨٩١")]
-    public async Task VerifyAsync_NormalizesUnicodeDigitsBeforeCallingExternalClients(string nationalIdentifier)
+    [InlineData(" 1234567891 ")]
+    [InlineData(" ۱۲۳۴۵۶۷۸۹۱ ")]
+    [InlineData("\t1234567891\n")]
+    public async Task VerifyAsync_NormalizesIdentifierBeforeCallingExternalClients(string nationalIdentifier)
     {
         var sanaClient = new StubSanaClient(true);
         var shahkarClient = new StubShahkarClient(true);
