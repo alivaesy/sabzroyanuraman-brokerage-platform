@@ -471,12 +471,14 @@ app.MapPost("/identity/otp/verify", async (
 
     var verified = await otpService.VerifyAsync(currentUser.UserId, request.ChallengeId, request.Code, cancellationToken);
 
-    if (verified)
-        mfaVerificationStore.MarkVerified(currentUser.UserId, DateTimeOffset.UtcNow);
-
+    // Persist the mandatory audit event before granting the MFA state. If audit
+    // persistence fails, the request fails closed and no new verification is granted.
     await auditEventWriter.WriteAsync(new AuditEvent(Guid.NewGuid(), DateTimeOffset.UtcNow, "OtpVerification", context.TraceIdentifier,
         null, null, verified ? "Success" : "Failure", null, verified ? "Verified" : "Rejected",
         currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
+
+    if (verified)
+        mfaVerificationStore.MarkVerified(currentUser.UserId, DateTimeOffset.UtcNow);
 
     return verified
         ? Results.Ok(new { verified = true })
