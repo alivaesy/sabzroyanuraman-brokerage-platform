@@ -114,7 +114,6 @@ public class AuditComplianceTests
     }
 
     [Fact]
-    [Fact]
     public async Task AuditExport_InvalidLimitReturnsBadRequestWithoutCaching()
     {
         await using var application = new WebApplicationFactory<Program>();
@@ -128,6 +127,7 @@ public class AuditComplianceTests
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
     }
 
+    [Fact]
     public async Task AuditExport_WithLimit_ReturnsNewestEventsFirst()
     {
         await using var application = new WebApplicationFactory<Program>();
