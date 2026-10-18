@@ -823,6 +823,49 @@ public class BrokerageApiTests
     }
 
     [Fact]
+    public async Task OrganizationStatusRefresh_OtherApplicantCannotTriggerRemoteRefresh()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var ownerClient = await CreateVerifiedApplicantClientAsync(application);
+        using var content = new StringContent(
+            """{"nationalIdentifier":"1234567891"}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+        var createResponse = await ownerClient.PostAsync("/service-requests/s01", content);
+        Assert.Equal(System.Net.HttpStatusCode.OK, createResponse.StatusCode);
+        var created = await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var requestId = Guid.Parse(created.GetProperty("id").GetString()!);
+
+        using (var scope = application.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+            var request = await db.ServiceRequests.SingleAsync(x => x.Id == requestId);
+            request.SetOrganizationTrackingId("OWNER-ONLY-TRACKING-ID");
+            await db.SaveChangesAsync();
+        }
+
+        using var otherApplicant = application.CreateClient();
+        otherApplicant.DefaultRequestHeaders.Add("X-Test-User-Id", "different-status-applicant");
+        otherApplicant.DefaultRequestHeaders.Add(
+            "X-Test-User-Role",
+            Brokerage.Application.Authorization.UserRole.Applicant.ToString());
+
+        var response = await otherApplicant.PostAsync(
+            $"/service-requests/{requestId}/organization-status", content: null);
+        Assert.Equal(System.Net.HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+
+        using var verifyScope = application.Services.CreateScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+        var persisted = await verifyDb.ServiceRequests.AsNoTracking().SingleAsync(x => x.Id == requestId);
+        Assert.Null(persisted.OrganizationStatus);
+        Assert.Equal(0, await verifyDb.AuditEvents.AsNoTracking().CountAsync(x =>
+            x.ServiceRequestId == requestId &&
+            (x.EventType == "OrganizationStatusReceived" ||
+             x.EventType == "OrganizationStatusRefreshFailed")));
+    }
+
+    [Fact]
     public async Task GetOrganizationStatus_WhenOrganizationApiFails_DoesNotAdvanceWorkflow()
     {
         await using var application =
