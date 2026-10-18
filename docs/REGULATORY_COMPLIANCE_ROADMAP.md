@@ -13,7 +13,7 @@ Keep these deliverables separate:
 3. **Hosting and operations** — approved domestic hosting, deployment separation, backup/recovery, monitoring, and secure logs.
 4. **License and activity-permit evidence** — organizational documents, qualified personnel, branch/support operations, approvals, and other non-code prerequisites.
 
-## Current release-blocker snapshot — 2026-10-13
+## Current release-blocker snapshot — 2026-10-18
 
 This snapshot is the current engineering status; older dated notes later in this file are historical. A green CI pipeline proves only the checks it executes.
 
@@ -25,6 +25,7 @@ This snapshot is the current engineering status; older dated notes later in this
 | High | Zero Data Retention | Unverified. Application state, SQLite records, payment tokens/references, audit events, logs, backups and exports require a documented data-flow/retention assessment and environment evidence. Do not claim ZDR based on tests alone. |
 | High | Sana/Shahkar/organization APIs | Development uses mocks and non-Development startup fails closed until approved adapters are supplied. Official specifications, credentials, allowlists, and sandbox evidence remain external blockers. |
 | High | Production persistence | `Program.cs` registers SQLite for development. Startup now fails closed outside Development until an approved production provider is implemented. A production-grade database/provider, multi-instance transaction/concurrency tests, controlled migrations, backup and restore evidence are still required. |
+| High | Core workflow status refresh and audit exports | A `POST /service-requests/{id}/organization-status` route is now the preferred state-changing refresh path; legacy GET remains for client compatibility. Successful audit exports record a minimal `AuditExportRequested` event. This does not resolve external API contract/reconciliation, and the audit retention target header is not evidence of enforced retention. |
 | High | Secrets and Data Protection | Environment/configuration inputs exist for Sadad and OTP HMAC, and production startup fails closed for a missing OTP hash key. A persistent protected Data Protection key ring, secret-manager integration, rotation and access policy are not evidenced. |
 | Next | Distributed rate limiting | The configured ASP.NET rate-limit policies are process-local. A shared limiter for multi-instance deployment and its failure behavior are not implemented/verified. |
 | Next | WMS/WFS, complete frontend, monitoring/SIEM, DR | Official geospatial contracts, complete frontend workflows, production telemetry/SIEM wiring, and a successful restore/DR exercise remain unverified. |

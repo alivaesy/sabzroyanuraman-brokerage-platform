@@ -587,6 +587,7 @@ public class BrokerageApiTests
         Assert.Equal(
             System.Net.HttpStatusCode.OK,
             statusResponse.StatusCode);
+        Assert.Equal("no-store", statusResponse.Headers.CacheControl?.ToString());
 
         var statusJson =
             await statusResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
