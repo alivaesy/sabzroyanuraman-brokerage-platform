@@ -24,7 +24,7 @@ public class PersistentOtpSecurityBoundaryTests
                 {
                     ChallengeId = "expired-target",
                     UserId = "otp-user",
-                    CodeHash = TestHasher.Hash("123456"),
+                    CodeHash = TestHasher.Instance.Hash("123456"),
                     ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(-1),
                     FailedAttempts = 0
                 },
