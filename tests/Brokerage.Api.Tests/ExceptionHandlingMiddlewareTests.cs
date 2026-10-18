@@ -12,6 +12,32 @@ namespace Brokerage.Api.Tests;
 public class ExceptionHandlingMiddlewareTests
 {
     [Fact]
+    public async Task InvokeAsync_WhenMalformedHttpRequestOccurs_ReturnsNonCacheableBadRequest()
+    {
+        var context = new DefaultHttpContext();
+        context.Response.Body = new MemoryStream();
+        var auditWriter = new RecordingAuditEventWriter();
+        var middleware = new ExceptionHandlingMiddleware(
+            _ => throw new BadHttpRequestException("Sensitive parser detail."),
+            NullLogger<ExceptionHandlingMiddleware>.Instance);
+
+        await middleware.InvokeAsync(context, auditWriter);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, context.Response.StatusCode);
+        Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
+        context.Response.Body.Position = 0;
+        var response = await System.Text.Json.JsonSerializer.DeserializeAsync<ErrorResponse>(
+            context.Response.Body,
+            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+        Assert.NotNull(response);
+        Assert.Equal("BAD_REQUEST", response.Code);
+        Assert.Equal("The request contains invalid or malformed parameters.", response.Message);
+        Assert.DoesNotContain("Sensitive parser detail.", response.Message);
+        Assert.Equal("BAD_REQUEST", Assert.Single(auditWriter.Events).NewState);
+    }
+
+    [Fact]
     public async Task InvokeAsync_WhenBrokerageExceptionOccurs_Returns400WithStandardError()
     {
         var context = new DefaultHttpContext();
