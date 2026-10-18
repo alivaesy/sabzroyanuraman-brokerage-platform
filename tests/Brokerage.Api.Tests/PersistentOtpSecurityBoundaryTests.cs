@@ -32,7 +32,7 @@ public class PersistentOtpSecurityBoundaryTests
                 {
                     ChallengeId = "active-neighbor",
                     UserId = "otp-user",
-                    CodeHash = TestHasher.Hash("654321"),
+                    CodeHash = TestHasher.Instance.Hash("654321"),
                     ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(2),
                     FailedAttempts = 0
                 });
@@ -66,7 +66,7 @@ public class PersistentOtpSecurityBoundaryTests
             {
                 ChallengeId = "bound-challenge",
                 UserId = "owner-user",
-                CodeHash = TestHasher.Hash("123456"),
+                CodeHash = TestHasher.Instance.Hash("123456"),
                 ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(2),
                 FailedAttempts = 0
             });
