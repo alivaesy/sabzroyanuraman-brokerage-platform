@@ -119,7 +119,8 @@ public static class AuditExportEndpoints
                 x.IpAddress
             }).ToList();
 
-            context.Response.Headers["X-Audit-Retention-Days"] = minimumRetentionDays.ToString();
+            // This is a configured target, not evidence that storage retention is enforced.
+            context.Response.Headers["X-Audit-Retention-Target-Days"] = minimumRetentionDays.ToString();
 
             var ndjson = string.Join(
                 Environment.NewLine,

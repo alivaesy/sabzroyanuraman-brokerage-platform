@@ -49,6 +49,8 @@ public class AuditComplianceTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
         Assert.Equal("application/x-ndjson", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("180", response.Headers.GetValues("X-Audit-Retention-Target-Days").Single());
+        Assert.False(response.Headers.Contains("X-Audit-Retention-Days"), "Do not expose a target as if it proved enforced retention.");
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("AuditObserverExportTest", body);
         Assert.Contains("OrganizationObserver", body);
