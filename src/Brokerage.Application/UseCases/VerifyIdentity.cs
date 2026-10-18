@@ -43,7 +43,7 @@ public sealed class VerifyIdentity
         if (_auditEventWriter is not null)
             await _auditEventWriter.WriteAsync(auditEvent, cancellationToken);
         else
-            _logger.LogInformation("AuditEvent {@AuditEvent}", auditEvent);
+            _logger.LogInformation("Identity audit event prepared. Outcome={Outcome}", auditEvent.Outcome);
 
         return new VerifyIdentityResult(authenticatedUserId, verified);
     }
