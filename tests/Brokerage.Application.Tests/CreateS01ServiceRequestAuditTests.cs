@@ -28,6 +28,9 @@ public class CreateS01ServiceRequestAuditTests
             workflowService,
             identityService,
             organizationIntegrationService,
+            serviceRequestRepository: S01TestDoubles.Repository(),
+            auditEventWriter: S01TestDoubles.AuditWriter(),
+            unitOfWork: S01TestDoubles.UnitOfWork(),
             logger: logger);
 
         var request = await useCase.ExecuteAsync(
@@ -98,6 +101,7 @@ public class CreateS01ServiceRequestAuditTests
             new MockIdentityVerificationService(),
             new TestOrganizationIntegrationService(),
             serviceRequestRepository: repository,
+            auditEventWriter: S01TestDoubles.AuditWriter(),
             unitOfWork: unitOfWork);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(

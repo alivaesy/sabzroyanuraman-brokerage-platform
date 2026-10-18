@@ -14,27 +14,27 @@ public class CreateS01ServiceRequest
     private readonly WorkflowService _workflowService;
     private readonly IIdentityVerificationService _identityVerificationService;
     private readonly IOrganizationIntegrationService _organizationIntegrationService;
-    private readonly IServiceRequestRepository? _serviceRequestRepository;
+    private readonly IServiceRequestRepository _serviceRequestRepository;
     private readonly ILogger<CreateS01ServiceRequest>? _logger;
-    private readonly IAuditEventWriter? _auditEventWriter;
-    private readonly IUnitOfWork? _unitOfWork;
+    private readonly IAuditEventWriter _auditEventWriter;
+    private readonly IUnitOfWork _unitOfWork;
 
     public CreateS01ServiceRequest(
         WorkflowService workflowService,
         IIdentityVerificationService identityVerificationService,
         IOrganizationIntegrationService organizationIntegrationService,
-        IServiceRequestRepository? serviceRequestRepository = null,
-        ILogger<CreateS01ServiceRequest>? logger = null,
-        IAuditEventWriter? auditEventWriter = null,
-        IUnitOfWork? unitOfWork = null)
+        IServiceRequestRepository serviceRequestRepository,
+        IAuditEventWriter auditEventWriter,
+        IUnitOfWork unitOfWork,
+        ILogger<CreateS01ServiceRequest>? logger = null)
     {
         _workflowService = workflowService;
         _identityVerificationService = identityVerificationService;
         _organizationIntegrationService = organizationIntegrationService;
-        _serviceRequestRepository = serviceRequestRepository;
+        _serviceRequestRepository = serviceRequestRepository ?? throw new ArgumentNullException(nameof(serviceRequestRepository));
         _logger = logger;
-        _auditEventWriter = auditEventWriter;
-        _unitOfWork = unitOfWork;
+        _auditEventWriter = auditEventWriter ?? throw new ArgumentNullException(nameof(auditEventWriter));
+        _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
     }
 
     public async Task<ServiceRequest> ExecuteAsync(
@@ -64,9 +64,7 @@ public class CreateS01ServiceRequest
 
         // All local request, workflow, and audit writes share the scoped DbContext
         // transaction in production. Disposal without CommitAsync rolls back local writes.
-        await using var transaction = _unitOfWork is null
-            ? null
-            : await _unitOfWork.BeginTransactionAsync(persistenceCancellationToken);
+        await using var transaction = await _unitOfWork.BeginTransactionAsync(persistenceCancellationToken);
 
         var request = new ServiceRequest(ServiceCode.S01, applicantUserId);
 
@@ -88,21 +86,17 @@ public class CreateS01ServiceRequest
         request.ChangeStatus(RequestStatus.WaitingForOrganization);
         await LogAuditAsync("ServiceRequestStatusChanged", request.Id, organizationFollowUpStage.StageCode, correlationId, previousRequestStatus.ToString(), request.Status.ToString());
 
-        if (_serviceRequestRepository is not null)
-        {
-            await _serviceRequestRepository.AddAsync(request, persistenceCancellationToken);
-            await _serviceRequestRepository.AddWorkflowStageAsync(identityVerificationStage, persistenceCancellationToken);
-            await _serviceRequestRepository.AddWorkflowStageAsync(organizationSubmissionStage, persistenceCancellationToken);
-            await _serviceRequestRepository.AddWorkflowStageAsync(organizationFollowUpStage, persistenceCancellationToken);
-            await _serviceRequestRepository.SaveChangesAsync(persistenceCancellationToken);
-        }
+        await _serviceRequestRepository.AddAsync(request, persistenceCancellationToken);
+        await _serviceRequestRepository.AddWorkflowStageAsync(identityVerificationStage, persistenceCancellationToken);
+        await _serviceRequestRepository.AddWorkflowStageAsync(organizationSubmissionStage, persistenceCancellationToken);
+        await _serviceRequestRepository.AddWorkflowStageAsync(organizationFollowUpStage, persistenceCancellationToken);
+        await _serviceRequestRepository.SaveChangesAsync(persistenceCancellationToken);
 
         await LogAuditAsync(
             "ServiceRequestCreated", request.Id, request.CurrentWorkflowStageId?.ToString() ?? string.Empty,
             correlationId, null, request.Status.ToString(), applicantUserId, actorRole, ipAddress);
 
-        if (transaction is not null)
-            await transaction.CommitAsync(persistenceCancellationToken);
+        await transaction.CommitAsync(persistenceCancellationToken);
 
         return request;
     }
@@ -116,9 +110,7 @@ public class CreateS01ServiceRequest
             correlationId ?? string.Empty, serviceRequestId, workflowStage,
             "Success", previousState, newState, actorUserId, actorRole, ipAddress);
 
-        if (_auditEventWriter is not null)
-            await _auditEventWriter.WriteAsync(auditEvent);
-        else
-            _logger?.LogInformation("AuditEvent {@AuditEvent}", auditEvent);
+        _logger?.LogInformation("AuditEvent {@AuditEvent}", auditEvent);
+        await _auditEventWriter.WriteAsync(auditEvent, CancellationToken.None);
     }
 }

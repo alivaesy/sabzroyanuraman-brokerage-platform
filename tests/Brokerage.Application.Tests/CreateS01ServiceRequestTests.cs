@@ -23,7 +23,10 @@ public class CreateS01ServiceRequestTests
         var useCase = new CreateS01ServiceRequest(
             workflowService,
             identityService,
-            organizationIntegrationService);
+            organizationIntegrationService,
+            serviceRequestRepository: S01TestDoubles.Repository(),
+            auditEventWriter: S01TestDoubles.AuditWriter(),
+            unitOfWork: S01TestDoubles.UnitOfWork());
 
         var request = await useCase.ExecuteAsync(
             new CreateS01RequestModel { NationalIdentifier = "1234567891" },
@@ -47,7 +50,10 @@ public class CreateS01ServiceRequestTests
         var useCase = new CreateS01ServiceRequest(
             workflowService,
             identityService,
-            organizationIntegrationService);
+            organizationIntegrationService,
+            serviceRequestRepository: S01TestDoubles.Repository(),
+            auditEventWriter: S01TestDoubles.AuditWriter(),
+            unitOfWork: S01TestDoubles.UnitOfWork());
 
         var request = await useCase.ExecuteAsync(
             new CreateS01RequestModel { NationalIdentifier = "1234567891" },
@@ -71,7 +77,10 @@ public class CreateS01ServiceRequestTests
         var useCase = new CreateS01ServiceRequest(
             workflowService,
             identityService,
-            organizationIntegrationService);
+            organizationIntegrationService,
+            serviceRequestRepository: S01TestDoubles.Repository(),
+            auditEventWriter: S01TestDoubles.AuditWriter(),
+            unitOfWork: S01TestDoubles.UnitOfWork());
 
         await Assert.ThrowsAsync<BrokerageException>(
             () => useCase.ExecuteAsync(
@@ -89,7 +98,10 @@ public class CreateS01ServiceRequestTests
         var useCase = new CreateS01ServiceRequest(
             workflowService,
             identityService,
-            organizationIntegrationService);
+            organizationIntegrationService,
+            serviceRequestRepository: S01TestDoubles.Repository(),
+            auditEventWriter: S01TestDoubles.AuditWriter(),
+            unitOfWork: S01TestDoubles.UnitOfWork());
 
         await useCase.ExecuteAsync(
             new CreateS01RequestModel { NationalIdentifier = "1234567891" },
@@ -108,7 +120,10 @@ public class CreateS01ServiceRequestTests
         var useCase = new CreateS01ServiceRequest(
             workflowService,
             identityService,
-            organizationIntegrationService);
+            organizationIntegrationService,
+            serviceRequestRepository: S01TestDoubles.Repository(),
+            auditEventWriter: S01TestDoubles.AuditWriter(),
+            unitOfWork: S01TestDoubles.UnitOfWork());
 
         using var cts = new CancellationTokenSource();
 
@@ -130,7 +145,10 @@ public class CreateS01ServiceRequestTests
         var useCase = new CreateS01ServiceRequest(
             workflowService,
             identityService,
-            organizationIntegrationService);
+            organizationIntegrationService,
+            serviceRequestRepository: S01TestDoubles.Repository(),
+            auditEventWriter: S01TestDoubles.AuditWriter(),
+            unitOfWork: S01TestDoubles.UnitOfWork());
 
         await Assert.ThrowsAsync<BrokerageException>(
             () => useCase.ExecuteAsync(
@@ -150,7 +168,10 @@ public class CreateS01ServiceRequestTests
         var useCase = new CreateS01ServiceRequest(
             workflowService,
             identityService,
-            organizationIntegrationService);
+            organizationIntegrationService,
+            serviceRequestRepository: S01TestDoubles.Repository(),
+            auditEventWriter: S01TestDoubles.AuditWriter(),
+            unitOfWork: S01TestDoubles.UnitOfWork());
 
         await Assert.ThrowsAsync<BrokerageException>(
             () => useCase.ExecuteAsync(
