@@ -24,6 +24,7 @@ public class ExceptionHandlingMiddlewareTests
         Assert.Equal(
             StatusCodes.Status400BadRequest,
             context.Response.StatusCode);
+        Assert.Equal("no-store", context.Response.Headers.CacheControl?.ToString());
 
         context.Response.Body.Position = 0;
 
@@ -62,6 +63,7 @@ public class ExceptionHandlingMiddlewareTests
         Assert.Equal(
             StatusCodes.Status500InternalServerError,
             context.Response.StatusCode);
+        Assert.Equal("no-store", context.Response.Headers.CacheControl?.ToString());
 
         context.Response.Body.Position = 0;
 

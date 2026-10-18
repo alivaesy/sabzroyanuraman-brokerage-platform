@@ -31,6 +31,7 @@ public class ExceptionHandlingMiddleware
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             context.Response.ContentType = "application/json";
             context.Response.Headers.CacheControl = "no-store";
+            context.Response.Headers.CacheControl = "no-store";
             await context.Response.WriteAsJsonAsync(
                 new ErrorResponse
                 {
@@ -62,6 +63,7 @@ public class ExceptionHandlingMiddleware
                 StatusCodes.Status500InternalServerError;
 
             context.Response.ContentType = "application/json";
+            context.Response.Headers.CacheControl = "no-store";
 
             await context.Response.WriteAsJsonAsync(
                 new ErrorResponse
