@@ -17,6 +17,7 @@ public class IdentityVerificationEndpointTests
             "/identity/verify", new { nationalIdentifier = "1234567891" });
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
     }
 
     [Fact]
@@ -49,6 +50,7 @@ public class IdentityVerificationEndpointTests
             "/identity/verify", new { nationalIdentifier = "1234567891" });
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
     }
 
     [Fact]
@@ -67,6 +69,7 @@ public class IdentityVerificationEndpointTests
 
         var rejected = await client.PostAsJsonAsync("/identity/verify", new { nationalIdentifier = "1234567891" });
         Assert.Equal(HttpStatusCode.TooManyRequests, rejected.StatusCode);
+        Assert.Equal("no-store", rejected.Headers.CacheControl?.ToString());
     }
 
     [Fact]
