@@ -1,5 +1,7 @@
 using System.Text.Json;
 using Brokerage.Application.Authorization;
+using Brokerage.Application.Contracts;
+using Brokerage.Application.Models;
 using Brokerage.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -63,6 +65,7 @@ public static class AuditExportEndpoints
             int? limit,
             BrokerageDbContext dbContext,
             ICurrentUser currentUser,
+            IAuditEventWriter auditEventWriter,
             HttpContext context,
             CancellationToken cancellationToken,
             IConfiguration configuration) =>
@@ -118,6 +121,22 @@ public static class AuditExportEndpoints
                 x.ActorRole,
                 x.IpAddress
             }).ToList();
+
+            // Export access is itself security-relevant. Record only the outcome and bounded
+            // count/limit metadata; never copy exported event contents into this audit event.
+            await auditEventWriter.WriteAsync(new AuditEvent(
+                Guid.NewGuid(),
+                DateTimeOffset.UtcNow,
+                "AuditExportRequested",
+                context.TraceIdentifier,
+                null,
+                null,
+                "Success",
+                null,
+                $"Count:{events.Count};Limit:{requestedLimit}",
+                currentUser.UserId,
+                currentUser.Role,
+                context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
 
             // This is a configured target, not evidence that storage retention is enforced.
             context.Response.Headers["X-Audit-Retention-Target-Days"] = minimumRetentionDays.ToString();
