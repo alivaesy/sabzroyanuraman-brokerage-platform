@@ -120,6 +120,8 @@ public class AuditComplianceTests
         var limitedResponse = await firstClient.GetAsync("/audit/events/export?limit=1");
         Assert.Equal(HttpStatusCode.TooManyRequests, limitedResponse.StatusCode);
         Assert.Equal("no-store", limitedResponse.Headers.CacheControl?.ToString());
+        Assert.True(limitedResponse.Headers.RetryAfter is not null,
+            "Rate-limited audit exports should tell clients when to retry.");
 
         using var secondClient = application.CreateClient();
         secondClient.DefaultRequestHeaders.Add("X-Test-User-Id", "AUDIT-RATE-LIMIT-TWO");
