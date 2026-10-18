@@ -3,8 +3,8 @@
 ## Live branch and CI status
 
 - Working branch: `codex/project-readiness-baseline`.
-- Current HEAD at this checkpoint update: `f06918746097bc7abf9ac3be998c37f262f2e614` (`fix: validate required S01 workflow inputs`).
-- Pipeline [2959925854](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2959925854): **success** for that exact SHA, including .NET verification, PHP validation, and secret scan.
+- Current HEAD at this checkpoint update: `b7432181414941106ba17eb66962652e08c5eb1f` (`fix: fail closed on unapproved production persistence`).
+- Pipeline [2959925854](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2959925854): **success** for parent `f0691874`, including .NET verification, PHP validation, and secret scan. Pipeline [2959937877](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2959937877) is running for current HEAD `b7432181`; its result is not yet known.
 - Pipeline [2959908797](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2959908797): **success** for `49fd9a1f`.
 - `master` remains at `54e224d8b09eb9dbd882a0ba61e97d153af0136b`; no merge has been made. The branch is not merged.
 - Pipeline results apply only to the exact SHAs above; subsequent commits need their own evidence. Work continues without waiting for CI, but test success is never inferred.
@@ -18,7 +18,7 @@
 
 ## Regulatory and production gates
 
-The supplied `الزامات_کارگزاری.html` requires evidence beyond CI, including at least three services built against their own approved requirements for the relevant gate (subject to the stated exception), approved-lab penetration testing/software technical approval, approved domestic hosting, a direct legal-entity payment gateway, uptime evidence, a read-only regulator dashboard, and organizational support/contractual evidence.
+The supplied `الزامات_کارگزاری.html` requires evidence beyond CI, including at least three services built against their own approved requirements for the relevant gate (subject to the stated exception), approved-lab penetration testing/software technical approval, approved domestic hosting, a direct legal-entity payment gateway, uptime evidence, a read-only regulator dashboard, and organizational support/contractual evidence. The technical annex states a stricter 99.5% monthly SLA than the 99% licensing text; use 99.5% as the engineering target unless the competent authority clarifies otherwise.
 
 - S01 is the only dedicated service-specific creation route currently evidenced. Generic creation does not prove S02–S05 are complete. Obtain approved service requirements before adding stages, fields, or validations.
 - SQLite remains the configured persistence provider. Production multi-instance concurrency, migration rollout, backup, restore, and disaster-recovery evidence are absent. The application now explicitly fails closed outside Development rather than allowing SQLite to be mistaken for production-ready persistence.

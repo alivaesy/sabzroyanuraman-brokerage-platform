@@ -24,7 +24,7 @@ This snapshot is the current engineering status; older dated notes later in this
 | Immediate | Website payment and PHP/.NET boundary | The static 5,000-toman display was replaced with tariff-based wording and CI guards against its return. The HTML points to `/payment/order.php`, but that handler is absent from this repository; its server-side amount logic and transaction ownership cannot be confirmed from this checkout. |
 | High | Zero Data Retention | Unverified. Application state, SQLite records, payment tokens/references, audit events, logs, backups and exports require a documented data-flow/retention assessment and environment evidence. Do not claim ZDR based on tests alone. |
 | High | Sana/Shahkar/organization APIs | Development uses mocks and non-Development startup fails closed until approved adapters are supplied. Official specifications, credentials, allowlists, and sandbox evidence remain external blockers. |
-| High | Production persistence | `Program.cs` registers SQLite. A production-grade database/provider, multi-instance transaction/concurrency tests, controlled migrations, backup and restore evidence are still required. |
+| High | Production persistence | `Program.cs` registers SQLite for development. Startup now fails closed outside Development until an approved production provider is implemented. A production-grade database/provider, multi-instance transaction/concurrency tests, controlled migrations, backup and restore evidence are still required. |
 | High | Secrets and Data Protection | Environment/configuration inputs exist for Sadad and OTP HMAC, and production startup fails closed for a missing OTP hash key. A persistent protected Data Protection key ring, secret-manager integration, rotation and access policy are not evidenced. |
 | Next | Distributed rate limiting | The configured ASP.NET rate-limit policies are process-local. A shared limiter for multi-instance deployment and its failure behavior are not implemented/verified. |
 | Next | WMS/WFS, complete frontend, monitoring/SIEM, DR | Official geospatial contracts, complete frontend workflows, production telemetry/SIEM wiring, and a successful restore/DR exercise remain unverified. |
@@ -163,3 +163,17 @@ Track these separately from software completion:
 - Gitleaks detected a shared live-GPS viewer key duplicated in the API and browser-delivered page, and a keyed GIS tile-service URL. The GPS viewer key was not a safe secret because it was delivered to every browser accessing the page.
 - Immediate containment disables the live GPS read action with HTTP 503 and removes the embedded viewer key/UI data fetch. The keyed GIS tile layer was removed; remaining map layers are preserved.
 - Before re-enabling live GPS display, implement and test server-side authentication/authorization and abuse controls. If the removed tile-service key is a real credential, revoke/rotate or restrict it with the provider. CI scanning does not revoke already exposed credentials or scan deployment secrets/history.
+
+### Technical-annex gates that must be tracked explicitly
+
+The attached requirements include architecture and operational obligations beyond the licensing checklist. Track these as release evidence, not as assumptions satisfied by a green pipeline:
+
+- Microservices and N-tier separation; modern front end with security controls including CSP.
+- Zero Data Retention for sensitive/government identity, ownership, cadastral, document and geospatial data: process temporarily for the transaction and clear it afterward; do not persist raw payloads in databases, files, logs, telemetry, caches or exports without an explicitly approved legal/technical basis.
+- Only organization-provided WMS/WFS/API for map and cadastral interaction; no local cadastral spatial processing such as buffer/intersection unless the authoritative requirements explicitly permit it.
+- Domestic hosting for both production and test, load balancing and horizontal scaling.
+- 24/7 monitoring of service health, resource usage, API latency and error rate; secure tamper-resistant logs retained at least six months and support for central SIEM ingestion.
+- A tested disaster-recovery plan with explicit RTO/RPO and restore evidence.
+- **SLA target:** the licensing text mentions 99% monthly uptime, while the technical annex states 99.5%. Use 99.5% as the engineering target until the competent authority resolves the difference.
+
+These obligations require architecture, hosting, external service and operational evidence; they cannot be declared complete solely by adding application code or passing CI.
