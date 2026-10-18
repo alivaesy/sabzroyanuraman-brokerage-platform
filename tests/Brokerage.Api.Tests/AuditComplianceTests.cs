@@ -128,6 +128,20 @@ public class AuditComplianceTests
     }
 
     [Fact]
+    public async Task AuditExport_LimitAboveConfiguredMaximumReturnsBadRequestWithoutCaching()
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "AUDIT-SEC-LIMIT-MAX");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.TechnicalSecurity.ToString());
+
+        var response = await client.GetAsync("/audit/events/export?limit=10001");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+    }
+
+    [Fact]
     public async Task AuditExport_WithLimit_ReturnsNewestEventsFirst()
     {
         await using var application = new WebApplicationFactory<Program>();
