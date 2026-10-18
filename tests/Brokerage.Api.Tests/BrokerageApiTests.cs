@@ -858,6 +858,14 @@ public class BrokerageApiTests
         Assert.Equal(
             System.Text.Json.JsonValueKind.Null,
             stages[2].GetProperty("completedAt").ValueKind);
+
+        using var scope = application.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+        var failureAudit = await db.AuditEvents.AsNoTracking().SingleAsync(
+            x => x.EventType == "OrganizationStatusRefreshFailed" && x.ServiceRequestId == requestId);
+        Assert.Equal("Failure", failureAudit.Outcome);
+        Assert.Equal("ProviderError", failureAudit.NewState);
+        Assert.DoesNotContain("Organization API status request failed.", failureAudit.NewState);
     }
 
     [Fact]

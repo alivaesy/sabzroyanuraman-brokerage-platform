@@ -14,6 +14,7 @@ using Brokerage.Api.Authorization;
 using Brokerage.Api.Endpoints;
 using Brokerage.Api.Telemetry;
 using Brokerage.Application.Models;
+using Brokerage.Application.Exceptions;
 using Brokerage.Application.Authorization;
 using Brokerage.Application.Authentication;
 using Microsoft.AspNetCore.Authentication;
@@ -594,7 +595,23 @@ static async Task<IResult> RefreshOrganizationStatusAsync(
     // Keep the remote call outside the database transaction; the local request/stage/audit
     // updates below must commit or roll back together.
     var previousOrganizationStatus = request.OrganizationStatus;
-    var organizationStatus = await organizationIntegrationService.GetStatusAsync(request.OrganizationTrackingId, cancellationToken);
+    string organizationStatus;
+    try
+    {
+        organizationStatus = await organizationIntegrationService.GetStatusAsync(
+            request.OrganizationTrackingId, cancellationToken);
+    }
+    catch (BrokerageException)
+    {
+        // Record provider failure without copying provider payloads or exception text.
+        // No request/stage state is changed, and the existing safe API error mapping remains.
+        await auditEventWriter.WriteAsync(new AuditEvent(
+            Guid.NewGuid(), DateTimeOffset.UtcNow, "OrganizationStatusRefreshFailed", context.TraceIdentifier,
+            request.Id, S01StageCode.OrganizationFollowUp.ToString(), "Failure", previousOrganizationStatus,
+            "ProviderError", currentUser.UserId, currentUser.Role,
+            context.Connection.RemoteIpAddress?.ToString()), CancellationToken.None);
+        throw;
+    }
 
     try
     {
