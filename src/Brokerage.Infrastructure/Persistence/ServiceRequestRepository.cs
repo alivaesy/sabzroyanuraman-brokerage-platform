@@ -1,5 +1,6 @@
 using Brokerage.Application.Contracts;
 using Brokerage.Domain.Entities;
+using Brokerage.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace Brokerage.Infrastructure.Persistence;
@@ -24,8 +25,15 @@ public sealed class ServiceRequestRepository(BrokerageDbContext dbContext) : ISe
             .Where(x => x.ServiceRequestId == serviceRequestId)
             .ToListAsync(cancellationToken);
 
+        // SQLite timestamp precision can make stages created in one request share
+        // the same CreatedAt value. S01 has an explicit business sequence; use it
+        // rather than relying on unstable database row order for equal timestamps.
         return stages
-            .OrderBy(x => x.CreatedAt)
+            .OrderBy(x => Enum.TryParse<S01StageCode>(x.StageCode, out var stageCode)
+                ? (int)stageCode
+                : int.MaxValue)
+            .ThenBy(x => x.CreatedAt)
+            .ThenBy(x => x.Id)
             .ToList();
     }
 

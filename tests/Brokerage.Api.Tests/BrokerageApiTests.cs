@@ -1172,7 +1172,7 @@ public class BrokerageApiTests
             .Where(auditEvent => auditEvent.ServiceRequestId == requestId)
             .ToListAsync();
 
-        Assert.Equal(2, auditEvents.Count(auditEvent =>
+        Assert.Equal(3, auditEvents.Count(auditEvent =>
             auditEvent.EventType == "OrganizationStatusReceived"));
         Assert.Single(auditEvents, auditEvent =>
             auditEvent.EventType == "WorkflowStageCreated" &&
