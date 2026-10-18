@@ -1,6 +1,14 @@
 # Project Readiness Checkpoint — 2026-10-17
 
-## Live continuation update — 2026-10-18
+## Live continuation update — 2026-10-18 (latest branch review)
+
+- Current working branch HEAD: `5c3b38e59442912cee0d060104621655d4a391f1`; latest pipeline `2959878699` was running at the last live query. Its terminal result is not assumed here.
+- Pipeline `2959874595` for `e1e8176d` failed during NuGet restore because downloads from `api.nuget.org` timed out; the job log does not show a source compile/test failure. Pipeline `2959875562` was canceled when the next push superseded it.
+- Generic `POST /service-requests` now records `WorkflowStageCreated` and `ServiceRequestCreated` within the same local transaction as the request and initial stage; SQLite success and injected audit-failure rollback regressions were added in `CreateServiceRequestAuditTests.cs`.
+- The next hardening makes audit writer and unit-of-work dependencies mandatory so request creation cannot silently skip audit/transaction behavior when instantiated outside the configured API DI container.
+- `master` remains at `54e224d8b09eb9dbd882a0ba61e97d153af0136b`; no merge request or merge has been made. Payment stays disabled and the live PHP payment flow remains untouched.
+
+## Earlier continuation update — 2026-10-18
 
 - Working branch `codex/project-readiness-baseline` has advanced beyond the historical baseline below; `master` remains untouched.
 - Pipelines for the latest grouped identity/workflow/OTP changes were subsequently observed as successful: `2959753669` (identity no-store tests), `2959766131` (workflow stage stability), and `2959766415` (in-memory OTP input guards). These are not evidence for any later, uncommitted change.

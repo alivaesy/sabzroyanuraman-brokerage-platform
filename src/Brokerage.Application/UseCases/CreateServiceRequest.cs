@@ -10,14 +10,14 @@ public class CreateServiceRequest
 {
     private readonly WorkflowService _workflowService;
     private readonly IServiceRequestRepository _serviceRequestRepository;
-    private readonly IAuditEventWriter? _auditEventWriter;
-    private readonly IUnitOfWork? _unitOfWork;
+    private readonly IAuditEventWriter _auditEventWriter;
+    private readonly IUnitOfWork _unitOfWork;
 
     public CreateServiceRequest(
         WorkflowService workflowService,
         IServiceRequestRepository serviceRequestRepository,
-        IAuditEventWriter? auditEventWriter = null,
-        IUnitOfWork? unitOfWork = null)
+        IAuditEventWriter auditEventWriter,
+        IUnitOfWork unitOfWork)
     {
         _workflowService = workflowService;
         _serviceRequestRepository = serviceRequestRepository;
@@ -37,9 +37,7 @@ public class CreateServiceRequest
         if (!Enum.IsDefined(serviceCode))
             throw new ArgumentOutOfRangeException(nameof(serviceCode), "Unsupported service code.");
 
-        await using var transaction = _unitOfWork is null
-            ? null
-            : await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
         var request = new ServiceRequest(serviceCode, applicantUserId);
         var initialStage = _workflowService.CreateStage(request, initialStageCode);
@@ -48,12 +46,10 @@ public class CreateServiceRequest
         await _serviceRequestRepository.AddWorkflowStageAsync(initialStage, cancellationToken);
         await _serviceRequestRepository.SaveChangesAsync(cancellationToken);
 
-        if (_auditEventWriter is not null)
-        {
-            var effectiveCorrelationId = correlationId ?? string.Empty;
-            var occurredAt = DateTimeOffset.UtcNow;
+        var effectiveCorrelationId = correlationId ?? string.Empty;
+        var occurredAt = DateTimeOffset.UtcNow;
 
-            await _auditEventWriter.WriteAsync(new AuditEvent(
+        await _auditEventWriter.WriteAsync(new AuditEvent(
                 Guid.NewGuid(),
                 occurredAt,
                 "WorkflowStageCreated",
@@ -67,7 +63,7 @@ public class CreateServiceRequest
                 actorRole,
                 ipAddress), cancellationToken);
 
-            await _auditEventWriter.WriteAsync(new AuditEvent(
+        await _auditEventWriter.WriteAsync(new AuditEvent(
                 Guid.NewGuid(),
                 occurredAt,
                 "ServiceRequestCreated",
@@ -80,10 +76,8 @@ public class CreateServiceRequest
                 applicantUserId,
                 actorRole,
                 ipAddress), cancellationToken);
-        }
 
-        if (transaction is not null)
-            await transaction.CommitAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return request;
     }
