@@ -7,6 +7,69 @@ namespace Brokerage.Api.Tests;
 
 public class PersistentAuthenticationStateTests
 {
+
+    [Fact]
+    public async Task OtpChallenge_Issue_RejectsBlankUserWithoutCleaningOrCreatingRecords()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<BrokerageDbContext>().UseSqlite(connection).Options;
+        await using (var setup = new BrokerageDbContext(options))
+        {
+            await setup.Database.MigrateAsync();
+            setup.OtpChallenges.Add(new OtpChallengeRecord
+            {
+                ChallengeId = "expired-preserved",
+                UserId = "expired-user",
+                CodeHash = TestOtpCodeHasher.Instance.Hash("123456"),
+                ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(-1),
+                FailedAttempts = 0
+            });
+            await setup.SaveChangesAsync();
+        }
+
+        await using var db = new BrokerageDbContext(options);
+        var service = new PersistentOtpService(db, TestOtpCodeHasher.Instance);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => service.IssueAsync("   "));
+        Assert.Equal(1, await db.OtpChallenges.CountAsync());
+        Assert.True(await db.OtpChallenges.AnyAsync(x => x.ChallengeId == "expired-preserved"));
+    }
+
+    [Fact]
+    public async Task OtpChallenge_Verify_RejectsBlankInputsWithoutChangingChallenge()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<BrokerageDbContext>().UseSqlite(connection).Options;
+        await using (var setup = new BrokerageDbContext(options))
+        {
+            await setup.Database.MigrateAsync();
+            setup.OtpChallenges.Add(new OtpChallengeRecord
+            {
+                ChallengeId = "valid-challenge",
+                UserId = "valid-user",
+                CodeHash = TestOtpCodeHasher.Instance.Hash("123456"),
+                ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(2),
+                FailedAttempts = 0
+            });
+            await setup.SaveChangesAsync();
+        }
+
+        await using var db = new BrokerageDbContext(options);
+        var service = new PersistentOtpService(db, TestOtpCodeHasher.Instance);
+
+        Assert.False(await service.VerifyAsync("", "valid-challenge", "123456"));
+        Assert.False(await service.VerifyAsync("valid-user", "  ", "123456"));
+        Assert.False(await service.VerifyAsync("valid-user", "valid-challenge", "   "));
+
+        var record = await db.OtpChallenges.AsNoTracking().SingleAsync(x => x.ChallengeId == "valid-challenge");
+        Assert.Equal(0, record.FailedAttempts);
+        Assert.Equal(1, await db.OtpChallenges.CountAsync());
+    }
+
     [Fact]
     public async Task OtpChallenge_FailedAttempts_PersistAcrossServiceInstances()
     {

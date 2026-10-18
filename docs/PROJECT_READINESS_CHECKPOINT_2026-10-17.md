@@ -1,5 +1,11 @@
 # Project Readiness Checkpoint — 2026-10-17
 
+## Live continuation update — 2026-10-18
+
+- Working branch `codex/project-readiness-baseline` has advanced beyond the historical baseline below; `master` remains untouched.
+- Pipelines for the latest grouped identity/workflow/OTP changes were subsequently observed as successful: `2959753669` (identity no-store tests), `2959766131` (workflow stage stability), and `2959766415` (in-memory OTP input guards). These are not evidence for any later, uncommitted change.
+- Persistent OTP still needed matching blank-input guards and regression coverage; the current continuation addresses that gap. Verify the pipeline for its resulting commit separately.
+
 ## Verified repository baseline
 
 - Default branch: `master`, commit `54e224d8b09eb9dbd882a0ba61e97d153af0136b`.

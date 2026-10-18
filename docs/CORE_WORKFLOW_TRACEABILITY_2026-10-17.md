@@ -1,13 +1,13 @@
 # Core Workflow Traceability — 2026-10-17
 
-Status: source-derived inventory of the current `master` code, not a certification that licensing requirements or external integrations are satisfied. Route names and behavior were inspected in `Program.cs`, endpoint classes, use cases, and test-file inventory.
+Status: source-derived inventory originally captured from `master` and updated as a working-branch traceability baseline; not a certification that licensing requirements or external integrations are satisfied. Route names and behavior were inspected in `Program.cs`, endpoint classes, use cases, and test-file inventory.
 
 ## API workflows observed
 
 | Workflow | Route(s) | Current behavior evidenced in repository | Tests / evidence | Open gate |
 |---|---|---|---|---|
 | Identity verification | `POST /identity/verify`, `GET /identity/me` | Verification endpoint uses Applicant authorization; identity state is queried for the current user. | `IdentityVerificationEndpointTests.cs`, `PrivacyComplianceTests.cs` | Official identity-provider contract, approved adapter, sandbox and production approval. |
-| OTP and MFA | `POST /identity/otp/challenges`, `POST /identity/otp/verify`, `GET /identity/mfa-required` | OTP challenge issuance/verification are authorized and rate-limited; MFA-verified policy exists. | `PersistentAuthenticationStateTests.cs`, `RateLimitingTests.cs`, authorization tests | Production identity/session configuration, key management and approved delivery channel evidence. |
+| OTP and MFA | `POST /identity/otp/challenges`, `POST /identity/otp/verify`, `GET /identity/mfa-required` | OTP challenge issuance/verification are authorized and rate-limited; MFA-verified policy exists. | `PersistentAuthenticationStateTests.cs`, `RateLimitingTests.cs`, authorization tests; persistent OTP blank-input guards are covered on the continuation branch | Production identity/session configuration, key management and approved delivery channel evidence. |
 | Generic service request | `POST /service-requests` | Applicant-authorized creation requires verified identity and persists a request plus initial stage. | `BrokerageApiTests.cs`, `AuthorizationTests.cs` | Verify service-specific validation and stage definitions against each service's approved requirement; do not let generic creation bypass service-specific flows. |
 | S01 service request | `POST /service-requests/s01` | Applicant-authorized, verified-identity path calls the organization adapter and persists request/stages/audit locally. | Workflow tests in `BrokerageApiTests.cs`; rollback and concurrency evidence documented in `CORE_WORKFLOW_INVENTORY.md` | Organization acceptance vs local persistence is not atomic. Official idempotency/correlation/status-lookup contract and recovery runbook are required. |
 | Read case and workflow history | `GET /service-requests/{id}`, `GET /service-requests/{id}/workflow-stages` | Authorization is required; request-level access checks protect case and stage history. | `AuthorizationTests.cs`, `PrivacyComplianceTests.cs` | Review the returned fields against data minimization and role matrix from approved requirements. |
