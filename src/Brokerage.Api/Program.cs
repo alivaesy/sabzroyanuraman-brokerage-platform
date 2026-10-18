@@ -485,6 +485,7 @@ app.MapPost("/service-requests", async (
     ServiceCode serviceCode,
     ICurrentUser currentUser,
     IIdentityVerificationStateRepository identityStates,
+    HttpContext context,
     CancellationToken cancellationToken) =>
 {
     if (!Enum.IsDefined(serviceCode))
@@ -500,7 +501,14 @@ app.MapPost("/service-requests", async (
     if (identityState?.IsVerified != true)
         return Results.Forbid();
 
-    var request = await useCase.ExecuteAsync(serviceCode, "INITIAL", currentUser.UserId, cancellationToken);
+    var request = await useCase.ExecuteAsync(
+        serviceCode,
+        "INITIAL",
+        currentUser.UserId,
+        cancellationToken,
+        context.TraceIdentifier,
+        currentUser.Role,
+        context.Connection.RemoteIpAddress?.ToString());
     return Results.Ok(new { request.Id, request.ServiceCode, request.Status, request.CreatedAt, request.UpdatedAt, request.CurrentWorkflowStageId });
 }).RequireAuthorization(AuthorizationPolicies.Applicant).RequireRateLimiting("service-request-create");
 
