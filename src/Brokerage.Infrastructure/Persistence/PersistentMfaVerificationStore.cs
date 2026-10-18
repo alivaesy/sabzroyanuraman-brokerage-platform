@@ -26,7 +26,7 @@ public sealed class PersistentMfaVerificationStore(BrokerageDbContext db) : IMfa
         if (record is null)
             return false;
 
-        if (now - record.VerifiedAt > VerificationLifetime)
+        if (record.VerifiedAt > now || now - record.VerifiedAt > VerificationLifetime)
         {
             db.MfaVerifications.Remove(record);
             db.SaveChanges();
