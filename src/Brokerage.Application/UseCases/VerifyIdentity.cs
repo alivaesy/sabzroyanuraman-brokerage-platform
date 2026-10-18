@@ -1,8 +1,6 @@
 using Brokerage.Application.Contracts;
 using Brokerage.Application.Integration;
 using Brokerage.Application.Models;
-using Brokerage.Domain.Entities;
-using Microsoft.Extensions.Logging;
 
 namespace Brokerage.Application.UseCases;
 
@@ -12,20 +10,25 @@ public sealed class VerifyIdentity
 {
     private readonly IIdentityVerificationService _identityVerificationService;
     private readonly IIdentityVerificationStateRepository _stateRepository;
-    private readonly ILogger<VerifyIdentity> _logger;
-    private readonly IAuditEventWriter? _auditEventWriter;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IAuditEventWriter _auditEventWriter;
 
-    public VerifyIdentity(IIdentityVerificationService identityVerificationService,
-        IIdentityVerificationStateRepository stateRepository, ILogger<VerifyIdentity> logger, IAuditEventWriter? auditEventWriter = null)
+    public VerifyIdentity(
+        IIdentityVerificationService identityVerificationService,
+        IIdentityVerificationStateRepository stateRepository,
+        IUnitOfWork unitOfWork,
+        IAuditEventWriter auditEventWriter)
     {
-        _identityVerificationService = identityVerificationService;
-        _stateRepository = stateRepository;
-        _logger = logger;
-        _auditEventWriter = auditEventWriter;
+        _identityVerificationService = identityVerificationService ?? throw new ArgumentNullException(nameof(identityVerificationService));
+        _stateRepository = stateRepository ?? throw new ArgumentNullException(nameof(stateRepository));
+        _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
+        _auditEventWriter = auditEventWriter ?? throw new ArgumentNullException(nameof(auditEventWriter));
     }
 
-    public async Task<VerifyIdentityResult> ExecuteAsync(string authenticatedUserId,
-        string nationalIdentifier, string? correlationId = null,
+    public async Task<VerifyIdentityResult> ExecuteAsync(
+        string authenticatedUserId,
+        string nationalIdentifier,
+        string? correlationId = null,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(authenticatedUserId))
@@ -33,18 +36,24 @@ public sealed class VerifyIdentity
 
         var verified = await _identityVerificationService.VerifyAsync(nationalIdentifier, cancellationToken);
         var occurredAt = DateTimeOffset.UtcNow;
+
+        // Identity state and its mandatory audit event must succeed or roll back together.
+        await using var transaction = await _unitOfWork.BeginTransactionAsync(cancellationToken);
         await _stateRepository.SaveResultAsync(authenticatedUserId, verified, occurredAt, cancellationToken);
 
-        var auditEvent = new AuditEvent(Guid.NewGuid(), occurredAt,
-            "IdentityVerification", correlationId ?? string.Empty, null, "IdentityVerification",
-            verified ? "Success" : "Failure", null, verified ? "Verified" : "Rejected",
-            authenticatedUserId);
+        await _auditEventWriter.WriteAsync(new AuditEvent(
+            Guid.NewGuid(),
+            occurredAt,
+            "IdentityVerification",
+            correlationId ?? string.Empty,
+            null,
+            "IdentityVerification",
+            verified ? "Success" : "Failure",
+            null,
+            verified ? "Verified" : "Rejected",
+            authenticatedUserId), cancellationToken);
 
-        if (_auditEventWriter is not null)
-            await _auditEventWriter.WriteAsync(auditEvent, cancellationToken);
-        else
-            _logger.LogInformation("Identity audit event prepared. Outcome={Outcome}", auditEvent.Outcome);
-
+        await transaction.CommitAsync(cancellationToken);
         return new VerifyIdentityResult(authenticatedUserId, verified);
     }
 }
