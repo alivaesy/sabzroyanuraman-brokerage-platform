@@ -39,6 +39,40 @@ public sealed class VerifyIdentityAtomicityTests
     }
 
     [Fact]
+    public async Task VerifyIdentity_ProviderThrows_AuditsGenericFailureWithoutPersistingIdentifier()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<BrokerageDbContext>()
+            .UseSqlite(connection)
+            .Options;
+        await using (var setup = new BrokerageDbContext(options))
+            await setup.Database.MigrateAsync();
+
+        await using var db = new BrokerageDbContext(options);
+        var useCase = new VerifyIdentity(
+            new ThrowingIdentityVerificationService(),
+            new IdentityVerificationStateRepository(db),
+            new EfUnitOfWork(db),
+            new AuditEventWriter(db, Microsoft.Extensions.Logging.Abstractions.NullLogger<AuditEventWriter>.Instance));
+
+        const string nationalIdentifier = "IDENTIFIER-MUST-NOT-PERSIST";
+        await Assert.ThrowsAsync<HttpRequestException>(() =>
+            useCase.ExecuteAsync("provider-failure-user", nationalIdentifier, "provider-failure-correlation"));
+
+        Assert.False(await db.IdentityVerificationStates.AsNoTracking()
+            .AnyAsync(x => x.UserId == "provider-failure-user"));
+        var audit = await db.AuditEvents.AsNoTracking()
+            .SingleAsync(x => x.ActorUserId == "provider-failure-user"
+                && x.EventType == "IdentityVerificationProviderFailed");
+        Assert.Equal("Failure", audit.Outcome);
+        Assert.Equal("ProviderError", audit.NewState);
+        Assert.Equal("provider-failure-correlation", audit.CorrelationId);
+        Assert.DoesNotContain(nationalIdentifier, System.Text.Json.JsonSerializer.Serialize(audit), StringComparison.Ordinal);
+        Assert.DoesNotContain("private identity provider details", System.Text.Json.JsonSerializer.Serialize(audit), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task VerifyIdentity_Success_CommitsStateAndAuditTogether()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
@@ -99,6 +133,12 @@ public sealed class VerifyIdentityAtomicityTests
         Assert.Equal("Failure", audit.Outcome);
         Assert.DoesNotContain(nationalIdentifier, audit.NewState ?? string.Empty, StringComparison.Ordinal);
         Assert.DoesNotContain(nationalIdentifier, audit.PreviousState ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    private sealed class ThrowingIdentityVerificationService : IIdentityVerificationService
+    {
+        public Task<bool> VerifyAsync(string nationalIdentifier, CancellationToken cancellationToken = default)
+            => throw new HttpRequestException("private identity provider details");
     }
 
     private sealed class RejectedIdentityVerificationService : IIdentityVerificationService

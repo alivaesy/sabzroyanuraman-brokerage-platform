@@ -34,7 +34,29 @@ public sealed class VerifyIdentity
         if (string.IsNullOrWhiteSpace(authenticatedUserId))
             throw new ArgumentException("Authenticated user is required.", nameof(authenticatedUserId));
 
-        var verified = await _identityVerificationService.VerifyAsync(nationalIdentifier, cancellationToken);
+        bool verified;
+        try
+        {
+            verified = await _identityVerificationService.VerifyAsync(nationalIdentifier, cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // The provider failed before any identity state is written. Record a generic
+            // failure outcome only; never persist the submitted identifier or exception text.
+            await _auditEventWriter.WriteAsync(new AuditEvent(
+                Guid.NewGuid(),
+                DateTimeOffset.UtcNow,
+                "IdentityVerificationProviderFailed",
+                correlationId ?? string.Empty,
+                null,
+                "IdentityVerification",
+                "Failure",
+                null,
+                "ProviderError",
+                authenticatedUserId), CancellationToken.None);
+            throw;
+        }
+
         var occurredAt = DateTimeOffset.UtcNow;
 
         // Identity state and its mandatory audit event must succeed or roll back together.
