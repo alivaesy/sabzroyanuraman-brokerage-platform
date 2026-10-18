@@ -99,7 +99,7 @@ public class CreateS01ServiceRequestAuditTests
         var useCase = new CreateS01ServiceRequest(
             new WorkflowService(),
             new MockIdentityVerificationService(),
-            new FailingOrganizationIntegrationService(),
+            new FailingS01SubmissionIntegrationService(),
             serviceRequestRepository: S01TestDoubles.Repository(),
             auditEventWriter: auditWriter,
             unitOfWork: S01TestDoubles.UnitOfWork());
@@ -219,7 +219,7 @@ public class CreateS01ServiceRequestAuditTests
 
 }
 
-internal sealed class FailingOrganizationIntegrationService : IOrganizationIntegrationService
+internal sealed class FailingS01SubmissionIntegrationService : IOrganizationIntegrationService
 {
     public Task<string> SubmitAsync(string serviceCode, CancellationToken cancellationToken = default)
         => throw new BrokerageException("Organization API submission failed.");

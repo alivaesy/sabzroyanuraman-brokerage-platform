@@ -160,7 +160,7 @@ public class PersistentAuthenticationStateTests
             start.SetResult(true);
             var results = await Task.WhenAll(verifications);
 
-            Assert.Single(results.Where(result => result));
+            Assert.Single(results, result => result);
             await using var verifyDb = new BrokerageDbContext(options);
             Assert.False(await verifyDb.OtpChallenges.AnyAsync(x => x.ChallengeId == "valid-race"));
         }
