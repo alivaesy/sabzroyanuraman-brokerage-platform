@@ -1,12 +1,28 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Hosting;
 using Xunit;
 
 namespace Brokerage.Api.Tests;
 
 public class OperationalStatusTests
 {
+    [Fact]
+    public async Task ProductionEnvironment_FailsClosedWhileProductionPersistenceIsUnapproved()
+    {
+        await using var application = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder => builder.UseEnvironment("Production"));
+
+        var exception = Record.Exception(() => application.CreateClient());
+
+        Assert.NotNull(exception);
+        Assert.Contains(
+            "Production persistence is not configured",
+            exception!.ToString(),
+            StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task OperationalStatus_AnonymousUser_ReturnsUnauthorized()
     {
