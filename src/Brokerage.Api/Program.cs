@@ -28,6 +28,15 @@ using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Fail closed before service registration: SQLite is the development persistence provider,
+// not an approved multi-instance production database. Do not let future integration wiring
+// accidentally make a SQLite-backed production deployment appear supported.
+if (!builder.Environment.IsDevelopment())
+{
+    throw new InvalidOperationException(
+        "Production persistence is not configured. The application currently uses SQLite; configure and verify an approved production database provider, migrations, concurrency, backup, and restore before deployment.");
+}
+
 builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole();
 builder.Services.AddOpenApi();

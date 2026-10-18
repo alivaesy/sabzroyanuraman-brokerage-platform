@@ -3,48 +3,38 @@
 ## Live branch and CI status
 
 - Working branch: `codex/project-readiness-baseline`.
-- Current HEAD at this checkpoint update: `0203dde2504a41326af747ecbd300529c9baedfd` (`fix: require transactional audit for generic requests`).
-- Pipeline [2959886605](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2959886605): **success** for that exact SHA. Pipeline [2959878699](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2959878699): **success** for parent `5c3b38e5`.
-- Pipeline [2959874595](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2959874595) failed during NuGet restore due to `api.nuget.org` download timeouts; evidence points to package retrieval, not a reported source compile/test failure. Pipeline `2959875562` was canceled after a later push superseded it.
+- Current HEAD at this checkpoint update: `f06918746097bc7abf9ac3be998c37f262f2e614` (`fix: validate required S01 workflow inputs`).
+- Pipeline [2959925854](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2959925854): **success** for that exact SHA, including .NET verification, PHP validation, and secret scan.
+- Pipeline [2959908797](https://gitlab.com/sabz-group1/brokerage-platform/-/pipelines/2959908797): **success** for `49fd9a1f`.
 - `master` remains at `54e224d8b09eb9dbd882a0ba61e97d153af0136b`; no merge has been made. The branch is not merged.
-- These results describe the exact commits listed; later changes require their own CI evidence. Work may continue without waiting for CI, but test success must not be inferred.
+- Pipeline results apply only to the exact SHAs above; subsequent commits need their own evidence. Work continues without waiting for CI, but test success is never inferred.
 
 ## Verified engineering progress
 
-- Generic `POST /service-requests` now requires audit writer and unit of work and commits request, initial stage and audit events in one local transaction. Regression coverage includes SQLite persistence and rollback on audit failure.
-- Persistent OTP rejects blank/incomplete inputs before database mutations; regression tests were added.
-- Workflow stage identifiers are trimmed and completion timestamps remain stable on repeated completion.
-- Identity error responses have `Cache-Control: no-store` regression coverage.
-- S01 workflow tests cover local rollback after persistence failure and preservation of a known remote tracking ID after caller cancellation.
-
-## S01 engineering hardening — 2026-10-18
-
-`CreateS01ServiceRequest` now requires its repository, audit writer and unit of work at construction. The use case no longer silently skips local persistence, persisted audit events or its transaction when dependencies are absent. Unit tests supply explicit test doubles; SQLite regression tests retain coverage for rollback after a local persistence failure and persistence of a known remote tracking ID after caller cancellation. Commit `c13289f1` contains this change; its own GitLab pipeline is running and compilation/test success is not yet confirmed.
-
-The external organization submission still occurs before the local transaction. A process crash or database failure after remote acceptance can leave a remote request without a local record; local rollback cannot undo remote success. Safe automated recovery requires the organization's idempotency/correlation and status-lookup contract.
+- Generic `POST /service-requests` requires audit writer and unit of work and commits request, initial stage, and audit events in one local transaction. SQLite regression coverage includes successful persistence, invalid input rejection, and rollback on audit failure. Commit `cf4b43db` adds the latest generic-request input validation.
+- S01 requires repository, audit writer, and unit of work; rejects a null request model and blank applicant ID before identity or organization calls. Its local persistence is transactional, but remote organization acceptance cannot be rolled back locally. Commit `f0691874` passed pipeline `2959925854`.
+- Persistent OTP rejects blank/incomplete inputs before database mutations; workflow stage identifiers are trimmed and completion timestamps remain stable on repeated completion; identity and audit export error paths use `Cache-Control: no-store`.
+- Payment initiation remains disabled by default. The live PHP payment path remains outside this work.
 
 ## Regulatory and production gates
 
-The supplied `الزامات_کارگزاری.html` requires evidence beyond CI, including at least three services built against their own approved requirements for the relevant gate (subject to the stated exception), approved-lab penetration testing/software technical approval, approved domestic hosting, direct legal-entity payment gateway, uptime evidence, read-only regulator dashboard and organizational support/contractual evidence.
+The supplied `الزامات_کارگزاری.html` requires evidence beyond CI, including at least three services built against their own approved requirements for the relevant gate (subject to the stated exception), approved-lab penetration testing/software technical approval, approved domestic hosting, a direct legal-entity payment gateway, uptime evidence, a read-only regulator dashboard, and organizational support/contractual evidence.
 
-The repository currently shows S01 as the only dedicated service-specific creation route. Generic creation does not prove S02–S05 are complete. Obtain approved service requirements before inventing stages, fields or validations.
+- S01 is the only dedicated service-specific creation route currently evidenced. Generic creation does not prove S02–S05 are complete. Obtain approved service requirements before adding stages, fields, or validations.
+- SQLite remains the configured persistence provider. Production multi-instance concurrency, migration rollout, backup, restore, and disaster-recovery evidence are absent. The application now explicitly fails closed outside Development rather than allowing SQLite to be mistaken for production-ready persistence.
+- Production organization, Sana, and Shahkar adapters are not configured; startup must remain fail-closed until approved adapters and environment evidence exist.
+- Sadad merchant-specific contract, approved tariff mapping, sandbox evidence, and the PHP/.NET transaction-ownership decision remain mandatory before payment activation. Do not change the live PHP path.
 
-## Prioritized continuation
+## Ordered continuation
 
-| Priority | Workstream | Required outcome |
-|---|---|---|
-| Immediate | S01 reliability | Make persistence, audit and transaction dependencies mandatory; retain rollback and cancellation regressions. |
-| Immediate | Payment safety | Keep `Payment:Enabled=false`; complete `docs/PAYMENT_SERVICE_MAPPING_APPROVAL.md` from authoritative tariff and Sadad merchant documents. |
-| Immediate | PHP/.NET boundary | Website points to `/payment/order.php`, which is absent from this repository. Do not touch the live PHP path or allow two implementations to finalize one transaction. |
-| High | Service acceptance | Map at least three approved service requirements end-to-end; do not treat generic creation as service completion. |
-| High | Deployment | Approve production database, multi-instance concurrency, migrations, backups/restoration and recovery runbook. SQLite is currently registered. |
-| High | Security/privacy | Evidence for approved penetration test, ZDR/data-flow and retention, secret management, logs/telemetry/export handling. |
-| Next | Operations | Shared rate limiting, production monitoring/SIEM, alerts, read-only regulator dashboard and tested disaster recovery. |
-| External gate | Integrations | Obtain versioned official identity/organization contracts, approved adapters and authorized sandbox evidence. Development mocks are not production proof. |
+1. Obtain approved requirements for at least three services and map each end-to-end: entry point, authorization/identity, validation, stages/state, persistence/audit, external adapter, failure/recovery, and tests.
+2. Obtain the organization integration's documented idempotency/correlation/status-lookup contract before implementing automated submission retries or recovery.
+3. Approve and implement a production database provider with migration, concurrency, backup/restore, and recovery verification.
+4. Complete Sadad service/tariff approval and sandbox sign-off while keeping payment disabled and preserving PHP/.NET ownership boundaries.
+5. Produce evidence for hosting, security testing, data retention/ZDR, monitoring/SIEM, read-only regulator access, 99% uptime, and support/contractual prerequisites.
 
 ## Boundaries
 
-- Do not change live PHP payment handling, credentials, secrets or production transactions.
-- Do not enable .NET payments until the merchant contract, tariff approval, sandbox tests, single-owner transaction routing and operations checklist are signed off.
-- Do not invent external API behavior or business workflow rules.
-- Keep grouped changes on the working branch; no merge to `master` without explicit authorization.
+- Do not merge into `master`, delete branches, or change the live PHP payment path without explicit authorization.
+- Do not invent missing service requirements, organization API fields, Sadad contract details, or business tariff values.
+- A green pipeline is engineering evidence for its checks, not a licensing or production-readiness certificate.
