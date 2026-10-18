@@ -23,13 +23,14 @@ public class CreateS01ServiceRequestAuditTests
         var identityService = new MockIdentityVerificationService();
         var organizationIntegrationService = new TestOrganizationIntegrationService();
         var logger = new ListLogger<CreateS01ServiceRequest>();
+        var auditWriter = new RecordingAuditEventWriter();
 
         var useCase = new CreateS01ServiceRequest(
             workflowService,
             identityService,
             organizationIntegrationService,
             serviceRequestRepository: S01TestDoubles.Repository(),
-            auditEventWriter: S01TestDoubles.AuditWriter(),
+            auditEventWriter: auditWriter,
             unitOfWork: S01TestDoubles.UnitOfWork(),
             logger: logger);
 
@@ -41,10 +42,9 @@ public class CreateS01ServiceRequestAuditTests
             "test-applicant",
             "CORRELATION-123");
 
-        var auditEvents = logger.Events
-            .SelectMany(x => x.Values)
-            .OfType<AuditEvent>()
-            .ToList();
+        // Audit events are captured through the audit boundary, not application logs.
+        // This keeps sensitive audit payloads out of routine logs while preserving test coverage.
+        var auditEvents = auditWriter.Events;
 
         Assert.Equal(7, auditEvents.Count);
 
@@ -278,6 +278,17 @@ internal sealed class SaveThenFailServiceRequestRepository(IServiceRequestReposi
     {
         await inner.SaveChangesAsync(cancellationToken);
         throw new InvalidOperationException("Simulated failure after local rows were written inside the transaction.");
+    }
+}
+
+internal sealed class RecordingAuditEventWriter : IAuditEventWriter
+{
+    public List<AuditEvent> Events { get; } = [];
+
+    public Task WriteAsync(AuditEvent auditEvent, CancellationToken cancellationToken = default)
+    {
+        Events.Add(auditEvent);
+        return Task.CompletedTask;
     }
 }
 
