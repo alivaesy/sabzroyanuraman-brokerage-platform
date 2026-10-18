@@ -15,6 +15,16 @@ public class OtpServiceTests
         Assert.True(challenge.ExpiresAt > DateTimeOffset.UtcNow);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task IssueAsync_WithEmptyUserId_Throws(string userId)
+    {
+        var service = new InMemoryOtpService();
+
+        await Assert.ThrowsAsync<ArgumentException>(() => service.IssueAsync(userId));
+    }
+
     [Fact]
     public async Task VerifyAsync_UnknownChallenge_ReturnsFalse()
     {
@@ -23,6 +33,17 @@ public class OtpServiceTests
         var result = await service.VerifyAsync("TEST-USER-001", "missing", "123456");
 
         Assert.False(result);
+    }
+
+    [Theory]
+    [InlineData("", "known", "123456")]
+    [InlineData("TEST-USER-001", "", "123456")]
+    [InlineData("TEST-USER-001", "known", "")]
+    public async Task VerifyAsync_WithMissingInput_ReturnsFalse(string userId, string challengeId, string code)
+    {
+        var service = new InMemoryOtpService();
+
+        Assert.False(await service.VerifyAsync(userId, challengeId, code));
     }
 
     [Fact]

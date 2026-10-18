@@ -21,6 +21,9 @@ public sealed class InMemoryOtpService : IOtpService
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new ArgumentException("User ID cannot be empty.", nameof(userId));
+
         var challengeId = Guid.NewGuid().ToString("N");
         var code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
         var expiresAt = DateTimeOffset.UtcNow.AddMinutes(2);
@@ -42,6 +45,11 @@ public sealed class InMemoryOtpService : IOtpService
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        if (string.IsNullOrWhiteSpace(userId) ||
+            string.IsNullOrWhiteSpace(challengeId) ||
+            string.IsNullOrEmpty(code))
+            return Task.FromResult(false);
+
         while (_challenges.TryGetValue(challengeId, out var challenge))
         {
             if (!string.Equals(challenge.UserId, userId, StringComparison.Ordinal))
@@ -58,7 +66,7 @@ public sealed class InMemoryOtpService : IOtpService
 
             var valid = CryptographicOperations.FixedTimeEquals(
                 System.Text.Encoding.UTF8.GetBytes(challenge.Code),
-                System.Text.Encoding.UTF8.GetBytes(code ?? string.Empty));
+                System.Text.Encoding.UTF8.GetBytes(code));
 
             if (valid)
             {
