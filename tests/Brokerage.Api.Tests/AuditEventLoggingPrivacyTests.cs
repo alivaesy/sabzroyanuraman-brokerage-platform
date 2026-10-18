@@ -23,6 +23,17 @@ public class AuditEventLoggingPrivacyTests
         using var response = await client.PostAsJsonAsync("/identity/verify", new { nationalIdentifier = "1234567891" });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var auditClient = application.CreateClient();
+        auditClient.DefaultRequestHeaders.Add("X-Test-User-Id", "audit-log-privacy-reviewer");
+        auditClient.DefaultRequestHeaders.Add("X-Test-User-Role", "TechnicalSecurity");
+        using var exportResponse = await auditClient.GetAsync("/audit/events/export?limit=100");
+        Assert.Equal(HttpStatusCode.OK, exportResponse.StatusCode);
+        Assert.Equal("no-store", exportResponse.Headers.CacheControl?.ToString());
+        var exportedAudit = await exportResponse.Content.ReadAsStringAsync();
+        Assert.Contains("IdentityVerification", exportedAudit, StringComparison.Ordinal);
+        Assert.DoesNotContain("1234567891", exportedAudit, StringComparison.Ordinal);
+
         Assert.DoesNotContain(userId, string.Join("\n", provider.Messages), StringComparison.Ordinal);
         Assert.Contains(
             provider.Messages,
