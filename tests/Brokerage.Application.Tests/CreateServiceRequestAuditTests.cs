@@ -12,8 +12,10 @@ namespace Brokerage.Application.Tests;
 
 public class CreateServiceRequestAuditTests
 {
-    [Fact]
-    public async Task ExecuteAsync_PersistsRequestStageAndAuditEventsTogether()
+    [Theory]
+    [InlineData(ServiceCode.S02)]
+    [InlineData(ServiceCode.S03)]
+    public async Task ExecuteAsync_PersistsRequestStageAndAuditEventsTogether(ServiceCode serviceCode)
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
@@ -28,13 +30,14 @@ public class CreateServiceRequestAuditTests
             new EfUnitOfWork(db));
 
         var request = await useCase.ExecuteAsync(
-            ServiceCode.S02,
+            serviceCode,
             "INITIAL",
             "audit-applicant",
             correlationId: "GENERIC-REQUEST-TRACE",
             actorRole: "Applicant",
             ipAddress: "127.0.0.1");
 
+        Assert.Equal(serviceCode, request.ServiceCode);
         Assert.Equal(1, await db.ServiceRequests.CountAsync());
         Assert.Equal(1, await db.WorkflowStages.CountAsync());
         var events = await db.AuditEvents.AsNoTracking().OrderBy(x => x.EventType).ToListAsync();
