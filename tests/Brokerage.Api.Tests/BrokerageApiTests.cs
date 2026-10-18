@@ -908,6 +908,48 @@ public class BrokerageApiTests
     }
 
     [Fact]
+    public async Task GetOrganizationStatus_WhenProviderThrowsTransportException_AuditsFailureWithoutDetails()
+    {
+        await using var application = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureServices(services =>
+                {
+                    services.AddScoped<IntegrationOrganizationApiClient, ThrowingOrganizationStatusApiClient>();
+                });
+            });
+        using var client = await CreateVerifiedApplicantClientAsync(application);
+
+        var createContent = new StringContent(
+            """{"nationalIdentifier":"1234567891"}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+        var createResponse = await client.PostAsync("/service-requests/s01", createContent);
+        Assert.Equal(System.Net.HttpStatusCode.OK, createResponse.StatusCode);
+        var created = await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var requestId = Guid.Parse(created.GetProperty("id").GetString()!);
+
+        var response = await client.PostAsync($"/service-requests/{requestId}/organization-status", content: null);
+        Assert.Equal(System.Net.HttpStatusCode.InternalServerError, response.StatusCode);
+
+        using var scope = application.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+        var failureAudit = await db.AuditEvents.AsNoTracking().SingleAsync(x =>
+            x.ServiceRequestId == requestId && x.EventType == "OrganizationStatusRefreshFailed");
+        Assert.Equal("Failure", failureAudit.Outcome);
+        Assert.Equal("ProviderError", failureAudit.NewState);
+        Assert.DoesNotContain("private transport details", failureAudit.NewState);
+        Assert.DoesNotContain("private transport details", failureAudit.PreviousState);
+
+        var request = await db.ServiceRequests.AsNoTracking().SingleAsync(x => x.Id == requestId);
+        Assert.Null(request.OrganizationStatus);
+        var stages = await db.WorkflowStages.AsNoTracking().Where(x => x.ServiceRequestId == requestId).ToListAsync();
+        Assert.Equal(3, stages.Count);
+        Assert.Equal("OrganizationFollowUp", stages[^1].StageCode);
+        Assert.Null(stages[^1].CompletedAt);
+    }
+
+    [Fact]
     public async Task GetOrganizationStatus_WhenOrganizationApiReturnsEmptyStatus_DoesNotAdvanceWorkflow()
     {
         await using var application =
@@ -1301,6 +1343,19 @@ public class BrokerageApiTests
 
             return new AuditEventWriter(dbContext, logger).WriteAsync(auditEvent, cancellationToken);
         }
+    }
+
+    private sealed class ThrowingOrganizationStatusApiClient : IntegrationOrganizationApiClient
+    {
+        public Task<OrganizationApiResult> SubmitAsync(
+            string serviceCode,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(OrganizationApiResult.Success(trackingId: "MOCK-TRACKING-ID"));
+
+        public Task<OrganizationApiResult> GetStatusAsync(
+            string trackingId,
+            CancellationToken cancellationToken = default)
+            => throw new HttpRequestException("private transport details");
     }
 
     private sealed class FailingOrganizationStatusApiClient

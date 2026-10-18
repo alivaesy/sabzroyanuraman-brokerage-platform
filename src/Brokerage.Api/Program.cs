@@ -607,10 +607,11 @@ static async Task<IResult> RefreshOrganizationStatusAsync(
         organizationStatus = await organizationIntegrationService.GetStatusAsync(
             request.OrganizationTrackingId, cancellationToken);
     }
-    catch (BrokerageException)
+    catch (Exception exception) when (exception is not OperationCanceledException)
     {
-        // Record provider failure without copying provider payloads or exception text.
-        // No request/stage state is changed, and the existing safe API error mapping remains.
+        // Transport/runtime failures are also provider failures. Record only a bounded,
+        // generic outcome; never copy provider payloads or exception text into the audit log.
+        // No request/stage state is changed, and the original safe API error mapping remains.
         await auditEventWriter.WriteAsync(new AuditEvent(
             Guid.NewGuid(), DateTimeOffset.UtcNow, "OrganizationStatusRefreshFailed", context.TraceIdentifier,
             request.Id, S01StageCode.OrganizationFollowUp.ToString(), "Failure", previousOrganizationStatus,
