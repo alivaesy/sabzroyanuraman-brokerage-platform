@@ -77,6 +77,13 @@ public class AuditComplianceTests
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+
+        using var scope = application.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+        var denied = await db.AuditEvents.AsNoTracking().SingleAsync(
+            x => x.EventType == "AuditExportDenied" && x.ActorUserId == "AUDIT-APP-001");
+        Assert.Equal("Failure", denied.Outcome);
+        Assert.Equal("Denied:Role", denied.NewState);
     }
 
     [Fact]

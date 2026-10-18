@@ -78,7 +78,23 @@ public static class AuditExportEndpoints
                 nameof(UserRole.TechnicalSecurity) or
                 nameof(UserRole.OrganizationObserver) or
                 nameof(UserRole.Administrator)))
+            {
+                // Record denied export attempts without exporting or logging audit payloads.
+                await auditEventWriter.WriteAsync(new AuditEvent(
+                    Guid.NewGuid(),
+                    DateTimeOffset.UtcNow,
+                    "AuditExportDenied",
+                    context.TraceIdentifier,
+                    null,
+                    null,
+                    "Failure",
+                    null,
+                    "Denied:Role",
+                    currentUser.UserId,
+                    currentUser.Role,
+                    context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
                 return Results.Forbid();
+            }
 
             if (from.HasValue && to.HasValue && from > to)
                 return Results.BadRequest(new { message = "'from' must be earlier than or equal to 'to'." });
