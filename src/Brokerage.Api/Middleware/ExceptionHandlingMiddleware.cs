@@ -24,6 +24,21 @@ public class ExceptionHandlingMiddleware
         {
             await _next(context);
         }
+        catch (BadHttpRequestException ex)
+        {
+            _logger.LogWarning("Malformed HTTP request. CorrelationId={CorrelationId} ErrorType={ErrorType}", correlationId, ex.GetType().Name);
+            await LogAuditFailure(context, correlationId, "BAD_REQUEST", auditEventWriter);
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            context.Response.ContentType = "application/json";
+            context.Response.Headers.CacheControl = "no-store";
+            await context.Response.WriteAsJsonAsync(
+                new ErrorResponse
+                {
+                    Code = "BAD_REQUEST",
+                    Message = "The request contains invalid or malformed parameters.",
+                    CorrelationId = correlationId
+                });
+        }
         catch (BrokerageException ex)
         {
             _logger.LogWarning("Brokerage request failed. CorrelationId={CorrelationId} ErrorType={ErrorType}", correlationId, ex.GetType().Name);

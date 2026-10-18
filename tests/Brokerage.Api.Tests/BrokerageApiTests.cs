@@ -986,7 +986,8 @@ public class BrokerageApiTests
 
         var request = await db.ServiceRequests.AsNoTracking().SingleAsync(x => x.Id == requestId);
         Assert.Null(request.OrganizationStatus);
-        var stages = await db.WorkflowStages.AsNoTracking().Where(x => x.ServiceRequestId == requestId).ToListAsync();
+        var repository = scope.ServiceProvider.GetRequiredService<IServiceRequestRepository>();
+        var stages = await repository.GetWorkflowStagesAsync(requestId);
         Assert.Equal(3, stages.Count);
         Assert.Equal("OrganizationFollowUp", stages[^1].StageCode);
         Assert.Null(stages[^1].CompletedAt);
