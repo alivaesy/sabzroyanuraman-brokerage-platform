@@ -178,6 +178,23 @@ public class BrokerageApiTests
         Assert.Equal("INITIAL", stage.GetProperty("stageCode").GetString());
     }
 
+    [Theory]
+    [InlineData("S02")]
+    [InlineData("S03")]
+    public async Task CreateGenericServiceRequest_ApplicantWithoutVerifiedIdentity_ReturnsForbidden(
+        string serviceCodeQuery)
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "unverified-generic-applicant");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.Applicant.ToString());
+
+        var response = await client.PostAsync($"/service-requests?serviceCode={serviceCodeQuery}", content: null);
+
+        Assert.Equal(System.Net.HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+    }
+
     [Fact]
     public async Task CreateGenericServiceRequest_CannotBypassS01Workflow_ReturnsBadRequest()
     {
