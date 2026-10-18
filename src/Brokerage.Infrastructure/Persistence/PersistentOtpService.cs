@@ -83,9 +83,34 @@ public sealed class PersistentOtpService(BrokerageDbContext db, IOtpCodeHasher c
             return false;
         }
 
+        byte[] storedHash;
+        try
+        {
+            storedHash = Convert.FromHexString(challenge.CodeHash);
+        }
+        catch (FormatException)
+        {
+            // Corrupt persisted challenge data must fail closed, not turn OTP verification
+            // into a server error or leave an unusable challenge active.
+            if (isSqlite)
+            {
+                await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"DELETE FROM otp_challenges WHERE ChallengeId = {challengeId} AND UserId = {userId}",
+                    cancellationToken);
+            }
+            else
+            {
+                await db.OtpChallenges
+                    .Where(x => x.ChallengeId == challengeId && x.UserId == userId)
+                    .ExecuteDeleteAsync(cancellationToken);
+            }
+
+            return false;
+        }
+
         var suppliedHash = codeHasher.Hash(code);
         var valid = CryptographicOperations.FixedTimeEquals(
-            Convert.FromHexString(challenge.CodeHash),
+            storedHash,
             Convert.FromHexString(suppliedHash));
 
         if (valid)
