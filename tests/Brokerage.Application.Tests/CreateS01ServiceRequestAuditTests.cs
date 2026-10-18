@@ -121,7 +121,6 @@ public class CreateS01ServiceRequestAuditTests
         Assert.Equal("failed-submit-applicant", failure.ActorUserId);
         Assert.Equal("Applicant", failure.ActorRole);
         Assert.Equal("127.0.0.1", failure.IpAddress);
-        Assert.Equal(0, await Task.FromResult(0)); // No local request is created before provider success.
     }
 
     [Fact]
