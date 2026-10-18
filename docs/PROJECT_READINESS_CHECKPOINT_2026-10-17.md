@@ -17,9 +17,11 @@
 - Identity error responses have `Cache-Control: no-store` regression coverage.
 - S01 workflow tests cover local rollback after persistence failure and preservation of a known remote tracking ID after caller cancellation.
 
-## Immediate engineering gap
+## S01 engineering hardening — 2026-10-18
 
-`CreateS01ServiceRequest` still declares its repository, audit writer and unit of work as optional. API dependency injection currently registers these services, but direct/manual construction can silently skip durable persistence, transaction and persisted audit. This is inconsistent with the hardened generic request use case. The next code step is to make those dependencies mandatory, adapt test fixtures, and retain tests for remote submission followed by local failure. The organization accepts the remote submission outside the local transaction, so local rollback cannot undo remote success.
+`CreateS01ServiceRequest` now requires its repository, audit writer and unit of work at construction. The use case no longer silently skips local persistence, persisted audit events or its transaction when dependencies are absent. Unit tests supply explicit test doubles; SQLite regression tests retain coverage for rollback after a local persistence failure and persistence of a known remote tracking ID after caller cancellation. Commit `c13289f1` contains this change; its own GitLab pipeline is running and compilation/test success is not yet confirmed.
+
+The external organization submission still occurs before the local transaction. A process crash or database failure after remote acceptance can leave a remote request without a local record; local rollback cannot undo remote success. Safe automated recovery requires the organization's idempotency/correlation and status-lookup contract.
 
 ## Regulatory and production gates
 
