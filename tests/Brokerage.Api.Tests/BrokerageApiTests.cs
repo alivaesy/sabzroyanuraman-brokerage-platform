@@ -283,6 +283,7 @@ public class BrokerageApiTests
         var refreshResponse = await client.PostAsync($"/service-requests/{requestId}/organization-status", content: null);
 
         Assert.Equal(System.Net.HttpStatusCode.BadRequest, refreshResponse.StatusCode);
+        Assert.Equal("no-store", refreshResponse.Headers.CacheControl?.ToString());
 
         using var verificationScope = application.Services.CreateScope();
         var verificationDb = verificationScope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
@@ -292,6 +293,9 @@ public class BrokerageApiTests
 
         var stages = await verificationDb.WorkflowStages.AsNoTracking().Where(x => x.ServiceRequestId == requestId).ToListAsync();
         Assert.Equal("INITIAL", Assert.Single(stages).StageCode);
+        Assert.Equal(0, await verificationDb.AuditEvents.AsNoTracking().CountAsync(x =>
+            x.ServiceRequestId == requestId &&
+            (x.EventType == "OrganizationStatusReceived" || x.EventType == "OrganizationStatusRefreshFailed")));
     }
 
     [Fact]
@@ -991,7 +995,7 @@ public class BrokerageApiTests
     }
 
     [Fact]
-    public async Task GetOrganizationStatus_WhenCalledTwice_DoesNotDuplicateResultNotification()
+    public async Task OrganizationStatusRefresh_WhenRepeatedAcrossGetAndPost_DoesNotDuplicateResultNotification()
     {
         await using var application = new WebApplicationFactory<Program>();
         using var client = await CreateVerifiedApplicantClientAsync(application);
@@ -1021,15 +1025,17 @@ public class BrokerageApiTests
 
         var firstStatusResponse = await client.GetAsync(
             $"/service-requests/{requestId}/organization-status");
-        var secondStatusResponse = await client.GetAsync(
+        var secondStatusResponse = await client.PostAsync(
+            $"/service-requests/{requestId}/organization-status", content: null);
+        var thirdStatusResponse = await client.GetAsync(
             $"/service-requests/{requestId}/organization-status");
 
-        Assert.Equal(
-            System.Net.HttpStatusCode.OK,
-            firstStatusResponse.StatusCode);
-        Assert.Equal(
-            System.Net.HttpStatusCode.OK,
-            secondStatusResponse.StatusCode);
+        Assert.Equal(System.Net.HttpStatusCode.OK, firstStatusResponse.StatusCode);
+        Assert.Equal(System.Net.HttpStatusCode.OK, secondStatusResponse.StatusCode);
+        Assert.Equal(System.Net.HttpStatusCode.OK, thirdStatusResponse.StatusCode);
+        Assert.Equal("no-store", firstStatusResponse.Headers.CacheControl?.ToString());
+        Assert.Equal("no-store", secondStatusResponse.Headers.CacheControl?.ToString());
+        Assert.Equal("no-store", thirdStatusResponse.Headers.CacheControl?.ToString());
 
         var firstStatus =
             await firstStatusResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
