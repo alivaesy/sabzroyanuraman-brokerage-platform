@@ -86,6 +86,22 @@ public class AuditComplianceTests
         Assert.Equal("Denied:Role", denied.NewState);
     }
 
+    [Theory]
+    [InlineData("/audit/events/export?from=not-a-date")]
+    [InlineData("/audit/events/export?limit=not-a-number")]
+    public async Task AuditExport_MalformedQueryBindingReturnsBadRequestWithoutCaching(string path)
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "AUDIT-SEC-MALFORMED");
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", UserRole.TechnicalSecurity.ToString());
+
+        var response = await client.GetAsync(path);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+    }
+
     [Fact]
     public async Task AuditExport_InvalidDateRangeReturnsBadRequestWithoutCaching()
     {
