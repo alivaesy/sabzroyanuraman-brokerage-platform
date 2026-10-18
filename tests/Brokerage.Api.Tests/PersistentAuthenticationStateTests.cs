@@ -59,6 +59,48 @@ public class PersistentAuthenticationStateTests
     }
 
     [Fact]
+    public async Task OtpVerification_AuditFailureRollsBackChallengeConsumptionAndMfaGrant()
+    {
+        const string userId = "otp-verify-audit-rollback-user";
+        const string challengeId = "otp-verify-audit-rollback-challenge";
+        await using var application = new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+                services.AddScoped<IAuditEventWriter, FailOtpVerificationAuditWriter>()));
+
+        using (var scope = application.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+            db.OtpChallenges.Add(new OtpChallengeRecord
+            {
+                ChallengeId = challengeId,
+                UserId = userId,
+                CodeHash = TestOtpCodeHasher.Instance.Hash("123456"),
+                ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(2),
+                FailedAttempts = 0
+            });
+            await db.SaveChangesAsync();
+        }
+
+        using var client = application.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", userId);
+        client.DefaultRequestHeaders.Add("X-Test-User-Role", Brokerage.Application.Authorization.UserRole.Applicant.ToString());
+        using var content = new System.Net.Http.StringContent(
+            """{"challengeId":"otp-verify-audit-rollback-challenge","code":"123456"}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        var response = await client.PostAsync("/identity/otp/verify", content);
+        Assert.Equal(System.Net.HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+
+        using var verifyScope = application.Services.CreateScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+        Assert.True(await verifyDb.OtpChallenges.AsNoTracking().AnyAsync(x =>
+            x.ChallengeId == challengeId && x.UserId == userId));
+        Assert.False(await verifyDb.MfaVerifications.AsNoTracking().AnyAsync(x => x.UserId == userId));
+    }
+
+    [Fact]
     public async Task OtpChallenge_Verify_RejectsBlankInputsWithoutMutatingChallenge()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
@@ -331,6 +373,14 @@ file sealed class FailOtpIssueAuditWriter : IAuditEventWriter
     public Task WriteAsync(AuditEvent auditEvent, CancellationToken cancellationToken = default)
         => auditEvent.EventType == "OtpChallengeIssued"
             ? throw new InvalidOperationException("Simulated OTP audit failure.")
+            : Task.CompletedTask;
+}
+
+file sealed class FailOtpVerificationAuditWriter : IAuditEventWriter
+{
+    public Task WriteAsync(AuditEvent auditEvent, CancellationToken cancellationToken = default)
+        => auditEvent.EventType == "OtpVerification"
+            ? throw new InvalidOperationException("Simulated OTP verification audit failure.")
             : Task.CompletedTask;
 }
 

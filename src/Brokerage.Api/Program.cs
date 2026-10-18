@@ -467,6 +467,7 @@ app.MapPost("/identity/otp/verify", async (
     IOtpService otpService,
     IMfaVerificationStore mfaVerificationStore,
     IAuditEventWriter auditEventWriter,
+    IUnitOfWork unitOfWork,
     HttpContext context,
     CancellationToken cancellationToken) =>
 {
@@ -475,10 +476,11 @@ app.MapPost("/identity/otp/verify", async (
     if (!currentUser.IsAuthenticated || string.IsNullOrWhiteSpace(currentUser.UserId))
         return Results.Unauthorized();
 
+    // OTP consumption, the mandatory audit event, and any MFA grant must commit together.
+    // This prevents a consumed challenge without a grant, or a grant without its audit record.
+    await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
     var verified = await otpService.VerifyAsync(currentUser.UserId, request.ChallengeId, request.Code, cancellationToken);
 
-    // Persist the mandatory audit event before granting the MFA state. If audit
-    // persistence fails, the request fails closed and no new verification is granted.
     await auditEventWriter.WriteAsync(new AuditEvent(Guid.NewGuid(), DateTimeOffset.UtcNow, "OtpVerification", context.TraceIdentifier,
         null, null, verified ? "Success" : "Failure", null, verified ? "Verified" : "Rejected",
         currentUser.UserId, currentUser.Role, context.Connection.RemoteIpAddress?.ToString()), cancellationToken);
@@ -486,6 +488,7 @@ app.MapPost("/identity/otp/verify", async (
     if (verified)
         mfaVerificationStore.MarkVerified(currentUser.UserId, DateTimeOffset.UtcNow);
 
+    await transaction.CommitAsync(cancellationToken);
     return verified
         ? Results.Ok(new { verified = true })
         : Results.BadRequest(new { verified = false });
