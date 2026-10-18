@@ -55,6 +55,20 @@ public class AuditComplianceTests
         Assert.Contains("AuditObserverExportTest", body);
         Assert.Contains("OrganizationObserver", body);
 
+        using (var exportedEvent = System.Text.Json.JsonDocument.Parse(
+            body.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)[0]))
+        {
+            var exportedFields = exportedEvent.RootElement.EnumerateObject()
+                .Select(property => property.Name)
+                .ToHashSet(StringComparer.Ordinal);
+            Assert.True(exportedFields.SetEquals(new[]
+            {
+                "eventId", "occurredAt", "eventType", "correlationId", "serviceRequestId",
+                "workflowStage", "outcome", "previousState", "newState", "actorUserId",
+                "actorRole", "ipAddress"
+            }), "Audit export must expose only the explicitly approved event fields.");
+        }
+
         using var auditScope = application.Services.CreateScope();
         var db = auditScope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
         var exportAudit = await db.AuditEvents.AsNoTracking().SingleAsync(
