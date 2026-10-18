@@ -37,6 +37,13 @@ public class CreateServiceRequest
         if (!Enum.IsDefined(serviceCode))
             throw new ArgumentOutOfRangeException(nameof(serviceCode), "Unsupported service code.");
 
+        // Keep the application boundary aligned with the API: S01 has its dedicated
+        // submission workflow, and S04/S05 remain unavailable until their requirements
+        // and acceptance criteria are approved. Do not rely on HTTP routing alone.
+        if (serviceCode is not (ServiceCode.S02 or ServiceCode.S03))
+            throw new ArgumentOutOfRangeException(nameof(serviceCode),
+                "Only S02/S03 request creation is available through the generic workflow.");
+
         // Reject invalid request data before opening a transaction or mutating persistence.
         if (string.IsNullOrWhiteSpace(applicantUserId))
             throw new ArgumentException("Applicant user ID cannot be empty.", nameof(applicantUserId));

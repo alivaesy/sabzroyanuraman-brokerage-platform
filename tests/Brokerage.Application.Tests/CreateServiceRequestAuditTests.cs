@@ -84,6 +84,32 @@ public class CreateServiceRequestAuditTests
         Assert.Equal(0, await db.AuditEvents.AsNoTracking().CountAsync());
     }
 
+    [Theory]
+    [InlineData(ServiceCode.S01)]
+    [InlineData(ServiceCode.S04)]
+    [InlineData(ServiceCode.S05)]
+    public async Task ExecuteAsync_UnsupportedGenericServiceDoesNotPersistAnything(ServiceCode serviceCode)
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<BrokerageDbContext>().UseSqlite(connection).Options;
+        await using var db = new BrokerageDbContext(options);
+        await db.Database.EnsureCreatedAsync();
+
+        var useCase = new CreateServiceRequest(
+            new WorkflowService(),
+            new ServiceRequestRepository(db),
+            new AuditEventWriter(db, NullLogger<AuditEventWriter>.Instance),
+            new EfUnitOfWork(db));
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => useCase.ExecuteAsync(
+            serviceCode, "INITIAL", "valid-applicant"));
+
+        Assert.Equal(0, await db.ServiceRequests.AsNoTracking().CountAsync());
+        Assert.Equal(0, await db.WorkflowStages.AsNoTracking().CountAsync());
+        Assert.Equal(0, await db.AuditEvents.AsNoTracking().CountAsync());
+    }
+
     [Fact]
     public async Task ExecuteAsync_WhenAuditWriteFails_RollsBackRequestAndStage()
     {
