@@ -54,6 +54,14 @@ public class AuditComplianceTests
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("AuditObserverExportTest", body);
         Assert.Contains("OrganizationObserver", body);
+
+        using var auditScope = application.Services.CreateScope();
+        var db = auditScope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+        var exportAudit = await db.AuditEvents.AsNoTracking().SingleAsync(
+            x => x.EventType == "AuditExportRequested" && x.ActorUserId == "AUDIT-OBS-001");
+        Assert.Equal("Success", exportAudit.Outcome);
+        Assert.StartsWith("Count:", exportAudit.NewState);
+        Assert.DoesNotContain("AuditObserverExportTest", exportAudit.NewState);
     }
 
     [Fact]
