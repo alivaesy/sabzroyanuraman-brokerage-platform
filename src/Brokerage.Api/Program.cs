@@ -503,6 +503,12 @@ app.MapPost("/service-requests", async (
     if (serviceCode == ServiceCode.S01)
         return Results.BadRequest(new { message = "S01 requests must use the dedicated S01 workflow." });
 
+    // Only S02/S03 have an explicitly confirmed generic request path. Keep enum
+    // values for future services from becoming available before their requirements
+    // and dedicated acceptance criteria are approved.
+    if (serviceCode is not (ServiceCode.S02 or ServiceCode.S03))
+        return Results.BadRequest(new { message = "Only approved S02/S03 services can use this workflow." });
+
     if (string.IsNullOrWhiteSpace(currentUser.UserId))
         return Results.Unauthorized();
 

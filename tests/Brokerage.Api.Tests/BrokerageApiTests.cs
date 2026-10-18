@@ -244,6 +244,21 @@ public class BrokerageApiTests
         Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Theory]
+    [InlineData("S04")]
+    [InlineData("S05")]
+    public async Task CreateGenericServiceRequest_UnapprovedServiceCode_ReturnsBadRequest(
+        string serviceCodeQuery)
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
+
+        var response = await client.PostAsync($"/service-requests?serviceCode={serviceCodeQuery}", content: null);
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+    }
+
     [Fact]
     public async Task GetServiceRequest_ForCreatedS01_ReturnsPersistedRequest()
     {
