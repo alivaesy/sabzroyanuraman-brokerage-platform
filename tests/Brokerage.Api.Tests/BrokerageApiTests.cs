@@ -259,6 +259,41 @@ public class BrokerageApiTests
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
     }
 
+    [Theory]
+    [InlineData("S02")]
+    [InlineData("S03")]
+    public async Task OrganizationStatusRefresh_DoesNotAdvanceUnapprovedGenericServiceWorkflow(string serviceCodeQuery)
+    {
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = await CreateVerifiedApplicantClientAsync(application);
+
+        var createResponse = await client.PostAsync($"/service-requests?serviceCode={serviceCodeQuery}", content: null);
+        Assert.Equal(System.Net.HttpStatusCode.OK, createResponse.StatusCode);
+        var created = await createResponse.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var requestId = Guid.Parse(created.GetProperty("id").GetString()!);
+
+        using (var scope = application.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+            var request = await db.ServiceRequests.SingleAsync(x => x.Id == requestId);
+            request.SetOrganizationTrackingId("TEST-TRACKING-ID");
+            await db.SaveChangesAsync();
+        }
+
+        var refreshResponse = await client.PostAsync($"/service-requests/{requestId}/organization-status", content: null);
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, refreshResponse.StatusCode);
+
+        using var verificationScope = application.Services.CreateScope();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
+        var persistedRequest = await verificationDb.ServiceRequests.AsNoTracking().SingleAsync(x => x.Id == requestId);
+        Assert.Equal(RequestStatus.Created, persistedRequest.Status);
+        Assert.Null(persistedRequest.OrganizationStatus);
+
+        var stages = await verificationDb.WorkflowStages.AsNoTracking().Where(x => x.ServiceRequestId == requestId).ToListAsync();
+        Assert.Equal("INITIAL", Assert.Single(stages).StageCode);
+    }
+
     [Fact]
     public async Task GetServiceRequest_ForCreatedS01_ReturnsPersistedRequest()
     {

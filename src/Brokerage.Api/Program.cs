@@ -589,6 +589,12 @@ static async Task<IResult> RefreshOrganizationStatusAsync(
     if (request is null) return Results.NotFound();
     if (!CanAccessServiceRequest(currentUser, request))
         return Results.Forbid();
+
+    // This endpoint advances S01-specific stages. Do not let a future or generic
+    // service accidentally enter that workflow merely because it has a tracking ID.
+    if (request.ServiceCode != ServiceCode.S01)
+        return Results.BadRequest(new { message = "Organization status refresh is not enabled for this service workflow." });
+
     if (string.IsNullOrWhiteSpace(request.OrganizationTrackingId))
         return Results.BadRequest(new { message = "The service request has no organization tracking ID." });
 
