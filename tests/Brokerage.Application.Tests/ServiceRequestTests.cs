@@ -34,6 +34,13 @@ public class ServiceRequestTests
     }
 
     [Fact]
+    public void Constructor_WithApplicantUserIdLongerThanPersistenceLimit_Throws()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => new ServiceRequest(ServiceCode.S01, new string('a', 201)));
+    }
+
+    [Fact]
     public void Constructor_WithUndefinedServiceCode_Throws()
     {
         Assert.Throws<ArgumentOutOfRangeException>(
@@ -78,6 +85,26 @@ public class ServiceRequestTests
 
         Assert.Equal(existingStageId, request.CurrentWorkflowStageId);
         Assert.Equal(before, request.UpdatedAt);
+    }
+
+    [Fact]
+    public void SetOrganizationTrackingId_RejectsValuesLongerThanPersistenceLimit()
+    {
+        var request = new ServiceRequest(ServiceCode.S01, "test-applicant");
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => request.SetOrganizationTrackingId(new string('t', 201)));
+        Assert.Null(request.OrganizationTrackingId);
+    }
+
+    [Fact]
+    public void SetOrganizationStatus_RejectsValuesLongerThanPersistenceLimit()
+    {
+        var request = new ServiceRequest(ServiceCode.S01, "test-applicant");
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => request.SetOrganizationStatus(new string('s', 101)));
+        Assert.Null(request.OrganizationStatus);
     }
 
     [Fact]

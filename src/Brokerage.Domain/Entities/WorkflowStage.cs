@@ -27,9 +27,13 @@ public class WorkflowStage
         if (string.IsNullOrWhiteSpace(stageCode))
             throw new ArgumentException("Stage code cannot be empty.", nameof(stageCode));
 
+        var normalizedStageCode = stageCode.Trim();
+        if (normalizedStageCode.Length > 100)
+            throw new ArgumentOutOfRangeException(nameof(stageCode), "Stage code cannot exceed 100 characters.");
+
         Id = Guid.NewGuid();
         ServiceRequestId = serviceRequestId;
-        StageCode = stageCode.Trim();
+        StageCode = normalizedStageCode;
         CreatedAt = DateTimeOffset.UtcNow;
     }
 

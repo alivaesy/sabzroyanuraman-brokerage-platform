@@ -24,6 +24,13 @@ public class WorkflowServiceTests
     }
 
     [Fact]
+    public void WorkflowStage_WithStageCodeLongerThanPersistenceLimit_Throws()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => new WorkflowStage(Guid.NewGuid(), new string('s', 101)));
+    }
+
+    [Fact]
     public void CreateStage_AssignsStageToServiceRequest()
     {
         var workflowService = new WorkflowService();

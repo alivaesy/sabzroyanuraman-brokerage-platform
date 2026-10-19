@@ -24,6 +24,9 @@ public class ServiceRequest
         if (string.IsNullOrWhiteSpace(applicantUserId))
             throw new ArgumentException("Applicant user ID cannot be empty.", nameof(applicantUserId));
 
+        if (applicantUserId.Length > 200)
+            throw new ArgumentOutOfRangeException(nameof(applicantUserId), "Applicant user ID cannot exceed 200 characters.");
+
         Id = Guid.NewGuid();
         ApplicantUserId = applicantUserId;
         ServiceCode = serviceCode;
@@ -46,6 +49,9 @@ public class ServiceRequest
         if (string.IsNullOrWhiteSpace(trackingId))
             throw new ArgumentException("Organization tracking ID cannot be empty.", nameof(trackingId));
 
+        if (trackingId.Length > 200)
+            throw new ArgumentOutOfRangeException(nameof(trackingId), "Organization tracking ID cannot exceed 200 characters.");
+
         OrganizationTrackingId = trackingId;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
@@ -54,6 +60,9 @@ public class ServiceRequest
     {
         if (string.IsNullOrWhiteSpace(status))
             throw new ArgumentException("Organization status cannot be empty.", nameof(status));
+
+        if (status.Length > 100)
+            throw new ArgumentOutOfRangeException(nameof(status), "Organization status cannot exceed 100 characters.");
 
         OrganizationStatus = status;
         UpdatedAt = DateTimeOffset.UtcNow;
