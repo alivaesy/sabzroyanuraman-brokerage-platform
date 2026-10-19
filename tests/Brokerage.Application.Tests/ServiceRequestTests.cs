@@ -66,6 +66,21 @@ public class ServiceRequestTests
     }
 
     [Fact]
+    public void SetCurrentWorkflowStage_WithEmptyId_ThrowsAndPreservesCurrentStage()
+    {
+        var request = new ServiceRequest(ServiceCode.S01, "test-applicant");
+        var existingStageId = Guid.NewGuid();
+        request.SetCurrentWorkflowStage(existingStageId);
+        var before = request.UpdatedAt;
+
+        Assert.Throws<ArgumentException>(
+            () => request.SetCurrentWorkflowStage(Guid.Empty));
+
+        Assert.Equal(existingStageId, request.CurrentWorkflowStageId);
+        Assert.Equal(before, request.UpdatedAt);
+    }
+
+    [Fact]
     public void SetOrganizationStatus_WithEmptyValue_Throws()
     {
         var request = new ServiceRequest(ServiceCode.S01, "test-applicant");

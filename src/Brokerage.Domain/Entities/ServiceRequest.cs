@@ -61,6 +61,9 @@ public class ServiceRequest
 
     public void SetCurrentWorkflowStage(Guid workflowStageId)
     {
+        if (workflowStageId == Guid.Empty)
+            throw new ArgumentException("Workflow stage ID cannot be empty.", nameof(workflowStageId));
+
         CurrentWorkflowStageId = workflowStageId;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
