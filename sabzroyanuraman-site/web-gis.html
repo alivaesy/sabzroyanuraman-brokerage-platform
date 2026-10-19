@@ -138,6 +138,27 @@ body{background:#dfe5e8;color:#173b57}
 .toolbar-separator{height:22px;border-left:1px solid #9ba9b1;margin:0 5px}
 #arcMenus{top:48px}
 @media(max-width:800px){#classicToolbars{max-height:100px;overflow:auto}.classic-toolbar{flex-wrap:nowrap}.classic-toolbar button,.classic-toolbar select{white-space:nowrap}}
+
+/* ArcMap 10.8 desktop workspace refinements */
+#app{min-height:0}
+.arcmap-topbar{flex:none;min-height:48px}
+#classicToolbars{flex:none;box-shadow:inset 0 1px #fff}
+.classic-toolbar{padding:2px 1px}
+.classic-toolbar button:focus-visible,.classic-toolbar select:focus-visible,.arc-menu-btn:focus-visible{outline:2px solid #2876a5;outline-offset:1px}
+.panel{align-self:stretch}
+.panel .layer-section{flex:0 0 auto}
+.panel .layer-section h3{position:relative;padding-left:26px}
+.panel .layer-section h3:before{content:"▣";position:absolute;left:8px;top:6px;color:#526d7c}
+.layer-row{border-left:3px solid transparent}
+.layer-row.layer-active{border-left-color:#347ca5;outline:0}
+.layer-row input[type=checkbox]{width:14px;height:14px;flex:0 0 14px}
+.panel .accordion-section{flex:0 0 auto}
+.arcmap-statusbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;height:24px;padding:0 8px;background:#e5e8ea;border-top:1px solid #98a5ac;color:#263f50;font-size:10px;direction:ltr}
+.arcmap-statusbar .status,.arcmap-statusbar .coord{position:static;inset:auto;background:transparent;border:0;border-radius:0;box-shadow:none;padding:0;margin:0;color:inherit;font-size:10px;z-index:auto;white-space:nowrap}
+.arcmap-statusbar .coord{margin-left:auto;direction:ltr}
+@media(max-width:850px){.arc-search{width:205px}.arc-menu-btn{padding:0 8px}.panel{width:270px;min-width:270px}}
+@media(max-width:650px){.arcmap-topbar{height:auto;min-height:48px;flex-wrap:wrap;padding:4px 6px}.arc-menu{order:3;width:100%;overflow-x:auto}.arc-search{width:min(48vw,220px);margin-left:auto}.arcmap-statusbar{height:22px}.panel{position:absolute;left:0;top:0;bottom:0;height:auto;width:285px;min-width:285px;transform:translateX(-100%)}.panel.open{transform:translateX(0)}}
+
 </style>
 </head>
 <body>
@@ -176,6 +197,7 @@ body{background:#dfe5e8;color:#173b57}
     <button type="button" id="saveEditsBtn" disabled>Save Edits</button>
     <button type="button" id="stopEditingBtn" disabled>Stop Editing</button>
     <span class="toolbar-separator"></span><span class="toolbar-caption">Create Features</span>
+    <span id="editorStateLabel" class="editor-state">Start Editing to enable drawing</span>
     <button type="button" data-editor-draw="Marker">Point</button>
     <button type="button" data-editor-draw="Polyline">Line</button>
     <button type="button" data-editor-draw="Polygon">Polygon</button>
@@ -191,19 +213,8 @@ body{background:#dfe5e8;color:#173b57}
     <button data-action="saveProject">Save Project</button>
     <button data-action="loadProject">Open Saved Project</button>
     <div class="arc-sep"></div>
-    <button data-action="importSHP">Add Shapefile (ZIP)</button>
-    <button data-action="importGeoJSON">Add GeoJSON</button>
-    <button data-action="importKML">Add KML</button>
-    <button data-action="importGDB">Add File Geodatabase</button>
-    <button data-action="importCSV">Add XY Data (CSV)</button>
-    <button data-action="importExcel">Add XY Data (Excel)</button>
-    <div class="arc-sep"></div>
-    <button data-action="exportGeoJSON">Export GeoJSON</button>
-    <button data-action="exportKML">Export KML</button>
-    <button data-action="exportGPX">Export GPX</button>
-    <button data-action="exportSHP">Export Shapefile</button>
-    <button data-action="exportGDB">Export File Geodatabase</button>
-    <button data-action="exportDXF">Export DXF</button>
+    <button data-action="importData">Add Data...</button>
+    <button data-action="exportData">Export Data...</button>
   </div>
   <div class="arc-dropdown" id="projectMenu">
     <div class="arc-menu-title">Edit</div>
@@ -223,8 +234,8 @@ body{background:#dfe5e8;color:#173b57}
     <button data-action="addBookmark">Create Bookmark</button><button data-action="showBookmarks">Manage Bookmarks</button>
   </div>
   <div class="arc-dropdown" id="insertMenu">
-    <div class="arc-menu-title">Insert</div><button data-action="importSHP">Add Data</button>
-    <button data-action="importCSV">Add XY Data</button><button data-action="wms">Add WMS Layer</button>
+    <div class="arc-menu-title">Insert</div>
+    <button data-action="importData">Add Data...</button><button data-action="wms">Add WMS Layer</button>
   </div>
   <div class="arc-dropdown" id="selectionMenu">
     <div class="arc-menu-title">Selection</div>
@@ -244,10 +255,9 @@ body{background:#dfe5e8;color:#173b57}
     <button data-action="startEditing">Start Editing</button>
     <button data-action="saveEdits">Save Edits</button>
     <button data-action="stopEditing">Stop Editing</button>
-    <div class="arc-sep"></div><button data-tool="vertexEdit">Edit Vertices</button>
-    <button data-tool="moveFeatures">Move Features</button><button data-tool="rotateFeatures">Rotate Features</button>
+    <div class="arc-sep"></div><button data-tool="moveFeatures">Move Features</button><button data-tool="rotateFeatures">Rotate Features</button>
     <button data-tool="scaleFeatures">Scale Features</button><button data-tool="reshapeFeatures">Reshape</button>
-    <button data-tool="advancedSnap">Snapping</button>
+    <button data-tool="snapTool">Snap Points to Lines</button>
   </div>
   <div class="arc-dropdown" id="analysisMenu">
     <div class="arc-menu-title">Geoprocessing</div>
@@ -259,7 +269,7 @@ body{background:#dfe5e8;color:#173b57}
   <div class="arc-dropdown" id="layerMenu">
     <div class="arc-menu-title">Customize</div>
     <button data-tool="styleLayer">Layer Properties</button><button data-tool="labelLayer">Label Features</button>
-    <button data-tool="layerTransparency">Layer Transparency</button><button data-tool="groupLayers">Group Layers</button>
+    <button data-tool="layerTransparency">Layer Transparency</button>
     <button data-action="crs">Coordinate Systems</button>
   </div>
   <div class="arc-dropdown" id="windowsMenu">
@@ -274,12 +284,6 @@ body{background:#dfe5e8;color:#173b57}
 <div class="workspace">
   <div id="map"></div>
   <aside class="panel" id="panel">
-    <div class="panel-toolbar">
-      <button type="button" id="panelImportBtn" title="Add Data">📥 Add Data</button>
-      <button type="button" id="panelExportBtn" title="Export Data">📤 Export Data</button>
-      <button type="button" id="panelWmsBtn" title="Add WMS">🌐 WMS</button>
-    </div>
-
     <div class="section layer-section">
       <h3>Table Of Contents</h3>
       <div id="layers"></div>
@@ -438,15 +442,28 @@ body{background:#dfe5e8;color:#173b57}
   </aside>
 </div>
 <div id="layerContextMenu" class="arc-context-menu">
-  <button type="button" data-action="table">📋 Open Attribute Table</button>
+  <button type="button" data-action="table">Open Attribute Table</button>
+  <button type="button" data-action="export">Export Data...</button>
+  <button type="button" data-action="start-editing">Start Editing</button>
   <button type="button" data-action="zoom">Zoom To Layer</button>
-  <button type="button" data-action="show">👁 View Layer</button>
-  <button type="button" data-action="hide">🚫 hidden GIS Layer</button>
+  <button type="button" data-action="show">Show Layer</button>
+  <button type="button" data-action="hide">Hide Layer</button>
   <div class="arc-context-sep"></div>
-  <button type="button" data-action="remove">🗑 Delete Layer than Project</button>
+  <button type="button" data-action="remove">Remove Layer</button>
 </div>
-<div id="projectManager"><div class="pm-card"><div style="font-size:18px;font-weight:800;color:#07573e">🗺️ Web GIS Project Manager</div><div class="small" style="margin:5px 0 14px">Create a project or open a recent project. Projects are stored locally in this browser.</div><div class="section"><h3>➕ New Project</h3><div class="pm-grid"><input id="newProjectName" placeholder="Project name, for example: wastewater network"><select id="newProjectCrs"><option value="EPSG:32638">WGS 84 / UTM 38N — EPSG:32638</option><option value="EPSG:32637">WGS 84 / UTM 37N — EPSG:32637</option><option value="EPSG:32639">WGS 84 / UTM 39N — EPSG:32639</option><option value="EPSG:32640">WGS 84 / UTM 40N — EPSG:32640</option></select><textarea id="newProjectDescription" class="full" placeholder="Description Project (optional)"></textarea></div><div class="pm-actions"><button class="action" id="createProjectBtn">Create and Open Project</button><button class="action secondary" id="closeProjectManager">Continue No Project</button></div></div><div class="pm-list"><h3>📂 Recent Projects</h3><div id="projectList">Loading...</div></div></div></div><div class="coord" id="coord">X: — | Y: —</div>
-<div class="status" id="status">Ready.</div>
+<div id="dataCommandDialog" class="data-dialog" aria-hidden="true">
+  <section class="data-dialog-card" role="dialog" aria-modal="true" aria-labelledby="dataDialogTitle">
+    <h2 id="dataDialogTitle">Add Data</h2>
+    <p id="dataDialogDescription">Choose a supported format.</p>
+    <label for="dataFormatSelect">Format</label>
+    <select id="dataFormatSelect"></select>
+    <div class="data-dialog-actions">
+      <button type="button" class="top-btn" id="dataDialogCancel">Cancel</button>
+      <button type="button" class="action" id="dataDialogContinue">Continue</button>
+    </div>
+  </section>
+</div>
+<div id="projectManager"><div class="pm-card"><div style="font-size:18px;font-weight:800;color:#07573e">🗺️ Web GIS Project Manager</div><div class="small" style="margin:5px 0 14px">Create a project or open a recent project. Projects are stored locally in this browser.</div><div class="section"><h3>➕ New Project</h3><div class="pm-grid"><input id="newProjectName" placeholder="Project name, for example: wastewater network"><select id="newProjectCrs"><option value="EPSG:32638">WGS 84 / UTM 38N — EPSG:32638</option><option value="EPSG:32637">WGS 84 / UTM 37N — EPSG:32637</option><option value="EPSG:32639">WGS 84 / UTM 39N — EPSG:32639</option><option value="EPSG:32640">WGS 84 / UTM 40N — EPSG:32640</option></select><textarea id="newProjectDescription" class="full" placeholder="Project description (optional)"></textarea></div><div class="pm-actions"><button class="action" id="createProjectBtn">Create and Open Project</button><button class="action secondary" id="closeProjectManager">Continue Without a Project</button></div></div><div class="pm-list"><h3>📂 Recent Projects</h3><div id="projectList">Loading...</div></div></div></div><footer class="arcmap-statusbar" aria-label="Map status"><div class="status" id="status">Ready.</div><div class="coord" id="coord">X: — | Y: —</div></footer>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="https://unpkg.com/shp-write@0.3.2/shpwrite.js"></script>
@@ -467,7 +484,7 @@ const base={
  sat:L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"© Esri"}),
 };
 Object.entries(base).forEach(([key,layer])=>{
-  layer.on("tileerror",()=>status("Error in loading Basemap "+key+"GIS check internet or service Tile the check enter."));
+  layer.on("tileerror",()=>status("Basemap failed to load: "+key+". Check your connection."));
 });
 base.osm.addTo(map);
 let currentBase=base.osm;
@@ -488,7 +505,7 @@ function defineUTM(zone,north=true){
 }
 for(let z=1;z<=60;z++){defineUTM(z,true);defineUTM(z,false);}
 function ensureCRSDefinition(epsg){
-  if(!/^EPSG:\d+$/.test(epsg))throw new Error("Code EPSG invalid is.");
+  if(!/^EPSG:\d+$/.test(epsg))throw new Error("Invalid EPSG code.");
   if(!proj4.defs(epsg)){
     const n=Number(epsg.slice(5));
     if(n>=32601&&n<=32660)defineUTM(n-32600,true);
@@ -505,7 +522,7 @@ function setCRS(epsg){
   ensureCRSDefinition(epsg);
   currentCRS=epsg;
   $("crsStatus").textContent="CRS Current: "+epsg;
-  status("Coordinate System to "+epsg+" changed GIS.");
+  status("Coordinate system changed to "+epsg+".");
   scheduleAutoSave();
 }
 function getCRS(){return currentCRS;}
@@ -534,6 +551,7 @@ function updateEditorToolbar(){
   $("stopEditingBtn").disabled=!editSessionActive;
   $("editTargetLayer").disabled=editSessionActive;
   document.querySelectorAll("[data-editor-draw],#finishSketchBtn").forEach(b=>b.disabled=!editSessionActive);
+  const state=$("editorStateLabel");if(state){state.textContent=editSessionActive?"Editing "+($("editTargetLayer").selectedOptions[0]?.textContent||"layer"):"Start Editing to enable drawing";state.classList.toggle("active",editSessionActive)}
 }
 function refreshEditorTargets(){
   const sel=$("editTargetLayer");if(!sel)return;
@@ -576,8 +594,10 @@ function startDraw(type,button){
   stopActiveDraw();
   if(!editSessionActive){status("Start Editing before creating features.");return}
   if(!window.L||!L.Draw){status("Leaflet Draw is unavailable.");return}
+  if(!window.L||!L.Draw){status("The drawing library is unavailable.");return}
   const Ctor=L.Draw[type];
-  if(typeof Ctor!=="function"){status("Drawing tool is unavailable: "+type);return}
+  if(typeof Ctor!=="function"){status(type+" drawing is unavailable.");return}
+  if(!editTarget||typeof editTarget.addLayer!=="function"){status("Choose a vector layer in the Editor toolbar.");return}
   const opts={shapeOptions:{color:"#146c43",weight:3,fillOpacity:.18},allowIntersection:false,showArea:true,metric:true};
   try{
     activeDrawHandler=new Ctor(map,opts);
@@ -592,8 +612,9 @@ function startDraw(type,button){
 }
 function startSelectionShape(type,options,callback){
   stopActiveDraw();
-  const Ctor=L.Draw[type];if(typeof Ctor!=="function"){status("Selection tool is unavailable.");return}
-  const handler=new Ctor(map,options);
+  if(!window.L||!L.Draw){status("The drawing library is unavailable.");return}
+  const Ctor=L.Draw[type];if(typeof Ctor!=="function"){status("This selection shape is unavailable.");return}
+  let handler;try{handler=new Ctor(map,options)}catch(err){console.error(err);status("Could not start the selection tool.");return}
   activeDrawHandler=handler;activeDrawPurpose="selection";
   const once=e=>{
     map.off(L.Draw.Event.CREATED,once);
@@ -602,7 +623,7 @@ function startSelectionShape(type,options,callback){
     map.removeLayer(e.layer);
     callback(e.layer);
   };
-  map.on(L.Draw.Event.CREATED,once);handler.enable();
+  map.on(L.Draw.Event.CREATED,once);try{handler.enable()}catch(err){map.off(L.Draw.Event.CREATED,once);stopActiveDraw();console.error(err);status("Could not start the selection tool.")}
 }
 document.addEventListener("keydown",e=>{
   if(!activeDrawHandler)return;
@@ -625,17 +646,8 @@ const drawControl=L.Control.extend({
 // Drawing controls are hosted in the Editor toolbar above the map.
 if(L.Control&&L.Control.Draw){try{new L.Control.Draw({edit:{featureGroup:drawn},draw:false}).addTo(map)}catch(err){console.warn("Leaflet Draw edit control unavailable",err)}}
 const $=id=>document.getElementById(id);
-function status(message){
- const raw=String(message??"");
- const noisy=/GIS|was set|not is|enter\\.|GISGIS/.test(raw);
- if(!noisy){$("status").textContent=raw;return}
- if(/Error|invalid|unavailable|not found/i.test(raw))$("status").textContent="Operation failed. See the browser console for details.";
- else if(/Table|Row|Attribute|Field/i.test(raw))$("status").textContent="Attribute table updated.";
- else if(/Project/i.test(raw))$("status").textContent="Project operation completed.";
- else if(/Layer/i.test(raw))$("status").textContent="Layer operation completed.";
- else if(/Selection|Feature|selected/i.test(raw))$("status").textContent="Selection updated.";
- else $("status").textContent="GIS operation completed.";
-}
+function status(message){$("status").textContent=String(message??"")}
+
 function esc(s){return String(s??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[m]))}
 
 function isVectorLayer(layer){return !!(layer && typeof layer.eachLayer==="function" && !(layer instanceof L.TileLayer));}
@@ -648,12 +660,12 @@ function refreshAttributeLayers(){
  if([...sel.options].some(o=>o.value===old))sel.value=old;
 }
 function addNamedLayer(name,layer,zoom){
-  if(!layer)throw new Error("Layer empty is.");
+  if(!layer)throw new Error("The layer is empty.");
   const item={name,layer};
   namedLayers.push(item);
-  // GIS Layers GIS than KML/GDB/GeoJSON/SHP Enter GIS GIS GIS on Map added GIS.
-  // GIS GIS in Layer Control set GISwas set GIS to this GIS Layer Enter GISwas set GIS Map on Extent GIS
-  // GIS GIS Feature available GIS GIS.
+  // Add an imported vector layer to the map and layer list.
+  // Register the layer in Leaflet and in the layer controls.
+  // Feature metadata remains attached to the imported layer.
   if(!map.hasLayer(layer))map.addLayer(layer);
   layerControl.addOverlay(layer,name);
   if(layer.eachLayer)layer.eachLayer(x=>{if(x.bringToFront)x.bringToFront()});
@@ -768,8 +780,8 @@ function renderAttributeEditor(){
       "<input class='attr-value' value='"+esc(props[k])+'" title="Value" style="width:48%">'+
       "<button class='action danger attr-delete' type='button' title='Delete Field'>×</button></div>";
   });
-  if(!keys.length)html+="<div class='small'>This Feature GIS Attribute GIS.</div>";
-  html += "</div><div class='row'><button class='action secondary' id='addAttributeField' type='button'>+ GIS Field</button><button class='action' id='saveAttributes' type='button'>Save Attribute</button></div>";
+  if(!keys.length)html+="<div class='small'>This feature has no attributes.</div>";
+  html += "</div><div class='row'><button class='action secondary' id='addAttributeField' type='button'>+ Add Field</button><button class='action' id='saveAttributes' type='button'>Save Attribute</button></div>";
   box.innerHTML=html;
   box.style.display="block";
   box.querySelectorAll(".attr-delete").forEach(btn=>btn.onclick=()=>btn.closest(".attr-edit-row").remove());
@@ -801,10 +813,10 @@ function saveAttributes(){
   selectedLayer.feature.geometry=selectedLayer.toGeoJSON().geometry;
   if(selectedLayer.getPopup){
     const rows=Object.keys(props).map(k=>"<b>"+esc(k)+"</b>: "+esc(props[k])).join("<br>");
-    if(selectedLayer.setPopupContent&&selectedLayer.getPopup())selectedLayer.setPopupContent(rows||"No Information Description");
-    else if(selectedLayer.bindPopup)selectedLayer.bindPopup(rows||"No Information Description");
+    if(selectedLayer.setPopupContent&&selectedLayer.getPopup())selectedLayer.setPopupContent(rows||"No attributes available.");
+    else if(selectedLayer.bindPopup)selectedLayer.bindPopup(rows||"No attributes available.");
   }
-  status("AttributeGIS Feature Save was set.");scheduleAutoSave();
+  status("Feature attributes saved.");scheduleAutoSave();
   renderAttributeEditor();
   if($("attributeLayer").value!=="")$("openTable").click();
 }
@@ -849,7 +861,7 @@ function featureLabel(layer){
     const keys=Object.keys(p);
     if(keys.length)return String(p[keys[0]]);
   }catch(e){}
-  return "Feature Selectionselected";
+  return "Selected feature";
 }
 function attachFeatureSelection(layer){
   if(!layer||!layer.on)return;
@@ -875,7 +887,7 @@ function attachFeatureSelection(layer){
       updateMultiSelectionUI();
       showUTM(layer);
       calcMeasure(layer);
-      status("GIS Feature Select Filtered Records to Selection Several Feature Ctrl+click or Shift+click enter.");
+      status("Feature selected. Ctrl-click or Shift-click to add features to the selection.");
     }
   });
 }
@@ -893,7 +905,7 @@ function resultLayerFromFeature(feature,name){
 }
 function runGisOperation(){
   const op=$("gisOperation").value;
-  if(!selectedLayer){status("First Feature first the Selection enter.");return;}
+  if(!selectedLayer){status("Select an input feature first.");return;}
   try{
     const f1=asFeature(selectedLayer);
     if(!f1||!f1.geometry){status("The input feature geometry is invalid.");return;}
@@ -909,25 +921,25 @@ function runGisOperation(){
       if(!f2||!f2.geometry){status("The overlay feature geometry is invalid.");return;}
       if(op==="clip"){
         result=turf.intersect(turf.featureCollection([f1,f2]));
-        name="Clip GIS";
+        name="Clip";
       }else if(op==="intersection"){
         result=turf.intersect(turf.featureCollection([f1,f2]));
-        name="Intersection GIS";
+        name="Intersect";
       }else if(op==="split"){
         if(f1.geometry.type!=="LineString"||f2.geometry.type!=="LineString"){
           status("Split requires two line features.");return;
         }
         result=turf.lineSplit(f1,f2);
-        name="Split GIS";
+        name="Split";
       }else if(op==="merge"){
         result=turf.union(turf.featureCollection([f1,f2]));
         if(!result&&f1.geometry.type===f2.geometry.type)result=turf.combine(turf.featureCollection([f1,f2]));
-        name="Merge GIS";
+        name="Merge";
       }
     }
-    if(!result){status("This GIS Feature GIS Create GIS.");return;}
+    if(!result){status("The operation returned no result.");return;}
     resultLayerFromFeature(result,name);
-    status(name+" Create was set GIS to Layers New added was set.");scheduleAutoSave();
+    status(name+" created and added to the Table Of Contents.");scheduleAutoSave();
   }catch(err){
     console.error(err);
     status("Geoprocessing failed: "+err.message);
@@ -990,7 +1002,7 @@ function renderEditableTable(){
  $("attributeTableWrap").innerHTML=html+"</tbody></table>";$("attributeTableWrap").style.display="block";
  const all=$("checkAllRows");if(all)all.onchange=()=>$("attributeTableWrap").querySelectorAll(".row-check").forEach(x=>x.checked=all.checked);
  $("attributeTableWrap").querySelectorAll(".row-check").forEach(ch=>ch.onchange=()=>{});
- status(rows.length+" Row View Data was set.");
+ status(rows.length+" rows displayed.");
 }
 $("openTable").onclick=renderEditableTable;
 document.addEventListener("click",e=>{if(!e.target.closest("#layerContextMenu"))hideLayerContextMenu();});
@@ -999,6 +1011,7 @@ $("layerContextMenu").querySelectorAll("button[data-action]").forEach(btn=>btn.o
   const item=contextLayerItem;if(!item){hideLayerContextMenu();return;}
   const action=btn.dataset.action;
   if(action==="table")openLayerAttributeTable(item);
+  else if(action==="export")openDataFormatDialog("export",item.layer);
   else if(action==="zoom"&&item.layer.getBounds&&item.layer.getBounds().isValid())map.fitBounds(item.layer.getBounds(),{padding:[25,25],maxZoom:18});
    else if(action==="start-editing")startEditing(item);
   else if(action==="show")map.addLayer(item.layer);
@@ -1014,7 +1027,7 @@ $("selectFiltered").onclick=()=>{
  const idx=$("attributeLayer").value;if(idx===""){status("Select a feature layer.");return}
  const filter=$("attributeFilter").value.trim().toLowerCase(), items=currentAttributeItems();
  let n=0;items.forEach(x=>{const hit=!filter||Object.values(x.feature.properties||{}).some(v=>String(v).toLowerCase().includes(filter));if(hit){x.layer.setStyle&&x.layer.setStyle({color:"#d26a00",weight:4,fillOpacity:.28});x.layer.openPopup&&x.layer.openPopup();n++}});
- status(n+" Feature Selection/GIS was set.");
+ status(n+" features selected.");
 };
 $("editAttributes").onclick=renderAttributeEditor;
 $("applyMultiAttribute").onclick=()=>{
@@ -1026,8 +1039,8 @@ $("applyMultiAttribute").onclick=()=>{
     const p=ensureFeatureProperties(layer);p[key]=value;
     layer.feature.geometry=layer.toGeoJSON().geometry;
     const rows=Object.keys(p).map(k=>"<b>"+esc(k)+"</b>: "+esc(p[k])).join("<br>");
-    if(layer.setPopupContent&&layer.getPopup())layer.setPopupContent(rows||"No Information Description");
-    else if(layer.bindPopup)layer.bindPopup(rows||"No Information Description");
+    if(layer.setPopupContent&&layer.getPopup())layer.setPopupContent(rows||"No attributes available.");
+    else if(layer.bindPopup)layer.bindPopup(rows||"No attributes available.");
   });
   renderAttributeEditor();scheduleAutoSave();
   status("Updated field "+key+" on "+selectedFeatures.size+" features.");
@@ -1058,7 +1071,7 @@ $("addTableField").onclick=()=>{
  const idx=$("attributeLayer").value;if(idx===""){status("Select a feature layer.");return}
  const name=prompt("New field name:");if(!name||!name.trim())return;
  const key=name.trim();const items=currentAttributeItems();
- if(items.some(x=>Object.prototype.hasOwnProperty.call(x.feature.properties||{},key))){status("This Field than GIS exists has.");return}
+ if(items.some(x=>Object.prototype.hasOwnProperty.call(x.feature.properties||{},key))){status("A field with this name already exists.");return}
  items.forEach(x=>{ensureFeatureProperties(x.layer);x.feature.properties[key]="";});
  renderEditableTable();status("Field "+key+" added.");
 };
@@ -1081,12 +1094,12 @@ $("deleteSelectedRows").onclick=()=>{
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before deleting rows.");return}
  const items=currentAttributeItems(),inds=selectedTableIndexes().sort((a,b)=>b-a);
  if(!inds.length){status("Select one or more rows first.");return}
- if(!confirm(inds.length+" Feature Delete GIS"))return;
+ if(!confirm(inds.length+" features selected for deletion"))return;
  const layer=currentAttributeLayer();if(!layer)return;
  const targets=new Set(inds);
  if(layer.clearLayers){let i=0;layer.eachLayer(l=>{if(targets.has(i))layer.removeLayer(l);i++})}
  else if(layer.removeLayer){let i=0;layer.eachLayer(l=>{if(targets.has(i))layer.removeLayer(l);i++})}
- renderEditableTable();renderLayerList();refreshAttributeLayers();status(inds.length+" Feature Delete was set.");
+ renderEditableTable();renderLayerList();refreshAttributeLayers();status(inds.length+" features deleted.");
 };
 $("copySelectedRows").onclick=()=>{
  const items=currentAttributeItems(),inds=selectedTableIndexes();
@@ -1119,7 +1132,7 @@ currentBase.addTo(map);
 status("Basemap: "+(e.target.value==="sat"?"Esri Imagery":e.target.value==="topo"?"OpenTopoMap":e.target.value==="giscloud"?"GIS Cloud / MapTiler Streets":"OpenStreetMap"));
 };
 $("clearDraw").onclick=()=>{
-  if(!drawn.getLayers().length){status("GIS to ClearNo features available.");return}
+  if(!drawn.getLayers().length){status("There are no features to clear.");return}
   if(confirm("Delete all drawings?")){drawn.clearLayers();renderLayerList();status("Drawings cleared.")}
 };
 $("fitDraw").onclick=()=>{
@@ -1135,7 +1148,7 @@ function bindFeature(l,f){
   l.feature=f;
   const p=f.properties||{};
   const rows=Object.keys(p).map(k=>"<b>"+esc(k)+"</b>: "+esc(p[k])).join("<br>");
-  if(l.bindPopup)l.bindPopup(rows||"No Information Description");
+  if(l.bindPopup)l.bindPopup(rows||"No attributes available.");
   attachFeatureSelection(l);
 }
 function geoJsonLayer(data,name){
@@ -1144,17 +1157,17 @@ function geoJsonLayer(data,name){
     pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:6,color:"#146c43",fillColor:"#fff",fillOpacity:.9,weight:2}),
     onEachFeature:(f,l)=>{
       const p=f.properties||{}, rows=Object.keys(p).map(k=>"<b>"+esc(k)+"</b>: "+esc(p[k])).join("<br>");
-      l.bindPopup(rows||"No Information Description");
+      l.bindPopup(rows||"No attributes available.");
     }
   });
   addNamedLayer(name,layer,true);
   layer.eachLayer&&layer.eachLayer(l=>attachFeatureSelection(l));
-  status(name+" Enter was set.");scheduleAutoSave();
+  status(name+" imported.");scheduleAutoSave();
 }
 function parseKML(text){
   const doc=new DOMParser().parseFromString(text,"application/xml");
   const parserError=doc.getElementsByTagName("parsererror")[0];
-  if(parserError)throw new Error("GIS XML file KML valid not.");
+  if(parserError)throw new Error("The KML file is invalid.");
   const features=[];
   const coordList=s=>s.trim().split(/\s+/).map(x=>x.split(",").slice(0,2).map(Number)).filter(a=>a.length===2&&a.every(Number.isFinite));
   const descendants=(el,tag)=>[...el.getElementsByTagNameNS("*",tag)];
@@ -1185,7 +1198,7 @@ let gdalLoading=null;
 async function getGdalBrowser(){
   if(gdalBrowser)return gdalBrowser;
   if(!gdalLoading){
-    if(typeof initGdalJs!=="function")throw new Error("GDAL WebAssembly loaded not is.");
+    if(typeof initGdalJs!=="function")throw new Error("The geodatabase library did not load.");
     gdalLoading=initGdalJs({path:"https://cdn.jsdelivr.net/npm/gdal3.js@2.8.1/dist/package",useWorker:false});
   }
   gdalBrowser=await gdalLoading;
@@ -1193,15 +1206,15 @@ async function getGdalBrowser(){
 }
 async function importGDBFiles(fileList){
   const files=Array.from(fileList||[]);
-  if(!files.length){status("GIS GIS than GDB Selection not.");return}
+  if(!files.length){status("No geodatabase folder was selected.");return}
   const gdbRoot=(files[0].webkitRelativePath||"").split("/")[0]||"selected.gdb";
-  if(!/\.gdb$/i.test(gdbRoot)){status("Please GIS folder File Geodatabase with extension .gdb the Selection enter.");return}
+  if(!/\.gdb$/i.test(gdbRoot)){status("Select a folder ending in .gdb.");return}
   try{
-    status("in GIS GIS engine GDAL GIS GIS File Geodatabase...");
+    status("Preparing the file geodatabase...");
     const Gdal=await getGdalBrowser();
     const opened=await Gdal.open(files);
     const datasets=opened.datasets||[];
-    if(!datasets.length)throw new Error("GIS Feature Class or Dataset available readable in GDB found not.");
+    if(!datasets.length)throw new Error("No supported feature classes were found in the geodatabase.");
     let imported=0;
     for(const ds of datasets){
       try{
@@ -1218,8 +1231,8 @@ async function importGDBFiles(fileList){
       }catch(err){console.warn("GDB layer import:",err)}
       try{Gdal.close(ds)}catch(_){}
     }
-    if(imported)status("File Geodatabase imported. Added layers: "+imported+" Layer/Feature Class added was set.");
-    else status("GDB Open was set GIS No supported feature classes were found.");
+    if(imported)status("File Geodatabase imported. Added layers: "+imported+" layer(s) imported.");
+    else status("No supported feature classes were found in the geodatabase.");
   }catch(err){
     console.error(err);
     status("Geodatabase import failed: "+(err.message||err));
@@ -1246,6 +1259,42 @@ $("fileInput").onchange=async e=>{
   }catch(err){console.error(err);status("File import failed: "+err.message)}
   e.target.value="";
 };
+
+let exportSourceLayer=null;
+function closeDataFormatDialog(){
+  const dlg=$("dataCommandDialog");dlg.classList.remove("show");dlg.setAttribute("aria-hidden","true");
+}
+function openDataFormatDialog(mode,sourceLayer=null){
+  const importing=mode==="import",dlg=$("dataCommandDialog"),select=$("dataFormatSelect");
+  exportSourceLayer=importing?null:sourceLayer;
+  const choices=importing?[
+    ["geojson","GeoJSON (.geojson, .json)"],["kml","KML (.kml)"],["shapefile","Shapefile archive (.zip)"],["csv","XY data (.csv)"],["gdb","File geodatabase (.gdb)"]
+  ]:[
+    ["geojson","GeoJSON (.geojson)"],["kml","KML (.kml)"],["gpx","GPX (.gpx)"],["shp","Shapefile archive (.zip)"],["gdb","File geodatabase archive (.zip)"],["dxf","DXF (.dxf)"]
+  ];
+  $("dataDialogTitle").textContent=importing?"Add Data":"Export Data";
+  $("dataDialogDescription").textContent=importing?"Choose an input format.":"Choose an output format.";
+  select.innerHTML=choices.map(([v,label])=>'<option value="'+v+'">'+esc(label)+'</option>').join("");
+  dlg.classList.add("show");dlg.setAttribute("aria-hidden","false");select.focus();
+}
+$("dataDialogCancel").onclick=closeDataFormatDialog;
+$("dataCommandDialog").addEventListener("click",e=>{if(e.target===$("dataCommandDialog"))closeDataFormatDialog()});
+$("dataDialogContinue").onclick=()=>{
+  const format=$("dataFormatSelect").value,dlg=$("dataCommandDialog");
+  const importing=$("dataDialogTitle").textContent==="Add Data";
+  closeDataFormatDialog();
+  if(importing){
+    if(format==="csv"){csvImport();return}
+    if(format==="gdb"){ $("gdbInput").click();return }
+    const input=$("fileInput");
+    input.accept=format==="geojson"?".geojson,.json":format==="kml"?".kml":".zip";
+    input.click();return;
+  }
+  const buttons={geojson:"exportGeoJSON",kml:"exportKML",gpx:"exportGPX",shp:"exportSHP",gdb:"exportGDB",dxf:"exportDXF"};
+  $(buttons[format])?.click();
+};
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("dataCommandDialog").classList.contains("show"))closeDataFormatDialog()});
+
 $("addWms").onclick=()=>{
   const url=$("wmsUrl").value.trim(),name=$("wmsLayer").value.trim();
   if(!url||!name){status("Enter a WMS URL and layer name.");return}
@@ -1262,7 +1311,7 @@ let autoSaveTimer=null;
 let currentProjectId=null;
 function openProjectDB(){
   return new Promise((resolve,reject)=>{
-    if(!("indexedDB" in window)){reject(new Error("IndexedDB supported GIS"));return}
+    if(!("indexedDB" in window)){reject(new Error("This browser does not support local project storage."));return}
     const req=indexedDB.open(PROJECT_DB_NAME,PROJECT_DB_VERSION);
     req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(PROJECT_STORE)){const s=db.createObjectStore(PROJECT_STORE,{keyPath:"id"});s.createIndex("updatedAt","updatedAt")}};
     req.onsuccess=()=>resolve(req.result);
@@ -1294,7 +1343,7 @@ async function scheduleAutoSave(){
       const p=serializeProject();
       p.id=projectId();p.updatedAt=new Date().toISOString();
       await putProject(p);currentProjectId=p.id;
-      $("projectStatus").textContent="Save GIS local: "+new Date().toLocaleString("en-US");
+      $("projectStatus").textContent="Saved locally: "+new Date().toLocaleString("en-US");
     }catch(e){console.warn("IndexedDB autosave:",e)}
   },700);
 }
@@ -1327,7 +1376,7 @@ function serializeProject(){
     description:window.currentProjectDescription||"",
     crs:currentCRS,
     savedAt:new Date().toISOString(),
-    name:$("projectName").value.trim()||"Project No name",
+    name:$("projectName").value.trim()||"Untitled Project",
     center:[map.getCenter().lat,map.getCenter().lng],
     zoom:map.getZoom(),
     basemap:$("basemap").value,
@@ -1346,7 +1395,7 @@ function projectFeatureLayer(features,name){
     pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:6,color:"#146c43",fillColor:"#fff",fillOpacity:.9,weight:2}),
     onEachFeature:(f,l)=>{
       const p=f.properties||{},rows=Object.keys(p).map(k=>"<b>"+esc(k)+"</b>: "+esc(p[k])).join("<br>");
-      l.bindPopup(rows||"No Information Description");
+      l.bindPopup(rows||"No attributes available.");
       attachFeatureSelection(l);
     }
   });
@@ -1354,7 +1403,7 @@ function projectFeatureLayer(features,name){
   return layer;
 }
 function restoreProject(project){
-  if(!project||![1,2].includes(project.version)){status("Project supported GIS.");return}
+  if(!project||![1,2].includes(project.version)){status("This project file version is not supported.");return}
   window.currentProjectDescription=project.description||"";
   if(project.crs)try{setCRS(project.crs)}catch(e){}
   drawn.clearLayers();
@@ -1378,12 +1427,12 @@ function restoreProject(project){
       addNamedLayer(item.name||"WMS",l,false);
       l.addTo(map);
     }else{
-      projectFeatureLayer(item.features||[],item.name||"Layer GIS");
+      projectFeatureLayer(item.features||[],item.name||"Layer");
     }
   });
-  $("projectName").value=project.name||"Project No name";
+  $("projectName").value=project.name||"Untitled Project";
   renderLayerList();refreshAttributeLayers();
-  $("projectStatus").textContent="Project restore was set: "+(project.savedAt?new Date(project.savedAt).toLocaleString("en-US"):"—");
+  $("projectStatus").textContent= "Project restored: "++(project.savedAt?new Date(project.savedAt).toLocaleString("en-US"):"—");
   status("Project restored.");
 }
 async function saveProject(){
@@ -1391,8 +1440,8 @@ async function saveProject(){
     const project=serializeProject();
     project.id=projectId();project.updatedAt=new Date().toISOString();
     await putProject(project);currentProjectId=project.id;
-    $("projectStatus").textContent="Project local Save was set: "+new Date().toLocaleString("en-US");
-    status("Project in GIS browser Save GIS GIS GIS on GIS Save GIS.");
+    $("projectStatus").textContent= "Project saved locally: "++new Date().toLocaleString("en-US");
+    status("Project saved in this browser.");
   }catch(e){status("Project save failed: "+e.message)}
 }
 async function loadProject(){
@@ -1401,7 +1450,7 @@ async function loadProject(){
     if(!projects.length){status("No saved project exists in this browser.");return}
     let choice=projects.find(p=>p.id===currentProjectId);
     if(!choice){
-      const names=projects.map((p,i)=>(i+1)+". "+(p.name||"No name")+" — "+new Date(p.updatedAt||p.savedAt).toLocaleString("en-US")).join("\n");
+      const names=projects.map((p,i)=>(i+1)+". "+(p.name||"Untitled Project")+" — "+new Date(p.updatedAt||p.savedAt).toLocaleString("en-US")).join("\n");
       const answer=prompt("Enter the project number to open:\n"+names,"1");
       const n=Number(answer);
       if(!n||!projects[n-1])return;
@@ -1417,17 +1466,17 @@ async function renderProjectManagerList(){
   const el=$("projectList");if(!el)return;
   try{
     const ps=await listProjects();
-    if(!ps.length){el.innerHTML="<div class='small'>ProjectGIS created not is.</div>";return}
+    if(!ps.length){el.innerHTML="<div class='small'>No projects have been created yet.</div>";return}
     el.innerHTML="";
     ps.forEach(p=>{
       const row=document.createElement("div");row.className="pm-item";
       const info=document.createElement("div");info.className="pm-item-info";
-      info.innerHTML="<div class='pm-item-name'>"+esc(p.name||"Project No name")+"</div><div class='pm-item-meta'>"+esc(p.crs||"EPSG:32638")+" — "+new Date(p.updatedAt||p.savedAt).toLocaleString("en-US")+"</div>";
-      const b=document.createElement("button");b.className="action secondary";b.textContent="Open GIS";
-      b.onclick=async()=>{currentProjectId=p.id;restoreProject(p);$("projectName").value=p.name||"Project No name";window.currentProjectDescription=p.description||"";closeProjectManager();status("Project opened.")};
+      info.innerHTML="<div class='pm-item-name'>"+esc(p.name||"Untitled Project")+"</div><div class='pm-item-meta'>"+esc(p.crs||"EPSG:32638")+" — "+new Date(p.updatedAt||p.savedAt).toLocaleString("en-US")+"</div>";
+      const b=document.createElement("button");b.className="action secondary";b.textContent="Open Project";
+      b.onclick=async()=>{currentProjectId=p.id;restoreProject(p);$("projectName").value=p.name||"Untitled Project";window.currentProjectDescription=p.description||"";closeProjectManager();status("Project opened.")};
       row.append(info,b);el.appendChild(row);
     });
-  }catch(e){el.innerHTML="<div class='small'>Error in ProjectGIS.</div>"}
+  }catch(e){el.innerHTML="<div class='small'>Could not load projects.</div>"}
 }
 async function createNewProject(){
   const name=$("newProjectName").value.trim()||"New Project";
@@ -1462,13 +1511,12 @@ $("projectFile").onchange=async e=>{
   try{restoreProject(JSON.parse(await f.text()))}catch(err){status("Invalid project file: "+err.message)}
   e.target.value="";
 };
-function collectGeoJSON(){
+function collectGeoJSON(sourceLayer=exportSourceLayer){
   const features=[];
-  drawn.eachLayer(l=>{try{const f=l.toGeoJSON();f.properties=f.properties||{};features.push(f)}catch(e){}});
-  namedLayers.forEach(x=>{
-    if(!x.layer.eachLayer)return;
-    x.layer.eachLayer(l=>{try{const f=l.toGeoJSON();if(f&&f.features)features.push(...f.features);else if(f&&f.geometry)features.push(f)}catch(e){}});
-  });
+  const layers=sourceLayer?[sourceLayer]:[drawn,...namedLayers.map(x=>x.layer)];
+  layers.forEach(layer=>vectorFeatures(layer).forEach(item=>{
+    try{const f=JSON.parse(JSON.stringify(item.feature||asFeature(item.layer)));if(f&&f.geometry){f.properties=f.properties||{};features.push(f)}}catch(_){}
+  }));
   return {type:"FeatureCollection",features};
 }
 function download(text,name,type){
@@ -1497,9 +1545,9 @@ function gpxFromFC(fc){
   });
   return out+"</gpx>";
 }
-$("exportGeoJSON").onclick=()=>download(JSON.stringify(collectGeoJSON(),null,2),"sabz-royan-webgis.geojson","application/geo+json");
-$("exportKML").onclick=()=>download(kmlFromFC(collectGeoJSON()),"sabz-royan-webgis.kml","application/vnd.google-earth.kml+xml");
-$("exportGPX").onclick=()=>download(gpxFromFC(collectGeoJSON()),"sabz-royan-webgis.gpx","application/gpx+xml");
+$("exportGeoJSON").onclick=()=>{download(JSON.stringify(collectGeoJSON(),null,2),"sabz-royan-webgis.geojson","application/geo+json");exportSourceLayer=null};
+$("exportKML").onclick=()=>{download(kmlFromFC(collectGeoJSON()),"sabz-royan-webgis.kml","application/vnd.google-earth.kml+xml");exportSourceLayer=null};
+$("exportGPX").onclick=()=>{download(gpxFromFC(collectGeoJSON()),"sabz-royan-webgis.gpx","application/gpx+xml");exportSourceLayer=null};
 
 function projectGeometry(feature){
   const g=feature&&feature.geometry;if(!g)return null;
@@ -1512,8 +1560,8 @@ function projectGeometry(feature){
   };
   return {type:g.type,coordinates:tx(g.coordinates)};
 }
-function collectUTMFeatureCollection(){
-  return {type:"FeatureCollection",features:collectGeoJSON().features.map(f=>({
+function collectUTMFeatureCollection(sourceLayer=exportSourceLayer){
+  return {type:"FeatureCollection",features:collectGeoJSON(sourceLayer).features.map(f=>({
     type:"Feature",
     properties:f.properties||{},
     geometry:projectGeometry(f)
@@ -1565,24 +1613,27 @@ function exportRealDXF(){
     });
     const dxf=d.toDxfString();
     download(dxf,"sabz-royan-webgis-"+currentCRS.replace("EPSG:","")+".dxf","application/dxf");
-    status("DXF created in "+currentCRS+" is.");
+    status("DXF exported in "+currentCRS+".");
   }catch(e){console.error(e);status("DXF export failed: "+e.message)}
 }
 async function exportRealGDB(){
   const layers=[];
-  drawn.eachLayer(l=>{try{const f=l.toGeoJSON();if(f&&f.geometry)layers.push({name:"drawings",fc:{type:"FeatureCollection",features:[f]}})}catch(e){}});
-  namedLayers.forEach((x,i)=>{
-    try{
-      const fs=[];x.layer.eachLayer(l=>{const f=l.feature||l.toGeoJSON();if(f&&f.geometry)fs.push(f)});
-      if(fs.length)layers.push({name:x.name||("layer_"+(i+1)),fc:{type:"FeatureCollection",features:fs}});
-    }catch(e){}
-  });
+  if(exportSourceLayer){
+    const item=exportSourceLayer===drawn?{name:"drawings",layer:drawn}:namedLayers.find(x=>x.layer===exportSourceLayer);
+    const fs=vectorFeatures(exportSourceLayer).map(v=>v.feature);
+    if(item&&fs.length)layers.push({name:item.name||"layer",fc:{type:"FeatureCollection",features:fs}});
+  }else{
+    drawn.eachLayer(l=>{try{const f=l.toGeoJSON();if(f&&f.geometry)layers.push({name:"drawings",fc:{type:"FeatureCollection",features:[f]}})}catch(e){}});
+    namedLayers.forEach((x,i)=>{
+      try{const fs=vectorFeatures(x.layer).map(v=>v.feature);if(fs.length)layers.push({name:x.name||("layer_"+(i+1)),fc:{type:"FeatureCollection",features:fs}})}catch(e){}
+    });
+  }
   if(!layers.length){status("No features available to export.");return}
   if(typeof initGdalJs!=="function"){status("GDAL is unavailable.");return}
   if(typeof JSZip==="undefined"){status("ZIP library is unavailable.");return}
   let gdal=null;
   try{
-    status("in GIS create File Geodatabase GIS...");
+    status("Creating the file geodatabase...");
     gdal=await getGdalBrowser();
     const zip=new JSZip();
     let added=0;
@@ -1604,10 +1655,10 @@ async function exportRealGDB(){
         added++;
       }
     }
-    if(!added)throw new Error("GDAL output FileGDB GIS GIS. GIS GDAL browser GIS OpenFileGDB with GIS Write GIS GIS.");
+    if(!added)throw new Error("The browser GDAL build could not write an OpenFileGDB archive.");
     const blob=await zip.generateAsync({type:"blob",compression:"DEFLATE"});
     download(blob,"sabz-royan-webgis.gdb.zip","application/zip");
-    status("File Geodatabase GIS created was set. file ZIP the Extract enter GIS folder .gdb the GIS GIS.");
+    status("File geodatabase exported. Extract the ZIP archive to access the .gdb folder.");
   }catch(e){
     console.error(e);
     status("File Geodatabase export failed: "+(e.message||e));
@@ -1619,13 +1670,15 @@ async function exportRealGDB(){
    ========================= */
 const GIS_TOOLS=[
  {id:"selectFeatures",title:"Select Features",category:"Tools",keys:"select feature"},
+ {id:"importData",title:"Add Data",category:"File",keys:"import layer geojson kml shapefile csv geodatabase"},
+ {id:"exportData",title:"Export Data",category:"File",keys:"export geojson kml gpx shapefile geodatabase dxf"},
  {id:"selectRectangle",title:"Select Features by Rectangle",category:"Selection",keys:"rectangle box"},
  {id:"selectPolygon",title:"Select Features by Polygon",category:"Selection",keys:"polygon"},
  {id:"identifyTool",title:"Identify",category:"Tools",keys:"identify attributes"},
  {id:"clearSelection",title:"Clear Selected Features",category:"Selection",keys:"clear selection"},
  {id:"zoomSelection",title:"Zoom To Selected Features",category:"Selection",keys:"zoom selection"},
  {id:"selectAttribute",title:"Select By Attributes",category:"Selection",keys:"query attributes"},
- {id:"selectLocation",title:"Select By Location",category:"Selection",keys:"spatial select"},
+ {id:"selectLocation",title:"Select By Location",category:"Selection",keys:"spatial relationship intersects within"},
  {id:"selectDistance",title:"Select By Distance",category:"Selection",keys:"distance radius"},
  {id:"selectLasso",title:"Select Features by Lasso",category:"Selection",keys:"lasso freehand"},
  {id:"invertSelection",title:"Switch Selection",category:"Selection",keys:"invert"},
@@ -1646,7 +1699,6 @@ const GIS_TOOLS=[
  {id:"runGisOperation",op:"split",title:"Split",category:"Geoprocessing",keys:"split line"},
  {id:"runGisOperation",op:"merge",title:"Merge",category:"Geoprocessing",keys:"merge"},
  {id:"snapTool",title:"Snapping",category:"Editor",keys:"snap"},
- {id:"vertexEdit",title:"Edit Vertices",category:"Editor",keys:"vertex"},
  {id:"moveFeatures",title:"Move Features",category:"Editor",keys:"move"},
  {id:"rotateFeatures",title:"Rotate Features",category:"Editor",keys:"rotate"},
  {id:"scaleFeatures",title:"Scale Features",category:"Editor",keys:"scale"},
@@ -1655,31 +1707,21 @@ const GIS_TOOLS=[
  {id:"styleLayer",title:"Layer Properties",category:"Table Of Contents",keys:"symbology style"},
  {id:"labelLayer",title:"Label Features",category:"Table Of Contents",keys:"labels"},
  {id:"layerTransparency",title:"Layer Transparency",category:"Table Of Contents",keys:"transparency"},
- {id:"groupLayers",title:"Group Layers",category:"Table Of Contents",keys:"group"},
- {id:"joinWizard",title:"Join",category:"Geoprocessing",keys:"join table"},
- {id:"reprojectLayer",title:"Project",category:"Data Management",keys:"reproject projection"},
- {id:"csvImport",title:"Add XY Data (CSV)",category:"Data Management",keys:"csv coordinates"},
- {id:"excelImport",title:"Add XY Data (Excel)",category:"Data Management",keys:"excel xlsx"},
  {id:"searchFeature",title:"Find",category:"Tools",keys:"search feature"},
  {id:"addBookmark",title:"Create Bookmark",category:"Bookmarks",keys:"bookmark"},
  {id:"showBookmarks",title:"Bookmarks",category:"Bookmarks",keys:"extent"},
  {id:"spatialFilter",title:"Select By Location",category:"Selection",keys:"intersects within contains"},
- {id:"attachmentsTool",title:"Attachments",category:"Data Management",keys:"file photo"},
  {id:"chartStats",title:"Statistics",category:"Geoprocessing",keys:"chart statistics"},
  {id:"nearestMatchTool",title:"Find Nearest Features",category:"Network QA",keys:"nearest"},
  {id:"transferAttributesTool",title:"Transfer Attributes",category:"Network QA",keys:"attributes"},
  {id:"networkQaTool",title:"Network Connectivity Check",category:"Network QA",keys:"network connectivity"},
- {id:"exportGeoJSON",title:"Export GeoJSON",category:"Data Management",keys:"geojson export"},
- {id:"exportKML",title:"Export KML",category:"Data Management",keys:"kml export"},
- {id:"exportSHP",title:"Export Shapefile",category:"Data Management",keys:"shp"},
- {id:"exportDXF",title:"Export DXF",category:"Data Management",keys:"dxf cad"},
- {id:"exportGDB",title:"Export File Geodatabase",category:"Data Management",keys:"gdb"}
+
 ];
 function renderGisToolbox(query=""){
  const box=$("gisToolResults"); if(!box)return;
  const q=query.trim().toLowerCase();
  const matches=GIS_TOOLS.filter(t=>(t.title+" "+t.category+" "+t.keys).toLowerCase().includes(q));
- if(!matches.length){box.innerHTML='<div class="gis-tool-empty">GIS with This GIS found not.</div>';return;}
+ if(!matches.length){box.innerHTML='<div class="gis-tool-empty">No matching tools found.</div>';return;}
  const groups={};
  matches.forEach(t=>(groups[t.category]??=[]).push(t));
  box.innerHTML="";
@@ -1747,7 +1789,7 @@ function selectByLocation(){
   const b=prompt("Target layer number","");
   if(b===null)return;
   const ai=Number(a)-1,bi=Number(b)-1,items=namedLayers;
-  if(!items[ai]||!items[bi]){status("GIS Layer invalid is.");return;}
+  if(!items[ai]||!items[bi]){status("Invalid layer selection.");return;}
   const ref=vectorFeatures(items[bi].layer).map(v=>v.feature).filter(Boolean);
   selectedFeatures.clear();
   vectorFeatures(items[ai].layer).forEach(v=>{
@@ -1763,13 +1805,13 @@ function selectByLocation(){
     if(ok)selectedFeatures.add(v.layer);
   });
   applySelectionVisual();
-  status(selectedFeatures.size+" Feature GIS GIS relationship Spatial Selection was set.");
+  status(selectedFeatures.size+" Spatial selection complete.");
 }
 function selectWithinDistance(){
   const meters=Number(prompt("distance Selection (meters):","5"));
   if(!Number.isFinite(meters)||meters<0)return;
   const ref=selectedOverlay?.feature;
-  if(!ref){status("First GIS Feature Reference the Selection enter.");return;}
+  if(!ref){status("Select a reference feature first.");return;}
   selectedFeatures.clear();
   const refGeom=turf.feature(ref.geometry);
   allSelectableFeatureLayers().forEach(x=>vectorFeatures(x.layer).forEach(v=>{
@@ -1779,7 +1821,7 @@ function selectWithinDistance(){
     }catch(e){}
   }));
   applySelectionVisual();
-  status(selectedFeatures.size+" Feature in radius "+meters+" meters Selection was set.");
+  status(selectedFeatures.size+" features selected within "+meters+" meters.");
 }
 
 
@@ -1792,13 +1834,13 @@ function getFeatureRecords(){
 function selectedRecords(){return [...selectedFeatures].map(l=>{const v=getFeatureRecords().find(r=>r.layer===l);return v;}).filter(Boolean);}
 function zoomToSelection(){
   const ls=[...selectedFeatures].filter(l=>l&&l.getBounds&&l.getBounds().isValid());
-  if(!ls.length){status("GIS FeatureSelection not is.");return;}
+  if(!ls.length){status("No selected features to zoom to.");return;}
   const g=L.featureGroup(ls); map.fitBounds(g.getBounds(),{padding:[30,30]});
 }
 function invertSelection(){
   const all=getFeatureRecords().map(r=>r.layer), old=new Set(selectedFeatures);
   selectedFeatures.clear(); all.forEach(l=>{if(!old.has(l))selectedFeatures.add(l);});
-  applySelectionVisual(); status(selectedFeatures.size+" Feature Selection was set.");
+  applySelectionVisual(); status(selectedFeatures.size+" features selected.");
 }
 function selectByLasso(){
  status("Draw a freehand selection polygon.");
@@ -1821,74 +1863,91 @@ function selectByAttribute(){
     let ok=op==="="?s===needle:op==="!="?s!==needle:op==="starts"?s.startsWith(needle):op==="ends"?s.endsWith(needle):s.includes(needle);
     if(ok)selectedFeatures.add(r.layer);
   });
-  applySelectionVisual(); status(selectedFeatures.size+" Feature GIS GIS Attribute Selection was set.");
+  applySelectionVisual(); status(selectedFeatures.size+" Attribute selection complete.");
 }
 function newLayerFromSelection(){
-  const rs=selectedRecords(); if(!rs.length){status("First Feature Selection enter.");return;}
+  const rs=selectedRecords(); if(!rs.length){status("Select at least one feature first.");return;}
   const fc={type:"FeatureCollection",features:rs.map(r=>JSON.parse(JSON.stringify(r.feature)))};
   const layer=L.geoJSON(fc,{onEachFeature:(f,l)=>bindFeature(l,f)});
   layer.addTo(map); namedLayers.push({name:"Selection_"+new Date().toISOString().slice(0,19).replace(/[:T]/g,"-"),layer,source:"selection"});
-  renderLayerList(); refreshAttributeLayers(); scheduleAutoSave(); status("Create Layer From Selected Features created was set.");
+  renderLayerList(); refreshAttributeLayers(); scheduleAutoSave(); status("Layer created from selected features.");
 }
 function cloneSelectedFeatures(){
-  const rs=selectedRecords(); if(!rs.length){status("First Selection enter.");return;}
+  const rs=editableSelectedRecords();if(!rs.length)return;
   const clones=rs.map(r=>{const f=JSON.parse(JSON.stringify(r.feature)); f.properties={...(f.properties||{}),_clone:true}; return f;});
   const layer=L.geoJSON({type:"FeatureCollection",features:clones},{onEachFeature:(f,l)=>bindFeature(l,f)});
   layer.addTo(map); namedLayers.push({name:"Clone_"+Date.now(),layer,source:"clone"});
-  renderLayerList(); refreshAttributeLayers(); scheduleAutoSave(); status(clones.length+" Feature Clone was set.");
+  renderLayerList(); refreshAttributeLayers(); scheduleAutoSave(); status(clones.length+" features copied.");
+}
+function editableSelectedRecords(){
+  if(!editSessionActive){status("Start Editing before modifying features.");return []}
+  const rs=selectedRecords().filter(r=>r.owner?.layer===editTarget);
+  if(!rs.length)status("Select features from the active edit layer.");
+  return rs;
 }
 function moveSelected(){
-  const rs=selectedRecords(); if(!rs.length){status("First Selection enter.");return;}
+  const rs=editableSelectedRecords();if(!rs.length)return;
   const dx=Number(prompt("Move Features East X (meters):","0")),dy=Number(prompt("Move Features North Y (meters):","0"));
   if(!Number.isFinite(dx)||!Number.isFinite(dy))return;
   const moveCoord=c=>{const p=projectCoords("EPSG:4326",currentCRS,c);const q=[p[0]+dx,p[1]+dy];return proj4(currentCRS,"EPSG:4326",q);};
   rs.forEach(r=>{const walk=c=>Array.isArray(c[0])?c.map(walk):moveCoord(c);r.feature.geometry.coordinates=walk(r.feature.geometry.coordinates);});
-  rebuildVectorLayerGeometry(rs); refreshAll(); status("Move Features GIS was set.");
+  rebuildVectorLayerGeometry(rs); refreshAll(); status("Features moved.");
 }
 function rotateSelected(){
-  const rs=selectedRecords(); if(!rs.length){status("First Selection enter.");return;}
+  const rs=editableSelectedRecords();if(!rs.length)return;
   const deg=Number(prompt("Angle Rotate Features (degrees):","90")); if(!Number.isFinite(deg))return;
   rs.forEach(r=>{try{
     const c=featureCenterLatLng(r.layer), fc=turf.point([c.lng,c.lat]);
     const g=turf.transformRotate(r.feature,deg,{pivot:fc});
     r.feature.geometry=g.geometry;
   }catch(_){}});
-  rebuildVectorLayerGeometry(rs); refreshAll(); status("Rotate Features GIS was set.");
+  rebuildVectorLayerGeometry(rs); refreshAll(); status("Features rotated.");
 }
 function scaleSelected(){
-  const rs=selectedRecords(); if(!rs.length){status("First Selection enter.");return;}
+  const rs=editableSelectedRecords();if(!rs.length)return;
   const factor=Number(prompt("Factor Scale:","1.1")); if(!Number.isFinite(factor)||factor<=0)return;
   rs.forEach(r=>{try{const c=featureCenterLatLng(r.layer);r.feature.geometry=turf.transformScale(r.feature,factor,{origin:[c.lng,c.lat]}).geometry;}catch(_){}});
-  rebuildVectorLayerGeometry(rs); refreshAll(); status("Scale GIS was set.");
+  rebuildVectorLayerGeometry(rs); refreshAll(); status("Features scaled.");
 }
 function rebuildVectorLayerGeometry(rs){
-  rs.forEach(r=>{try{
-    const old=r.layer, parent=old._parentNamedLayer;
-    const props=r.feature.properties||{};
-    const nl=L.geoJSON(r.feature,{onEachFeature:(f,l)=>bindFeature(l,f)});
-    map.addLayer(nl); if(old)map.removeLayer(old);
-    selectedFeatures.delete(old); selectedFeatures.add(nl);
-    if(parent){const i=vectorFeatures(parent.layer).findIndex(v=>v.layer===old); if(i>=0){}}
-  }catch(_){}});
-  applySelectionVisual(); renderLayerList();
+  rs.forEach(r=>{
+    try{
+      const old=r.layer,owner=r.owner?.layer||drawn,opts={...(old?.options||{})};
+      const temp=L.geoJSON(r.feature,{
+        style:opts,
+        pointToLayer:(feature,latlng)=>old instanceof L.Circle&&typeof old.getRadius==="function"
+          ?L.circle(latlng,{...opts,radius:old.getRadius()})
+          :old instanceof L.CircleMarker?L.circleMarker(latlng,opts):L.marker(latlng,opts),
+        onEachFeature:(feature,layer)=>bindFeature(layer,feature)
+      });
+      const replacement=temp.getLayers()[0];
+      if(!replacement)return;
+      replacement.feature=r.feature;
+      owner.removeLayer(old);owner.addLayer(replacement);
+      selectedFeatures.delete(old);selectedFeatures.add(replacement);
+      if(selectedLayer===old)selectedLayer=replacement;
+      if(selectedOverlay===old)selectedOverlay=replacement;
+    }catch(err){console.error("Could not rebuild feature geometry",err)}
+  });
+  applySelectionVisual();renderLayerList();refreshAttributeLayers();scheduleAutoSave();
 }
 function reshapeSelected(){
-  const r=selectedRecords()[0]; if(!r){status("GIS Feature Selection enter.");return;}
-  status("Reshape: to GIS GIS GIS New the with GIS Polygon draw enter.");
+  const r=selectedRecords()[0]; if(!r){status("Select at least one feature first.");return;}
+  status("Draw a polygon to reshape the selected feature.");
   const h=new L.Draw.Polygon(map,{shapeOptions:{color:"#e67e22",weight:2,dashArray:"4,4"}});h.enable();
-  const once=e=>{map.off(L.Draw.Event.CREATED,once);map.removeLayer(e.layer);r.feature.geometry=e.layer.toGeoJSON().geometry;rebuildVectorLayerGeometry([r]);refreshAll();status("GIS Feature GIS was set.");};map.on(L.Draw.Event.CREATED,once);
+  const once=e=>{map.off(L.Draw.Event.CREATED,once);map.removeLayer(e.layer);r.feature.geometry=e.layer.toGeoJSON().geometry;rebuildVectorLayerGeometry([r]);refreshAll();status("Feature geometry updated.");};map.on(L.Draw.Event.CREATED,once);
 }
 function editVertices(){
-  const r=selectedRecords()[0]; if(!r){status("GIS Feature Selection enter.");return;}
-  try{if(r.layer.editing){r.layer.editing.enable();status("Edit Vertices active GIS GIS than finish on Map Continue GIS.");}else status("Editing vertex This GIS Layer supported not.");}catch(_){}
+  const r=selectedRecords()[0]; if(!r){status("Select at least one feature first.");return;}
+  try{if(r.layer.editing){r.layer.editing.enable();status("Vertex editing is active. Finish editing on the map.");}else status("This layer does not support vertex editing.");}catch(_){}
 }
 function advancedSnap(){
-  const r=selectedRecords()[0]; if(!r){status("GIS Feature Selection enter.");return;}
-  status("Snapping: in Editing Leaflet vertex/Point GIS the to Feature SelectionGIS GIS enter.");
+  const r=selectedRecords()[0]; if(!r){status("Select at least one feature first.");return;}
+  status("Snap Points to Lines edits point features within the tolerance.");
 }
 function spatialFilter(){
-  const rs=getFeatureRecords(); const type=prompt("relationship: intersects / within / contains / touches / overlaps / crosses","intersects");
-  if(!type)return; const ref=selectedRecords()[0]; if(!ref){status("First GIS Feature Reference Selection enter.");return;}
+  const rs=getFeatureRecords(); const type=prompt("Spatial relationship: intersects / within / contains / touches / overlaps / crosses","intersects");
+  if(!type)return; const ref=selectedRecords()[0]; if(!ref){status("Select a reference feature first.");return;}
   selectedFeatures.clear();
   rs.forEach(r=>{try{
     const a=r.feature,b=ref.feature; let ok=false;
@@ -1897,57 +1956,93 @@ function spatialFilter(){
     else if(type==="crosses")ok=turf.booleanCrosses(a,b); else ok=turf.booleanIntersects(a,b);
     if(ok)selectedFeatures.add(r.layer);
   }catch(_){}});
-  applySelectionVisual(); status(selectedFeatures.size+" Feature with Spatial Filter Selection was set.");
+  applySelectionVisual(); status(selectedFeatures.size+" features selected by spatial filter.");
 }
 function joinWizard(){
-  const rs=getFeatureRecords(); if(rs.length<2){status("at least GIS Layer GIS is.");return;}
+  const rs=getFeatureRecords(); if(rs.length<2){status("At least two layers are required.");return;}
   const src=rs[0].feature,tgt=rs[1].feature;
-  const sf=prompt("Field Source to Join:","id"), tf=prompt("Field Target:","id"); if(!sf||!tf)return;
-  if(String(src.properties?.[sf]??"")===String(tgt.properties?.[tf]??"")){Object.assign(tgt.properties||{},src.properties||{});refreshAll();status("Join GIS was set.");}
-  else status("to This GIS Feature Value Field GIS found not.");
+  const sf=prompt("Source field:","id"), tf=prompt("Target field:","id"); if(!sf||!tf)return;
+  if(String(src.properties?.[sf]??"")===String(tgt.properties?.[tf]??"")){Object.assign(tgt.properties||{},src.properties||{});refreshAll();status("Join completed.");}
+  else status("No matching feature value was found.");
 }
 function reprojectLayer(){
-  const r=selectedRecords()[0]; if(!r){status("GIS Feature Selection enter.");return;}
+  const r=selectedRecords()[0]; if(!r){status("Select at least one feature first.");return;}
   const epsg=prompt("CRS Target EPSG:","32638"); if(!/^\d+$/.test(epsg))return;
-  status("Layer in View Leaflet to WGS84 Save GIS CRS Project to EPSG:"+epsg+" changed GIS.");
+  status("Project layer to EPSG:"+epsg+" changed.");
+}
+function parseDelimitedText(text){
+  const firstLine=String(text).split(/\r?\n/,1)[0]||"";
+  const delimiter=[",",";","\t"].map(d=>[d,(firstLine.match(new RegExp(d==="\t"?"\\t":d,"g"))||[]).length]).sort((a,b)=>b[1]-a[1])[0][0];
+  const rows=[];let row=[],value="",quoted=false;
+  const input=String(text).replace(/^\uFEFF/,"");
+  for(let i=0;i<input.length;i++){
+    const c=input[i];
+    if(c==='"'&&quoted&&input[i+1]==='"'){value+='"';i++}
+    else if(c==='"'){quoted=!quoted}
+    else if(c===delimiter&&!quoted){row.push(value);value=""}
+    else if((c==="\n"||c==="\r")&&!quoted){if(c==="\r"&&input[i+1]==="\n")i++;row.push(value);if(row.some(v=>v.trim()))rows.push(row);row=[];value=""}
+    else value+=c;
+  }
+  row.push(value);if(row.some(v=>v.trim()))rows.push(row);
+  return rows;
 }
 function csvImport(){
-  const input=document.createElement("input");input.type="file";input.accept=".csv";input.onchange=async()=>{
-    const text=await input.files[0].text(), rows=text.split(/\r?\n/).filter(Boolean).map(x=>x.split(","));
-    if(rows.length<2)return;const headers=rows[0];const lat=headers.findIndex(x=>/lat|Latitude/i.test(x)),lng=headers.findIndex(x=>/lon|lng|Longitude/i.test(x));
-    if(lat<0||lng<0){status("CSV GIS GIS Latitude/Longitude GIS GIS.");return;}
-    const features=rows.slice(1).map(row=>({type:"Feature",properties:Object.fromEntries(headers.map((h,i)=>[h,row[i]??""])),geometry:{type:"Point",coordinates:[Number(row[lng]),Number(row[lat])]}})).filter(f=>Number.isFinite(f.geometry.coordinates[0])&&Number.isFinite(f.geometry.coordinates[1]));
-    const layer=L.geoJSON({type:"FeatureCollection",features},{onEachFeature:(f,l)=>bindFeature(l,f)}).addTo(map);namedLayers.push({name:"CSV_"+Date.now(),layer,source:"csv"});renderLayerList();refreshAttributeLayers();scheduleAutoSave();status(features.length+" Point than CSV Enter was set.");
-  };input.click();
+  const input=document.createElement("input");input.type="file";input.accept=".csv,.tsv,.txt";
+  input.onchange=async()=>{
+    const file=input.files[0];if(!file)return;
+    try{
+      const rows=parseDelimitedText(await file.text());
+      if(rows.length<2){status("The selected table has no data rows.");return}
+      const headers=rows[0].map(x=>x.trim());
+      const latGuess=headers.findIndex(x=>/^(lat|latitude|y)$/i.test(x));
+      const lngGuess=headers.findIndex(x=>/^(lon|lng|long|longitude|x)$/i.test(x));
+      const latName=prompt("Latitude field:",headers[latGuess]||"");
+      if(latName===null)return;
+      const lngName=prompt("Longitude field:",headers[lngGuess]||"");
+      if(lngName===null)return;
+      const lat=headers.findIndex(x=>x.toLowerCase()===latName.trim().toLowerCase());
+      const lng=headers.findIndex(x=>x.toLowerCase()===lngName.trim().toLowerCase());
+      if(lat<0||lng<0){status("Choose latitude and longitude fields from the table.");return}
+      const features=rows.slice(1).map(row=>{
+        const y=Number(String(row[lat]??"").trim()),x=Number(String(row[lng]??"").trim());
+        return {type:"Feature",properties:Object.fromEntries(headers.map((h,i)=>[h,row[i]??""])),geometry:{type:"Point",coordinates:[x,y]}};
+      }).filter(f=>Number.isFinite(f.geometry.coordinates[0])&&Number.isFinite(f.geometry.coordinates[1])&&Math.abs(f.geometry.coordinates[0])<=180&&Math.abs(f.geometry.coordinates[1])<=90);
+      if(!features.length){status("No rows had valid longitude and latitude values.");return}
+      const layer=L.geoJSON({type:"FeatureCollection",features},{onEachFeature:(f,l)=>bindFeature(l,f)});
+      addNamedLayer("XY Data - "+file.name.replace(/\\.[^.]+$/,""),layer,true);
+      scheduleAutoSave();status(features.length+" XY features imported from "+file.name+".");
+    }catch(err){console.error(err);status("Could not import the CSV table: "+err.message)}
+  };
+  input.click();
 }
-function excelImport(){status("to Excel in GIS GIS First CSV GIS enter GIS with tool CSV Enter enter.");csvImport();}
+function excelImport(){status("Excel import is unavailable. Save the spreadsheet as CSV first.");csvImport();}
 function searchFeature(){
   const q=prompt("Search feature ID or attribute value:","");if(q===null)return;const s=q.toLowerCase();
   const r=getFeatureRecords().find(x=>Object.values(x.feature.properties||{}).some(v=>String(v).toLowerCase().includes(s)));
-  if(r){selectedFeatures.clear();selectedFeatures.add(r.layer);applySelectionVisual();if(r.layer.getBounds)map.fitBounds(r.layer.getBounds(),{padding:[30,30]});else if(r.layer.getLatLng)map.setView(r.layer.getLatLng(),17);status("Feature found was set.");}else status("FeatureGIS found not.");
+  if(r){selectedFeatures.clear();selectedFeatures.add(r.layer);applySelectionVisual();if(r.layer.getBounds)map.fitBounds(r.layer.getBounds(),{padding:[30,30]});else if(r.layer.getLatLng)map.setView(r.layer.getLatLng(),17);status("Feature found.");}else status("No matching feature found.");
 }
 function addBookmark(){
   const name=prompt("Bookmark name:","Current Extent");if(!name)return;
-  const b=map.getBounds();const bookmarks=JSON.parse(localStorage.getItem("sabzroyan-bookmarks")||"[]");bookmarks.push({name,bounds:b.toBBoxString(),zoom:map.getZoom()});localStorage.setItem("sabzroyan-bookmarks",JSON.stringify(bookmarks));status("Bookmark Save was set.");
+  const b=map.getBounds();const bookmarks=JSON.parse(localStorage.getItem("sabzroyan-bookmarks")||"[]");bookmarks.push({name,bounds:b.toBBoxString(),zoom:map.getZoom()});localStorage.setItem("sabzroyan-bookmarks",JSON.stringify(bookmarks));status("Bookmark saved.");
 }
 function showBookmarks(){
-  const bs=JSON.parse(localStorage.getItem("sabzroyan-bookmarks")||"[]");if(!bs.length){status("BookmarkNo features available.");return;}
+  const bs=JSON.parse(localStorage.getItem("sabzroyan-bookmarks")||"[]");if(!bs.length){status("No bookmarks are available.");return;}
   const n=prompt("Bookmark name:\n"+bs.map(x=>x.name).join("\n"),bs[0].name);const b=bs.find(x=>x.name===n);if(b){const a=b.bounds.split(",").map(Number);map.fitBounds([[a[1],a[0]],[a[3],a[2]]]);}
 }
 function layerTransparency(){
-  const rs=getFeatureRecords();if(!rs.length)return;const v=Math.max(0,Math.min(1,Number(prompt("Transparency (0 to 1):","0.5"))));rs.forEach(r=>{if(r.layer.setStyle)r.layer.setStyle({opacity:v,fillOpacity:v});});status("Transparency Apply was set.");
+  const rs=getFeatureRecords();if(!rs.length)return;const v=Math.max(0,Math.min(1,Number(prompt("Transparency (0 to 1):","0.5"))));rs.forEach(r=>{if(r.layer.setStyle)r.layer.setStyle({opacity:v,fillOpacity:v});});status("Transparency updated.");
 }
 function styleLayer(){
-  const rs=getFeatureRecords();if(!rs.length)return;const col=prompt("Color HEX:","#146c43");const w=Number(prompt("Line width:","2"));rs.forEach(r=>{if(r.layer.setStyle)r.layer.setStyle({color:col,weight:w,fillColor:col});});status("Symbology Layer changed GIS.");
+  const rs=getFeatureRecords();if(!rs.length)return;const col=prompt("Color HEX:","#146c43");const w=Number(prompt("Line width:","2"));rs.forEach(r=>{if(r.layer.setStyle)r.layer.setStyle({color:col,weight:w,fillColor:col});});status("Layer symbology updated.");
 }
 function labelLayer(){
-  const rs=getFeatureRecords();if(!rs.length)return;const field=prompt("Label field:","name");rs.forEach(r=>{const v=r.feature.properties?.[field];if(v!=null&&r.layer.bindTooltip)r.layer.bindTooltip(String(v),{permanent:true,direction:"center"});});status("LabelGIS active GIS.");
+  const rs=getFeatureRecords();if(!rs.length)return;const field=prompt("Label field:","name");rs.forEach(r=>{const v=r.feature.properties?.[field];if(v!=null&&r.layer.bindTooltip)r.layer.bindTooltip(String(v),{permanent:true,direction:"center"});});status("Labels enabled.");
 }
-function groupLayers(){status("to GIS GIS LayerSelectionselected the with name GIS Group_ nameGIS GIS GIS GIS in GIS GIS.");}
-function gridToggle(){if(window._gridLayer){map.removeLayer(window._gridLayer);window._gridLayer=null;status("Editor Grid GIS was set.");return;}const b=map.getBounds(),z=map.getZoom(),step=z>15?.001:z>12?.01:.1;const lines=[];for(let x=Math.floor(b.getWest()/step)*step;x<=b.getEast();x+=step)lines.push([[b.getSouth(),x],[b.getNorth(),x]]);for(let y=Math.floor(b.getSouth()/step)*step;y<=b.getNorth();y+=step)lines.push([[y,b.getWest()],[y,b.getEast()]]);window._gridLayer=L.polyline(lines,{color:"#7f8c8d",weight:.5,opacity:.45}).addTo(map);status("Editor Grid active was set.");}
-function constraintTool(){const d=Number(prompt("Constraint distance (meters):","10"));if(Number.isFinite(d))status("Constraint "+d+" meters to tool drawing set was set.");}
+function groupLayers(){status("Layer grouping is unavailable.");}
+function gridToggle(){if(window._gridLayer){map.removeLayer(window._gridLayer);window._gridLayer=null;status("Editor grid hidden.");return;}const b=map.getBounds(),z=map.getZoom(),step=z>15?.001:z>12?.01:.1;const lines=[];for(let x=Math.floor(b.getWest()/step)*step;x<=b.getEast();x+=step)lines.push([[b.getSouth(),x],[b.getNorth(),x]]);for(let y=Math.floor(b.getSouth()/step)*step;y<=b.getNorth();y+=step)lines.push([[y,b.getWest()],[y,b.getEast()]]);window._gridLayer=L.polyline(lines,{color:"#7f8c8d",weight:.5,opacity:.45}).addTo(map);status("Editor grid enabled.");}
+function constraintTool(){const d=Number(prompt("Constraint distance (meters):","10"));if(Number.isFinite(d))status("Drawing constraint set to "+d+" meters.");}
 function attachmentsTool(){
-  const r=selectedRecords()[0];if(!r){status("GIS Feature Selection enter.");return;}const i=document.createElement("input");i.type="file";i.multiple=true;i.onchange=()=>{r.feature.properties=r.feature.properties||{};r.feature.properties._attachments=[...i.files].map(f=>({name:f.name,type:f.type,size:f.size}));refreshAll();status(i.files.length+" GIS set was set.");};i.click();
+  const r=selectedRecords()[0];if(!r){status("Select at least one feature first.");return;}const i=document.createElement("input");i.type="file";i.multiple=true;i.onchange=()=>{r.feature.properties=r.feature.properties||{};r.feature.properties._attachments=[...i.files].map(f=>({name:f.name,type:f.type,size:f.size}));refreshAll();status(i.files.length+" Attachment metadata saved.");};i.click();
 }
 function chartStats(){
   const rs=getFeatureRecords();const vals=rs.map(r=>Object.values(r.feature.properties||{}).filter(v=>!isNaN(Number(v))).map(Number)).flat();if(!vals.length){status("No numeric attribute values were found.");return;}const sum=vals.reduce((a,b)=>a+b,0),avg=sum/vals.length;$("professionalToolOutput").textContent="Statistics — Count: "+vals.length+" | Sum: "+sum+" | Mean: "+avg.toFixed(3)+" | Min: "+Math.min(...vals)+" | Max: "+Math.max(...vals);
@@ -2043,18 +2138,8 @@ $("gisToolSearch").oninput=e=>renderGisToolbox(e.target.value);
       showToolbox:()=>{document.querySelector('.accordion-section[data-accordion="analysis"]')?.classList.add("open");document.getElementById("gisToolSearch")?.focus()},
       about:()=>alert("ArcMap-style Web GIS workspace"),
       shortcuts:()=>alert("Enter finishes lines and polygons. Escape cancels the active tool. Ctrl-click or Shift-click adds features to the selection."),
-      importSHP:()=>document.getElementById("fileInput")?.click(),
-      importGeoJSON:()=>{const x=document.getElementById("fileInput");x.accept=".geojson,.json";x.click()},
-      importKML:()=>{const x=document.getElementById("fileInput");x.accept=".kml";x.click()},
-      importGDB:()=>document.getElementById("gdbInput")?.click(),
-      importCSV:()=>csvImport(),
-      importExcel:()=>excelImport(),
-      exportGeoJSON:()=>document.getElementById("exportGeoJSON")?.click(),
-      exportKML:()=>document.getElementById("exportKML")?.click(),
-      exportGPX:()=>document.getElementById("exportGPX")?.click(),
-      exportSHP:()=>document.getElementById("exportSHP")?.click(),
-      exportGDB:()=>document.getElementById("exportGDB")?.click(),
-      exportDXF:()=>document.getElementById("exportDXF")?.click(),
+      importData:()=>openDataFormatDialog("import"),
+      exportData:()=>openDataFormatDialog("export"),
       openProjectManager:()=>openProjectManager(),
       saveProject:()=>document.getElementById("saveProject")?.click(),
       loadProject:()=>document.getElementById("loadProject")?.click(),
@@ -2190,13 +2275,13 @@ function identifyTool(){
   const m=geometryMetrics(f.geometry);
   const rows=Object.keys(p).map(k=>esc(k)+" = "+esc(p[k])).join(" | ");
   $("professionalToolOutput").innerHTML="<b>Geometry:</b> "+esc(f.geometry.type)+" | <b>Length:</b> "+fmtMeters(m.length)+" | <b>Area:</b> "+fmtArea(m.area)+"<br>"+(rows||"No Attribute");
-  status("Information Feature View Data was set.");
+  status("Feature information displayed.");
 };
 
 /* Match GIS GIS for Manhole GIS/New */
 function nearestMatchTool(){
   const layers=getAllVectorItems().filter(x=>vectorFeatures(x.layer).some(v=>v.feature.geometry.type==="Point"));
-  if(layers.length<2){status("at least GIS Layer PointGIS GIS is.");return;}
+  if(layers.length<2){status("At least two point layers are required.");return;}
   const source=layers[0], target=layers[1];
   let count=0,bestRows=[];
   vectorFeatures(source.layer).forEach(s=>{
@@ -2218,13 +2303,13 @@ function nearestMatchTool(){
   refreshAll();
   const max=Math.max(...bestRows,0);
   $("professionalToolOutput").textContent="Nearest feature match: "+count+" points | Maximum distance: "+fmtMeters(max)+" | Layers: "+source.name+" → "+target.name;
-  status("Find Nearest Features GIS was set.");
+  status("Nearest feature attributes calculated.");
 };
 
 /* Transfer Attributes than GIS Feature */
 function transferAttributesTool(){
   const layers=getAllVectorItems();
-  if(layers.length<2){status("at least GIS Layer GIS is.");return;}
+  if(layers.length<2){status("At least two layers are required.");return;}
   const source=layers[0],target=layers[1];
   const srcFields=Object.keys((vectorFeatures(source.layer)[0]?.feature.properties)||{}).filter(k=>!k.startsWith("_"));
   if(!srcFields.length){status("Layer Source Attribute GIS.");return;}
@@ -2246,7 +2331,7 @@ function transferAttributesTool(){
   });
   refreshAll();
   $("professionalToolOutput").textContent="Transferred attributes to "+count+" features within the distance threshold.";
-  status("AttributeGIS GIS GIS.");
+  status("Attributes transferred.");
 };
 
 /* Network Connectivity Check Water GIS Sewer: GIS GIS Line GIS GIS Manhole GIS */
@@ -2254,7 +2339,7 @@ function networkQaTool(){
   const items=getAllVectorItems();
   const pointItems=items.filter(x=>vectorFeatures(x.layer).some(v=>v.feature.geometry.type==="Point"));
   const lineItems=items.filter(x=>vectorFeatures(x.layer).some(v=>/LineString/i.test(v.feature.geometry.type)));
-  if(!pointItems.length||!lineItems.length){status("GIS Layer PointGIS Manhole GIS GIS Layer Line Pipe GIS is.");return;}
+  if(!pointItems.length||!lineItems.length){status("Add a point layer and a line layer before running the network check.");return;}
   const points=[];
   pointItems.forEach(it=>vectorFeatures(it.layer).forEach(v=>{
     if(v.feature.geometry.type==="Point")points.push(v.feature.geometry.coordinates);
@@ -2273,7 +2358,7 @@ function networkQaTool(){
     });
   }));
   $("professionalToolOutput").textContent="Network check: "+totalEnds+" line endpoints reviewed; "+dangling+" are farther than 0.6 meters from a point.";
-  status("Control Connectivity Network GIS was set.");
+  status("Network check complete.");
 };
 
 /* Snap GIS to GIS GIS to GIS Point/vertex Line */
@@ -2281,7 +2366,7 @@ function snapTool(){
   const items=getAllVectorItems();
   const points=items.flatMap(it=>vectorFeatures(it.layer).filter(v=>v.feature.geometry.type==="Point"));
   const lines=items.flatMap(it=>vectorFeatures(it.layer).filter(v=>v.feature.geometry.type==="LineString"));
-  if(!points.length||!lines.length){status("to Snap GIS Layer Point GIS GIS Layer Line GIS is.");return;}
+  if(!points.length||!lines.length){status("Add a point layer and a line layer before snapping.");return;}
   let changed=0;
   points.forEach(p=>{
     let best=null,bestD=Infinity;
@@ -2299,7 +2384,7 @@ function snapTool(){
   });
   refreshAll();
   $("professionalToolOutput").textContent="Snapped "+changed+" points within the 0.6 meter threshold.";
-  status("Snap GIS was set.");
+  status("Snap completed.");
 };
 
 $("exportSHP").onclick=exportRealSHP;
@@ -2331,21 +2416,6 @@ $("applyCrs").onclick=()=>{
     const sec=document.querySelector('.accordion-section[data-accordion="'+name+'"]');
     if(sec){sections.forEach(x=>x.classList.remove("open"));sec.classList.add("open");sec.scrollIntoView({block:"nearest"});}
   };
-  document.getElementById("panelImportBtn")?.addEventListener("click",()=>document.getElementById("fileInput")?.click());
-  document.getElementById("panelWmsBtn")?.addEventListener("click",()=>openSection("display"));
-  document.getElementById("panelExportBtn")?.addEventListener("click",()=>{
-    const b=document.getElementById("exportMenuProxy");
-    if(b){b.click();return;}
-    const ids=["exportGeoJSON","exportKML","exportGPX","exportSHP","exportGDB","exportDXF"];
-    const names=["GeoJSON","KML","GPX","SHP / ZIP","GDB / ZIP","DXF"];
-    const choice=prompt("Enter the export format number:\n"+names.map((n,i)=>(i+1)+") "+n).join("\n"),"1");
-    const i=Number(choice)-1;
-    if(i>=0&&i<ids.length)document.getElementById(ids[i])?.click();
-  });
-  document.querySelectorAll(".arc-dropdown button[data-action]").forEach(b=>{
-    const a=b.dataset.action;
-    if(a==="importSHP"||a==="importGeoJSON"||a==="importKML"||a==="importGDB"||a==="importCSV"||a==="importExcel") b.addEventListener("click",()=>openSection("display"));
-  });
   window.openWebGisPanelSection=openSection;
 })();
 </script>
