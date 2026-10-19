@@ -17,6 +17,38 @@ public class PaymentTransactionTests
     }
 
     [Fact]
+    public void Constructor_RejectsCurrencyLongerThanPersistenceLimit()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PaymentTransaction(Guid.NewGuid(), 1000, "IRRR", "idem-currency"));
+    }
+
+    [Fact]
+    public void Constructor_RejectsIdempotencyKeyLongerThanPersistenceLimit()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PaymentTransaction(Guid.NewGuid(), 1000, "IRR", new string('i', 201)));
+    }
+
+    [Fact]
+    public void MarkGatewayCreated_RejectsTokenLongerThanPersistenceLimit()
+    {
+        var payment = new PaymentTransaction(Guid.NewGuid(), 1000, "IRR", "idem-token");
+        Assert.Throws<ArgumentOutOfRangeException>(() => payment.MarkGatewayCreated(new string('t', 501)));
+        Assert.Null(payment.GatewayToken);
+    }
+
+    [Fact]
+    public void MarkSucceeded_RejectsReferenceLongerThanPersistenceLimitWithoutSettlingPayment()
+    {
+        var payment = new PaymentTransaction(Guid.NewGuid(), 1000, "IRR", "idem-reference");
+        Assert.Throws<ArgumentOutOfRangeException>(() => payment.MarkSucceeded(new string('r', 201)));
+        Assert.Equal(PaymentStatus.Pending, payment.Status);
+        Assert.Null(payment.GatewayReference);
+        Assert.Null(payment.VerifiedAt);
+    }
+
+    [Fact]
     public void DuplicateIdempotencyKey_IsRepresentedAsStableDomainIdentity()
     {
         var payment = new PaymentTransaction(Guid.NewGuid(), 1000, "IRR", "idem-duplicate");

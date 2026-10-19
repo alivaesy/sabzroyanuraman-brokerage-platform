@@ -26,11 +26,16 @@ public sealed class PaymentTransaction
         if (string.IsNullOrWhiteSpace(currency)) throw new ArgumentException("Currency cannot be empty.", nameof(currency));
         if (string.IsNullOrWhiteSpace(idempotencyKey)) throw new ArgumentException("Idempotency key cannot be empty.", nameof(idempotencyKey));
 
+        var normalizedCurrency = currency.Trim().ToUpperInvariant();
+        var normalizedIdempotencyKey = idempotencyKey.Trim();
+        if (normalizedCurrency.Length > 3) throw new ArgumentOutOfRangeException(nameof(currency), "Currency cannot exceed the persistence limit of 3 characters.");
+        if (normalizedIdempotencyKey.Length > 200) throw new ArgumentOutOfRangeException(nameof(idempotencyKey), "Idempotency key cannot exceed the persistence limit of 200 characters.");
+
         Id = Guid.NewGuid();
         ServiceRequestId = serviceRequestId;
         Amount = amount;
-        Currency = currency.Trim().ToUpperInvariant();
-        IdempotencyKey = idempotencyKey.Trim();
+        Currency = normalizedCurrency;
+        IdempotencyKey = normalizedIdempotencyKey;
         Status = PaymentStatus.Pending;
         CreatedAt = DateTimeOffset.UtcNow;
         UpdatedAt = CreatedAt;
@@ -41,6 +46,7 @@ public sealed class PaymentTransaction
         if (Status is PaymentStatus.Succeeded or PaymentStatus.Cancelled or PaymentStatus.Failed or PaymentStatus.ReconciliationRequired)
             throw new InvalidOperationException($"Payment cannot receive a gateway token in status {Status}.");
         if (string.IsNullOrWhiteSpace(gatewayToken)) throw new ArgumentException("Gateway token cannot be empty.", nameof(gatewayToken));
+        if (gatewayToken.Length > 500) throw new ArgumentOutOfRangeException(nameof(gatewayToken), "Gateway token cannot exceed the persistence limit of 500 characters.");
         GatewayToken = gatewayToken;
         Touch();
     }
@@ -48,6 +54,7 @@ public sealed class PaymentTransaction
     public void MarkSucceeded(string gatewayReference, DateTimeOffset? verifiedAt = null)
     {
         if (string.IsNullOrWhiteSpace(gatewayReference)) throw new ArgumentException("Gateway reference cannot be empty.", nameof(gatewayReference));
+        if (gatewayReference.Length > 200) throw new ArgumentOutOfRangeException(nameof(gatewayReference), "Gateway reference cannot exceed the persistence limit of 200 characters.");
         if (Status is PaymentStatus.Failed or PaymentStatus.Cancelled or PaymentStatus.ReconciliationRequired)
             throw new InvalidOperationException($"A {Status.ToString().ToLowerInvariant()} payment cannot succeed.");
         GatewayReference = gatewayReference;
