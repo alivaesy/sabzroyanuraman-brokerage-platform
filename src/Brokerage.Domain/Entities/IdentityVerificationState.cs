@@ -13,6 +13,8 @@ public sealed class IdentityVerificationState
     {
         if (string.IsNullOrWhiteSpace(userId))
             throw new ArgumentException("User ID is required.", nameof(userId));
+        if (userId.Length > 200)
+            throw new ArgumentOutOfRangeException(nameof(userId), "User ID cannot exceed the persistence limit of 200 characters.");
 
         UserId = userId;
         UpdatedAt = DateTimeOffset.UtcNow;
