@@ -353,7 +353,7 @@ body{background:#dfe5e8;color:#173b57}
 <span class="toolbar-separator" aria-hidden="true"></span>
 <button type="button" class="icon-tool" id="addDataIcon" title="Add Data" aria-label="Add Data" data-action="importData"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-adddata"></use></svg></button>
 <button type="button" class="icon-tool" id="addOnlineDataBtn" title="Add Data from ArcGIS Online" aria-label="Add Data from ArcGIS Online"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-webdata"></use></svg></button>
-<select id="mapScale" title="Map Scale" aria-label="Map Scale"><option value="6">1:1,000,000</option><option value="8">1:250,000</option><option value="10">1:100,000</option><option value="12">1:25,000</option><option value="14">1:10,000</option><option value="16">1:2,500</option></select>
+<select id="mapScale" title="Map Scale" aria-label="Map Scale"><option value="6">1:1,000,000</option><option value="8">1:250,000</option><option value="10" selected>1:100,000</option><option value="12">1:25,000</option><option value="14">1:10,000</option><option value="16">1:2,500</option></select>
 <span class="toolbar-separator" aria-hidden="true"></span>
 <button type="button" class="icon-tool" id="editorToolbarToggleBtn" title="Editor Toolbar" aria-label="Editor Toolbar" data-action="toggleEditorToolbar"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-editor"></use></svg></button>
 <button type="button" class="icon-tool" id="toolboxToggleBtn" title="ArcToolbox" aria-label="ArcToolbox" data-action="showToolbox"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-toolbox"></use></svg></button>
@@ -704,7 +704,7 @@ body{background:#dfe5e8;color:#173b57}
 <script>
 (function(){
 "use strict";
-const map=L.map("map",{preferCanvas:true}).setView([34.5,46.5],8);
+const map=L.map("map",{preferCanvas:true}).setView([34.5,46.5],10);
 const base={
  osm:L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"}),
  topo:L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",{maxZoom:17,attribution:"© OpenTopoMap contributors"}),
