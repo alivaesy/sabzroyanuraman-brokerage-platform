@@ -193,6 +193,16 @@ body{background:#dfe5e8;color:#173b57}
 @media(max-width:850px){.arc-menu-btn{padding:0 6px}.classic-toolbar .arc-search{width:190px}}
 @media(max-width:650px){.arcmap-titlebar{height:22px}.arcmap-topbar{height:26px;min-height:26px;padding:0}.arc-menu{height:25px;width:100%;overflow-x:auto;flex-wrap:nowrap}.arc-menu-btn{height:24px;white-space:nowrap}.classic-toolbar .arc-search{width:150px}#arcMenus{top:48px}}
 
+
+/* Compact icon groups keep controls inside their named classic toolbars. */
+.toolbar-group{display:inline-flex;align-items:center;gap:2px;padding:1px 3px;border:1px solid #b6c0c5;background:#e9edef}
+.classic-toolbar button.icon-tool{width:27px;min-width:27px;height:25px;padding:1px 3px;font-size:15px;font-weight:600;line-height:1}
+.classic-toolbar .draw-tools button[data-editor-draw="Marker"]{font-size:13px}
+.classic-toolbar .draw-tools button[data-editor-draw="Circle"]{font-size:18px}
+.editor-state{display:none!important}
+.tool-feedback{position:fixed;right:14px;top:103px;z-index:4500;display:none;max-width:min(440px,80vw);padding:7px 11px;background:#fff;border:1px solid #93a4ae;box-shadow:0 3px 12px rgba(0,0,0,.2);color:#243e50;font-size:11px;direction:ltr}
+.tool-feedback.show{display:block}
+
 </style>
 </head>
 <body>
@@ -213,14 +223,16 @@ body{background:#dfe5e8;color:#173b57}
   </nav>
 </header>
 <div id="classicToolbars">
-  <div class="classic-toolbar" aria-label="Tools toolbar">
+  <div class="classic-toolbar" id="toolsToolbar" role="toolbar" aria-label="Tools">
     <span class="toolbar-caption">Tools</span>
-    <button type="button" id="selectFeaturesBtn" title="Select Features">↖ Select Features</button>
-    <button type="button" id="selectRectangleBtn" title="Select Features by Rectangle">▱ Select by Rectangle</button>
-    <button type="button" id="selectPolygonBtn" title="Select Features by Polygon">⬠ Select by Polygon</button>
-    <button type="button" id="identifyFeatureBtn" title="Identify">ⓘ Identify</button>
-    <button type="button" id="clearSelectionBtn" title="Clear Selected Features">Clear Selection</button>
-    <button type="button" id="fullExtentBtn" title="Full Extent">Full Extent</button>
+    <div class="toolbar-group" role="group" aria-label="Map tools">
+      <button type="button" class="icon-tool" id="selectFeaturesBtn" title="Select Features" aria-label="Select Features">↖</button>
+      <button type="button" class="icon-tool" id="selectRectangleBtn" title="Select Features by Rectangle" aria-label="Select Features by Rectangle">▱</button>
+      <button type="button" class="icon-tool" id="selectPolygonBtn" title="Select Features by Polygon" aria-label="Select Features by Polygon">⬠</button>
+      <button type="button" class="icon-tool" id="identifyFeatureBtn" title="Identify" aria-label="Identify">ⓘ</button>
+      <button type="button" class="icon-tool" id="clearSelectionBtn" title="Clear Selection" aria-label="Clear Selection">×</button>
+      <button type="button" class="icon-tool" id="fullExtentBtn" title="Full Extent" aria-label="Full Extent">⊡</button>
+    </div>
     <div class="arc-search"><span>🔎</span><input id="topToolSearch" placeholder="Search for tools..." autocomplete="off"><div id="topToolResults"></div></div>
   </div>
   <div class="classic-toolbar editor-toolbar" aria-label="Editor toolbar">
@@ -230,13 +242,14 @@ body{background:#dfe5e8;color:#173b57}
     <button type="button" id="saveEditsBtn" disabled>Save Edits</button>
     <button type="button" id="stopEditingBtn" disabled>Stop Editing</button>
     <span class="toolbar-separator"></span><span class="toolbar-caption">Create Features</span>
-    <span id="editorStateLabel" class="editor-state">Start Editing to enable drawing</span>
-    <button type="button" data-editor-draw="Marker">Point</button>
-    <button type="button" data-editor-draw="Polyline">Line</button>
-    <button type="button" data-editor-draw="Polygon">Polygon</button>
-    <button type="button" data-editor-draw="Rectangle">Rectangle</button>
-    <button type="button" data-editor-draw="Circle">Circle</button>
-    <button type="button" id="finishSketchBtn" disabled>Finish Sketch</button>
+    <div class="toolbar-group draw-tools" role="group" aria-label="Create Features">
+      <button type="button" class="icon-tool" data-editor-draw="Marker" title="Create Point — click the map once" aria-label="Create Point">●</button>
+      <button type="button" class="icon-tool" data-editor-draw="Polyline" title="Create Line — click vertices, then double-click or press Enter" aria-label="Create Line">╱</button>
+      <button type="button" class="icon-tool" data-editor-draw="Polygon" title="Create Polygon — click vertices, then double-click or press Enter" aria-label="Create Polygon">⬠</button>
+      <button type="button" class="icon-tool" data-editor-draw="Rectangle" title="Create Rectangle — click two opposite corners" aria-label="Create Rectangle">▱</button>
+      <button type="button" class="icon-tool" data-editor-draw="Circle" title="Create Circle — click the center, then its edge" aria-label="Create Circle">○</button>
+      <button type="button" class="icon-tool" id="finishSketchBtn" disabled title="Finish or cancel sketch" aria-label="Finish or cancel sketch">✓</button>
+    </div>
   </div>
 </div>
 <div id="arcMenus">
@@ -499,6 +512,7 @@ body{background:#dfe5e8;color:#173b57}
   </section>
 </div>
 <div id="projectManager"><div class="pm-card"><div style="font-size:18px;font-weight:800;color:#07573e">🗺️ Web GIS Project Manager</div><div class="small" style="margin:5px 0 14px">Create a project or open a recent project. Projects are stored locally in this browser.</div><div class="section"><h3>➕ New Project</h3><div class="pm-grid"><input id="newProjectName" placeholder="Project name, for example: wastewater network"><select id="newProjectCrs"><option value="EPSG:32638">WGS 84 / UTM 38N — EPSG:32638</option><option value="EPSG:32637">WGS 84 / UTM 37N — EPSG:32637</option><option value="EPSG:32639">WGS 84 / UTM 39N — EPSG:32639</option><option value="EPSG:32640">WGS 84 / UTM 40N — EPSG:32640</option></select><textarea id="newProjectDescription" class="full" placeholder="Project description (optional)"></textarea></div><div class="pm-actions"><button class="action" id="createProjectBtn">Create and Open Project</button><button class="action secondary" id="closeProjectManager">Continue Without a Project</button></div></div><div class="pm-list"><h3>📂 Recent Projects</h3><div id="projectList">Loading...</div></div></div></div><footer class="arcmap-statusbar" aria-label="Map status"><div class="status" id="status">Ready.</div><div class="coord" id="coord">X: — | Y: —</div></footer>
+<div class="tool-feedback" id="toolFeedback" role="status" aria-live="polite"></div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="https://unpkg.com/shp-write@0.3.2/shpwrite.js"></script>
@@ -628,22 +642,75 @@ function stopEditing(){
 function startDraw(type,button){
   stopActiveDraw();
   if(!editSessionActive){status("Start Editing before creating features.");return}
-  if(!window.L||!L.Draw){status("Leaflet Draw is unavailable.");return}
-  if(!window.L||!L.Draw){status("The drawing library is unavailable.");return}
-  const Ctor=L.Draw[type];
-  if(typeof Ctor!=="function"){status(type+" drawing is unavailable.");return}
   if(!editTarget||typeof editTarget.addLayer!=="function"){status("Choose a vector layer in the Editor toolbar.");return}
-  const opts={shapeOptions:{color:"#146c43",weight:3,fillOpacity:.18},allowIntersection:false,showArea:true,metric:true};
-  try{
-    activeDrawHandler=new Ctor(map,opts);
-    activeDrawPurpose="draw";
-    activeDrawButton=button||null;
-    activeDrawHandler.__webgisType=type;
-    button?.classList.add("active");
-    activeDrawHandler.enable();
-    const help={Marker:"Click the map to place a point.",Polyline:"Click to add vertices; double-click or press Enter to finish.",Polygon:"Click to add vertices; double-click or press Enter to finish.",Rectangle:"Drag between opposite corners.",Circle:"Click and drag from the center to set the radius."};
-    status(help[type]||type+" tool active.");
-  }catch(err){console.error("Draw start error",err);stopActiveDraw();status("Could not start drawing: "+err.message)}
+  startNativeDraw(type,button);
+}
+function startNativeDraw(type,button){
+  const target=editTarget||drawn;
+  const style={color:"#146c43",weight:3,fillColor:"#4b9b71",fillOpacity:.2};
+  let points=[],preview=null,finished=false;
+  const removePreview=()=>{if(preview&&map.hasLayer(preview))map.removeLayer(preview);preview=null};
+  const updatePreview=cursor=>{
+    if(type==="Marker")return;
+    const coords=cursor?[...points,cursor]:points;
+    if(type==="Polyline"||type==="Polygon"){
+      if(coords.length<2)return;
+      if(!preview){preview=type==="Polygon"&&coords.length>=3?L.polygon(coords,style):L.polyline(coords,style);preview.addTo(map)}
+      else if(type==="Polygon"&&coords.length>=3&&!(preview instanceof L.Polygon)){removePreview();preview=L.polygon(coords,style).addTo(map)}
+      else preview.setLatLngs(coords);
+      return;
+    }
+    if(type==="Rectangle"&&coords.length){
+      const bounds=L.latLngBounds(coords[0],coords[1]||cursor||coords[0]);
+      if(!preview)preview=L.rectangle(bounds,style).addTo(map);else preview.setBounds(bounds);
+      return;
+    }
+    if(type==="Circle"&&coords.length){
+      const center=coords[0],radius=coords[1]?center.distanceTo(coords[1]):0;
+      if(!preview)preview=L.circle(center,{...style,radius}).addTo(map);else{preview.setLatLng(center);preview.setRadius(radius)}
+    }
+  };
+  const complete=()=>{
+    if(finished)return;
+    const needed={Polyline:2,Polygon:3,Rectangle:2,Circle:2}[type]||1;
+    if(points.length<needed){status(type==="Polygon"?"Add at least three vertices before finishing.":type==="Polyline"?"Add at least two vertices before finishing.":"Add a second point to finish.");return}
+    let layer;
+    if(type==="Marker")layer=L.circleMarker(points[0],{radius:7,color:"#146c43",weight:2,fillColor:"#fff",fillOpacity:1});
+    else if(type==="Polyline")layer=L.polyline(points,style);
+    else if(type==="Polygon")layer=L.polygon(points,style);
+    else if(type==="Rectangle")layer=L.rectangle(L.latLngBounds(points[0],points[1]),style);
+    else if(type==="Circle")layer=L.circle(points[0],{...style,radius:points[0].distanceTo(points[1])});
+    if(!layer){status("This drawing tool is unavailable.");return}
+    finished=true;removePreview();
+    layer.feature={type:"Feature",properties:{},geometry:layer.toGeoJSON().geometry};
+    if(type==="Circle")layer.feature.properties._radius_m=layer.getRadius();
+    target.addLayer(layer);
+    attachFeatureSelection(layer);
+    status("Feature added to "+(target===drawn?"My Drawings":namedLayers.find(x=>x.layer===target)?.name||"target layer")+".");
+    scheduleAutoSave();renderLayerList();refreshAttributeLayers();
+    stopActiveDraw(false);
+  };
+  const onClick=e=>{
+    if(finished||e.originalEvent?.detail>=2)return;
+    points.push(e.latlng);
+    if(type==="Marker"||((type==="Circle"||type==="Rectangle")&&points.length>=2)){complete();return}
+    updatePreview();
+    const messages={Polyline:"Add line vertices; double-click, press Enter, or use ✓ to finish.",Polygon:"Add polygon vertices; double-click, press Enter, or use ✓ to finish.",Rectangle:"Click the opposite corner to finish the rectangle.",Circle:"Click the circle edge to set its radius."};
+    status(messages[type]||"Sketch in progress.");
+  };
+  const onMove=e=>{if(points.length)updatePreview(e.latlng)};
+  const onDoubleClick=()=>complete();
+  activeDrawPurpose="draw";activeMapTool="draw";activeDrawButton=button||null;
+  const handler={
+    disable(){map.off("click",onClick);map.off("mousemove",onMove);map.off("dblclick",onDoubleClick);removePreview()},
+    completeShape:complete
+  };
+  activeDrawHandler=handler;
+  button?.classList.add("active");
+  map.doubleClickZoom.disable();
+  map.on("click",onClick);map.on("mousemove",onMove);map.on("dblclick",onDoubleClick);
+  const instructions={Marker:"Click once on the map to place a point.",Polyline:"Click on the map to add line vertices.",Polygon:"Click on the map to add polygon vertices.",Rectangle:"Click the first rectangle corner.",Circle:"Click the circle center."};
+  status(instructions[type]||"Drawing tool active.");
 }
 function startSelectionShape(type,options,callback){
   stopActiveDraw();
@@ -681,7 +748,13 @@ const drawControl=L.Control.extend({
 // Drawing controls are hosted in the Editor toolbar above the map.
 if(L.Control&&L.Control.Draw){try{new L.Control.Draw({edit:{featureGroup:drawn},draw:false}).addTo(map)}catch(err){console.warn("Leaflet Draw edit control unavailable",err)}}
 const $=id=>document.getElementById(id);
-function status(message){$("status").textContent=String(message??"")}
+let statusTimer=null;
+function status(message){
+  const text=String(message??"");
+  const node=$("status");if(node)node.textContent=text;
+  const toast=$("toolFeedback");
+  if(toast){toast.textContent=text;toast.classList.add("show");clearTimeout(statusTimer);statusTimer=setTimeout(()=>toast.classList.remove("show"),4200)}
+}
 
 function esc(s){return String(s??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[m]))}
 
