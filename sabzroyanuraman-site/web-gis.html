@@ -98,7 +98,7 @@ body{background:#dfe5e8;color:#173b57}
 .arc-context-menu button:hover{background:#e5eef3}
 .arc-context-sep{height:1px;background:#d9e1e5;margin:3px 0}
 .leaflet-control-layers{display:none}
-#basemap{display:none}
+#basemap{display:block;width:100%;min-height:26px}
 .webgis-draw-control{background:#fff;border:1px solid #7f8d95;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.22);padding:4px;display:flex;flex-direction:row;gap:3px;direction:ltr}.webgis-draw-control button{min-width:78px;height:29px;border:1px solid #b5c1c7;background:#f8fafb;color:#173b57;border-radius:3px;font-size:10px;cursor:pointer}.webgis-draw-control button:hover{background:#e6f2ed;border-color:#146c43}.webgis-draw-control button.active{background:#146c43;color:#fff}
 
 .panel{padding:6px!important;gap:4px;direction:ltr!important}
@@ -338,26 +338,26 @@ body{background:#dfe5e8;color:#173b57}
   </nav>
 </header>
 <div id="classicToolbars" aria-label="ArcMap toolbars">
-<div class="classic-toolbar" id="standardToolbar" role="toolbar" aria-label="Standard"><button type="button" class="icon-tool" id="newMapBtn" title="New Map" aria-label="New Map" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-new"></use></svg></button>
+<div class="classic-toolbar" id="standardToolbar" role="toolbar" aria-label="Standard"><button type="button" class="icon-tool" id="newMapBtn" title="New Map" aria-label="New Map"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-new"></use></svg></button>
 <button type="button" class="icon-tool" id="openProjectBtn" title="Open Project" aria-label="Open Project" data-action="loadProject"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-open"></use></svg></button>
 <button type="button" class="icon-tool" id="saveProjectIcon" title="Save Project" aria-label="Save Project" data-action="saveProject"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-save"></use></svg></button>
-<button type="button" class="icon-tool" id="printMapBtn" title="Print Map" aria-label="Print Map" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-print"></use></svg></button>
+<button type="button" class="icon-tool" id="printMapBtn" title="Print Map" aria-label="Print Map"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-print"></use></svg></button>
 <span class="toolbar-separator" aria-hidden="true"></span>
-<button type="button" class="icon-tool" id="cutBtn" title="Cut" aria-label="Cut" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-cut"></use></svg></button>
-<button type="button" class="icon-tool" id="copyBtn" title="Copy" aria-label="Copy" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-copy"></use></svg></button>
-<button type="button" class="icon-tool" id="pasteBtn" title="Paste" aria-label="Paste" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-paste"></use></svg></button>
-<button type="button" class="icon-tool" id="deleteBtn" title="Delete" aria-label="Delete" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-delete"></use></svg></button>
+<button type="button" class="icon-tool" id="cutBtn" title="Cut" aria-label="Cut"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-cut"></use></svg></button>
+<button type="button" class="icon-tool" id="copyBtn" title="Copy" aria-label="Copy"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-copy"></use></svg></button>
+<button type="button" class="icon-tool" id="pasteBtn" title="Paste" aria-label="Paste"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-paste"></use></svg></button>
+<button type="button" class="icon-tool" id="deleteBtn" title="Delete" aria-label="Delete"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-delete"></use></svg></button>
 <span class="toolbar-separator" aria-hidden="true"></span>
-<button type="button" class="icon-tool" id="undoBtn" title="Undo" aria-label="Undo" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-undo"></use></svg></button>
-<button type="button" class="icon-tool" id="redoBtn" title="Redo" aria-label="Redo" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-redo"></use></svg></button>
+<button type="button" class="icon-tool" id="undoBtn" title="Undo" aria-label="Undo"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-undo"></use></svg></button>
+<button type="button" class="icon-tool" id="redoBtn" title="Redo" aria-label="Redo"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-redo"></use></svg></button>
 <span class="toolbar-separator" aria-hidden="true"></span>
 <button type="button" class="icon-tool" id="addDataIcon" title="Add Data" aria-label="Add Data" data-action="importData"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-adddata"></use></svg></button>
-<button type="button" class="icon-tool" id="addOnlineDataBtn" title="Add Data from ArcGIS Online" aria-label="Add Data from ArcGIS Online" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-webdata"></use></svg></button>
+<button type="button" class="icon-tool" id="addOnlineDataBtn" title="Add Data from ArcGIS Online" aria-label="Add Data from ArcGIS Online"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-webdata"></use></svg></button>
 <select id="mapScale" title="Map Scale" aria-label="Map Scale"><option value="6">1:1,000,000</option><option value="8">1:250,000</option><option value="10">1:100,000</option><option value="12">1:25,000</option><option value="14">1:10,000</option><option value="16">1:2,500</option></select>
 <span class="toolbar-separator" aria-hidden="true"></span>
 <button type="button" class="icon-tool" id="editorToolbarToggleBtn" title="Editor Toolbar" aria-label="Editor Toolbar" data-action="toggleEditorToolbar"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-editor"></use></svg></button>
 <button type="button" class="icon-tool" id="toolboxToggleBtn" title="ArcToolbox" aria-label="ArcToolbox" data-action="showToolbox"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-toolbox"></use></svg></button>
-<button type="button" class="icon-tool" id="commandLineBtn" title="Command Line" aria-label="Command Line" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-command"></use></svg></button>
+<button type="button" class="icon-tool" id="commandLineBtn" title="Command Line" aria-label="Command Line"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-command"></use></svg></button>
 <button type="button" class="icon-tool" id="searchToggleBtn" title="Search" aria-label="Search" ><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-search"></use></svg></button>
 <button type="button" class="icon-tool" id="helpBtn" title="Help" aria-label="Help" data-action="shortcuts"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-help"></use></svg></button></div>
 <div class="classic-toolbar" id="toolsToolbar" role="toolbar" aria-label="Tools"><button type="button" class="icon-tool" id="zoomInBtn" title="Zoom In" aria-label="Zoom In"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-zoomIn"></use></svg></button>
@@ -366,21 +366,21 @@ body{background:#dfe5e8;color:#173b57}
 <button type="button" class="icon-tool" id="fullExtentBtn" title="Full Extent" aria-label="Full Extent" ><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-extent"></use></svg></button>
 <button type="button" class="icon-tool" id="fixedZoomInBtn" title="Fixed Zoom In" aria-label="Fixed Zoom In" data-action="zoomIn"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-fixedIn"></use></svg></button>
 <button type="button" class="icon-tool" id="fixedZoomOutBtn" title="Fixed Zoom Out" aria-label="Fixed Zoom Out" data-action="zoomOut"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-fixedOut"></use></svg></button>
-<button type="button" class="icon-tool" id="backExtentBtn" title="Go Back To Previous Extent" aria-label="Go Back To Previous Extent" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-back"></use></svg></button>
-<button type="button" class="icon-tool" id="nextExtentBtn" title="Go To Next Extent" aria-label="Go To Next Extent" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-forward"></use></svg></button>
+<button type="button" class="icon-tool" id="backExtentBtn" title="Go Back To Previous Extent" aria-label="Go Back To Previous Extent"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-back"></use></svg></button>
+<button type="button" class="icon-tool" id="nextExtentBtn" title="Go To Next Extent" aria-label="Go To Next Extent"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-forward"></use></svg></button>
 <span class="toolbar-separator" aria-hidden="true"></span>
 <button type="button" class="icon-tool has-dropdown" id="selectFeaturesBtn" title="Select Features" aria-label="Select Features" ><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-select"></use></svg></button>
 <button type="button" class="icon-tool" id="clearSelectionBtn" title="Clear Selected Features" aria-label="Clear Selected Features" ><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-clear"></use></svg></button>
-<button type="button" class="icon-tool" id="selectElementsBtn" title="Select Elements" aria-label="Select Elements" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-element"></use></svg></button>
+<button type="button" class="icon-tool" id="selectElementsBtn" title="Select Elements" aria-label="Select Elements"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-element"></use></svg></button>
 <button type="button" class="icon-tool" id="identifyFeatureBtn" title="Identify" aria-label="Identify" ><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-identify"></use></svg></button>
-<button type="button" class="icon-tool" id="hyperlinkBtn" title="Hyperlink" aria-label="Hyperlink" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-link"></use></svg></button>
-<button type="button" class="icon-tool" id="htmlPopupBtn" title="HTML Pop-up" aria-label="HTML Pop-up" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-popup"></use></svg></button>
-<button type="button" class="icon-tool" id="measureToolBtn" title="Measure" aria-label="Measure" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-measure"></use></svg></button>
+<button type="button" class="icon-tool" id="hyperlinkBtn" title="Hyperlink" aria-label="Hyperlink"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-link"></use></svg></button>
+<button type="button" class="icon-tool" id="htmlPopupBtn" title="HTML Pop-up" aria-label="HTML Pop-up"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-popup"></use></svg></button>
+<button type="button" class="icon-tool" id="measureToolBtn" title="Measure" aria-label="Measure"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-measure"></use></svg></button>
 <button type="button" class="icon-tool" id="findToolBtn" title="Find" aria-label="Find" ><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-find"></use></svg></button>
-<button type="button" class="icon-tool" id="findRouteBtn" title="Find Route" aria-label="Find Route" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-route"></use></svg></button>
+<button type="button" class="icon-tool" id="findRouteBtn" title="Find Route" aria-label="Find Route"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-route"></use></svg></button>
 <button type="button" class="icon-tool" id="goToXYBtn" title="Go To XY Location" aria-label="Go To XY Location"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-goxy"></use></svg></button>
-<button type="button" class="icon-tool" id="timeSliderBtn" title="Open Time Slider Window" aria-label="Open Time Slider Window" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-time"></use></svg></button>
-<button type="button" class="icon-tool" id="createViewerBtn" title="Create Viewer Window" aria-label="Create Viewer Window" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-viewer"></use></svg></button></div>
+<button type="button" class="icon-tool" id="timeSliderBtn" title="Open Time Slider Window" aria-label="Open Time Slider Window"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-time"></use></svg></button>
+<button type="button" class="icon-tool" id="createViewerBtn" title="Create Viewer Window" aria-label="Create Viewer Window"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-viewer"></use></svg></button></div>
 <div class="classic-toolbar editor-toolbar" id="editorToolbar" role="toolbar" aria-label="Editor"><select id="editTargetLayer" title="Target layer" aria-label="Target layer"><option value="drawn">My Drawings</option></select>
 <button type="button" class="icon-tool" id="startEditingBtn" title="Start Editing" aria-label="Start Editing"><svg class="arcmap-icon"><use href="#arc-icon-editor"></use></svg></button>
 <button type="button" class="icon-tool" id="saveEditsBtn" disabled title="Save Edits" aria-label="Save Edits"><svg class="arcmap-icon"><use href="#arc-icon-save"></use></svg></button>
@@ -399,7 +399,7 @@ body{background:#dfe5e8;color:#173b57}
   <div class="arc-dropdown" id="fileMenu">
     <div class="arc-menu-title">File</div>
     <button id="backBtn" type="button">Back to Website</button>
-    <button type="button" disabled>New Map</button>
+    <button type="button" data-action="newMap">New Map</button>
     <div class="arc-sep"></div>
     <button data-action="openProjectManager">Project Manager...</button>
     <button data-action="saveProject">Save Project</button>
@@ -407,12 +407,13 @@ body{background:#dfe5e8;color:#173b57}
     <button data-action="loadProject">Open Saved Project</button>
     <div class="arc-sep"></div>
     <button data-action="importData">Add Data...</button>
+    <button data-action="addOnlineData">Add Data from ArcGIS Online...</button>
     <button data-action="wms">Add WMS Layer...</button>
     <button data-action="exportData">Export Data...</button>
   </div>
   <div class="arc-dropdown" id="projectMenu">
     <div class="arc-menu-title">Edit</div>
-    <button type="button" disabled>Undo</button><button type="button" disabled>Redo</button><div class="arc-sep"></div>
+    <button data-action="undo">Undo</button><button data-action="redo">Redo</button><div class="arc-sep"></div>
     <button data-action="toggleEditorToolbar">Editor Toolbar</button>
     <button data-action="startEditing">Start Editing</button><button data-action="saveEdits">Save Edits</button><button data-action="stopEditing">Stop Editing</button>
     <div class="arc-sep"></div><div class="arc-menu-title">Create Features</div>
@@ -424,11 +425,19 @@ body{background:#dfe5e8;color:#173b57}
     <button data-action="fitDraw">Full Extent</button>
     <button data-action="goToXY">Go To XY...</button>
     <button data-action="identify">Identify</button>
+    <button data-action="selectElements">Select Elements</button>
+    <button data-action="hyperlink">Hyperlink</button><button data-action="htmlPopup">HTML Pop-up</button>
+    <button data-action="measureTool">Measure...</button><button data-action="findFeature">Find...</button>
+    <button data-action="findRoute">Find Route...</button><button data-action="timeSlider">Time Slider</button>
+    <button data-action="createViewer">Create Viewer Window</button>
     <button data-action="showLayers">Table Of Contents</button>
     <button data-action="wms">Add WMS Layer...</button>
+    <button data-action="configureWmsBasemap">Configure Custom WMS Basemap...</button>
     <div class="arc-sep"></div><div class="arc-menu-title">Basemap</div>
     <button data-base="osm">OpenStreetMap</button><button data-base="topo">OpenTopoMap</button>
-    <button data-base="sat">Esri World Imagery</button><button data-base="giscloud">MapTiler Streets</button>
+    <button data-base="sat">Esri World Imagery</button><button data-base="nasaWms">NASA Blue Marble (WMS)</button>
+    <button data-base="esriStreet">Esri World Street Map</button><button data-base="esriTopo">Esri World Topographic Map</button>
+    <button data-base="esriGray">Esri Light Gray Canvas</button><button data-action="configureWmsBasemap">Configure Custom WMS Basemap...</button>
   </div>
   <div class="arc-dropdown" id="viewMenu">
     <div class="arc-menu-title">Bookmarks</div>
@@ -511,18 +520,22 @@ body{background:#dfe5e8;color:#173b57}
       <div class="accordion-body">
         <div class="compact-block">
           <label class="compact-label">Basemap</label>
-          <select id="basemap">
+          <select id="basemap" aria-label="Basemap">
             <option value="osm">OpenStreetMap</option>
             <option value="topo">OpenTopoMap</option>
-            <option value="sat">Esri Imagery</option>
-            <option value="giscloud">GIS Cloud / MapTiler Streets</option>
+            <option value="sat">Esri World Imagery</option>
+            <option value="esriStreet">Esri World Street Map</option>
+            <option value="esriTopo">Esri World Topographic Map</option>
+            <option value="esriGray">Esri Light Gray Canvas</option>
+            <option value="nasaWms">NASA Blue Marble (WMS)</option>
+            <option value="customWms">Configure Custom WMS...</option>
           </select>
         </div>
         <div class="compact-block">
           <label class="compact-label">WMS</label>
           <input id="wmsUrl" placeholder="https://server/.../wms">
-          <input id="wmsLayer" placeholder="Layer names (LAYERS)" style="margin-top:6px">
-          <div class="row"><button class="action" id="addWms">Add WMS</button></div>
+          <input id="wmsLayer" placeholder="Layer names (LAYERS)" style="margin-top:6px"><input id="wmsVersion" value="1.3.0" placeholder="WMS version" style="margin-top:6px">
+          <div class="row"><button class="action" id="addWms">Add WMS Layer</button><button class="action" id="setWmsBasemap">Use WMS as Basemap</button></div>
         </div>
         <div class="compact-block">
           <label class="compact-label">Coordinates</label>
@@ -695,13 +708,51 @@ const map=L.map("map",{preferCanvas:true}).setView([34.5,46.5],8);
 const base={
  osm:L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"}),
  topo:L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",{maxZoom:17,attribution:"© OpenTopoMap contributors"}),
- sat:L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"© Esri"}),
+ sat:L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Tiles © Esri"}),
+ esriStreet:L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Tiles © Esri"}),
+ esriTopo:L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Tiles © Esri"}),
+ esriGray:L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Tiles © Esri"}),
+ nasaWms:L.tileLayer.wms("https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi",{layers:"BlueMarble_ShadedRelief",format:"image/png",transparent:false,version:"1.3.0",attribution:"NASA GIBS • Blue Marble"}),
 };
 Object.entries(base).forEach(([key,layer])=>{
   layer.on("tileerror",()=>status("Basemap failed to load: "+key+". Check your connection."));
 });
 base.osm.addTo(map);
 let currentBase=base.osm;
+let customWmsConfig=null;
+function selectBasemap(key,notify=true){
+  if(key==="customWms"){
+    if(!customWmsConfig){
+      const previous=$("basemap").value;
+      openGisDock("display");
+      $("basemap").value=previous==="customWms"?"osm":previous;
+      $("wmsUrl").focus();
+      status("Enter a WMS service URL and layer name, then choose Use WMS as Basemap.");
+      return false;
+    }
+    const next=L.tileLayer.wms(customWmsConfig.url,{layers:customWmsConfig.layers,styles:customWmsConfig.styles||"",format:customWmsConfig.format||"image/png",transparent:false,version:customWmsConfig.version||"1.3.0",attribution:customWmsConfig.attribution||"WMS service"});
+    next.on("tileerror",()=>status("Custom WMS basemap failed to load. Check the URL, layer name, service access, and CRS support."));
+    base.customWms=next;
+  }
+  const next=key==="customWms"?base.customWms:base[key];
+  if(!next){status("Basemap is unavailable: "+key);return false;}
+  if(currentBase&&map.hasLayer(currentBase))map.removeLayer(currentBase);
+  currentBase=next;currentBase.addTo(map);$("basemap").value=key;
+  const labels={osm:"OpenStreetMap",topo:"OpenTopoMap",sat:"Esri World Imagery",esriStreet:"Esri World Street Map",esriTopo:"Esri World Topographic Map",esriGray:"Esri Light Gray Canvas",nasaWms:"NASA Blue Marble (WMS)",customWms:customWmsConfig?.name||"Custom WMS Basemap"};
+  if(notify)status("Basemap: "+(labels[key]||key));
+  scheduleAutoSave();
+  return true;
+}
+function activateWmsBasemap(){
+  const url=$("wmsUrl").value.trim(),layers=$("wmsLayer").value.trim(),version=$("wmsVersion").value.trim()||"1.3.0";
+  if(!url||!layers){status("Enter a WMS URL and layer name before setting it as the basemap.");return;}
+  let parsed;
+  try{parsed=new URL(url);if(!["http:","https:"].includes(parsed.protocol))throw new Error("Use an HTTP or HTTPS WMS URL.");}
+  catch(err){status("Enter a valid WMS service URL.");return;}
+  if(location.protocol==="https:"&&parsed.protocol!=="https:"){status("Use an HTTPS WMS service on this secure page.");return;}
+  customWmsConfig={url:parsed.href,layers,version,name:"Custom WMS — "+layers,format:"image/png",attribution:"WMS service"};
+  if(selectBasemap("customWms")){scheduleAutoSave();}
+}
 const drawn=new L.FeatureGroup().addTo(map);
 const namedLayers=[];
 let selectedLayer=null;
@@ -768,6 +819,7 @@ function updateEditorToolbar(){
   $("editTargetLayer").disabled=editSessionActive;
   document.querySelectorAll("[data-editor-draw],#finishSketchBtn").forEach(b=>b.disabled=!editSessionActive);
   const state=$("editorStateLabel");if(state){state.textContent=editSessionActive?"Editing "+($("editTargetLayer").selectedOptions[0]?.textContent||"layer"):"Start Editing to enable drawing";state.classList.toggle("active",editSessionActive)}
+  updateStandardActionButtons();
 }
 function refreshEditorTargets(){
   const sel=$("editTargetLayer");if(!sel)return;
@@ -788,6 +840,7 @@ function startEditing(item=null){
   }
   const value=sel?.value||"drawn";
   editTarget=value==="drawn"?drawn:(namedLayers[Number(value)]?.layer||drawn);
+  recordUndoState();
   editSessionActive=true;
   updateEditorToolbar();
   status("Edit session started for "+(value==="drawn"?"My Drawings":namedLayers[Number(value)]?.name||"selected layer")+".");
@@ -805,6 +858,231 @@ function stopEditing(){
   editSessionActive=false;editTarget=drawn;
   updateEditorToolbar();
   status("Edit session stopped.");
+}
+let featureClipboard=[];
+let undoStack=[],redoStack=[],historyRestoring=false;
+let mapExtentHistory=[],mapExtentIndex=-1,mapExtentTarget=null;
+let lastMeasureLayer=null;
+function updateUndoButtons(){
+  const u=$("undoBtn"),r=$("redoBtn");
+  if(u)u.disabled=undoStack.length===0;
+  if(r)r.disabled=redoStack.length===0;
+}
+function updateExtentButtons(){
+  const b=$("backExtentBtn"),n=$("nextExtentBtn");
+  if(b)b.disabled=mapExtentIndex<=0;
+  if(n)n.disabled=mapExtentIndex<0||mapExtentIndex>=mapExtentHistory.length-1;
+}
+function recordUndoState(){
+  if(historyRestoring)return;
+  try{
+    const snapshot=JSON.parse(JSON.stringify(serializeProject()));
+    undoStack.push(snapshot);if(undoStack.length>40)undoStack.shift();
+    redoStack.length=0;updateUndoButtons();
+  }catch(err){console.warn("Could not create edit history snapshot:",err);}
+}
+function applyHistorySnapshot(source,destination,message){
+  if(!source.length){status("There is no "+message.toLowerCase()+" history.");return;}
+  const current=JSON.parse(JSON.stringify(serializeProject()));
+  destination.push(current);
+  const snapshot=source.pop();
+  historyRestoring=true;
+  try{restoreProject(snapshot,true);}
+  finally{historyRestoring=false;updateUndoButtons();}
+  scheduleAutoSave();status(message+" applied.");
+}
+function undoMapEdit(){applyHistorySnapshot(undoStack,redoStack,"Undo");}
+function redoMapEdit(){applyHistorySnapshot(redoStack,undoStack,"Redo");}
+function recordMapExtent(){
+  const c=map.getCenter(),entry={lat:c.lat,lng:c.lng,zoom:map.getZoom()};
+  if(mapExtentTarget){
+    const target=mapExtentHistory[mapExtentTarget];
+    if(target&&Math.abs(target.lat-entry.lat)<1e-7&&Math.abs(target.lng-entry.lng)<1e-7&&target.zoom===entry.zoom){
+      mapExtentIndex=mapExtentTarget;mapExtentTarget=null;updateExtentButtons();return;
+    }
+    mapExtentTarget=null;
+  }
+  const last=mapExtentHistory[mapExtentIndex];
+  if(last&&Math.abs(last.lat-entry.lat)<1e-7&&Math.abs(last.lng-entry.lng)<1e-7&&last.zoom===entry.zoom)return;
+  mapExtentHistory=mapExtentHistory.slice(0,mapExtentIndex+1);mapExtentHistory.push(entry);
+  if(mapExtentHistory.length>80)mapExtentHistory.shift();
+  mapExtentIndex=mapExtentHistory.length-1;updateExtentButtons();
+}
+function moveExtentHistory(offset){
+  const next=mapExtentIndex+offset;
+  if(next<0||next>=mapExtentHistory.length)return;
+  mapExtentIndex=next;mapExtentTarget=next;
+  const e=mapExtentHistory[next];map.setView([e.lat,e.lng],e.zoom,{animate:false});
+  updateExtentButtons();setTimeout(()=>{if(mapExtentTarget===next)mapExtentTarget=null;},1000);
+}
+function updateStandardActionButtons(){
+  const hasSelection=selectedFeatures.size>0;
+  $("copyBtn").disabled=!hasSelection;
+  $("cutBtn").disabled=!hasSelection||!editSessionActive;
+  $("deleteBtn").disabled=!hasSelection||!editSessionActive;
+  $("pasteBtn").disabled=!featureClipboard.length||!editSessionActive;
+}
+function clearWorkspace(){
+  const count=drawn.getLayers().length+namedLayers.length;
+  if(count&&!confirm("Create a new blank map and remove the current layers?"))return;
+  recordUndoState();stopActiveDraw(true);drawn.clearLayers();
+  namedLayers.slice().forEach(item=>{map.removeLayer(item.layer);layerControl.removeLayer(item.layer)});
+  namedLayers.length=0;selectedFeatures.clear();selectedLayer=null;selectedOverlay=null;
+  currentProjectId=null;$("projectName").value="New Project";window.currentProjectDescription="";
+  editSessionActive=false;editTarget=drawn;updateEditorToolbar();renderLayerList();refreshAttributeLayers();
+  map.setView([34.5,46.5],8);status("New blank map created.");scheduleAutoSave();
+}
+function copySelectedFeatures(cut=false){
+  let records=selectedRecords();
+  if(cut){
+    records=editableSelectedRecords();if(!records.length)return;
+  }
+  if(!records.length){status("Select one or more features first.");return;}
+  featureClipboard=records.map(r=>JSON.parse(JSON.stringify(r.feature)));
+  if(cut){
+    records.forEach(r=>r.owner.layer.removeLayer(r.layer));
+    selectedFeatures.clear();selectedOverlay=null;renderLayerList();refreshAttributeLayers();scheduleAutoSave();
+    status(records.length+" feature(s) cut.");
+  }else status(featureClipboard.length+" feature(s) copied.");
+  updateStandardActionButtons();
+}
+function pasteFeatures(){
+  if(!editSessionActive||!editTarget){status("Start Editing before pasting features.");return;}
+  if(!featureClipboard.length){status("Copy or cut features before pasting.");return;}
+  recordUndoState();
+  featureClipboard.forEach(feature=>{
+    const copy=JSON.parse(JSON.stringify(feature));
+    const group=L.geoJSON(copy,{
+      style:{color:"#146c43",weight:3,fillOpacity:.18},
+      pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:6,color:"#146c43",fillColor:"#fff",fillOpacity:.9,weight:2})
+    });
+    group.eachLayer(layer=>{layer.feature=copy;editTarget.addLayer(layer);attachFeatureSelection(layer);});
+  });
+  refreshAll();updateStandardActionButtons();status(featureClipboard.length+" feature(s) pasted into the edit layer.");
+}
+function deleteSelectedFeatures(){
+  const records=editableSelectedRecords();if(!records.length)return;
+  if(!confirm("Delete "+records.length+" selected feature(s)?"))return;
+  records.forEach(r=>r.owner.layer.removeLayer(r.layer));
+  selectedFeatures.clear();selectedOverlay=null;refreshAll();updateStandardActionButtons();status(records.length+" feature(s) deleted.");
+}
+function openOnlineData(){
+  const value=prompt("Enter a public GeoJSON URL or ArcGIS Feature Service layer URL:");
+  if(!value)return;
+  let url;try{url=new URL(value.trim());if(!/^https?:$/.test(url.protocol))throw new Error();}catch(_){status("Enter a valid HTTP or HTTPS data URL.");return;}
+  if(location.protocol==="https:"&&url.protocol!=="https:"){status("Use an HTTPS data service on this secure page.");return;}
+  const isArc=url.pathname.includes("/FeatureServer/");
+  if(isArc&&!/\/query$/i.test(url.pathname))url.pathname=url.pathname.replace(/\/$/,"")+"/query";
+  if(isArc){url.searchParams.set("where","1=1");url.searchParams.set("outFields","*");url.searchParams.set("f","geojson");}
+  status("Loading online data...");
+  fetch(url.href).then(response=>{if(!response.ok)throw new Error("HTTP "+response.status);return response.json();}).then(data=>{
+    if(data?.type!=="FeatureCollection"||!Array.isArray(data.features))throw new Error("The service did not return GeoJSON. Use a public GeoJSON URL or ArcGIS FeatureServer layer.");
+    if(!data.features.length){status("The online layer contains no features.");return;}
+    geoJsonLayer(data,decodeURIComponent(url.pathname.split("/").filter(Boolean).pop()||"Online Layer"));
+    status(data.features.length+" online feature(s) added.");
+  }).catch(err=>status("Online data could not be loaded: "+err.message+" (the server must allow cross-origin requests)."));
+}
+function runMapCommandLine(){
+  const command=prompt("Map command (help, zoom in, zoom out, full extent, identify, basemap <name>, go <x>,<y>):","help");
+  if(command===null)return;
+  const parts=command.trim().split(/\s+/),verb=parts.shift()?.toLowerCase();
+  if(verb==="help"){status("Commands: zoom in | zoom out | full extent | identify | basemap <osm|topo|sat|esriStreet|esriTopo|esriGray|nasaWms> | go <x>,<y>");return;}
+  if(verb==="zoom"&&parts[0]==="in"){map.zoomIn();return;}
+  if(verb==="zoom"&&parts[0]==="out"){map.zoomOut();return;}
+  if(verb==="full"&&parts[0]==="extent"){$("fullExtentBtn").click();return;}
+  if(verb==="identify"){$("identifyFeatureBtn").click();return;}
+  if(verb==="basemap"&&parts[0]){selectBasemap(parts[0]);return;}
+  if(verb==="go"&&parts.length){
+    const pair=parts.join("").split(/[ ,;]+/).map(Number);
+    if(pair.length<2||!pair.slice(0,2).every(Number.isFinite)){status("Use go <x>,<y>.");return;}
+    try{const ll=currentCRS==="EPSG:4326"?pair:projectCoords(currentCRS,"EPSG:4326",pair);map.setView([ll[1],ll[0]],Math.max(map.getZoom(),12));status("Map centered at X: "+pair[0]+" | Y: "+pair[1]);}
+    catch(err){status("Coordinate conversion failed: "+err.message);}return;
+  }
+  status("Unknown map command. Enter help for the supported commands.");
+}
+function startHyperlinkTool(){
+  stopActiveDraw(true);activeMapTool="hyperlink";
+  document.querySelectorAll("#classicToolbars button.icon-tool").forEach(b=>b.classList.remove("active"));
+  $("hyperlinkBtn").classList.add("active");status("Click a feature with a URL, link, website, or href attribute.");
+}
+function startHtmlPopupTool(){
+  stopActiveDraw(true);activeMapTool="htmlPopup";
+  document.querySelectorAll("#classicToolbars button.icon-tool").forEach(b=>b.classList.remove("active"));
+  $("htmlPopupBtn").classList.add("active");status("Click a feature to open its attribute pop-up.");
+}
+function startMeasureTool(){
+  stopActiveDraw(true);const shapeType=prompt("Measure type: distance or area","distance");
+  if(!shapeType)return;
+  const isArea=/^a/i.test(shapeType);
+  startSelectionShape(isArea?"Polygon":"Polyline",{allowIntersection:false,shapeOptions:{color:"#d17b00",weight:3,dashArray:"6,4"}},shape=>{
+    const geo=shape.toGeoJSON();let result;
+    if(isArea){result=turf.area(geo);shape.addTo(map);status("Measured area: "+(result/1e6).toFixed(4)+" km².");shape.bindPopup("Area: "+(result/1e6).toFixed(4)+" km²").openPopup();}
+    else{result=turf.length(geo,{units:"kilometers"});shape.addTo(map);status("Measured distance: "+result.toFixed(3)+" km.");shape.bindPopup("Distance: "+result.toFixed(3)+" km").openPopup();}
+    if(lastMeasureLayer&&map.hasLayer(lastMeasureLayer))map.removeLayer(lastMeasureLayer);lastMeasureLayer=shape;
+  });
+}
+async function findRoute(){
+  const c=map.getCenter(),from=prompt("Start coordinate, longitude,latitude:",c.lng.toFixed(5)+","+c.lat.toFixed(5));
+  if(!from)return;
+  const to=prompt("Destination coordinate, longitude,latitude:","");
+  if(!to)return;
+  const parsePair=text=>text.split(/[ ,;]+/).map(Number).slice(0,2);
+  const a=parsePair(from),b=parsePair(to);
+  if(a.length!==2||b.length!==2||![...a,...b].every(Number.isFinite)||Math.abs(a[0])>180||Math.abs(b[0])>180||Math.abs(a[1])>90||Math.abs(b[1])>90){status("Enter valid longitude,latitude coordinates.");return;}
+  status("Requesting a driving route...");
+  try{
+    const response=await fetch("https://router.project-osrm.org/route/v1/driving/"+a.join(",")+";"+b.join(",")+"?overview=full&geometries=geojson");
+    if(!response.ok)throw new Error("HTTP "+response.status);
+    const data=await response.json(),route=data.routes?.[0];
+    if(data.code!=="Ok"||!route?.geometry)throw new Error(data.code||"No route found.");
+    const feature={type:"Feature",properties:{distance_m:Math.round(route.distance),duration_s:Math.round(route.duration),source:"OSRM"},geometry:route.geometry};
+    geoJsonLayer({type:"FeatureCollection",features:[feature]},"Route");
+    $("professionalToolOutput").textContent="Route distance: "+(route.distance/1000).toFixed(2)+" km | Estimated driving time: "+Math.round(route.duration/60)+" min.";
+    status("Driving route added.");
+  }catch(err){status("Route service unavailable: "+err.message);}
+}
+function createMapViewer(){
+  const win=window.open("","sabzMapViewer","width=1200,height=820,resizable=yes");
+  if(!win){status("Allow pop-ups to open the map viewer.");return;}
+  const state={center:[map.getCenter().lat,map.getCenter().lng],zoom:map.getZoom(),basemap:$("basemap").value,wms:customWmsConfig,attribution:currentBase?.options?.attribution||"Map data provider"};
+  const serialized=JSON.stringify(state).replace(/</g,"\\u003c"),closeScript="</"+"script>";
+  const html="<!doctype html><html><head><meta charset='utf-8'><title>Map Viewer</title><link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'><style>html,body,#map{height:100%;margin:0}</style></head><body><div id='map'></div><script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'>"+closeScript+"<script>const s="+serialized+";const m=L.map('map').setView(s.center,s.zoom);const u={osm:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',topo:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',sat:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',esriStreet:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',esriTopo:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',esriGray:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'};if(s.basemap==='nasaWms')L.tileLayer.wms('https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi',{layers:'BlueMarble_ShadedRelief',format:'image/png',version:'1.3.0',attribution:'NASA GIBS'}).addTo(m);else if(s.basemap==='customWms'&&s.wms)L.tileLayer.wms(s.wms.url,{layers:s.wms.layers,format:s.wms.format,version:s.wms.version,attribution:s.wms.attribution}).addTo(m);else L.tileLayer(u[s.basemap]||u.osm,{maxZoom:19,attribution:s.attribution}).addTo(m);"+closeScript+"</body></html>";
+  win.document.open();win.document.write(html);win.document.close();status("Map viewer opened.");
+}
+function startTimeSlider(){
+  const records=getFeatureRecords();
+  if(!records.length){status("Add a vector layer with date or time attributes first.");return;}
+  const candidates=[...new Set(records.flatMap(r=>Object.keys(r.feature.properties||{})))].filter(field=>/(date|time|year)/i.test(field)).map(field=>({field,dates:records.map(r=>Date.parse(r.feature.properties?.[field])).filter(Number.isFinite)})).filter(x=>x.dates.length);
+  if(!candidates.length){status("No date or time fields were found in the feature attributes.");return;}
+  const old=document.getElementById("timeSliderPanel");if(old)old.remove();
+  const panel=document.createElement("div");panel.id="timeSliderPanel";panel.className="time-slider-panel";
+  const select=document.createElement("select");candidates.forEach(c=>{const o=document.createElement("option");o.value=c.field;o.textContent=c.field;select.appendChild(o)});
+  const range=document.createElement("input");range.type="range";range.min="0";range.max="1000";range.value="1000";
+  const label=document.createElement("span");label.className="time-slider-label";
+  const close=document.createElement("button");close.type="button";close.textContent="Close";
+  panel.append("Time field: ",select,range,label,close);document.body.appendChild(panel);
+  const restoreStyles=()=>{
+    records.forEach(r=>{if(r._timeStyle&&r.layer.setStyle)r.layer.setStyle(r._timeStyle);delete r._timeStyle;});
+    panel.remove();
+  };
+  const apply=()=>{
+    const candidate=candidates.find(c=>c.field===select.value);if(!candidate)return;
+    const min=Math.min(...candidate.dates),max=Math.max(...candidate.dates),cutoff=min+(max-min)*(Number(range.value)/1000);
+    label.textContent="Through "+new Date(cutoff).toLocaleDateString();
+    records.forEach(r=>{
+      const date=Date.parse(r.feature.properties?.[select.value]);
+      if(!r.layer.setStyle)return;
+      if(!r._timeStyle)r._timeStyle={...(r.layer.options||{})};
+      const visible=Number.isFinite(date)&&date<=cutoff;
+      r.layer.setStyle({opacity:visible?(r._timeStyle.opacity??1):0,fillOpacity:visible?(r._timeStyle.fillOpacity??.2):0});
+    });
+  };
+  select.onchange=apply;range.oninput=apply;close.onclick=restoreStyles;apply();status("Time slider ready.");
+}
+function setMapTool(name,button,message){
+  stopActiveDraw(true);activeMapTool=name;
+  document.querySelectorAll("#classicToolbars button.icon-tool").forEach(b=>b.classList.remove("active"));
+  if(button)button.classList.add("active");status(message);
 }
 function goToXY(){
   const c=map.getCenter();
@@ -858,6 +1136,7 @@ function startNativeDraw(type,button){
     else if(type==="Circle")layer=L.circle(points[0],{...style,radius:points[0].distanceTo(points[1])});
     if(!layer){status("This drawing tool is unavailable.");return}
     finished=true;removePreview();
+    recordUndoState();
     layer.feature={type:"Feature",properties:{},geometry:layer.toGeoJSON().geometry};
     if(type==="Circle")layer.feature.properties._radius_m=layer.getRadius();
     target.addLayer(layer);
@@ -868,7 +1147,16 @@ function startNativeDraw(type,button){
   };
   const onClick=e=>{
     if(finished||e.originalEvent?.detail>=2)return;
-    points.push(e.latlng);
+    let point=e.latlng;
+    const tolerance=Number(window._drawingConstraintMeters)||0;
+    if(tolerance){
+      let nearest=null,best=tolerance;
+      getFeatureRecords().forEach(r=>{const walk=c=>{if(Array.isArray(c)&&typeof c[0]==="number"&&typeof c[1]==="number"){const ll=L.latLng(c[1],c[0]),d=point.distanceTo(ll);if(d<best){best=d;nearest=ll}}else if(Array.isArray(c))c.forEach(walk)};
+        try{walk(r.feature.geometry.coordinates)}catch(_){}
+      });
+      if(nearest)point=nearest;
+    }
+    points.push(point);
     if(type==="Marker"||((type==="Circle"||type==="Rectangle")&&points.length>=2)){complete();return}
     updatePreview();
     const messages={Polyline:"Add line vertices; double-click, press Enter, or use ✓ to finish.",Polygon:"Add polygon vertices; double-click, press Enter, or use ✓ to finish.",Rectangle:"Click the opposite corner to finish the rectangle.",Circle:"Click the circle edge to set its radius."};
@@ -947,6 +1235,7 @@ function refreshAttributeLayers(){
 }
 function addNamedLayer(name,layer,zoom){
   if(!layer)throw new Error("The layer is empty.");
+  recordUndoState();
   const item={name,layer};
   namedLayers.push(item);
   // Add an imported vector layer to the map and layer list.
@@ -1037,6 +1326,25 @@ map.on("mousemove",e=>{
 });
 refreshEditorTargets();updateEditorToolbar();
 $("startEditingBtn").onclick=()=>startEditing();
+$("newMapBtn").onclick=clearWorkspace;
+$("printMapBtn").onclick=()=>window.print();
+$("copyBtn").onclick=()=>copySelectedFeatures(false);
+$("cutBtn").onclick=()=>copySelectedFeatures(true);
+$("pasteBtn").onclick=pasteFeatures;
+$("deleteBtn").onclick=deleteSelectedFeatures;
+$("undoBtn").onclick=undoMapEdit;
+$("redoBtn").onclick=redoMapEdit;
+$("addOnlineDataBtn").onclick=openOnlineData;
+$("commandLineBtn").onclick=runMapCommandLine;
+$("backExtentBtn").onclick=()=>moveExtentHistory(-1);
+$("nextExtentBtn").onclick=()=>moveExtentHistory(1);
+$("selectElementsBtn").onclick=()=>setMapTool("select",$("selectElementsBtn"),"Select Elements is active. Click a map feature to select it.");
+$("hyperlinkBtn").onclick=startHyperlinkTool;
+$("htmlPopupBtn").onclick=startHtmlPopupTool;
+$("measureToolBtn").onclick=startMeasureTool;
+$("findRouteBtn").onclick=findRoute;
+$("timeSliderBtn").onclick=startTimeSlider;
+$("createViewerBtn").onclick=createMapViewer;
 $("saveEditsBtn").onclick=saveEdits;
 $("stopEditingBtn").onclick=stopEditing;
 $("editTargetLayer").onchange=()=>{const v=$("editTargetLayer").value;editTarget=v==="drawn"?drawn:(namedLayers[Number(v)]?.layer||drawn)};
@@ -1050,6 +1358,8 @@ document.getElementById("zoomOutBtn")?.addEventListener("click",()=>map.zoomOut(
 document.getElementById("searchTab")?.addEventListener("click",()=>{const d=document.getElementById("searchDock");d?.classList.toggle("open");if(d?.classList.contains("open"))document.getElementById("topToolSearch")?.focus()});
 document.getElementById("mapScale")?.addEventListener("change",e=>map.setZoom(Number(e.target.value)));
 map.on("zoomend",()=>{const scale=document.getElementById("mapScale");if(scale){const levels=[6,8,10,12,14,16];scale.value=String(levels.reduce((a,b)=>Math.abs(b-map.getZoom())<Math.abs(a-map.getZoom())?b:a,levels[0]))}});
+map.on("moveend",recordMapExtent);
+recordMapExtent();updateExtentButtons();updateUndoButtons();updateStandardActionButtons();
 document.getElementById("panMapBtn")?.addEventListener("click",()=>{
   stopActiveDraw(true);activeMapTool="pan";
   document.querySelectorAll("#classicToolbars button.icon-tool").forEach(x=>x.classList.remove("active"));
@@ -1060,6 +1370,10 @@ $("selectFeaturesBtn").onclick=()=>{activeMapTool="select";document.querySelecto
 $("selectRectangleBtn").onclick=selectByRectangle;
 $("selectPolygonBtn").onclick=selectByPolygon;
 $("identifyFeatureBtn").onclick=()=>{activeMapTool="identify";document.querySelectorAll("#classicToolbars button").forEach(x=>x.classList.remove("active"));$("identifyFeatureBtn").classList.add("active");status("Click a feature to identify it.")};
+$("selectElementsBtn").onclick=()=>setMapTool("select",$("selectElementsBtn"),"Select Elements is active. Click a map feature to select it.");
+$("hyperlinkBtn").onclick=startHyperlinkTool;
+$("htmlPopupBtn").onclick=startHtmlPopupTool;
+$("measureToolBtn").onclick=startMeasureTool;
 $("clearSelectionBtn").onclick=clearSelection;
 $("fullExtentBtn").onclick=()=>{const layers=[drawn,...namedLayers.map(x=>x.layer)].filter(l=>l.getBounds&&l.getBounds().isValid());if(!layers.length)return;const bounds=L.latLngBounds(layers.map(l=>l.getBounds()));map.fitBounds(bounds,{padding:[20,20]})};
 
@@ -1135,6 +1449,7 @@ function updateMultiSelectionUI(){
   const box=$("multiFeatureEditor"),info=$("multiSelectionInfo");
   if(info)info.textContent=selectedFeatures.size+" Feature Selection selected";
   if(box)box.style.display=selectedFeatures.size?"block":"none";
+  updateStandardActionButtons();
 }
 function clearMultiSelection(){
   selectedFeatures.forEach(l=>{if(l&&l._path)L.DomUtil.removeClass(l._path,"multi-selected-feature")});
@@ -1177,6 +1492,18 @@ function attachFeatureSelection(layer){
       selectedOverlay=layer;
       if(!layer.feature)layer.feature=asFeature(layer);
       identifyTool();return;
+    }
+    if(activeMapTool==="hyperlink"){
+      const feature=layer.feature||asFeature(layer),props=feature?.properties||{};
+      const value=Object.entries(props).find(([key,val])=>/(url|link|website|href|hyperlink)/i.test(key)&&/^https?:/i.test(String(val||""))&&String(val||"").includes("://"));
+      if(!value){status("This feature has no HTTP or HTTPS link attribute.");return;}
+      window.open(value[1],"_blank","noopener,noreferrer");status("Feature link opened.");return;
+    }
+    if(activeMapTool==="htmlPopup"){
+      const feature=layer.feature||asFeature(layer),props=feature?.properties||{};
+      const rows=Object.entries(props).map(([key,val])=>"<tr><th>"+esc(key)+"</th><td>"+esc(val)+"</td></tr>").join("");
+      layer.bindPopup("<table class='identify-popup'>"+(rows||"<tr><td>No attributes</td></tr>")+"</table>").openPopup(ev.latlng);
+      selectedOverlay=layer;status("Feature attributes opened.");return;
     }
     const multi=!!(ev.originalEvent&&(ev.originalEvent.ctrlKey||ev.originalEvent.metaKey||ev.originalEvent.shiftKey));
     if(multi){
@@ -1380,6 +1707,7 @@ $("addTableField").onclick=()=>{
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before changing its table.");return}
  const idx=$("attributeLayer").value;if(idx===""){status("Select a feature layer.");return}
  const name=prompt("New field name:");if(!name||!name.trim())return;
+ recordUndoState();
  const key=name.trim();const items=currentAttributeItems();
  if(items.some(x=>Object.prototype.hasOwnProperty.call(x.feature.properties||{},key))){status("A field with this name already exists.");return}
  items.forEach(x=>{ensureFeatureProperties(x.layer);x.feature.properties[key]="";});
@@ -1388,6 +1716,7 @@ $("addTableField").onclick=()=>{
 $("saveTableEdits").onclick=()=>{
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before saving table changes.");return}
  const idx=$("attributeLayer").value;if(idx===""){status("Select a feature layer.");return}
+ recordUndoState();
  const items=currentAttributeItems(), table=$("attributeTableWrap");
  table.querySelectorAll("tbody tr").forEach(row=>{
    const item=items[Number(row.dataset.index)];if(!item)return;
@@ -1406,6 +1735,8 @@ $("deleteSelectedRows").onclick=()=>{
  if(!inds.length){status("Select one or more rows first.");return}
  if(!confirm(inds.length+" features selected for deletion"))return;
  const layer=currentAttributeLayer();if(!layer)return;
+ recordUndoState();
+ recordUndoState();
  const targets=new Set(inds);
  if(layer.clearLayers){let i=0;layer.eachLayer(l=>{if(targets.has(i))layer.removeLayer(l);i++})}
  else if(layer.removeLayer){let i=0;layer.eachLayer(l=>{if(targets.has(i))layer.removeLayer(l);i++})}
@@ -1431,19 +1762,15 @@ $("fillSelected").onclick=()=>{
  const value=$("fillValue").value,items=currentAttributeItems(),inds=selectedTableIndexes();
  const layerKeys=tableKeys(items),key=prompt("Field to calculate:\n"+layerKeys.join(", "));
  if(!key||!layerKeys.includes(key)){status("Select a valid field.");return}
+ recordUndoState();
  inds.forEach(i=>{ensureFeatureProperties(items[i].layer);items[i].feature.properties[key]=value});
  renderEditableTable();status("Calculated field "+key+" for "+inds.length+" rows.");
 };
 $("measureSelected").onclick=()=>{if(selectedLayer)calcMeasure(selectedLayer);else status("Select a feature on the map first.");};
-$("basemap").onchange=e=>{
-  if(currentBase)map.removeLayer(currentBase);
-currentBase=base[e.target.value]||base.osm;
-currentBase.addTo(map);
-status("Basemap: "+(e.target.value==="sat"?"Esri Imagery":e.target.value==="topo"?"OpenTopoMap":e.target.value==="giscloud"?"GIS Cloud / MapTiler Streets":"OpenStreetMap"));
-};
+$("basemap").onchange=e=>selectBasemap(e.target.value);
 $("clearDraw").onclick=()=>{
   if(!drawn.getLayers().length){status("There are no features to clear.");return}
-  if(confirm("Delete all drawings?")){drawn.clearLayers();renderLayerList();status("Drawings cleared.")}
+  if(confirm("Delete all drawings?")){recordUndoState();drawn.clearLayers();renderLayerList();status("Drawings cleared.")}
 };
 $("fitDraw").onclick=()=>{
   const layers=drawn.getLayers();
@@ -1606,13 +1933,15 @@ $("dataDialogContinue").onclick=()=>{
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("dataCommandDialog").classList.contains("show"))closeDataFormatDialog()});
 
 $("addWms").onclick=()=>{
-  const url=$("wmsUrl").value.trim(),name=$("wmsLayer").value.trim();
+  const url=$("wmsUrl").value.trim(),name=$("wmsLayer").value.trim(),version=$("wmsVersion").value.trim()||"1.3.0";
   if(!url||!name){status("Enter a WMS URL and layer name.");return}
   try{
-    const l=L.tileLayer.wms(url,{layers:name,format:"image/png",transparent:true,version:"1.3.0"});
+    const l=L.tileLayer.wms(url,{layers:name,format:"image/png",transparent:true,version});
+    l.on("tileerror",()=>status("WMS layer failed to load. Check the service URL, layer name, and CORS/access rules."));
     addNamedLayer("WMS: "+name,l,false);l.addTo(map);status("WMS layer added.");scheduleAutoSave();
   }catch(e){status("WMS error: "+e.message)}
 };
+$("setWmsBasemap").onclick=activateWmsBasemap;
 
 const PROJECT_DB_NAME="sabzroyan-webgis";
 const PROJECT_DB_VERSION=1;
@@ -1690,6 +2019,7 @@ function serializeProject(){
     center:[map.getCenter().lat,map.getCenter().lng],
     zoom:map.getZoom(),
     basemap:$("basemap").value,
+    basemapWms:customWmsConfig?{...customWmsConfig}:null,
     drawn:[],
     layers:[]
   };
@@ -1712,8 +2042,11 @@ function projectFeatureLayer(features,name){
   addNamedLayer(name,layer,false);
   return layer;
 }
-function restoreProject(project){
+function restoreProject(project,fromHistory=false){
   if(!project||![1,2].includes(project.version)){status("This project file version is not supported.");return}
+  if(!fromHistory&&!historyRestoring)recordUndoState();
+  const previousHistoryRestoring=historyRestoring;historyRestoring=true;
+  editSessionActive=false;editTarget=drawn;
   window.currentProjectDescription=project.description||"";
   if(project.crs)try{setCRS(project.crs)}catch(e){}
   drawn.clearLayers();
@@ -1721,9 +2054,9 @@ function restoreProject(project){
   namedLayers.length=0;
   const center=Array.isArray(project.center)?project.center:[34.5,46.5];
   map.setView(center,Number(project.zoom)||8);
-  if(project.basemap&&base[project.basemap]){
-    map.removeLayer(currentBase);currentBase=base[project.basemap];currentBase.addTo(map);$("basemap").value=project.basemap;
-  }
+  customWmsConfig=project.basemapWms||null;
+  if(project.basemap==="customWms"&&customWmsConfig)selectBasemap("customWms",false);
+  else if(project.basemap&&base[project.basemap])selectBasemap(project.basemap,false);
   (project.drawn||[]).forEach(f=>{
     const l=L.geoJSON(f,{
       style:{color:"#146c43",weight:3,fillOpacity:.16},
@@ -1743,6 +2076,8 @@ function restoreProject(project){
   $("projectName").value=project.name||"Untitled Project";
   renderLayerList();refreshAttributeLayers();
   $("projectStatus").textContent= "Project restored: "+(project.savedAt?new Date(project.savedAt).toLocaleString("en-US"):"—");
+  updateEditorToolbar();updateStandardActionButtons();
+  historyRestoring=previousHistoryRestoring;
   status("Project restored.");
 }
 async function saveProject(){
@@ -2192,6 +2527,7 @@ function editableSelectedRecords(){
   if(!editSessionActive){status("Start Editing before modifying features.");return []}
   const rs=selectedRecords().filter(r=>r.owner?.layer===editTarget);
   if(!rs.length)status("Select features from the active edit layer.");
+  else recordUndoState();
   return rs;
 }
 function moveSelected(){
@@ -2247,12 +2583,28 @@ function reshapeSelected(){
   const once=e=>{map.off(L.Draw.Event.CREATED,once);map.removeLayer(e.layer);r.feature.geometry=e.layer.toGeoJSON().geometry;rebuildVectorLayerGeometry([r]);refreshAll();status("Feature geometry updated.");};map.on(L.Draw.Event.CREATED,once);
 }
 function editVertices(){
-  const r=selectedRecords()[0]; if(!r){status("Select at least one feature first.");return;}
-  try{if(r.layer.editing){r.layer.editing.enable();status("Vertex editing is active. Finish editing on the map.");}else status("This layer does not support vertex editing.");}catch(_){}
+  const r=selectedRecords()[0];if(!r){status("Select a feature first.");return}
+  const owner=r.owner?.layer||drawn;
+  try{
+    if(!owner||!owner.getLayers){status("This feature cannot be vertex edited.");return}
+    if(window._vertexEditControl){map.removeControl(window._vertexEditControl);window._vertexEditControl=null}
+    window._vertexEditControl=new L.Control.Draw({draw:false,edit:{featureGroup:owner,edit:{selectedPathOptions:{maintainColor:true}}}});
+    map.addControl(window._vertexEditControl);status("Vertex editing enabled. Use the edit toolbar, then save edits.");
+  }catch(e){status("Vertex editing failed: "+e.message)}
 }
 function advancedSnap(){
-  const r=selectedRecords()[0]; if(!r){status("Select at least one feature first.");return;}
-  status("Snap Points to Lines edits point features within the tolerance.");
+  const pts=selectedRecords().filter(r=>r.feature.geometry?.type==="Point");
+  if(!pts.length){status("Select one or more point features first.");return}
+  const tol=Number(prompt("Snap tolerance in meters:","5"));if(!Number.isFinite(tol)||tol<=0)return;
+  const lines=getFeatureRecords().filter(r=>/LineString/.test(r.feature.geometry?.type||""));
+  if(!lines.length){status("Add a line layer before snapping points.");return}
+  const candidates=lines.map(r=>turf.lineString(r.feature.geometry.coordinates));
+  recordUndoState();let count=0;
+  pts.forEach(r=>{const p=turf.point(r.feature.geometry.coordinates);let best=null,dist=Infinity;
+    candidates.forEach(line=>{try{const q=turf.nearestPointOnLine(line,p);const d=turf.distance(p,q,{units:"kilometers"})*1000;if(d<dist){dist=d;best=q}}catch(_){}});
+    if(best&&dist<=tol){r.feature.geometry.coordinates=best.geometry.coordinates.slice(0,2);count++}
+  });
+  if(count){rebuildVectorLayerGeometry(pts);refreshAll();status(count+" point feature(s) snapped within "+tol+" m.");}else status("No selected points were within the snap tolerance.");
 }
 function spatialFilter(){
   const rs=getFeatureRecords(); const type=prompt("Spatial relationship: intersects / within / contains / touches / overlaps / crosses","intersects");
@@ -2268,16 +2620,45 @@ function spatialFilter(){
   applySelectionVisual(); status(selectedFeatures.size+" features selected by spatial filter.");
 }
 function joinWizard(){
-  const rs=getFeatureRecords(); if(rs.length<2){status("At least two layers are required.");return;}
-  const src=rs[0].feature,tgt=rs[1].feature;
-  const sf=prompt("Source field:","id"), tf=prompt("Target field:","id"); if(!sf||!tf)return;
-  if(String(src.properties?.[sf]??"")===String(tgt.properties?.[tf]??"")){Object.assign(tgt.properties||{},src.properties||{});refreshAll();status("Join completed.");}
-  else status("No matching feature value was found.");
+  if(namedLayers.length<2){status("At least two named data layers are required.");return}
+  const list=namedLayers.map((x,i)=>(i+1)+". "+x.name).join("\n");
+  const si=Number(prompt("Source layer number (fields will be copied from this layer):\n"+list,"1"))-1;
+  const ti=Number(prompt("Target layer number (matching records will be updated):\n"+list,"2"))-1;
+  if(si===ti||!namedLayers[si]||!namedLayers[ti]){status("Choose two different valid layers.");return}
+  const source=namedLayers[si],target=namedLayers[ti];
+  const sourceRows=getFeatureRecords().filter(r=>r.owner?.layer===source.layer);
+  const targetRows=getFeatureRecords().filter(r=>r.owner?.layer===target.layer);
+  if(!sourceRows.length||!targetRows.length){status("Both selected layers must contain features.");return}
+  const sf=prompt("Join key field in "+source.name+":",Object.keys(sourceRows[0].feature.properties||{})[0]||"");
+  const tf=prompt("Join key field in "+target.name+":",sf||"");if(!sf||!tf)return;
+  const prefix=prompt("Prefix for copied fields:","join_");if(prefix===null)return;
+  const index=new Map();
+  sourceRows.forEach(r=>{const v=r.feature.properties?.[sf];if(v!==undefined&&v!==null)index.set(String(v),r.feature.properties||{})});
+  recordUndoState();let count=0;
+  targetRows.forEach(r=>{const v=r.feature.properties?.[tf],props=index.get(String(v));if(!props)return;
+    r.feature.properties=r.feature.properties||{};
+    Object.entries(props).forEach(([k,val])=>{if(k!==sf)r.feature.properties[prefix+k]=val});count++;
+  });
+  if(count){refreshAll();status("Attributes joined to "+count+" target feature(s).");}else status("No matching join keys were found.");
 }
 function reprojectLayer(){
-  const r=selectedRecords()[0]; if(!r){status("Select at least one feature first.");return;}
-  const epsg=prompt("CRS Target EPSG:","32638"); if(!/^\d+$/.test(epsg))return;
-  status("Project layer to EPSG:"+epsg+" changed.");
+  const rs=selectedRecords();if(!rs.length){status("Select one or more features first.");return}
+  const epsg=prompt("Target CRS EPSG code:","32638");if(!/^\d+$/.test(epsg||""))return;
+  if(typeof proj4!=="function"){status("Projection library is unavailable.");return}
+  const target="EPSG:"+epsg;
+  try{
+    const code=Number(epsg);
+    if(code>=32601&&code<=32660)proj4.defs(target,"+proj=utm +zone="+(code-32600)+" +datum=WGS84 +units=m +no_defs");
+    else if(code>=32701&&code<=32760)proj4.defs(target,"+proj=utm +zone="+(code-32700)+" +south +datum=WGS84 +units=m +no_defs");
+    const transformCoords=c=>Array.isArray(c)&&typeof c[0]==="number"
+      ?[...proj4("EPSG:4326",target,[c[0],c[1]]),...c.slice(2)]
+      :c.map(transformCoords);
+    const features=rs.map(r=>{const f=JSON.parse(JSON.stringify(r.feature));f.geometry.coordinates=transformCoords(f.geometry.coordinates);return f});
+    const data={type:"FeatureCollection",features,crs:{type:"name",properties:{name:target}}};
+    const blob=new Blob([JSON.stringify(data)],{type:"application/geo+json"}),a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);a.download="reprojected-"+epsg+".geojson";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    status("Projected GeoJSON exported in "+target+".");
+  }catch(e){status("Projection failed: "+e.message)}
 }
 function parseDelimitedText(text){
   const firstLine=String(text).split(/\r?\n/,1)[0]||"";
@@ -2324,7 +2705,18 @@ function csvImport(){
   };
   input.click();
 }
-function excelImport(){status("Excel import is unavailable. Save the spreadsheet as CSV first.");csvImport();}
+function excelImport(){
+  const input=document.createElement("input");input.type="file";input.accept=".xlsx,.xls,.ods,.csv";
+  input.onchange=async()=>{const file=input.files?.[0];if(!file)return;try{
+    const Gdal=await getGdalBrowser(),opened=await Gdal.open([file]),ds=opened.datasets||[];
+    if(!ds.length)throw new Error("No spreadsheet dataset was found.");
+    const output=await Gdal.ogr2ogr(ds[0],["-f","GeoJSON","-t_srs","EPSG:4326"]);
+    const raw=typeof output==="string"?output:output?.text||output?.data;
+    if(!raw)throw new Error("This browser GDAL build could not read this spreadsheet. Save it as CSV and use Add Data.");
+    const json=JSON.parse(raw);const layer=L.geoJSON(json,{onEachFeature:(f,l)=>bindFeature(l,f)});
+    addNamedLayer(file.name.replace(/\.[^.]+$/,""),layer,true);status("Spreadsheet imported.");
+  }catch(e){status("Spreadsheet import failed: "+e.message+" Try saving it as CSV.");}};input.click();
+}
 function searchFeature(){
   const q=prompt("Search feature ID or attribute value:","");if(q===null)return;const s=q.toLowerCase();
   const r=getFeatureRecords().find(x=>Object.values(x.feature.properties||{}).some(v=>String(v).toLowerCase().includes(s)));
@@ -2347,9 +2739,22 @@ function styleLayer(){
 function labelLayer(){
   const rs=getFeatureRecords();if(!rs.length)return;const field=prompt("Label field:","name");rs.forEach(r=>{const v=r.feature.properties?.[field];if(v!=null&&r.layer.bindTooltip)r.layer.bindTooltip(String(v),{permanent:true,direction:"center"});});status("Labels enabled.");
 }
-function groupLayers(){status("Layer grouping is unavailable.");}
+function groupLayers(){
+  if(!namedLayers.length){status("Add at least one data layer first.");return}
+  const names=namedLayers.map((x,i)=>(i+1)+". "+x.name).join("\n");
+  const raw=prompt("Enter layer numbers to group, separated by commas:\n"+names,"1,2");if(raw===null)return;
+  const indices=[...new Set(raw.split(",").map(x=>Number(x.trim())-1).filter(i=>Number.isInteger(i)&&i>=0&&i<namedLayers.length))];
+  if(indices.length<2){status("Choose at least two valid layers.");return}
+  const items=indices.map(i=>namedLayers[i]),group=L.featureGroup(items.map(x=>x.layer));
+  const name=prompt("Group name:","Layer Group");if(!name)return;
+  namedLayers.push({name,layer:group});layerControl.addOverlay(group,name);renderLayerList();refreshAttributeLayers();status("Layer group created.");
+}
 function gridToggle(){if(window._gridLayer){map.removeLayer(window._gridLayer);window._gridLayer=null;status("Editor grid hidden.");return;}const b=map.getBounds(),z=map.getZoom(),step=z>15?.001:z>12?.01:.1;const lines=[];for(let x=Math.floor(b.getWest()/step)*step;x<=b.getEast();x+=step)lines.push([[b.getSouth(),x],[b.getNorth(),x]]);for(let y=Math.floor(b.getSouth()/step)*step;y<=b.getNorth();y+=step)lines.push([[y,b.getWest()],[y,b.getEast()]]);window._gridLayer=L.polyline(lines,{color:"#7f8c8d",weight:.5,opacity:.45}).addTo(map);status("Editor grid enabled.");}
-function constraintTool(){const d=Number(prompt("Constraint distance (meters):","10"));if(Number.isFinite(d))status("Drawing constraint set to "+d+" meters.");}
+function constraintTool(){
+  const d=Number(prompt("Vertex snap tolerance in meters (0 disables snapping):",String(window._drawingConstraintMeters||10)));if(!Number.isFinite(d)||d<0)return;
+  window._drawingConstraintMeters=d||null;
+  status(d?"Drawing vertex snapping enabled within "+d+" m.":"Drawing vertex snapping disabled.");
+}
 function attachmentsTool(){
   const r=selectedRecords()[0];if(!r){status("Select at least one feature first.");return;}const i=document.createElement("input");i.type="file";i.multiple=true;i.onchange=()=>{r.feature.properties=r.feature.properties||{};r.feature.properties._attachments=[...i.files].map(f=>({name:f.name,type:f.type,size:f.size}));refreshAll();status(i.files.length+" Attachment metadata saved.");};i.click();
 }
@@ -2359,6 +2764,8 @@ function chartStats(){
 
 function runGisTool(tool){
  if(tool.id==="selectFeatures"){$("selectFeaturesBtn").click();return;}
+  if(tool.id==="importData"){openDataFormatDialog("import");return;}
+  if(tool.id==="exportData"){openDataFormatDialog("export");return;}
   if(tool.id==="drawPoint"){startDraw("Marker");return;}
   if(tool.id==="drawLine"){startDraw("Polyline");return;}
   if(tool.id==="drawPolygon"){startDraw("Polygon");return;}
@@ -2430,12 +2837,25 @@ $("gisToolSearch").oninput=e=>renderGisToolbox(e.target.value);
     if(t)runGisTool(t); closeMenus();
   });
   document.querySelectorAll(".arc-dropdown button[data-base]").forEach(b=>b.onclick=()=>{
-    const key=b.dataset.base; const sel=document.getElementById("basemap"); if(sel){sel.value=key;sel.dispatchEvent(new Event("change"))} closeMenus();
+    const key=b.dataset.base; selectBasemap(key); closeMenus();
   });
   document.querySelectorAll(".arc-dropdown button[data-action], .classic-toolbar button[data-action]").forEach(b=>b.onclick=()=>{
     const a=b.dataset.action;
     const mapActions={
       startEditing:()=>startEditing(),
+      newMap:()=>clearWorkspace(),
+      printMap:()=>window.print(),
+      undo:()=>undoMapEdit(),
+      redo:()=>redoMapEdit(),
+      addOnlineData:()=>openOnlineData(),
+      selectElements:()=>$("selectElementsBtn")?.click(),
+      hyperlink:()=>$("hyperlinkBtn")?.click(),
+      htmlPopup:()=>$("htmlPopupBtn")?.click(),
+      measureTool:()=>$("measureToolBtn")?.click(),
+      findFeature:()=>searchFeature(),
+      findRoute:()=>findRoute(),
+      timeSlider:()=>startTimeSlider(),
+      createViewer:()=>createMapViewer(),
       saveEdits:()=>saveEdits(),
       stopEditing:()=>stopEditing(),
       openAttributeTable:()=>status("Right-click a layer in the Table Of Contents to open its attribute table."),
@@ -2460,6 +2880,7 @@ $("gisToolSearch").oninput=e=>renderGisToolbox(e.target.value);
       clearDraw:()=>document.getElementById("clearDraw")?.click(),
       showLayers:()=>status("Table Of Contents is docked on the left."),
       wms:()=>{openGisDock("display");document.getElementById("wmsUrl")?.focus()},
+      configureWmsBasemap:()=>{openGisDock("display");document.getElementById("wmsUrl")?.focus();status("Enter a WMS URL and layer name, then choose Use WMS as Basemap.")},
       buffer:()=>{document.getElementById("gisOperation").value="buffer";document.getElementById("runGisOperation").click()},
       clip:()=>{document.getElementById("gisOperation").value="clip";document.getElementById("runGisOperation").click()},
       intersection:()=>{document.getElementById("gisOperation").value="intersection";document.getElementById("runGisOperation").click()},
