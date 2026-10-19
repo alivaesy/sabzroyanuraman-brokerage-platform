@@ -238,6 +238,19 @@ body{background:#dfe5e8;color:#173b57}
 @media(max-width:850px){.panel{width:240px;min-width:240px}}
 @media(max-width:650px){.title-window-controls{display:none}.panel{width:285px;min-width:285px}}
 
+
+/* ArcMap-style toolbar rows: Standard first, Tools and Editor second. */
+#classicToolbars{gap:0;padding:1px 5px 2px;background:linear-gradient(#ededed,#dfe3e5);border-bottom:1px solid #89969d}
+.classic-toolbar{min-height:27px;padding:1px 3px;border-bottom:1px solid #cbd0d3;flex-wrap:nowrap}
+.classic-toolbar:last-child{border-bottom:0}
+.classic-toolbar button.icon-tool.standard-tool{width:25px;min-width:25px;height:24px;font-size:16px}
+.classic-toolbar #toolsToolbar{gap:2px}
+.classic-toolbar #editTargetLayer{width:132px;min-width:100px}
+#standardToolbar .arc-search{width:220px;margin-left:auto}
+.toolbar-caption{display:none!important}
+#classicToolbars .toolbar-separator{height:20px;margin:0 4px}
+@media(max-width:850px){#standardToolbar .arc-search{width:165px}.classic-toolbar #editTargetLayer{width:110px}}
+@media(max-width:650px){#classicToolbars{overflow-x:auto}.classic-toolbar{min-width:max-content}.classic-toolbar #editTargetLayer{width:100px}#standardToolbar .arc-search{width:145px}}
 </style>
 </head>
 <body>
@@ -258,8 +271,18 @@ body{background:#dfe5e8;color:#173b57}
   </nav>
 </header>
 <div id="classicToolbars">
-  <div class="classic-toolbar" id="toolsToolbar" role="toolbar" aria-label="Tools">
-    <span class="toolbar-caption">Tools</span>
+  <div class="classic-toolbar standard-toolbar" id="standardToolbar" role="toolbar" aria-label="Standard">
+    <div class="toolbar-group" role="group" aria-label="Project and data">
+      <button type="button" class="icon-tool standard-tool" data-action="openProjectManager" title="Project Manager" aria-label="Project Manager">▱</button>
+      <button type="button" class="icon-tool standard-tool" data-action="saveProject" title="Save Project" aria-label="Save Project">▣</button>
+      <button type="button" class="icon-tool standard-tool" data-action="loadProject" title="Open Saved Project" aria-label="Open Saved Project">↥</button>
+      <span class="toolbar-separator"></span>
+      <button type="button" class="icon-tool standard-tool" data-action="importData" title="Add Data" aria-label="Add Data">＋</button>
+      <button type="button" class="icon-tool standard-tool" data-action="exportData" title="Export Data" aria-label="Export Data">⇩</button>
+    </div>
+    <div class="arc-search"><span aria-hidden="true">⌕</span><input id="topToolSearch" placeholder="Search for tools..." autocomplete="off"><div id="topToolResults"></div></div>
+  </div>
+  <div class="classic-toolbar" id="toolsToolbar" role="toolbar" aria-label="Tools and Editor">
     <div class="toolbar-group" role="group" aria-label="Map tools">
       <button type="button" class="icon-tool" id="selectFeaturesBtn" title="Select Features" aria-label="Select Features">↖</button>
       <button type="button" class="icon-tool" id="selectRectangleBtn" title="Select Features by Rectangle" aria-label="Select Features by Rectangle">▱</button>
@@ -268,15 +291,12 @@ body{background:#dfe5e8;color:#173b57}
       <button type="button" class="icon-tool" id="clearSelectionBtn" title="Clear Selection" aria-label="Clear Selection">×</button>
       <button type="button" class="icon-tool" id="fullExtentBtn" title="Full Extent" aria-label="Full Extent">⊡</button>
     </div>
-    <div class="arc-search"><span>🔎</span><input id="topToolSearch" placeholder="Search for tools..." autocomplete="off"><div id="topToolResults"></div></div>
-  </div>
-  <div class="classic-toolbar editor-toolbar" aria-label="Editor toolbar">
-    <span class="toolbar-caption">Editor</span>
-    <select id="editTargetLayer" title="Target layer"><option value="drawn">My Drawings</option></select>
-    <button type="button" id="startEditingBtn">Start Editing</button>
-    <button type="button" id="saveEditsBtn" disabled>Save Edits</button>
-    <button type="button" id="stopEditingBtn" disabled>Stop Editing</button>
-    <span class="toolbar-separator"></span><span class="toolbar-caption">Create Features</span>
+    <span class="toolbar-separator"></span>
+    <select id="editTargetLayer" title="Target layer" aria-label="Target layer"><option value="drawn">My Drawings</option></select>
+    <button type="button" class="icon-tool" id="startEditingBtn" title="Start Editing" aria-label="Start Editing">▶</button>
+    <button type="button" class="icon-tool" id="saveEditsBtn" disabled title="Save Edits" aria-label="Save Edits">▣</button>
+    <button type="button" class="icon-tool" id="stopEditingBtn" disabled title="Stop Editing" aria-label="Stop Editing">■</button>
+    <span class="toolbar-separator"></span>
     <div class="toolbar-group draw-tools" role="group" aria-label="Create Features">
       <button type="button" class="icon-tool" data-editor-draw="Marker" title="Create Point — click the map once" aria-label="Create Point">●</button>
       <button type="button" class="icon-tool" data-editor-draw="Polyline" title="Create Line — click vertices, then double-click or press Enter" aria-label="Create Line">╱</button>
@@ -2270,7 +2290,7 @@ $("gisToolSearch").oninput=e=>renderGisToolbox(e.target.value);
   document.querySelectorAll(".arc-dropdown button[data-base]").forEach(b=>b.onclick=()=>{
     const key=b.dataset.base; const sel=document.getElementById("basemap"); if(sel){sel.value=key;sel.dispatchEvent(new Event("change"))} closeMenus();
   });
-  document.querySelectorAll(".arc-dropdown button[data-action]").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll(".arc-dropdown button[data-action], .classic-toolbar button[data-action]").forEach(b=>b.onclick=()=>{
     const a=b.dataset.action;
     const mapActions={
       startEditing:()=>startEditing(),
