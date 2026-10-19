@@ -251,18 +251,24 @@ public class BrokerageApiTests
         string serviceCodeQuery)
     {
         await using var application = new WebApplicationFactory<Program>();
-        using var client = await CreateVerifiedApplicantClientAsync(application);
+        var applicantUserId = $"unapproved-service-{Guid.NewGuid():N}";
+        using var client = await CreateVerifiedApplicantClientAsync(application, applicantUserId);
 
         var response = await client.PostAsync($"/service-requests?serviceCode={serviceCodeQuery}", content: null);
 
         Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
 
+        // The test database may contain records from other integration tests. Verify this
+        // rejected request did not create data for this unique applicant rather than assuming
+        // every table in the shared test database is globally empty.
         using var scope = application.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<BrokerageDbContext>();
-        Assert.Equal(0, await db.ServiceRequests.AsNoTracking().CountAsync());
-        Assert.Equal(0, await db.WorkflowStages.AsNoTracking().CountAsync());
-        Assert.Equal(0, await db.AuditEvents.AsNoTracking().CountAsync());
+        Assert.Empty(await db.ServiceRequests.AsNoTracking()
+            .Where(x => x.ApplicantUserId == applicantUserId)
+            .ToListAsync());
+        Assert.Equal(0, await db.AuditEvents.AsNoTracking()
+            .CountAsync(x => x.ActorUserId == applicantUserId));
     }
 
     [Theory]
@@ -1326,15 +1332,17 @@ public class BrokerageApiTests
         Assert.Equal(System.Net.HttpStatusCode.Forbidden, response.StatusCode);
     }
 
-    private static async Task<HttpClient> CreateVerifiedApplicantClientAsync(WebApplicationFactory<Program> application)
+    private static async Task<HttpClient> CreateVerifiedApplicantClientAsync(
+        WebApplicationFactory<Program> application,
+        string userId = "test-applicant")
     {
         var client = application.CreateClient();
-        client.DefaultRequestHeaders.Add("X-Test-User-Id", "test-applicant");
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", userId);
         client.DefaultRequestHeaders.Add("X-Test-User-Role", "Applicant");
 
         using var scope = application.Services.CreateScope();
         var states = scope.ServiceProvider.GetRequiredService<IIdentityVerificationStateRepository>();
-        await states.SaveResultAsync("test-applicant", true, DateTimeOffset.UtcNow);
+        await states.SaveResultAsync(userId, true, DateTimeOffset.UtcNow);
         return client;
     }
 
