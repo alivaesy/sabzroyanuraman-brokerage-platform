@@ -1432,7 +1432,7 @@ function restoreProject(project){
   });
   $("projectName").value=project.name||"Untitled Project";
   renderLayerList();refreshAttributeLayers();
-  $("projectStatus").textContent= "Project restored: "++(project.savedAt?new Date(project.savedAt).toLocaleString("en-US"):"—");
+  $("projectStatus").textContent= "Project restored: "+(project.savedAt?new Date(project.savedAt).toLocaleString("en-US"):"—");
   status("Project restored.");
 }
 async function saveProject(){
@@ -1440,7 +1440,7 @@ async function saveProject(){
     const project=serializeProject();
     project.id=projectId();project.updatedAt=new Date().toISOString();
     await putProject(project);currentProjectId=project.id;
-    $("projectStatus").textContent= "Project saved locally: "++new Date().toLocaleString("en-US");
+    $("projectStatus").textContent= "Project saved locally: "+new Date().toLocaleString("en-US");
     status("Project saved in this browser.");
   }catch(e){status("Project save failed: "+e.message)}
 }
