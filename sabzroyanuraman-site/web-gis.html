@@ -251,6 +251,45 @@ body{background:#dfe5e8;color:#173b57}
 #classicToolbars .toolbar-separator{height:20px;margin:0 4px}
 @media(max-width:850px){#standardToolbar .arc-search{width:165px}.classic-toolbar #editTargetLayer{width:110px}}
 @media(max-width:650px){#classicToolbars{overflow-x:auto}.classic-toolbar{min-width:max-content}.classic-toolbar #editTargetLayer{width:100px}#standardToolbar .arc-search{width:145px}}
+/* Classic ArcMap arrangement: three narrow icon toolbars under the menu. */
+#classicToolbars{display:flex;flex-direction:column;gap:0;padding:1px 5px 2px;background:linear-gradient(#ededed,#dfe3e5);border-bottom:1px solid #89969d;box-shadow:inset 0 1px #fff}
+.classic-toolbar{display:flex;align-items:center;gap:2px;min-height:27px;padding:1px 3px;border-bottom:1px solid #cbd0d3;flex-wrap:nowrap}
+.classic-toolbar:last-child{border-bottom:0}
+.classic-toolbar button.icon-tool{width:25px;min-width:25px;height:24px;padding:0;border:1px solid transparent;border-radius:1px;background:transparent;color:#263b46;font-family:"Segoe UI Symbol","Arial Unicode MS",Arial,sans-serif;font-size:15px;line-height:1}
+.classic-toolbar button.icon-tool:hover:not(:disabled){border-color:#8ba9bb;background:#dceaf2}
+.classic-toolbar button.icon-tool.active{border-color:#7394a6;background:#cbdde8;box-shadow:inset 0 1px 2px #aebec6}
+.classic-toolbar button.icon-tool:disabled{opacity:.42}
+.classic-toolbar button.icon-tool.standard-tool{font-size:15px}
+.classic-toolbar .toolbar-group{display:inline-flex;align-items:center;gap:1px;padding:0;border:0;background:transparent}
+.classic-toolbar .toolbar-separator{height:20px;margin:0 4px;border-left:1px solid #a6afb4}
+#editorToolbar select{width:145px;min-width:115px;height:23px;padding:1px 4px;border:1px solid #aab5bb;border-radius:1px;background:linear-gradient(#fff,#e8ecee);font-size:10px}
+#editorToolbar #startEditingBtn,#editorToolbar #saveEditsBtn,#editorToolbar #stopEditingBtn{font-size:0}
+#editorToolbar #startEditingBtn:before{content:"▶";font-size:11px}
+#editorToolbar #saveEditsBtn:before{content:"▣";font-size:13px}
+#editorToolbar #stopEditingBtn:before{content:"■";font-size:11px}
+.toolbar-caption{display:none!important}
+.arcmap-topbar{height:25px;min-height:25px;padding:0 4px;background:linear-gradient(#fafafa,#ededed);border-bottom:1px solid #aeb4b8}
+.arc-menu-btn{height:24px;padding:0 9px;border:1px solid transparent;border-radius:0;font-size:11px;color:#242424}
+.panel{width:260px;min-width:260px;padding:3px!important;background:#f1f1f1;border-left:1px solid #8d999f;box-shadow:1px 0 3px rgba(0,0,0,.1)}
+.panel .layer-section{margin:0!important;border:0;background:#fff}
+.panel .layer-section h3{height:26px;padding:5px 7px!important;background:linear-gradient(#f8f8f8,#e4e7e9);border:1px solid #9ba9b1;border-bottom:0;color:#263f50;font-size:11px;font-weight:700}
+.panel .layer-section #layers{max-height:none;min-height:calc(100vh - 190px);overflow:auto;background:#fff;border:1px solid #9ba9b1}
+.layer-tree-title{display:none!important}
+.layer-row{min-height:24px;padding:2px 5px;border-left:0!important;border-bottom:1px solid #eceff1;background:#fff;font-size:11px}
+.layer-row.layer-active{background:#dcebf5;outline:1px solid #9ab7c7}
+.layer-row .layer-menu{display:none!important}
+.layer-row .layer-icon{width:15px;font-size:12px}
+.gis-dock{display:none;position:fixed;z-index:4200;top:130px;right:0;bottom:24px;width:min(350px,92vw);overflow:auto;background:#f1f1f1;border:1px solid #7f8d95;box-shadow:-3px 2px 12px rgba(0,0,0,.24);padding:4px;direction:ltr}
+.gis-dock.show{display:block}
+.gis-dock-title{position:sticky;top:-4px;z-index:4;height:27px;display:flex;align-items:center;justify-content:space-between;padding:0 6px;background:linear-gradient(#f8f8f8,#dfe4e6);border-bottom:1px solid #aab5bb;color:#263f50;font-size:11px}
+.gis-dock-title button{width:23px;height:22px;border:1px solid transparent;background:transparent;font-size:17px;cursor:pointer}
+.gis-dock-title button:hover{border-color:#9aaab2;background:#e1eaf0}
+.gis-dock .accordion-section{margin:4px 0;border-radius:1px}
+.gis-dock .accordion-head{height:27px}
+.gis-dock .accordion-body{max-height:calc(100vh - 220px);overflow:auto}
+@media(max-width:850px){.panel{width:235px;min-width:235px}.gis-dock{top:125px}}
+@media(max-width:650px){#classicToolbars{overflow-x:auto}.classic-toolbar{min-width:max-content}.panel{width:220px;min-width:220px}.gis-dock{top:118px;width:min(340px,94vw)}}
+
 </style>
 </head>
 <body>
@@ -270,20 +309,28 @@ body{background:#dfe5e8;color:#173b57}
     <button class="arc-menu-btn" data-menu="helpMenu">Help</button>
   </nav>
 </header>
-<div id="classicToolbars">
-  <div class="classic-toolbar standard-toolbar" id="standardToolbar" role="toolbar" aria-label="Standard">
-    <div class="toolbar-group" role="group" aria-label="Project and data">
-      <button type="button" class="icon-tool standard-tool" data-action="openProjectManager" title="Project Manager" aria-label="Project Manager">▱</button>
+<div id="classicToolbars" aria-label="ArcMap toolbars">
+  <div class="classic-toolbar" id="standardToolbar" role="toolbar" aria-label="Standard">
+    <div class="toolbar-group" role="group" aria-label="Standard commands">
+      <button type="button" class="icon-tool standard-tool" title="New Map" aria-label="New Map" disabled>▧</button>
+      <button type="button" class="icon-tool standard-tool" data-action="loadProject" title="Open Project" aria-label="Open Project">▱</button>
       <button type="button" class="icon-tool standard-tool" data-action="saveProject" title="Save Project" aria-label="Save Project">▣</button>
-      <button type="button" class="icon-tool standard-tool" data-action="loadProject" title="Open Saved Project" aria-label="Open Saved Project">↥</button>
+      <button type="button" class="icon-tool standard-tool" title="Print Map" aria-label="Print Map" disabled>▤</button>
       <span class="toolbar-separator"></span>
       <button type="button" class="icon-tool standard-tool" data-action="importData" title="Add Data" aria-label="Add Data">＋</button>
       <button type="button" class="icon-tool standard-tool" data-action="exportData" title="Export Data" aria-label="Export Data">⇩</button>
+      <button type="button" class="icon-tool standard-tool" data-action="openProjectManager" title="Project Manager" aria-label="Project Manager">▣</button>
+      <span class="toolbar-separator"></span>
+      <button type="button" class="icon-tool standard-tool" title="Undo" aria-label="Undo" disabled>↶</button>
+      <button type="button" class="icon-tool standard-tool" title="Redo" aria-label="Redo" disabled>↷</button>
     </div>
-    <div class="arc-search"><span aria-hidden="true">⌕</span><input id="topToolSearch" placeholder="Search for tools..." autocomplete="off"><div id="topToolResults"></div></div>
   </div>
-  <div class="classic-toolbar" id="toolsToolbar" role="toolbar" aria-label="Tools and Editor">
-    <div class="toolbar-group" role="group" aria-label="Map tools">
+  <div class="classic-toolbar" id="toolsToolbar" role="toolbar" aria-label="Tools">
+    <div class="toolbar-group" role="group" aria-label="Navigation and selection tools">
+      <button type="button" class="icon-tool" id="zoomInBtn" title="Zoom In" aria-label="Zoom In">＋</button>
+      <button type="button" class="icon-tool" id="zoomOutBtn" title="Zoom Out" aria-label="Zoom Out">−</button>
+      <button type="button" class="icon-tool" id="panMapBtn" title="Pan" aria-label="Pan">✥</button>
+      <span class="toolbar-separator"></span>
       <button type="button" class="icon-tool" id="selectFeaturesBtn" title="Select Features" aria-label="Select Features">↖</button>
       <button type="button" class="icon-tool" id="selectRectangleBtn" title="Select Features by Rectangle" aria-label="Select Features by Rectangle">▱</button>
       <button type="button" class="icon-tool" id="selectPolygonBtn" title="Select Features by Polygon" aria-label="Select Features by Polygon">⬠</button>
@@ -291,7 +338,9 @@ body{background:#dfe5e8;color:#173b57}
       <button type="button" class="icon-tool" id="clearSelectionBtn" title="Clear Selection" aria-label="Clear Selection">×</button>
       <button type="button" class="icon-tool" id="fullExtentBtn" title="Full Extent" aria-label="Full Extent">⊡</button>
     </div>
-    <span class="toolbar-separator"></span>
+    <div class="arc-search"><span aria-hidden="true">⌕</span><input id="topToolSearch" placeholder="Search for tools..." autocomplete="off"><div id="topToolResults"></div></div>
+  </div>
+  <div class="classic-toolbar editor-toolbar" id="editorToolbar" role="toolbar" aria-label="Editor">
     <select id="editTargetLayer" title="Target layer" aria-label="Target layer"><option value="drawn">My Drawings</option></select>
     <button type="button" class="icon-tool" id="startEditingBtn" title="Start Editing" aria-label="Start Editing">▶</button>
     <button type="button" class="icon-tool" id="saveEditsBtn" disabled title="Save Edits" aria-label="Save Edits">▣</button>
@@ -305,12 +354,15 @@ body{background:#dfe5e8;color:#173b57}
       <button type="button" class="icon-tool" data-editor-draw="Circle" title="Create Circle — click the center, then its edge" aria-label="Create Circle">○</button>
       <button type="button" class="icon-tool" id="finishSketchBtn" disabled title="Finish or cancel sketch" aria-label="Finish or cancel sketch">✓</button>
     </div>
+    <span class="toolbar-separator"></span>
+    <button type="button" class="icon-tool" data-action="clearDraw" title="Clear Drawings" aria-label="Clear Drawings">⌫</button>
   </div>
 </div>
 <div id="arcMenus">
   <div class="arc-dropdown" id="fileMenu">
     <div class="arc-menu-title">File</div>
     <button id="backBtn" type="button">Back to Website</button>
+    <button type="button" disabled>New Map</button>
     <div class="arc-sep"></div>
     <button data-action="openProjectManager">Project Manager...</button>
     <button data-action="saveProject">Save Project</button>
@@ -321,13 +373,15 @@ body{background:#dfe5e8;color:#173b57}
   </div>
   <div class="arc-dropdown" id="projectMenu">
     <div class="arc-menu-title">Edit</div>
+    <button type="button" disabled>Undo</button><button type="button" disabled>Redo</button><div class="arc-sep"></div>
     <button data-action="startEditing">Start Editing</button><button data-action="saveEdits">Save Edits</button><button data-action="stopEditing">Stop Editing</button>
   </div>
   <div class="arc-dropdown" id="mapMenu">
     <div class="arc-menu-title">View</div>
+    <button data-action="zoomIn">Zoom In</button><button data-action="zoomOut">Zoom Out</button><button data-action="pan">Pan</button>
     <button data-action="fitDraw">Full Extent</button>
     <button data-action="showLayers">Table Of Contents</button>
-    <button data-action="wms">Add WMS Layer</button>
+    <button data-action="wms">Add WMS Layer...</button>
     <div class="arc-sep"></div><div class="arc-menu-title">Basemap</div>
     <button data-base="osm">OpenStreetMap</button><button data-base="topo">OpenTopoMap</button>
     <button data-base="sat">Esri World Imagery</button><button data-base="giscloud">MapTiler Streets</button>
@@ -338,7 +392,8 @@ body{background:#dfe5e8;color:#173b57}
   </div>
   <div class="arc-dropdown" id="insertMenu">
     <div class="arc-menu-title">Insert</div>
-    <button data-action="importData">Add Data...</button><button data-action="wms">Add WMS Layer</button>
+    <button data-action="importData">Add Data...</button><button data-action="wms">Add WMS Layer...</button>
+    <div class="arc-sep"></div><button type="button" disabled>Insert Data Frame</button><button type="button" disabled>Insert Legend</button><button type="button" disabled>Insert North Arrow</button><button type="button" disabled>Insert Scale Bar</button><button type="button" disabled>Insert Title</button>
   </div>
   <div class="arc-dropdown" id="selectionMenu">
     <div class="arc-menu-title">Selection</div>
@@ -361,23 +416,24 @@ body{background:#dfe5e8;color:#173b57}
     <div class="arc-sep"></div><button data-tool="moveFeatures">Move Features</button><button data-tool="rotateFeatures">Rotate Features</button>
     <button data-tool="scaleFeatures">Scale Features</button><button data-tool="reshapeFeatures">Reshape</button>
     <button data-tool="snapTool">Snap Points to Lines</button>
+    <div class="arc-sep"></div><button data-action="editorOptions">Editing Options...</button>
   </div>
   <div class="arc-dropdown" id="analysisMenu">
     <div class="arc-menu-title">Geoprocessing</div>
     <button data-action="buffer">Buffer</button><button data-action="clip">Clip</button>
     <button data-action="intersection">Intersect</button><button data-action="merge">Merge</button>
+    <div class="arc-sep"></div><button data-action="showToolbox">Search Tools...</button>
     <button data-tool="measureDistanceTool">Measure Length</button><button data-tool="measureAreaTool">Measure Area</button>
     <button data-tool="chartStats">Statistics</button><button data-tool="networkQaTool">Network Connectivity Check</button>
   </div>
   <div class="arc-dropdown" id="layerMenu">
     <div class="arc-menu-title">Customize</div>
-    <button data-tool="styleLayer">Layer Properties</button><button data-tool="labelLayer">Label Features</button>
-    <button data-tool="layerTransparency">Layer Transparency</button>
+    <button type="button" disabled>Customize Mode...</button><button type="button" disabled>Toolbars</button>
     <button data-action="crs">Coordinate Systems</button>
   </div>
   <div class="arc-dropdown" id="windowsMenu">
     <div class="arc-menu-title">Windows</div><button data-action="showLayers">Table Of Contents</button>
-    <button data-action="openAttributeTable">Attribute Table</button><button data-action="showToolbox">ArcToolbox</button>
+    <button data-action="showToolbox">ArcToolbox</button>
   </div>
   <div class="arc-dropdown" id="helpMenu">
     <div class="arc-menu-title">Help</div><button data-action="about">About Web GIS</button>
@@ -392,7 +448,20 @@ body{background:#dfe5e8;color:#173b57}
       <div id="layers"></div>
     </div>
 
-    <div class="accordion-section" data-accordion="display">
+    <div style="display:none">
+      <input id="fileInput" type="file" accept=".geojson,.json,.kml,.zip,.shp">
+      <input id="gdbInput" type="file" webkitdirectory directory multiple>
+      <button id="exportGeoJSON" type="button"></button>
+      <button id="exportKML" type="button"></button>
+      <button id="exportGPX" type="button"></button>
+      <button id="exportSHP" type="button"></button>
+      <button id="exportGDB" type="button"></button>
+      <button id="exportDXF" type="button"></button>
+    </div>
+  </aside>
+<div id="gisDock" class="gis-dock" aria-label="ArcToolbox and GIS panels">
+  <div class="gis-dock-title"><strong id="gisDockTitle">ArcToolbox</strong><button type="button" id="closeGisDock" title="Close" aria-label="Close">×</button></div>
+      <div class="accordion-section" data-accordion="display">
       <button type="button" class="accordion-head"><span>Display</span><span class="accordion-arrow">▾</span></button>
       <div class="accordion-body">
         <div class="compact-block">
@@ -532,17 +601,9 @@ body{background:#dfe5e8;color:#173b57}
       </div>
     </div>
 
-    <div style="display:none">
-      <input id="fileInput" type="file" accept=".geojson,.json,.kml,.zip,.shp">
-      <input id="gdbInput" type="file" webkitdirectory directory multiple>
-      <button id="exportGeoJSON" type="button"></button>
-      <button id="exportKML" type="button"></button>
-      <button id="exportGPX" type="button"></button>
-      <button id="exportSHP" type="button"></button>
-      <button id="exportGDB" type="button"></button>
-      <button id="exportDXF" type="button"></button>
-    </div>
-  </aside>
+
+</div>
+
 </div>
 <div id="layerContextMenu" class="arc-context-menu">
   <button type="button" data-action="table">Open Attribute Table</button>
@@ -551,6 +612,10 @@ body{background:#dfe5e8;color:#173b57}
   <button type="button" data-action="zoom">Zoom To Layer</button>
   <button type="button" data-action="show">Show Layer</button>
   <button type="button" data-action="hide">Hide Layer</button>
+  <div class="arc-context-sep"></div>
+  <button type="button" data-action="properties">Properties...</button>
+  <button type="button" data-action="labels">Label Features</button>
+  <button type="button" data-action="transparency">Transparency...</button>
   <div class="arc-context-sep"></div>
   <button type="button" data-action="remove">Remove Layer</button>
 </div>
@@ -847,22 +912,32 @@ function showLayerContextMenu(item,x,y){
   contextLayerItem=item;
   const m=$("layerContextMenu");if(!m)return;
   m.classList.add("show");
-  m.style.left=Math.min(x,window.innerWidth-220)+"px";
-  m.style.top=Math.min(y,window.innerHeight-230)+"px";
+  const menuWidth=m.offsetWidth||220,menuHeight=m.offsetHeight||260;
+  m.style.left=Math.max(4,Math.min(x,window.innerWidth-menuWidth-4))+"px";
+  m.style.top=Math.max(4,Math.min(y,window.innerHeight-menuHeight-4))+"px";
+}
+function openGisDock(section){
+  const dock=$("gisDock");if(!dock)return;
+  dock.classList.add("show");
+  const sections=[...dock.querySelectorAll(".accordion-section")];
+  sections.forEach(x=>x.classList.remove("open"));
+  const target=dock.querySelector('.accordion-section[data-accordion="'+section+'"]');
+  if(target){target.classList.add("open");target.scrollIntoView({block:"nearest"});}
+  const titles={analysis:"ArcToolbox",attribute:"Attribute Table",display:"Display",edit:"Editor",project:"Project and Settings"};
+  const title=$("gisDockTitle");if(title)title.textContent=titles[section]||"ArcToolbox";
 }
 function openLayerAttributeTable(item){
  const idx=namedLayers.findIndex(x=>x.layer===item.layer);
  if(item.layer===drawn)$("attributeLayer").value="drawn";
  else if(idx>=0)$("attributeLayer").value=String(idx);
  else return;
- document.querySelector('.accordion-section[data-accordion="attribute"]')?.classList.add("open");
+ openGisDock("attribute");
  renderEditableTable();
 }
 function displayLayerName(name,index){return /[\u0600-\u06FF]/.test(String(name||""))?"Layer "+(index+1):String(name||("Layer "+(index+1)))}
 function renderLayerList(){
   const el=$("layers"); if(!el)return;
   el.innerHTML="";
-  const title=document.createElement("div");title.className="layer-tree-title";title.textContent="Table Of Contents";el.appendChild(title);
   const all=[{name:"My Drawings",layer:drawn,isDrawn:true}].concat(namedLayers.map(x=>({...x,isDrawn:false})));
   all.forEach((x,i)=>{
     const row=document.createElement("div");row.className="layer-row";
@@ -877,9 +952,6 @@ function renderLayerList(){
     row.append(cb,icon,nm);
     row.onclick=()=>{selectedOverlay=x.layer;selectedLayer=null;renderLayerList();};
     row.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();selectedOverlay=x.layer;renderLayerList();showLayerContextMenu(x,e.clientX,e.clientY);};
-    const more=document.createElement("button");more.className="layer-menu";more.textContent="⋮";more.title="Layer Options";
-    more.onclick=e=>{e.stopPropagation();selectedOverlay=x.layer;renderLayerList();showLayerContextMenu(x,e.clientX,e.clientY);};
-    row.appendChild(more);
     el.appendChild(row);
   });
 }
@@ -912,6 +984,16 @@ $("stopEditingBtn").onclick=stopEditing;
 $("editTargetLayer").onchange=()=>{const v=$("editTargetLayer").value;editTarget=v==="drawn"?drawn:(namedLayers[Number(v)]?.layer||drawn)};
 document.querySelectorAll("[data-editor-draw]").forEach(b=>b.onclick=()=>startDraw(b.dataset.editorDraw,b));
 $("finishSketchBtn").onclick=()=>{if(activeDrawHandler&&activeDrawPurpose==="draw"&&typeof activeDrawHandler.completeShape==="function")activeDrawHandler.completeShape();else stopActiveDraw(true)};
+document.getElementById("closeGisDock")?.addEventListener("click",()=>document.getElementById("gisDock")?.classList.remove("show"));
+document.addEventListener("keydown",e=>{if(e.key==="Escape")document.getElementById("gisDock")?.classList.remove("show")});
+document.getElementById("zoomInBtn")?.addEventListener("click",()=>map.zoomIn());
+document.getElementById("zoomOutBtn")?.addEventListener("click",()=>map.zoomOut());
+document.getElementById("panMapBtn")?.addEventListener("click",()=>{
+  stopActiveDraw(true);activeMapTool="pan";
+  document.querySelectorAll("#classicToolbars button.icon-tool").forEach(x=>x.classList.remove("active"));
+  document.getElementById("panMapBtn")?.classList.add("active");
+  map.dragging.enable();status("Pan tool is active.");
+});
 $("selectFeaturesBtn").onclick=()=>{activeMapTool="select";document.querySelectorAll("#classicToolbars button").forEach(x=>x.classList.remove("active"));$("selectFeaturesBtn").classList.add("active");status("Select Features is active. Ctrl-click or Shift-click to add features.")};
 $("selectRectangleBtn").onclick=selectByRectangle;
 $("selectPolygonBtn").onclick=selectByPolygon;
@@ -1177,6 +1259,9 @@ $("layerContextMenu").querySelectorAll("button[data-action]").forEach(btn=>btn.o
   else if(action==="export")openDataFormatDialog("export",item.layer);
   else if(action==="zoom"&&item.layer.getBounds&&item.layer.getBounds().isValid())map.fitBounds(item.layer.getBounds(),{padding:[25,25],maxZoom:18});
    else if(action==="start-editing")startEditing(item);
+  else if(action==="properties")runGisTool({id:"styleLayer",title:"Layer Properties"});
+  else if(action==="labels")runGisTool({id:"labelLayer",title:"Label Features"});
+  else if(action==="transparency")runGisTool({id:"layerTransparency",title:"Layer Transparency"});
   else if(action==="show")map.addLayer(item.layer);
   else if(action==="hide")map.removeLayer(item.layer);
   else if(action==="remove"&&item.layer!==drawn){
@@ -2296,8 +2381,12 @@ $("gisToolSearch").oninput=e=>renderGisToolbox(e.target.value);
       startEditing:()=>startEditing(),
       saveEdits:()=>saveEdits(),
       stopEditing:()=>stopEditing(),
-      openAttributeTable:()=>{const item=[{name:"My Drawings",layer:drawn},...namedLayers].find(x=>x.layer===selectedOverlay);if(item)openLayerAttributeTable(item);else status("Select a layer in the Table Of Contents.")},
-      showToolbox:()=>{document.querySelector('.accordion-section[data-accordion="analysis"]')?.classList.add("open");document.getElementById("gisToolSearch")?.focus()},
+      openAttributeTable:()=>status("Right-click a layer in the Table Of Contents to open its attribute table."),
+      showToolbox:()=>{openGisDock("analysis");document.getElementById("gisToolSearch")?.focus()},
+      editorOptions:()=>openGisDock("edit"),
+      zoomIn:()=>map.zoomIn(),
+      zoomOut:()=>map.zoomOut(),
+      pan:()=>document.getElementById("panMapBtn")?.click(),
       about:()=>alert("ArcMap-style Web GIS workspace"),
       shortcuts:()=>alert("Enter finishes lines and polygons. Escape cancels the active tool. Ctrl-click or Shift-click adds features to the selection."),
       importData:()=>openDataFormatDialog("import"),
@@ -2308,8 +2397,8 @@ $("gisToolSearch").oninput=e=>renderGisToolbox(e.target.value);
       downloadProject:()=>document.getElementById("downloadProject")?.click(),
       fitDraw:()=>document.getElementById("fitDraw")?.click(),
       clearDraw:()=>document.getElementById("clearDraw")?.click(),
-      showLayers:()=>{const x=document.getElementById("layers");if(x){const names=[...x.querySelectorAll(".layer-name")].map(n=>n.textContent);alert(names.length?names.join("\n"):"No layers are loaded.")}},
-      wms:()=>document.getElementById("addWms")?.click(),
+      showLayers:()=>status("Table Of Contents is docked on the left."),
+      wms:()=>{openGisDock("display");document.getElementById("wmsUrl")?.focus()},
       buffer:()=>{document.getElementById("gisOperation").value="buffer";document.getElementById("runGisOperation").click()},
       clip:()=>{document.getElementById("gisOperation").value="clip";document.getElementById("runGisOperation").click()},
       intersection:()=>{document.getElementById("gisOperation").value="intersection";document.getElementById("runGisOperation").click()},
@@ -2318,8 +2407,9 @@ $("gisToolSearch").oninput=e=>renderGisToolbox(e.target.value);
       searchFeature:()=>searchFeature(),
       addBookmark:()=>addBookmark(),
       showBookmarks:()=>showBookmarks(),
-      crs:()=>document.getElementById("crsPreset")?.focus(),
-      attachments:()=>attachmentsTool()
+      crs:()=>{openGisDock("project");document.getElementById("crsPreset")?.focus()},
+      attachments:()=>attachmentsTool(),
+      display:()=>openGisDock("display")
     };
     if(mapActions[a])mapActions[a](); closeMenus();
   });
