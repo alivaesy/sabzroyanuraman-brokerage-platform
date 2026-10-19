@@ -218,6 +218,22 @@ public class AuditComplianceTests
         Assert.Equal("AuditOrderingMiddle", System.Text.Json.JsonDocument.Parse(lines[1]).RootElement.GetProperty("eventType").GetString());
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(10001)]
+    public async Task AuditExport_LoadRecordsRejectsLimitsOutsideBoundedQueryRange(int limit)
+    {
+        var options = new DbContextOptionsBuilder<BrokerageDbContext>()
+            .UseSqlite("Data Source=:memory:")
+            .Options;
+        await using var db = new BrokerageDbContext(options);
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            AuditExportEndpoints.LoadRecordsAsync(
+                db, null, null, limit, CancellationToken.None));
+    }
+
     [Fact]
     public async Task AuditExport_SqliteAppliesUtcBoundsOrderAndLimitInDatabase()
     {

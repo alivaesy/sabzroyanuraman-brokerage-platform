@@ -21,6 +21,11 @@ public static class AuditExportEndpoints
         int limit,
         CancellationToken cancellationToken)
     {
+        // Keep this query bounded even when reused outside the HTTP endpoint, which also
+        // validates the configured limit. SQLite treats LIMIT -1 as unbounded.
+        if (limit is < 1 or > MaximumLimit)
+            throw new ArgumentOutOfRangeException(nameof(limit), $"Limit must be between 1 and {MaximumLimit}.");
+
         if (dbContext.Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")
         {
             var fromUtc = from?.ToUniversalTime();
