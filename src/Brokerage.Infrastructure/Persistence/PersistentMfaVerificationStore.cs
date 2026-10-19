@@ -10,6 +10,8 @@ public sealed class PersistentMfaVerificationStore(BrokerageDbContext db) : IMfa
     {
         if (string.IsNullOrWhiteSpace(userId))
             throw new ArgumentException("User ID is required.", nameof(userId));
+        if (userId.Length > 200)
+            throw new ArgumentOutOfRangeException(nameof(userId), "User ID cannot exceed the persistence limit of 200 characters.");
 
         var record = db.MfaVerifications.Find(userId);
         if (record is null)

@@ -345,6 +345,21 @@ public class PersistentAuthenticationStateTests
     }
 
     [Fact]
+    public void MfaVerification_MarkVerified_RejectsOversizedUserIdBeforeDatabaseAccess()
+    {
+        using var connection = new SqliteConnection("Data Source=:memory:");
+        connection.Open();
+
+        var options = new DbContextOptionsBuilder<BrokerageDbContext>().UseSqlite(connection).Options;
+        using var db = new BrokerageDbContext(options);
+        var store = new PersistentMfaVerificationStore(db);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            store.MarkVerified(new string('u', 201), DateTimeOffset.UtcNow));
+        Assert.False(db.MfaVerifications.Any());
+    }
+
+    [Fact]
     public void MfaVerification_PersistsAcrossStoreInstances()
     {
         using var connection = new SqliteConnection("Data Source=:memory:");
