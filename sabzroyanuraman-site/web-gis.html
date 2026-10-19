@@ -378,7 +378,7 @@ body{background:#dfe5e8;color:#173b57}
 <button type="button" class="icon-tool" id="measureToolBtn" title="Measure" aria-label="Measure" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-measure"></use></svg></button>
 <button type="button" class="icon-tool" id="findToolBtn" title="Find" aria-label="Find" ><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-find"></use></svg></button>
 <button type="button" class="icon-tool" id="findRouteBtn" title="Find Route" aria-label="Find Route" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-route"></use></svg></button>
-<button type="button" class="icon-tool" id="goToXYBtn" title="Go To XY Location" aria-label="Go To XY Location" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-goxy"></use></svg></button>
+<button type="button" class="icon-tool" id="goToXYBtn" title="Go To XY Location" aria-label="Go To XY Location"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-goxy"></use></svg></button>
 <button type="button" class="icon-tool" id="timeSliderBtn" title="Open Time Slider Window" aria-label="Open Time Slider Window" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-time"></use></svg></button>
 <button type="button" class="icon-tool" id="createViewerBtn" title="Create Viewer Window" aria-label="Create Viewer Window" disabled><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-viewer"></use></svg></button></div>
 <div class="classic-toolbar editor-toolbar" id="editorToolbar" role="toolbar" aria-label="Editor"><select id="editTargetLayer" title="Target layer" aria-label="Target layer"><option value="drawn">My Drawings</option></select>
@@ -403,14 +403,17 @@ body{background:#dfe5e8;color:#173b57}
     <div class="arc-sep"></div>
     <button data-action="openProjectManager">Project Manager...</button>
     <button data-action="saveProject">Save Project</button>
+    <button data-action="downloadProject">Save Project As...</button>
     <button data-action="loadProject">Open Saved Project</button>
     <div class="arc-sep"></div>
     <button data-action="importData">Add Data...</button>
+    <button data-action="wms">Add WMS Layer...</button>
     <button data-action="exportData">Export Data...</button>
   </div>
   <div class="arc-dropdown" id="projectMenu">
     <div class="arc-menu-title">Edit</div>
     <button type="button" disabled>Undo</button><button type="button" disabled>Redo</button><div class="arc-sep"></div>
+    <button data-action="toggleEditorToolbar">Editor Toolbar</button>
     <button data-action="startEditing">Start Editing</button><button data-action="saveEdits">Save Edits</button><button data-action="stopEditing">Stop Editing</button>
     <div class="arc-sep"></div><div class="arc-menu-title">Create Features</div>
     <button type="button" data-editor-draw="Marker">Point</button><button type="button" data-editor-draw="Polyline">Line</button><button type="button" data-editor-draw="Polygon">Polygon</button><button type="button" data-editor-draw="Rectangle">Rectangle</button><button type="button" data-editor-draw="Circle">Circle</button>
@@ -419,6 +422,8 @@ body{background:#dfe5e8;color:#173b57}
     <div class="arc-menu-title">View</div>
     <button data-action="zoomIn">Zoom In</button><button data-action="zoomOut">Zoom Out</button><button data-action="pan">Pan</button>
     <button data-action="fitDraw">Full Extent</button>
+    <button data-action="goToXY">Go To XY...</button>
+    <button data-action="identify">Identify</button>
     <button data-action="showLayers">Table Of Contents</button>
     <button data-action="wms">Add WMS Layer...</button>
     <div class="arc-sep"></div><div class="arc-menu-title">Basemap</div>
@@ -745,6 +750,7 @@ let activeMapTool="select";
 let editTarget=drawn;
 
 function stopActiveDraw(cancel=true){
+  const wasDrawing=activeMapTool==="draw";
   const handler=activeDrawHandler;
   activeDrawHandler=null;
   activeDrawPurpose=null;
@@ -752,6 +758,7 @@ function stopActiveDraw(cancel=true){
   if(activeDrawButton)activeDrawButton.classList.remove("active");
   activeDrawButton=null;
   try{map.doubleClickZoom.enable()}catch(_){}
+  if(wasDrawing){activeMapTool="select";try{map.dragging.enable()}catch(_){} map.getContainer().style.cursor="";}
 }
 function updateEditorToolbar(){
   $("startEditingBtn").disabled=editSessionActive;
@@ -799,6 +806,15 @@ function stopEditing(){
   updateEditorToolbar();
   status("Edit session stopped.");
 }
+function goToXY(){
+  const c=map.getCenter();
+  const raw=prompt("Enter X, Y coordinates in "+currentCRS+":",currentCRS==="EPSG:4326"?c.lng.toFixed(6)+", "+c.lat.toFixed(6):"");
+  if(raw===null)return;
+  const values=raw.trim().split(/[ ,;]+/).map(Number);
+  if(values.length<2||!values.slice(0,2).every(Number.isFinite)){status("Enter valid X and Y coordinates.");return;}
+  try{const ll=currentCRS==="EPSG:4326"?values.slice(0,2):projectCoords(currentCRS,"EPSG:4326",values.slice(0,2));map.setView([ll[1],ll[0]],Math.max(map.getZoom(),12));status("Map centered at X: "+values[0]+" | Y: "+values[1]);}
+  catch(err){status("Could not convert coordinates: "+err.message);}
+}
 function startDraw(type,button){
   stopActiveDraw();
   if(!editSessionActive){status("Start Editing before creating features.");return}
@@ -815,19 +831,19 @@ function startNativeDraw(type,button){
     const coords=cursor?[...points,cursor]:points;
     if(type==="Polyline"||type==="Polygon"){
       if(coords.length<2)return;
-      if(!preview){preview=type==="Polygon"&&coords.length>=3?L.polygon(coords,style):L.polyline(coords,style);preview.addTo(map)}
-      else if(type==="Polygon"&&coords.length>=3&&!(preview instanceof L.Polygon)){removePreview();preview=L.polygon(coords,style).addTo(map)}
+      if(!preview){preview=type==="Polygon"&&coords.length>=3?L.polygon(coords,{...style,interactive:false}):L.polyline(coords,{...style,interactive:false});preview.addTo(map)}
+      else if(type==="Polygon"&&coords.length>=3&&!(preview instanceof L.Polygon)){removePreview();preview=L.polygon(coords,{...style,interactive:false}).addTo(map)}
       else preview.setLatLngs(coords);
       return;
     }
     if(type==="Rectangle"&&coords.length){
       const bounds=L.latLngBounds(coords[0],coords[1]||cursor||coords[0]);
-      if(!preview)preview=L.rectangle(bounds,style).addTo(map);else preview.setBounds(bounds);
+      if(!preview)preview=L.rectangle(bounds,{...style,interactive:false}).addTo(map);else preview.setBounds(bounds);
       return;
     }
     if(type==="Circle"&&coords.length){
       const center=coords[0],radius=coords[1]?center.distanceTo(coords[1]):0;
-      if(!preview)preview=L.circle(center,{...style,radius}).addTo(map);else{preview.setLatLng(center);preview.setRadius(radius)}
+      if(!preview)preview=L.circle(center,{...style,radius,interactive:false}).addTo(map);else{preview.setLatLng(center);preview.setRadius(radius)}
     }
   };
   const complete=()=>{
@@ -859,8 +875,10 @@ function startNativeDraw(type,button){
     status(messages[type]||"Sketch in progress.");
   };
   const onMove=e=>{if(points.length)updatePreview(e.latlng)};
-  const onDoubleClick=()=>complete();
+  const onDoubleClick=e=>{e.originalEvent?.preventDefault();complete();};
   activeDrawPurpose="draw";activeMapTool="draw";activeDrawButton=button||null;
+  try{map.dragging.disable()}catch(_){}
+  map.getContainer().style.cursor="crosshair";
   const handler={
     disable(){map.off("click",onClick);map.off("mousemove",onMove);map.off("dblclick",onDoubleClick);removePreview()},
     completeShape:complete
@@ -1024,6 +1042,7 @@ $("stopEditingBtn").onclick=stopEditing;
 $("editTargetLayer").onchange=()=>{const v=$("editTargetLayer").value;editTarget=v==="drawn"?drawn:(namedLayers[Number(v)]?.layer||drawn)};
 document.querySelectorAll("[data-editor-draw]").forEach(b=>b.onclick=()=>startDraw(b.dataset.editorDraw,b));
 $("finishSketchBtn").onclick=()=>{if(activeDrawHandler&&activeDrawPurpose==="draw"&&typeof activeDrawHandler.completeShape==="function")activeDrawHandler.completeShape();else stopActiveDraw(true)};
+$("goToXYBtn").onclick=goToXY;
 document.getElementById("closeGisDock")?.addEventListener("click",()=>document.getElementById("gisDock")?.classList.remove("show"));
 document.addEventListener("keydown",e=>{if(e.key==="Escape")document.getElementById("gisDock")?.classList.remove("show")});
 document.getElementById("zoomInBtn")?.addEventListener("click",()=>map.zoomIn());
@@ -2430,6 +2449,8 @@ $("gisToolSearch").oninput=e=>renderGisToolbox(e.target.value);
       toggleEditorToolbar:()=>document.getElementById("editorToolbar")?.classList.toggle("show"),
       openToolSearch:()=>{const d=document.getElementById("searchDock");d?.classList.add("open");document.getElementById("topToolSearch")?.focus()},
       zoomIn:()=>map.zoomIn(),
+      goToXY:()=>goToXY(),
+      identify:()=>document.getElementById("identifyFeatureBtn")?.click(),
       zoomOut:()=>map.zoomOut(),
       pan:()=>document.getElementById("panMapBtn")?.click(),
       about:()=>alert("ArcMap-style Web GIS workspace"),
