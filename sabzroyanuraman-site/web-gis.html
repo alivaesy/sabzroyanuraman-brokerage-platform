@@ -1367,8 +1367,8 @@ document.getElementById("panMapBtn")?.addEventListener("click",()=>{
   map.dragging.enable();status("Pan tool is active.");
 });
 $("selectFeaturesBtn").onclick=()=>{activeMapTool="select";document.querySelectorAll("#classicToolbars button").forEach(x=>x.classList.remove("active"));$("selectFeaturesBtn").classList.add("active");status("Select Features is active. Ctrl-click or Shift-click to add features.")};
-$("selectRectangleBtn").onclick=selectByRectangle;
-$("selectPolygonBtn").onclick=selectByPolygon;
+$("selectRectangleBtn")?.addEventListener("click",selectByRectangle);
+$("selectPolygonBtn")?.addEventListener("click",selectByPolygon);
 $("identifyFeatureBtn").onclick=()=>{activeMapTool="identify";document.querySelectorAll("#classicToolbars button").forEach(x=>x.classList.remove("active"));$("identifyFeatureBtn").classList.add("active");status("Click a feature to identify it.")};
 $("selectElementsBtn").onclick=()=>setMapTool("select",$("selectElementsBtn"),"Select Elements is active. Click a map feature to select it.");
 $("hyperlinkBtn").onclick=startHyperlinkTool;
