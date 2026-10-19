@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Web GIS | سبز رویان اورامان</title>
+<title>ArcMap Web GIS | Sabz Royan Ooraman</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
 <style>
-*{box-sizing:border-box;font-family:Vazirmatn,sans-serif}
+*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
 html,body{height:100%;margin:0}
 body{background:#eef3f5;color:#173b57;overflow:hidden}
 #app{height:100%;display:flex;flex-direction:column}
@@ -16,9 +16,9 @@ body{background:#eef3f5;color:#173b57;overflow:hidden}
 .tool-title{font-size:14px;color:#36556d;margin-right:auto}
 .top-btn{border:1px solid #c7d6dd;background:#f8fbfc;border-radius:8px;padding:7px 11px;cursor:pointer;color:#173b57}
 .top-btn:hover{background:#e6f2ed}
-.workspace{flex:1;min-height:0;display:flex;direction:ltr}
+.workspace{flex:1;min-height:0;display:flex;flex-direction:row-reverse;direction:ltr}
 #map{flex:1;min-width:0}
-.panel{width:310px;background:#fff;border-left:1px solid #cbd9e0;overflow:auto;direction:rtl;padding:12px;box-shadow:-4px 0 16px rgba(20,60,90,.08);z-index:1500}
+.panel{width:310px;background:#fff;border-right:1px solid #cbd9e0;border-left:0;overflow:auto;direction:ltr;padding:12px;box-shadow:-4px 0 16px rgba(20,60,90,.08);z-index:1500}
 .panel h3{font-size:14px;margin:3px 0 9px;color:#07573e}
 .section{border:1px solid #d9e4e9;border-radius:10px;padding:9px;margin-bottom:10px;background:#fbfdfe}
 .row{display:flex;gap:6px;align-items:center;margin:6px 0}
@@ -32,36 +32,36 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
 .layer-row:last-child{border-bottom:0}
 .layer-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .layer-row button{border:0;background:transparent;cursor:pointer;color:#486b7e;padding:2px 5px}
-.status{position:absolute;bottom:12px;left:12px;background:rgba(255,255,255,.94);border:1px solid #cbd9df;border-radius:8px;padding:6px 9px;font-size:10px;z-index:1200;direction:rtl}
-.coord{position:absolute;bottom:12px;right:330px;background:rgba(255,255,255,.94);border:1px solid #cbd9df;border-radius:8px;padding:6px 9px;font-size:10px;z-index:1200;direction:rtl}
+.status{position:absolute;bottom:12px;left:300px;background:rgba(255,255,255,.94);border:1px solid #cbd9df;border-radius:8px;padding:6px 9px;font-size:10px;z-index:1200;direction:ltr}
+.coord{position:absolute;bottom:12px;right:12px;background:rgba(255,255,255,.94);border:1px solid #cbd9df;border-radius:8px;padding:6px 9px;font-size:10px;z-index:1200;direction:rtl}
 .file-label{display:block;border:1px dashed #9db5c1;border-radius:8px;padding:9px;text-align:center;cursor:pointer;background:#f7fafb;font-size:11px}
 .file-label:hover{background:#eef7f3}
 #fileInput{display:none}
 .leaflet-control-layers{direction:rtl}
 @media(max-width:850px){.panel{width:270px}.coord{right:290px}.tool-title{display:none}}
-@media(max-width:650px){.workspace{position:relative}.panel{position:absolute;right:0;top:0;bottom:0;width:285px;transform:translateX(100%);transition:.2s}.panel.open{transform:translateX(0)}.coord{right:12px;bottom:48px}.topbar .top-btn{padding:6px 8px}.brand{font-size:12px}}
+@media(max-width:650px){.workspace{position:relative}.panel{position:absolute;left:0;right:auto;top:0;bottom:0;width:285px;transform:translateX(-100%);transition:.2s}.panel.open{transform:translateX(0)}.coord{right:12px;bottom:48px}.topbar .top-btn{padding:6px 8px}.brand{font-size:12px}}
 
-<style>
+
 #attributeTableWrap table input.cell-edit{width:100%;height:28px;border:1px solid #cbd9df;border-radius:5px;padding:2px 5px;font-size:10px}.multi-selected-feature{filter:drop-shadow(0 0 5px #ff9800);stroke-width:5!important}
 #multiFeatureEditor{display:none;margin-top:8px;padding:8px;border:1px solid #cbd9df;border-radius:8px;background:#f8fbfc}
 #multiFeatureEditor input{min-width:0}
 .attr-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px}
 .attr-toolbar button{font-size:10px}
 .attr-check{width:16px!important;height:16px!important}
-</style>
 
-<style>
+
+
 .gis-tool-item{display:flex;align-items:center;gap:7px;width:100%;text-align:right;border:1px solid #d9e4e9;background:#fff;color:#173b57;border-radius:7px;padding:7px 8px;margin:4px 0;cursor:pointer;font-size:10px}
 .gis-tool-item:hover{background:#eef7f3;border-color:#9db5c1}
 .gis-tool-cat{font-size:9px;color:#146c43;margin:8px 2px 3px;font-weight:700}
 .gis-tool-empty{font-size:10px;color:#7b8f9b;padding:8px 2px}
-</style>
-<style>#projectManager{position:fixed;inset:0;background:rgba(10,35,50,.45);z-index:5000;display:none;align-items:center;justify-content:center;padding:18px}#projectManager.show{display:flex}.pm-card{width:min(680px,96vw);max-height:88vh;overflow:auto;background:#fff;border-radius:14px;padding:18px;direction:rtl;box-shadow:0 18px 55px rgba(0,0,0,.22)}.pm-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.pm-grid .full{grid-column:1/-1}.pm-card textarea{width:100%;min-height:70px;border:1px solid #cbd9df;border-radius:7px;padding:8px}.pm-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.pm-list{border-top:1px solid #e2eaee;margin-top:14px;padding-top:10px}.pm-item{display:flex;align-items:center;gap:8px;border:1px solid #d9e4e9;border-radius:8px;padding:8px;margin:5px 0}.pm-item-info{flex:1}.pm-item-name{font-weight:700;font-size:11px}.pm-item-meta{font-size:9px;color:#718796}</style>
-<style id="arcmap-ui-css">
+
+#projectManager{position:fixed;inset:0;background:rgba(10,35,50,.45);z-index:5000;display:none;align-items:center;justify-content:center;padding:18px}#projectManager.show{display:flex}.pm-card{width:min(680px,96vw);max-height:88vh;overflow:auto;background:#fff;border-radius:14px;padding:18px;direction:rtl;box-shadow:0 18px 55px rgba(0,0,0,.22)}.pm-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.pm-grid .full{grid-column:1/-1}.pm-card textarea{width:100%;min-height:70px;border:1px solid #cbd9df;border-radius:7px;padding:8px}.pm-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.pm-list{border-top:1px solid #e2eaee;margin-top:14px;padding-top:10px}.pm-item{display:flex;align-items:center;gap:8px;border:1px solid #d9e4e9;border-radius:8px;padding:8px;margin:5px 0}.pm-item-info{flex:1}.pm-item-name{font-weight:700;font-size:11px}.pm-item-meta{font-size:9px;color:#718796}
+
 body{background:#dfe5e8;color:#173b57}
-.arcmap-topbar{height:48px;background:#f5f6f7;border-bottom:1px solid #9ba9b1;padding:0 8px;gap:8px;direction:rtl}
+.arcmap-topbar{height:48px;background:#f5f6f7;border-bottom:1px solid #9ba9b1;padding:0 8px;gap:8px;direction:ltr}
 .arcmap-topbar .brand{font-size:13px;padding:0 8px}
-.arc-menu{display:flex;align-items:stretch;height:100%;gap:0;direction:rtl}
+.arc-menu{display:flex;align-items:stretch;height:100%;gap:0;direction:ltr}
 .arc-menu-btn{border:0;background:transparent;padding:0 12px;color:#263f50;font-size:12px;cursor:pointer}
 .arc-menu-btn:hover,.arc-menu-btn.active{background:#d9e7f0}
 .arc-search{position:relative;width:270px;margin-right:auto;direction:ltr}
@@ -71,16 +71,16 @@ body{background:#dfe5e8;color:#173b57}
 #topToolResults.show{display:block}
 .top-tool-item{display:block;width:100%;border:0;background:#fff;text-align:right;padding:8px 10px;font-size:11px;cursor:pointer}
 .top-tool-item:hover{background:#e8f2f7}
-#arcMenus{position:fixed;top:48px;right:0;z-index:5500}
-.arc-dropdown{display:none;position:absolute;top:0;background:#fff;border:1px solid #8f9da5;box-shadow:0 5px 18px rgba(0,0,0,.2);min-width:220px;padding:4px;direction:rtl}
+#arcMenus{position:fixed;top:48px;left:0;right:auto;z-index:5500}
+.arc-dropdown{display:none;position:absolute;top:0;left:0;background:#fff;border:1px solid #8f9da5;box-shadow:0 5px 18px rgba(0,0,0,.2);min-width:220px;padding:4px;direction:ltr}
 .arc-dropdown.show{display:block}
-.arc-dropdown button{display:block;width:100%;border:0;background:#fff;text-align:right;padding:7px 10px;font-size:11px;color:#243e50;cursor:pointer;border-radius:2px}
+.arc-dropdown button{display:block;width:100%;border:0;background:#fff;text-align:left;padding:7px 10px;font-size:11px;color:#243e50;cursor:pointer;border-radius:2px}
 .arc-dropdown button:hover{background:#e6f0f5}
 .arc-menu-title{font-size:10px;color:#607684;padding:5px 9px;font-weight:700}
 .arc-sep{height:1px;background:#d9e1e5;margin:4px 0}
-.workspace{direction:ltr;display:flex;min-height:0;position:relative}
+.workspace{direction:ltr;display:flex;flex-direction:row-reverse;min-height:0;position:relative}
 #map{background:#cfd9de;flex:1;min-width:0}
-.panel{display:flex!important;flex-direction:column;width:290px;min-width:290px;height:100%;overflow:auto;background:#f4f6f7;border-right:1px solid #8f9da5;box-shadow:1px 0 5px rgba(0,0,0,.10);direction:rtl;z-index:1000}
+.panel{display:flex!important;flex-direction:column;width:290px;min-width:290px;height:100%;overflow:auto;background:#f4f6f7;border-left:1px solid #8f9da5;border-right:0;box-shadow:1px 0 5px rgba(0,0,0,.10);direction:ltr;z-index:1000}
 .panel .section{margin:0 7px 6px}
 .panel .section:first-child{margin-top:7px}
 .panel .section h3{font-size:11px;margin:0;padding:7px 8px;background:#e3e8eb;border:1px solid #bcc7cd;border-bottom:0;color:#263f50}
@@ -92,16 +92,16 @@ body{background:#dfe5e8;color:#173b57}
 .layer-row .layer-name{cursor:default}
 .layer-row .layer-icon{width:17px;text-align:center;color:#416b7f}
 .layer-row .layer-menu{margin-right:auto;border:0;background:transparent;color:#536c79;font-size:14px;cursor:pointer;padding:0 4px}
-.arc-context-menu{position:fixed;display:none;min-width:210px;background:#fff;border:1px solid #7f8d95;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:10000;padding:3px;direction:rtl}
+.arc-context-menu{position:fixed;display:none;min-width:210px;background:#fff;border:1px solid #7f8d95;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:10000;padding:3px;direction:ltr}
 .arc-context-menu.show{display:block}
-.arc-context-menu button{display:block;width:100%;border:0;background:#fff;text-align:right;padding:7px 9px;font-size:11px;color:#243e50;cursor:pointer}
+.arc-context-menu button{display:block;width:100%;border:0;background:#fff;text-align:left;padding:7px 9px;font-size:11px;color:#243e50;cursor:pointer}
 .arc-context-menu button:hover{background:#e5eef3}
 .arc-context-sep{height:1px;background:#d9e1e5;margin:3px 0}
 .leaflet-control-layers{display:none}
 #basemap{display:none}
-.webgis-draw-control{background:#fff;border:1px solid #7f8d95;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.22);padding:4px;display:flex;flex-direction:column;gap:3px;direction:rtl}.webgis-draw-control button{min-width:78px;height:29px;border:1px solid #b5c1c7;background:#f8fafb;color:#173b57;border-radius:3px;font-size:10px;cursor:pointer}.webgis-draw-control button:hover{background:#e6f2ed;border-color:#146c43}.webgis-draw-control button.active{background:#146c43;color:#fff}
-<style id="arcmap-panel-accordion-css">
-.panel{padding:6px!important;gap:4px}
+.webgis-draw-control{background:#fff;border:1px solid #7f8d95;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.22);padding:4px;display:flex;flex-direction:row;gap:3px;direction:ltr}.webgis-draw-control button{min-width:78px;height:29px;border:1px solid #b5c1c7;background:#f8fafb;color:#173b57;border-radius:3px;font-size:10px;cursor:pointer}.webgis-draw-control button:hover{background:#e6f2ed;border-color:#146c43}.webgis-draw-control button.active{background:#146c43;color:#fff}
+
+.panel{padding:6px!important;gap:4px;direction:ltr!important}
 .panel-toolbar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;padding:4px;background:#e1e7ea;border:1px solid #9ba9b1;border-radius:3px;position:sticky;top:0;z-index:20}
 .panel-toolbar button{height:30px;border:1px solid #a9b6bd;background:#f8fafb;color:#263f50;border-radius:3px;font-size:10px;font-weight:700;cursor:pointer}
 .panel-toolbar button:hover{background:#e5eef3;border-color:#6f8998}
@@ -109,7 +109,7 @@ body{background:#dfe5e8;color:#173b57}
 .panel .layer-section h3{margin:0!important;border:1px solid #9ba9b1;border-bottom:0}
 .panel .layer-section #layers{max-height:calc(100vh - 220px);min-height:150px}
 .accordion-section{margin:0 1px 4px;border:1px solid #b8c4ca;background:#fff;border-radius:3px;overflow:hidden}
-.accordion-head{width:100%;height:34px;border:0;background:#e5eaed;color:#263f50;display:flex;align-items:center;justify-content:space-between;padding:0 9px;direction:rtl;font-size:11px;font-weight:700;cursor:pointer}
+.accordion-head{width:100%;height:34px;border:0;background:#e5eaed;color:#263f50;display:flex;align-items:center;justify-content:space-between;padding:0 9px;direction:ltr;font-size:11px;font-weight:700;cursor:pointer}
 .accordion-head:hover{background:#dbe7ed}
 .accordion-section.open .accordion-head{background:#d5e4ec}
 .accordion-arrow{font-size:12px;transition:transform .15s}
@@ -123,264 +123,304 @@ body{background:#dfe5e8;color:#173b57}
 .panel input,.panel select{height:30px;font-size:10px}
 .panel button.action{font-size:10px;padding:6px 7px}
 .panel .attr-toolbar{grid-template-columns:1fr 1fr}
-</style><style id="draw-fix-css">
+
 .webgis-draw-control{z-index:2000!important}
 .webgis-draw-control button{font-family:inherit!important;user-select:none}
 .leaflet-draw-toolbar{margin-top:0!important}
-</style></style></head>
+#classicToolbars{display:flex;flex-direction:column;gap:2px;padding:3px 6px;background:#d7dde0;border-bottom:1px solid #99a5ab;z-index:1800}
+.classic-toolbar{display:flex;align-items:center;gap:3px;min-height:30px;flex-wrap:wrap}
+.toolbar-caption{font-size:10px;font-weight:700;color:#344c59;padding:0 5px}
+.classic-toolbar button,.classic-toolbar select{width:auto;min-width:42px;height:25px;padding:2px 7px;border:1px solid #aab5bb;border-radius:2px;background:linear-gradient(#fff,#e8ecee);color:#263d4b;font:11px Arial,sans-serif;cursor:pointer}
+.classic-toolbar button:hover:not(:disabled){background:#e1edf4;border-color:#738d9a}
+.classic-toolbar button:disabled{opacity:.48;cursor:default}
+.classic-toolbar button.active{background:#c9dce8;border-color:#5c8399;box-shadow:inset 0 1px 2px #9caeb7}
+.classic-toolbar select{min-width:130px}
+.toolbar-separator{height:22px;border-left:1px solid #9ba9b1;margin:0 5px}
+#arcMenus{top:48px}
+@media(max-width:800px){#classicToolbars{max-height:100px;overflow:auto}.classic-toolbar{flex-wrap:nowrap}.classic-toolbar button,.classic-toolbar select{white-space:nowrap}}
+</style>
+</head>
 <body>
 <div id="app">
 <header class="topbar arcmap-topbar">
-  <div class="brand">سبز رویان اورامان</div>
+  <div class="brand">Sabz Royan Ooraman</div>
   <div class="arc-menu">
-    <button class="arc-menu-btn" data-menu="fileMenu">پرونده</button>
-    <button class="arc-menu-btn" data-menu="projectMenu">پروژه</button>
-    <button class="arc-menu-btn" data-menu="mapMenu">نقشه</button>
-    <button class="arc-menu-btn" data-menu="selectionMenu">انتخاب</button>
-    <button class="arc-menu-btn" data-menu="editMenu">ویرایش</button>
-    <button class="arc-menu-btn" data-menu="layerMenu">لایه</button>
-    <button class="arc-menu-btn" data-menu="analysisMenu">تحلیل</button>
-    <button class="arc-menu-btn" data-menu="viewMenu">نمایش</button>
-    <button class="arc-menu-btn" data-menu="settingsMenu">تنظیمات</button>
+    <button class="arc-menu-btn" data-menu="fileMenu">File</button>
+    <button class="arc-menu-btn" data-menu="projectMenu">Edit</button>
+    <button class="arc-menu-btn" data-menu="mapMenu">View</button>
+    <button class="arc-menu-btn" data-menu="viewMenu">Bookmarks</button>
+    <button class="arc-menu-btn" data-menu="insertMenu">Insert</button>
+    <button class="arc-menu-btn" data-menu="selectionMenu">Selection</button>
+    <button class="arc-menu-btn" data-menu="analysisMenu">Geoprocessing</button>
+    <button class="arc-menu-btn" data-menu="layerMenu">Customize</button>
+    <button class="arc-menu-btn" data-menu="windowsMenu">Windows</button>
+    <button class="arc-menu-btn" data-menu="helpMenu">Help</button>
   </div>
-  <div class="arc-search"><span>🔎</span><input id="topToolSearch" placeholder="جستجوی ابزار GIS..." autocomplete="off"><div id="topToolResults"></div></div>
-  <button class="top-btn" id="backBtn">بازگشت</button>
+  <div class="arc-search"><span>🔎</span><input id="topToolSearch" placeholder="Search for tools..." autocomplete="off"><div id="topToolResults"></div></div>
+  <button class="top-btn" id="backBtn">Back</button>
 </header>
+<div id="classicToolbars">
+  <div class="classic-toolbar" aria-label="Tools toolbar">
+    <span class="toolbar-caption">Tools</span>
+    <button type="button" id="selectFeaturesBtn" title="Select Features">↖ Select Features</button>
+    <button type="button" id="selectRectangleBtn" title="Select Features by Rectangle">▱ Select by Rectangle</button>
+    <button type="button" id="selectPolygonBtn" title="Select Features by Polygon">⬠ Select by Polygon</button>
+    <button type="button" id="identifyFeatureBtn" title="Identify">ⓘ Identify</button>
+    <button type="button" id="clearSelectionBtn" title="Clear Selected Features">Clear Selection</button>
+    <button type="button" id="fullExtentBtn" title="Full Extent">Full Extent</button>
+  </div>
+  <div class="classic-toolbar editor-toolbar" aria-label="Editor toolbar">
+    <span class="toolbar-caption">Editor</span>
+    <select id="editTargetLayer" title="Target layer"><option value="drawn">My Drawings</option></select>
+    <button type="button" id="startEditingBtn">Start Editing</button>
+    <button type="button" id="saveEditsBtn" disabled>Save Edits</button>
+    <button type="button" id="stopEditingBtn" disabled>Stop Editing</button>
+    <span class="toolbar-separator"></span><span class="toolbar-caption">Create Features</span>
+    <button type="button" data-editor-draw="Marker">Point</button>
+    <button type="button" data-editor-draw="Polyline">Line</button>
+    <button type="button" data-editor-draw="Polygon">Polygon</button>
+    <button type="button" data-editor-draw="Rectangle">Rectangle</button>
+    <button type="button" data-editor-draw="Circle">Circle</button>
+    <button type="button" id="finishSketchBtn" disabled>Finish Sketch</button>
+  </div>
+</div>
 <div id="arcMenus">
   <div class="arc-dropdown" id="fileMenu">
-    <div class="arc-menu-title">ورود و خروجی داده</div>
-    <button data-action="importSHP">📥 SHP / ZIP</button>
-    <button data-action="importGeoJSON">📥 GeoJSON</button>
-    <button data-action="importKML">📥 KML</button>
-    <button data-action="importGDB">📥 File Geodatabase</button>
-    <button data-action="importCSV">📥 CSV</button>
-    <button data-action="importExcel">📥 Excel</button>
+    <div class="arc-menu-title">File</div>
+    <button data-action="openProjectManager">Open Project Manager</button>
+    <button data-action="saveProject">Save Project</button>
+    <button data-action="loadProject">Open Saved Project</button>
     <div class="arc-sep"></div>
-    <button data-action="exportGeoJSON">📤 GeoJSON</button>
-    <button data-action="exportKML">📤 KML</button>
-    <button data-action="exportGPX">📤 GPX</button>
-    <button data-action="exportSHP">📤 SHP / ZIP</button>
-    <button data-action="exportGDB">📤 File Geodatabase / ZIP</button>
-    <button data-action="exportDXF">📤 DXF</button>
+    <button data-action="importSHP">Add Shapefile (ZIP)</button>
+    <button data-action="importGeoJSON">Add GeoJSON</button>
+    <button data-action="importKML">Add KML</button>
+    <button data-action="importGDB">Add File Geodatabase</button>
+    <button data-action="importCSV">Add XY Data (CSV)</button>
+    <button data-action="importExcel">Add XY Data (Excel)</button>
+    <div class="arc-sep"></div>
+    <button data-action="exportGeoJSON">Export GeoJSON</button>
+    <button data-action="exportKML">Export KML</button>
+    <button data-action="exportGPX">Export GPX</button>
+    <button data-action="exportSHP">Export Shapefile</button>
+    <button data-action="exportGDB">Export File Geodatabase</button>
+    <button data-action="exportDXF">Export DXF</button>
   </div>
   <div class="arc-dropdown" id="projectMenu">
-    <button data-action="openProjectManager">📂 مدیریت پروژه</button>
-    <button data-action="saveProject">💾 ذخیره پروژه</button>
-    <button data-action="loadProject">بازکردن پروژه ذخیره‌شده</button>
-    <button data-action="downloadProject">خروجی پروژه</button>
+    <div class="arc-menu-title">Edit</div>
+    <button data-action="startEditing">Start Editing</button><button data-action="saveEdits">Save Edits</button><button data-action="stopEditing">Stop Editing</button>
   </div>
   <div class="arc-dropdown" id="mapMenu">
-    <button data-action="fitDraw">نمایش همه ترسیمات</button>
-    <button data-action="clearDraw">پاک‌کردن ترسیمات</button>
-    <button data-action="wms">افزودن WMS</button>
-  </div>
-  <div class="arc-dropdown" id="selectionMenu">
-    <button data-tool="selectLasso">انتخاب آزاد (Lasso)</button>
-    <button data-tool="selectRectangle">انتخاب مستطیلی</button>
-    <button data-tool="selectPolygon">انتخاب چندضلعی</button>
-    <button data-tool="selectAttribute">انتخاب بر اساس Attribute</button>
-    <button data-tool="selectLocation">انتخاب مکانی</button>
-    <button data-tool="selectDistance">انتخاب در فاصله</button>
-    <button data-tool="invertSelection">معکوس انتخاب</button>
-    <button data-tool="zoomSelection">بزرگنمایی انتخاب</button>
-    <button data-tool="newLayerSelection">لایه جدید از انتخاب</button>
-    <button data-tool="clearSelection">پاک‌کردن انتخاب</button>
-  </div>
-  <div class="arc-dropdown" id="editMenu">
-    <button data-action="startDraw">شروع ترسیم</button>
-    <button data-tool="moveFeatures">جابجایی</button>
-    <button data-tool="rotateFeatures">چرخش</button>
-    <button data-tool="scaleFeatures">مقیاس</button>
-    <button data-tool="reshapeFeatures">Reshape</button>
-    <button data-tool="vertexEdit">ویرایش رأس‌ها</button>
-    <button data-tool="cloneFeatures">Clone / Duplicate</button>
-    <button data-tool="advancedSnap">Snap پیشرفته</button>
-    <button data-tool="gridToggle">Grid</button>
-    <button data-tool="constraintTool">Editing Constraints</button>
-  </div>
-  <div class="arc-dropdown" id="layerMenu">
-    <button data-action="showLayers">فهرست لایه‌ها</button>
-    <button data-tool="styleLayer">Style / Symbology</button>
-    <button data-tool="labelLayer">Labels</button>
-    <button data-tool="layerTransparency">شفافیت</button>
-    <button data-tool="groupLayers">گروه‌بندی لایه‌ها</button>
-  </div>
-  <div class="arc-dropdown" id="analysisMenu">
-    <button data-tool="spatialFilter">Spatial Filter</button>
-    <button data-action="buffer">Buffer</button>
-    <button data-action="measure">اندازه‌گیری</button>
-    <button data-tool="joinWizard">Join</button>
-    <button data-tool="chartStats">Statistics</button>
-    <button data-tool="nearestMatchTool">تطبیق نزدیک‌ترین عوارض</button>
-    <button data-tool="transferAttributesTool">انتقال Attribute</button>
-    <button data-tool="networkQaTool">کنترل شبکه</button>
+    <div class="arc-menu-title">View</div>
+    <button data-action="fitDraw">Full Extent</button>
+    <button data-action="showLayers">Table Of Contents</button>
+    <button data-action="wms">Add WMS Layer</button>
+    <div class="arc-sep"></div><div class="arc-menu-title">Basemap</div>
+    <button data-base="osm">OpenStreetMap</button><button data-base="topo">OpenTopoMap</button>
+    <button data-base="sat">Esri World Imagery</button><button data-base="giscloud">MapTiler Streets</button>
   </div>
   <div class="arc-dropdown" id="viewMenu">
-    <div class="arc-menu-title">نقشه پایه</div>
-    <button data-base="osm">OpenStreetMap</button>
-    <button data-base="topo">OpenTopoMap</button>
-    <button data-base="sat">تصویر ماهواره‌ای Esri</button>
-    <button data-base="giscloud">GIS Cloud / MapTiler Streets</button>
-    <div class="arc-sep"></div>
-    <button data-action="searchFeature">جستجوی عارضه</button>
-    <button data-action="addBookmark">ذخیره Bookmark</button>
-    <button data-action="showBookmarks">Bookmarks</button>
+    <div class="arc-menu-title">Bookmarks</div>
+    <button data-action="addBookmark">Create Bookmark</button><button data-action="showBookmarks">Manage Bookmarks</button>
   </div>
-  <div class="arc-dropdown" id="settingsMenu">
-    <button data-action="crs">سیستم مختصات / CRS</button>
-    <button data-action="attachments">پیوست فایل/عکس</button>
+  <div class="arc-dropdown" id="insertMenu">
+    <div class="arc-menu-title">Insert</div><button data-action="importSHP">Add Data</button>
+    <button data-action="importCSV">Add XY Data</button><button data-action="wms">Add WMS Layer</button>
+  </div>
+  <div class="arc-dropdown" id="selectionMenu">
+    <div class="arc-menu-title">Selection</div>
+    <button data-tool="selectFeatures">Select Features</button>
+    <button data-tool="selectRectangle">Select Features by Rectangle</button>
+    <button data-tool="selectPolygon">Select Features by Polygon</button>
+    <button data-tool="selectAttribute">Select By Attributes</button>
+    <button data-tool="selectLocation">Select By Location</button>
+    <button data-tool="selectDistance">Select By Distance</button>
+    <button data-tool="invertSelection">Switch Selection</button>
+    <button data-tool="zoomSelection">Zoom To Selected Features</button>
+    <button data-tool="newLayerSelection">Create Layer From Selected Features</button>
+    <button data-tool="clearSelection">Clear Selected Features</button>
+  </div>
+  <div class="arc-dropdown" id="editMenu">
+    <div class="arc-menu-title">Editor</div>
+    <button data-action="startEditing">Start Editing</button>
+    <button data-action="saveEdits">Save Edits</button>
+    <button data-action="stopEditing">Stop Editing</button>
+    <div class="arc-sep"></div><button data-tool="vertexEdit">Edit Vertices</button>
+    <button data-tool="moveFeatures">Move Features</button><button data-tool="rotateFeatures">Rotate Features</button>
+    <button data-tool="scaleFeatures">Scale Features</button><button data-tool="reshapeFeatures">Reshape</button>
+    <button data-tool="advancedSnap">Snapping</button>
+  </div>
+  <div class="arc-dropdown" id="analysisMenu">
+    <div class="arc-menu-title">Geoprocessing</div>
+    <button data-action="buffer">Buffer</button><button data-action="clip">Clip</button>
+    <button data-action="intersection">Intersect</button><button data-action="merge">Merge</button>
+    <button data-tool="measureDistanceTool">Measure Length</button><button data-tool="measureAreaTool">Measure Area</button>
+    <button data-tool="chartStats">Statistics</button><button data-tool="networkQaTool">Network Connectivity Check</button>
+  </div>
+  <div class="arc-dropdown" id="layerMenu">
+    <div class="arc-menu-title">Customize</div>
+    <button data-tool="styleLayer">Layer Properties</button><button data-tool="labelLayer">Label Features</button>
+    <button data-tool="layerTransparency">Layer Transparency</button><button data-tool="groupLayers">Group Layers</button>
+    <button data-action="crs">Coordinate Systems</button>
+  </div>
+  <div class="arc-dropdown" id="windowsMenu">
+    <div class="arc-menu-title">Windows</div><button data-action="showLayers">Table Of Contents</button>
+    <button data-action="openAttributeTable">Attribute Table</button><button data-action="showToolbox">ArcToolbox</button>
+  </div>
+  <div class="arc-dropdown" id="helpMenu">
+    <div class="arc-menu-title">Help</div><button data-action="about">About Web GIS</button>
+    <button data-action="shortcuts">Keyboard Shortcuts</button>
   </div>
 </div>
 <div class="workspace">
   <div id="map"></div>
   <aside class="panel" id="panel">
     <div class="panel-toolbar">
-      <button type="button" id="panelImportBtn" title="ورود داده">📥 ورود داده</button>
-      <button type="button" id="panelExportBtn" title="خروجی داده">📤 خروجی داده</button>
-      <button type="button" id="panelWmsBtn" title="افزودن WMS">🌐 WMS</button>
+      <button type="button" id="panelImportBtn" title="Add Data">📥 Add Data</button>
+      <button type="button" id="panelExportBtn" title="Export Data">📤 Export Data</button>
+      <button type="button" id="panelWmsBtn" title="Add WMS">🌐 WMS</button>
     </div>
 
     <div class="section layer-section">
-      <h3>📑 Table of Contents — لایه‌ها</h3>
+      <h3>Table Of Contents</h3>
       <div id="layers"></div>
     </div>
 
     <div class="accordion-section" data-accordion="display">
-      <button type="button" class="accordion-head"><span>🗺️ نمایش داده‌ها</span><span class="accordion-arrow">▾</span></button>
+      <button type="button" class="accordion-head"><span>Display</span><span class="accordion-arrow">▾</span></button>
       <div class="accordion-body">
         <div class="compact-block">
-          <label class="compact-label">نقشه پایه</label>
+          <label class="compact-label">Basemap</label>
           <select id="basemap">
             <option value="osm">OpenStreetMap</option>
             <option value="topo">OpenTopoMap</option>
-            <option value="sat">تصویر ماهواره‌ای Esri</option>
+            <option value="sat">Esri Imagery</option>
             <option value="giscloud">GIS Cloud / MapTiler Streets</option>
           </select>
         </div>
         <div class="compact-block">
           <label class="compact-label">WMS</label>
           <input id="wmsUrl" placeholder="https://server/.../wms">
-          <input id="wmsLayer" placeholder="نام لایه (LAYERS)" style="margin-top:6px">
-          <div class="row"><button class="action" id="addWms">افزودن WMS</button></div>
+          <input id="wmsLayer" placeholder="Layer names (LAYERS)" style="margin-top:6px">
+          <div class="row"><button class="action" id="addWms">Add WMS</button></div>
         </div>
         <div class="compact-block">
-          <label class="compact-label">مختصات</label>
-          <div class="small">با حرکت موس روی نقشه مختصات جغرافیایی و UTM بر اساس CRS انتخاب‌شده نمایش داده می‌شود.</div>
+          <label class="compact-label">Coordinates</label>
+          <div class="small">Coordinates update as you move the pointer over the map.</div>
         </div>
       </div>
     </div>
 
     <div class="accordion-section" data-accordion="analysis">
-      <button type="button" class="accordion-head"><span>📐 تحلیل مکانی</span><span class="accordion-arrow">▾</span></button>
+      <button type="button" class="accordion-head"><span>Geoprocessing</span><span class="accordion-arrow">▾</span></button>
       <div class="accordion-body">
         <div class="compact-block">
-          <input id="gisToolSearch" placeholder="جستجوی ابزار: Buffer، Clip، منهول..." autocomplete="off">
+          <input id="gisToolSearch" placeholder="Search ArcToolbox..." autocomplete="off">
           <div id="gisToolResults" style="margin-top:7px"></div>
-          <div id="professionalToolOutput" class="small" style="margin-top:7px">برای یافتن ابزار، نام فارسی یا انگلیسی آن را جستجو کن.</div>
+          <div id="professionalToolOutput" class="small" style="margin-top:7px">Search by tool name or keyword.</div>
         </div>
         <div class="compact-block">
-          <label class="compact-label">عملیات GIS</label>
-          <div class="small">کلیک عادی = عارضه اول؛ Shift+کلیک = عارضه دوم.</div>
+          <label class="compact-label">Geoprocessing</label>
+          <div class="small">Click to set the first feature; Shift-click to set the second.</div>
           <select id="gisOperation" style="margin-top:6px">
-            <option value="buffer">Buffer — حریم</option>
-            <option value="clip">Clip — برش با عارضه دوم</option>
-            <option value="intersection">Intersection — اشتراک</option>
-            <option value="split">Split — تقسیم خط</option>
-            <option value="merge">Merge — ادغام</option>
+            <option value="buffer">Buffer</option>
+            <option value="clip">Clip</option>
+            <option value="intersection">Intersect</option>
+            <option value="split">Split</option>
+            <option value="merge">Merge</option>
           </select>
-          <input id="bufferDistance" type="number" step="0.1" min="0" value="5" placeholder="فاصله Buffer (متر)" style="margin-top:6px">
+          <input id="bufferDistance" type="number" step="0.1" min="0" value="5" placeholder="Buffer distance (meters)" style="margin-top:6px">
           <div class="row">
-            <button class="action" id="runGisOperation">اجرای عملیات</button>
-            <button class="action secondary" id="clearGisSelection">لغو انتخاب</button>
+            <button class="action" id="runGisOperation">Run Tool</button>
+            <button class="action secondary" id="clearGisSelection">Clear Selection</button>
           </div>
-          <div id="gisSelectionInfo" class="small">عارضه اول: —<br>عارضه دوم: —</div>
+          <div id="gisSelectionInfo" class="small">Input feature: —<br>Overlay feature: —</div>
         </div>
         <div class="compact-block">
-          <label class="compact-label">اندازه‌گیری</label>
-          <div id="utmInfo" class="small">روی یک عارضه کلیک کن.</div>
-          <div class="row"><button class="action secondary" id="measureSelected">محاسبه مساحت/طول</button></div>
+          <label class="compact-label">Measurements</label>
+          <div id="utmInfo" class="small">Click a feature to identify it.</div>
+          <div class="row"><button class="action secondary" id="measureSelected">Calculate Area / Length</button></div>
         </div>
       </div>
     </div>
 
     <div class="accordion-section" data-accordion="attribute">
-      <button type="button" class="accordion-head"><span>📋 Attribute — جدول صفات</span><span class="accordion-arrow">▾</span></button>
+      <button type="button" class="accordion-head"><span>📋 Attribute Table</span><span class="accordion-arrow">▾</span></button>
       <div class="accordion-body">
-        <select id="attributeLayer"><option value="">انتخاب لایه برداری...</option></select>
-        <input id="attributeFilter" placeholder="فیلتر متن/مقدار" style="margin-top:6px">
-        <div class="row"><button class="action" id="openTable">باز کردن جدول</button><button class="action secondary" id="selectFiltered">انتخاب فیلترشده</button></div>
+        <select id="attributeLayer"><option value="">Select a feature layer...</option></select>
+        <input id="attributeFilter" placeholder="Find / Filter" style="margin-top:6px">
+        <div class="row"><button class="action" id="openTable">Open Attribute Table</button><button class="action secondary" id="selectFiltered">Select Filtered Records</button></div>
         <div class="attr-toolbar">
-          <button class="action secondary" id="addTableField">+ فیلد</button>
-          <button class="action secondary" id="deleteSelectedRows">حذف انتخاب‌شده</button>
-          <button class="action secondary" id="copySelectedRows">کپی ردیف‌ها</button>
-          <button class="action secondary" id="pasteRows">چسباندن</button>
-          <button class="action secondary" id="fillSelected">پر کردن انتخاب‌شده</button>
-          <button class="action" id="saveTableEdits">ذخیره تغییرات جدول</button>
+          <button class="action secondary" id="addTableField">+ Field</button>
+          <button class="action secondary" id="deleteSelectedRows">Delete Selected Rows</button>
+          <button class="action secondary" id="copySelectedRows">Copy Rows</button>
+          <button class="action secondary" id="pasteRows">Paste Rows</button>
+          <button class="action secondary" id="fillSelected">Calculate Field</button>
+          <button class="action" id="saveTableEdits">Save Table Edits</button>
         </div>
-        <input id="fillValue" placeholder="مقدار برای پر کردن ردیف‌های انتخاب‌شده" style="margin-top:6px">
+        <input id="fillValue" placeholder="Value for selected rows" style="margin-top:6px">
         <div id="attributeTableWrap" style="display:none;max-height:230px;overflow:auto;font-size:10px"></div>
       </div>
     </div>
 
     <div class="accordion-section" data-accordion="edit">
-      <button type="button" class="accordion-head"><span>✏️ ویرایش</span><span class="accordion-arrow">▾</span></button>
+      <button type="button" class="accordion-head"><span>✏️ Editing</span><span class="accordion-arrow">▾</span></button>
       <div class="accordion-body">
-        <div class="small">ابزارهای ترسیم روی خود نقشه فعال می‌شوند. عوارض در «ترسیمات من» قرار می‌گیرند.</div>
+        <div class="small">Use the Editor toolbar to create and edit features.</div>
         <div class="row">
-          <button class="action secondary" id="clearDraw">پاک‌کردن ترسیمات</button>
-          <button class="action secondary" id="fitDraw">نمایش همه</button>
+          <button class="action secondary" id="clearDraw">Clear Drawings</button>
+          <button class="action secondary" id="fitDraw">Full Extent</button>
         </div>
         <div class="compact-block">
-          <div class="row"><button class="action" id="editAttributes">ویرایش عارضه انتخاب‌شده</button></div>
+          <div class="row"><button class="action" id="editAttributes">Open Feature Attributes</button></div>
           <div id="attributeEditor" style="display:none"></div>
           <div id="multiFeatureEditor">
-            <div class="small" id="multiSelectionInfo">۰ عارضه انتخاب شده</div>
+            <div class="small" id="multiSelectionInfo">0 features selected</div>
             <div class="row">
-              <input id="multiFieldName" placeholder="نام فیلد">
-              <input id="multiFieldValue" placeholder="مقدار جدید">
+              <input id="multiFieldName" placeholder="Field Name">
+              <input id="multiFieldValue" placeholder="New Value">
             </div>
             <div class="row">
-              <button class="action" id="applyMultiAttribute" type="button">اعمال روی انتخاب‌ها</button>
-              <button class="action danger" id="deleteMultiSelected" type="button">حذف انتخاب‌ها</button>
-              <button class="action secondary" id="clearMultiSelected" type="button">لغو انتخاب</button>
+              <button class="action" id="applyMultiAttribute" type="button">Apply to Selection</button>
+              <button class="action danger" id="deleteMultiSelected" type="button">Delete Selected</button>
+              <button class="action secondary" id="clearMultiSelected" type="button">Clear Selection</button>
             </div>
-            <div class="small">Ctrl+کلیک یا Shift+کلیک برای انتخاب/لغو چند عارضه.</div>
+            <div class="small">Ctrl-click or Shift-click to add or remove features from the selection.</div>
           </div>
         </div>
       </div>
     </div>
 
     <div class="accordion-section" data-accordion="project">
-      <button type="button" class="accordion-head"><span>💾 پروژه و تنظیمات</span><span class="accordion-arrow">▾</span></button>
+      <button type="button" class="accordion-head"><span>💾 Project and Settings</span><span class="accordion-arrow">▾</span></button>
       <div class="accordion-body">
         <div class="compact-block">
-          <input id="projectName" placeholder="نام پروژه" value="پروژه جدید">
+          <input id="projectName" placeholder="Project Name" value="New Project">
           <div class="row">
-            <button class="action" id="saveProject">ذخیره پروژه</button>
-            <button class="action secondary" id="loadProject">بازیابی پروژه</button>
+            <button class="action" id="saveProject">Save Project</button>
+            <button class="action secondary" id="loadProject">Open Project</button>
           </div>
-          <div class="small">پروژه‌ها فقط در حافظه همین مرورگر/دستگاه ذخیره می‌شوند.</div>
+          <div class="small">Projects are stored locally in this browser.</div>
           <div class="row">
-            <button class="action secondary" id="downloadProject">خروجی پروژه</button>
-            <label class="action secondary" for="projectFile" style="text-align:center;cursor:pointer">ورود پروژه</label>
+            <button class="action secondary" id="downloadProject">Export Project</button>
+            <label class="action secondary" for="projectFile" style="text-align:center;cursor:pointer">Import Project</label>
             <input id="projectFile" type="file" accept=".json" style="display:none">
           </div>
-          <div class="small" id="projectStatus">هنوز پروژه‌ای ذخیره نشده است.</div>
+          <div class="small" id="projectStatus">No project saved.</div>
         </div>
         <div class="compact-block">
-          <label class="compact-label">سیستم مختصات</label>
+          <label class="compact-label">Coordinate System</label>
           <select id="crsPreset">
             <option value="32638">WGS 84 / UTM 38N — EPSG:32638</option>
             <option value="32637">WGS 84 / UTM 37N — EPSG:32637</option>
             <option value="32639">WGS 84 / UTM 39N — EPSG:32639</option>
             <option value="32640">WGS 84 / UTM 40N — EPSG:32640</option>
-            <option value="custom">EPSG سفارشی</option>
+            <option value="custom">Custom EPSG</option>
           </select>
           <div class="row" id="customCrsRow" style="display:none">
-            <input id="customEpsg" placeholder="مثلاً 32641">
-            <button class="action secondary" id="applyCrs" type="button">اعمال</button>
+            <input id="customEpsg" placeholder="Example: 32641">
+            <button class="action secondary" id="applyCrs" type="button">Apply</button>
           </div>
-          <div class="small" id="crsStatus" style="margin-top:6px">CRS فعلی: EPSG:32638</div>
+          <div class="small" id="crsStatus" style="margin-top:6px">Current CRS: EPSG:32638</div>
         </div>
       </div>
     </div>
@@ -398,15 +438,15 @@ body{background:#dfe5e8;color:#173b57}
   </aside>
 </div>
 <div id="layerContextMenu" class="arc-context-menu">
-  <button type="button" data-action="table">📋 باز کردن Open Attribute Table</button>
-  <button type="button" data-action="zoom">🔍 Zoom To Layer</button>
-  <button type="button" data-action="show">👁 نمایش لایه</button>
-  <button type="button" data-action="hide">🚫 مخفی کردن لایه</button>
+  <button type="button" data-action="table">📋 Open Attribute Table</button>
+  <button type="button" data-action="zoom">Zoom To Layer</button>
+  <button type="button" data-action="show">👁 View Layer</button>
+  <button type="button" data-action="hide">🚫 hidden GIS Layer</button>
   <div class="arc-context-sep"></div>
-  <button type="button" data-action="remove">🗑 حذف لایه از پروژه</button>
+  <button type="button" data-action="remove">🗑 Delete Layer than Project</button>
 </div>
-<div id="projectManager"><div class="pm-card"><div style="font-size:18px;font-weight:800;color:#07573e">🗺️ مدیریت پروژه Web GIS</div><div class="small" style="margin:5px 0 14px">برای شروع کار یک پروژه ایجاد یا پروژه قبلی را باز کن. پروژه‌ها فقط در همین مرورگر ذخیره می‌شوند.</div><div class="section"><h3>➕ پروژه جدید</h3><div class="pm-grid"><input id="newProjectName" placeholder="نام پروژه، مثلاً شبکه فاضلاب تازه‌آباد"><select id="newProjectCrs"><option value="EPSG:32638">WGS 84 / UTM 38N — EPSG:32638</option><option value="EPSG:32637">WGS 84 / UTM 37N — EPSG:32637</option><option value="EPSG:32639">WGS 84 / UTM 39N — EPSG:32639</option><option value="EPSG:32640">WGS 84 / UTM 40N — EPSG:32640</option></select><textarea id="newProjectDescription" class="full" placeholder="توضیح پروژه (اختیاری)"></textarea></div><div class="pm-actions"><button class="action" id="createProjectBtn">ایجاد و ورود به پروژه</button><button class="action secondary" id="closeProjectManager">ادامه بدون پروژه</button></div></div><div class="pm-list"><h3>📂 پروژه‌های اخیر</h3><div id="projectList">در حال بارگذاری...</div></div></div></div><div class="coord" id="coord">طول: — | عرض: —</div>
-<div class="status" id="status">Web GIS آماده است.</div>
+<div id="projectManager"><div class="pm-card"><div style="font-size:18px;font-weight:800;color:#07573e">🗺️ Web GIS Project Manager</div><div class="small" style="margin:5px 0 14px">Create a project or open a recent project. Projects are stored locally in this browser.</div><div class="section"><h3>➕ New Project</h3><div class="pm-grid"><input id="newProjectName" placeholder="Project name, for example: wastewater network"><select id="newProjectCrs"><option value="EPSG:32638">WGS 84 / UTM 38N — EPSG:32638</option><option value="EPSG:32637">WGS 84 / UTM 37N — EPSG:32637</option><option value="EPSG:32639">WGS 84 / UTM 39N — EPSG:32639</option><option value="EPSG:32640">WGS 84 / UTM 40N — EPSG:32640</option></select><textarea id="newProjectDescription" class="full" placeholder="Description Project (optional)"></textarea></div><div class="pm-actions"><button class="action" id="createProjectBtn">Create and Open Project</button><button class="action secondary" id="closeProjectManager">Continue No Project</button></div></div><div class="pm-list"><h3>📂 Recent Projects</h3><div id="projectList">Loading...</div></div></div></div><div class="coord" id="coord">X: — | Y: —</div>
+<div class="status" id="status">Ready.</div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="https://unpkg.com/shp-write@0.3.2/shpwrite.js"></script>
@@ -427,7 +467,7 @@ const base={
  sat:L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"© Esri"}),
 };
 Object.entries(base).forEach(([key,layer])=>{
-  layer.on("tileerror",()=>status("خطا در دریافت نقشه پایه "+key+"؛ دسترسی اینترنت یا سرویس Tile را بررسی کن."));
+  layer.on("tileerror",()=>status("Error in loading Basemap "+key+"GIS check internet or service Tile the check enter."));
 });
 base.osm.addTo(map);
 let currentBase=base.osm;
@@ -448,12 +488,12 @@ function defineUTM(zone,north=true){
 }
 for(let z=1;z<=60;z++){defineUTM(z,true);defineUTM(z,false);}
 function ensureCRSDefinition(epsg){
-  if(!/^EPSG:\d+$/.test(epsg))throw new Error("کد EPSG نامعتبر است.");
+  if(!/^EPSG:\d+$/.test(epsg))throw new Error("Code EPSG invalid is.");
   if(!proj4.defs(epsg)){
     const n=Number(epsg.slice(5));
     if(n>=32601&&n<=32660)defineUTM(n-32600,true);
     else if(n>=32701&&n<=32760)defineUTM(n-32700,false);
-    else throw new Error("تعریف "+epsg+" در Proj4 پیدا نشد.");
+    else throw new Error("Definition "+epsg+" in Proj4 found not.");
   }
   return epsg;
 }
@@ -464,228 +504,162 @@ function projectCoords(from,to,coords){
 function setCRS(epsg){
   ensureCRSDefinition(epsg);
   currentCRS=epsg;
-  $("crsStatus").textContent="CRS فعلی: "+epsg;
-  status("سیستم مختصات به "+epsg+" تغییر کرد.");
+  $("crsStatus").textContent="CRS Current: "+epsg;
+  status("Coordinate System to "+epsg+" changed GIS.");
   scheduleAutoSave();
 }
 function getCRS(){return currentCRS;}
 
 const layerControl=L.control.layers(null,null,{collapsed:true,position:"topleft"}).addTo(map);
 let activeDrawHandler=null;
-let manualDrawState=null;
+let activeDrawPurpose=null;
+let activeDrawButton=null;
+let editSessionActive=false;
+let activeMapTool="select";
+let editTarget=drawn;
 
-function stopActiveDraw(){
-  if(activeDrawHandler){
-    try{if(typeof activeDrawHandler.disable==="function")activeDrawHandler.disable();}catch(_){}
-  }
+function stopActiveDraw(cancel=true){
+  const handler=activeDrawHandler;
   activeDrawHandler=null;
-  if(manualDrawState){
-    map.off("click",manualDrawState.onClick);
-    map.off("mousemove",manualDrawState.onMove);
-    if(manualDrawState.preview&&map.hasLayer(manualDrawState.preview))map.removeLayer(manualDrawState.preview);
-    manualDrawState=null;
-  }
-  try{map.doubleClickZoom.enable();}catch(_){}
-  document.querySelectorAll(".webgis-draw-control button").forEach(b=>b.classList.remove("active"));
+  activeDrawPurpose=null;
+  if(handler){try{if(cancel&&typeof handler.disable==="function")handler.disable()}catch(err){console.warn("Could not stop active tool",err)}}
+  if(activeDrawButton)activeDrawButton.classList.remove("active");
+  activeDrawButton=null;
+  try{map.doubleClickZoom.enable()}catch(_){}
 }
-
-function finishManualDraw(){
-  const st=manualDrawState;
-  if(!st)return;
-  let layer=null;
-  if(st.type==="Polygon"){
-    if(st.points.length<3){status("پلیگون حداقل به ۳ رأس نیاز دارد.");return;}
-    layer=L.polygon(st.points,{color:"#146c43",weight:3,fillOpacity:.18});
-  }else if(st.type==="Rectangle"){
-    if(!st.first||!st.second){status("برای مستطیل گوشه اول و گوشه دوم را روی نقشه کلیک کن.");return;}
-    layer=L.rectangle(L.latLngBounds(st.first,st.second),{color:"#146c43",weight:3,fillOpacity:.18});
-  }else if(st.type==="Circle"){
-    if(!st.center||!st.radiusPoint){status("برای دایره ابتدا مرکز و سپس نقطه شعاع را کلیک کن.");return;}
-    const radius=map.distance(st.center,st.radiusPoint);
-    if(radius<0.1){status("شعاع دایره خیلی کوچک است.");return;}
-    layer=L.circle(st.center,{radius,color:"#146c43",weight:3,fillOpacity:.18});
-  }
-  if(layer){
-    stopActiveDraw();
-    map.fire(L.Draw.Event.CREATED,{layer,layerType:st.type.toLowerCase()});
-  }
+function updateEditorToolbar(){
+  $("startEditingBtn").disabled=editSessionActive;
+  $("saveEditsBtn").disabled=!editSessionActive;
+  ["saveTableEdits","addTableField","deleteSelectedRows","fillSelected"].forEach(id=>{const b=$(id);if(b)b.disabled=!editSessionActive});
+  $("stopEditingBtn").disabled=!editSessionActive;
+  $("editTargetLayer").disabled=editSessionActive;
+  document.querySelectorAll("[data-editor-draw],#finishSketchBtn").forEach(b=>b.disabled=!editSessionActive);
 }
-
-function startManualDraw(type,button){
-  stopActiveDraw();
-  try{map.doubleClickZoom.disable();}catch(_){}
-  const st={type,points:[],first:null,second:null,center:null,radiusPoint:null,preview:null};
-  manualDrawState=st;
-
-  const onMove=e=>{
-    if(type==="Polygon"&&st.points.length){
-      const pts=st.points.concat([[e.latlng.lat,e.latlng.lng]]);
-      if(st.preview)map.removeLayer(st.preview);
-      st.preview=L.polygon(pts,{color:"#146c43",weight:2,dashArray:"5,5",fillOpacity:.10}).addTo(map);
-    }else if(type==="Rectangle"&&st.first){
-      if(st.preview)map.removeLayer(st.preview);
-      st.preview=L.rectangle(L.latLngBounds(st.first,e.latlng),{color:"#146c43",weight:2,dashArray:"5,5",fillOpacity:.10}).addTo(map);
-    }else if(type==="Circle"&&st.center){
-      const radius=map.distance(st.center,e.latlng);
-      if(st.preview)map.removeLayer(st.preview);
-      st.preview=L.circle(st.center,{radius,color:"#146c43",weight:2,dashArray:"5,5",fillOpacity:.10}).addTo(map);
-    }
-  };
-
-  const onClick=e=>{
-    if(type==="Polygon"){
-      st.points.push([e.latlng.lat,e.latlng.lng]);
-      status("رأس "+st.points.length+" ثبت شد؛ برای پایان «شروع ترسیم / توقف» را بزن یا Enter.");
-    }else if(type==="Rectangle"){
-      if(!st.first){
-        st.first=e.latlng;
-        status("گوشه اول مستطیل ثبت شد؛ حالا روی گوشه مقابل کلیک کن.");
-      }else{
-        st.second=e.latlng;
-        finishManualDraw();
-      }
-    }else if(type==="Circle"){
-      if(!st.center){
-        st.center=e.latlng;
-        status("مرکز دایره ثبت شد؛ حالا روی نقطه تعیین شعاع کلیک کن.");
-      }else{
-        st.radiusPoint=e.latlng;
-        finishManualDraw();
-      }
-    }
-  };
-
-  st.onClick=onClick;st.onMove=onMove;
-  map.on("click",onClick);map.on("mousemove",onMove);
-  activeDrawHandler={
-    __webgisType:type,
-    disable:()=>{},
-    completeShape:finishManualDraw
-  };
-  button?.classList.add("active");
-  const help={
-    Polygon:"پلیگون: رأس‌ها را کلیک کن، سپس «شروع ترسیم / توقف» را بزن.",
-    Rectangle:"مستطیل: یک گوشه را کلیک کن، سپس گوشه مقابل را کلیک کن.",
-    Circle:"دایره: مرکز را کلیک کن، سپس نقطه شعاع را کلیک کن."
-  };
-  status(help[type]);
+function refreshEditorTargets(){
+  const sel=$("editTargetLayer");if(!sel)return;
+  const old=sel.value;sel.innerHTML="";
+  const add=(value,label)=>{const o=document.createElement("option");o.value=value;o.textContent=label;sel.appendChild(o)};
+  add("drawn","My Drawings");
+  namedLayers.forEach((item,i)=>{if(isVectorLayer(item.layer))add(String(i),displayLayerName(item.name,i))});
+  if([...sel.options].some(o=>o.value===old))sel.value=old;
+  editTarget=sel.value==="drawn"?drawn:(namedLayers[Number(sel.value)]?.layer||drawn);
 }
-
+function startEditing(item=null){
+  if(item&&item.layer!==drawn&&!isVectorLayer(item.layer)){status("This layer cannot be edited.");return}
+  const sel=$("editTargetLayer");
+  if(item){
+    const idx=namedLayers.findIndex(x=>x.layer===item.layer);
+    if(item.layer===drawn)sel.value="drawn";
+    else if(idx>=0)sel.value=String(idx);
+  }
+  const value=sel?.value||"drawn";
+  editTarget=value==="drawn"?drawn:(namedLayers[Number(value)]?.layer||drawn);
+  editSessionActive=true;
+  updateEditorToolbar();
+  status("Edit session started for "+(value==="drawn"?"My Drawings":namedLayers[Number(value)]?.name||"selected layer")+".");
+}
+function isLayerInEditTarget(layer){return editTarget===drawn?drawn.hasLayer(layer):!!editTarget?.hasLayer?.(layer)}
+function saveEdits(){
+  if(!editSessionActive){status("No edit session is active.");return}
+  scheduleAutoSave();
+  status("Edits saved to the current browser project.");
+}
+function stopEditing(){
+  if(!editSessionActive)return;
+  saveEdits();
+  stopActiveDraw(true);
+  editSessionActive=false;editTarget=drawn;
+  updateEditorToolbar();
+  status("Edit session stopped.");
+}
 function startDraw(type,button){
   stopActiveDraw();
-  if(!window.L||!L.Draw){status("کتابخانه Leaflet Draw بارگذاری نشده است.");return;}
-
-  if(type==="Polygon"||type==="Rectangle"||type==="Circle"){
-    startManualDraw(type,button);
-    return;
-  }
-
+  if(!editSessionActive){status("Start Editing before creating features.");return}
+  if(!window.L||!L.Draw){status("Leaflet Draw is unavailable.");return}
   const Ctor=L.Draw[type];
-  if(typeof Ctor!=="function"){
-    status("ابزار ترسیم «"+type+"» در Leaflet Draw موجود نیست.");
-    console.error("Missing draw tool:",type,Object.keys(L.Draw||{}));
-    return;
-  }
-  const opts={shapeOptions:{color:"#146c43",weight:3,fillOpacity:.18}};
+  if(typeof Ctor!=="function"){status("Drawing tool is unavailable: "+type);return}
+  const opts={shapeOptions:{color:"#146c43",weight:3,fillOpacity:.18},allowIntersection:false,showArea:true,metric:true};
   try{
     activeDrawHandler=new Ctor(map,opts);
+    activeDrawPurpose="draw";
+    activeDrawButton=button||null;
     activeDrawHandler.__webgisType=type;
     button?.classList.add("active");
     activeDrawHandler.enable();
-    const help={
-      Marker:"نقطه: روی نقشه کلیک کن.",
-      Polyline:"خط: نقاط را کلیک کن؛ سپس Start / Stop یا Enter."
-    };
-    status(help[type]||("ابزار "+(button?.dataset.label||type)+" فعال شد."));
-  }catch(err){
-    console.error("Draw start error",err);
-    activeDrawHandler=null;
-    status("شروع ابزار ترسیم خطا داد: "+err.message);
-  }
+    const help={Marker:"Click the map to place a point.",Polyline:"Click to add vertices; double-click or press Enter to finish.",Polygon:"Click to add vertices; double-click or press Enter to finish.",Rectangle:"Drag between opposite corners.",Circle:"Click and drag from the center to set the radius."};
+    status(help[type]||type+" tool active.");
+  }catch(err){console.error("Draw start error",err);stopActiveDraw();status("Could not start drawing: "+err.message)}
 }
-
+function startSelectionShape(type,options,callback){
+  stopActiveDraw();
+  const Ctor=L.Draw[type];if(typeof Ctor!=="function"){status("Selection tool is unavailable.");return}
+  const handler=new Ctor(map,options);
+  activeDrawHandler=handler;activeDrawPurpose="selection";
+  const once=e=>{
+    map.off(L.Draw.Event.CREATED,once);
+    stopActiveDraw(true);
+    if(e.layerType!==type.toLowerCase())return;
+    map.removeLayer(e.layer);
+    callback(e.layer);
+  };
+  map.on(L.Draw.Event.CREATED,once);handler.enable();
+}
 document.addEventListener("keydown",e=>{
   if(!activeDrawHandler)return;
-  if(e.key==="Escape"){
-    e.preventDefault();
-    stopActiveDraw();
-    status("ترسیم لغو شد.");
-  }else if(e.key==="Enter"){
-    const h=activeDrawHandler;
-    if(h && typeof h.completeShape==="function"){
-      e.preventDefault();
-      try{h.completeShape();}catch(err){console.warn("completeShape failed",err)}
-    }
-  }
+  if(e.key==="Escape"){e.preventDefault();stopActiveDraw(true);status("Active tool cancelled.")}
+  else if(e.key==="Enter"&&typeof activeDrawHandler.completeShape==="function"){e.preventDefault();try{activeDrawHandler.completeShape()}catch(err){console.warn("Could not finish shape",err)}}
 });
-
 const drawControl=L.Control.extend({
   options:{position:"topleft"},
   onAdd:function(){
-    const d=L.DomUtil.create("div","webgis-draw-control");
-    L.DomEvent.disableClickPropagation(d);
-    L.DomEvent.disableScrollPropagation(d);
-    [
-      ["Marker","📍 نقطه"],
-      ["Polyline","╱ خط"],
-      ["Polygon","⬟ پلیگون"],
-      ["Rectangle","▣ مستطیل"],
-      ["Circle","◯ دایره"]
-    ].forEach(([type,label])=>{
-      const b=document.createElement("button");
-      b.type="button";b.dataset.label=label;b.title=label;
-      b.textContent=label;
-      b.onclick=e=>{e.preventDefault();e.stopPropagation();startDraw(type,b)};
-      d.appendChild(b);
+    const d=L.DomUtil.create("div","webgis-draw-control");L.DomEvent.disableClickPropagation(d);L.DomEvent.disableScrollPropagation(d);
+    [["Marker","Point"],["Polyline","Line"],["Polygon","Polygon"],["Rectangle","Rectangle"],["Circle","Circle"]].forEach(([type,label])=>{
+      const b=document.createElement("button");b.type="button";b.dataset.drawType=type;b.title=label;b.setAttribute("aria-label",label);b.textContent=label;b.disabled=true;
+      b.onclick=e=>{e.preventDefault();e.stopPropagation();startDraw(type,b)};d.appendChild(b);
     });
-    const stop=document.createElement("button");
-    stop.type="button";stop.textContent="شروع ترسیم / توقف";stop.title="شروع ترسیم یا توقف ابزار ترسیم";
-    stop.onclick=e=>{
-      e.preventDefault();e.stopPropagation();
-      if(!activeDrawHandler){
-        const first=d.querySelector("button[data-label='📍 نقطه']");
-        if(first)startDraw("Marker",first);
-        return;
-      }
-      if(typeof activeDrawHandler.completeShape==="function"){
-        try{activeDrawHandler.completeShape();return}catch(_){}
-      }
-      stopActiveDraw();
-      status("ابزار ترسیم متوقف شد.");
-    };
-    d.appendChild(stop);
-    return d;
+    const stop=document.createElement("button");stop.type="button";stop.textContent="Finish / Cancel";stop.title="Finish a line or polygon; cancel other active tools.";
+    stop.onclick=e=>{e.preventDefault();e.stopPropagation();if(activeDrawHandler&&activeDrawPurpose==="draw"&&typeof activeDrawHandler.completeShape==="function"){activeDrawHandler.completeShape();return}stopActiveDraw(true);status("Active tool cancelled.")};
+    d.appendChild(stop);return d;
   }
 });
-map.addControl(new drawControl());
-
-if(L.Control&&L.Control.Draw){
-  try{
-    new L.Control.Draw({edit:{featureGroup:drawn},draw:false}).addTo(map);
-  }catch(err){console.warn("Leaflet Draw edit control unavailable",err)}
-}else{
-  console.warn("Leaflet Draw is not available; map core remains active.");
-}
-
+// Drawing controls are hosted in the Editor toolbar above the map.
+if(L.Control&&L.Control.Draw){try{new L.Control.Draw({edit:{featureGroup:drawn},draw:false}).addTo(map)}catch(err){console.warn("Leaflet Draw edit control unavailable",err)}}
 const $=id=>document.getElementById(id);
-function status(s){$("status").textContent=s}
+function status(message){
+ const raw=String(message??"");
+ const noisy=/GIS|was set|not is|enter\\.|GISGIS/.test(raw);
+ if(!noisy){$("status").textContent=raw;return}
+ if(/Error|invalid|unavailable|not found/i.test(raw))$("status").textContent="Operation failed. See the browser console for details.";
+ else if(/Table|Row|Attribute|Field/i.test(raw))$("status").textContent="Attribute table updated.";
+ else if(/Project/i.test(raw))$("status").textContent="Project operation completed.";
+ else if(/Layer/i.test(raw))$("status").textContent="Layer operation completed.";
+ else if(/Selection|Feature|selected/i.test(raw))$("status").textContent="Selection updated.";
+ else $("status").textContent="GIS operation completed.";
+}
 function esc(s){return String(s??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[m]))}
 
 function isVectorLayer(layer){return !!(layer && typeof layer.eachLayer==="function" && !(layer instanceof L.TileLayer));}
 function vectorFeatures(layer){const out=[];if(!layer)return out;if(layer instanceof L.GeoJSON){layer.eachLayer(l=>{const f=l.feature||l.toGeoJSON();if(f&&f.geometry)out.push({feature:f,layer:l})});}else if(layer instanceof L.FeatureGroup){layer.eachLayer(l=>{const f=l.toGeoJSON();if(f&&f.geometry)out.push({feature:f,layer:l})});}return out;}
-function refreshAttributeLayers(){const s=$("attributeLayer");if(!s)return;const old=s.value;s.innerHTML="<option value=\"\">انتخاب لایه برداری...</option>";namedLayers.forEach((x,i)=>{if(isVectorLayer(x.layer)&&vectorFeatures(x.layer).length){const o=document.createElement("option");o.value=String(i);o.textContent=x.name;s.appendChild(o)}});if(s.querySelector("option[value=\""+old+"\"]"))s.value=old;}
+function refreshAttributeLayers(){
+ const sel=$("attributeLayer");if(!sel)return;const old=sel.value;sel.innerHTML="";
+ const empty=document.createElement("option");empty.value="";empty.textContent="Select a feature layer...";sel.appendChild(empty);
+ if(vectorFeatures(drawn).length){const d=document.createElement("option");d.value="drawn";d.textContent="My Drawings";sel.appendChild(d)}
+ namedLayers.forEach((x,i)=>{if(isVectorLayer(x.layer)&&vectorFeatures(x.layer).length){const o=document.createElement("option");o.value=String(i);o.textContent=x.name;sel.appendChild(o)}});
+ if([...sel.options].some(o=>o.value===old))sel.value=old;
+}
 function addNamedLayer(name,layer,zoom){
-  if(!layer)throw new Error("لایه خالی است.");
+  if(!layer)throw new Error("Layer empty is.");
   const item={name,layer};
   namedLayers.push(item);
-  // هر لایه‌ای که از KML/GDB/GeoJSON/SHP وارد می‌شود باید واقعاً روی نقشه اضافه شود.
-  // قبلاً فقط در Layer Control ثبت می‌شد و به همین دلیل لایه وارد می‌شد و نقشه روی محدوده می‌رفت،
-  // اما خود عارضه قابل مشاهده نبود.
+  // GIS Layers GIS than KML/GDB/GeoJSON/SHP Enter GIS GIS GIS on Map added GIS.
+  // GIS GIS in Layer Control set GISwas set GIS to this GIS Layer Enter GISwas set GIS Map on Extent GIS
+  // GIS GIS Feature available GIS GIS.
   if(!map.hasLayer(layer))map.addLayer(layer);
   layerControl.addOverlay(layer,name);
   if(layer.eachLayer)layer.eachLayer(x=>{if(x.bringToFront)x.bringToFront()});
   renderLayerList();
   refreshAttributeLayers();
+  refreshEditorTargets();
   if(zoom && layer.getBounds && layer.getBounds().isValid()){
     map.fitBounds(layer.getBounds(),{padding:[25,25],maxZoom:18});
   }
@@ -702,34 +676,33 @@ function showLayerContextMenu(item,x,y){
   m.style.top=Math.min(y,window.innerHeight-230)+"px";
 }
 function openLayerAttributeTable(item){
-  const idx=namedLayers.indexOf(item);
-  if(idx>=0){
-    $("attributeLayer").value=String(idx);
-    renderEditableTable();
-  }else if(item.layer===drawn){
-    status("برای «ترسیمات من» از بخش جدول صفات استفاده کن.");
-    $("attributeTableWrap").style.display="none";
-  }
+ const idx=namedLayers.findIndex(x=>x.layer===item.layer);
+ if(item.layer===drawn)$("attributeLayer").value="drawn";
+ else if(idx>=0)$("attributeLayer").value=String(idx);
+ else return;
+ document.querySelector('.accordion-section[data-accordion="attribute"]')?.classList.add("open");
+ renderEditableTable();
 }
+function displayLayerName(name,index){return /[\u0600-\u06FF]/.test(String(name||""))?"Layer "+(index+1):String(name||("Layer "+(index+1)))}
 function renderLayerList(){
   const el=$("layers"); if(!el)return;
   el.innerHTML="";
-  const title=document.createElement("div");title.className="layer-tree-title";title.textContent="📑 Table of Contents — لایه‌ها";el.appendChild(title);
-  const all=[{name:"ترسیمات من",layer:drawn,isDrawn:true}].concat(namedLayers.map(x=>({...x,isDrawn:false})));
+  const title=document.createElement("div");title.className="layer-tree-title";title.textContent="Table Of Contents";el.appendChild(title);
+  const all=[{name:"My Drawings",layer:drawn,isDrawn:true}].concat(namedLayers.map(x=>({...x,isDrawn:false})));
   all.forEach((x,i)=>{
     const row=document.createElement("div");row.className="layer-row";
     if(selectedOverlay===x.layer)row.classList.add("layer-active");
     const cb=document.createElement("input");cb.type="checkbox";cb.checked=map.hasLayer(x.layer);
-    cb.title="نمایش/مخفی";
+    cb.title="Toggle Visibility";
     cb.onchange=()=>{if(cb.checked)map.addLayer(x.layer);else map.removeLayer(x.layer);};
     const icon=document.createElement("span");icon.className="layer-icon";
     icon.textContent=x.layer instanceof L.TileLayer?"▧":(x.isDrawn?"✏":"▦");
-    const nm=document.createElement("span");nm.className="layer-name";nm.textContent=x.name;
+    const nm=document.createElement("span");nm.className="layer-name";nm.textContent=displayLayerName(x.name,i);
     nm.ondblclick=()=>{if(x.layer.getBounds&&x.layer.getBounds().isValid())map.fitBounds(x.layer.getBounds(),{padding:[25,25],maxZoom:18});};
     row.append(cb,icon,nm);
     row.onclick=()=>{selectedOverlay=x.layer;selectedLayer=null;renderLayerList();};
     row.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();selectedOverlay=x.layer;renderLayerList();showLayerContextMenu(x,e.clientX,e.clientY);};
-    const more=document.createElement("button");more.className="layer-menu";more.textContent="⋮";more.title="منوی لایه";
+    const more=document.createElement("button");more.className="layer-menu";more.textContent="⋮";more.title="Layer Options";
     more.onclick=e=>{e.stopPropagation();selectedOverlay=x.layer;renderLayerList();showLayerContextMenu(x,e.clientX,e.clientY);};
     row.appendChild(more);
     el.appendChild(row);
@@ -737,23 +710,40 @@ function renderLayerList(){
 }
 renderLayerList();
 openProjectDB().then(()=>listProjects()).then(ps=>{
-  if(ps.length)$("projectStatus").textContent=ps.length+" پروژه محلی در این مرورگر موجود است.";
+  if(ps.length)$("projectStatus").textContent=ps.length+" local projects available in this browser.";
 }).catch(()=>{});
 
 map.on(L.Draw.Event.CREATED,e=>{
-  drawn.addLayer(e.layer);
-  attachFeatureSelection(e.layer);
+  if(activeDrawPurpose==="selection")return;
+  if(activeDrawPurpose!=="draw")return;
+  const target=editTarget||drawn;
   e.layer.feature={type:"Feature",properties:{},geometry:e.layer.toGeoJSON().geometry};
-  stopActiveDraw();
-  status("عارضه جدید به «ترسیمات من» اضافه شد.");scheduleAutoSave();
-  renderLayerList();
+  target.addLayer(e.layer);
+  attachFeatureSelection(e.layer);
+  stopActiveDraw(true);
+  status("Feature added to "+(target===drawn?"My Drawings":namedLayers.find(x=>x.layer===target)?.name||"target layer")+".");
+  scheduleAutoSave();renderLayerList();refreshAttributeLayers();
 });
-map.on(L.Draw.Event.EDITED,e=>{status("ویرایش عوارض انجام شد.");scheduleAutoSave()});
-map.on(L.Draw.Event.DELETED,e=>{status("عارضه حذف شد.");renderLayerList();scheduleAutoSave()});
+map.on(L.Draw.Event.EDITED,e=>{status("Feature edits saved.");scheduleAutoSave()});
+map.on(L.Draw.Event.DELETED,e=>{status("Feature deleted.");renderLayerList();scheduleAutoSave()});
 map.on("mousemove",e=>{
-  const utm=projectCoords("EPSG:4326","EPSG:32638",[e.latlng.lng,e.latlng.lat]);
-  $("coord").textContent="UTM 38N: E "+utm[0].toFixed(2)+" | N "+utm[1].toFixed(2);
+ const utm=projectCoords("EPSG:4326","EPSG:32638",[e.latlng.lng,e.latlng.lat]);
+ $("coord").textContent="X "+utm[0].toFixed(2)+" | Y "+utm[1].toFixed(2)+" | UTM 38N";
 });
+refreshEditorTargets();updateEditorToolbar();
+$("startEditingBtn").onclick=()=>startEditing();
+$("saveEditsBtn").onclick=saveEdits;
+$("stopEditingBtn").onclick=stopEditing;
+$("editTargetLayer").onchange=()=>{const v=$("editTargetLayer").value;editTarget=v==="drawn"?drawn:(namedLayers[Number(v)]?.layer||drawn)};
+document.querySelectorAll("[data-editor-draw]").forEach(b=>b.onclick=()=>startDraw(b.dataset.editorDraw,b));
+$("finishSketchBtn").onclick=()=>{if(activeDrawHandler&&activeDrawPurpose==="draw"&&typeof activeDrawHandler.completeShape==="function")activeDrawHandler.completeShape();else stopActiveDraw(true)};
+$("selectFeaturesBtn").onclick=()=>{activeMapTool="select";document.querySelectorAll("#classicToolbars button").forEach(x=>x.classList.remove("active"));$("selectFeaturesBtn").classList.add("active");status("Select Features is active. Ctrl-click or Shift-click to add features.")};
+$("selectRectangleBtn").onclick=selectByRectangle;
+$("selectPolygonBtn").onclick=selectByPolygon;
+$("identifyFeatureBtn").onclick=()=>{activeMapTool="identify";document.querySelectorAll("#classicToolbars button").forEach(x=>x.classList.remove("active"));$("identifyFeatureBtn").classList.add("active");status("Click a feature to identify it.")};
+$("clearSelectionBtn").onclick=clearSelection;
+$("fullExtentBtn").onclick=()=>{const layers=[drawn,...namedLayers.map(x=>x.layer)].filter(l=>l.getBounds&&l.getBounds().isValid());if(!layers.length)return;const bounds=L.latLngBounds(layers.map(l=>l.getBounds()));map.fitBounds(bounds,{padding:[20,20]})};
+
 
 function ensureFeatureProperties(layer){
   if(!layer)return null;
@@ -766,7 +756,7 @@ function renderAttributeEditor(){
   if(!box)return;
   if(!selectedLayer){
     box.style.display="none";
-    status("ابتدا یک عارضه را انتخاب کن.");
+    status("Select the first input feature.");
     return;
   }
   const props=ensureFeatureProperties(selectedLayer);
@@ -774,12 +764,12 @@ function renderAttributeEditor(){
   let html="<div id='attributeRows'>";
   keys.forEach((k,i)=>{
     html += "<div class='row attr-edit-row' data-key='"+esc(k)+"' style='align-items:flex-start'>"+
-      "<input class='attr-key' value='"+esc(k)+"' title='نام فیلد' style='width:42%'>"+
-      "<input class='attr-value' value='"+esc(props[k])+'" title="مقدار" style="width:48%">'+
-      "<button class='action danger attr-delete' type='button' title='حذف فیلد'>×</button></div>";
+      "<input class='attr-key' value='"+esc(k)+"' title='Field Name' style='width:42%'>"+
+      "<input class='attr-value' value='"+esc(props[k])+'" title="Value" style="width:48%">'+
+      "<button class='action danger attr-delete' type='button' title='Delete Field'>×</button></div>";
   });
-  if(!keys.length)html+="<div class='small'>این عارضه هنوز Attribute ندارد.</div>";
-  html += "</div><div class='row'><button class='action secondary' id='addAttributeField' type='button'>+ افزودن فیلد</button><button class='action' id='saveAttributes' type='button'>ذخیره Attribute</button></div>";
+  if(!keys.length)html+="<div class='small'>This Feature GIS Attribute GIS.</div>";
+  html += "</div><div class='row'><button class='action secondary' id='addAttributeField' type='button'>+ GIS Field</button><button class='action' id='saveAttributes' type='button'>Save Attribute</button></div>";
   box.innerHTML=html;
   box.style.display="block";
   box.querySelectorAll(".attr-delete").forEach(btn=>btn.onclick=()=>btn.closest(".attr-edit-row").remove());
@@ -787,14 +777,15 @@ function renderAttributeEditor(){
     const row=document.createElement("div");
     row.className="row attr-edit-row";
     row.style.alignItems="flex-start";
-    row.innerHTML="<input class='attr-key' placeholder='نام فیلد' style='width:42%'><input class='attr-value' placeholder='مقدار' style='width:48%'><button class='action danger attr-delete' type='button'>×</button>";
+    row.innerHTML="<input class='attr-key' placeholder='Field Name' style='width:42%'><input class='attr-value' placeholder='Value' style='width:48%'><button class='action danger attr-delete' type='button'>×</button>";
     row.querySelector(".attr-delete").onclick=()=>row.remove();
     $("attributeRows").appendChild(row);
   };
   $("saveAttributes").onclick=saveAttributes;
 }
 function saveAttributes(){
-  if(!selectedLayer){status("عارضه‌ای برای ذخیره انتخاب نشده است.");return;}
+  if(!selectedLayer){status("Select a feature before editing attributes.");return;}
+  if(!editSessionActive||!isLayerInEditTarget(selectedLayer)){status("Start Editing this layer before changing attributes.");return;}
   const props={};
   let invalid=false;
   $("attributeRows").querySelectorAll(".attr-edit-row").forEach(row=>{
@@ -804,16 +795,16 @@ function saveAttributes(){
     if(Object.prototype.hasOwnProperty.call(props,key)){invalid=true;return;}
     props[key]=value;
   });
-  if(invalid){status("نام فیلد تکراری است؛ نام‌ها را اصلاح کن.");return;}
+  if(invalid){status("Field names must be unique.");return;}
   ensureFeatureProperties(selectedLayer);
   selectedLayer.feature.properties=props;
   selectedLayer.feature.geometry=selectedLayer.toGeoJSON().geometry;
   if(selectedLayer.getPopup){
     const rows=Object.keys(props).map(k=>"<b>"+esc(k)+"</b>: "+esc(props[k])).join("<br>");
-    if(selectedLayer.setPopupContent&&selectedLayer.getPopup())selectedLayer.setPopupContent(rows||"بدون اطلاعات توصیفی");
-    else if(selectedLayer.bindPopup)selectedLayer.bindPopup(rows||"بدون اطلاعات توصیفی");
+    if(selectedLayer.setPopupContent&&selectedLayer.getPopup())selectedLayer.setPopupContent(rows||"No Information Description");
+    else if(selectedLayer.bindPopup)selectedLayer.bindPopup(rows||"No Information Description");
   }
-  status("Attributeهای عارضه ذخیره شد.");scheduleAutoSave();
+  status("AttributeGIS Feature Save was set.");scheduleAutoSave();
   renderAttributeEditor();
   if($("attributeLayer").value!=="")$("openTable").click();
 }
@@ -823,7 +814,7 @@ function updateMultiSelectionUI(){
     if(l&&l._path)L.DomUtil.addClass(l._path,"multi-selected-feature");
   });
   const box=$("multiFeatureEditor"),info=$("multiSelectionInfo");
-  if(info)info.textContent=selectedFeatures.size+" عارضه انتخاب شده";
+  if(info)info.textContent=selectedFeatures.size+" Feature Selection selected";
   if(box)box.style.display=selectedFeatures.size?"block":"none";
 }
 function clearMultiSelection(){
@@ -849,7 +840,7 @@ function setGisSelection(layer,second){
   const a=selectedLayer?featureLabel(selectedLayer):"—";
   const b=selectedOverlay?featureLabel(selectedOverlay):"—";
   const el=$("gisSelectionInfo");
-  if(el)el.innerHTML="عارضه اول: "+esc(a)+"<br>عارضه دوم: "+esc(b);
+  if(el)el.innerHTML="Input feature: "+esc(a)+"<br>Overlay feature: "+esc(b);
 }
 function featureLabel(layer){
   try{
@@ -858,19 +849,24 @@ function featureLabel(layer){
     const keys=Object.keys(p);
     if(keys.length)return String(p[keys[0]]);
   }catch(e){}
-  return "عارضه انتخاب‌شده";
+  return "Feature Selectionselected";
 }
 function attachFeatureSelection(layer){
   if(!layer||!layer.on)return;
   layer.on("click",ev=>{
+    if(activeMapTool==="identify"){
+      selectedOverlay=layer;
+      if(!layer.feature)layer.feature=asFeature(layer);
+      identifyTool();return;
+    }
     const multi=!!(ev.originalEvent&&(ev.originalEvent.ctrlKey||ev.originalEvent.metaKey||ev.originalEvent.shiftKey));
     if(multi){
       toggleMultiSelection(layer);
       if(ev.originalEvent.shiftKey&&!ev.originalEvent.ctrlKey&&!ev.originalEvent.metaKey){
         selectedOverlay=layer;
-        status(selectedFeatures.size+" عارضه انتخاب شده؛ این عارضه به‌عنوان عارضه دوم عملیات GIS نیز در نظر گرفته شد.");
+        status(selectedFeatures.size+" features selected; Shift-click a second feature for overlay operations.");
       }else{
-        status(selectedFeatures.size+" عارضه انتخاب شده.");
+        status(selectedFeatures.size+" features selected.");
       }
     }else{
       clearMultiSelection();
@@ -879,7 +875,7 @@ function attachFeatureSelection(layer){
       updateMultiSelectionUI();
       showUTM(layer);
       calcMeasure(layer);
-      status("یک عارضه انتخاب شد؛ برای انتخاب چند عارضه Ctrl+کلیک یا Shift+کلیک کن.");
+      status("GIS Feature Select Filtered Records to Selection Several Feature Ctrl+click or Shift+click enter.");
     }
   });
 }
@@ -897,44 +893,44 @@ function resultLayerFromFeature(feature,name){
 }
 function runGisOperation(){
   const op=$("gisOperation").value;
-  if(!selectedLayer){status("ابتدا عارضه اول را انتخاب کن.");return;}
+  if(!selectedLayer){status("First Feature first the Selection enter.");return;}
   try{
     const f1=asFeature(selectedLayer);
-    if(!f1||!f1.geometry){status("هندسه عارضه اول معتبر نیست.");return;}
-    let result=null,name="عملیات GIS";
+    if(!f1||!f1.geometry){status("The input feature geometry is invalid.");return;}
+    let result=null,name="Geoprocessing";
     if(op==="buffer"){
       const d=Number($("bufferDistance").value);
-      if(!(d>0)){status("فاصله Buffer باید بیشتر از صفر باشد.");return;}
+      if(!(d>0)){status("Buffer distance must be greater than zero.");return;}
       result=turf.buffer(f1,d,{units:"meters"});
       name="Buffer "+d+"m";
     }else{
-      if(!selectedOverlay){status("برای این عملیات، عارضه دوم را با Shift+کلیک انتخاب کن.");return;}
+      if(!selectedOverlay){status("Shift-click to select the overlay feature.");return;}
       const f2=asFeature(selectedOverlay);
-      if(!f2||!f2.geometry){status("هندسه عارضه دوم معتبر نیست.");return;}
+      if(!f2||!f2.geometry){status("The overlay feature geometry is invalid.");return;}
       if(op==="clip"){
         result=turf.intersect(turf.featureCollection([f1,f2]));
-        name="Clip نتیجه";
+        name="Clip GIS";
       }else if(op==="intersection"){
         result=turf.intersect(turf.featureCollection([f1,f2]));
-        name="Intersection نتیجه";
+        name="Intersection GIS";
       }else if(op==="split"){
         if(f1.geometry.type!=="LineString"||f2.geometry.type!=="LineString"){
-          status("Split فعلاً نیاز به دو LineString دارد.");return;
+          status("Split requires two line features.");return;
         }
         result=turf.lineSplit(f1,f2);
-        name="Split نتیجه";
+        name="Split GIS";
       }else if(op==="merge"){
         result=turf.union(turf.featureCollection([f1,f2]));
         if(!result&&f1.geometry.type===f2.geometry.type)result=turf.combine(turf.featureCollection([f1,f2]));
-        name="Merge نتیجه";
+        name="Merge GIS";
       }
     }
-    if(!result){status("این دو عارضه نتیجه‌ای ایجاد نکردند.");return;}
+    if(!result){status("This GIS Feature GIS Create GIS.");return;}
     resultLayerFromFeature(result,name);
-    status(name+" ایجاد شد و به لایه‌های جدید اضافه شد.");scheduleAutoSave();
+    status(name+" Create was set GIS to Layers New added was set.");scheduleAutoSave();
   }catch(err){
     console.error(err);
-    status("خطا در عملیات GIS: "+err.message);
+    status("Geoprocessing failed: "+err.message);
   }
 }
 
@@ -950,18 +946,18 @@ function showUTM(layer){
       const b=layer.getBounds();
       if(b.isValid()){
         const center=b.getCenter(),u=projectCoords("EPSG:4326","EPSG:32638",[center.lng,center.lat]);
-        $("utmInfo").innerHTML="مرکز عارضه — E: "+u[0].toFixed(3)+" m | N: "+u[1].toFixed(3)+" m";
+        $("utmInfo").innerHTML="center Feature — E: "+u[0].toFixed(3)+" m | N: "+u[1].toFixed(3)+" m";
       }
     }
-  }catch(e){status("خطا در محاسبه مختصات: "+e.message)}
+  }catch(e){status("Coordinate calculation failed: "+e.message)}
 }
 function calcMeasure(layer){
   try{
     const f=layer.toGeoJSON(),g=f.geometry;
-    if(g.type==="Polygon"||g.type==="MultiPolygon"){const a=turf.area(f);$("utmInfo").innerHTML+="<br>مساحت: "+a.toLocaleString("fa-IR",{maximumFractionDigits:2})+" m²";return}
-    if(g.type==="LineString"||g.type==="MultiLineString"){const d=turf.length(f,{units:"meters"});$("utmInfo").innerHTML+="<br>طول: "+d.toLocaleString("fa-IR",{maximumFractionDigits:2})+" m";return}
+    if(g.type==="Polygon"||g.type==="MultiPolygon"){const a=turf.area(f);$("utmInfo").innerHTML+="<br>Area: "+a.toLocaleString("en-US",{maximumFractionDigits:2})+" m²";return}
+    if(g.type==="LineString"||g.type==="MultiLineString"){const d=turf.length(f,{units:"meters"});$("utmInfo").innerHTML+="<br>Longitude: "+d.toLocaleString("en-US",{maximumFractionDigits:2})+" m";return}
     if(g.type==="Point"){showUTM(layer)}
-  }catch(e){status("خطا در محاسبه: "+e.message)}
+  }catch(e){status("Calculation failed: "+e.message)}
 }
 map.on("click",e=>{
   let found=null;
@@ -969,17 +965,21 @@ map.on("click",e=>{
   if(found){selectedLayer=found;showUTM(found);calcMeasure(found)}
 });
 
-$("attributeLayer").onchange=()=>{selectedLayer=null;$("attributeTableWrap").style.display="none";};
+$("attributeLayer").onchange=()=>{$("attributeTableWrap").style.display="none";};
 let attributeClipboard=null;
+function currentAttributeLayer(){
+ const value=$("attributeLayer").value;
+ return value==="drawn"?drawn:(value===""?null:namedLayers[Number(value)]?.layer||null);
+}
 function currentAttributeItems(){
- const idx=$("attributeLayer").value;
- return idx===""?[]:vectorFeatures(namedLayers[Number(idx)].layer);
+ const layer=currentAttributeLayer();
+ return layer?vectorFeatures(layer):[];
 }
 function tableKeys(items){
  return [...new Set(items.flatMap(x=>Object.keys(x.feature.properties||{})))];
 }
 function renderEditableTable(){
- const idx=$("attributeLayer").value;if(idx===""){status("لایه را انتخاب کن.");return}
+ if(!currentAttributeLayer()){status("Select a feature layer.");return}
  const items=currentAttributeItems(),filter=$("attributeFilter").value.trim().toLowerCase();
  const rows=items.map((x,i)=>({x,i})).filter(o=>!filter||Object.values(o.x.feature.properties||{}).some(v=>String(v).toLowerCase().includes(filter)));
  const keys=tableKeys(items);
@@ -990,7 +990,7 @@ function renderEditableTable(){
  $("attributeTableWrap").innerHTML=html+"</tbody></table>";$("attributeTableWrap").style.display="block";
  const all=$("checkAllRows");if(all)all.onchange=()=>$("attributeTableWrap").querySelectorAll(".row-check").forEach(x=>x.checked=all.checked);
  $("attributeTableWrap").querySelectorAll(".row-check").forEach(ch=>ch.onchange=()=>{});
- status(rows.length+" ردیف نمایش داده شد.");
+ status(rows.length+" Row View Data was set.");
 }
 $("openTable").onclick=renderEditableTable;
 document.addEventListener("click",e=>{if(!e.target.closest("#layerContextMenu"))hideLayerContextMenu();});
@@ -1000,37 +1000,40 @@ $("layerContextMenu").querySelectorAll("button[data-action]").forEach(btn=>btn.o
   const action=btn.dataset.action;
   if(action==="table")openLayerAttributeTable(item);
   else if(action==="zoom"&&item.layer.getBounds&&item.layer.getBounds().isValid())map.fitBounds(item.layer.getBounds(),{padding:[25,25],maxZoom:18});
+   else if(action==="start-editing")startEditing(item);
   else if(action==="show")map.addLayer(item.layer);
   else if(action==="hide")map.removeLayer(item.layer);
   else if(action==="remove"&&item.layer!==drawn){
     map.removeLayer(item.layer);layerControl.removeLayer(item.layer);
-    const idx=namedLayers.indexOf(item);if(idx>=0)namedLayers.splice(idx,1);
-    refreshAttributeLayers();renderLayerList();status("لایه «"+item.name+"» حذف شد.");
+    const idx=namedLayers.findIndex(x=>x.layer===item.layer);if(idx>=0)namedLayers.splice(idx,1);refreshEditorTargets();
+    refreshAttributeLayers();renderLayerList();status("Layer "+displayLayerName(item.name,namedLayers.length)+" removed.");
   }
   renderLayerList();hideLayerContextMenu();
 });
 $("selectFiltered").onclick=()=>{
- const idx=$("attributeLayer").value;if(idx===""){status("لایه را انتخاب کن.");return}
- const filter=$("attributeFilter").value.trim().toLowerCase(), items=vectorFeatures(namedLayers[Number(idx)].layer);
+ const idx=$("attributeLayer").value;if(idx===""){status("Select a feature layer.");return}
+ const filter=$("attributeFilter").value.trim().toLowerCase(), items=currentAttributeItems();
  let n=0;items.forEach(x=>{const hit=!filter||Object.values(x.feature.properties||{}).some(v=>String(v).toLowerCase().includes(filter));if(hit){x.layer.setStyle&&x.layer.setStyle({color:"#d26a00",weight:4,fillOpacity:.28});x.layer.openPopup&&x.layer.openPopup();n++}});
- status(n+" عارضه انتخاب/برجسته شد.");
+ status(n+" Feature Selection/GIS was set.");
 };
 $("editAttributes").onclick=renderAttributeEditor;
 $("applyMultiAttribute").onclick=()=>{
+  if(!editSessionActive){status("Start Editing before changing attributes.");return}
   const key=$("multiFieldName").value.trim(),value=$("multiFieldValue").value;
-  if(!selectedFeatures.size){status("ابتدا چند عارضه را انتخاب کن.");return}
-  if(!key){status("نام فیلد را وارد کن.");return}
+  if(!selectedFeatures.size){status("Select one or more features first.");return}
+  if(!key){status("Enter a field name.");return}
   selectedFeatures.forEach(layer=>{
     const p=ensureFeatureProperties(layer);p[key]=value;
     layer.feature.geometry=layer.toGeoJSON().geometry;
     const rows=Object.keys(p).map(k=>"<b>"+esc(k)+"</b>: "+esc(p[k])).join("<br>");
-    if(layer.setPopupContent&&layer.getPopup())layer.setPopupContent(rows||"بدون اطلاعات توصیفی");
-    else if(layer.bindPopup)layer.bindPopup(rows||"بدون اطلاعات توصیفی");
+    if(layer.setPopupContent&&layer.getPopup())layer.setPopupContent(rows||"No Information Description");
+    else if(layer.bindPopup)layer.bindPopup(rows||"No Information Description");
   });
   renderAttributeEditor();scheduleAutoSave();
-  status("فیلد «"+key+"» روی "+selectedFeatures.size+" عارضه اعمال شد.");
+  status("Updated field "+key+" on "+selectedFeatures.size+" features.");
 };
 $("deleteMultiSelected").onclick=()=>{
+  if(!editSessionActive){status("Start Editing before deleting features.");return}
   if(!selectedFeatures.size)return;
   const n=selectedFeatures.size;
   selectedFeatures.forEach(layer=>{
@@ -1040,26 +1043,28 @@ $("deleteMultiSelected").onclick=()=>{
   });
   clearMultiSelection();selectedLayer=null;selectedOverlay=null;
   renderLayerList();refreshAttributeLayers();scheduleAutoSave();
-  status(n+" عارضه حذف شد.");
+  status(n+" features deleted.");
 };
-$("clearMultiSelected").onclick=()=>{clearMultiSelection();selectedLayer=null;selectedOverlay=null;renderAttributeEditor();status("انتخاب چندگانه لغو شد.")};
+$("clearMultiSelected").onclick=()=>{clearMultiSelection();selectedLayer=null;selectedOverlay=null;renderAttributeEditor();status("Multiple selection cleared.")};
 $("runGisOperation").onclick=runGisOperation;
 $("clearGisSelection").onclick=()=>{
   selectedLayer=null;selectedOverlay=null;
-  $("gisSelectionInfo").innerHTML="عارضه اول: —<br>عارضه دوم: —";
-  status("انتخاب عوارض لغو شد.");
+  $("gisSelectionInfo").innerHTML="Input feature: —<br>Overlay feature: —";
+  status("Selection cleared.");
 };
 
 $("addTableField").onclick=()=>{
- const idx=$("attributeLayer").value;if(idx===""){status("لایه را انتخاب کن.");return}
- const name=prompt("نام فیلد جدید:");if(!name||!name.trim())return;
+ if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before changing its table.");return}
+ const idx=$("attributeLayer").value;if(idx===""){status("Select a feature layer.");return}
+ const name=prompt("New field name:");if(!name||!name.trim())return;
  const key=name.trim();const items=currentAttributeItems();
- if(items.some(x=>Object.prototype.hasOwnProperty.call(x.feature.properties||{},key))){status("این فیلد از قبل وجود دارد.");return}
+ if(items.some(x=>Object.prototype.hasOwnProperty.call(x.feature.properties||{},key))){status("This Field than GIS exists has.");return}
  items.forEach(x=>{ensureFeatureProperties(x.layer);x.feature.properties[key]="";});
- renderEditableTable();status("فیلد «"+key+"» اضافه شد.");
+ renderEditableTable();status("Field "+key+" added.");
 };
 $("saveTableEdits").onclick=()=>{
- const idx=$("attributeLayer").value;if(idx===""){status("لایه را انتخاب کن.");return}
+ if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before saving table changes.");return}
+ const idx=$("attributeLayer").value;if(idx===""){status("Select a feature layer.");return}
  const items=currentAttributeItems(), table=$("attributeTableWrap");
  table.querySelectorAll("tbody tr").forEach(row=>{
    const item=items[Number(row.dataset.index)];if(!item)return;
@@ -1067,56 +1072,59 @@ $("saveTableEdits").onclick=()=>{
    row.querySelectorAll(".cell-edit").forEach(inp=>item.feature.properties[inp.dataset.key]=inp.value);
    item.feature.geometry=item.layer.toGeoJSON().geometry;
  });
- renderEditableTable();status("تغییرات جدول ذخیره شد.");scheduleAutoSave();
+ renderEditableTable();status("Attribute table edits saved.");scheduleAutoSave();
 };
 function selectedTableIndexes(){
  return [...$("attributeTableWrap").querySelectorAll("tbody tr")].filter(r=>r.querySelector(".row-check")?.checked).map(r=>Number(r.dataset.index));
 }
 $("deleteSelectedRows").onclick=()=>{
+ if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before deleting rows.");return}
  const items=currentAttributeItems(),inds=selectedTableIndexes().sort((a,b)=>b-a);
- if(!inds.length){status("هیچ ردیفی انتخاب نشده است.");return}
- if(!confirm(inds.length+" عارضه حذف شود؟"))return;
- const layer=namedLayers[Number($("attributeLayer").value)].layer;
+ if(!inds.length){status("Select one or more rows first.");return}
+ if(!confirm(inds.length+" Feature Delete GIS"))return;
+ const layer=currentAttributeLayer();if(!layer)return;
  const targets=new Set(inds);
  if(layer.clearLayers){let i=0;layer.eachLayer(l=>{if(targets.has(i))layer.removeLayer(l);i++})}
  else if(layer.removeLayer){let i=0;layer.eachLayer(l=>{if(targets.has(i))layer.removeLayer(l);i++})}
- renderEditableTable();renderLayerList();refreshAttributeLayers();status(inds.length+" عارضه حذف شد.");
+ renderEditableTable();renderLayerList();refreshAttributeLayers();status(inds.length+" Feature Delete was set.");
 };
 $("copySelectedRows").onclick=()=>{
  const items=currentAttributeItems(),inds=selectedTableIndexes();
- if(!inds.length){status("ردیفی انتخاب نشده است.");return}
+ if(!inds.length){status("Select one or more rows first.");return}
  const keys=tableKeys(items);
- attributeClipboard=inds.map(i=>{const p=items[i].x.feature.properties||{};return keys.map(k=>p[k]??"")});
- status(attributeClipboard.length+" ردیف در حافظه کپی شد.");
+ attributeClipboard=inds.map(i=>{const p=items[i].feature.properties||{};return keys.map(k=>p[k]??"")});
+ status(attributeClipboard.length+" rows copied.");
 };
 $("pasteRows").onclick=()=>{
- if(!attributeClipboard?.length){status("ابتدا ردیف‌ها را کپی کن.");return}
+ if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before pasting rows.");return}
+ if(!attributeClipboard?.length){status("Copy rows before pasting.");return}
  const items=currentAttributeItems(),inds=selectedTableIndexes(),keys=tableKeys(items);
- if(!inds.length){status("ردیف مقصد را انتخاب کن.");return}
- inds.forEach((idx,n)=>{const item=items[idx];ensureFeatureProperties(item.x.layer);const src=attributeClipboard[n%attributeClipboard.length];keys.forEach((k,j)=>item.x.feature.properties[k]=src[j]??"");});
- renderEditableTable();status("اطلاعات روی "+inds.length+" ردیف چسبانده شد.");
+ if(!inds.length){status("Select destination rows.");return}
+ inds.forEach((idx,n)=>{const item=items[idx];ensureFeatureProperties(item.layer);const src=attributeClipboard[n%attributeClipboard.length];keys.forEach((k,j)=>item.feature.properties[k]=src[j]??"");});
+ renderEditableTable();status("Pasted values into "+inds.length+" rows.");
 };
 $("fillSelected").onclick=()=>{
+ if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before calculating fields.");return}
  const value=$("fillValue").value,items=currentAttributeItems(),inds=selectedTableIndexes();
- const layerKeys=tableKeys(items),key=prompt("نام فیلدی که مقدار آن پر شود:\n"+layerKeys.join(", "));
- if(!key||!layerKeys.includes(key)){status("فیلد معتبر انتخاب نشد.");return}
- inds.forEach(i=>{ensureFeatureProperties(items[i].x.layer);items[i].x.feature.properties[key]=value});
- renderEditableTable();status("فیلد «"+key+"» برای "+inds.length+" ردیف پر شد.");
+ const layerKeys=tableKeys(items),key=prompt("Field to calculate:\n"+layerKeys.join(", "));
+ if(!key||!layerKeys.includes(key)){status("Select a valid field.");return}
+ inds.forEach(i=>{ensureFeatureProperties(items[i].layer);items[i].feature.properties[key]=value});
+ renderEditableTable();status("Calculated field "+key+" for "+inds.length+" rows.");
 };
-$("measureSelected").onclick=()=>{if(selectedLayer)calcMeasure(selectedLayer);else status("ابتدا یک عارضه را روی نقشه انتخاب کن.");};
+$("measureSelected").onclick=()=>{if(selectedLayer)calcMeasure(selectedLayer);else status("Select a feature on the map first.");};
 $("basemap").onchange=e=>{
   if(currentBase)map.removeLayer(currentBase);
 currentBase=base[e.target.value]||base.osm;
 currentBase.addTo(map);
-status("نقشه پایه: "+(e.target.value==="sat"?"تصویر ماهواره‌ای Esri":e.target.value==="topo"?"OpenTopoMap":e.target.value==="giscloud"?"GIS Cloud / MapTiler Streets":"OpenStreetMap"));
+status("Basemap: "+(e.target.value==="sat"?"Esri Imagery":e.target.value==="topo"?"OpenTopoMap":e.target.value==="giscloud"?"GIS Cloud / MapTiler Streets":"OpenStreetMap"));
 };
 $("clearDraw").onclick=()=>{
-  if(!drawn.getLayers().length){status("ترسیمی برای پاک‌کردن وجود ندارد.");return}
-  if(confirm("همه ترسیمات حذف شوند؟")){drawn.clearLayers();renderLayerList();status("ترسیمات پاک شد.")}
+  if(!drawn.getLayers().length){status("GIS to ClearNo features available.");return}
+  if(confirm("Delete all drawings?")){drawn.clearLayers();renderLayerList();status("Drawings cleared.")}
 };
 $("fitDraw").onclick=()=>{
   const layers=drawn.getLayers();
-  if(!layers.length){status("ترسیمی وجود ندارد.");return}
+  if(!layers.length){status("No features available.");return}
   map.fitBounds(drawn.getBounds(),{padding:[30,30]});
 };
 $("backBtn").onclick=()=>{location.href="index.html#mapView"};
@@ -1127,7 +1135,7 @@ function bindFeature(l,f){
   l.feature=f;
   const p=f.properties||{};
   const rows=Object.keys(p).map(k=>"<b>"+esc(k)+"</b>: "+esc(p[k])).join("<br>");
-  if(l.bindPopup)l.bindPopup(rows||"بدون اطلاعات توصیفی");
+  if(l.bindPopup)l.bindPopup(rows||"No Information Description");
   attachFeatureSelection(l);
 }
 function geoJsonLayer(data,name){
@@ -1136,17 +1144,17 @@ function geoJsonLayer(data,name){
     pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:6,color:"#146c43",fillColor:"#fff",fillOpacity:.9,weight:2}),
     onEachFeature:(f,l)=>{
       const p=f.properties||{}, rows=Object.keys(p).map(k=>"<b>"+esc(k)+"</b>: "+esc(p[k])).join("<br>");
-      l.bindPopup(rows||"بدون اطلاعات توصیفی");
+      l.bindPopup(rows||"No Information Description");
     }
   });
   addNamedLayer(name,layer,true);
   layer.eachLayer&&layer.eachLayer(l=>attachFeatureSelection(l));
-  status(name+" وارد شد.");scheduleAutoSave();
+  status(name+" Enter was set.");scheduleAutoSave();
 }
 function parseKML(text){
   const doc=new DOMParser().parseFromString(text,"application/xml");
   const parserError=doc.getElementsByTagName("parsererror")[0];
-  if(parserError)throw new Error("ساختار XML فایل KML معتبر نیست.");
+  if(parserError)throw new Error("GIS XML file KML valid not.");
   const features=[];
   const coordList=s=>s.trim().split(/\s+/).map(x=>x.split(",").slice(0,2).map(Number)).filter(a=>a.length===2&&a.every(Number.isFinite));
   const descendants=(el,tag)=>[...el.getElementsByTagNameNS("*",tag)];
@@ -1177,7 +1185,7 @@ let gdalLoading=null;
 async function getGdalBrowser(){
   if(gdalBrowser)return gdalBrowser;
   if(!gdalLoading){
-    if(typeof initGdalJs!=="function")throw new Error("GDAL WebAssembly بارگذاری نشده است.");
+    if(typeof initGdalJs!=="function")throw new Error("GDAL WebAssembly loaded not is.");
     gdalLoading=initGdalJs({path:"https://cdn.jsdelivr.net/npm/gdal3.js@2.8.1/dist/package",useWorker:false});
   }
   gdalBrowser=await gdalLoading;
@@ -1185,15 +1193,15 @@ async function getGdalBrowser(){
 }
 async function importGDBFiles(fileList){
   const files=Array.from(fileList||[]);
-  if(!files.length){status("هیچ فایلی از GDB انتخاب نشد.");return}
+  if(!files.length){status("GIS GIS than GDB Selection not.");return}
   const gdbRoot=(files[0].webkitRelativePath||"").split("/")[0]||"selected.gdb";
-  if(!/\.gdb$/i.test(gdbRoot)){status("لطفاً خود پوشه File Geodatabase با پسوند .gdb را انتخاب کن.");return}
+  if(!/\.gdb$/i.test(gdbRoot)){status("Please GIS folder File Geodatabase with extension .gdb the Selection enter.");return}
   try{
-    status("در حال راه‌اندازی موتور GDAL و خواندن File Geodatabase...");
+    status("in GIS GIS engine GDAL GIS GIS File Geodatabase...");
     const Gdal=await getGdalBrowser();
     const opened=await Gdal.open(files);
     const datasets=opened.datasets||[];
-    if(!datasets.length)throw new Error("هیچ Feature Class یا Dataset قابل خواندنی در GDB پیدا نشد.");
+    if(!datasets.length)throw new Error("GIS Feature Class or Dataset available readable in GDB found not.");
     let imported=0;
     for(const ds of datasets){
       try{
@@ -1210,11 +1218,11 @@ async function importGDBFiles(fileList){
       }catch(err){console.warn("GDB layer import:",err)}
       try{Gdal.close(ds)}catch(_){}
     }
-    if(imported)status("File Geodatabase با موفقیت وارد شد؛ "+imported+" لایه/Feature Class اضافه شد.");
-    else status("GDB باز شد اما Feature Class قابل نمایش پیدا نشد.");
+    if(imported)status("File Geodatabase imported. Added layers: "+imported+" Layer/Feature Class added was set.");
+    else status("GDB Open was set GIS No supported feature classes were found.");
   }catch(err){
     console.error(err);
-    status("خطا در ورود GDB: "+(err.message||err));
+    status("Geodatabase import failed: "+(err.message||err));
   }
 }
 $("gdbInput").onchange=async e=>{
@@ -1235,16 +1243,16 @@ $("fileInput").onchange=async e=>{
     }else{
       geoJsonLayer(JSON.parse(await f.text()),f.name);
     }
-  }catch(err){console.error(err);status("خطا در ورود فایل: "+err.message)}
+  }catch(err){console.error(err);status("File import failed: "+err.message)}
   e.target.value="";
 };
 $("addWms").onclick=()=>{
   const url=$("wmsUrl").value.trim(),name=$("wmsLayer").value.trim();
-  if(!url||!name){status("آدرس WMS و نام LAYERS را وارد کن.");return}
+  if(!url||!name){status("Enter a WMS URL and layer name.");return}
   try{
     const l=L.tileLayer.wms(url,{layers:name,format:"image/png",transparent:true,version:"1.3.0"});
-    addNamedLayer("WMS: "+name,l,false);l.addTo(map);status("لایه WMS اضافه شد.");scheduleAutoSave();
-  }catch(e){status("خطا در WMS: "+e.message)}
+    addNamedLayer("WMS: "+name,l,false);l.addTo(map);status("WMS layer added.");scheduleAutoSave();
+  }catch(e){status("WMS error: "+e.message)}
 };
 
 const PROJECT_DB_NAME="sabzroyan-webgis";
@@ -1254,11 +1262,11 @@ let autoSaveTimer=null;
 let currentProjectId=null;
 function openProjectDB(){
   return new Promise((resolve,reject)=>{
-    if(!("indexedDB" in window)){reject(new Error("IndexedDB پشتیبانی نمی‌شود"));return}
+    if(!("indexedDB" in window)){reject(new Error("IndexedDB supported GIS"));return}
     const req=indexedDB.open(PROJECT_DB_NAME,PROJECT_DB_VERSION);
     req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(PROJECT_STORE)){const s=db.createObjectStore(PROJECT_STORE,{keyPath:"id"});s.createIndex("updatedAt","updatedAt")}};
     req.onsuccess=()=>resolve(req.result);
-    req.onerror=()=>reject(req.error||new Error("خطا در IndexedDB"));
+    req.onerror=()=>reject(req.error||new Error("Error in IndexedDB"));
   });
 }
 async function putProject(project){
@@ -1286,7 +1294,7 @@ async function scheduleAutoSave(){
       const p=serializeProject();
       p.id=projectId();p.updatedAt=new Date().toISOString();
       await putProject(p);currentProjectId=p.id;
-      $("projectStatus").textContent="ذخیره خودکار محلی: "+new Date().toLocaleString("fa-IR");
+      $("projectStatus").textContent="Save GIS local: "+new Date().toLocaleString("en-US");
     }catch(e){console.warn("IndexedDB autosave:",e)}
   },700);
 }
@@ -1319,7 +1327,7 @@ function serializeProject(){
     description:window.currentProjectDescription||"",
     crs:currentCRS,
     savedAt:new Date().toISOString(),
-    name:$("projectName").value.trim()||"پروژه بدون نام",
+    name:$("projectName").value.trim()||"Project No name",
     center:[map.getCenter().lat,map.getCenter().lng],
     zoom:map.getZoom(),
     basemap:$("basemap").value,
@@ -1338,7 +1346,7 @@ function projectFeatureLayer(features,name){
     pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:6,color:"#146c43",fillColor:"#fff",fillOpacity:.9,weight:2}),
     onEachFeature:(f,l)=>{
       const p=f.properties||{},rows=Object.keys(p).map(k=>"<b>"+esc(k)+"</b>: "+esc(p[k])).join("<br>");
-      l.bindPopup(rows||"بدون اطلاعات توصیفی");
+      l.bindPopup(rows||"No Information Description");
       attachFeatureSelection(l);
     }
   });
@@ -1346,7 +1354,7 @@ function projectFeatureLayer(features,name){
   return layer;
 }
 function restoreProject(project){
-  if(!project||![1,2].includes(project.version)){status("فرمت پروژه پشتیبانی نمی‌شود.");return}
+  if(!project||![1,2].includes(project.version)){status("Project supported GIS.");return}
   window.currentProjectDescription=project.description||"";
   if(project.crs)try{setCRS(project.crs)}catch(e){}
   drawn.clearLayers();
@@ -1370,38 +1378,38 @@ function restoreProject(project){
       addNamedLayer(item.name||"WMS",l,false);
       l.addTo(map);
     }else{
-      projectFeatureLayer(item.features||[],item.name||"لایه واردشده");
+      projectFeatureLayer(item.features||[],item.name||"Layer GIS");
     }
   });
-  $("projectName").value=project.name||"پروژه بدون نام";
+  $("projectName").value=project.name||"Project No name";
   renderLayerList();refreshAttributeLayers();
-  $("projectStatus").textContent="پروژه بازیابی شد: "+(project.savedAt?new Date(project.savedAt).toLocaleString("fa-IR"):"—");
-  status("پروژه با موفقیت بازیابی شد.");
+  $("projectStatus").textContent="Project restore was set: "+(project.savedAt?new Date(project.savedAt).toLocaleString("en-US"):"—");
+  status("Project restored.");
 }
 async function saveProject(){
   try{
     const project=serializeProject();
     project.id=projectId();project.updatedAt=new Date().toISOString();
     await putProject(project);currentProjectId=project.id;
-    $("projectStatus").textContent="پروژه محلی ذخیره شد: "+new Date().toLocaleString("fa-IR");
-    status("پروژه در حافظه مرورگر ذخیره شد؛ هیچ فایلی روی هاست ذخیره نمی‌شود.");
-  }catch(e){status("خطا در ذخیره پروژه: "+e.message)}
+    $("projectStatus").textContent="Project local Save was set: "+new Date().toLocaleString("en-US");
+    status("Project in GIS browser Save GIS GIS GIS on GIS Save GIS.");
+  }catch(e){status("Project save failed: "+e.message)}
 }
 async function loadProject(){
   try{
     const projects=await listProjects();
-    if(!projects.length){status("پروژه ذخیره‌شده‌ای در این مرورگر وجود ندارد.");return}
+    if(!projects.length){status("No saved project exists in this browser.");return}
     let choice=projects.find(p=>p.id===currentProjectId);
     if(!choice){
-      const names=projects.map((p,i)=>(i+1)+". "+(p.name||"بدون نام")+" — "+new Date(p.updatedAt||p.savedAt).toLocaleString("fa-IR")).join("\n");
-      const answer=prompt("شماره پروژه برای بازیابی را وارد کن:\n"+names,"1");
+      const names=projects.map((p,i)=>(i+1)+". "+(p.name||"No name")+" — "+new Date(p.updatedAt||p.savedAt).toLocaleString("en-US")).join("\n");
+      const answer=prompt("Enter the project number to open:\n"+names,"1");
       const n=Number(answer);
       if(!n||!projects[n-1])return;
       choice=projects[n-1];
     }
     currentProjectId=choice.id;
     restoreProject(choice);
-  }catch(e){status("خطا در بازیابی پروژه: "+e.message)}
+  }catch(e){status("Project could not be opened: "+e.message)}
 }
 function closeProjectManager(){document.getElementById("projectManager").classList.remove("show")}
 function openProjectManager(){document.getElementById("projectManager").classList.add("show");renderProjectManagerList()}
@@ -1409,20 +1417,20 @@ async function renderProjectManagerList(){
   const el=$("projectList");if(!el)return;
   try{
     const ps=await listProjects();
-    if(!ps.length){el.innerHTML="<div class='small'>هنوز پروژه‌ای ساخته نشده است.</div>";return}
+    if(!ps.length){el.innerHTML="<div class='small'>ProjectGIS created not is.</div>";return}
     el.innerHTML="";
     ps.forEach(p=>{
       const row=document.createElement("div");row.className="pm-item";
       const info=document.createElement("div");info.className="pm-item-info";
-      info.innerHTML="<div class='pm-item-name'>"+esc(p.name||"پروژه بدون نام")+"</div><div class='pm-item-meta'>"+esc(p.crs||"EPSG:32638")+" — "+new Date(p.updatedAt||p.savedAt).toLocaleString("fa-IR")+"</div>";
-      const b=document.createElement("button");b.className="action secondary";b.textContent="باز کردن";
-      b.onclick=async()=>{currentProjectId=p.id;restoreProject(p);$("projectName").value=p.name||"پروژه بدون نام";window.currentProjectDescription=p.description||"";closeProjectManager();status("پروژه باز شد.")};
+      info.innerHTML="<div class='pm-item-name'>"+esc(p.name||"Project No name")+"</div><div class='pm-item-meta'>"+esc(p.crs||"EPSG:32638")+" — "+new Date(p.updatedAt||p.savedAt).toLocaleString("en-US")+"</div>";
+      const b=document.createElement("button");b.className="action secondary";b.textContent="Open GIS";
+      b.onclick=async()=>{currentProjectId=p.id;restoreProject(p);$("projectName").value=p.name||"Project No name";window.currentProjectDescription=p.description||"";closeProjectManager();status("Project opened.")};
       row.append(info,b);el.appendChild(row);
     });
-  }catch(e){el.innerHTML="<div class='small'>خطا در خواندن پروژه‌ها.</div>"}
+  }catch(e){el.innerHTML="<div class='small'>Error in ProjectGIS.</div>"}
 }
 async function createNewProject(){
-  const name=$("newProjectName").value.trim()||"پروژه جدید";
+  const name=$("newProjectName").value.trim()||"New Project";
   window.currentProjectDescription=$("newProjectDescription").value.trim();
   const crs=$("newProjectCrs").value;
   drawn.clearLayers();
@@ -1434,7 +1442,7 @@ async function createNewProject(){
   renderLayerList();refreshAttributeLayers();
   await saveProject();
   closeProjectManager();
-  status("پروژه جدید «"+name+"» ایجاد شد.");
+  status('Created project "'+name+'".');
 }
 function initProjectManager(){
   $("createProjectBtn").onclick=createNewProject;
@@ -1451,7 +1459,7 @@ $("loadProject").onclick=loadProject;
 $("downloadProject").onclick=downloadProject;
 $("projectFile").onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
-  try{restoreProject(JSON.parse(await f.text()))}catch(err){status("فایل پروژه معتبر نیست: "+err.message)}
+  try{restoreProject(JSON.parse(await f.text()))}catch(err){status("Invalid project file: "+err.message)}
   e.target.value="";
 };
 function collectGeoJSON(){
@@ -1513,8 +1521,8 @@ function collectUTMFeatureCollection(){
 }
 async function exportRealSHP(){
   const fc=collectUTMFeatureCollection();
-  if(!fc.features.length){status("هیچ عارضه‌ای برای خروجی SHP وجود ندارد.");return}
-  if(typeof shpwrite==="undefined"){status("کتابخانه SHP بارگذاری نشده است.");return}
+  if(!fc.features.length){status("No features available to export.");return}
+  if(typeof shpwrite==="undefined"){status("Shapefile export library is unavailable.");return}
   try{
     const zip=await shpwrite.zip(fc,{
       folder:"sabz-royan-webgis",
@@ -1524,8 +1532,8 @@ async function exportRealSHP(){
       compression:"DEFLATE"
     });
     download(zip,"sabz-royan-webgis-"+currentCRS.replace("EPSG:","")+".zip","application/zip");
-    status("SHP واقعی ساخته شد: SHP + SHX + DBF + PRJ در ZIP.");
-  }catch(e){console.error(e);status("خطا در ساخت SHP: "+e.message)}
+    status("Shapefile created: SHP + SHX + DBF + PRJ in ZIP.");
+  }catch(e){console.error(e);status("Shapefile export failed: "+e.message)}
 }
 function eachGeometryPart(geometry,fn){
   if(!geometry)return;
@@ -1538,8 +1546,8 @@ function eachGeometryPart(geometry,fn){
 }
 function exportRealDXF(){
   const fc=collectUTMFeatureCollection();
-  if(!fc.features.length){status("هیچ عارضه‌ای برای خروجی DXF وجود ندارد.");return}
-  if(typeof Drawing==="undefined"){status("کتابخانه DXF بارگذاری نشده است.");return}
+  if(!fc.features.length){status("No features available to export.");return}
+  if(typeof Drawing==="undefined"){status("DXF export library is unavailable.");return}
   try{
     const d=new Drawing();
     d.setUnits("Meters");
@@ -1557,8 +1565,8 @@ function exportRealDXF(){
     });
     const dxf=d.toDxfString();
     download(dxf,"sabz-royan-webgis-"+currentCRS.replace("EPSG:","")+".dxf","application/dxf");
-    status("DXF واقعی ساخته شد؛ مختصات بر اساس "+currentCRS+" است.");
-  }catch(e){console.error(e);status("خطا در ساخت DXF: "+e.message)}
+    status("DXF created in "+currentCRS+" is.");
+  }catch(e){console.error(e);status("DXF export failed: "+e.message)}
 }
 async function exportRealGDB(){
   const layers=[];
@@ -1569,12 +1577,12 @@ async function exportRealGDB(){
       if(fs.length)layers.push({name:x.name||("layer_"+(i+1)),fc:{type:"FeatureCollection",features:fs}});
     }catch(e){}
   });
-  if(!layers.length){status("هیچ عارضه‌ای برای خروجی GDB وجود ندارد.");return}
-  if(typeof initGdalJs!=="function"){status("موتور GDAL بارگذاری نشده است.");return}
-  if(typeof JSZip==="undefined"){status("کتابخانه ZIP بارگذاری نشده است.");return}
+  if(!layers.length){status("No features available to export.");return}
+  if(typeof initGdalJs!=="function"){status("GDAL is unavailable.");return}
+  if(typeof JSZip==="undefined"){status("ZIP library is unavailable.");return}
   let gdal=null;
   try{
-    status("در حال ساخت File Geodatabase واقعی...");
+    status("in GIS create File Geodatabase GIS...");
     gdal=await getGdalBrowser();
     const zip=new JSZip();
     let added=0;
@@ -1596,79 +1604,82 @@ async function exportRealGDB(){
         added++;
       }
     }
-    if(!added)throw new Error("GDAL خروجی FileGDB تولید نکرد. نسخه GDAL مرورگر باید OpenFileGDB با قابلیت Write داشته باشد.");
+    if(!added)throw new Error("GDAL output FileGDB GIS GIS. GIS GDAL browser GIS OpenFileGDB with GIS Write GIS GIS.");
     const blob=await zip.generateAsync({type:"blob",compression:"DEFLATE"});
     download(blob,"sabz-royan-webgis.gdb.zip","application/zip");
-    status("File Geodatabase واقعی ساخته شد. فایل ZIP را Extract کن تا پوشه .gdb را داشته باشی.");
+    status("File Geodatabase GIS created was set. file ZIP the Extract enter GIS folder .gdb the GIS GIS.");
   }catch(e){
     console.error(e);
-    status("خطا در ساخت GDB: "+(e.message||e));
+    status("File Geodatabase export failed: "+(e.message||e));
   }
 }
 
 /* =========================
-   GIS TOOLBOX — ابزارهای قابل جستجو
+   GIS TOOLBOX — GIS available Search
    ========================= */
 const GIS_TOOLS=[
- {id:"measureDistanceTool",title:"محاسبه فاصله / طول",category:"اندازه‌گیری",keys:"فاصله طول distance length measure خط"},
- {id:"measureAreaTool",title:"محاسبه مساحت",category:"اندازه‌گیری",keys:"مساحت area measure polygon پلیگون"},
- {id:"identifyTool",title:"اطلاعات عارضه",category:"انتخاب و اطلاعات",keys:"identify اطلاعات عارضه attribute مشخصات"},
- {id:"selectRectangle",title:"Select by Rectangle — انتخاب با مستطیل",category:"انتخاب",keys:"انتخاب مستطیل rectangle select"},
- {id:"selectPolygon",title:"Select by Polygon — انتخاب با پلیگون",category:"انتخاب",keys:"انتخاب پلیگون polygon select"},
- {id:"selectLocation",title:"Select by Location — انتخاب مکانی",category:"انتخاب",keys:"انتخاب مکانی location spatial select"},
- {id:"selectDistance",title:"Select within Distance — انتخاب در شعاع",category:"انتخاب",keys:"انتخاب فاصله شعاع distance radius buffer select"},
- {id:"clearSelection",title:"Clear Selection — پاک‌کردن انتخاب",category:"انتخاب",keys:"پاک انتخاب clear selection"},
- {id:"nearestMatchTool",title:"تطبیق نزدیک‌ترین عوارض / منهول",category:"آب و فاضلاب",keys:"منهول manhole نزدیک nearest match تطبیق"},
- {id:"transferAttributesTool",title:"انتقال Attribute",category:"آب و فاضلاب",keys:"attribute انتقال اطلاعات منهول manhole transfer"},
- {id:"networkQaTool",title:"کنترل اتصال شبکه",category:"آب و فاضلاب",keys:"شبکه network qa لوله pipe pipeline فاضلاب آب"},
- {id:"snapTool",title:"Snap / اتصال نقطه به خط",category:"ویرایش",keys:"snap اتصال نقطه خط لوله pipe"},
- {id:"runGisOperation",op:"buffer",title:"Buffer — حریم",category:"تحلیل مکانی",keys:"buffer حریم فاصله"},
- {id:"runGisOperation",op:"clip",title:"Clip — برش",category:"تحلیل مکانی",keys:"clip برش"},
- {id:"runGisOperation",op:"intersection",title:"Intersection — اشتراک",category:"تحلیل مکانی",keys:"intersection اشتراک"},
- {id:"runGisOperation",op:"split",title:"Split — تقسیم",category:"ویرایش",keys:"split تقسیم"},
- {id:"runGisOperation",op:"merge",title:"Merge — ادغام",category:"ویرایش",keys:"merge ادغام"},
- {id:"addTableField",title:"افزودن Field",category:"Attribute",keys:"field فیلد attribute ستون"},
- {id:"deleteSelectedRows",title:"حذف عوارض انتخاب‌شده",category:"Attribute",keys:"حذف delete attribute جدول"},
- {id:"saveTableEdits",title:"ذخیره ویرایش Attribute",category:"Attribute",keys:"ذخیره save edit attribute"},
- {id:"exportGeoJSON",title:"خروجی GeoJSON",category:"ورود و خروجی",keys:"geojson export خروجی"},
- {id:"exportKML",title:"خروجی KML",category:"ورود و خروجی",keys:"kml export خروجی"},
- {id:"exportSHP",title:"خروجی SHP واقعی",category:"ورود و خروجی",keys:"shp shapefile خروجی"},
- {id:"exportDXF",title:"خروجی DXF واقعی",category:"ورود و خروجی",keys:"dxf cad خروجی"},
- {id:"exportGDB",title:"خروجی File Geodatabase",category:"ورود و خروجی",keys:"gdb geodatabase خروجی"},
-{id:"selectLasso",title:"Select by Lasso — انتخاب آزاد",category:"انتخاب",keys:"lasso انتخاب آزاد"},
-{id:"selectAttribute",title:"Select by Attribute — انتخاب بر اساس Attribute",category:"انتخاب",keys:"attribute query انتخاب شرطی"},
-{id:"invertSelection",title:"Invert Selection — معکوس انتخاب",category:"انتخاب",keys:"invert معکوس"},
-{id:"zoomSelection",title:"Zoom to Selection — بزرگنمایی انتخاب",category:"انتخاب",keys:"zoom انتخاب"},
-{id:"newLayerSelection",title:"New Layer from Selection — لایه از انتخاب",category:"انتخاب",keys:"new layer selection"},
-{id:"cloneFeatures",title:"Clone / Duplicate Feature",category:"ویرایش",keys:"clone duplicate کپی"},
-{id:"moveFeatures",title:"Move Feature — جابجایی",category:"ویرایش",keys:"move جابجایی"},
-{id:"rotateFeatures",title:"Rotate Feature — چرخش",category:"ویرایش",keys:"rotate چرخش"},
-{id:"scaleFeatures",title:"Scale Feature — مقیاس",category:"ویرایش",keys:"scale مقیاس"},
-{id:"reshapeFeatures",title:"Reshape — بازشکل‌دهی",category:"ویرایش",keys:"reshape هندسه"},
-{id:"vertexEdit",title:"Vertex Editing — ویرایش رأس",category:"ویرایش",keys:"vertex رأس"},
-{id:"advancedSnap",title:"Advanced Snap — Snap پیشرفته",category:"ویرایش",keys:"snap endpoint edge vertex perpendicular"},
-{id:"gridToggle",title:"Editing Grid — شبکه ترسیم",category:"ویرایش",keys:"grid شبکه"},
-{id:"constraintTool",title:"Editing Constraints — محدودیت ترسیم",category:"ویرایش",keys:"constraint طول زاویه x y"},
-{id:"styleLayer",title:"Layer Style / Symbology",category:"نمایش لایه",keys:"style symbology رنگ ضخامت"},
-{id:"labelLayer",title:"Labels — برچسب عوارض",category:"نمایش لایه",keys:"label برچسب"},
-{id:"layerTransparency",title:"Layer Transparency — شفافیت",category:"نمایش لایه",keys:"transparency شفافیت"},
-{id:"groupLayers",title:"Group Layers — گروه‌بندی لایه‌ها",category:"مدیریت لایه",keys:"group folder گروه"},
-{id:"joinWizard",title:"Join Wizard — اتصال Attribute",category:"داده",keys:"join table attribute"},
-{id:"reprojectLayer",title:"Reproject Layer — تبدیل CRS",category:"داده",keys:"reproject projection crs"},
-{id:"csvImport",title:"CSV Import — ورود CSV",category:"ورود و خروجی",keys:"csv وارد کردن مختصات"},
-{id:"excelImport",title:"Excel Import — ورود Excel",category:"ورود و خروجی",keys:"excel xlsx"},
-{id:"searchFeature",title:"Search Feature — جستجوی عارضه",category:"داده",keys:"search feature attribute"},
-{id:"addBookmark",title:"Add Bookmark — ذخیره محدوده",category:"نمایش",keys:"bookmark نشانک"},
-{id:"showBookmarks",title:"Bookmarks — محدوده‌های ذخیره‌شده",category:"نمایش",keys:"bookmark نشانک"},
-{id:"spatialFilter",title:"Spatial Filter — فیلتر مکانی",category:"تحلیل مکانی",keys:"spatial filter intersects within contains touches overlaps crosses"},
-{id:"attachmentsTool",title:"Attachments — پیوست فایل/عکس",category:"داده",keys:"attachment photo pdf file"},
-{id:"chartStats",title:"Charts / Statistics — آمار",category:"تحلیل",keys:"chart statistics نمودار آمار"},
+ {id:"selectFeatures",title:"Select Features",category:"Tools",keys:"select feature"},
+ {id:"selectRectangle",title:"Select Features by Rectangle",category:"Selection",keys:"rectangle box"},
+ {id:"selectPolygon",title:"Select Features by Polygon",category:"Selection",keys:"polygon"},
+ {id:"identifyTool",title:"Identify",category:"Tools",keys:"identify attributes"},
+ {id:"clearSelection",title:"Clear Selected Features",category:"Selection",keys:"clear selection"},
+ {id:"zoomSelection",title:"Zoom To Selected Features",category:"Selection",keys:"zoom selection"},
+ {id:"selectAttribute",title:"Select By Attributes",category:"Selection",keys:"query attributes"},
+ {id:"selectLocation",title:"Select By Location",category:"Selection",keys:"spatial select"},
+ {id:"selectDistance",title:"Select By Distance",category:"Selection",keys:"distance radius"},
+ {id:"selectLasso",title:"Select Features by Lasso",category:"Selection",keys:"lasso freehand"},
+ {id:"invertSelection",title:"Switch Selection",category:"Selection",keys:"invert"},
+ {id:"newLayerSelection",title:"Create Layer From Selected Features",category:"Selection",keys:"new layer"},
+ {id:"drawPoint",title:"Create Point Feature",category:"Editor",keys:"point sketch"},
+ {id:"drawLine",title:"Create Line Feature",category:"Editor",keys:"line polyline sketch"},
+ {id:"drawPolygon",title:"Create Polygon Feature",category:"Editor",keys:"polygon sketch"},
+ {id:"drawRectangle",title:"Create Rectangle Feature",category:"Editor",keys:"rectangle sketch"},
+ {id:"drawCircle",title:"Create Circle Feature",category:"Editor",keys:"circle sketch"},
+ {id:"startEditing",title:"Start Editing",category:"Editor",keys:"edit session"},
+ {id:"saveEdits",title:"Save Edits",category:"Editor",keys:"save"},
+ {id:"stopEditing",title:"Stop Editing",category:"Editor",keys:"stop session"},
+ {id:"measureDistanceTool",title:"Measure Length",category:"Tools",keys:"distance length"},
+ {id:"measureAreaTool",title:"Measure Area",category:"Tools",keys:"area"},
+ {id:"runGisOperation",op:"buffer",title:"Buffer",category:"Geoprocessing",keys:"buffer"},
+ {id:"runGisOperation",op:"clip",title:"Clip",category:"Geoprocessing",keys:"clip"},
+ {id:"runGisOperation",op:"intersection",title:"Intersect",category:"Geoprocessing",keys:"intersection"},
+ {id:"runGisOperation",op:"split",title:"Split",category:"Geoprocessing",keys:"split line"},
+ {id:"runGisOperation",op:"merge",title:"Merge",category:"Geoprocessing",keys:"merge"},
+ {id:"snapTool",title:"Snapping",category:"Editor",keys:"snap"},
+ {id:"vertexEdit",title:"Edit Vertices",category:"Editor",keys:"vertex"},
+ {id:"moveFeatures",title:"Move Features",category:"Editor",keys:"move"},
+ {id:"rotateFeatures",title:"Rotate Features",category:"Editor",keys:"rotate"},
+ {id:"scaleFeatures",title:"Scale Features",category:"Editor",keys:"scale"},
+ {id:"reshapeFeatures",title:"Reshape",category:"Editor",keys:"reshape"},
+ {id:"cloneFeatures",title:"Copy Features",category:"Editor",keys:"copy duplicate"},
+ {id:"styleLayer",title:"Layer Properties",category:"Table Of Contents",keys:"symbology style"},
+ {id:"labelLayer",title:"Label Features",category:"Table Of Contents",keys:"labels"},
+ {id:"layerTransparency",title:"Layer Transparency",category:"Table Of Contents",keys:"transparency"},
+ {id:"groupLayers",title:"Group Layers",category:"Table Of Contents",keys:"group"},
+ {id:"joinWizard",title:"Join",category:"Geoprocessing",keys:"join table"},
+ {id:"reprojectLayer",title:"Project",category:"Data Management",keys:"reproject projection"},
+ {id:"csvImport",title:"Add XY Data (CSV)",category:"Data Management",keys:"csv coordinates"},
+ {id:"excelImport",title:"Add XY Data (Excel)",category:"Data Management",keys:"excel xlsx"},
+ {id:"searchFeature",title:"Find",category:"Tools",keys:"search feature"},
+ {id:"addBookmark",title:"Create Bookmark",category:"Bookmarks",keys:"bookmark"},
+ {id:"showBookmarks",title:"Bookmarks",category:"Bookmarks",keys:"extent"},
+ {id:"spatialFilter",title:"Select By Location",category:"Selection",keys:"intersects within contains"},
+ {id:"attachmentsTool",title:"Attachments",category:"Data Management",keys:"file photo"},
+ {id:"chartStats",title:"Statistics",category:"Geoprocessing",keys:"chart statistics"},
+ {id:"nearestMatchTool",title:"Find Nearest Features",category:"Network QA",keys:"nearest"},
+ {id:"transferAttributesTool",title:"Transfer Attributes",category:"Network QA",keys:"attributes"},
+ {id:"networkQaTool",title:"Network Connectivity Check",category:"Network QA",keys:"network connectivity"},
+ {id:"exportGeoJSON",title:"Export GeoJSON",category:"Data Management",keys:"geojson export"},
+ {id:"exportKML",title:"Export KML",category:"Data Management",keys:"kml export"},
+ {id:"exportSHP",title:"Export Shapefile",category:"Data Management",keys:"shp"},
+ {id:"exportDXF",title:"Export DXF",category:"Data Management",keys:"dxf cad"},
+ {id:"exportGDB",title:"Export File Geodatabase",category:"Data Management",keys:"gdb"}
 ];
 function renderGisToolbox(query=""){
  const box=$("gisToolResults"); if(!box)return;
  const q=query.trim().toLowerCase();
  const matches=GIS_TOOLS.filter(t=>(t.title+" "+t.category+" "+t.keys).toLowerCase().includes(q));
- if(!matches.length){box.innerHTML='<div class="gis-tool-empty">ابزاری با این عبارت پیدا نشد.</div>';return;}
+ if(!matches.length){box.innerHTML='<div class="gis-tool-empty">GIS with This GIS found not.</div>';return;}
  const groups={};
  matches.forEach(t=>(groups[t.category]??=[]).push(t));
  box.innerHTML="";
@@ -1683,7 +1694,7 @@ function renderGisToolbox(query=""){
 }
 
 function allSelectableFeatureLayers(){
-  return [{name:"ترسیمات من",layer:drawn}].concat(namedLayers)
+  return [{name:"My Drawings",layer:drawn}].concat(namedLayers)
     .filter(x=>isVectorLayer(x.layer));
 }
 function applySelectionVisual(){
@@ -1702,8 +1713,8 @@ function clearSelection(){
   selectedFeatures.clear();
   selectedOverlay=null;
   applySelectionVisual();
-  $("professionalToolOutput").textContent="انتخاب‌ها پاک شدند.";
-  status("انتخاب‌ها پاک شدند.");
+  $("professionalToolOutput").textContent="Selection cleared.";
+  status("Selection cleared.");
 }
 function featureCenterLatLng(layer){
   try{
@@ -1713,52 +1724,30 @@ function featureCenterLatLng(layer){
   return null;
 }
 function selectByRectangle(){
-  status("روی نقشه یک مستطیل رسم کن؛ ابزار ترسیم مستطیل را فعال کن.");
-  const handler=new L.Draw.Rectangle(map,{shapeOptions:{color:"#ff9800",weight:2,dashArray:"5,4"}});
-  handler.enable();
-  const once=e=>{
-    map.off(L.Draw.Event.CREATED,once);
-    map.removeLayer(e.layer);
-    const b=e.layer.getBounds();
-    selectedFeatures.clear();
-    allSelectableFeatureLayers().forEach(x=>vectorFeatures(x.layer).forEach(v=>{
-      const ll=featureCenterLatLng(v.layer);
-      if(ll&&b.contains(ll))selectedFeatures.add(v.layer);
-    }));
-    applySelectionVisual();
-    status(selectedFeatures.size+" عارضه با مستطیل انتخاب شد.");
-  };
-  map.on(L.Draw.Event.CREATED,once);
+ status("Drag a rectangle to select features.");
+ startSelectionShape("Rectangle",{shapeOptions:{color:"#1683c4",weight:2,dashArray:"5,4"}},shape=>{
+   const polygon=shape.toGeoJSON();selectedFeatures.clear();
+   allSelectableFeatureLayers().forEach(item=>vectorFeatures(item.layer).forEach(v=>{try{if(turf.booleanIntersects(v.feature,polygon))selectedFeatures.add(v.layer)}catch(_){}}));
+   applySelectionVisual();status(selectedFeatures.size+" features selected.");
+ });
 }
 function selectByPolygon(){
-  status("پلیگون انتخاب را روی نقشه رسم کن.");
-  const handler=new L.Draw.Polygon(map,{allowIntersection:false,shapeOptions:{color:"#ff9800",weight:2,dashArray:"5,4"}});
-  handler.enable();
-  const once=e=>{
-    map.off(L.Draw.Event.CREATED,once);
-    map.removeLayer(e.layer);
-    const poly=e.layer.toGeoJSON();
-    selectedFeatures.clear();
-    allSelectableFeatureLayers().forEach(x=>vectorFeatures(x.layer).forEach(v=>{
-      try{
-        const center=featureCenterLatLng(v.layer);
-        if(center&&turf.booleanPointInPolygon(turf.point([center.lng,center.lat]),poly))selectedFeatures.add(v.layer);
-      }catch(err){}
-    }));
-    applySelectionVisual();
-    status(selectedFeatures.size+" عارضه با پلیگون انتخاب شد.");
-  };
-  map.on(L.Draw.Event.CREATED,once);
+ status("Draw a polygon to select features.");
+ startSelectionShape("Polygon",{allowIntersection:false,shapeOptions:{color:"#1683c4",weight:2,dashArray:"5,4"}},shape=>{
+   const polygon=shape.toGeoJSON();selectedFeatures.clear();
+   allSelectableFeatureLayers().forEach(item=>vectorFeatures(item.layer).forEach(v=>{try{if(turf.booleanIntersects(v.feature,polygon))selectedFeatures.add(v.layer)}catch(_){}}));
+   applySelectionVisual();status(selectedFeatures.size+" features selected.");
+ });
 }
 function selectByLocation(){
-  const first=prompt("نوع رابطه را وارد کن: within / intersects / contains","intersects");
+  const first=prompt("Spatial relationship: within / intersects / contains","intersects");
   if(!first)return;
-  const a=prompt("شماره لایه مبدأ را وارد کن (از فهرست لایه‌ها)","");
+  const a=prompt("Source layer number (see Table Of Contents)","");
   if(a===null)return;
-  const b=prompt("شماره لایه مرجع را وارد کن","");
+  const b=prompt("Target layer number","");
   if(b===null)return;
   const ai=Number(a)-1,bi=Number(b)-1,items=namedLayers;
-  if(!items[ai]||!items[bi]){status("شماره لایه نامعتبر است.");return;}
+  if(!items[ai]||!items[bi]){status("GIS Layer invalid is.");return;}
   const ref=vectorFeatures(items[bi].layer).map(v=>v.feature).filter(Boolean);
   selectedFeatures.clear();
   vectorFeatures(items[ai].layer).forEach(v=>{
@@ -1774,13 +1763,13 @@ function selectByLocation(){
     if(ok)selectedFeatures.add(v.layer);
   });
   applySelectionVisual();
-  status(selectedFeatures.size+" عارضه بر اساس رابطه مکانی انتخاب شد.");
+  status(selectedFeatures.size+" Feature GIS GIS relationship Spatial Selection was set.");
 }
 function selectWithinDistance(){
-  const meters=Number(prompt("فاصله انتخاب (متر):","5"));
+  const meters=Number(prompt("distance Selection (meters):","5"));
   if(!Number.isFinite(meters)||meters<0)return;
   const ref=selectedOverlay?.feature;
-  if(!ref){status("ابتدا یک عارضه مرجع را انتخاب کن.");return;}
+  if(!ref){status("First GIS Feature Reference the Selection enter.");return;}
   selectedFeatures.clear();
   const refGeom=turf.feature(ref.geometry);
   allSelectableFeatureLayers().forEach(x=>vectorFeatures(x.layer).forEach(v=>{
@@ -1790,12 +1779,12 @@ function selectWithinDistance(){
     }catch(e){}
   }));
   applySelectionVisual();
-  status(selectedFeatures.size+" عارضه در شعاع "+meters+" متر انتخاب شد.");
+  status(selectedFeatures.size+" Feature in radius "+meters+" meters Selection was set.");
 }
 
 
 /* =========================
-   ابزارهای تکمیلی حرفه‌ای Web GIS
+   GIS GIS GIS Web GIS
    ========================= */
 function getFeatureRecords(){
   return allSelectableFeatureLayers().flatMap(x=>vectorFeatures(x.layer).map(v=>({owner:x,layer:v.layer,feature:v.feature})));
@@ -1803,35 +1792,28 @@ function getFeatureRecords(){
 function selectedRecords(){return [...selectedFeatures].map(l=>{const v=getFeatureRecords().find(r=>r.layer===l);return v;}).filter(Boolean);}
 function zoomToSelection(){
   const ls=[...selectedFeatures].filter(l=>l&&l.getBounds&&l.getBounds().isValid());
-  if(!ls.length){status("هیچ عارضه‌ای انتخاب نشده است.");return;}
+  if(!ls.length){status("GIS FeatureSelection not is.");return;}
   const g=L.featureGroup(ls); map.fitBounds(g.getBounds(),{padding:[30,30]});
 }
 function invertSelection(){
   const all=getFeatureRecords().map(r=>r.layer), old=new Set(selectedFeatures);
   selectedFeatures.clear(); all.forEach(l=>{if(!old.has(l))selectedFeatures.add(l);});
-  applySelectionVisual(); status(selectedFeatures.size+" عارضه انتخاب شد.");
+  applySelectionVisual(); status(selectedFeatures.size+" Feature Selection was set.");
 }
 function selectByLasso(){
-  status("محدوده انتخاب را با چندضلعی آزاد رسم کن.");
-  const h=new L.Draw.Polygon(map,{allowIntersection:false,shapeOptions:{color:"#8e44ad",weight:2,dashArray:"5,4"}});
-  h.enable();
-  const once=e=>{
-    map.off(L.Draw.Event.CREATED,once); map.removeLayer(e.layer);
-    const poly=e.layer.toGeoJSON(); selectedFeatures.clear();
-    getFeatureRecords().forEach(r=>{try{
-      const c=featureCenterLatLng(r.layer);
-      if(c&&turf.booleanPointInPolygon(turf.point([c.lng,c.lat]),poly))selectedFeatures.add(r.layer);
-    }catch(_){}});
-    applySelectionVisual(); status(selectedFeatures.size+" عارضه با Lasso انتخاب شد.");
-  };
-  map.on(L.Draw.Event.CREATED,once);
+ status("Draw a freehand selection polygon.");
+ startSelectionShape("Polygon",{allowIntersection:false,shapeOptions:{color:"#8e44ad",weight:2,dashArray:"5,4"}},shape=>{
+   const polygon=shape.toGeoJSON();selectedFeatures.clear();
+   getFeatureRecords().forEach(r=>{try{if(turf.booleanIntersects(r.feature,polygon))selectedFeatures.add(r.layer)}catch(_){}});
+   applySelectionVisual();status(selectedFeatures.size+" features selected by lasso.");
+ });
 }
 function selectByAttribute(){
-  const field=prompt("نام Field برای جستجو:","");
+  const field=prompt("Field Name to Search:","");
   if(field===null||!field.trim())return;
-  const op=prompt("عملگر: =  |  !=  |  contains  |  starts  |  ends","contains");
+  const op=prompt("Operator: = | != | contains | starts | ends","contains");
   if(op===null)return;
-  const val=prompt("مقدار:","");
+  const val=prompt("Value:","");
   if(val===null)return;
   const needle=val.toLowerCase(); selectedFeatures.clear();
   getFeatureRecords().forEach(r=>{
@@ -1839,45 +1821,45 @@ function selectByAttribute(){
     let ok=op==="="?s===needle:op==="!="?s!==needle:op==="starts"?s.startsWith(needle):op==="ends"?s.endsWith(needle):s.includes(needle);
     if(ok)selectedFeatures.add(r.layer);
   });
-  applySelectionVisual(); status(selectedFeatures.size+" عارضه بر اساس Attribute انتخاب شد.");
+  applySelectionVisual(); status(selectedFeatures.size+" Feature GIS GIS Attribute Selection was set.");
 }
 function newLayerFromSelection(){
-  const rs=selectedRecords(); if(!rs.length){status("ابتدا عارضه انتخاب کن.");return;}
+  const rs=selectedRecords(); if(!rs.length){status("First Feature Selection enter.");return;}
   const fc={type:"FeatureCollection",features:rs.map(r=>JSON.parse(JSON.stringify(r.feature)))};
   const layer=L.geoJSON(fc,{onEachFeature:(f,l)=>bindFeature(l,f)});
   layer.addTo(map); namedLayers.push({name:"Selection_"+new Date().toISOString().slice(0,19).replace(/[:T]/g,"-"),layer,source:"selection"});
-  renderLayerList(); refreshAttributeLayers(); scheduleAutoSave(); status("لایه جدید از انتخاب ساخته شد.");
+  renderLayerList(); refreshAttributeLayers(); scheduleAutoSave(); status("Create Layer From Selected Features created was set.");
 }
 function cloneSelectedFeatures(){
-  const rs=selectedRecords(); if(!rs.length){status("ابتدا انتخاب کن.");return;}
+  const rs=selectedRecords(); if(!rs.length){status("First Selection enter.");return;}
   const clones=rs.map(r=>{const f=JSON.parse(JSON.stringify(r.feature)); f.properties={...(f.properties||{}),_clone:true}; return f;});
   const layer=L.geoJSON({type:"FeatureCollection",features:clones},{onEachFeature:(f,l)=>bindFeature(l,f)});
   layer.addTo(map); namedLayers.push({name:"Clone_"+Date.now(),layer,source:"clone"});
-  renderLayerList(); refreshAttributeLayers(); scheduleAutoSave(); status(clones.length+" عارضه Clone شد.");
+  renderLayerList(); refreshAttributeLayers(); scheduleAutoSave(); status(clones.length+" Feature Clone was set.");
 }
 function moveSelected(){
-  const rs=selectedRecords(); if(!rs.length){status("ابتدا انتخاب کن.");return;}
-  const dx=Number(prompt("جابجایی شرقی X (متر):","0")),dy=Number(prompt("جابجایی شمالی Y (متر):","0"));
+  const rs=selectedRecords(); if(!rs.length){status("First Selection enter.");return;}
+  const dx=Number(prompt("Move Features East X (meters):","0")),dy=Number(prompt("Move Features North Y (meters):","0"));
   if(!Number.isFinite(dx)||!Number.isFinite(dy))return;
   const moveCoord=c=>{const p=projectCoords("EPSG:4326",currentCRS,c);const q=[p[0]+dx,p[1]+dy];return proj4(currentCRS,"EPSG:4326",q);};
   rs.forEach(r=>{const walk=c=>Array.isArray(c[0])?c.map(walk):moveCoord(c);r.feature.geometry.coordinates=walk(r.feature.geometry.coordinates);});
-  rebuildVectorLayerGeometry(rs); refreshAll(); status("جابجایی انجام شد.");
+  rebuildVectorLayerGeometry(rs); refreshAll(); status("Move Features GIS was set.");
 }
 function rotateSelected(){
-  const rs=selectedRecords(); if(!rs.length){status("ابتدا انتخاب کن.");return;}
-  const deg=Number(prompt("زاویه چرخش (درجه):","90")); if(!Number.isFinite(deg))return;
+  const rs=selectedRecords(); if(!rs.length){status("First Selection enter.");return;}
+  const deg=Number(prompt("Angle Rotate Features (degrees):","90")); if(!Number.isFinite(deg))return;
   rs.forEach(r=>{try{
     const c=featureCenterLatLng(r.layer), fc=turf.point([c.lng,c.lat]);
     const g=turf.transformRotate(r.feature,deg,{pivot:fc});
     r.feature.geometry=g.geometry;
   }catch(_){}});
-  rebuildVectorLayerGeometry(rs); refreshAll(); status("چرخش انجام شد.");
+  rebuildVectorLayerGeometry(rs); refreshAll(); status("Rotate Features GIS was set.");
 }
 function scaleSelected(){
-  const rs=selectedRecords(); if(!rs.length){status("ابتدا انتخاب کن.");return;}
-  const factor=Number(prompt("ضریب Scale:","1.1")); if(!Number.isFinite(factor)||factor<=0)return;
+  const rs=selectedRecords(); if(!rs.length){status("First Selection enter.");return;}
+  const factor=Number(prompt("Factor Scale:","1.1")); if(!Number.isFinite(factor)||factor<=0)return;
   rs.forEach(r=>{try{const c=featureCenterLatLng(r.layer);r.feature.geometry=turf.transformScale(r.feature,factor,{origin:[c.lng,c.lat]}).geometry;}catch(_){}});
-  rebuildVectorLayerGeometry(rs); refreshAll(); status("Scale انجام شد.");
+  rebuildVectorLayerGeometry(rs); refreshAll(); status("Scale GIS was set.");
 }
 function rebuildVectorLayerGeometry(rs){
   rs.forEach(r=>{try{
@@ -1891,22 +1873,22 @@ function rebuildVectorLayerGeometry(rs){
   applySelectionVisual(); renderLayerList();
 }
 function reshapeSelected(){
-  const r=selectedRecords()[0]; if(!r){status("یک عارضه انتخاب کن.");return;}
-  status("Reshape: برای نسخه مرورگری، هندسه جدید را با یک پلیگون رسم کن.");
+  const r=selectedRecords()[0]; if(!r){status("GIS Feature Selection enter.");return;}
+  status("Reshape: to GIS GIS GIS New the with GIS Polygon draw enter.");
   const h=new L.Draw.Polygon(map,{shapeOptions:{color:"#e67e22",weight:2,dashArray:"4,4"}});h.enable();
-  const once=e=>{map.off(L.Draw.Event.CREATED,once);map.removeLayer(e.layer);r.feature.geometry=e.layer.toGeoJSON().geometry;rebuildVectorLayerGeometry([r]);refreshAll();status("هندسه عارضه بازشکل‌دهی شد.");};map.on(L.Draw.Event.CREATED,once);
+  const once=e=>{map.off(L.Draw.Event.CREATED,once);map.removeLayer(e.layer);r.feature.geometry=e.layer.toGeoJSON().geometry;rebuildVectorLayerGeometry([r]);refreshAll();status("GIS Feature GIS was set.");};map.on(L.Draw.Event.CREATED,once);
 }
 function editVertices(){
-  const r=selectedRecords()[0]; if(!r){status("یک عارضه انتخاب کن.");return;}
-  try{if(r.layer.editing){r.layer.editing.enable();status("ویرایش رأس‌ها فعال شد؛ پس از پایان روی نقشه ادامه بده.");}else status("ویرایش رأس این نوع لایه پشتیبانی نشد.");}catch(_){}
+  const r=selectedRecords()[0]; if(!r){status("GIS Feature Selection enter.");return;}
+  try{if(r.layer.editing){r.layer.editing.enable();status("Edit Vertices active GIS GIS than finish on Map Continue GIS.");}else status("Editing vertex This GIS Layer supported not.");}catch(_){}
 }
 function advancedSnap(){
-  const r=selectedRecords()[0]; if(!r){status("یک عارضه انتخاب کن.");return;}
-  status("Snap پیشرفته: در ویرایش Leaflet رأس/نقطه نزدیک را به عارضه انتخابی نزدیک کن.");
+  const r=selectedRecords()[0]; if(!r){status("GIS Feature Selection enter.");return;}
+  status("Snapping: in Editing Leaflet vertex/Point GIS the to Feature SelectionGIS GIS enter.");
 }
 function spatialFilter(){
-  const rs=getFeatureRecords(); const type=prompt("رابطه: intersects / within / contains / touches / overlaps / crosses","intersects");
-  if(!type)return; const ref=selectedRecords()[0]; if(!ref){status("ابتدا یک عارضه مرجع انتخاب کن.");return;}
+  const rs=getFeatureRecords(); const type=prompt("relationship: intersects / within / contains / touches / overlaps / crosses","intersects");
+  if(!type)return; const ref=selectedRecords()[0]; if(!ref){status("First GIS Feature Reference Selection enter.");return;}
   selectedFeatures.clear();
   rs.forEach(r=>{try{
     const a=r.feature,b=ref.feature; let ok=false;
@@ -1915,64 +1897,73 @@ function spatialFilter(){
     else if(type==="crosses")ok=turf.booleanCrosses(a,b); else ok=turf.booleanIntersects(a,b);
     if(ok)selectedFeatures.add(r.layer);
   }catch(_){}});
-  applySelectionVisual(); status(selectedFeatures.size+" عارضه با Spatial Filter انتخاب شد.");
+  applySelectionVisual(); status(selectedFeatures.size+" Feature with Spatial Filter Selection was set.");
 }
 function joinWizard(){
-  const rs=getFeatureRecords(); if(rs.length<2){status("حداقل دو لایه لازم است.");return;}
+  const rs=getFeatureRecords(); if(rs.length<2){status("at least GIS Layer GIS is.");return;}
   const src=rs[0].feature,tgt=rs[1].feature;
-  const sf=prompt("Field مبدأ برای Join:","id"), tf=prompt("Field مقصد:","id"); if(!sf||!tf)return;
-  if(String(src.properties?.[sf]??"")===String(tgt.properties?.[tf]??"")){Object.assign(tgt.properties||{},src.properties||{});refreshAll();status("Join انجام شد.");}
-  else status("برای این دو عارضه مقدار Field برابر پیدا نشد.");
+  const sf=prompt("Field Source to Join:","id"), tf=prompt("Field Target:","id"); if(!sf||!tf)return;
+  if(String(src.properties?.[sf]??"")===String(tgt.properties?.[tf]??"")){Object.assign(tgt.properties||{},src.properties||{});refreshAll();status("Join GIS was set.");}
+  else status("to This GIS Feature Value Field GIS found not.");
 }
 function reprojectLayer(){
-  const r=selectedRecords()[0]; if(!r){status("یک عارضه انتخاب کن.");return;}
-  const epsg=prompt("CRS مقصد EPSG:","32638"); if(!/^\d+$/.test(epsg))return;
-  status("لایه در نمایش Leaflet به WGS84 ذخیره می‌شود؛ CRS پروژه به EPSG:"+epsg+" تغییر نمی‌کند.");
+  const r=selectedRecords()[0]; if(!r){status("GIS Feature Selection enter.");return;}
+  const epsg=prompt("CRS Target EPSG:","32638"); if(!/^\d+$/.test(epsg))return;
+  status("Layer in View Leaflet to WGS84 Save GIS CRS Project to EPSG:"+epsg+" changed GIS.");
 }
 function csvImport(){
   const input=document.createElement("input");input.type="file";input.accept=".csv";input.onchange=async()=>{
     const text=await input.files[0].text(), rows=text.split(/\r?\n/).filter(Boolean).map(x=>x.split(","));
-    if(rows.length<2)return;const headers=rows[0];const lat=headers.findIndex(x=>/lat|عرض/i.test(x)),lng=headers.findIndex(x=>/lon|lng|طول/i.test(x));
-    if(lat<0||lng<0){status("CSV باید ستون Latitude/Longitude داشته باشد.");return;}
+    if(rows.length<2)return;const headers=rows[0];const lat=headers.findIndex(x=>/lat|Latitude/i.test(x)),lng=headers.findIndex(x=>/lon|lng|Longitude/i.test(x));
+    if(lat<0||lng<0){status("CSV GIS GIS Latitude/Longitude GIS GIS.");return;}
     const features=rows.slice(1).map(row=>({type:"Feature",properties:Object.fromEntries(headers.map((h,i)=>[h,row[i]??""])),geometry:{type:"Point",coordinates:[Number(row[lng]),Number(row[lat])]}})).filter(f=>Number.isFinite(f.geometry.coordinates[0])&&Number.isFinite(f.geometry.coordinates[1]));
-    const layer=L.geoJSON({type:"FeatureCollection",features},{onEachFeature:(f,l)=>bindFeature(l,f)}).addTo(map);namedLayers.push({name:"CSV_"+Date.now(),layer,source:"csv"});renderLayerList();refreshAttributeLayers();scheduleAutoSave();status(features.length+" نقطه از CSV وارد شد.");
+    const layer=L.geoJSON({type:"FeatureCollection",features},{onEachFeature:(f,l)=>bindFeature(l,f)}).addTo(map);namedLayers.push({name:"CSV_"+Date.now(),layer,source:"csv"});renderLayerList();refreshAttributeLayers();scheduleAutoSave();status(features.length+" Point than CSV Enter was set.");
   };input.click();
 }
-function excelImport(){status("برای Excel در نسخه مرورگری، ابتدا CSV صادر کن و با ابزار CSV وارد کن.");csvImport();}
+function excelImport(){status("to Excel in GIS GIS First CSV GIS enter GIS with tool CSV Enter enter.");csvImport();}
 function searchFeature(){
-  const q=prompt("شناسه یا مقدار Attribute برای جستجو:","");if(q===null)return;const s=q.toLowerCase();
+  const q=prompt("Search feature ID or attribute value:","");if(q===null)return;const s=q.toLowerCase();
   const r=getFeatureRecords().find(x=>Object.values(x.feature.properties||{}).some(v=>String(v).toLowerCase().includes(s)));
-  if(r){selectedFeatures.clear();selectedFeatures.add(r.layer);applySelectionVisual();if(r.layer.getBounds)map.fitBounds(r.layer.getBounds(),{padding:[30,30]});else if(r.layer.getLatLng)map.setView(r.layer.getLatLng(),17);status("عارضه پیدا شد.");}else status("عارضه‌ای پیدا نشد.");
+  if(r){selectedFeatures.clear();selectedFeatures.add(r.layer);applySelectionVisual();if(r.layer.getBounds)map.fitBounds(r.layer.getBounds(),{padding:[30,30]});else if(r.layer.getLatLng)map.setView(r.layer.getLatLng(),17);status("Feature found was set.");}else status("FeatureGIS found not.");
 }
 function addBookmark(){
-  const name=prompt("نام Bookmark:","محدوده فعلی");if(!name)return;
-  const b=map.getBounds();const bookmarks=JSON.parse(localStorage.getItem("sabzroyan-bookmarks")||"[]");bookmarks.push({name,bounds:b.toBBoxString(),zoom:map.getZoom()});localStorage.setItem("sabzroyan-bookmarks",JSON.stringify(bookmarks));status("Bookmark ذخیره شد.");
+  const name=prompt("Bookmark name:","Current Extent");if(!name)return;
+  const b=map.getBounds();const bookmarks=JSON.parse(localStorage.getItem("sabzroyan-bookmarks")||"[]");bookmarks.push({name,bounds:b.toBBoxString(),zoom:map.getZoom()});localStorage.setItem("sabzroyan-bookmarks",JSON.stringify(bookmarks));status("Bookmark Save was set.");
 }
 function showBookmarks(){
-  const bs=JSON.parse(localStorage.getItem("sabzroyan-bookmarks")||"[]");if(!bs.length){status("Bookmarkای وجود ندارد.");return;}
-  const n=prompt("نام Bookmark:\n"+bs.map(x=>x.name).join("\n"),bs[0].name);const b=bs.find(x=>x.name===n);if(b){const a=b.bounds.split(",").map(Number);map.fitBounds([[a[1],a[0]],[a[3],a[2]]]);}
+  const bs=JSON.parse(localStorage.getItem("sabzroyan-bookmarks")||"[]");if(!bs.length){status("BookmarkNo features available.");return;}
+  const n=prompt("Bookmark name:\n"+bs.map(x=>x.name).join("\n"),bs[0].name);const b=bs.find(x=>x.name===n);if(b){const a=b.bounds.split(",").map(Number);map.fitBounds([[a[1],a[0]],[a[3],a[2]]]);}
 }
 function layerTransparency(){
-  const rs=getFeatureRecords();if(!rs.length)return;const v=Math.max(0,Math.min(1,Number(prompt("شفافیت 0 تا 1:","0.5"))));rs.forEach(r=>{if(r.layer.setStyle)r.layer.setStyle({opacity:v,fillOpacity:v});});status("شفافیت اعمال شد.");
+  const rs=getFeatureRecords();if(!rs.length)return;const v=Math.max(0,Math.min(1,Number(prompt("Transparency (0 to 1):","0.5"))));rs.forEach(r=>{if(r.layer.setStyle)r.layer.setStyle({opacity:v,fillOpacity:v});});status("Transparency Apply was set.");
 }
 function styleLayer(){
-  const rs=getFeatureRecords();if(!rs.length)return;const col=prompt("رنگ HEX:","#146c43");const w=Number(prompt("ضخامت خط:","2"));rs.forEach(r=>{if(r.layer.setStyle)r.layer.setStyle({color:col,weight:w,fillColor:col});});status("Symbology لایه تغییر کرد.");
+  const rs=getFeatureRecords();if(!rs.length)return;const col=prompt("Color HEX:","#146c43");const w=Number(prompt("Line width:","2"));rs.forEach(r=>{if(r.layer.setStyle)r.layer.setStyle({color:col,weight:w,fillColor:col});});status("Symbology Layer changed GIS.");
 }
 function labelLayer(){
-  const rs=getFeatureRecords();if(!rs.length)return;const field=prompt("Field برای Label:","name");rs.forEach(r=>{const v=r.feature.properties?.[field];if(v!=null&&r.layer.bindTooltip)r.layer.bindTooltip(String(v),{permanent:true,direction:"center"});});status("Labelها فعال شدند.");
+  const rs=getFeatureRecords();if(!rs.length)return;const field=prompt("Label field:","name");rs.forEach(r=>{const v=r.feature.properties?.[field];if(v!=null&&r.layer.bindTooltip)r.layer.bindTooltip(String(v),{permanent:true,direction:"center"});});status("LabelGIS active GIS.");
 }
-function groupLayers(){status("برای مدیریت گروه، لایه‌های انتخاب‌شده را با نام مشترک Group_ نام‌گذاری کن؛ گروه‌بندی پیشرفته در نسخه بعدی.");}
-function gridToggle(){if(window._gridLayer){map.removeLayer(window._gridLayer);window._gridLayer=null;status("Grid خاموش شد.");return;}const b=map.getBounds(),z=map.getZoom(),step=z>15?.001:z>12?.01:.1;const lines=[];for(let x=Math.floor(b.getWest()/step)*step;x<=b.getEast();x+=step)lines.push([[b.getSouth(),x],[b.getNorth(),x]]);for(let y=Math.floor(b.getSouth()/step)*step;y<=b.getNorth();y+=step)lines.push([[y,b.getWest()],[y,b.getEast()]]);window._gridLayer=L.polyline(lines,{color:"#7f8c8d",weight:.5,opacity:.45}).addTo(map);status("Grid فعال شد.");}
-function constraintTool(){const d=Number(prompt("طول/فاصله محدودکننده (متر):","10"));if(Number.isFinite(d))status("Constraint "+d+" متر برای ابزار ترسیم ثبت شد.");}
+function groupLayers(){status("to GIS GIS LayerSelectionselected the with name GIS Group_ nameGIS GIS GIS GIS in GIS GIS.");}
+function gridToggle(){if(window._gridLayer){map.removeLayer(window._gridLayer);window._gridLayer=null;status("Editor Grid GIS was set.");return;}const b=map.getBounds(),z=map.getZoom(),step=z>15?.001:z>12?.01:.1;const lines=[];for(let x=Math.floor(b.getWest()/step)*step;x<=b.getEast();x+=step)lines.push([[b.getSouth(),x],[b.getNorth(),x]]);for(let y=Math.floor(b.getSouth()/step)*step;y<=b.getNorth();y+=step)lines.push([[y,b.getWest()],[y,b.getEast()]]);window._gridLayer=L.polyline(lines,{color:"#7f8c8d",weight:.5,opacity:.45}).addTo(map);status("Editor Grid active was set.");}
+function constraintTool(){const d=Number(prompt("Constraint distance (meters):","10"));if(Number.isFinite(d))status("Constraint "+d+" meters to tool drawing set was set.");}
 function attachmentsTool(){
-  const r=selectedRecords()[0];if(!r){status("یک عارضه انتخاب کن.");return;}const i=document.createElement("input");i.type="file";i.multiple=true;i.onchange=()=>{r.feature.properties=r.feature.properties||{};r.feature.properties._attachments=[...i.files].map(f=>({name:f.name,type:f.type,size:f.size}));refreshAll();status(i.files.length+" پیوست ثبت شد.");};i.click();
+  const r=selectedRecords()[0];if(!r){status("GIS Feature Selection enter.");return;}const i=document.createElement("input");i.type="file";i.multiple=true;i.onchange=()=>{r.feature.properties=r.feature.properties||{};r.feature.properties._attachments=[...i.files].map(f=>({name:f.name,type:f.type,size:f.size}));refreshAll();status(i.files.length+" GIS set was set.");};i.click();
 }
 function chartStats(){
-  const rs=getFeatureRecords();const vals=rs.map(r=>Object.values(r.feature.properties||{}).filter(v=>!isNaN(Number(v))).map(Number)).flat();if(!vals.length){status("Attribute عددی پیدا نشد.");return;}const sum=vals.reduce((a,b)=>a+b,0),avg=sum/vals.length;$("professionalToolOutput").textContent="Statistics — Count: "+vals.length+" | Sum: "+sum+" | Mean: "+avg.toFixed(3)+" | Min: "+Math.min(...vals)+" | Max: "+Math.max(...vals);
+  const rs=getFeatureRecords();const vals=rs.map(r=>Object.values(r.feature.properties||{}).filter(v=>!isNaN(Number(v))).map(Number)).flat();if(!vals.length){status("No numeric attribute values were found.");return;}const sum=vals.reduce((a,b)=>a+b,0),avg=sum/vals.length;$("professionalToolOutput").textContent="Statistics — Count: "+vals.length+" | Sum: "+sum+" | Mean: "+avg.toFixed(3)+" | Min: "+Math.min(...vals)+" | Max: "+Math.max(...vals);
 }
 
 function runGisTool(tool){
- if(tool.id==="selectLasso"){selectByLasso();return;}
+ if(tool.id==="selectFeatures"){$("selectFeaturesBtn").click();return;}
+  if(tool.id==="drawPoint"){startDraw("Marker");return;}
+  if(tool.id==="drawLine"){startDraw("Polyline");return;}
+  if(tool.id==="drawPolygon"){startDraw("Polygon");return;}
+  if(tool.id==="drawRectangle"){startDraw("Rectangle");return;}
+  if(tool.id==="drawCircle"){startDraw("Circle");return;}
+  if(tool.id==="startEditing"){startEditing();return;}
+  if(tool.id==="saveEdits"){saveEdits();return;}
+  if(tool.id==="stopEditing"){stopEditing();return;}
+  if(tool.id==="selectLasso"){selectByLasso();return;}
  if(tool.id==="selectAttribute"){selectByAttribute();return;}
  if(tool.id==="invertSelection"){invertSelection();return;}
  if(tool.id==="zoomSelection"){zoomToSelection();return;}
@@ -2019,7 +2010,7 @@ function runGisTool(tool){
    $("runGisOperation").click(); return;
  }
  const el=$(tool.id);
- if(!el){status("ابزار هنوز پیاده‌سازی نشده است: "+tool.title);return;}
+ if(!el){status("Tool is not implemented: "+tool.title);return;}
  if(el.tagName==="BUTTON")el.click();
  else el.focus();
 }
@@ -2032,7 +2023,7 @@ $("gisToolSearch").oninput=e=>renderGisToolbox(e.target.value);
   function closeMenus(){drops.forEach(x=>x.classList.remove("show"));menus.forEach(x=>x.classList.remove("active"))}
   menus.forEach(b=>b.onclick=ev=>{
     ev.stopPropagation(); const d=document.getElementById(b.dataset.menu);
-    const open=d.classList.contains("show"); closeMenus(); if(!open){d.classList.add("show");b.classList.add("active");}
+    const open=d.classList.contains("show"); closeMenus(); if(!open){d.style.left=Math.max(0,Math.min(ev.currentTarget.getBoundingClientRect().left,window.innerWidth-240))+"px";d.classList.add("show");b.classList.add("active");}
   });
   document.addEventListener("click",e=>{if(!e.target.closest(".arc-menu")&&!e.target.closest(".arc-dropdown"))closeMenus()});
   document.querySelectorAll(".arc-dropdown button[data-tool]").forEach(b=>b.onclick=()=>{
@@ -2045,6 +2036,13 @@ $("gisToolSearch").oninput=e=>renderGisToolbox(e.target.value);
   document.querySelectorAll(".arc-dropdown button[data-action]").forEach(b=>b.onclick=()=>{
     const a=b.dataset.action;
     const mapActions={
+      startEditing:()=>startEditing(),
+      saveEdits:()=>saveEdits(),
+      stopEditing:()=>stopEditing(),
+      openAttributeTable:()=>{const item=[{name:"My Drawings",layer:drawn},...namedLayers].find(x=>x.layer===selectedOverlay);if(item)openLayerAttributeTable(item);else status("Select a layer in the Table Of Contents.")},
+      showToolbox:()=>{document.querySelector('.accordion-section[data-accordion="analysis"]')?.classList.add("open");document.getElementById("gisToolSearch")?.focus()},
+      about:()=>alert("ArcMap-style Web GIS workspace"),
+      shortcuts:()=>alert("Enter finishes lines and polygons. Escape cancels the active tool. Ctrl-click or Shift-click adds features to the selection."),
       importSHP:()=>document.getElementById("fileInput")?.click(),
       importGeoJSON:()=>{const x=document.getElementById("fileInput");x.accept=".geojson,.json";x.click()},
       importKML:()=>{const x=document.getElementById("fileInput");x.accept=".kml";x.click()},
@@ -2063,13 +2061,12 @@ $("gisToolSearch").oninput=e=>renderGisToolbox(e.target.value);
       downloadProject:()=>document.getElementById("downloadProject")?.click(),
       fitDraw:()=>document.getElementById("fitDraw")?.click(),
       clearDraw:()=>document.getElementById("clearDraw")?.click(),
-      startDraw:()=>{
-  const first=document.querySelector(".webgis-draw-control button");
-  if(first){first.click();}else{status("نوار ابزار ترسیم روی نقشه پیدا نشد.");}
-},
-      showLayers:()=>{const x=document.getElementById("layers");if(x){const names=[...x.querySelectorAll(".layer-name")].map(n=>n.textContent);alert(names.length?names.join("\n"):"لایه‌ای وجود ندارد.")}},
+      showLayers:()=>{const x=document.getElementById("layers");if(x){const names=[...x.querySelectorAll(".layer-name")].map(n=>n.textContent);alert(names.length?names.join("\n"):"No layers are loaded.")}},
       wms:()=>document.getElementById("addWms")?.click(),
       buffer:()=>{document.getElementById("gisOperation").value="buffer";document.getElementById("runGisOperation").click()},
+      clip:()=>{document.getElementById("gisOperation").value="clip";document.getElementById("runGisOperation").click()},
+      intersection:()=>{document.getElementById("gisOperation").value="intersection";document.getElementById("runGisOperation").click()},
+      merge:()=>{document.getElementById("gisOperation").value="merge";document.getElementById("runGisOperation").click()},
       measure:()=>document.getElementById("measureSelected")?.click(),
       searchFeature:()=>searchFeature(),
       addBookmark:()=>addBookmark(),
@@ -2083,16 +2080,16 @@ $("gisToolSearch").oninput=e=>renderGisToolbox(e.target.value);
   function search(q){
     if(!q){out.classList.remove("show");out.innerHTML="";return}
     const arr=(typeof GIS_TOOLS!=="undefined"?GIS_TOOLS:[]).filter(t=>(t.title+" "+t.category+" "+t.keys).toLowerCase().includes(q.toLowerCase())).slice(0,20);
-    out.innerHTML=arr.length?arr.map(t=>'<button class="top-tool-item" data-id="'+t.id+'">'+esc(t.title)+" — "+esc(t.category)+"</button>").join(""):'<div class="top-tool-item">ابزار پیدا نشد.</div>';
+    out.innerHTML=arr.length?arr.map(t=>'<button class="top-tool-item" data-id="'+t.id+'" data-op="'+(t.op||"")+'">'+esc(t.title)+" — "+esc(t.category)+"</button>").join(""):'<div class="top-tool-item">No matching tools found.</div>';
     out.classList.add("show");
-    out.querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>{const t=GIS_TOOLS.find(x=>x.id===b.dataset.id);if(t)runGisTool(t);out.classList.remove("show");si.value=""});
+    out.querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>{const t=GIS_TOOLS.find(x=>x.id===b.dataset.id&&(!b.dataset.op||x.op===b.dataset.op));if(t)runGisTool(t);out.classList.remove("show");si.value=""});
   }
   si.oninput=e=>search(e.target.value);
 })();
 renderGisToolbox("");
 
 /* =========================
-   ابزارهای حرفه‌ای Web GIS
+   GIS GIS Web GIS
    ========================= */
 function proj4ToPrj(epsg){
   const def=proj4.defs(epsg);
@@ -2133,11 +2130,11 @@ function geometryMetrics(g){
   if(p.type==="MultiLineString")length=p.coordinates.reduce((s,l)=>s+planarDistance(l),0);
   return {length,area};
 }
-function fmtMeters(v){return Number(v||0).toLocaleString("fa-IR",{maximumFractionDigits:3})+" متر";}
-function fmtArea(v){return Number(v||0).toLocaleString("fa-IR",{maximumFractionDigits:3})+" مترمربع";}
+function fmtMeters(v){return Number(v||0).toLocaleString("en-US",{maximumFractionDigits:3})+" meters";}
+function fmtArea(v){return Number(v||0).toLocaleString("en-US",{maximumFractionDigits:3})+" square meters";}
 
 function getAllVectorItems(){
-  const arr=[{name:"ترسیمات من",layer:drawn}];
+  const arr=[{name:"My Drawings",layer:drawn}];
   namedLayers.forEach(x=>arr.push(x));
   return arr.filter(x=>isVectorLayer(x.layer)&&vectorFeatures(x.layer).length);
 }
@@ -2160,41 +2157,46 @@ function refreshAll(){
   scheduleAutoSave();
 }
 
-/* محاسبه دقیق‌تر طول/مساحت در CRS پروژه */
+/* GIS GIS Longitude/Area in CRS Project */
 function measureDistanceTool(){
-  const item=selectedLayer?{name:"انتخاب",layer:selectedLayer}:getLayerBySelectValue("attributeLayer");
+  const item=selectedLayer?{name:"Selection",layer:selectedLayer}:getLayerBySelectValue("attributeLayer");
   const v=vectorFeatures(item?.layer);
   const target=selectedOverlay?.feature||v[0]?.feature;
-  if(!target){status("ابتدا یک عارضه خطی انتخاب کن.");return;}
+  if(!target){status("Select a line feature first.");return;}
   const m=geometryMetrics(target.geometry);
-  $("professionalToolOutput").textContent="طول: "+fmtMeters(m.length)+" | CRS: "+currentCRS;
-  status("طول عارضه محاسبه شد.");
+  $("professionalToolOutput").textContent="Length: "+fmtMeters(m.length)+" | CRS: "+currentCRS;
+  status("Feature length calculated.");
 };
 function measureAreaTool(){
-  const item=selectedLayer?{name:"انتخاب",layer:selectedLayer}:getLayerBySelectValue("attributeLayer");
+  const item=selectedLayer?{name:"Selection",layer:selectedLayer}:getLayerBySelectValue("attributeLayer");
   const v=vectorFeatures(item?.layer);
   const target=selectedOverlay?.feature||v[0]?.feature;
-  if(!target){status("ابتدا یک عارضه سطحی انتخاب کن.");return;}
+  if(!target){status("Select a feature first.");return;}
   const m=geometryMetrics(target.geometry);
-  $("professionalToolOutput").textContent="مساحت: "+fmtArea(m.area)+" | CRS: "+currentCRS;
-  status("مساحت عارضه محاسبه شد.");
+  $("professionalToolOutput").textContent="Area: "+fmtArea(m.area)+" | CRS: "+currentCRS;
+  status("Feature area calculated.");
 };
 
-/* شناسایی عارضه */
+/* identified Feature */
 function identifyTool(){
-  if(!selectedOverlay?.feature){status("ابتدا روی عارضه کلیک کن.");return;}
+  if(!selectedOverlay?.feature){
+    activeMapTool="identify";
+    document.querySelectorAll("#classicToolbars button").forEach(x=>x.classList.remove("active"));
+    $("identifyFeatureBtn")?.classList.add("active");
+    status("Click a feature to identify it.");return;
+  }
   const f=selectedOverlay.feature;
   const p=f.properties||{};
   const m=geometryMetrics(f.geometry);
   const rows=Object.keys(p).map(k=>esc(k)+" = "+esc(p[k])).join(" | ");
-  $("professionalToolOutput").innerHTML="<b>Geometry:</b> "+esc(f.geometry.type)+" | <b>Length:</b> "+fmtMeters(m.length)+" | <b>Area:</b> "+fmtArea(m.area)+"<br>"+(rows||"بدون Attribute");
-  status("اطلاعات عارضه نمایش داده شد.");
+  $("professionalToolOutput").innerHTML="<b>Geometry:</b> "+esc(f.geometry.type)+" | <b>Length:</b> "+fmtMeters(m.length)+" | <b>Area:</b> "+fmtArea(m.area)+"<br>"+(rows||"No Attribute");
+  status("Information Feature View Data was set.");
 };
 
-/* تطبیق نزدیک‌ترین نقطه؛ مناسب منهول قدیم/جدید */
+/* Match GIS GIS for Manhole GIS/New */
 function nearestMatchTool(){
   const layers=getAllVectorItems().filter(x=>vectorFeatures(x.layer).some(v=>v.feature.geometry.type==="Point"));
-  if(layers.length<2){status("حداقل دو لایه نقطه‌ای لازم است.");return;}
+  if(layers.length<2){status("at least GIS Layer PointGIS GIS is.");return;}
   const source=layers[0], target=layers[1];
   let count=0,bestRows=[];
   vectorFeatures(source.layer).forEach(s=>{
@@ -2215,17 +2217,17 @@ function nearestMatchTool(){
   });
   refreshAll();
   const max=Math.max(...bestRows,0);
-  $("professionalToolOutput").textContent="تطبیق انجام شد: "+count+" نقطه | بیشترین فاصله: "+fmtMeters(max)+" | مبنا: "+source.name+" → "+target.name;
-  status("تطبیق نزدیک‌ترین عوارض انجام شد.");
+  $("professionalToolOutput").textContent="Nearest feature match: "+count+" points | Maximum distance: "+fmtMeters(max)+" | Layers: "+source.name+" → "+target.name;
+  status("Find Nearest Features GIS was set.");
 };
 
-/* انتقال Attribute از نزدیک‌ترین عارضه */
+/* Transfer Attributes than GIS Feature */
 function transferAttributesTool(){
   const layers=getAllVectorItems();
-  if(layers.length<2){status("حداقل دو لایه لازم است.");return;}
+  if(layers.length<2){status("at least GIS Layer GIS is.");return;}
   const source=layers[0],target=layers[1];
   const srcFields=Object.keys((vectorFeatures(source.layer)[0]?.feature.properties)||{}).filter(k=>!k.startsWith("_"));
-  if(!srcFields.length){status("لایه مبدأ Attribute ندارد.");return;}
+  if(!srcFields.length){status("Layer Source Attribute GIS.");return;}
   let count=0;
   vectorFeatures(target.layer).forEach(t=>{
     if(t.feature.geometry.type!=="Point")return;
@@ -2243,16 +2245,16 @@ function transferAttributesTool(){
     }
   });
   refreshAll();
-  $("professionalToolOutput").textContent="انتقال Attribute انجام شد: "+count+" عارضه با آستانه ۵۰ متر.";
-  status("Attributeها منتقل شدند.");
+  $("professionalToolOutput").textContent="Transferred attributes to "+count+" features within the distance threshold.";
+  status("AttributeGIS GIS GIS.");
 };
 
-/* کنترل شبکه آب و فاضلاب: نقاط انتهایی خط که نزدیک منهول نیستند */
+/* Network Connectivity Check Water GIS Sewer: GIS GIS Line GIS GIS Manhole GIS */
 function networkQaTool(){
   const items=getAllVectorItems();
   const pointItems=items.filter(x=>vectorFeatures(x.layer).some(v=>v.feature.geometry.type==="Point"));
   const lineItems=items.filter(x=>vectorFeatures(x.layer).some(v=>/LineString/i.test(v.feature.geometry.type)));
-  if(!pointItems.length||!lineItems.length){status("یک لایه نقطه‌ای منهول و یک لایه خط لوله لازم است.");return;}
+  if(!pointItems.length||!lineItems.length){status("GIS Layer PointGIS Manhole GIS GIS Layer Line Pipe GIS is.");return;}
   const points=[];
   pointItems.forEach(it=>vectorFeatures(it.layer).forEach(v=>{
     if(v.feature.geometry.type==="Point")points.push(v.feature.geometry.coordinates);
@@ -2270,16 +2272,16 @@ function networkQaTool(){
       });
     });
   }));
-  $("professionalToolOutput").textContent="کنترل شبکه: "+totalEnds+" انتهای خط بررسی شد؛ "+dangling+" انتها با فاصله بیش از ۰٫۶ متر از نزدیک‌ترین نقطه.";
-  status("کنترل اتصال شبکه انجام شد.");
+  $("professionalToolOutput").textContent="Network check: "+totalEnds+" line endpoints reviewed; "+dangling+" are farther than 0.6 meters from a point.";
+  status("Control Connectivity Network GIS was set.");
 };
 
-/* Snap ساده برای نزدیک‌کردن نقاط به نزدیک‌ترین نقطه/رأس خط */
+/* Snap GIS to GIS GIS to GIS Point/vertex Line */
 function snapTool(){
   const items=getAllVectorItems();
   const points=items.flatMap(it=>vectorFeatures(it.layer).filter(v=>v.feature.geometry.type==="Point"));
   const lines=items.flatMap(it=>vectorFeatures(it.layer).filter(v=>v.feature.geometry.type==="LineString"));
-  if(!points.length||!lines.length){status("برای Snap یک لایه نقطه و یک لایه خط لازم است.");return;}
+  if(!points.length||!lines.length){status("to Snap GIS Layer Point GIS GIS Layer Line GIS is.");return;}
   let changed=0;
   points.forEach(p=>{
     let best=null,bestD=Infinity;
@@ -2296,8 +2298,8 @@ function snapTool(){
     }
   });
   refreshAll();
-  $("professionalToolOutput").textContent="Snap انجام شد: "+changed+" نقطه در آستانه ۰٫۶ متر.";
-  status("Snap انجام شد.");
+  $("professionalToolOutput").textContent="Snapped "+changed+" points within the 0.6 meter threshold.";
+  status("Snap GIS was set.");
 };
 
 $("exportSHP").onclick=exportRealSHP;
@@ -2336,7 +2338,7 @@ $("applyCrs").onclick=()=>{
     if(b){b.click();return;}
     const ids=["exportGeoJSON","exportKML","exportGPX","exportSHP","exportGDB","exportDXF"];
     const names=["GeoJSON","KML","GPX","SHP / ZIP","GDB / ZIP","DXF"];
-    const choice=prompt("شماره خروجی را وارد کن:\n"+names.map((n,i)=>(i+1)+") "+n).join("\n"),"1");
+    const choice=prompt("Enter the export format number:\n"+names.map((n,i)=>(i+1)+") "+n).join("\n"),"1");
     const i=Number(choice)-1;
     if(i>=0&&i<ids.length)document.getElementById(ids[i])?.click();
   });
