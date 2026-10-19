@@ -41,7 +41,6 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
 @media(max-width:850px){.panel{width:270px}.coord{right:290px}.tool-title{display:none}}
 @media(max-width:650px){.workspace{position:relative}.panel{position:absolute;right:0;top:0;bottom:0;width:285px;transform:translateX(100%);transition:.2s}.panel.open{transform:translateX(0)}.coord{right:12px;bottom:48px}.topbar .top-btn{padding:6px 8px}.brand{font-size:12px}}
 
-<style>
 #attributeTableWrap table input.cell-edit{width:100%;height:28px;border:1px solid #cbd9df;border-radius:5px;padding:2px 5px;font-size:10px}.multi-selected-feature{filter:drop-shadow(0 0 5px #ff9800);stroke-width:5!important}
 #multiFeatureEditor{display:none;margin-top:8px;padding:8px;border:1px solid #cbd9df;border-radius:8px;background:#f8fbfc}
 #multiFeatureEditor input{min-width:0}
@@ -123,6 +122,27 @@ body{background:#dfe5e8;color:#173b57}
 .panel input,.panel select{height:30px;font-size:10px}
 .panel button.action{font-size:10px;padding:6px 7px}
 .panel .attr-toolbar{grid-template-columns:1fr 1fr}
+
+/* ArcMap 10.8 desktop workspace */
+.arcmap-toolbar-stack{flex:0 0 auto;background:#e7ebed;border-bottom:1px solid #89979e;box-shadow:0 1px 2px rgba(0,0,0,.12);direction:rtl;z-index:1800}
+.arc-toolbar{height:32px;display:flex;align-items:center;gap:2px;padding:2px 7px;border-bottom:1px solid #c4cdd1;overflow-x:auto;white-space:nowrap}
+.arc-toolbar:last-child{border-bottom:0}
+.arc-toolbar-label{flex:0 0 auto;padding:0 7px;color:#526875;font-size:9px;font-weight:700;border-left:1px solid #bdc8cd}
+.arc-tool-btn{height:26px;flex:0 0 auto;min-width:29px;padding:0 7px;border:1px solid transparent;border-radius:2px;background:transparent;color:#263f50;font-size:11px;font-family:inherit;cursor:pointer}
+.arc-tool-btn:hover{background:#f9fbfc;border-color:#aab8bf;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.arc-tool-sep{height:21px;border-left:1px solid #b9c4c9;margin:0 4px}
+.workspace{direction:ltr;display:flex;min-height:0;position:relative;flex:1}
+#panel{order:0;border-right:1px solid #8f9da5;border-left:0;box-shadow:1px 0 5px rgba(0,0,0,.10)}
+#map{order:1}
+.arc-statusbar{height:25px;flex:0 0 25px;display:flex;align-items:center;gap:16px;padding:0 9px;background:#e7ebed;border-top:1px solid #89979e;color:#344e5d;font-size:10px;direction:rtl;z-index:1200}
+.arc-statusbar .status,.arc-statusbar .coord{position:static;z-index:auto;margin:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;white-space:nowrap}
+.arc-statusbar .status{flex:1;overflow:hidden;text-overflow:ellipsis}
+.arc-statusbar .coord{font-variant-numeric:tabular-nums}
+.arc-status-divider{height:14px;border-left:1px solid #b6c1c6}
+#zoomValue{min-width:46px;text-align:center;font-variant-numeric:tabular-nums}
+@media(max-width:850px){#panel{width:270px;min-width:270px}.arc-toolbar{padding-inline:4px}.arcmap-topbar{gap:3px}.arc-search{width:190px}}
+@media(max-width:650px){.arcmap-toolbar-stack{max-width:100vw}.arc-toolbar{overflow-x:auto}.workspace{position:relative}.panel{position:absolute!important;left:0;right:auto;top:0;bottom:0;width:285px;min-width:285px;transform:translateX(-100%);transition:.2s}.panel.open{transform:translateX(0)}.arc-statusbar{gap:8px}.arc-statusbar .status{min-width:0}.arcmap-topbar .brand{font-size:11px}.arc-search{width:min(34vw,170px)}}
+
 </style><style id="draw-fix-css">
 .webgis-draw-control{z-index:2000!important}
 .webgis-draw-control button{font-family:inherit!important;user-select:none}
@@ -146,6 +166,29 @@ body{background:#dfe5e8;color:#173b57}
   <div class="arc-search"><span>🔎</span><input id="topToolSearch" placeholder="جستجوی ابزار GIS..." autocomplete="off"><div id="topToolResults"></div></div>
   <button class="top-btn" id="backBtn">بازگشت</button>
 </header>
+
+<div class="arcmap-toolbar-stack" role="toolbar" aria-label="نوار ابزار ArcMap">
+  <div class="arc-toolbar" aria-label="ابزارهای استاندارد">
+    <span class="arc-toolbar-label">استاندارد</span>
+    <button type="button" class="arc-tool-btn" data-action="openProjectManager" title="مدیریت پروژه">📂 پروژه</button>
+    <button type="button" class="arc-tool-btn" data-action="importGeoJSON" title="افزودن لایه">＋ افزودن لایه</button>
+    <button type="button" class="arc-tool-btn" data-action="saveProject" title="ذخیره پروژه">💾 ذخیره</button>
+    <span class="arc-tool-sep"></span>
+    <button type="button" class="arc-tool-btn" data-action="fitDraw" title="نمایش کل داده‌ها">🔍 نمایش همه</button>
+    <button type="button" class="arc-tool-btn" data-tool="identifyTool" title="شناسایی عارضه">ℹ شناسایی</button>
+    <button type="button" class="arc-tool-btn" data-focus="topToolSearch" title="یافتن ابزار">⌕ یافتن ابزار</button>
+  </div>
+  <div class="arc-toolbar" aria-label="ابزارهای انتخاب و ویرایش">
+    <span class="arc-toolbar-label">انتخاب و ویرایش</span>
+    <button type="button" class="arc-tool-btn" data-tool="selectRectangle" title="انتخاب با مستطیل">▧ انتخاب</button>
+    <button type="button" class="arc-tool-btn" data-tool="clearSelection" title="پاک کردن انتخاب">✕ لغو انتخاب</button>
+    <button type="button" class="arc-tool-btn" data-action="startDraw" title="شروع ترسیم">✎ ترسیم</button>
+    <button type="button" class="arc-tool-btn" data-tool="measureDistanceTool" title="اندازه‌گیری طول">↔ طول</button>
+    <button type="button" class="arc-tool-btn" data-tool="measureAreaTool" title="اندازه‌گیری مساحت">▱ مساحت</button>
+    <span class="arc-tool-sep"></span>
+    <button type="button" class="arc-tool-btn" data-action="wms" title="افزودن سرویس WMS">🌐 WMS</button>
+  </div>
+</div>
 <div id="arcMenus">
   <div class="arc-dropdown" id="fileMenu">
     <div class="arc-menu-title">ورود و خروجی داده</div>
@@ -405,8 +448,7 @@ body{background:#dfe5e8;color:#173b57}
   <div class="arc-context-sep"></div>
   <button type="button" data-action="remove">🗑 حذف لایه از پروژه</button>
 </div>
-<div id="projectManager"><div class="pm-card"><div style="font-size:18px;font-weight:800;color:#07573e">🗺️ مدیریت پروژه Web GIS</div><div class="small" style="margin:5px 0 14px">برای شروع کار یک پروژه ایجاد یا پروژه قبلی را باز کن. پروژه‌ها فقط در همین مرورگر ذخیره می‌شوند.</div><div class="section"><h3>➕ پروژه جدید</h3><div class="pm-grid"><input id="newProjectName" placeholder="نام پروژه، مثلاً شبکه فاضلاب تازه‌آباد"><select id="newProjectCrs"><option value="EPSG:32638">WGS 84 / UTM 38N — EPSG:32638</option><option value="EPSG:32637">WGS 84 / UTM 37N — EPSG:32637</option><option value="EPSG:32639">WGS 84 / UTM 39N — EPSG:32639</option><option value="EPSG:32640">WGS 84 / UTM 40N — EPSG:32640</option></select><textarea id="newProjectDescription" class="full" placeholder="توضیح پروژه (اختیاری)"></textarea></div><div class="pm-actions"><button class="action" id="createProjectBtn">ایجاد و ورود به پروژه</button><button class="action secondary" id="closeProjectManager">ادامه بدون پروژه</button></div></div><div class="pm-list"><h3>📂 پروژه‌های اخیر</h3><div id="projectList">در حال بارگذاری...</div></div></div></div><div class="coord" id="coord">طول: — | عرض: —</div>
-<div class="status" id="status">Web GIS آماده است.</div>
+<div id="projectManager"><div class="pm-card"><div style="font-size:18px;font-weight:800;color:#07573e">🗺️ مدیریت پروژه Web GIS</div><div class="small" style="margin:5px 0 14px">برای شروع کار یک پروژه ایجاد یا پروژه قبلی را باز کن. پروژه‌ها فقط در همین مرورگر ذخیره می‌شوند.</div><div class="section"><h3>➕ پروژه جدید</h3><div class="pm-grid"><input id="newProjectName" placeholder="نام پروژه، مثلاً شبکه فاضلاب تازه‌آباد"><select id="newProjectCrs"><option value="EPSG:32638">WGS 84 / UTM 38N — EPSG:32638</option><option value="EPSG:32637">WGS 84 / UTM 37N — EPSG:32637</option><option value="EPSG:32639">WGS 84 / UTM 39N — EPSG:32639</option><option value="EPSG:32640">WGS 84 / UTM 40N — EPSG:32640</option></select><textarea id="newProjectDescription" class="full" placeholder="توضیح پروژه (اختیاری)"></textarea></div><div class="pm-actions"><button class="action" id="createProjectBtn">ایجاد و ورود به پروژه</button><button class="action secondary" id="closeProjectManager">ادامه بدون پروژه</button></div></div><div class="pm-list"><h3>📂 پروژه‌های اخیر</h3><div id="projectList">در حال بارگذاری...</div></div></div></div><footer class="arc-statusbar" role="status"><div class="status" id="status">Web GIS آماده است.</div><span class="arc-status-divider"></span><div class="coord" id="coord">طول: — | عرض: —</div><span class="arc-status-divider"></span><span id="crsReadout">EPSG:32638</span><span class="arc-status-divider"></span><span id="zoomValue">بزرگنمایی 8</span></footer>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="https://unpkg.com/shp-write@0.3.2/shpwrite.js"></script>
@@ -421,6 +463,10 @@ body{background:#dfe5e8;color:#173b57}
 (function(){
 "use strict";
 const map=L.map("map",{preferCanvas:true}).setView([34.5,46.5],8);
+const zoomValue=document.getElementById("zoomValue");
+const crsReadout=document.getElementById("crsReadout");
+const updateMapReadouts=()=>{if(zoomValue)zoomValue.textContent="بزرگنمایی "+map.getZoom();if(crsReadout)crsReadout.textContent=currentCRS;};
+map.on("zoomend",updateMapReadouts);
 const base={
  osm:L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"}),
  topo:L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",{maxZoom:17,attribution:"© OpenTopoMap contributors"}),
@@ -438,6 +484,7 @@ let selectedOverlay=null;
 let selectedFeatures=new Set();
 let selectionVersion=0;
 let currentCRS="EPSG:32638";
+updateMapReadouts();
 function utmEpsg(zone,north=true){return "EPSG:"+(north?32600:32700)+zone}
 function defineUTM(zone,north=true){
   const epsg=utmEpsg(zone,north);
@@ -465,6 +512,7 @@ function setCRS(epsg){
   ensureCRSDefinition(epsg);
   currentCRS=epsg;
   $("crsStatus").textContent="CRS فعلی: "+epsg;
+  if(crsReadout)crsReadout.textContent=epsg;
   status("سیستم مختصات به "+epsg+" تغییر کرد.");
   scheduleAutoSave();
 }
@@ -2088,6 +2136,16 @@ $("gisToolSearch").oninput=e=>renderGisToolbox(e.target.value);
     out.querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>{const t=GIS_TOOLS.find(x=>x.id===b.dataset.id);if(t)runGisTool(t);out.classList.remove("show");si.value=""});
   }
   si.oninput=e=>search(e.target.value);
+
+  document.querySelectorAll(".arc-toolbar button[data-action]").forEach(b=>b.addEventListener("click",()=>{
+    document.querySelector('.arc-dropdown button[data-action="'+b.dataset.action+'"]')?.click();
+  }));
+  document.querySelectorAll(".arc-toolbar button[data-tool]").forEach(b=>b.addEventListener("click",()=>{
+    document.querySelector('.arc-dropdown button[data-tool="'+b.dataset.tool+'"]')?.click();
+  }));
+  document.querySelectorAll(".arc-toolbar button[data-focus]").forEach(b=>b.addEventListener("click",()=>{
+    document.getElementById(b.dataset.focus)?.focus();
+  }));
 })();
 renderGisToolbox("");
 
