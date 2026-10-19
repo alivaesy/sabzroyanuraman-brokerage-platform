@@ -3,6 +3,7 @@ using Brokerage.Application.Contracts;
 using Brokerage.Application.Exceptions;
 using Brokerage.Application.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 using Brokerage.Application.Authorization;
