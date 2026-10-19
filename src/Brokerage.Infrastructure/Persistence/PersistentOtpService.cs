@@ -8,12 +8,15 @@ namespace Brokerage.Infrastructure.Persistence;
 public sealed class PersistentOtpService(BrokerageDbContext db, IOtpCodeHasher codeHasher) : IOtpService
 {
     private const int MaxAttempts = 5;
+    private const int MaxUserIdLength = 200;
 
     public async Task<OtpChallenge> IssueAsync(string userId, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrWhiteSpace(userId))
             throw new ArgumentException("User ID must not be blank.", nameof(userId));
+        if (userId.Length > MaxUserIdLength)
+            throw new ArgumentOutOfRangeException(nameof(userId), "User ID cannot exceed the persistence limit of 200 characters.");
 
         var now = DateTimeOffset.UtcNow;
 
