@@ -159,6 +159,17 @@ body{background:#dfe5e8;color:#173b57}
 @media(max-width:850px){.arc-search{width:205px}.arc-menu-btn{padding:0 8px}.panel{width:270px;min-width:270px}}
 @media(max-width:650px){.arcmap-topbar{height:auto;min-height:48px;flex-wrap:wrap;padding:4px 6px}.arc-menu{order:3;width:100%;overflow-x:auto}.arc-search{width:min(48vw,220px);margin-left:auto}.arcmap-statusbar{height:22px}.panel{position:absolute;left:0;top:0;bottom:0;height:auto;width:285px;min-width:285px;transform:translateX(-100%)}.panel.open{transform:translateX(0)}}
 
+
+/* Keep the format picker hidden until the user requests an import or export. */
+.data-dialog{position:fixed;inset:0;z-index:7000;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(24,38,48,.36);direction:ltr}
+.data-dialog.show{display:flex}
+.data-dialog-card{width:min(420px,94vw);padding:16px;background:#f4f6f7;border:1px solid #7f8d95;box-shadow:0 6px 22px rgba(0,0,0,.25);color:#263f50}
+.data-dialog-card h2{margin:0 0 8px;font-size:16px}
+.data-dialog-card p{margin:0 0 12px;font-size:12px}
+.data-dialog-card label{display:block;margin-bottom:5px;font-size:11px;font-weight:700}
+.data-dialog-card select{border-radius:2px;border-color:#aab5bb}
+.data-dialog-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:14px}
+
 </style>
 </head>
 <body>
@@ -209,7 +220,7 @@ body{background:#dfe5e8;color:#173b57}
 <div id="arcMenus">
   <div class="arc-dropdown" id="fileMenu">
     <div class="arc-menu-title">File</div>
-    <button data-action="openProjectManager">Open Project Manager</button>
+    <button data-action="openProjectManager">Project Manager...</button>
     <button data-action="saveProject">Save Project</button>
     <button data-action="loadProject">Open Saved Project</button>
     <div class="arc-sep"></div>
@@ -1496,7 +1507,6 @@ async function createNewProject(){
 function initProjectManager(){
   $("createProjectBtn").onclick=createNewProject;
   $("closeProjectManager").onclick=closeProjectManager;
-  openProjectManager();
 }
 function downloadProject(){
   const project=serializeProject();
