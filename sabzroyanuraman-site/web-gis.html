@@ -2981,7 +2981,9 @@ function selectByAttribute(){
     return op===">"?n>numericNeedle:op===">="?n>=numericNeedle:op==="<"?n<numericNeedle:n<=numericNeedle;
   };
   const matched=records.filter(matches);
-  selectedFeatures.clear();
+  // Attribute selection is layer-scoped, as in ArcMap: replace the selection
+  // for the chosen layer without discarding selections on other layers.
+  records.forEach(r=>selectedFeatures.delete(r.layer));
   matched.forEach(r=>selectedFeatures.add(r.layer));
   applySelectionVisual();
   status(matched.length+" feature(s) selected in "+target.name+" by attribute query: "+field+" "+op+" "+val+".");
