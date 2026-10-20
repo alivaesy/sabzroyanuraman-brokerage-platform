@@ -2796,18 +2796,8 @@ function editVertices(){
   }
 }
 function advancedSnap(){
-  const pts=selectedRecords().filter(r=>r.feature.geometry?.type==="Point");
-  if(!pts.length){status("Select one or more point features first.");return}
-  const tol=Number(prompt("Snap tolerance in meters:","5"));if(!Number.isFinite(tol)||tol<=0)return;
-  const lines=getFeatureRecords().filter(r=>/LineString/.test(r.feature.geometry?.type||""));
-  if(!lines.length){status("Add a line layer before snapping points.");return}
-  const candidates=lines.map(r=>turf.lineString(r.feature.geometry.coordinates));
-  recordUndoState();let count=0;
-  pts.forEach(r=>{const p=turf.point(r.feature.geometry.coordinates);let best=null,dist=Infinity;
-    candidates.forEach(line=>{try{const q=turf.nearestPointOnLine(line,p);const d=turf.distance(p,q,{units:"kilometers"})*1000;if(d<dist){dist=d;best=q}}catch(_){}});
-    if(best&&dist<=tol){r.feature.geometry.coordinates=best.geometry.coordinates.slice(0,2);count++}
-  });
-  if(count){rebuildVectorLayerGeometry(pts);refreshAll();status(count+" point feature(s) snapped within "+tol+" m.");}else status("No selected points were within the snap tolerance.");
+  status("Advanced Snap uses the same validated point-to-line snapping engine.");
+  snapTool();
 }
 function spatialFilter(){
   const rs=getFeatureRecords(); const type=prompt("Spatial relationship: intersects / within / contains / touches / overlaps / crosses","intersects");
@@ -2825,24 +2815,30 @@ function spatialFilter(){
 function joinWizard(){
   if(namedLayers.length<2){status("At least two named data layers are required.");return}
   const list=namedLayers.map((x,i)=>(i+1)+". "+x.name).join("\n");
-  const si=Number(prompt("Source layer number (fields will be copied from this layer):\n"+list,"1"))-1;
-  const ti=Number(prompt("Target layer number (matching records will be updated):\n"+list,"2"))-1;
-  if(si===ti||!namedLayers[si]||!namedLayers[ti]){status("Choose two different valid layers.");return}
+  const siRaw=prompt("Source layer number (fields will be copied from this layer):\n"+list,"1");if(siRaw===null)return;
+  const tiRaw=prompt("Target layer number (matching records will be updated):\n"+list,"2");if(tiRaw===null)return;
+  const si=Number(siRaw)-1,ti=Number(tiRaw)-1;
+  if(!Number.isInteger(si)||!Number.isInteger(ti)||si===ti||!namedLayers[si]||!namedLayers[ti]){status("Choose two different valid layers.");return}
   const source=namedLayers[si],target=namedLayers[ti];
-  const sourceRows=getFeatureRecords().filter(r=>r.owner?.layer===source.layer);
-  const targetRows=getFeatureRecords().filter(r=>r.owner?.layer===target.layer);
+  const sourceRows=getFeatureRecords().filter(r=>r.owner?.layer===source.layer),targetRows=getFeatureRecords().filter(r=>r.owner?.layer===target.layer);
   if(!sourceRows.length||!targetRows.length){status("Both selected layers must contain features.");return}
-  const sf=prompt("Join key field in "+source.name+":",Object.keys(sourceRows[0].feature.properties||{})[0]||"");
-  const tf=prompt("Join key field in "+target.name+":",sf||"");if(!sf||!tf)return;
+  const sourceFields=[...new Set(sourceRows.flatMap(r=>Object.keys(r.feature.properties||{})))],targetFields=[...new Set(targetRows.flatMap(r=>Object.keys(r.feature.properties||{})) )];
+  const sf=prompt("Join key field in "+source.name+":",sourceFields[0]||"");if(sf===null||!sourceFields.includes(sf)){status("Choose an existing source key field.");return}
+  const tf=prompt("Join key field in "+target.name+":",targetFields.includes(sf)?sf:(targetFields[0]||""));if(tf===null||!targetFields.includes(tf)){status("Choose an existing target key field.");return}
   const prefix=prompt("Prefix for copied fields:","join_");if(prefix===null)return;
   const index=new Map();
-  sourceRows.forEach(r=>{const v=r.feature.properties?.[sf];if(v!==undefined&&v!==null)index.set(String(v),r.feature.properties||{})});
-  recordUndoState();let count=0;
-  targetRows.forEach(r=>{const v=r.feature.properties?.[tf],props=index.get(String(v));if(!props)return;
-    r.feature.properties=r.feature.properties||{};
-    Object.entries(props).forEach(([k,val])=>{if(k!==sf)r.feature.properties[prefix+k]=val});count++;
+  sourceRows.forEach(r=>{const v=r.feature.properties?.[sf];if(v!==undefined&&v!==null){const k=String(v);if(!index.has(k))index.set(k,r.feature.properties||{});}});
+  const updates=[];
+  targetRows.forEach(r=>{
+    const v=r.feature.properties?.[tf];if(v===undefined||v===null)return;
+    const props=index.get(String(v));if(!props)return;
+    const values={};Object.entries(props).forEach(([k,val])=>{if(k!==sf)values[prefix+k]=val;});
+    if(Object.keys(values).length)updates.push({r,values});
   });
-  if(count){refreshAll();status("Attributes joined to "+count+" target feature(s).");}else status("No matching join keys were found.");
+  if(!updates.length){status("No matching join keys were found; no changes were made.");return}
+  recordUndoState();
+  updates.forEach(x=>{x.r.feature.properties=x.r.feature.properties||{};Object.assign(x.r.feature.properties,x.values);});
+  refreshAll();status("Attributes joined to "+updates.length+" target feature(s).");
 }
 function reprojectLayer(){
   const rs=selectedRecords();if(!rs.length){status("Select one or more features first.");return}
@@ -3361,26 +3357,24 @@ function networkQaTool(){
   const pointItems=items.filter(x=>vectorFeatures(x.layer).some(v=>["Point","MultiPoint"].includes(v.feature.geometry?.type)));
   const lineItems=items.filter(x=>vectorFeatures(x.layer).some(v=>["LineString","MultiLineString"].includes(v.feature.geometry?.type)));
   if(!pointItems.length||!lineItems.length){status("Add a point layer and a line layer before running the network check.");return;}
-  const raw=prompt("Maximum distance from a line endpoint to a point (meters):","0.6");
-  if(raw===null)return;
+  const raw=prompt("Maximum distance from a line endpoint to a point (meters):","0.6");if(raw===null)return;
   const tolerance=Number(raw);
   if(!Number.isFinite(tolerance)||tolerance<0){status("Enter a valid non-negative tolerance.");return;}
   const points=[];
   pointItems.forEach(it=>vectorFeatures(it.layer).forEach(v=>{
     const g=v.feature.geometry;
     if(g?.type==="Point")points.push(g.coordinates);
-    else if(g?.type==="MultiPoint")points.push(...g.coordinates);
+    else if(g?.type==="MultiPoint"&&Array.isArray(g.coordinates))g.coordinates.forEach(p=>points.push(p));
   }));
   let dangling=0,totalEnds=0;
   lineItems.forEach(it=>vectorFeatures(it.layer).forEach(v=>{
-    const g=v.feature.geometry;
-    const lines=g.type==="LineString"?[g.coordinates]:g.type==="MultiLineString"?g.coordinates:[];
+    const g=v.feature.geometry,lines=g?.type==="LineString"?[g.coordinates]:g?.type==="MultiLineString"?g.coordinates:[];
     lines.forEach(line=>{
       if(!Array.isArray(line)||line.length<2)return;
       [line[0],line[line.length-1]].forEach(end=>{
-        totalEnds++;
-        const d=points.length?Math.min(...points.map(p=>turf.distance(turf.point(end),turf.point(p),{units:"meters"}))):Infinity;
-        if(d>tolerance)dangling++;
+        totalEnds++;let best=Infinity;
+        for(const p of points){try{const d=turf.distance(turf.point(end),turf.point(p),{units:"meters"});if(d<best)best=d;if(best<=tolerance)break;}catch(_){}}
+        if(best>tolerance)dangling++;
       });
     });
   }));
@@ -3390,12 +3384,11 @@ function networkQaTool(){
 
 /* Snap GIS to GIS GIS to GIS Point/vertex Line */
 function snapTool(){
-  const selected=selectedRecords().filter(r=>r.feature.geometry?.type==="Point");
-  if(!selected.length){status("Select one or more point features to snap, then run Snap Points to Lines.");return;}
+  const selected=editableSelectedRecords(false).filter(r=>r.feature.geometry?.type==="Point");
+  if(!selected.length){status("Select point features in the active edit layer, then run Snap Points to Lines.");return;}
   const lineRecords=getFeatureRecords().filter(r=>["LineString","MultiLineString"].includes(r.feature.geometry?.type));
   if(!lineRecords.length){status("Add a line feature before snapping points.");return;}
-  const raw=prompt("Snap tolerance in meters:","5");
-  if(raw===null)return;
+  const raw=prompt("Snap tolerance in meters:","5");if(raw===null)return;
   const tolerance=Number(raw);
   if(!Number.isFinite(tolerance)||tolerance<=0){status("Snap tolerance must be greater than zero.");return;}
   const lineParts=[];
@@ -3404,22 +3397,20 @@ function snapTool(){
     parts.forEach(coords=>{if(Array.isArray(coords)&&coords.length>=2){try{lineParts.push(turf.lineString(coords));}catch(_){}}});
   });
   if(!lineParts.length){status("No usable line segments were found.");return;}
-  recordUndoState();let changed=0;
+  const updates=[];
   selected.forEach(r=>{
-    const p=turf.point(r.feature.geometry.coordinates);
-    let best=null,bestDistance=Infinity;
-    lineParts.forEach(line=>{
-      try{
-        const candidate=turf.nearestPointOnLine(line,p,{units:"kilometers"});
-        const distance=turf.distance(p,candidate,{units:"meters"});
-        if(distance<bestDistance){bestDistance=distance;best=candidate;}
-      }catch(_){}
-    });
-    if(best&&bestDistance<=tolerance){r.feature.geometry.coordinates=best.geometry.coordinates.slice(0,2);changed++;}
+    try{
+      const p=turf.point(r.feature.geometry.coordinates);let best=null,bestDistance=Infinity;
+      lineParts.forEach(line=>{try{const candidate=turf.nearestPointOnLine(line,p,{units:"kilometers"});const distance=turf.distance(p,candidate,{units:"meters"});if(distance<bestDistance){bestDistance=distance;best=candidate;}}catch(_){}});
+      if(best&&bestDistance<=tolerance&&bestDistance>0)updates.push({r,coordinates:best.geometry.coordinates.slice(0,2),distance:bestDistance});
+    }catch(_){}
   });
-  if(changed){rebuildVectorLayerGeometry(selected);refreshAll();}
-  $("professionalToolOutput").textContent="Snapping result: "+changed+" of "+selected.length+" selected point(s) moved to the nearest line segment (tolerance "+tolerance+" m).";
-  status(changed+" selected point feature(s) snapped to line segments.");
+  if(!updates.length){$("professionalToolOutput").textContent="Snapping result: no selected point required movement within "+tolerance+" m.";status("No selected points were within tolerance and needed snapping.");return;}
+  recordUndoState();
+  updates.forEach(x=>{x.r.feature.geometry.coordinates=x.coordinates;});
+  rebuildVectorLayerGeometry(updates.map(x=>x.r));refreshAll();
+  $("professionalToolOutput").textContent="Snapping result: "+updates.length+" of "+selected.length+" selected point(s) moved to the nearest line segment (tolerance "+tolerance+" m).";
+  status(updates.length+" selected point feature(s) snapped to line segments.");
 }
 
 $("exportSHP").onclick=exportRealSHP;
