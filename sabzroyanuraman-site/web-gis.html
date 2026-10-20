@@ -1757,23 +1757,36 @@ $("addTableField").onclick=()=>{
 };
 $("saveTableEdits").onclick=()=>{
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before saving table changes.");return}
- const idx=$("attributeLayer").value;if(idx===""){status("Select a feature layer.");return}
- recordUndoState();
- const items=currentAttributeItems(), table=$("attributeTableWrap");
- table.querySelectorAll("tbody tr").forEach(row=>{
+ if($("attributeLayer").value===""){status("Select a feature layer.");return}
+ const items=currentAttributeItems(),table=$("attributeTableWrap"),changes=[];
+ try{
+  table.querySelectorAll("tbody tr").forEach(row=>{
    const item=items[Number(row.dataset.index)];if(!item)return;
-   ensureFeatureProperties(item.layer);
+   const props=item.feature.properties||{},next={};
    row.querySelectorAll(".cell-edit").forEach(inp=>{
-     const key=inp.dataset.key,oldValue=item.feature.properties[key],raw=inp.value;
-     let value=raw;
-     if(typeof oldValue==="number"&&raw.trim()!==""&&Number.isFinite(Number(raw)))value=Number(raw);
-     else if(typeof oldValue==="boolean"&&/^(true|false)$/i.test(raw))value=raw.toLowerCase()==="true";
-     else if(oldValue!==null&&typeof oldValue==="object"){try{value=JSON.parse(raw)}catch(e){value=raw}}
-     item.feature.properties[key]=value;
+    const key=inp.dataset.key,oldValue=props[key],raw=inp.value;
+    let value=raw;
+    if(typeof oldValue==="number"){
+     if(raw.trim()==="")value=null;
+     else if(!Number.isFinite(Number(raw)))throw new Error("Field '"+key+"' requires a valid number.");
+     else value=Number(raw);
+    }else if(typeof oldValue==="boolean"){
+     if(!/^(true|false)$/i.test(raw.trim()))throw new Error("Field '"+key+"' accepts only true or false.");
+     value=raw.trim().toLowerCase()==="true";
+    }else if(oldValue!==null&&typeof oldValue==="object"){
+     try{value=JSON.parse(raw)}catch(e){throw new Error("Field '"+key+"' requires valid JSON.");}
+     if(value===null||typeof value!=="object")throw new Error("Field '"+key+"' must remain a JSON object or array.");
+    }
+    next[key]=value;
    });
-   item.feature.geometry=item.layer.toGeoJSON().geometry;updateFeaturePopup(item.layer);
- });
- renderEditableTable();status("Attribute table edits saved.");scheduleAutoSave();
+   const merged={...props,...next};
+   if(JSON.stringify(props)!==JSON.stringify(merged))changes.push({item,props:merged});
+  });
+ }catch(err){status("Table changes not saved: "+err.message);return}
+ if(!changes.length){status("No attribute changes to save.");return}
+ recordUndoState();
+ changes.forEach(({item,props})=>{item.feature.properties=props;item.feature.geometry=item.layer.toGeoJSON().geometry;updateFeaturePopup(item.layer)});
+ renderEditableTable();scheduleAutoSave();status("Saved attribute changes for "+changes.length+" feature(s).");
 };
 function selectedTableIndexes(){
  return [...$("attributeTableWrap").querySelectorAll("tbody tr")].filter(r=>r.querySelector(".row-check")?.checked).map(r=>Number(r.dataset.index));
