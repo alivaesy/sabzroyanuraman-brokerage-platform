@@ -853,12 +853,30 @@ function startEditing(item=null){
   status("Edit session started for "+(value==="drawn"?"My Drawings":namedLayers[Number(value)]?.name||"selected layer")+".");
 }
 function isLayerInEditTarget(layer){return editTarget===drawn?drawn.hasLayer(layer):!!editTarget?.hasLayer?.(layer)}
-function saveEdits(){
-  if(!editSessionActive){status("No edit session is active.");return}
-  scheduleAutoSave();
-  status("Edits saved to the current browser project.");
+async function saveEdits(){
+  if(!editSessionActive){status("No edit session is active.");return false}
+  if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){
+    status("Save Table Edits before saving the edit session; unsaved attribute values are still in the table.");
+    return false;
+  }
+  clearTimeout(autoSaveTimer);
+  try{
+    const project=serializeProject();
+    project.id=projectId();
+    project.updatedAt=new Date().toISOString();
+    await putProject(project);
+    currentProjectId=project.id;
+    const savedAt=new Date().toLocaleString();
+    $("projectStatus").textContent="Saved locally: "+savedAt;
+    status("Edits saved to this browser's local project storage.");
+    return true;
+  }catch(err){
+    console.error("Could not save edit session:",err);
+    status("Save failed: "+(err.message||"browser project storage is unavailable")+". Your current map remains open; retry saving before leaving.");
+    return false;
+  }
 }
-function stopEditing(){
+async function stopEditing(){
   if(!editSessionActive)return;
   if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){
     status("Save Table Edits before stopping the edit session; unsaved attribute values are still in the table.");
@@ -868,11 +886,11 @@ function stopEditing(){
     status("Edit session remains active; finish or cancel the current sketch first.");
     return;
   }
-  saveEdits();
+  if(!await saveEdits())return;
   stopActiveDraw(true);stopReshapeDraw();
   editSessionActive=false;editTarget=drawn;
   updateEditorToolbar();
-  status("Edit session stopped.");
+  status("Edit session stopped and project saved locally.");
 }
 let featureClipboard=[];
 let undoStack=[],redoStack=[],historyRestoring=false;
