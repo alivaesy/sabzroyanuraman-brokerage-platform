@@ -886,7 +886,7 @@ async function stopEditing(){
     return;
   }
   if(!await saveEdits())return;
-  stopActiveDraw(true);stopReshapeDraw();
+  stopActiveDraw(true);stopReshapeDraw();stopVertexEditing();
   editSessionActive=false;editTarget=drawn;
   updateEditorToolbar();
   status("Edit session stopped and project saved locally.");
@@ -2435,7 +2435,7 @@ function restoreProject(project,fromHistory=false){
   if(!fromHistory&&!historyRestoring)recordUndoState();
   const previousHistoryRestoring=historyRestoring;historyRestoring=true;
   try{
-    stopActiveDraw(true);stopReshapeDraw();
+    stopActiveDraw(true);stopReshapeDraw();stopVertexEditing();
     if(selectedFeatures&&typeof selectedFeatures.clear==="function")selectedFeatures.clear();
     selectedLayer=null;selectedOverlay=null;
   editSessionActive=false;editTarget=drawn;
@@ -3138,6 +3138,17 @@ function reshapeSelected(){
   map.on(L.Draw.Event.CREATED,once);
   h.enable();
 }
+function stopVertexEditing(){
+  if(window._vertexEditControl){
+    try{map.removeControl(window._vertexEditControl)}catch(err){console.warn("Could not remove vertex editing toolbar",err)}
+    window._vertexEditControl=null;
+  }
+  if(window._vertexEditHandler){
+    try{map.off(L.Draw.Event.EDITED,window._vertexEditHandler)}catch(err){console.warn("Could not detach vertex edit listener",err)}
+    window._vertexEditHandler=null;
+  }
+  window._vertexEditOwner=null;
+}
 function editVertices(){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("editing feature vertices"))return;
   const r=selectedRecords()[0];
@@ -3147,14 +3158,7 @@ function editVertices(){
   if(!owner||!owner.getLayers){status("This feature cannot be vertex edited.");return;}
   if(owner!==editTarget){status("The selected feature is not in the active edit layer.");return;}
   try{
-    if(window._vertexEditControl){
-      map.removeControl(window._vertexEditControl);
-      window._vertexEditControl=null;
-    }
-    if(window._vertexEditHandler){
-      map.off(L.Draw.Event.EDITED,window._vertexEditHandler);
-      window._vertexEditHandler=null;
-    }
+    stopVertexEditing();
     let baseline=JSON.parse(JSON.stringify(serializeProject()));
     window._vertexEditOwner=owner;
     window._vertexEditHandler=function(event){
