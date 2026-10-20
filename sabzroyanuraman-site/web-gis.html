@@ -2491,7 +2491,8 @@ function restoreProject(project,fromHistory=false){
   $("projectName").value=project.name||"Untitled Project";
   renderLayerList();refreshAttributeLayers();
   $("projectStatus").textContent= "Project restored: "+(project.savedAt?new Date(project.savedAt).toLocaleString("en-US"):"—");
-  updateEditorToolbar();updateStandardActionButtons();
+  // The project may contain zero layers, so do not rely on addNamedLayer to refresh this selector.
+  refreshEditorTargets();refreshAttributeLayers();updateEditorToolbar();updateStandardActionButtons();
     status("Project restored.");
   }finally{historyRestoring=previousHistoryRestoring;updateUndoButtons();}
   return true;
