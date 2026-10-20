@@ -2375,7 +2375,8 @@ function projectFeatureLayer(features,name){
   return layer;
 }
 function restoreProject(project,fromHistory=false){
-  if(!project||![1,2].includes(project.version)){status("This project file version is not supported.");return}
+  if(!project||![1,2].includes(project.version)){status("This project file version is not supported.");return false}
+  if(!fromHistory&&typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before opening or importing a project; unsaved cell values have been preserved.");return false}
   if(!fromHistory&&!historyRestoring)recordUndoState();
   const previousHistoryRestoring=historyRestoring;historyRestoring=true;
   try{
@@ -2415,9 +2416,10 @@ function restoreProject(project,fromHistory=false){
   updateEditorToolbar();updateStandardActionButtons();
     status("Project restored.");
   }finally{historyRestoring=previousHistoryRestoring;updateUndoButtons();}
-
+  return true;
 }
 async function saveProject(){
+  if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before saving the project; pending cell values are not included yet.");return}
   try{
     const project=serializeProject();
     project.id=projectId();project.updatedAt=new Date().toISOString();
@@ -2427,6 +2429,7 @@ async function saveProject(){
   }catch(e){status("Project save failed: "+e.message)}
 }
 async function loadProject(){
+  if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before opening another project; pending cell values have been preserved.");return}
   try{
     const projects=await listProjects();
     if(!projects.length){status("No saved project exists in this browser.");return}
@@ -2438,8 +2441,8 @@ async function loadProject(){
       if(!n||!projects[n-1])return;
       choice=projects[n-1];
     }
+    if(!restoreProject(choice))return;
     currentProjectId=choice.id;
-    restoreProject(choice);
   }catch(e){status("Project could not be opened: "+e.message)}
 }
 function closeProjectManager(){document.getElementById("projectManager").classList.remove("show")}
@@ -2455,12 +2458,13 @@ async function renderProjectManagerList(){
       const info=document.createElement("div");info.className="pm-item-info";
       info.innerHTML="<div class='pm-item-name'>"+esc(p.name||"Untitled Project")+"</div><div class='pm-item-meta'>"+esc(p.crs||"EPSG:32638")+" — "+new Date(p.updatedAt||p.savedAt).toLocaleString("en-US")+"</div>";
       const b=document.createElement("button");b.className="action secondary";b.textContent="Open Project";
-      b.onclick=async()=>{currentProjectId=p.id;restoreProject(p);$("projectName").value=p.name||"Untitled Project";window.currentProjectDescription=p.description||"";closeProjectManager();status("Project opened.")};
+      b.onclick=async()=>{if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before opening another project; pending cell values have been preserved.");return}if(!restoreProject(p))return;currentProjectId=p.id;$("projectName").value=p.name||"Untitled Project";window.currentProjectDescription=p.description||"";closeProjectManager();status("Project opened.")};
       row.append(info,b);el.appendChild(row);
     });
   }catch(e){el.innerHTML="<div class='small'>Could not load projects.</div>"}
 }
 async function createNewProject(){
+  if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before creating a project; pending cell values have been preserved.");return}
   const name=$("newProjectName").value.trim()||"New Project";
   window.currentProjectDescription=$("newProjectDescription").value.trim();
   const crs=$("newProjectCrs").value;
@@ -2480,6 +2484,7 @@ function initProjectManager(){
   $("closeProjectManager").onclick=closeProjectManager;
 }
 function downloadProject(){
+  if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before exporting the project; pending cell values are not included yet.");return}
   const project=serializeProject();
   download(JSON.stringify(project,null,2),"sabz-royan-project.json","application/json");
 }
