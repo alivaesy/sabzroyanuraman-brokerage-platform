@@ -3531,7 +3531,12 @@ function addMapDecoration(kind){
       createViewer:()=>createMapViewer(),
       saveEdits:()=>saveEdits(),
       stopEditing:()=>stopEditing(),
-      openAttributeTable:()=>status("Right-click a layer in the Table Of Contents to open its attribute table."),
+      openAttributeTable:()=>{
+        const candidates=[selectedOverlay,selectedLayer,currentAttributeLayer(),drawn,...namedLayers.map(x=>x.layer)];
+        const layer=candidates.find(x=>x&&isVectorLayer(x));
+        if(!layer){status("Select a vector feature layer before opening its attribute table.");return}
+        openLayerAttributeTable({layer});
+      },
       showToolbox:()=>{openGisDock("analysis");document.getElementById("gisToolSearch")?.focus()},
       editorOptions:()=>openGisDock("edit"),
       toggleEditorToolbar:()=>document.getElementById("editorToolbar")?.classList.toggle("show"),
