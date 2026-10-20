@@ -994,6 +994,7 @@ function copySelectedFeatures(cut=false){
   if(!records.length){status("Select one or more features first.");return;}
   featureClipboard=records.map(r=>JSON.parse(JSON.stringify(r.feature)));
   if(cut){
+    recordUndoState();
     records.forEach(r=>r.owner.layer.removeLayer(r.layer));
     selectedFeatures.clear();selectedOverlay=null;renderLayerList();refreshAttributeLayers();scheduleAutoSave();
     status(records.length+" feature(s) cut.");
@@ -1001,6 +1002,7 @@ function copySelectedFeatures(cut=false){
   updateStandardActionButtons();
 }
 function pasteFeatures(){
+  if(blockForUnsavedTableEdits("pasting features"))return;
   if(!editSessionActive||!editTarget){status("Start Editing before pasting features.");return;}
   if(!featureClipboard.length){status("Copy or cut features before pasting.");return;}
   recordUndoState();
@@ -1016,10 +1018,12 @@ function pasteFeatures(){
 }
 function deleteSelectedFeatures(){
   if(blockForUnsavedTableEdits("deleting features"))return;
+  if(!editSessionActive||!editTarget){status("Start Editing before deleting features.");return;}
   const records=editableSelectedRecords();if(!records.length)return;
   if(!confirm("Delete "+records.length+" selected feature(s)?"))return;
+  recordUndoState();
   records.forEach(r=>r.owner.layer.removeLayer(r.layer));
-  selectedFeatures.clear();selectedOverlay=null;refreshAll();updateStandardActionButtons();status(records.length+" feature(s) deleted.");
+  selectedFeatures.clear();selectedOverlay=null;refreshAll();scheduleAutoSave();updateStandardActionButtons();status(records.length+" feature(s) deleted.");
 }
 function openOnlineData(){
   const value=prompt("Enter a public GeoJSON URL or ArcGIS Feature Service layer URL:");
