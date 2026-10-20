@@ -856,7 +856,7 @@ function saveEdits(){
 function stopEditing(){
   if(!editSessionActive)return;
   saveEdits();
-  stopActiveDraw(true);
+  stopActiveDraw(true);stopReshapeDraw();
   editSessionActive=false;editTarget=drawn;
   updateEditorToolbar();
   status("Edit session stopped.");
@@ -2262,7 +2262,7 @@ function restoreProject(project,fromHistory=false){
   if(!fromHistory&&!historyRestoring)recordUndoState();
   const previousHistoryRestoring=historyRestoring;historyRestoring=true;
   try{
-    stopActiveDraw(true);
+    stopActiveDraw(true);stopReshapeDraw();
     if(selectedFeatures&&typeof selectedFeatures.clear==="function")selectedFeatures.clear();
     selectedLayer=null;selectedOverlay=null;
   editSessionActive=false;editTarget=drawn;
@@ -2862,6 +2862,16 @@ function rebuildVectorLayerGeometry(rs){
   });
   applySelectionVisual();renderLayerList();refreshAttributeLayers();scheduleAutoSave();
 }
+function stopReshapeDraw(){
+  if(window._reshapeCreatedHandler){
+    map.off(L.Draw.Event.CREATED,window._reshapeCreatedHandler);
+    window._reshapeCreatedHandler=null;
+  }
+  if(window._reshapeDrawHandler){
+    try{window._reshapeDrawHandler.disable()}catch(_){}
+    window._reshapeDrawHandler=null;
+  }
+}
 function reshapeSelected(){
   const r=selectedRecords()[0];
   if(!r){status("Select one polygon feature first.");return;}
@@ -2872,25 +2882,35 @@ function reshapeSelected(){
   if(typeof turf.booleanIntersects!=="function"||typeof turf.booleanWithin!=="function"||typeof turf.difference!=="function"||typeof turf.union!=="function"){
     status("Reshape unavailable: required Turf geometry operations are not loaded.");return;
   }
-  status("Draw a polygon overlapping the selected polygon to reshape it. Drawing inside removes that area; drawing across/alongside merges the areas.");
+  stopActiveDraw(true);stopReshapeDraw();
+  if(window._vertexEditControl){try{map.removeControl(window._vertexEditControl)}catch(_){}window._vertexEditControl=null}
+  if(window._vertexEditHandler){map.off(L.Draw.Event.EDITED,window._vertexEditHandler);window._vertexEditHandler=null}
+  const original=JSON.parse(JSON.stringify(r.feature));
+  status("Draw a polygon overlapping the selected polygon to reshape it. Drawing inside removes that area; drawing across/alongside merges the areas. Stop Editing to cancel.");
   const h=new L.Draw.Polygon(map,{shapeOptions:{color:"#e67e22",weight:2,dashArray:"4,4"}});
+  window._reshapeDrawHandler=h;
   const once=e=>{
     map.off(L.Draw.Event.CREATED,once);
+    window._reshapeCreatedHandler=null;
+    window._reshapeDrawHandler=null;
     try{
+      if(!editSessionActive||editTarget!==(r.owner?.layer||drawn)){status("Reshape cancelled because the active edit layer changed.");return;}
       map.removeLayer(e.layer);
       const sketch=e.layer.toGeoJSON();
       if(!sketch.geometry||sketch.geometry.type!=="Polygon"){status("Reshape cancelled: draw a valid polygon.");return;}
-      if(!turf.booleanIntersects(r.feature,sketch)){status("Reshape cancelled: the drawn polygon must overlap or touch the selected polygon.");return;}
-      const cut=turf.booleanWithin(sketch,r.feature);
-      const fc={type:"FeatureCollection",features:[r.feature,sketch]};
+      if(!turf.booleanIntersects(original,sketch)){status("Reshape cancelled: the drawn polygon must overlap or touch the selected polygon.");return;}
+      const cut=turf.booleanWithin(sketch,original);
+      const fc={type:"FeatureCollection",features:[original,sketch]};
       const result=cut?turf.difference(fc):turf.union(fc);
       if(!result?.geometry||!["Polygon","MultiPolygon"].includes(result.geometry.type)){status("Reshape failed: no valid polygon result was produced.");return;}
+      if(JSON.stringify(original.geometry)===JSON.stringify(result.geometry)){status("Reshape made no geometry changes.");return;}
       recordUndoState();
       r.feature.geometry=result.geometry;
-      rebuildVectorLayerGeometry([r]);refreshAll();
+      rebuildVectorLayerGeometry([r]);refreshAll();scheduleAutoSave();
       status(cut?"Selected polygon reshaped by removing the drawn interior area.":"Selected polygon reshaped by merging the drawn area.");
     }catch(err){console.error("Reshape failed",err);status("Reshape failed: "+(err.message||"geometry operation error"));}
   };
+  window._reshapeCreatedHandler=once;
   map.on(L.Draw.Event.CREATED,once);
   h.enable();
 }
