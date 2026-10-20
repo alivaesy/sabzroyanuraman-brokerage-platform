@@ -808,7 +808,7 @@ function stopActiveDraw(cancel=true){
     try{map.off(L.Draw.Event.CREATED,activeDrawCreatedHandler)}catch(_){}
     activeDrawCreatedHandler=null;
   }
-  if(handler){try{if(cancel&&typeof handler.disable==="function")handler.disable()}catch(err){console.warn("Could not stop active tool",err)}}
+  if(handler){try{if(typeof handler.disable==="function")handler.disable()}catch(err){console.warn("Could not stop active tool",err)}}
   if(activeDrawButton)activeDrawButton.classList.remove("active");
   activeDrawButton=null;
   try{map.doubleClickZoom.enable()}catch(_){}
