@@ -2095,6 +2095,7 @@ $("deleteSelectedRows").onclick=()=>{
  status(targets.length+" feature(s) deleted.");
 };
 $("copySelectedRows").onclick=()=>{
+ if(hasUnsavedTableEdits()){status("Save Table Edits before copying rows; pending cell values have not been applied to the features yet.");return}
  const items=currentAttributeItems(),inds=selectedTableIndexes();
  if(!inds.length){status("Select one or more rows first.");return}
  const keys=tableKeys(items);
