@@ -1746,13 +1746,15 @@ $("clearGisSelection").onclick=()=>{
 
 $("addTableField").onclick=()=>{
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before changing its table.");return}
- const idx=$("attributeLayer").value;if(idx===""){status("Select a feature layer.");return}
- const name=prompt("New field name:");if(!name||!name.trim())return;
- recordUndoState();
- const key=name.trim();const items=currentAttributeItems();
+ if(!$("attributeLayer").value){status("Select a feature layer.");return}
+ const name=prompt("New field name:");if(name===null||!name.trim())return;
+ const key=name.trim(),items=currentAttributeItems();
+ if(!items.length){status("The selected layer has no features to receive this field.");return}
  if(items.some(x=>Object.prototype.hasOwnProperty.call(x.feature.properties||{},key))){status("A field with this name already exists.");return}
- items.forEach(x=>{ensureFeatureProperties(x.layer);x.feature.properties[key]="";});
- renderEditableTable();status("Field "+key+" added.");
+ if(key==="_attachments"||key==="geometry"){status("This field name is reserved by the editor.");return}
+ recordUndoState();
+ items.forEach(x=>{ensureFeatureProperties(x.layer);x.feature.properties[key]="";updateFeaturePopup(x.layer);});
+ renderEditableTable();scheduleAutoSave();status("Field '"+key+"' added to "+items.length+" feature(s).");
 };
 $("saveTableEdits").onclick=()=>{
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before saving table changes.");return}
