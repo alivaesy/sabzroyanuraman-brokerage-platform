@@ -1835,14 +1835,41 @@ $("pasteRows").onclick=()=>{
  if(!inds.length){status("Select destination rows.");return}
  const valid=inds.filter(i=>items[i]);
  if(!valid.length){status("The selected destination rows are no longer available.");return}
+ const staged=[];
+ try{
+  valid.forEach((idx,n)=>{
+   const item=items[idx],props=item.feature.properties||{},src=attributeClipboard[n%attributeClipboard.length],next={...props};
+   keys.forEach((key,j)=>{
+    const old=props[key],raw=src[j]??"";
+    let value=raw;
+    if(typeof old==="number"){
+     if(raw===""||raw===null||raw===undefined)value=null;
+     else if(typeof raw==="number"&&Number.isFinite(raw))value=raw;
+     else if(Number.isFinite(Number(raw)))value=Number(raw);
+     else throw new Error("Field '"+key+"' requires a valid number.");
+    }else if(typeof old==="boolean"){
+     if(typeof raw==="boolean")value=raw;
+     else if(/^(true|false)$/i.test(String(raw).trim()))value=String(raw).trim().toLowerCase()==="true";
+     else throw new Error("Field '"+key+"' accepts only true or false.");
+    }else if(old!==null&&typeof old==="object"){
+     if(raw!==null&&typeof raw==="object")value=raw;
+     else{
+      try{value=JSON.parse(String(raw))}catch(e){throw new Error("Field '"+key+"' requires valid JSON.")}
+     }
+     if(value===null||typeof value!=="object")throw new Error("Field '"+key+"' must remain a JSON object or array.");
+    }
+    next[key]=value;
+   });
+   staged.push({item,props:next});
+  });
+ }catch(err){status("Paste cancelled; no rows changed. "+err.message);return}
+ const changed=staged.filter(({item,props})=>JSON.stringify(item.feature.properties||{})!==JSON.stringify(props));
+ if(!changed.length){status("Pasted values match the existing values; nothing changed.");return}
  recordUndoState();
- valid.forEach((idx,n)=>{
-   const item=items[idx];ensureFeatureProperties(item.layer);
-   const src=attributeClipboard[n%attributeClipboard.length];
-   keys.forEach((k,j)=>item.feature.properties[k]=src[j]??"");
-   updateFeaturePopup(item.layer);
+ changed.forEach(({item,props})=>{
+  item.feature.properties=props;item.feature.geometry=item.layer.toGeoJSON().geometry;updateFeaturePopup(item.layer);
  });
- renderEditableTable();scheduleAutoSave();status("Pasted values into "+valid.length+" rows.");
+ renderEditableTable();scheduleAutoSave();status("Pasted values into "+changed.length+" rows.");
 };
 $("fillSelected").onclick=()=>{
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before calculating fields.");return}
