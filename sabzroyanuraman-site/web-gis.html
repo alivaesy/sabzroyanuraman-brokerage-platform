@@ -914,6 +914,14 @@ function recordUndoState(){
   }catch(err){console.warn("Could not create edit history snapshot:",err);}
 }
 function applyHistorySnapshot(source,destination,message){
+  if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){
+    status("Save Table Edits before using "+message+"; pending cell values have been preserved.");
+    return;
+  }
+  if(activeDrawHandler||window._reshapeDrawHandler||window._vertexEditControl){
+    status("Finish or cancel the active drawing/geometry edit before using "+message+".");
+    return;
+  }
   if(!source.length){status("There is no "+message.toLowerCase()+" history.");return;}
   const current=JSON.parse(JSON.stringify(serializeProject()));
   destination.push(current);
