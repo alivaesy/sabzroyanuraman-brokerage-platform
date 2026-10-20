@@ -3935,7 +3935,7 @@ function networkQaTool(){
 function snapTool(){
   const selected=editableSelectedRecords(false).filter(r=>r.feature.geometry?.type==="Point");
   if(!selected.length){status("Select point features in the active edit layer, then run Snap Points to Lines.");return;}
-  const lineRecords=getFeatureRecords().filter(r=>["LineString","MultiLineString"].includes(r.feature.geometry?.type));
+  const lineRecords=getFeatureRecords().filter(r=>r.owner?.layer&&map.hasLayer(r.owner.layer)&&["LineString","MultiLineString"].includes(r.feature.geometry?.type));
   if(!lineRecords.length){status("Add a line feature before snapping points.");return;}
   const raw=prompt("Snap tolerance in meters:","5");if(raw===null)return;
   const tolerance=Number(raw);
