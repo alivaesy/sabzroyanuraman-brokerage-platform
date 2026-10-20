@@ -817,7 +817,8 @@ function updateEditorToolbar(){
   ["saveTableEdits","addTableField","deleteSelectedRows","fillSelected"].forEach(id=>{const b=$(id);if(b)b.disabled=!editSessionActive});
   $("stopEditingBtn").disabled=!editSessionActive;
   $("editTargetLayer").disabled=editSessionActive;
-  document.querySelectorAll("[data-editor-draw],#finishSketchBtn").forEach(b=>b.disabled=!editSessionActive);
+  document.querySelectorAll("[data-editor-draw]").forEach(b=>{b.disabled=false;b.title=editSessionActive?"Create "+(b.getAttribute("aria-label")||"feature"):"Create "+(b.getAttribute("aria-label")||"feature")+" (starts editing automatically)";});
+  const finishButton=$("finishSketchBtn");if(finishButton)finishButton.disabled=!editSessionActive||!(activeDrawHandler&&activeDrawPurpose==="draw");
   const state=$("editorStateLabel");if(state){state.textContent=editSessionActive?"Editing "+($("editTargetLayer").selectedOptions[0]?.textContent||"layer"):"Start Editing to enable drawing";state.classList.toggle("active",editSessionActive)}
   updateStandardActionButtons();
 }
@@ -1095,7 +1096,7 @@ function goToXY(){
 }
 function startDraw(type,button){
   stopActiveDraw();
-  if(!editSessionActive){status("Start Editing before creating features.");return}
+  if(!editSessionActive)startEditing();
   if(!editTarget||typeof editTarget.addLayer!=="function"){status("Choose a vector layer in the Editor toolbar.");return}
   startNativeDraw(type,button);
 }
@@ -1169,7 +1170,12 @@ function startNativeDraw(type,button){
   map.getContainer().style.cursor="crosshair";
   const handler={
     disable(){map.off("click",onClick);map.off("mousemove",onMove);map.off("dblclick",onDoubleClick);removePreview()},
-    completeShape:complete
+    completeShape:complete,
+    removeLastVertex(){
+      if(finished||!points.length){status("There are no sketch vertices to undo.");return}
+      points.pop();removePreview();if(points.length)updatePreview();
+      status(points.length?"Last sketch vertex removed. Continue drawing or press Enter to finish.":"Sketch cleared. Click the map to start again.");
+    }
   };
   activeDrawHandler=handler;
   button?.classList.add("active");
@@ -1195,7 +1201,10 @@ function startSelectionShape(type,options,callback){
 }
 document.addEventListener("keydown",e=>{
   if(!activeDrawHandler)return;
+  const tag=(e.target&&e.target.tagName||"").toLowerCase();
+  if(["input","textarea","select"].includes(tag)||e.target?.isContentEditable)return;
   if(e.key==="Escape"){e.preventDefault();stopActiveDraw(true);status("Active tool cancelled.")}
+  else if((e.key==="Backspace"||e.key==="Delete")&&activeDrawPurpose==="draw"&&typeof activeDrawHandler.removeLastVertex==="function"){e.preventDefault();activeDrawHandler.removeLastVertex()}
   else if(e.key==="Enter"&&typeof activeDrawHandler.completeShape==="function"){e.preventDefault();try{activeDrawHandler.completeShape()}catch(err){console.warn("Could not finish shape",err)}}
 });
 const drawControl=L.Control.extend({
