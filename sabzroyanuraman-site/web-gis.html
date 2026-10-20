@@ -1814,6 +1814,7 @@ $("selectFiltered").onclick=()=>{
 };
 $("editAttributes").onclick=renderAttributeEditor;
 $("applyMultiAttribute").onclick=()=>{
+  if(blockForUnsavedTableEdits("applying bulk attribute changes"))return;
   if(!editSessionActive){status("Start Editing before changing attributes.");return}
   const targets=[...selectedFeatures].filter(layer=>isLayerInEditTarget(layer));
   const key=$("multiFieldName").value.trim(),raw=$("multiFieldValue").value;
