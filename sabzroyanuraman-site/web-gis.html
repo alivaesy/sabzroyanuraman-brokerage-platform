@@ -1672,7 +1672,7 @@ function renderEditableTable(){
  let html="<table style='width:100%;border-collapse:collapse;direction:rtl'><thead><tr><th><input type='checkbox' class='attr-check' id='checkAllRows'></th><th>#</th>"+
  keys.map(k=>"<th style='padding:3px;border-bottom:1px solid #ccd9df;white-space:nowrap'>"+esc(k)+"</th>").join("")+"</tr></thead><tbody>";
  rows.forEach(o=>{html+="<tr data-index='"+o.i+"'><td><input type='checkbox' class='row-check attr-check'></td><td>"+(o.i+1)+"</td>"+
- keys.map(k=>"<td style='padding:2px'><input class='cell-edit' data-key='"+esc(k)+"' value='"+esc((o.x.feature.properties||{})[k]) +"'></td>").join("")+"</tr>"});
+ keys.map(k=>{const v=(o.x.feature.properties||{})[k],shown=v!==null&&typeof v==="object"?JSON.stringify(v):v;return "<td style='padding:2px'><input class='cell-edit' data-key='"+esc(k)+"' value='"+esc(shown) +"'></td>"}).join("")+"</tr>"});
  $("attributeTableWrap").innerHTML=html+"</tbody></table>";$("attributeTableWrap").style.display="block";
  const all=$("checkAllRows");if(all)all.onchange=()=>$("attributeTableWrap").querySelectorAll(".row-check").forEach(x=>x.checked=all.checked);
  $("attributeTableWrap").querySelectorAll(".row-check").forEach(ch=>ch.onchange=()=>{});
