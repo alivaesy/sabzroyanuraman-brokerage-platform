@@ -1684,8 +1684,15 @@ function renderEditableTable(){
  rows.forEach(o=>{html+="<tr data-index='"+o.i+"'><td><input type='checkbox' class='row-check attr-check'></td><td>"+(o.i+1)+"</td>"+
  keys.map(k=>{const v=(o.x.feature.properties||{})[k],shown=v!==null&&typeof v==="object"?JSON.stringify(v):v;return "<td style='padding:2px'><input class='cell-edit' data-key='"+esc(k)+"' value='"+esc(shown) +"'></td>"}).join("")+"</tr>"});
  $("attributeTableWrap").innerHTML=html+"</tbody></table>";$("attributeTableWrap").style.display="block";
- const all=$("checkAllRows");if(all)all.onchange=()=>$("attributeTableWrap").querySelectorAll(".row-check").forEach(x=>x.checked=all.checked);
- $("attributeTableWrap").querySelectorAll(".row-check").forEach(ch=>ch.onchange=()=>{});
+ const all=$("checkAllRows"),rowChecks=[...$("attributeTableWrap").querySelectorAll(".row-check")];
+ const syncCheckAll=()=>{
+  if(!all)return;
+  const checked=rowChecks.filter(ch=>ch.checked).length;
+  all.checked=rowChecks.length>0&&checked===rowChecks.length;
+  all.indeterminate=checked>0&&checked<rowChecks.length;
+ };
+ if(all)all.onchange=()=>{rowChecks.forEach(ch=>ch.checked=all.checked);syncCheckAll()};
+ rowChecks.forEach(ch=>ch.onchange=syncCheckAll);
  status(rows.length+" rows displayed.");
 }
 $("openTable").onclick=renderEditableTable;
