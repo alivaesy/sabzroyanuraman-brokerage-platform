@@ -1355,12 +1355,14 @@ function openGisDock(section){
   const title=$("gisDockTitle");if(title)title.textContent=titles[section]||"ArcToolbox";
 }
 function openLayerAttributeTable(item){
+ if(hasUnsavedTableEdits()){status("Save Table Edits before switching the attribute table layer; unsaved values have been preserved.");return}
  const idx=namedLayers.findIndex(x=>x.layer===item.layer);
  if(item.layer===drawn)$("attributeLayer").value="drawn";
  else if(idx>=0)$("attributeLayer").value=String(idx);
  else return;
+ lastAttributeLayerValue=$("attributeLayer").value;
  openGisDock("attribute");
- renderEditableTable();
+ $("openTable").click();
 }
 function displayLayerName(name,index){return /[\u0600-\u06FF]/.test(String(name||""))?"Layer "+(index+1):String(name||("Layer "+(index+1)))}
 function renderLayerList(){
