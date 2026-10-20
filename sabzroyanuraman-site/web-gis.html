@@ -1266,7 +1266,7 @@ function status(message){
   if(toast){toast.textContent=text;toast.classList.add("show");clearTimeout(statusTimer);statusTimer=setTimeout(()=>toast.classList.remove("show"),4200)}
 }
 
-function esc(s){return String(s??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[m]))}
+function esc(s){return String(s??"").replace(/[&<>'"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","\'":"&#39;"}[m]))}
 
 function isVectorLayer(layer){return !!(layer && typeof layer.eachLayer==="function" && !(layer instanceof L.TileLayer));}
 function vectorFeatures(layer){const out=[];if(!layer)return out;if(layer instanceof L.GeoJSON){layer.eachLayer(l=>{const f=l.feature||l.toGeoJSON();if(f&&f.geometry)out.push({feature:f,layer:l})});}else if(layer instanceof L.FeatureGroup){layer.eachLayer(l=>{const f=l.toGeoJSON();if(f&&f.geometry)out.push({feature:f,layer:l})});}return out;}
@@ -1688,7 +1688,17 @@ map.on("click",e=>{
   if(found){selectedLayer=found;showUTM(found);calcMeasure(found)}
 });
 
-$("attributeLayer").onchange=()=>{$("attributeTableWrap").style.display="none";};
+let lastAttributeLayerValue=$("attributeLayer").value;
+function hasUnsavedTableEdits(){return [...$("attributeTableWrap").querySelectorAll(".cell-edit")].some(input=>input.value!==input.dataset.original)}
+$("attributeLayer").onchange=()=>{
+ if(hasUnsavedTableEdits()){
+  $("attributeLayer").value=lastAttributeLayerValue;
+  status("Save Table Edits before switching layers; unsaved cell values have been preserved.");
+  return;
+ }
+ lastAttributeLayerValue=$("attributeLayer").value;
+ $("attributeTableWrap").style.display="none";
+};
 let attributeClipboard=null;
 function updateFeaturePopup(layer){
  if(!layer)return;
@@ -1719,7 +1729,7 @@ function renderEditableTable(){
  let html="<table style='width:100%;border-collapse:collapse;direction:rtl'><thead><tr><th><input type='checkbox' class='attr-check' id='checkAllRows'></th><th>#</th>"+
  keys.map(k=>"<th style='padding:3px;border-bottom:1px solid #ccd9df;white-space:nowrap'>"+esc(k)+"</th>").join("")+"</tr></thead><tbody>";
  rows.forEach(o=>{html+="<tr data-index='"+o.i+"'><td><input type='checkbox' class='row-check attr-check' "+(selectedFeatures.has(o.x.layer)?"checked":"")+"></td><td>"+(o.i+1)+"</td>"+
- keys.map(k=>{const v=(o.x.feature.properties||{})[k],shown=v!==null&&typeof v==="object"?JSON.stringify(v):v;return "<td style='padding:2px'><input class='cell-edit' data-key='"+esc(k)+"' value='"+esc(shown) +"'></td>"}).join("")+"</tr>"});
+ keys.map(k=>{const v=(o.x.feature.properties||{})[k],shown=v!==null&&typeof v==="object"?JSON.stringify(v):v;return "<td style='padding:2px'><input class='cell-edit' data-key='"+esc(k)+"' data-original='"+esc(shown)+"' value='"+esc(shown) +"'></td>"}).join("")+"</tr>"});
  $("attributeTableWrap").innerHTML=html+"</tbody></table>";$("attributeTableWrap").style.display="block";
  const all=$("checkAllRows"),rowChecks=[...$("attributeTableWrap").querySelectorAll(".row-check")];
  const syncCheckAll=()=>{
@@ -1746,8 +1756,7 @@ function renderEditableTable(){
 $("openTable").onclick=renderEditableTable;
 $("attributeFilter").addEventListener("input",()=>{
  if($("attributeTableWrap").style.display==="none")return;
- const dirty=[...$("attributeTableWrap").querySelectorAll(".cell-edit")].some(input=>input.dataset.dirty==="true");
- if(dirty){
+ if(hasUnsavedTableEdits()){
   status("Save Table Edits before changing the filter; this prevents unsaved cell values from being discarded.");
   return;
  }
@@ -1755,7 +1764,7 @@ $("attributeFilter").addEventListener("input",()=>{
 });
 $("attributeTableWrap").addEventListener("input",event=>{
  const input=event.target.closest(".cell-edit");
- if(input)input.dataset.dirty="true";
+ if(input)input.dataset.dirty=String(input.value!==input.dataset.original);
 });
 document.addEventListener("click",e=>{if(!e.target.closest("#layerContextMenu"))hideLayerContextMenu();});
 $("layerContextMenu").querySelectorAll("button[data-action]").forEach(btn=>btn.onclick=e=>{
