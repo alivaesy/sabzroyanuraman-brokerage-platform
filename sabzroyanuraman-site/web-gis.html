@@ -3124,6 +3124,31 @@ function identifyTool(){
 };
 
 /* Match GIS GIS for Manhole GIS/New */
+function nearestPointOnFeatureSafe(feature, point){
+  const g=feature?.geometry;
+  if(!g||!point?.geometry)return null;
+  if(g.type==="Point")return turf.point(g.coordinates);
+  let parts=[];
+  if(g.type==="LineString")parts=[g.coordinates];
+  else if(g.type==="MultiLineString")parts=g.coordinates;
+  else if(g.type==="Polygon")parts=g.coordinates;
+  else if(g.type==="MultiPolygon")parts=g.coordinates.flatMap(poly=>poly);
+  else if(g.type==="MultiPoint")return g.coordinates.reduce((best,c)=>{
+    const candidate=turf.point(c),d=turf.distance(point,candidate,{units:"meters"});
+    return !best||d<best.d?{point:candidate,d}:best;
+  },null)?.point||null;
+  else return turf.centroid(feature);
+  let best=null,bestD=Infinity;
+  parts.forEach(coords=>{
+    if(!Array.isArray(coords)||coords.length<2)return;
+    try{
+      const candidate=turf.nearestPointOnLine(turf.lineString(coords),point,{units:"kilometers"});
+      const d=turf.distance(point,candidate,{units:"meters"});
+      if(d<bestD){bestD=d;best=candidate;}
+    }catch(_){}
+  });
+  return best||turf.centroid(feature);
+}
 function nearestMatchTool(){
   const items=getAllVectorItems();
   if(items.length<2){status("Add at least two vector layers first.");return;}
@@ -3146,7 +3171,7 @@ function nearestMatchTool(){
     const p=t.feature.geometry.type==="Point"?turf.point(t.feature.geometry.coordinates):turf.centroid(t.feature);
     src.forEach(v=>{
       try{
-        const nearest=turf.nearestPointOnFeature(v.feature,p);
+        const nearest=nearestPointOnFeatureSafe(v.feature,p);
         const d=turf.distance(p,nearest,{units:"meters"});
         if(d<bestD){bestD=d;best=v.feature;}
       }catch(_){}
@@ -3193,7 +3218,7 @@ function transferAttributesTool(){
     try{targetPoint=t.feature.geometry.type==="Point"?turf.point(t.feature.geometry.coordinates):turf.centroid(t.feature);}catch(_){return;}
     src.forEach(v=>{
       try{
-        const nearest=turf.nearestPointOnFeature(v.feature,targetPoint);
+        const nearest=nearestPointOnFeatureSafe(v.feature,targetPoint);
         const d=turf.distance(targetPoint,nearest,{units:"meters"});
         if(d<bestD){bestD=d;best=v.feature;}
       }catch(_){}
