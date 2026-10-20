@@ -1648,6 +1648,16 @@ map.on("click",e=>{
 
 $("attributeLayer").onchange=()=>{$("attributeTableWrap").style.display="none";};
 let attributeClipboard=null;
+function updateFeaturePopup(layer){
+ if(!layer)return;
+ const f=layer.feature||layer.toGeoJSON?.();
+ if(!f)return;
+ layer.feature=f;
+ const props=f.properties||{};
+ const rows=Object.keys(props).map(k=>"<b>"+esc(k)+"</b>: "+esc(props[k])).join("<br>");
+ if(layer.getPopup&&layer.getPopup()&&layer.setPopupContent)layer.setPopupContent(rows||"No attributes available.");
+ else if(layer.bindPopup)layer.bindPopup(rows||"No attributes available.");
+}
 function currentAttributeLayer(){
  const value=$("attributeLayer").value;
  return value==="drawn"?drawn:(value===""?null:namedLayers[Number(value)]?.layer||null);
@@ -1697,9 +1707,15 @@ $("layerContextMenu").querySelectorAll("button[data-action]").forEach(btn=>btn.o
 });
 $("selectFiltered").onclick=()=>{
  const idx=$("attributeLayer").value;if(idx===""){status("Select a feature layer.");return}
- const filter=$("attributeFilter").value.trim().toLowerCase(), items=currentAttributeItems();
- let n=0;items.forEach(x=>{const hit=!filter||Object.values(x.feature.properties||{}).some(v=>String(v).toLowerCase().includes(filter));if(hit){x.layer.setStyle&&x.layer.setStyle({color:"#d26a00",weight:4,fillOpacity:.28});x.layer.openPopup&&x.layer.openPopup();n++}});
- status(n+" features selected.");
+ const filter=$("attributeFilter").value.trim().toLowerCase(),items=currentAttributeItems();
+ selectedFeatures.clear();
+ let n=0;
+ items.forEach(x=>{
+   const hit=!filter||Object.values(x.feature.properties||{}).some(v=>String(v??"").toLowerCase().includes(filter));
+   if(hit){selectedFeatures.add(x.layer);n++;}
+ });
+ applySelectionVisual();updateMultiSelectionUI();
+ status(n+" feature(s) selected from the filtered attribute table.");
 };
 $("editAttributes").onclick=renderAttributeEditor;
 $("applyMultiAttribute").onclick=()=>{
@@ -1766,16 +1782,22 @@ function selectedTableIndexes(){
 }
 $("deleteSelectedRows").onclick=()=>{
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before deleting rows.");return}
- const items=currentAttributeItems(),inds=selectedTableIndexes().sort((a,b)=>b-a);
+ const items=currentAttributeItems(),inds=selectedTableIndexes();
  if(!inds.length){status("Select one or more rows first.");return}
- if(!confirm(inds.length+" features selected for deletion"))return;
- const layer=currentAttributeLayer();if(!layer)return;
+ if(!confirm(inds.length+" feature(s) will be deleted. Continue?"))return;
+ const layer=currentAttributeLayer();
+ const targets=inds.map(i=>items[i]?.layer).filter(Boolean);
+ if(!targets.length){status("The selected table rows are no longer available.");return}
  recordUndoState();
- recordUndoState();
- const targets=new Set(inds);
- if(layer.clearLayers){let i=0;layer.eachLayer(l=>{if(targets.has(i))layer.removeLayer(l);i++})}
- else if(layer.removeLayer){let i=0;layer.eachLayer(l=>{if(targets.has(i))layer.removeLayer(l);i++})}
- renderEditableTable();renderLayerList();refreshAttributeLayers();status(inds.length+" features deleted.");
+ targets.forEach(featureLayer=>{
+   if(layer===drawn)drawn.removeLayer(featureLayer);
+   else if(layer&&typeof layer.removeLayer==="function")layer.removeLayer(featureLayer);
+ });
+ selectedFeatures.forEach(featureLayer=>{if(targets.includes(featureLayer))selectedFeatures.delete(featureLayer)});
+ if(targets.includes(selectedLayer))selectedLayer=null;
+ if(targets.includes(selectedOverlay))selectedOverlay=null;
+ renderEditableTable();renderLayerList();refreshAttributeLayers();refreshEditorTargets();updateMultiSelectionUI();scheduleAutoSave();
+ status(targets.length+" feature(s) deleted.");
 };
 $("copySelectedRows").onclick=()=>{
  const items=currentAttributeItems(),inds=selectedTableIndexes();
@@ -1789,17 +1811,29 @@ $("pasteRows").onclick=()=>{
  if(!attributeClipboard?.length){status("Copy rows before pasting.");return}
  const items=currentAttributeItems(),inds=selectedTableIndexes(),keys=tableKeys(items);
  if(!inds.length){status("Select destination rows.");return}
- inds.forEach((idx,n)=>{const item=items[idx];ensureFeatureProperties(item.layer);const src=attributeClipboard[n%attributeClipboard.length];keys.forEach((k,j)=>item.feature.properties[k]=src[j]??"");});
- renderEditableTable();status("Pasted values into "+inds.length+" rows.");
+ const valid=inds.filter(i=>items[i]);
+ if(!valid.length){status("The selected destination rows are no longer available.");return}
+ recordUndoState();
+ valid.forEach((idx,n)=>{
+   const item=items[idx];ensureFeatureProperties(item.layer);
+   const src=attributeClipboard[n%attributeClipboard.length];
+   keys.forEach((k,j)=>item.feature.properties[k]=src[j]??"");
+   updateFeaturePopup(item.layer);
+ });
+ renderEditableTable();scheduleAutoSave();status("Pasted values into "+valid.length+" rows.");
 };
 $("fillSelected").onclick=()=>{
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before calculating fields.");return}
  const value=$("fillValue").value,items=currentAttributeItems(),inds=selectedTableIndexes();
+ if(!inds.length){status("Select one or more rows before calculating a field.");return}
  const layerKeys=tableKeys(items),key=prompt("Field to calculate:\n"+layerKeys.join(", "));
- if(!key||!layerKeys.includes(key)){status("Select a valid field.");return}
+ if(key===null)return;
+ if(!layerKeys.includes(key)){status("Choose an existing field from the list.");return}
+ const targets=inds.filter(i=>items[i]);
+ if(!targets.length){status("No valid rows are selected.");return}
  recordUndoState();
- inds.forEach(i=>{ensureFeatureProperties(items[i].layer);items[i].feature.properties[key]=value});
- renderEditableTable();status("Calculated field "+key+" for "+inds.length+" rows.");
+ targets.forEach(i=>{ensureFeatureProperties(items[i].layer);items[i].feature.properties[key]=value;updateFeaturePopup(items[i].layer)});
+ renderEditableTable();scheduleAutoSave();status("Calculated field '"+key+"' for "+targets.length+" rows.");
 };
 $("measureSelected").onclick=()=>{if(selectedLayer)calcMeasure(selectedLayer);else status("Select a feature on the map first.");};
 $("basemap").onchange=e=>selectBasemap(e.target.value);
