@@ -2930,7 +2930,7 @@ function editVertices(){
       map.off(L.Draw.Event.EDITED,window._vertexEditHandler);
       window._vertexEditHandler=null;
     }
-    const baseline=JSON.parse(JSON.stringify(serializeProject()));
+    let baseline=JSON.parse(JSON.stringify(serializeProject()));
     window._vertexEditOwner=owner;
     window._vertexEditHandler=function(event){
       if(!editSessionActive||editTarget!==owner){status("Vertex edits ignored because the active edit layer changed.");return;}
@@ -2944,10 +2944,11 @@ function editVertices(){
       });
       if(!edited.length)return;
       try{
-        const current=JSON.stringify(serializeProject());
-        if(current!==JSON.stringify(baseline)){
+        const current=JSON.stringify(serializeProject()),previous=JSON.stringify(baseline);
+        if(current!==previous){
           undoStack.push(baseline);if(undoStack.length>40)undoStack.shift();
           redoStack.length=0;updateUndoButtons();
+          baseline=JSON.parse(current);
         }
       }catch(err){console.warn("Could not preserve vertex-edit history:",err)}
       refreshAll();
