@@ -2551,6 +2551,7 @@ function projectFeatureLayer(features,name){
   return layer;
 }
 function restoreProject(project,fromHistory=false){
+  const historyEditState=fromHistory&&editSessionActive?{active:true,isDrawnTarget:editTarget===drawn,targetName:namedLayers.find(item=>item.layer===editTarget)?.name||null}:null;
   if(!project||![1,2].includes(project.version)){status("This project file version is not supported.");return false}
   if(!fromHistory&&typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before opening or importing a project; unsaved cell values have been preserved.");return false}
   if(!fromHistory&&!historyRestoring)recordUndoState();
@@ -2589,6 +2590,11 @@ function restoreProject(project,fromHistory=false){
   $("projectName").value=project.name||"Untitled Project";
   renderLayerList();refreshAttributeLayers();
   $("projectStatus").textContent= "Project restored: "+(project.savedAt?new Date(project.savedAt).toLocaleString("en-US"):"—");
+  // Undo/Redo should restore the map state without unexpectedly ending an active edit session.
+  if(historyEditState?.active){
+    const restoredTarget=historyEditState.isDrawnTarget?drawn:namedLayers.find(item=>item.name===historyEditState.targetName)?.layer;
+    if(restoredTarget){editSessionActive=true;editTarget=restoredTarget;}
+  }
   // The project may contain zero layers, so do not rely on addNamedLayer to refresh this selector.
   refreshEditorTargets();refreshAttributeLayers();updateEditorToolbar();updateStandardActionButtons();
     status("Project restored.");
