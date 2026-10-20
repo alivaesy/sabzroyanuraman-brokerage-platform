@@ -1306,7 +1306,6 @@ function startNativeDraw(type,button){
       });
       if(nearest)point=nearest;
     }
-    }
     points.push(point);
     if(type==="Marker"||((type==="Circle"||type==="Rectangle")&&points.length>=2)){complete();return}
     updatePreview();
