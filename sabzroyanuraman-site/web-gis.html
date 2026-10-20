@@ -1398,54 +1398,53 @@ function ensureFeatureProperties(layer){
 function renderAttributeEditor(){
   const box=$("attributeEditor");
   if(!box)return;
-  if(!selectedLayer){
-    box.style.display="none";
-    status("Select the first input feature.");
-    return;
-  }
+  if(!selectedLayer){box.style.display="none";status("Select the first input feature.");return}
   const props=ensureFeatureProperties(selectedLayer);
-  const keys=Object.keys(props);
+  const keys=Object.keys(props).filter(k=>k!=="_attachments");
   let html="<div id='attributeRows'>";
-  keys.forEach((k,i)=>{
-    html += "<div class='row attr-edit-row' data-key='"+esc(k)+"' style='align-items:flex-start'>"+
+  keys.forEach(k=>{
+    html+="<div class='row attr-edit-row' data-key='"+esc(k)+"' style='align-items:flex-start'>"+
       "<input class='attr-key' value='"+esc(k)+"' title='Field Name' style='width:42%'>"+
-      "<input class='attr-value' value='"+esc(props[k])+'" title="Value" style="width:48%">'+
+      "<input class='attr-value' value='"+esc(typeof props[k]==="object"&&props[k]!==null?JSON.stringify(props[k]):props[k])+"' title='Value' style='width:48%'>"+
       "<button class='action danger attr-delete' type='button' title='Delete Field'>×</button></div>";
   });
-  if(!keys.length)html+="<div class='small'>This feature has no attributes.</div>";
-  html += "</div><div class='row'><button class='action secondary' id='addAttributeField' type='button'>+ Add Field</button><button class='action' id='saveAttributes' type='button'>Save Attribute</button></div>";
-  box.innerHTML=html;
-  box.style.display="block";
+  if(!keys.length)html+="<div class='small'>This feature has no editable attributes.</div>";
+  html+="</div><div class='row'><button class='action secondary' id='addAttributeField' type='button'>+ Add Field</button><button class='action' id='saveAttributes' type='button'>Save Attribute</button></div>";
+  box.innerHTML=html;box.style.display="block";
   box.querySelectorAll(".attr-delete").forEach(btn=>btn.onclick=()=>btn.closest(".attr-edit-row").remove());
   $("addAttributeField").onclick=()=>{
-    const row=document.createElement("div");
-    row.className="row attr-edit-row";
-    row.style.alignItems="flex-start";
+    const row=document.createElement("div");row.className="row attr-edit-row";row.style.alignItems="flex-start";
     row.innerHTML="<input class='attr-key' placeholder='Field Name' style='width:42%'><input class='attr-value' placeholder='Value' style='width:48%'><button class='action danger attr-delete' type='button'>×</button>";
-    row.querySelector(".attr-delete").onclick=()=>row.remove();
-    $("attributeRows").appendChild(row);
+    row.querySelector(".attr-delete").onclick=()=>row.remove();$("attributeRows").appendChild(row);
   };
   $("saveAttributes").onclick=saveAttributes;
 }
 function saveAttributes(){
-  if(!selectedLayer){status("Select a feature before editing attributes.");return;}
-  if(!editSessionActive||!isLayerInEditTarget(selectedLayer)){status("Start Editing this layer before changing attributes.");return;}
-  const props={};let invalid=false;
+  if(!selectedLayer){status("Select a feature before editing attributes.");return}
+  if(!editSessionActive||!isLayerInEditTarget(selectedLayer)){status("Start Editing this layer before changing attributes.");return}
+  const previous=selectedLayer.feature?.properties||{};
+  const props={};
+  // Attachments are stored as structured data URLs, not editable text fields.
+  if(Object.prototype.hasOwnProperty.call(previous,"_attachments"))props._attachments=previous._attachments;
+  let invalid=false;
   $("attributeRows").querySelectorAll(".attr-edit-row").forEach(row=>{
-    const key=row.querySelector(".attr-key").value.trim(),value=row.querySelector(".attr-value").value;
+    const key=row.querySelector(".attr-key").value.trim(),raw=row.querySelector(".attr-value").value;
     if(!key)return;
-    if(Object.prototype.hasOwnProperty.call(props,key)){invalid=true;return;}
+    if(key==="_attachments"||key==="geometry"){invalid=true;return}
+    if(Object.prototype.hasOwnProperty.call(props,key)){invalid=true;return}
+    let value=raw;
+    const old=previous[key];
+    if(typeof old==="number"&&raw.trim()!==""&&Number.isFinite(Number(raw)))value=Number(raw);
+    else if(typeof old==="boolean"&&/^(true|false)$/i.test(raw))value=raw.toLowerCase()==="true";
+    else if(old!==null&&typeof old==="object"){try{value=JSON.parse(raw)}catch(e){value=raw}}
     props[key]=value;
   });
-  if(invalid){status("Field names must be unique.");return;}
-  const previous=selectedLayer.feature?.properties||{};
+  if(invalid){status("Field names must be unique; geometry and _attachments are reserved.");return}
   if(JSON.stringify(previous)!==JSON.stringify(props))recordUndoState();
-  ensureFeatureProperties(selectedLayer);
   selectedLayer.feature.properties=props;
   selectedLayer.feature.geometry=selectedLayer.toGeoJSON().geometry;
   updateFeaturePopup(selectedLayer);
-  status("Feature attributes saved.");scheduleAutoSave();
-  renderAttributeEditor();
+  status("Feature attributes saved.");scheduleAutoSave();renderAttributeEditor();
   if($("attributeLayer").value!=="")$("openTable").click();
 }
 function updateMultiSelectionUI(){
@@ -1663,12 +1662,12 @@ function currentAttributeItems(){
  return layer?vectorFeatures(layer):[];
 }
 function tableKeys(items){
- return [...new Set(items.flatMap(x=>Object.keys(x.feature.properties||{})))];
+ return [...new Set(items.flatMap(x=>Object.keys(x.feature.properties||{}).filter(k=>k!=="_attachments")))];
 }
 function renderEditableTable(){
  if(!currentAttributeLayer()){status("Select a feature layer.");return}
  const items=currentAttributeItems(),filter=$("attributeFilter").value.trim().toLowerCase();
- const rows=items.map((x,i)=>({x,i})).filter(o=>!filter||Object.values(o.x.feature.properties||{}).some(v=>String(v).toLowerCase().includes(filter)));
+ const rows=items.map((x,i)=>({x,i})).filter(o=>!filter||Object.entries(o.x.feature.properties||{}).some(([k,v])=>k!=="_attachments"&&String(v).toLowerCase().includes(filter)));
  const keys=tableKeys(items);
  let html="<table style='width:100%;border-collapse:collapse;direction:rtl'><thead><tr><th><input type='checkbox' class='attr-check' id='checkAllRows'></th><th>#</th>"+
  keys.map(k=>"<th style='padding:3px;border-bottom:1px solid #ccd9df;white-space:nowrap'>"+esc(k)+"</th>").join("")+"</tr></thead><tbody>";
@@ -1764,8 +1763,15 @@ $("saveTableEdits").onclick=()=>{
  table.querySelectorAll("tbody tr").forEach(row=>{
    const item=items[Number(row.dataset.index)];if(!item)return;
    ensureFeatureProperties(item.layer);
-   row.querySelectorAll(".cell-edit").forEach(inp=>item.feature.properties[inp.dataset.key]=inp.value);
-   item.feature.geometry=item.layer.toGeoJSON().geometry;
+   row.querySelectorAll(".cell-edit").forEach(inp=>{
+     const key=inp.dataset.key,oldValue=item.feature.properties[key],raw=inp.value;
+     let value=raw;
+     if(typeof oldValue==="number"&&raw.trim()!==""&&Number.isFinite(Number(raw)))value=Number(raw);
+     else if(typeof oldValue==="boolean"&&/^(true|false)$/i.test(raw))value=raw.toLowerCase()==="true";
+     else if(oldValue!==null&&typeof oldValue==="object"){try{value=JSON.parse(raw)}catch(e){value=raw}}
+     item.feature.properties[key]=value;
+   });
+   item.feature.geometry=item.layer.toGeoJSON().geometry;updateFeaturePopup(item.layer);
  });
  renderEditableTable();status("Attribute table edits saved.");scheduleAutoSave();
 };
