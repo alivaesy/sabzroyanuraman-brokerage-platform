@@ -1880,6 +1880,43 @@ $("gdbInput").onchange=async e=>{
   e.target.value="";
 };
 
+async function importDXFFile(file){
+  const enteredCrs=prompt("Enter the DXF drawing's source CRS (EPSG code). Default: "+currentCRS,currentCRS);
+  if(enteredCrs===null)return;
+  const sourceCRS=enteredCrs.trim().toUpperCase().replace(/^EPSG\s*:/,"EPSG:");
+  if(!/^EPSG:\d+$/.test(sourceCRS)){status("DXF import cancelled: enter a CRS such as EPSG:32638.");return}
+  try{
+    status("Reading DXF drawing in "+sourceCRS+"...");
+    const Gdal=await getGdalBrowser();
+    const opened=await Gdal.open([file]);
+    const datasets=opened.datasets||[];
+    if(!datasets.length)throw new Error("The DXF reader found no drawing data. Check that the file is a valid DXF.");
+    let imported=0;
+    for(let i=0;i<datasets.length;i++){
+      const ds=datasets[i];
+      let output=null;
+      try{
+        output=await Gdal.ogr2ogr(ds,["-f","GeoJSON","-s_srs",sourceCRS,"-t_srs","EPSG:4326"]);
+        const bytes=await Gdal.getFileBytes(output);
+        const json=JSON.parse(new TextDecoder().decode(bytes));
+        if(json&&json.type==="FeatureCollection"&&json.features&&json.features.length){
+          const layerName=file.name.replace(/\.[^.]+$/,"")+(datasets.length>1?" - "+(ds.info?.name||("Part "+(i+1))):"");
+          geoJsonLayer(json,layerName);
+          imported+=json.features.length;
+        }
+      }finally{
+        if(output){try{Gdal.close(output)}catch(_){}}
+        try{Gdal.close(ds)}catch(_){}
+      }
+    }
+    if(!imported)throw new Error("No supported CAD entities were found in this DXF file.");
+    status("DXF imported: "+imported+" feature(s). Source CRS: "+sourceCRS+".");
+  }catch(err){
+    console.error("DXF import failed:",err);
+    status("DXF import failed: "+(err.message||err)+" Check the drawing's source CRS and GDAL DXF support.");
+  }
+}
+
 $("fileInput").onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
   try{
@@ -1905,7 +1942,7 @@ function openDataFormatDialog(mode,sourceLayer=null){
   const importing=mode==="import",dlg=$("dataCommandDialog"),select=$("dataFormatSelect");
   exportSourceLayer=importing?null:sourceLayer;
   const choices=importing?[
-    ["geojson","GeoJSON (.geojson, .json)"],["kml","KML (.kml)"],["shapefile","Shapefile archive (.zip)"],["csv","XY data (.csv)"],["gdb","File geodatabase (.gdb)"]
+    ["geojson","GeoJSON (.geojson, .json)"],["kml","KML (.kml)"],["shapefile","Shapefile archive (.zip)"],["dxf","CAD drawing (.dxf)"],["csv","XY data (.csv)"],["gdb","File geodatabase (.gdb)"]
   ]:[
     ["geojson","GeoJSON (.geojson)"],["kml","KML (.kml)"],["gpx","GPX (.gpx)"],["shp","Shapefile archive (.zip)"],["gdb","File geodatabase archive (.zip)"],["dxf","DXF (.dxf)"]
   ];
@@ -1923,6 +1960,12 @@ $("dataDialogContinue").onclick=()=>{
   if(importing){
     if(format==="csv"){csvImport();return}
     if(format==="gdb"){ $("gdbInput").click();return }
+    if(format==="dxf"){
+      const input=document.createElement("input");
+      input.type="file";input.accept=".dxf";
+      input.onchange=async()=>{const file=input.files&&input.files[0];if(file)await importDXFFile(file)};
+      input.click();return;
+    }
     const input=$("fileInput");
     input.accept=format==="geojson"?".geojson,.json":format==="kml"?".kml":".zip";
     input.click();return;
