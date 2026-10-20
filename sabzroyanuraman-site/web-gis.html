@@ -933,6 +933,7 @@ function updateStandardActionButtons(){
   $("pasteBtn").disabled=!featureClipboard.length||!editSessionActive;
 }
 function clearWorkspace(){
+  if(blockForUnsavedTableEdits("clearing the workspace"))return;
   const count=drawn.getLayers().length+namedLayers.length;
   if(count&&!confirm("Create a new blank map and remove the current layers?"))return;
   recordUndoState();stopActiveDraw(true);drawn.clearLayers();
@@ -943,6 +944,7 @@ function clearWorkspace(){
   map.setView([34.5,46.5],8);status("New blank map created.");scheduleAutoSave();
 }
 function copySelectedFeatures(cut=false){
+  if(cut&&blockForUnsavedTableEdits("cutting features"))return;
   let records=selectedRecords();
   if(cut){
     records=editableSelectedRecords();if(!records.length)return;
@@ -971,6 +973,7 @@ function pasteFeatures(){
   refreshAll();updateStandardActionButtons();status(featureClipboard.length+" feature(s) pasted into the edit layer.");
 }
 function deleteSelectedFeatures(){
+  if(blockForUnsavedTableEdits("deleting features"))return;
   const records=editableSelectedRecords();if(!records.length)return;
   if(!confirm("Delete "+records.length+" selected feature(s)?"))return;
   records.forEach(r=>r.owner.layer.removeLayer(r.layer));
@@ -1698,6 +1701,7 @@ map.on("click",e=>{
 
 let lastAttributeLayerValue=$("attributeLayer").value;
 function hasUnsavedTableEdits(){return [...$("attributeTableWrap").querySelectorAll(".cell-edit")].some(input=>input.value!==input.dataset.original)}
+function blockForUnsavedTableEdits(action){if(!hasUnsavedTableEdits())return false;status("Save Table Edits before "+action+"; unsaved cell values have been preserved.");return true}
 $("attributeLayer").onchange=()=>{
  if(hasUnsavedTableEdits()){
   $("attributeLayer").value=lastAttributeLayerValue;
@@ -1789,6 +1793,7 @@ $("layerContextMenu").querySelectorAll("button[data-action]").forEach(btn=>btn.o
   else if(action==="show")map.addLayer(item.layer);
   else if(action==="hide")map.removeLayer(item.layer);
   else if(action==="remove"&&item.layer!==drawn){
+    if(blockForUnsavedTableEdits("removing a layer"))return;
     map.removeLayer(item.layer);layerControl.removeLayer(item.layer);
     const idx=namedLayers.findIndex(x=>x.layer===item.layer);if(idx>=0)namedLayers.splice(idx,1);refreshEditorTargets();
     refreshAttributeLayers();renderLayerList();status("Layer "+displayLayerName(item.name,namedLayers.length)+" removed.");
@@ -1845,6 +1850,7 @@ $("applyMultiAttribute").onclick=()=>{
   status("Updated field "+key+" on "+staged.length+" feature(s).");
 };
 $("deleteMultiSelected").onclick=()=>{
+  if(blockForUnsavedTableEdits("deleting features"))return;
   if(!editSessionActive){status("Start Editing before deleting features.");return}
   const targets=[...selectedFeatures].filter(layer=>isLayerInEditTarget(layer));
   if(!targets.length){status("Select features from the active edit layer first.");return}
@@ -2029,6 +2035,7 @@ $("fillSelected").onclick=()=>{
 $("measureSelected").onclick=()=>{if(selectedLayer)calcMeasure(selectedLayer);else status("Select a feature on the map first.");};
 $("basemap").onchange=e=>selectBasemap(e.target.value);
 $("clearDraw").onclick=()=>{
+  if(blockForUnsavedTableEdits("clearing drawings"))return;
   if(!drawn.getLayers().length){status("There are no features to clear.");return}
   if(confirm("Delete all drawings?")){recordUndoState();drawn.clearLayers();renderLayerList();status("Drawings cleared.")}
 };
