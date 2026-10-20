@@ -1770,13 +1770,27 @@ function currentAttributeItems(){
 function tableKeys(items){
  return [...new Set(items.flatMap(x=>Object.keys(x.feature.properties||{}).filter(k=>k!=="_attachments")))];
 }
+let attributeSort={key:null,direction:1};
 function renderEditableTable(){
  if(!currentAttributeLayer()){status("Select a feature layer.");return}
  const items=currentAttributeItems(),filter=$("attributeFilter").value.trim().toLowerCase();
- const rows=items.map((x,i)=>({x,i})).filter(o=>!filter||Object.entries(o.x.feature.properties||{}).some(([k,v])=>k!=="_attachments"&&(k.toLowerCase().includes(filter)||String(v===null||v===undefined?"":typeof v==="object"?JSON.stringify(v):v).toLowerCase().includes(filter))));
+ let rows=items.map((x,i)=>({x,i})).filter(o=>!filter||Object.entries(o.x.feature.properties||{}).some(([k,v])=>k!=="_attachments"&&(k.toLowerCase().includes(filter)||String(v===null||v===undefined?"":typeof v==="object"?JSON.stringify(v):v).toLowerCase().includes(filter))));
  const keys=tableKeys(items);
+ if(attributeSort.key&&keys.includes(attributeSort.key)){
+  const key=attributeSort.key,dir=attributeSort.direction;
+  rows.sort((a,b)=>{
+   const av=a.x.feature.properties?.[key],bv=b.x.feature.properties?.[key];
+   const aEmpty=av===null||av===undefined||av==="",bEmpty=bv===null||bv===undefined||bv==="";
+   if(aEmpty||bEmpty)return aEmpty===bEmpty?a.i-b.i:(aEmpty?1:-1);
+   let cmp;
+   if(typeof av==="number"&&typeof bv==="number")cmp=av-bv;
+   else if(typeof av==="boolean"&&typeof bv==="boolean")cmp=Number(av)-Number(bv);
+   else cmp=String(typeof av==="object"?JSON.stringify(av):av).localeCompare(String(typeof bv==="object"?JSON.stringify(bv):bv),undefined,{numeric:true,sensitivity:"base"});
+   return cmp===0?a.i-b.i:cmp*dir;
+  });
+ }
  let html="<table class='arc-attribute-grid'><thead><tr><th><input type='checkbox' class='attr-check' id='checkAllRows'></th><th>#</th>"+
- keys.map(k=>"<th style='padding:3px;border-bottom:1px solid #ccd9df;white-space:nowrap'>"+esc(k)+"</th>").join("")+"</tr></thead><tbody>";
+ keys.map(k=>"<th data-sort-key='"+esc(k)+"' title='Sort by "+esc(k)+"' style='padding:3px;border-bottom:1px solid #ccd9df;white-space:nowrap;cursor:pointer;user-select:none'>"+esc(k)+(attributeSort.key===k?(attributeSort.direction===1?" ▲":" ▼"):" ↕")+"</th>").join("")+"</tr></thead><tbody>";
  rows.forEach(o=>{html+="<tr data-index='"+o.i+"'><td><input type='checkbox' class='row-check attr-check' "+(selectedFeatures.has(o.x.layer)?"checked":"")+"></td><td>"+(o.i+1)+"</td>"+
  keys.map(k=>{const v=(o.x.feature.properties||{})[k],shown=v===null||v===undefined?"":typeof v==="object"?JSON.stringify(v):String(v);return "<td style='padding:2px'><input class='cell-edit' data-key='"+esc(k)+"' data-original='"+esc(shown)+"' value='"+esc(shown) +"'></td>"}).join("")+"</tr>"});
  $("attributeTableWrap").innerHTML=html+"</tbody></table>";$("attributeTableWrap").style.display="block";
@@ -1806,7 +1820,16 @@ function renderEditableTable(){
  if(all)all.onchange=()=>{rowChecks.forEach(ch=>ch.checked=all.checked);syncMapSelection()};
  rowChecks.forEach(ch=>ch.onchange=syncMapSelection);
  syncCheckAll();
- status(rows.length+" rows displayed.");
+ $("attributeTableWrap").querySelectorAll("th[data-sort-key]").forEach(th=>{
+  th.onclick=()=>{
+   if(hasUnsavedTableEdits()){status("Save Table Edits before sorting; unsaved cell values have been preserved.");return}
+   const key=th.dataset.sortKey;
+   if(attributeSort.key===key)attributeSort.direction*=-1;
+   else{attributeSort.key=key;attributeSort.direction=1}
+   renderEditableTable();
+  };
+ });
+ status(rows.length+" rows displayed."+(attributeSort.key?" · sorted by "+attributeSort.key+(attributeSort.direction===1?" ascending":" descending"):""));
 }
 $("openTable").onclick=()=>{
  if(hasUnsavedTableEdits()){status("Save Table Edits before reopening the table; unsaved values have been preserved.");return}
