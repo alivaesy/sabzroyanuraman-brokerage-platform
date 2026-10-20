@@ -2691,6 +2691,22 @@ function applySelectionVisual(){
     const el=v.layer.getElement();
     if(el)el.classList.toggle("multi-selected-feature",selectedFeatures.has(v.layer));
   }));
+  // Keep the visible attribute table synchronized with map-originated selections
+  // without rerendering cells and discarding unsaved edits.
+  const table=$("attributeTableWrap");
+  if(table&&table.style.display!=="none"){
+    const items=currentAttributeItems();
+    table.querySelectorAll("tbody tr").forEach(row=>{
+      const item=items[Number(row.dataset.index)],check=row.querySelector(".row-check");
+      if(item&&check)check.checked=selectedFeatures.has(item.layer);
+    });
+    const all=$("checkAllRows"),checks=[...table.querySelectorAll(".row-check")];
+    if(all){
+      const count=checks.filter(ch=>ch.checked).length;
+      all.checked=checks.length>0&&count===checks.length;
+      all.indeterminate=count>0&&count<checks.length;
+    }
+  }
   updateMultiSelectionUI();
 }
 function selectFeatureLayerObj(v,add=true){
