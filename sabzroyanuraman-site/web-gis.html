@@ -1131,13 +1131,60 @@ function setMapTool(name,button,message){
   if(button)button.classList.add("active");status(message);
 }
 function goToXY(){
-  const c=map.getCenter();
-  const raw=prompt("Enter X, Y coordinates in "+currentCRS+":",currentCRS==="EPSG:4326"?c.lng.toFixed(6)+", "+c.lat.toFixed(6):"");
-  if(raw===null)return;
-  const values=raw.trim().split(/[ ,;]+/).map(Number);
-  if(values.length<2||!values.slice(0,2).every(Number.isFinite)){status("Enter valid X and Y coordinates.");return;}
-  try{const ll=currentCRS==="EPSG:4326"?values.slice(0,2):projectCoords(currentCRS,"EPSG:4326",values.slice(0,2));map.setView([ll[1],ll[0]],Math.max(map.getZoom(),12));status("Map centered at X: "+values[0]+" | Y: "+values[1]);}
-  catch(err){status("Could not convert coordinates: "+err.message);}
+  const existing=document.getElementById("goToXYDialog");
+  if(existing){existing.remove();return;}
+  const overlay=document.createElement("div");
+  overlay.id="goToXYDialog";
+  overlay.setAttribute("role","dialog");
+  overlay.setAttribute("aria-modal","true");
+  overlay.setAttribute("aria-labelledby","goToXYTitle");
+  overlay.style.cssText="position:fixed;inset:0;z-index:10050;background:rgba(15,23,42,.42);display:flex;align-items:center;justify-content:center;padding:18px;";
+  const panel=document.createElement("section");
+  panel.style.cssText="width:min(470px,100%);background:var(--panel-bg,#fff);color:var(--text-color,#202124);border:1px solid var(--border-color,#c8ccd0);border-radius:7px;box-shadow:0 12px 40px rgba(0,0,0,.25);font:13px/1.45 Arial,sans-serif;overflow:hidden;";
+  panel.innerHTML='<header style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:var(--toolbar-bg,#f2f3f5);border-bottom:1px solid var(--border-color,#c8ccd0)"><strong id="goToXYTitle" style="font-size:14px">Go To XY</strong><button type="button" id="goToXYClose" aria-label="Close" style="border:0;background:transparent;font-size:21px;cursor:pointer;line-height:1">×</button></header><div style="padding:16px"><label for="goToXYSystem" style="display:block;margin-bottom:5px;font-weight:600">Coordinate system</label><select id="goToXYSystem" style="box-sizing:border-box;width:100%;padding:7px;margin-bottom:14px"><option value="map">Map coordinate system ('+String(currentCRS).replace(/&/g,"&amp;").replace(/</g,"&lt;") +')</option><option value="wgs84">Geographic coordinates (WGS 84, longitude/latitude)</option></select><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><label style="display:block;font-weight:600">X / Longitude<input id="goToXYX" inputmode="decimal" autocomplete="off" placeholder="Enter X" style="box-sizing:border-box;width:100%;padding:8px;margin-top:5px;border:1px solid #9ca3af;border-radius:3px;font-weight:400"></label><label style="display:block;font-weight:600">Y / Latitude<input id="goToXYY" inputmode="decimal" autocomplete="off" placeholder="Enter Y" style="box-sizing:border-box;width:100%;padding:8px;margin-top:5px;border:1px solid #9ca3af;border-radius:3px;font-weight:400"></label></div><div id="goToXYError" role="alert" style="min-height:18px;margin-top:8px;color:#b42318"></div><div style="font-size:12px;color:var(--muted,#666);margin:2px 0 14px">Enter decimal coordinates. In WGS 84, X is longitude and Y is latitude.</div><div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button type="button" id="goToXYFlash">Flash Location</button><button type="button" id="goToXYPan">Pan To</button><button type="button" id="goToXYZoom" style="font-weight:600">Zoom To</button></div></div>';
+  overlay.appendChild(panel);document.body.appendChild(overlay);
+  const xInput=panel.querySelector("#goToXYX"),yInput=panel.querySelector("#goToXYY"),system=panel.querySelector("#goToXYSystem"),error=panel.querySelector("#goToXYError");
+  const close=()=>{overlay.remove();document.removeEventListener("keydown",onKey)};
+  const onKey=e=>{if(e.key==="Escape")close()};
+  panel.querySelector("#goToXYClose").onclick=close;
+  overlay.addEventListener("click",e=>{if(e.target===overlay)close()});
+  document.addEventListener("keydown",onKey);
+  const getLatLng=()=>{
+    const x=Number(xInput.value.trim()),y=Number(yInput.value.trim());
+    if(!xInput.value.trim()||!yInput.value.trim()||!Number.isFinite(x)||!Number.isFinite(y))throw new Error("Enter valid numeric values for both X and Y.");
+    let ll;
+    if(system.value==="wgs84"){
+      if(x < -180 || x > 180 || y < -90 || y > 90)throw new Error("WGS 84 requires longitude between -180 and 180 and latitude between -90 and 90.");
+      ll=[x,y];
+    }else{
+      ll=currentCRS==="EPSG:4326"?[x,y]:projectCoords(currentCRS,"EPSG:4326",[x,y]);
+      if(!Array.isArray(ll)||ll.length<2||!ll.slice(0,2).every(Number.isFinite))throw new Error("The coordinates could not be converted from "+currentCRS+".");
+      if(ll[0] < -180 || ll[0] > 180 || ll[1] < -90 || ll[1] > 90)throw new Error("The coordinates fall outside the valid geographic range. Check the selected coordinate system.");
+    }
+    return L.latLng(ll[1],ll[0]);
+  };
+  const go=(action)=>{
+    try{
+      const ll=getLatLng();error.textContent="";
+      if(action==="flash"){
+        const marker=L.circleMarker(ll,{radius:10,color:"#ff2d2d",weight:3,fillColor:"#ffeb3b",fillOpacity:.9,interactive:false}).addTo(map);
+        map.setView(ll,Math.max(map.getZoom(),14));
+        setTimeout(()=>{if(map.hasLayer(marker))map.removeLayer(marker)},1800);
+        status("Flashing XY location.");
+      }else{
+        map.setView(ll,action==="zoom"?Math.max(map.getZoom(),16):map.getZoom());
+        status((action==="zoom"?"Zoomed to":"Centered map at")+" X: "+xInput.value.trim()+" | Y: "+yInput.value.trim());
+        close();
+      }
+    }catch(err){error.textContent=err.message||"Could not navigate to these coordinates."}
+  };
+  panel.querySelector("#goToXYFlash").onclick=()=>go("flash");
+  panel.querySelector("#goToXYPan").onclick=()=>go("pan");
+  panel.querySelector("#goToXYZoom").onclick=()=>go("zoom");
+  [xInput,yInput].forEach(input=>input.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();go("zoom")}}));
+  const center=map.getCenter();
+  if(currentCRS==="EPSG:4326"){xInput.value=center.lng.toFixed(6);yInput.value=center.lat.toFixed(6);system.value="wgs84";}
+  xInput.focus();xInput.select();
 }
 function startDraw(type,button){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("starting a drawing"))return;
