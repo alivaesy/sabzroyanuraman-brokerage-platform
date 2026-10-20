@@ -1557,37 +1557,61 @@ function runGisOperation(){
     let result=null,name="Geoprocessing";
     if(op==="buffer"){
       const d=Number($("bufferDistance").value);
-      if(!(d>0)){status("Buffer distance must be greater than zero.");return;}
+      if(!Number.isFinite(d)||d<=0){status("Buffer distance must be a finite number greater than zero.");return;}
       result=turf.buffer(f1,d,{units:"meters"});
+      if(result)result.properties={...(f1.properties||{}),operation:"Buffer",buffer_meters:d};
       name="Buffer "+d+"m";
     }else{
       if(!selectedOverlay){status("Shift-click to select the overlay feature.");return;}
       const f2=asFeature(selectedOverlay);
       if(!f2||!f2.geometry){status("The overlay feature geometry is invalid.");return;}
-      if(op==="clip"){
+      if(op==="clip"||op==="intersection"){
+        const polygonal=g=>g&&["Polygon","MultiPolygon"].includes(g.type);
+        if(!polygonal(f1.geometry)||!polygonal(f2.geometry)){
+          status((op==="clip"?"Clip":"Intersect")+" currently requires polygon or multipolygon input and overlay features. No output was created.");return;
+        }
         result=turf.intersect(turf.featureCollection([f1,f2]));
-        name="Clip";
-      }else if(op==="intersection"){
-        result=turf.intersect(turf.featureCollection([f1,f2]));
-        name="Intersect";
+        if(result){
+          if(op==="clip")result.properties={...(f1.properties||{}),_operation:"Clip"};
+          else{
+            const props={_operation:"Intersect"};
+            Object.entries(f1.properties||{}).forEach(([k,v])=>props["input_"+k]=v);
+            Object.entries(f2.properties||{}).forEach(([k,v])=>{let key="overlay_"+k;if(Object.prototype.hasOwnProperty.call(props,key))key+="_2";props[key]=v;});
+            result.properties=props;
+          }
+        }
+        name=op==="clip"?"Clip":"Intersect";
       }else if(op==="split"){
-        if(f1.geometry.type!=="LineString"||f2.geometry.type!=="LineString"){
-          status("Split requires two line features.");return;
+        const lineTypes=["LineString","MultiLineString"];
+        if(!lineTypes.includes(f1.geometry.type)||!lineTypes.includes(f2.geometry.type)){
+          status("Split requires line input and line overlay features.");return;
         }
         result=turf.lineSplit(f1,f2);
+        if(result&&result.features)result.features=result.features.map((f,i)=>({...f,properties:{...(f1.properties||{}),_operation:"Split",_part:i+1}}));
         name="Split";
       }else if(op==="merge"){
-        result=turf.union(turf.featureCollection([f1,f2]));
-        if(!result&&f1.geometry.type===f2.geometry.type)result=turf.combine(turf.featureCollection([f1,f2]));
+        const polygonal=g=>g&&["Polygon","MultiPolygon"].includes(g.type);
+        if(polygonal(f1.geometry)&&polygonal(f2.geometry)){
+          result=turf.union(turf.featureCollection([f1,f2]));
+        }else if(f1.geometry.type===f2.geometry.type){
+          result=turf.combine(turf.featureCollection([f1,f2]));
+          if(result&&result.features&&result.features.length===1){
+            result=result.features[0];
+            result.properties={...(f1.properties||{}),_operation:"Merge",_source_count:2};
+          }
+        }else{
+          status("Merge supports two polygonal features (union) or two features of the same geometry type. Mixed geometry types cannot be merged.");return;
+        }
+        if(result&&result.properties)result.properties={...(f1.properties||{}),...result.properties,_operation:"Merge"};
         name="Merge";
-      }
+      }else{status("Unknown geoprocessing operation.");return;}
     }
-    if(!result){status("The operation returned no result.");return;}
+    if(!result){status(name+" returned no geometry. The features may not overlap or may not be compatible.");return;}
     resultLayerFromFeature(result,name);
     status(name+" created and added to the Table Of Contents.");scheduleAutoSave();
   }catch(err){
     console.error(err);
-    status("Geoprocessing failed: "+err.message);
+    status("Geoprocessing failed: "+(err.message||"unknown geometry error"));
   }
 }
 
