@@ -1430,24 +1430,20 @@ function renderAttributeEditor(){
 function saveAttributes(){
   if(!selectedLayer){status("Select a feature before editing attributes.");return;}
   if(!editSessionActive||!isLayerInEditTarget(selectedLayer)){status("Start Editing this layer before changing attributes.");return;}
-  const props={};
-  let invalid=false;
+  const props={};let invalid=false;
   $("attributeRows").querySelectorAll(".attr-edit-row").forEach(row=>{
-    const key=row.querySelector(".attr-key").value.trim();
-    const value=row.querySelector(".attr-value").value;
+    const key=row.querySelector(".attr-key").value.trim(),value=row.querySelector(".attr-value").value;
     if(!key)return;
     if(Object.prototype.hasOwnProperty.call(props,key)){invalid=true;return;}
     props[key]=value;
   });
   if(invalid){status("Field names must be unique.");return;}
+  const previous=selectedLayer.feature?.properties||{};
+  if(JSON.stringify(previous)!==JSON.stringify(props))recordUndoState();
   ensureFeatureProperties(selectedLayer);
   selectedLayer.feature.properties=props;
   selectedLayer.feature.geometry=selectedLayer.toGeoJSON().geometry;
-  if(selectedLayer.getPopup){
-    const rows=Object.keys(props).map(k=>"<b>"+esc(k)+"</b>: "+esc(props[k])).join("<br>");
-    if(selectedLayer.setPopupContent&&selectedLayer.getPopup())selectedLayer.setPopupContent(rows||"No attributes available.");
-    else if(selectedLayer.bindPopup)selectedLayer.bindPopup(rows||"No attributes available.");
-  }
+  updateFeaturePopup(selectedLayer);
   status("Feature attributes saved.");scheduleAutoSave();
   renderAttributeEditor();
   if($("attributeLayer").value!=="")$("openTable").click();
@@ -1720,31 +1716,25 @@ $("selectFiltered").onclick=()=>{
 $("editAttributes").onclick=renderAttributeEditor;
 $("applyMultiAttribute").onclick=()=>{
   if(!editSessionActive){status("Start Editing before changing attributes.");return}
+  const targets=[...selectedFeatures].filter(layer=>isLayerInEditTarget(layer));
   const key=$("multiFieldName").value.trim(),value=$("multiFieldValue").value;
-  if(!selectedFeatures.size){status("Select one or more features first.");return}
+  if(!targets.length){status("Select features from the active edit layer first.");return}
   if(!key){status("Enter a field name.");return}
-  selectedFeatures.forEach(layer=>{
-    const p=ensureFeatureProperties(layer);p[key]=value;
-    layer.feature.geometry=layer.toGeoJSON().geometry;
-    const rows=Object.keys(p).map(k=>"<b>"+esc(k)+"</b>: "+esc(p[k])).join("<br>");
-    if(layer.setPopupContent&&layer.getPopup())layer.setPopupContent(rows||"No attributes available.");
-    else if(layer.bindPopup)layer.bindPopup(rows||"No attributes available.");
-  });
+  recordUndoState();
+  targets.forEach(layer=>{const p=ensureFeatureProperties(layer);p[key]=value;layer.feature.geometry=layer.toGeoJSON().geometry;updateFeaturePopup(layer);});
   renderAttributeEditor();scheduleAutoSave();
-  status("Updated field "+key+" on "+selectedFeatures.size+" features.");
+  status("Updated field "+key+" on "+targets.length+" feature(s).");
 };
 $("deleteMultiSelected").onclick=()=>{
   if(!editSessionActive){status("Start Editing before deleting features.");return}
-  if(!selectedFeatures.size)return;
-  const n=selectedFeatures.size;
-  selectedFeatures.forEach(layer=>{
-    if(drawn.hasLayer(layer))drawn.removeLayer(layer);
-    namedLayers.forEach(x=>{if(x.layer.hasLayer&&x.layer.hasLayer(layer))x.layer.removeLayer(layer)});
-    if(layer._map)map.removeLayer(layer);
-  });
+  const targets=[...selectedFeatures].filter(layer=>isLayerInEditTarget(layer));
+  if(!targets.length){status("Select features from the active edit layer first.");return}
+  if(!confirm("Delete "+targets.length+" selected feature(s) from the active edit layer?"))return;
+  recordUndoState();
+  targets.forEach(layer=>editTarget.removeLayer(layer));
   clearMultiSelection();selectedLayer=null;selectedOverlay=null;
-  renderLayerList();refreshAttributeLayers();scheduleAutoSave();
-  status(n+" features deleted.");
+  renderLayerList();refreshAttributeLayers();refreshEditorTargets();scheduleAutoSave();
+  status(targets.length+" feature(s) deleted from the active edit layer.");
 };
 $("clearMultiSelected").onclick=()=>{clearMultiSelection();selectedLayer=null;selectedOverlay=null;renderAttributeEditor();status("Multiple selection cleared.")};
 $("runGisOperation").onclick=runGisOperation;
@@ -2693,11 +2683,12 @@ function newLayerFromSelection(){
   renderLayerList(); refreshAttributeLayers(); scheduleAutoSave(); status("Layer created from selected features.");
 }
 function cloneSelectedFeatures(){
-  const rs=editableSelectedRecords();if(!rs.length)return;
-  const clones=rs.map(r=>{const f=JSON.parse(JSON.stringify(r.feature)); f.properties={...(f.properties||{}),_clone:true}; return f;});
+  const rs=editableSelectedRecords(false);if(!rs.length)return;
+  const clones=rs.map(r=>{const f=JSON.parse(JSON.stringify(r.feature));f.properties={...(f.properties||{}),_clone:true};return f;});
   const layer=L.geoJSON({type:"FeatureCollection",features:clones},{onEachFeature:(f,l)=>bindFeature(l,f)});
-  layer.addTo(map); namedLayers.push({name:"Clone_"+Date.now(),layer,source:"clone"});
-  renderLayerList(); refreshAttributeLayers(); scheduleAutoSave(); status(clones.length+" features copied.");
+  addNamedLayer("Clone_"+new Date().toISOString().replace(/[:.]/g,"-"),layer,true);
+  refreshEditorTargets();refreshAttributeLayers();scheduleAutoSave();
+  status(clones.length+" feature(s) cloned into a new vector layer.");
 }
 function editableSelectedRecords(recordHistory=true){
   if(!editSessionActive){status("Start Editing before modifying features.");return []}
