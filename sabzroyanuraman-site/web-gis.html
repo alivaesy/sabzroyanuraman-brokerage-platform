@@ -897,8 +897,11 @@ async function stopEditing(){
     status("Edit session remains active; finish or cancel the current sketch first.");
     return;
   }
-  if(!await saveEdits())return;
+  // Finalize live geometry before serializing the project. Leaflet.Draw can
+  // keep vertex edits on the layer while layer.feature.geometry is still stale.
+  // Cancel unfinished sketches first, then sync vertex edits, then persist.
   stopActiveDraw(true);stopReshapeDraw();stopVertexEditing();
+  if(!await saveEdits())return;
   editSessionActive=false;editTarget=drawn;
   updateEditorToolbar();
   status("Edit session stopped and project saved locally.");
