@@ -3037,7 +3037,7 @@ function rotateSelected(){
   try{rs.forEach(r=>{
     if(!r.feature.geometry)throw new Error("A selected feature has no geometry.");
     const c=featureCenterLatLng(r.layer);if(!c)throw new Error("Could not determine a rotation origin.");
-    const rotated=turf.transformRotate(r.feature,deg,{pivot:turf.point([c.lng,c.lat])});
+    const rotated=turf.transformRotate(r.feature,deg,{pivot:[c.lng,c.lat]});
     updates.push({r,geometry:rotated.geometry});
   });}catch(e){status("Rotation cancelled: "+(e.message||"geometry transform failed"));return;}
   recordUndoState();
