@@ -2592,8 +2592,12 @@ function restoreProject(project,fromHistory=false){
   $("projectStatus").textContent= "Project restored: "+(project.savedAt?new Date(project.savedAt).toLocaleString("en-US"):"—");
   // Undo/Redo should restore the map state without unexpectedly ending an active edit session.
   if(historyEditState?.active){
-    const restoredTarget=historyEditState.isDrawnTarget?drawn:namedLayers.find(item=>item.name===historyEditState.targetName)?.layer;
-    if(restoredTarget){editSessionActive=true;editTarget=restoredTarget;}
+    const restoredIndex=namedLayers.findIndex(item=>item.name===historyEditState.targetName&&isVectorLayer(item.layer));
+    const restoredTarget=historyEditState.isDrawnTarget?drawn:(restoredIndex>=0?namedLayers[restoredIndex].layer:null);
+    if(restoredTarget){
+      editSessionActive=true;editTarget=restoredTarget;
+      const targetSelect=$("editTargetLayer");if(targetSelect)targetSelect.value=historyEditState.isDrawnTarget?"drawn":String(restoredIndex);
+    }
   }
   // The project may contain zero layers, so do not rely on addNamedLayer to refresh this selector.
   refreshEditorTargets();refreshAttributeLayers();updateEditorToolbar();updateStandardActionButtons();
