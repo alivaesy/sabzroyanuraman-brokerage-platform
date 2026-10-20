@@ -2722,7 +2722,8 @@ function reshapeSelected(){
   if(!r){status("Select one polygon feature first.");return;}
   const type=r.feature?.geometry?.type;
   if(!["Polygon","MultiPolygon"].includes(type)){status("Reshape currently supports Polygon and MultiPolygon features only.");return;}
-  if(editSessionActive&&r.owner?.layer!==editTarget){status("The selected feature is not in the active edit layer.");return;}
+  if(!editSessionActive){status("Start Editing before reshaping features.");return;}
+  if(r.owner?.layer!==editTarget){status("The selected feature is not in the active edit layer.");return;}
   if(typeof turf.booleanIntersects!=="function"||typeof turf.booleanWithin!=="function"||typeof turf.difference!=="function"||typeof turf.union!=="function"){
     status("Reshape unavailable: required Turf geometry operations are not loaded.");return;
   }
