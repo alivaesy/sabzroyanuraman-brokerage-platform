@@ -1893,6 +1893,10 @@ $("saveTableEdits").onclick=()=>{
    const props=item.feature.properties||{},next={};
    row.querySelectorAll(".cell-edit").forEach(inp=>{
     const key=inp.dataset.key,oldValue=props[key],raw=inp.value;
+    // Only write cells the user actually changed. The table's columns are the
+    // union of fields across features, so untouched blank cells may mean a
+    // missing property or null rather than an empty string.
+    if(raw===inp.dataset.original)return;
     let value=raw;
     if(typeof oldValue==="number"){
      if(raw.trim()==="")value=null;
