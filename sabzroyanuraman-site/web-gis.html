@@ -2192,7 +2192,16 @@ $("basemap").onchange=e=>selectBasemap(e.target.value);
 $("clearDraw").onclick=()=>{
   if(blockForUnsavedTableEdits("clearing drawings"))return;
   if(!drawn.getLayers().length){status("There are no features to clear.");return}
-  if(confirm("Delete all drawings?")){recordUndoState();drawn.clearLayers();renderLayerList();status("Drawings cleared.")}
+  if(confirm("Delete all drawings?")){
+    recordUndoState();
+    const removed=new Set(drawn.getLayers());
+    selectedFeatures.forEach(layer=>{if(removed.has(layer))selectedFeatures.delete(layer)});
+    if(selectedLayer&&removed.has(selectedLayer))selectedLayer=null;
+    if(selectedOverlay&&removed.has(selectedOverlay))selectedOverlay=null;
+    drawn.clearLayers();
+    renderLayerList();refreshAttributeLayers();refreshEditorTargets();renderEditableTable();
+    updateStandardActionButtons();scheduleAutoSave();status("Drawings cleared and project saved locally.");
+  }
 };
 $("fitDraw").onclick=()=>{
   const layers=drawn.getLayers();
