@@ -3273,6 +3273,27 @@ function reshapeSelected(){
   h.enable();
 }
 function stopVertexEditing(){
+  const owner=window._vertexEditOwner,layers=Array.isArray(window._vertexEditLayers)?window._vertexEditLayers:[],baseline=window._vertexEditBaseline;
+  let geometryChanged=false;
+  // Leaflet.Draw changes layer coordinates before its Save button emits EDITED.
+  // Finalize those live coordinates before removing the toolbar (e.g. Stop Editing).
+  if(owner&&layers.length&&editSessionActive&&editTarget===owner){
+    layers.forEach(layer=>{
+      if(!layer||!owner.hasLayer(layer)||typeof layer.toGeoJSON!=="function")return;
+      try{
+        const oldFeature=layer.feature||{},updated=layer.toGeoJSON();
+        if(JSON.stringify(oldFeature.geometry)!==JSON.stringify(updated.geometry))geometryChanged=true;
+        updated.properties={...(oldFeature.properties||{}),...(updated.properties||{})};
+        layer.feature=updated;
+      }catch(err){console.warn("Could not finalize vertex geometry",err)}
+    });
+    if(geometryChanged&&baseline&&!historyRestoring){
+      undoStack.push(baseline);if(undoStack.length>40)undoStack.shift();
+      redoStack.length=0;updateUndoButtons();
+      refreshAll();scheduleAutoSave();
+      status("Vertex edits finalized and added to Undo history.");
+    }
+  }
   if(window._vertexEditControl){
     try{map.removeControl(window._vertexEditControl)}catch(err){console.warn("Could not remove vertex editing toolbar",err)}
     window._vertexEditControl=null;
@@ -3281,7 +3302,7 @@ function stopVertexEditing(){
     try{map.off(L.Draw.Event.EDITED,window._vertexEditHandler)}catch(err){console.warn("Could not detach vertex edit listener",err)}
     window._vertexEditHandler=null;
   }
-  window._vertexEditOwner=null;
+  window._vertexEditOwner=null;window._vertexEditLayers=null;window._vertexEditBaseline=null;
 }
 function editVertices(){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("editing feature vertices"))return;
@@ -3298,7 +3319,7 @@ function editVertices(){
     // selection-based desktop GIS editor, instead of exposing every layer feature.
     const editableGroup=L.featureGroup(selectedLayers);
     let baseline=JSON.parse(JSON.stringify(serializeProject()));
-    window._vertexEditOwner=owner;
+    window._vertexEditOwner=owner;window._vertexEditLayers=selectedLayers;window._vertexEditBaseline=baseline;
     window._vertexEditHandler=function(event){
       if(!editSessionActive||editTarget!==owner){status("Vertex edits ignored because the active edit layer changed.");return;}
       const edited=[];
@@ -3315,7 +3336,7 @@ function editVertices(){
         if(current!==previous){
           undoStack.push(baseline);if(undoStack.length>40)undoStack.shift();
           redoStack.length=0;updateUndoButtons();
-          baseline=JSON.parse(current);
+          baseline=JSON.parse(current);window._vertexEditBaseline=baseline;
         }
       }catch(err){console.warn("Could not preserve vertex-edit history:",err)}
       refreshAll();
