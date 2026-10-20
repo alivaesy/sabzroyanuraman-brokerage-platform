@@ -2122,7 +2122,7 @@ $("pasteRows").onclick=()=>{
     // Match fields by name, not column position. Leave destination-only fields
     // untouched rather than replacing them with blanks from an unrelated schema.
     if(!sourceKeys.includes(key))return;
-    const old=props[key],sourceIndex=sourceKeys.indexOf(key),raw=src[sourceIndex];
+    const old=props[key],sourceIndex=sourceKeys.indexOf(key),raw=src[sourceIndex]===undefined?"":src[sourceIndex];
     let value=raw;
     if(typeof old==="number"){
      if(raw===""||raw===null||raw===undefined)value=null;
