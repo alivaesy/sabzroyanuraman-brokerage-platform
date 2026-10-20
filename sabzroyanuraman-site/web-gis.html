@@ -1245,45 +1245,54 @@ function startNativeDraw(type,button){
     if(finished||e.originalEvent?.detail>=2)return;
     let point=e.latlng;
     const tolerance=Number(window._drawingConstraintMeters)||0;
-    if(tolerance){
+    if(tolerance>0){
       let nearest=null,best=tolerance;
       const consider=candidate=>{
         if(!candidate||!Number.isFinite(candidate.lat)||!Number.isFinite(candidate.lng))return;
         const d=point.distanceTo(candidate);
-        if(d<best){best=d;nearest=candidate}
+        if(d<best){best=d;nearest=candidate;}
       };
-      const visitCoordinates=coords=>{
-        if(!Array.isArray(coords)||!coords.length)return;
-        // GeoJSON Point coordinates are a single [longitude, latitude, ...] position.
-        if(typeof coords[0]==="number"&&typeof coords[1]==="number"){
-          consider(L.latLng(coords[1],coords[0]));
-          return;
+      const addVertex=pos=>{
+        if(Array.isArray(pos)&&typeof pos[0]==="number"&&typeof pos[1]==="number"){
+          consider(L.latLng(pos[1],pos[0]));
         }
-        // A coordinate sequence is a list of [longitude, latitude, ...] positions.
-        if(Array.isArray(coords[0])&&typeof coords[0][0]==="number"&&typeof coords[0][1]==="number"){
-          const positions=coords;
-          positions.forEach(pos=>consider(L.latLng(pos[1],pos[0])));
-          // Snap to the closest point on segments as well as to their vertices.
-          // The candidate is found in map projection, then checked in ground meters.
-          for(let i=1;i<positions.length;i++){
-            const a=L.latLng(positions[i-1][1],positions[i-1][0]);
-            const b=L.latLng(positions[i][1],positions[i][0]);
-            try{
-              const p1=map.latLngToLayerPoint(a),p2=map.latLngToLayerPoint(b),p=map.latLngToLayerPoint(point);
-              const closest=L.LineUtil.closestPointOnSegment(p,p1,p2);
-              if(closest)consider(map.layerPointToLatLng(closest));
-            }catch(_){}
-          }
-          return;
+      };
+      const addLine=positions=>{
+        if(!Array.isArray(positions))return;
+        positions.forEach(addVertex);
+        for(let i=1;i<positions.length;i++){
+          const a=positions[i-1],b=positions[i];
+          if(!Array.isArray(a)||!Array.isArray(b)||typeof a[0]!=="number"||typeof a[1]!=="number"||typeof b[0]!=="number"||typeof b[1]!=="number")continue;
+          try{
+            const p1=map.latLngToLayerPoint(L.latLng(a[1],a[0]));
+            const p2=map.latLngToLayerPoint(L.latLng(b[1],b[0]));
+            const p=map.latLngToLayerPoint(point);
+            const closest=L.LineUtil.closestPointOnSegment(p,p1,p2);
+            if(closest)consider(map.layerPointToLatLng(closest));
+          }catch(_){}
         }
-        coords.forEach(visitCoordinates);
+      };
+      const visitGeometry=geometry=>{
+        if(!geometry)return;
+        const coords=geometry.coordinates;
+        switch(geometry.type){
+          case "Point": addVertex(coords); break;
+          case "MultiPoint": if(Array.isArray(coords))coords.forEach(addVertex); break;
+          case "LineString": addLine(coords); break;
+          case "MultiLineString": if(Array.isArray(coords))coords.forEach(addLine); break;
+          case "Polygon": if(Array.isArray(coords))coords.forEach(addLine); break;
+          case "MultiPolygon": if(Array.isArray(coords))coords.forEach(poly=>Array.isArray(poly)&&poly.forEach(addLine)); break;
+          case "GeometryCollection": if(Array.isArray(geometry.geometries))geometry.geometries.forEach(visitGeometry); break;
+        }
       };
       getFeatureRecords().forEach(record=>{
-        // Match only visible layers; hidden reference data should not affect snapping.
+        // Snap against visible reference features only; do not treat MultiPoint
+        // members as a line segment between unrelated points.
         if(!record.owner?.layer||!map.hasLayer(record.owner.layer))return;
-        try{visitCoordinates(record.feature.geometry?.coordinates)}catch(_){}
+        try{visitGeometry(record.feature.geometry);}catch(_){}
       });
       if(nearest)point=nearest;
+    }
     }
     points.push(point);
     if(type==="Marker"||((type==="Circle"||type==="Rectangle")&&points.length>=2)){complete();return}
