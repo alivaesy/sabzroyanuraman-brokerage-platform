@@ -1501,7 +1501,18 @@ $("timeSliderBtn").onclick=startTimeSlider;
 $("createViewerBtn").onclick=createMapViewer;
 $("saveEditsBtn").onclick=saveEdits;
 $("stopEditingBtn").onclick=stopEditing;
-$("editTargetLayer").onchange=()=>{const v=$("editTargetLayer").value;editTarget=v==="drawn"?drawn:(namedLayers[Number(v)]?.layer||drawn)};
+$("editTargetLayer").onchange=()=>{
+ const v=$("editTargetLayer").value;
+ if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("changing the edit target")){
+  const oldIndex=editTarget===drawn?"drawn":String(namedLayers.findIndex(x=>x.layer===editTarget));
+  $("editTargetLayer").value=oldIndex!=="-1"?oldIndex:"drawn";
+  return;
+ }
+ const next=v==="drawn"?drawn:(namedLayers[Number(v)]?.layer||drawn);
+ if(next!==editTarget&&editSessionActive)recordUndoState();
+ editTarget=next;
+ updateEditorToolbar();
+};
 document.querySelectorAll("[data-editor-draw]").forEach(b=>b.onclick=()=>startDraw(b.dataset.editorDraw,b));
 $("finishSketchBtn").onclick=()=>{if(activeDrawHandler&&activeDrawPurpose==="draw"&&typeof activeDrawHandler.completeShape==="function")activeDrawHandler.completeShape();else stopActiveDraw(true)};
 $("goToXYBtn").onclick=goToXY;
