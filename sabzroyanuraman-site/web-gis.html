@@ -3172,6 +3172,7 @@ function nearestMatchTool(){
     src.forEach(v=>{
       try{
         const nearest=nearestPointOnFeatureSafe(v.feature,p);
+        if(!nearest)return;
         const d=turf.distance(p,nearest,{units:"meters"});
         if(d<bestD){bestD=d;best=v.feature;}
       }catch(_){}
@@ -3189,6 +3190,7 @@ function nearestMatchTool(){
   $("professionalToolOutput").textContent="Nearest feature match: "+count+" target features | Maximum matched distance: "+fmtMeters(max)+" | "+source.name+" → "+target.name;
   status("Nearest-feature attributes calculated for "+count+" target feature(s).");
 }
+
 function transferAttributesTool(){
   const layers=getAllVectorItems();
   if(layers.length<2){status("At least two vector layers are required.");return;}
@@ -3213,12 +3215,12 @@ function transferAttributesTool(){
   if(!chosen.length){status("No valid source fields were selected.");return;}
   recordUndoState();let count=0;
   dst.forEach(t=>{
-    let best=null,bestD=Infinity;
-    let targetPoint;
+    let best=null,bestD=Infinity,targetPoint;
     try{targetPoint=t.feature.geometry.type==="Point"?turf.point(t.feature.geometry.coordinates):turf.centroid(t.feature);}catch(_){return;}
     src.forEach(v=>{
       try{
         const nearest=nearestPointOnFeatureSafe(v.feature,targetPoint);
+        if(!nearest)return;
         const d=turf.distance(targetPoint,nearest,{units:"meters"});
         if(d<bestD){bestD=d;best=v.feature;}
       }catch(_){}
@@ -3233,6 +3235,7 @@ function transferAttributesTool(){
   $("professionalToolOutput").textContent="Transferred "+chosen.length+" field(s) to "+count+" target feature(s) within "+maxDistance+" m. "+source.name+" → "+target.name;
   status("Attribute transfer complete: "+count+" target feature(s) updated.");
 }
+
 function networkQaTool(){
   const items=getAllVectorItems();
   const pointItems=items.filter(x=>vectorFeatures(x.layer).some(v=>v.feature.geometry.type==="Point"));
@@ -3271,8 +3274,7 @@ function snapTool(){
   if(!Number.isFinite(tolerance)||tolerance<=0){status("Snap tolerance must be greater than zero.");return;}
   const lineParts=[];
   lineRecords.forEach(r=>{
-    const g=r.feature.geometry;
-    const parts=g.type==="LineString"?[g.coordinates]:g.coordinates;
+    const g=r.feature.geometry,parts=g.type==="LineString"?[g.coordinates]:g.coordinates;
     parts.forEach(coords=>{if(Array.isArray(coords)&&coords.length>=2){try{lineParts.push(turf.lineString(coords));}catch(_){}}});
   });
   if(!lineParts.length){status("No usable line segments were found.");return;}
@@ -3287,12 +3289,78 @@ function snapTool(){
         if(distance<bestDistance){bestDistance=distance;best=candidate;}
       }catch(_){}
     });
-    if(best&&bestDistance<=tolerance){
-      r.feature.geometry.coordinates=best.geometry.coordinates.slice(0,2);
-      changed++;
-    }
+    if(best&&bestDistance<=tolerance){r.feature.geometry.coordinates=best.geometry.coordinates.slice(0,2);changed++;}
   });
   if(changed){rebuildVectorLayerGeometry(selected);refreshAll();}
   $("professionalToolOutput").textContent="Snapping result: "+changed+" of "+selected.length+" selected point(s) moved to the nearest line segment (tolerance "+tolerance+" m).";
   status(changed+" selected point feature(s) snapped to line segments.");
 }
+
+$("exportSHP").onclick=exportRealSHP;
+$("exportGDB").onclick=exportRealGDB;
+$("exportDXF").onclick=exportRealDXF;
+$("crsPreset").onchange=e=>{
+  const v=e.target.value;
+  $("customCrsRow").style.display=v==="custom"?"flex":"none";
+  if(v!=="custom")setCRS("EPSG:"+v);
+};
+$("applyCrs").onclick=()=>{
+  const v=$("customEpsg").value.trim();
+  try{setCRS("EPSG:"+v.replace(/^EPSG:/i,""))}catch(e){status(e.message)}
+};
+})();
+</script>
+<script>
+/* Keep ArcMap menu opening independent from GIS initialization. */
+(function(){
+  const buttons=[...document.querySelectorAll(".arc-menu-btn")];
+  const panels=[...document.querySelectorAll(".arc-dropdown")];
+  const closeAll=()=>{
+    panels.forEach(panel=>panel.classList.remove("show"));
+    buttons.forEach(button=>{button.classList.remove("active");button.setAttribute("aria-expanded","false");});
+  };
+  buttons.forEach(button=>{
+    button.type="button";
+    button.setAttribute("aria-controls",button.dataset.menu);
+    button.setAttribute("aria-expanded","false");
+    button.addEventListener("click",event=>{
+      event.preventDefault();
+      event.stopPropagation();
+      const panel=document.getElementById(button.dataset.menu);
+      if(!panel)return;
+      const shouldOpen=!panel.classList.contains("show");
+      closeAll();
+      if(shouldOpen){
+        const maxLeft=Math.max(0,window.innerWidth-240);
+        panel.style.left=Math.max(0,Math.min(button.getBoundingClientRect().left,maxLeft))+"px";
+        panel.classList.add("show");
+        button.classList.add("active");
+        button.setAttribute("aria-expanded","true");
+      }
+    });
+  });
+  document.addEventListener("click",event=>{
+    if(!event.target.closest(".arc-menu")&&!event.target.closest(".arc-dropdown"))closeAll();
+  });
+})();
+</script>
+<script>
+(function(){
+  const sections=[...document.querySelectorAll(".accordion-section")];
+  sections.forEach(sec=>{
+    const head=sec.querySelector(".accordion-head");
+    head?.addEventListener("click",()=>{
+      const wasOpen=sec.classList.contains("open");
+      sections.forEach(x=>x.classList.remove("open"));
+      if(!wasOpen)sec.classList.add("open");
+    });
+  });
+  const openSection=name=>{
+    const sec=document.querySelector('.accordion-section[data-accordion="'+name+'"]');
+    if(sec){sections.forEach(x=>x.classList.remove("open"));sec.classList.add("open");sec.scrollIntoView({block:"nearest"});}
+  };
+  window.openWebGisPanelSection=openSection;
+})();
+</script>
+</body>
+</html>
