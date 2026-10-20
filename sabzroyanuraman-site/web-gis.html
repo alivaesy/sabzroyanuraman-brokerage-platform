@@ -970,7 +970,7 @@ function clearWorkspace(){
   namedLayers.slice().forEach(item=>{map.removeLayer(item.layer);layerControl.removeLayer(item.layer)});
   namedLayers.length=0;selectedFeatures.clear();selectedLayer=null;selectedOverlay=null;
   currentProjectId=null;$("projectName").value="New Project";window.currentProjectDescription="";
-  editSessionActive=false;editTarget=drawn;updateEditorToolbar();renderLayerList();refreshAttributeLayers();
+  editSessionActive=false;editTarget=drawn;refreshEditorTargets();updateEditorToolbar();renderLayerList();refreshAttributeLayers();
   map.setView([34.5,46.5],8);status("New blank map created.");scheduleAutoSave();
 }
 function copySelectedFeatures(cut=false){
