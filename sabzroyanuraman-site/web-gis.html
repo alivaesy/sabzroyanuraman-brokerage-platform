@@ -2216,6 +2216,10 @@ function restoreProject(project,fromHistory=false){
   if(!project||![1,2].includes(project.version)){status("This project file version is not supported.");return}
   if(!fromHistory&&!historyRestoring)recordUndoState();
   const previousHistoryRestoring=historyRestoring;historyRestoring=true;
+  try{
+    stopActiveDraw(true);
+    if(selectedFeatures&&typeof selectedFeatures.clear==="function")selectedFeatures.clear();
+    selectedLayer=null;selectedOverlay=null;
   editSessionActive=false;editTarget=drawn;
   window.currentProjectDescription=project.description||"";
   if(project.crs)try{setCRS(project.crs)}catch(e){}
@@ -2247,8 +2251,9 @@ function restoreProject(project,fromHistory=false){
   renderLayerList();refreshAttributeLayers();
   $("projectStatus").textContent= "Project restored: "+(project.savedAt?new Date(project.savedAt).toLocaleString("en-US"):"—");
   updateEditorToolbar();updateStandardActionButtons();
-  historyRestoring=previousHistoryRestoring;
-  status("Project restored.");
+    status("Project restored.");
+  }finally{historyRestoring=previousHistoryRestoring;updateUndoButtons();}
+
 }
 async function saveProject(){
   try{
