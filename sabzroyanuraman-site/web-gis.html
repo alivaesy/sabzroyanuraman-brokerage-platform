@@ -3153,21 +3153,25 @@ function stopVertexEditing(){
 }
 function editVertices(){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("editing feature vertices"))return;
-  const r=selectedRecords()[0];
-  if(!r){status("Select a feature first.");return;}
-  if(!editSessionActive){status("Start Editing before modifying vertices.");return;}
-  const owner=r.owner?.layer||drawn;
-  if(!owner||!owner.getLayers){status("This feature cannot be vertex edited.");return;}
-  if(owner!==editTarget){status("The selected feature is not in the active edit layer.");return;}
+  const selected=editableSelectedRecords(false);
+  if(!selected.length)return;
+  const owner=selected[0].owner?.layer||drawn;
+  if(!owner||!owner.getLayers){status("These features cannot be vertex edited.");return;}
+  if(selected.some(r=>(r.owner?.layer||drawn)!==owner)){status("Vertex editing requires selected features from one layer at a time.");return;}
+  const selectedLayers=selected.map(r=>r.layer).filter(layer=>layer&&owner.hasLayer(layer));
+  if(!selectedLayers.length){status("The selected features are no longer available in the active layer.");return;}
   try{
     stopVertexEditing();
+    // Restrict the Leaflet Draw edit toolbar to the selected features, as in a
+    // selection-based desktop GIS editor, instead of exposing every layer feature.
+    const editableGroup=L.featureGroup(selectedLayers);
     let baseline=JSON.parse(JSON.stringify(serializeProject()));
     window._vertexEditOwner=owner;
     window._vertexEditHandler=function(event){
       if(!editSessionActive||editTarget!==owner){status("Vertex edits ignored because the active edit layer changed.");return;}
       const edited=[];
       event.layers.eachLayer(layer=>{
-        if(!layer||typeof layer.toGeoJSON!=="function"||!owner.hasLayer(layer))return;
+        if(!layer||typeof layer.toGeoJSON!=="function"||!selectedLayers.includes(layer)||!owner.hasLayer(layer))return;
         const oldFeature=layer.feature||{},updated=layer.toGeoJSON();
         updated.properties={...(oldFeature.properties||{}),...(updated.properties||{})};
         layer.feature=updated;
@@ -3184,15 +3188,15 @@ function editVertices(){
       }catch(err){console.warn("Could not preserve vertex-edit history:",err)}
       refreshAll();
       scheduleAutoSave();
-      status("Saved vertex edits for "+edited.length+" feature(s).");
+      status("Saved vertex edits for "+edited.length+" selected feature(s).");
     };
     map.on(L.Draw.Event.EDITED,window._vertexEditHandler);
     window._vertexEditControl=new L.Control.Draw({
       draw:false,
-      edit:{featureGroup:owner,selectedPathOptions:{maintainColor:true,opacity:0.9}}
+      edit:{featureGroup:editableGroup,selectedPathOptions:{maintainColor:true,opacity:0.9}}
     });
     map.addControl(window._vertexEditControl);
-    status("Vertex editing toolbar enabled. Click the pencil, edit vertices, then click Save in the toolbar.");
+    status("Vertex editing enabled for "+selectedLayers.length+" selected feature(s). Click the pencil, edit vertices, then save in the toolbar.");
   }catch(e){
     if(window._vertexEditHandler)map.off(L.Draw.Event.EDITED,window._vertexEditHandler);
     window._vertexEditHandler=null;
