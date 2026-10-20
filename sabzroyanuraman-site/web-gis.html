@@ -1942,7 +1942,7 @@ function openDataFormatDialog(mode,sourceLayer=null){
   const importing=mode==="import",dlg=$("dataCommandDialog"),select=$("dataFormatSelect");
   exportSourceLayer=importing?null:sourceLayer;
   const choices=importing?[
-    ["geojson","GeoJSON (.geojson, .json)"],["kml","KML (.kml)"],["shapefile","Shapefile archive (.zip)"],["dxf","CAD drawing (.dxf)"],["csv","XY data (.csv)"],["gdb","File geodatabase (.gdb)"]
+    ["geojson","GeoJSON (.geojson, .json)"],["kml","KML (.kml)"],["shapefile","Shapefile archive (.zip)"],["dxf","CAD drawing (.dxf)"],["dwg","AutoCAD drawing (.dwg)"],["csv","XY data (.csv)"],["gdb","File geodatabase (.gdb)"]
   ]:[
     ["geojson","GeoJSON (.geojson)"],["kml","KML (.kml)"],["gpx","GPX (.gpx)"],["shp","Shapefile archive (.zip)"],["gdb","File geodatabase archive (.zip)"],["dxf","DXF (.dxf)"]
   ];
@@ -1964,6 +1964,28 @@ $("dataDialogContinue").onclick=()=>{
       const input=document.createElement("input");
       input.type="file";input.accept=".dxf";
       input.onchange=async()=>{const file=input.files&&input.files[0];if(file)await importDXFFile(file)};
+      input.click();return;
+    }
+    if(format==="dwg"){
+      const input=document.createElement("input");
+      input.type="file";input.accept=".dwg";
+      input.onchange=async()=>{
+        const file=input.files&&input.files[0];if(!file)return;
+        try{
+          status("Loading DWG converter (first use may take a while)...");
+          const converter=await import("https://esm.sh/dwgdxf@2.0.1?bundle");
+          const dwgBytes=new Uint8Array(await file.arrayBuffer());
+          status("Converting DWG to DXF in this browser...");
+          const dxfBytes=await converter.convertDwgToDxf(dwgBytes,{wasmBase:converter.CDN_WASM_BASE});
+          if(!dxfBytes||!dxfBytes.length)throw new Error("The converter returned an empty DXF.");
+          const dxfFile=new File([dxfBytes],file.name.replace(/\.dwg$/i,"")+".dxf",{type:"application/dxf"});
+          status("DWG converted. Importing generated DXF...");
+          await importDXFFile(dxfFile);
+        }catch(err){
+          console.error("DWG conversion failed:",err);
+          status("DWG import failed: "+(err.message||err)+". Check internet access to the converter CDN and DWG version (R13–R2018).");
+        }
+      };
       input.click();return;
     }
     const input=$("fileInput");
