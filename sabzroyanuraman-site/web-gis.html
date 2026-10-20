@@ -2101,13 +2101,15 @@ $("copySelectedRows").onclick=()=>{
  const items=currentAttributeItems(),inds=selectedTableIndexes();
  if(!inds.length){status("Select one or more rows first.");return}
  const keys=tableKeys(items);
- attributeClipboard=inds.map(i=>{const p=items[i].feature.properties||{};return keys.map(k=>p[k]??"")});
- status(attributeClipboard.length+" rows copied.");
+ // Keep field names with copied values so pasting into another layer cannot
+ // silently shift attributes when its columns are ordered differently.
+ attributeClipboard={keys:[...keys],rows:inds.map(i=>{const p=items[i].feature.properties||{};return keys.map(k=>Object.prototype.hasOwnProperty.call(p,k)?p[k]:undefined)})};
+ status(attributeClipboard.rows.length+" rows copied.");
 };
 $("pasteRows").onclick=()=>{
  if(hasUnsavedTableEdits()){status("Save Table Edits before pasting rows; unsaved cell values have been preserved.");return}
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before pasting rows.");return}
- if(!attributeClipboard?.length){status("Copy rows before pasting.");return}
+ if(!attributeClipboard?.rows?.length||!Array.isArray(attributeClipboard.keys)){status("Copy rows before pasting.");return}
  const items=currentAttributeItems(),inds=selectedTableIndexes(),keys=tableKeys(items);
  if(!inds.length){status("Select destination rows.");return}
  const valid=inds.filter(i=>items[i]);
@@ -2115,9 +2117,12 @@ $("pasteRows").onclick=()=>{
  const staged=[];
  try{
   valid.forEach((idx,n)=>{
-   const item=items[idx],props=item.feature.properties||{},src=attributeClipboard[n%attributeClipboard.length],next={...props};
-   keys.forEach((key,j)=>{
-    const old=props[key],raw=src[j]??"";
+   const item=items[idx],props=item.feature.properties||{},src=attributeClipboard.rows[n%attributeClipboard.rows.length],sourceKeys=attributeClipboard.keys,next={...props};
+   keys.forEach(key=>{
+    // Match fields by name, not column position. Leave destination-only fields
+    // untouched rather than replacing them with blanks from an unrelated schema.
+    if(!sourceKeys.includes(key))return;
+    const old=props[key],sourceIndex=sourceKeys.indexOf(key),raw=src[sourceIndex];
     let value=raw;
     if(typeof old==="number"){
      if(raw===""||raw===null||raw===undefined)value=null;
