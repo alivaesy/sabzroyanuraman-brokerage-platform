@@ -2940,16 +2940,18 @@ function selectByAttribute(){
   const field=prompt("Field Name (case-sensitive):\n"+fields.join(", "),fields[0]||"");
   if(field===null)return;
   if(!fields.includes(field)){status("Unknown field. Choose an existing field name from the list.");return}
-  const operators=["=","!=","contains","starts","ends",">",">=","<","<="];
+  const operators=["=","!=","contains","starts","ends",">",">=","<","<=","is null","is not null"];
   const opInput=prompt("Operator: "+operators.join(" | "),"=");
   if(opInput===null)return;
   const op=opInput.trim().toLowerCase();
   if(!operators.includes(op)){status("Unsupported operator. Use one of: "+operators.join(", "));return}
-  const val=prompt("Value to compare:", "");
+  const val=op==="is null"||op==="is not null"?"":prompt("Value to compare:", "");
   if(val===null)return;
   const needle=val.toLowerCase(),numericNeedle=val.trim()!==""?Number(val):NaN;
   const matches=r=>{
     const raw=r.feature.properties?.[field];
+    if(op==="is null")return raw===null||raw===undefined||raw==="";
+    if(op==="is not null")return raw!==null&&raw!==undefined&&raw!=="";
     if(raw===null||raw===undefined)return op==="!="&&needle!=="";
     if(op==="=")return String(raw).toLowerCase()===needle;
     if(op==="!=")return String(raw).toLowerCase()!==needle;
