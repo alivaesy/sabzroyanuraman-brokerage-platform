@@ -1396,7 +1396,7 @@ document.querySelectorAll("[data-editor-draw]").forEach(b=>b.onclick=()=>startDr
 $("finishSketchBtn").onclick=()=>{if(activeDrawHandler&&activeDrawPurpose==="draw"&&typeof activeDrawHandler.completeShape==="function")activeDrawHandler.completeShape();else stopActiveDraw(true)};
 $("goToXYBtn").onclick=goToXY;
 document.getElementById("closeGisDock")?.addEventListener("click",()=>document.getElementById("gisDock")?.classList.remove("show"));
-document.addEventListener("keydown",e=>{if(e.key==="Escape")document.getElementById("gisDock")?.classList.remove("show")});
+document.addEventListener("keydown",e=>{const tag=(e.target&&e.target.tagName||"").toLowerCase();if(e.key==="Escape"&&!e.defaultPrevented&&!activeDrawHandler&&!["input","textarea","select"].includes(tag)&&!e.target?.isContentEditable)document.getElementById("gisDock")?.classList.remove("show")});
 document.getElementById("zoomInBtn")?.addEventListener("click",()=>map.zoomIn());
 document.getElementById("zoomOutBtn")?.addEventListener("click",()=>map.zoomOut());
 document.getElementById("searchTab")?.addEventListener("click",()=>{const d=document.getElementById("searchDock");d?.classList.toggle("open");if(d?.classList.contains("open"))document.getElementById("topToolSearch")?.focus()});
