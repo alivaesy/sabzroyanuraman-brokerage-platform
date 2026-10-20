@@ -855,6 +855,14 @@ function saveEdits(){
 }
 function stopEditing(){
   if(!editSessionActive)return;
+  if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){
+    status("Save Table Edits before stopping the edit session; unsaved attribute values are still in the table.");
+    return;
+  }
+  if(activeDrawHandler&&activeDrawPurpose==="draw"&&!window.confirm("A drawing sketch is still in progress. Stop editing and discard this unfinished sketch?")){
+    status("Edit session remains active; finish or cancel the current sketch first.");
+    return;
+  }
   saveEdits();
   stopActiveDraw(true);stopReshapeDraw();
   editSessionActive=false;editTarget=drawn;
