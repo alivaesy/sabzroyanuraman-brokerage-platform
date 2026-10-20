@@ -1559,6 +1559,7 @@ function attachFeatureSelection(layer){
     const multi=!!(ev.originalEvent&&(ev.originalEvent.ctrlKey||ev.originalEvent.metaKey||ev.originalEvent.shiftKey));
     if(multi){
       toggleMultiSelection(layer);
+      syncVisibleAttributeTableSelection();
       if(ev.originalEvent.shiftKey&&!ev.originalEvent.ctrlKey&&!ev.originalEvent.metaKey){
         selectedOverlay=layer;
         status(selectedFeatures.size+" features selected; Shift-click a second feature for overlay operations.");
@@ -1569,6 +1570,7 @@ function attachFeatureSelection(layer){
       clearMultiSelection();
       setGisSelection(layer,false);
       selectedFeatures.add(layer);
+      syncVisibleAttributeTableSelection();
       updateMultiSelectionUI();
       showUTM(layer);
       calcMeasure(layer);
@@ -2685,28 +2687,28 @@ function allSelectableFeatureLayers(){
   return [{name:"My Drawings",layer:drawn}].concat(namedLayers)
     .filter(x=>isVectorLayer(x.layer));
 }
+function syncVisibleAttributeTableSelection(){
+  const table=$("attributeTableWrap");
+  if(!table||table.style.display==="none")return;
+  const items=currentAttributeItems();
+  table.querySelectorAll("tbody tr").forEach(row=>{
+    const item=items[Number(row.dataset.index)],check=row.querySelector(".row-check");
+    if(item&&check)check.checked=selectedFeatures.has(item.layer);
+  });
+  const all=$("checkAllRows"),checks=[...table.querySelectorAll(".row-check")];
+  if(all){
+    const count=checks.filter(ch=>ch.checked).length;
+    all.checked=checks.length>0&&count===checks.length;
+    all.indeterminate=count>0&&count<checks.length;
+  }
+}
 function applySelectionVisual(){
   allSelectableFeatureLayers().forEach(x=>vectorFeatures(x.layer).forEach(v=>{
     if(!v.layer||!v.layer.getElement)return;
     const el=v.layer.getElement();
     if(el)el.classList.toggle("multi-selected-feature",selectedFeatures.has(v.layer));
   }));
-  // Keep the visible attribute table synchronized with map-originated selections
-  // without rerendering cells and discarding unsaved edits.
-  const table=$("attributeTableWrap");
-  if(table&&table.style.display!=="none"){
-    const items=currentAttributeItems();
-    table.querySelectorAll("tbody tr").forEach(row=>{
-      const item=items[Number(row.dataset.index)],check=row.querySelector(".row-check");
-      if(item&&check)check.checked=selectedFeatures.has(item.layer);
-    });
-    const all=$("checkAllRows"),checks=[...table.querySelectorAll(".row-check")];
-    if(all){
-      const count=checks.filter(ch=>ch.checked).length;
-      all.checked=checks.length>0&&count===checks.length;
-      all.indeterminate=count>0&&count<checks.length;
-    }
-  }
+  syncVisibleAttributeTableSelection();
   updateMultiSelectionUI();
 }
 function selectFeatureLayerObj(v,add=true){
