@@ -1919,6 +1919,8 @@ $("pasteRows").onclick=()=>{
       try{value=JSON.parse(String(raw))}catch(e){throw new Error("Field '"+key+"' requires valid JSON.")}
      }
      if(value===null||typeof value!=="object")throw new Error("Field '"+key+"' must remain a JSON object or array.");
+    }else if(old===null){
+     value=raw===null||raw===undefined||String(raw).trim()===""?null:raw;
     }
     next[key]=value;
    });
@@ -1942,26 +1944,33 @@ $("fillSelected").onclick=()=>{
  if(!keys.includes(key)){status("Choose an existing field from the list.");return}
  const targets=inds.map(i=>items[i]).filter(Boolean);
  if(!targets.length){status("No valid rows are selected.");return}
- let value=raw;
  const samples=targets.map(x=>(x.feature.properties||{})[key]).filter(v=>v!==null&&v!==undefined);
- const sample=samples.find(v=>typeof v!=="string")??samples[0];
+ const types=[...new Set(samples.map(v=>Array.isArray(v)?"array":typeof v))];
+ if(types.length>1){status("Field calculation cancelled: selected rows contain mixed data types.");return}
+ const type=types[0]||"string",staged=[];
  try{
-  if(typeof sample==="number"){
-   if(raw.trim()==="")value=null;
-   else if(!Number.isFinite(Number(raw)))throw new Error("Enter a valid number for field '"+key+"'.");
-   else value=Number(raw);
-  }else if(typeof sample==="boolean"){
-   if(!/^(true|false)$/i.test(raw.trim()))throw new Error("Enter true or false for field '"+key+"'.");
-   value=raw.trim().toLowerCase()==="true";
-  }else if(sample!==null&&typeof sample==="object"){
-   value=JSON.parse(raw);
-   if(value===null||typeof value!=="object")throw new Error("Enter a valid JSON object or array.");
-  }
+  targets.forEach(item=>{
+   const old=(item.feature.properties||{})[key];let value=raw;
+   if(type==="number"){
+    if(raw.trim()==="")value=null;
+    else if(!Number.isFinite(Number(raw)))throw new Error("Enter a valid number for field '"+key+"'.");
+    else value=Number(raw);
+   }else if(type==="boolean"){
+    if(!/^(true|false)$/i.test(raw.trim()))throw new Error("Enter true or false for field '"+key+"'.");
+    value=raw.trim().toLowerCase()==="true";
+   }else if(type==="object"||type==="array"){
+    value=JSON.parse(raw);
+    if(value===null||typeof value!=="object"||(type==="array"&&!Array.isArray(value))||(type==="object"&&Array.isArray(value)))throw new Error("Enter a valid "+type+" value for field '"+key+"'.");
+   }else if(old===null||old===undefined){
+    value=raw.trim()===""?null:raw;
+   }
+   staged.push({item,value});
+  });
  }catch(err){status("Field calculation cancelled: "+err.message);return}
- const changed=targets.filter(x=>JSON.stringify((x.feature.properties||{})[key])!==JSON.stringify(value));
+ const changed=staged.filter(({item,value})=>JSON.stringify((item.feature.properties||{})[key])!==JSON.stringify(value));
  if(!changed.length){status("The selected features already have this value.");return}
  recordUndoState();
- changed.forEach(item=>{ensureFeatureProperties(item.layer);item.feature.properties[key]=value;updateFeaturePopup(item.layer)});
+ changed.forEach(({item,value})=>{ensureFeatureProperties(item.layer);item.feature.properties[key]=value;updateFeaturePopup(item.layer)});
  renderEditableTable();scheduleAutoSave();status("Calculated field '"+key+"' for "+changed.length+" feature(s).");
 };
 $("measureSelected").onclick=()=>{if(selectedLayer)calcMeasure(selectedLayer);else status("Select a feature on the map first.");};
