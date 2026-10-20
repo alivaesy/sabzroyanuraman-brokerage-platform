@@ -2958,10 +2958,32 @@ function attachmentsTool(){
   const records=editableSelectedRecords(false);
   if(!records.length)return;
   const r=records[0];
-  const picker=document.createElement("input");picker.type="file";picker.multiple=true;
-  picker.accept="*/*";
+  r.feature.properties=r.feature.properties||{};
+  const current=()=>Array.isArray(r.feature.properties._attachments)?r.feature.properties._attachments:[];
+  const existing=current();
+  if(existing.length){
+    const menu=existing.map((f,i)=>(i+1)+". "+String(f.name||"Unnamed file")+" ("+Math.max(1,Math.round((Number(f.size)||0)/1024))+" KB)").join("\n");
+    const answer=prompt("Attachments on selected feature:\n"+menu+"\n\nEnter a file number to download it, A to add files, or R followed by a number to remove (example: R1).","A");
+    if(answer===null)return;
+    const choice=answer.trim();
+    if(choice.toLowerCase()==="a"){}
+    else if(choice.toLowerCase().startsWith("r")&&Number.isInteger(Number(choice.slice(1).trim()))){
+      const index=Number(choice.slice(1).trim())-1;
+      if(!current()[index]){status("Invalid attachment number.");return;}
+      const file=current()[index];
+      if(!confirm("Remove attachment '"+String(file.name||"Unnamed file")+"'?"))return;
+      recordUndoState();r.feature.properties._attachments=current().filter((_,i)=>i!==index);
+      refreshAll();scheduleAutoSave();status("Attachment removed from the selected feature.");return;
+    }else if(choice!==""&&Number.isInteger(Number(choice))&&Number(choice)>0){
+      const file=current()[Number(choice)-1];
+      if(!file||typeof file.dataUrl!=="string"||!file.dataUrl.startsWith("data:")){status("Attachment data is missing or invalid.");return;}
+      const a=document.createElement("a");a.href=file.dataUrl;a.download=String(file.name||"attachment");a.style.display="none";document.body.appendChild(a);a.click();a.remove();
+      status("Download requested for "+String(file.name||"attachment")+".");return;
+    }else{status("Choose A, a valid file number, or R followed by a file number.");return;}
+  }
+  const picker=document.createElement("input");picker.type="file";picker.multiple=true;picker.accept="*/*";
   picker.onchange=async()=>{
-    const files=[...(picker.files||[])];if(!files.length)return;
+    const files=Array.from(picker.files||[]);if(!files.length)return;
     const tooLarge=files.filter(f=>f.size>5*1024*1024);
     if(tooLarge.length){status("Attachment limit is 5 MB per file. Remove: "+tooLarge.map(f=>f.name).join(", "));return;}
     try{
@@ -2969,12 +2991,9 @@ function attachmentsTool(){
       const encoded=await Promise.all(files.map(file=>new Promise((resolve,reject)=>{
         const reader=new FileReader();reader.onload=()=>resolve({name:file.name,type:file.type||"application/octet-stream",size:file.size,dataUrl:String(reader.result||"")});reader.onerror=()=>reject(new Error("Could not read "+file.name));reader.readAsDataURL(file);
       })));
-      recordUndoState();
-      r.feature.properties=r.feature.properties||{};
-      const old=Array.isArray(r.feature.properties._attachments)?r.feature.properties._attachments:[];
-      r.feature.properties._attachments=old.concat(encoded);
+      recordUndoState();r.feature.properties._attachments=current().concat(encoded);
       refreshAll();scheduleAutoSave();
-      status(encoded.length+" file(s) attached and embedded in the current project. Attachments are stored in the browser project, not uploaded to a server.");
+      status(encoded.length+" file(s) attached to the selected feature. Use this tool again to download or remove them. Files are embedded in this browser project, not uploaded to a server.");
     }catch(err){status("Attachment import failed: "+(err.message||"file read error"));}
   };
   picker.click();
