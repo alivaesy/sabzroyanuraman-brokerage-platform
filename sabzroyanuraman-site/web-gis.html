@@ -2900,19 +2900,35 @@ function selectByLasso(){
  });
 }
 function selectByAttribute(){
-  const field=prompt("Field Name to Search:","");
-  if(field===null||!field.trim())return;
-  const op=prompt("Operator: = | != | contains | starts | ends","contains");
-  if(op===null)return;
-  const val=prompt("Value:","");
+  const records=getFeatureRecords();
+  const fields=[...new Set(records.flatMap(r=>Object.keys(r.feature.properties||{}).filter(k=>k!=="_attachments")))];
+  if(!records.length||!fields.length){status("Select By Attributes requires features with attribute fields.");return}
+  const field=prompt("Field Name (case-sensitive):\n"+fields.join(", "),fields[0]||"");
+  if(field===null)return;
+  if(!fields.includes(field)){status("Unknown field. Choose an existing field name from the list.");return}
+  const operators=["=","!=","contains","starts","ends",">",">=","<","<="];
+  const opInput=prompt("Operator: "+operators.join(" | "),"=");
+  if(opInput===null)return;
+  const op=opInput.trim().toLowerCase();
+  if(!operators.includes(op)){status("Unsupported operator. Use one of: "+operators.join(", "));return}
+  const val=prompt("Value to compare:", "");
   if(val===null)return;
-  const needle=val.toLowerCase(); selectedFeatures.clear();
-  getFeatureRecords().forEach(r=>{
-    const raw=r.feature.properties?.[field], s=String(raw??"").toLowerCase();
-    let ok=op==="="?s===needle:op==="!="?s!==needle:op==="starts"?s.startsWith(needle):op==="ends"?s.endsWith(needle):s.includes(needle);
-    if(ok)selectedFeatures.add(r.layer);
-  });
-  applySelectionVisual(); status(selectedFeatures.size+" Attribute selection complete.");
+  const needle=val.toLowerCase(),numericNeedle=val.trim()!==""?Number(val):NaN;
+  const matches=r=>{
+    const raw=r.feature.properties?.[field];
+    if(op==="=")return String(raw??"").toLowerCase()===needle;
+    if(op==="!=")return String(raw??"").toLowerCase()!==needle;
+    if(op==="contains")return String(raw??"").toLowerCase().includes(needle);
+    if(op==="starts")return String(raw??"").toLowerCase().startsWith(needle);
+    if(op==="ends")return String(raw??"").toLowerCase().endsWith(needle);
+    if(raw===null||raw===undefined||String(raw).trim()===""||!Number.isFinite(Number(raw))||!Number.isFinite(numericNeedle))return false;
+    const n=Number(raw);
+    return op===">"?n>numericNeedle:op===">="?n>=numericNeedle:op==="<"?n<numericNeedle:n<=numericNeedle;
+  };
+  selectedFeatures.clear();
+  records.forEach(r=>{if(matches(r))selectedFeatures.add(r.layer)});
+  applySelectionVisual();
+  status(selectedFeatures.size+" feature(s) selected by attribute query: "+field+" "+op+" "+val+".");
 }
 function newLayerFromSelection(){
   const rs=selectedRecords(); if(!rs.length){status("Select at least one feature first.");return;}
