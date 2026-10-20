@@ -1845,6 +1845,9 @@ $("layerContextMenu").querySelectorAll("button[data-action]").forEach(btn=>btn.o
   else if(action==="hide")map.removeLayer(item.layer);
   else if(action==="remove"&&item.layer!==drawn){
     if(blockForUnsavedTableEdits("removing a layer"))return;
+    // Keep the edit target stable: removing any named layer can shift the numeric
+    // layer indexes used by the Editor and Attribute Table selectors.
+    if(editSessionActive){status("Stop the edit session before removing a layer; this keeps the active edit target and table selection stable.");return;}
     map.removeLayer(item.layer);layerControl.removeLayer(item.layer);
     const idx=namedLayers.findIndex(x=>x.layer===item.layer);if(idx>=0)namedLayers.splice(idx,1);refreshEditorTargets();
     refreshAttributeLayers();renderLayerList();status("Layer "+displayLayerName(item.name,namedLayers.length)+" removed.");
