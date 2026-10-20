@@ -1689,6 +1689,7 @@ function renderEditableTable(){
  status(rows.length+" rows displayed.");
 }
 $("openTable").onclick=renderEditableTable;
+$("attributeFilter").addEventListener("input",()=>{if($("attributeTableWrap").style.display!=="none")renderEditableTable();});
 document.addEventListener("click",e=>{if(!e.target.closest("#layerContextMenu"))hideLayerContextMenu();});
 $("layerContextMenu").querySelectorAll("button[data-action]").forEach(btn=>btn.onclick=e=>{
   e.stopPropagation();
@@ -1716,7 +1717,7 @@ $("selectFiltered").onclick=()=>{
  selectedFeatures.clear();
  let n=0;
  items.forEach(x=>{
-   const hit=!filter||Object.values(x.feature.properties||{}).some(v=>String(v??"").toLowerCase().includes(filter));
+   const hit=!filter||Object.entries(x.feature.properties||{}).some(([k,v])=>k!=="_attachments"&&String(v??"").toLowerCase().includes(filter));
    if(hit){selectedFeatures.add(x.layer);n++;}
  });
  applySelectionVisual();updateMultiSelectionUI();
