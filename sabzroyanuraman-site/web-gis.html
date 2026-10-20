@@ -1744,7 +1744,19 @@ function renderEditableTable(){
  status(rows.length+" rows displayed.");
 }
 $("openTable").onclick=renderEditableTable;
-$("attributeFilter").addEventListener("input",()=>{if($("attributeTableWrap").style.display!=="none")renderEditableTable();});
+$("attributeFilter").addEventListener("input",()=>{
+ if($("attributeTableWrap").style.display==="none")return;
+ const dirty=[...$("attributeTableWrap").querySelectorAll(".cell-edit")].some(input=>input.dataset.dirty==="true");
+ if(dirty){
+  status("Save Table Edits before changing the filter; this prevents unsaved cell values from being discarded.");
+  return;
+ }
+ renderEditableTable();
+});
+$("attributeTableWrap").addEventListener("input",event=>{
+ const input=event.target.closest(".cell-edit");
+ if(input)input.dataset.dirty="true";
+});
 document.addEventListener("click",e=>{if(!e.target.closest("#layerContextMenu"))hideLayerContextMenu();});
 $("layerContextMenu").querySelectorAll("button[data-action]").forEach(btn=>btn.onclick=e=>{
   e.stopPropagation();
