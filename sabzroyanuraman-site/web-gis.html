@@ -1736,7 +1736,7 @@ function tableKeys(items){
 function renderEditableTable(){
  if(!currentAttributeLayer()){status("Select a feature layer.");return}
  const items=currentAttributeItems(),filter=$("attributeFilter").value.trim().toLowerCase();
- const rows=items.map((x,i)=>({x,i})).filter(o=>!filter||Object.entries(o.x.feature.properties||{}).some(([k,v])=>k!=="_attachments"&&String(v).toLowerCase().includes(filter)));
+ const rows=items.map((x,i)=>({x,i})).filter(o=>!filter||Object.entries(o.x.feature.properties||{}).some(([k,v])=>k!=="_attachments"&&(k.toLowerCase().includes(filter)||String(v===null||v===undefined?"":typeof v==="object"?JSON.stringify(v):v).toLowerCase().includes(filter))));
  const keys=tableKeys(items);
  let html="<table style='width:100%;border-collapse:collapse;direction:rtl'><thead><tr><th><input type='checkbox' class='attr-check' id='checkAllRows'></th><th>#</th>"+
  keys.map(k=>"<th style='padding:3px;border-bottom:1px solid #ccd9df;white-space:nowrap'>"+esc(k)+"</th>").join("")+"</tr></thead><tbody>";
