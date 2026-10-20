@@ -1128,6 +1128,7 @@ function goToXY(){
   catch(err){status("Could not convert coordinates: "+err.message);}
 }
 function startDraw(type,button){
+  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("starting a drawing"))return;
   stopActiveDraw();
   if(!editSessionActive)startEditing();
   if(!editTarget||typeof editTarget.addLayer!=="function"){status("Choose a vector layer in the Editor toolbar.");return}
@@ -3077,6 +3078,7 @@ function stopReshapeDraw(){
   }
 }
 function reshapeSelected(){
+  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("reshaping a feature"))return;
   const r=selectedRecords()[0];
   if(!r){status("Select one polygon feature first.");return;}
   const type=r.feature?.geometry?.type;
@@ -3119,6 +3121,7 @@ function reshapeSelected(){
   h.enable();
 }
 function editVertices(){
+  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("editing feature vertices"))return;
   const r=selectedRecords()[0];
   if(!r){status("Select a feature first.");return;}
   if(!editSessionActive){status("Start Editing before modifying vertices.");return;}
