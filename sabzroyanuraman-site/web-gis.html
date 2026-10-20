@@ -1502,6 +1502,7 @@ function renderAttributeEditor(){
 }
 function saveAttributes(){
   if(!selectedLayer){status("Select a feature before editing attributes.");return}
+  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("saving feature attributes"))return;
   if(!editSessionActive||!isLayerInEditTarget(selectedLayer)){status("Start Editing this layer before changing attributes.");return}
   const previous=selectedLayer.feature?.properties||{};
   const props={};
