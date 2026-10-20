@@ -2533,30 +2533,37 @@ function selectByPolygon(){
  });
 }
 function selectByLocation(){
-  const first=prompt("Spatial relationship: within / intersects / contains","intersects");
-  if(!first)return;
-  const a=prompt("Source layer number (see Table Of Contents)","");
+  const items=namedLayers.filter(x=>isVectorLayer(x.layer)&&vectorFeatures(x.layer).length);
+  if(items.length<2){status("Load at least two vector layers before spatial selection.");return;}
+  const rel=prompt("Spatial relationship:\n1 = Intersects\n2 = Within (source inside target)\n3 = Contains (source contains target)","1");
+  if(rel===null)return;
+  const relation={"1":"intersects","2":"within","3":"contains"}[rel.trim()];
+  if(!relation){status("Choose relationship 1, 2, or 3.");return;}
+  const menu=items.map((x,i)=>(i+1)+". "+x.name+" ("+vectorFeatures(x.layer).length+" features)").join("\n");
+  const a=prompt("Source layer number:\n"+menu,"1");
   if(a===null)return;
-  const b=prompt("Target layer number","");
+  const b=prompt("Target layer number:\n"+menu,"2");
   if(b===null)return;
-  const ai=Number(a)-1,bi=Number(b)-1,items=namedLayers;
-  if(!items[ai]||!items[bi]){status("Invalid layer selection.");return;}
-  const ref=vectorFeatures(items[bi].layer).map(v=>v.feature).filter(Boolean);
-  selectedFeatures.clear();
-  vectorFeatures(items[ai].layer).forEach(v=>{
+  const ai=Number(a)-1,bi=Number(b)-1;
+  if(!Number.isInteger(ai)||!Number.isInteger(bi)||!items[ai]||!items[bi]){status("Invalid layer number.");return;}
+  if(ai===bi){status("Choose different source and target layers.");return;}
+  const source=vectorFeatures(items[ai].layer),target=vectorFeatures(items[bi].layer).map(v=>v.feature).filter(Boolean);
+  const matches=[];
+  source.forEach(v=>{
     let ok=false;
-    ref.forEach(r=>{
+    for(const f of target){
       try{
-        const f=v.feature;
-        if(first==="within")ok=ok||turf.booleanWithin(f,r);
-        else if(first==="contains")ok=ok||turf.booleanContains(f,r);
-        else ok=ok||turf.booleanIntersects(f,r);
-      }catch(e){}
-    });
-    if(ok)selectedFeatures.add(v.layer);
+        if(relation==="within")ok=turf.booleanWithin(v.feature,f);
+        else if(relation==="contains")ok=turf.booleanContains(v.feature,f);
+        else ok=turf.booleanIntersects(v.feature,f);
+      }catch(e){ok=false;}
+      if(ok)break;
+    }
+    if(ok)matches.push(v.layer);
   });
+  selectedFeatures.clear();matches.forEach(layer=>selectedFeatures.add(layer));
   applySelectionVisual();
-  status(selectedFeatures.size+" Spatial selection complete.");
+  status(matches.length+" feature(s) selected from '"+items[ai].name+"' using "+relation+" against '"+items[bi].name+"'.");
 }
 function featureDistanceMeters(a,b){
   if(!a?.geometry||!b?.geometry)return Infinity;
