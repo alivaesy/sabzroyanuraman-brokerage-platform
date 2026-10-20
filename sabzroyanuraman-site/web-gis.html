@@ -2534,20 +2534,48 @@ function selectByLocation(){
   applySelectionVisual();
   status(selectedFeatures.size+" Spatial selection complete.");
 }
+function featureDistanceMeters(a,b){
+  if(!a?.geometry||!b?.geometry)return Infinity;
+  try{if(turf.booleanIntersects(a,b))return 0;}catch(_){}
+  const coords=[];
+  const walk=value=>{
+    if(!Array.isArray(value))return;
+    if(value.length>=2&&typeof value[0]==="number"&&typeof value[1]==="number"){coords.push([value[0],value[1]]);return;}
+    value.forEach(walk);
+  };
+  walk(a.geometry.coordinates);
+  let best=Infinity;
+  coords.forEach(c=>{
+    try{const near=nearestPointOnFeatureSafe(b,turf.point(c));if(near){const d=turf.distance(turf.point(c),near,{units:"meters"});if(d<best)best=d;}}catch(_){}
+  });
+  const reverse=[];
+  const walkB=value=>{
+    if(!Array.isArray(value))return;
+    if(value.length>=2&&typeof value[0]==="number"&&typeof value[1]==="number"){reverse.push([value[0],value[1]]);return;}
+    value.forEach(walkB);
+  };
+  walkB(b.geometry.coordinates);
+  reverse.forEach(c=>{
+    try{const near=nearestPointOnFeatureSafe(a,turf.point(c));if(near){const d=turf.distance(turf.point(c),near,{units:"meters"});if(d<best)best=d;}}catch(_){}
+  });
+  return best;
+}
 function selectWithinDistance(){
-  const meters=Number(prompt("distance Selection (meters):","5"));
-  if(!Number.isFinite(meters)||meters<0)return;
-  const ref=selectedOverlay?.feature;
+  const raw=prompt("Maximum distance from the selected reference feature (meters):","5");
+  if(raw===null)return;
+  const meters=Number(raw);
+  if(!Number.isFinite(meters)||meters<0){status("Enter a valid non-negative distance.");return;}
+  const ref=selectedRecords()[0];
   if(!ref){status("Select a reference feature first.");return;}
+  const records=getFeatureRecords();
   selectedFeatures.clear();
-  const refGeom=turf.feature(ref.geometry);
-  allSelectableFeatureLayers().forEach(x=>vectorFeatures(x.layer).forEach(v=>{
-    try{
-      const d=turf.distance(turf.centroid(v.feature),turf.centroid(refGeom),{units:"meters"});
-      if(d<=meters)selectedFeatures.add(v.layer);
-    }catch(e){}
-  }));
+  records.forEach(r=>{
+    if(r.layer===ref.layer){selectedFeatures.add(r.layer);return;}
+    const d=featureDistanceMeters(r.feature,ref.feature);
+    if(d<=meters)selectedFeatures.add(r.layer);
+  });
   applySelectionVisual();
+  $("professionalToolOutput").textContent=selectedFeatures.size+" feature(s) selected within "+meters+" m of the reference geometry.";
   status(selectedFeatures.size+" features selected within "+meters+" meters.");
 }
 
@@ -3238,28 +3266,34 @@ function transferAttributesTool(){
 
 function networkQaTool(){
   const items=getAllVectorItems();
-  const pointItems=items.filter(x=>vectorFeatures(x.layer).some(v=>v.feature.geometry.type==="Point"));
-  const lineItems=items.filter(x=>vectorFeatures(x.layer).some(v=>/LineString/i.test(v.feature.geometry.type)));
+  const pointItems=items.filter(x=>vectorFeatures(x.layer).some(v=>["Point","MultiPoint"].includes(v.feature.geometry?.type)));
+  const lineItems=items.filter(x=>vectorFeatures(x.layer).some(v=>["LineString","MultiLineString"].includes(v.feature.geometry?.type)));
   if(!pointItems.length||!lineItems.length){status("Add a point layer and a line layer before running the network check.");return;}
+  const raw=prompt("Maximum distance from a line endpoint to a point (meters):","0.6");
+  if(raw===null)return;
+  const tolerance=Number(raw);
+  if(!Number.isFinite(tolerance)||tolerance<0){status("Enter a valid non-negative tolerance.");return;}
   const points=[];
   pointItems.forEach(it=>vectorFeatures(it.layer).forEach(v=>{
-    if(v.feature.geometry.type==="Point")points.push(v.feature.geometry.coordinates);
+    const g=v.feature.geometry;
+    if(g?.type==="Point")points.push(g.coordinates);
+    else if(g?.type==="MultiPoint")points.push(...g.coordinates);
   }));
   let dangling=0,totalEnds=0;
   lineItems.forEach(it=>vectorFeatures(it.layer).forEach(v=>{
     const g=v.feature.geometry;
-    const lines=g.type==="LineString"? [g.coordinates] : g.type==="MultiLineString"?g.coordinates:[];
+    const lines=g.type==="LineString"?[g.coordinates]:g.type==="MultiLineString"?g.coordinates:[];
     lines.forEach(line=>{
-      if(line.length<2)return;
+      if(!Array.isArray(line)||line.length<2)return;
       [line[0],line[line.length-1]].forEach(end=>{
         totalEnds++;
         const d=points.length?Math.min(...points.map(p=>turf.distance(turf.point(end),turf.point(p),{units:"meters"}))):Infinity;
-        if(d>0.6)dangling++;
+        if(d>tolerance)dangling++;
       });
     });
   }));
-  $("professionalToolOutput").textContent="Network check: "+totalEnds+" line endpoints reviewed; "+dangling+" are farther than 0.6 meters from a point.";
-  status("Network check complete.");
+  $("professionalToolOutput").textContent="Network check: "+totalEnds+" line endpoints reviewed; "+dangling+" are farther than "+tolerance+" m from a point.";
+  status("Network check complete: "+dangling+" dangling endpoint(s) found.");
 };
 
 /* Snap GIS to GIS GIS to GIS Point/vertex Line */
