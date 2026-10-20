@@ -1424,27 +1424,37 @@ function saveAttributes(){
   if(!editSessionActive||!isLayerInEditTarget(selectedLayer)){status("Start Editing this layer before changing attributes.");return}
   const previous=selectedLayer.feature?.properties||{};
   const props={};
-  // Attachments are stored as structured data URLs, not editable text fields.
   if(Object.prototype.hasOwnProperty.call(previous,"_attachments"))props._attachments=previous._attachments;
-  let invalid=false;
-  $("attributeRows").querySelectorAll(".attr-edit-row").forEach(row=>{
+  const errors=[];
+  $( "attributeRows" ).querySelectorAll(".attr-edit-row").forEach(row=>{
     const key=row.querySelector(".attr-key").value.trim(),raw=row.querySelector(".attr-value").value;
     if(!key)return;
-    if(key==="_attachments"||key==="geometry"){invalid=true;return}
-    if(Object.prototype.hasOwnProperty.call(props,key)){invalid=true;return}
-    let value=raw;
+    if(key==="_attachments"||key==="geometry"){errors.push("Reserved field name: "+key);return}
+    if(Object.prototype.hasOwnProperty.call(props,key)){errors.push("Duplicate field name: "+key);return}
     const old=previous[key];
-    if(typeof old==="number"&&raw.trim()!==""&&Number.isFinite(Number(raw)))value=Number(raw);
-    else if(typeof old==="boolean"&&/^(true|false)$/i.test(raw))value=raw.toLowerCase()==="true";
-    else if(old!==null&&typeof old==="object"){try{value=JSON.parse(raw)}catch(e){value=raw}}
+    let value=raw;
+    if(typeof old==="number"){
+      if(raw.trim()==="")value=null;
+      else if(Number.isFinite(Number(raw)))value=Number(raw);
+      else{errors.push("Field "+key+" must be a finite number.");return}
+    }else if(typeof old==="boolean"){
+      if(/^(true|false)$/i.test(raw.trim()))value=raw.trim().toLowerCase()==="true";
+      else{errors.push("Field "+key+" must be true or false.");return}
+    }else if(old!==null&&typeof old==="object"){
+      try{
+        value=JSON.parse(raw);
+        if(value===null||typeof value!=="object")throw new Error("Expected object or array");
+      }catch(e){errors.push("Field "+key+" must contain valid JSON object or array data.");return}
+    }
     props[key]=value;
   });
-  if(invalid){status("Field names must be unique; geometry and _attachments are reserved.");return}
+  if(errors.length){status(errors.slice(0,3).join(" "));return}
   if(JSON.stringify(previous)!==JSON.stringify(props))recordUndoState();
   selectedLayer.feature.properties=props;
   selectedLayer.feature.geometry=selectedLayer.toGeoJSON().geometry;
   updateFeaturePopup(selectedLayer);
-  status("Feature attributes saved.");scheduleAutoSave();renderAttributeEditor();
+  status("Feature attributes saved.");
+  scheduleAutoSave();renderAttributeEditor();
   if($("attributeLayer").value!=="")$("openTable").click();
 }
 function updateMultiSelectionUI(){
