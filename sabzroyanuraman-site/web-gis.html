@@ -1974,16 +1974,22 @@ $("dataDialogContinue").onclick=()=>{
         try{
           status("Loading DWG converter (first use may take a while)...");
           const converter=await import("https://esm.sh/dwgdxf@2.0.1?bundle");
+          if(typeof converter.init!=="function"||typeof converter.convertDwgToDxf!=="function"||!converter.CDN_WASM_BASE){
+            throw new Error("The DWG converter module did not expose its expected API.");
+          }
+          status("Preparing DWG converter WebAssembly...");
+          await converter.init({wasmBase:converter.CDN_WASM_BASE});
           const dwgBytes=new Uint8Array(await file.arrayBuffer());
+          if(!dwgBytes.length)throw new Error("The selected DWG file is empty.");
           status("Converting DWG to DXF in this browser...");
-          const dxfBytes=await converter.convertDwgToDxf(dwgBytes,{wasmBase:converter.CDN_WASM_BASE});
+          const dxfBytes=await converter.convertDwgToDxf(dwgBytes);
           if(!dxfBytes||!dxfBytes.length)throw new Error("The converter returned an empty DXF.");
           const dxfFile=new File([dxfBytes],file.name.replace(/\.dwg$/i,"")+".dxf",{type:"application/dxf"});
           status("DWG converted. Importing generated DXF...");
           await importDXFFile(dxfFile);
         }catch(err){
           console.error("DWG conversion failed:",err);
-          status("DWG import failed: "+(err.message||err)+". Check internet access to the converter CDN and DWG version (R13–R2018).");
+          status("DWG import failed: "+(err.message||err)+". Check internet access to the converter/WASM CDN and try a DWG version from R13 to R2018.");
         }
       };
       input.click();return;
