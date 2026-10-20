@@ -1761,7 +1761,7 @@ function renderEditableTable(){
  syncCheckAll();
  status(rows.length+" rows displayed.");
 }
-$("openTable").onclick=renderEditableTable;
+$("openTable").onclick=()=>{if(hasUnsavedTableEdits()){status("Save Table Edits before reopening the table; unsaved values have been preserved.");return}renderEditableTable()};
 $("attributeFilter").addEventListener("input",()=>{
  if($("attributeTableWrap").style.display==="none")return;
  if(hasUnsavedTableEdits()){
@@ -1864,6 +1864,7 @@ $("clearGisSelection").onclick=()=>{
 };
 
 $("addTableField").onclick=()=>{
+ if(hasUnsavedTableEdits()){status("Save Table Edits before adding a field; unsaved cell values have been preserved.");return}
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before changing its table.");return}
  if(!$("attributeLayer").value){status("Select a feature layer.");return}
  const name=prompt("New field name:");if(name===null||!name.trim())return;
@@ -1914,6 +1915,7 @@ function selectedTableIndexes(){
  return [...$("attributeTableWrap").querySelectorAll("tbody tr")].filter(r=>r.querySelector(".row-check")?.checked).map(r=>Number(r.dataset.index));
 }
 $("deleteSelectedRows").onclick=()=>{
+ if(hasUnsavedTableEdits()){status("Save Table Edits before deleting features; unsaved cell values have been preserved.");return}
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before deleting rows.");return}
  const items=currentAttributeItems(),inds=selectedTableIndexes();
  if(!inds.length){status("Select one or more rows first.");return}
@@ -1940,6 +1942,7 @@ $("copySelectedRows").onclick=()=>{
  status(attributeClipboard.length+" rows copied.");
 };
 $("pasteRows").onclick=()=>{
+ if(hasUnsavedTableEdits()){status("Save Table Edits before pasting rows; unsaved cell values have been preserved.");return}
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before pasting rows.");return}
  if(!attributeClipboard?.length){status("Copy rows before pasting.");return}
  const items=currentAttributeItems(),inds=selectedTableIndexes(),keys=tableKeys(items);
@@ -1985,6 +1988,7 @@ $("pasteRows").onclick=()=>{
  renderEditableTable();scheduleAutoSave();status("Pasted values into "+changed.length+" rows.");
 };
 $("fillSelected").onclick=()=>{
+ if(hasUnsavedTableEdits()){status("Save Table Edits before calculating fields; unsaved cell values have been preserved.");return}
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before calculating fields.");return}
  const raw=$("fillValue").value,items=currentAttributeItems(),inds=selectedTableIndexes();
  if(!inds.length){status("Select one or more rows before calculating a field.");return}
