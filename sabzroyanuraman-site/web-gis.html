@@ -796,6 +796,7 @@ const layerControl=L.control.layers(null,null,{collapsed:true,position:"topleft"
 let activeDrawHandler=null;
 let activeDrawPurpose=null;
 let activeDrawButton=null;
+let activeDrawCreatedHandler=null;
 let editSessionActive=false;
 let activeMapTool="select";
 let editTarget=drawn;
@@ -805,6 +806,10 @@ function stopActiveDraw(cancel=true){
   const handler=activeDrawHandler;
   activeDrawHandler=null;
   activeDrawPurpose=null;
+  if(activeDrawCreatedHandler){
+    try{map.off(L.Draw.Event.CREATED,activeDrawCreatedHandler)}catch(_){}
+    activeDrawCreatedHandler=null;
+  }
   if(handler){try{if(cancel&&typeof handler.disable==="function")handler.disable()}catch(err){console.warn("Could not stop active tool",err)}}
   if(activeDrawButton)activeDrawButton.classList.remove("active");
   activeDrawButton=null;
@@ -1238,12 +1243,14 @@ function startSelectionShape(type,options,callback){
   activeDrawHandler=handler;activeDrawPurpose="selection";
   const once=e=>{
     map.off(L.Draw.Event.CREATED,once);
+    if(activeDrawCreatedHandler===once)activeDrawCreatedHandler=null;
     stopActiveDraw(true);
     if(e.layerType!==type.toLowerCase())return;
     map.removeLayer(e.layer);
     callback(e.layer);
   };
-  map.on(L.Draw.Event.CREATED,once);try{handler.enable()}catch(err){map.off(L.Draw.Event.CREATED,once);stopActiveDraw();console.error(err);status("Could not start the selection tool.")}
+  activeDrawCreatedHandler=once;
+  map.on(L.Draw.Event.CREATED,once);try{handler.enable()}catch(err){map.off(L.Draw.Event.CREATED,once);if(activeDrawCreatedHandler===once)activeDrawCreatedHandler=null;stopActiveDraw();console.error(err);status("Could not start the selection tool.")}
 }
 document.addEventListener("keydown",e=>{
   if(!activeDrawHandler)return;
