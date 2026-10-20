@@ -1471,6 +1471,8 @@ function saveAttributes(){
         value=JSON.parse(raw);
         if(value===null||typeof value!=="object")throw new Error("Expected object or array");
       }catch(e){errors.push("Field "+key+" must contain valid JSON object or array data.");return}
+    }else if(old===null){
+      value=raw.trim()===""?null:raw;
     }
     props[key]=value;
   });
@@ -1820,6 +1822,8 @@ $("saveTableEdits").onclick=()=>{
     }else if(oldValue!==null&&typeof oldValue==="object"){
      try{value=JSON.parse(raw)}catch(e){throw new Error("Field '"+key+"' requires valid JSON.");}
      if(value===null||typeof value!=="object")throw new Error("Field '"+key+"' must remain a JSON object or array.");
+    }else if(oldValue===null){
+     value=raw.trim()===""?null:raw;
     }
     next[key]=value;
    });
