@@ -844,6 +844,12 @@ function startEditing(item=null){
   // Switching targets here would make Save Table Edits reject those pending values.
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("changing the edit target"))return;
   if(item&&item.layer!==drawn&&!isVectorLayer(item.layer)){status("This layer cannot be edited.");return}
+  // The target selector is locked during an edit session. The layer context
+  // menu can still invoke this function, so enforce the same rule here.
+  if(editSessionActive&&item&&item.layer!==editTarget){
+    status("Stop the current edit session before switching to another layer.");
+    return;
+  }
   const sel=$("editTargetLayer");
   if(item){
     const idx=namedLayers.findIndex(x=>x.layer===item.layer);
