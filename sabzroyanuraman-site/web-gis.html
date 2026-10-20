@@ -2193,6 +2193,12 @@ $("clearDraw").onclick=()=>{
   if(blockForUnsavedTableEdits("clearing drawings"))return;
   if(!drawn.getLayers().length){status("There are no features to clear.");return}
   if(confirm("Delete all drawings?")){
+    // Clear Drawings also cancels an unfinished sketch aimed at My Drawings;
+    // otherwise its preview and click handler would survive the clear action.
+    if(activeDrawHandler&&activeDrawPurpose==="draw"&&editTarget===drawn){
+      stopActiveDraw(true);
+      status("Unfinished sketch cancelled.");
+    }
     recordUndoState();
     const removed=new Set(drawn.getLayers());
     selectedFeatures.forEach(layer=>{if(removed.has(layer))selectedFeatures.delete(layer)});
