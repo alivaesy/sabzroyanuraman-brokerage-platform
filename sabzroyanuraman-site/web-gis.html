@@ -3002,6 +3002,7 @@ function cloneSelectedFeatures(){
   status(clones.length+" feature(s) cloned into a new vector layer.");
 }
 function editableSelectedRecords(recordHistory=true){
+  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("modifying selected feature geometry"))return [];
   if(!editSessionActive){status("Start Editing before modifying features.");return []}
   const rs=selectedRecords().filter(r=>r.owner?.layer===editTarget);
   if(!rs.length)status("Select features from the active edit layer.");
