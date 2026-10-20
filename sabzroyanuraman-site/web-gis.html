@@ -810,6 +810,7 @@ function stopActiveDraw(cancel=true){
   activeDrawButton=null;
   try{map.doubleClickZoom.enable()}catch(_){}
   if(wasDrawing){activeMapTool="select";try{map.dragging.enable()}catch(_){} map.getContainer().style.cursor="";}
+  updateEditorToolbar();
 }
 function updateEditorToolbar(){
   $("startEditingBtn").disabled=editSessionActive;
@@ -1179,6 +1180,7 @@ function startNativeDraw(type,button){
   };
   activeDrawHandler=handler;
   button?.classList.add("active");
+  updateEditorToolbar();
   map.doubleClickZoom.disable();
   map.on("click",onClick);map.on("mousemove",onMove);map.on("dblclick",onDoubleClick);
   const instructions={Marker:"Click once on the map to place a point.",Polyline:"Click on the map to add line vertices.",Polygon:"Click on the map to add polygon vertices.",Rectangle:"Click the first rectangle corner.",Circle:"Click the circle center."};
