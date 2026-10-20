@@ -2955,10 +2955,43 @@ function constraintTool(){
   status(d?"Drawing vertex snapping enabled within "+d+" m.":"Drawing vertex snapping disabled.");
 }
 function attachmentsTool(){
-  const r=selectedRecords()[0];if(!r){status("Select at least one feature first.");return;}const i=document.createElement("input");i.type="file";i.multiple=true;i.onchange=()=>{r.feature.properties=r.feature.properties||{};r.feature.properties._attachments=[...i.files].map(f=>({name:f.name,type:f.type,size:f.size}));refreshAll();status(i.files.length+" Attachment metadata saved.");};i.click();
+  const records=editableSelectedRecords(false);
+  if(!records.length)return;
+  const r=records[0];
+  const picker=document.createElement("input");picker.type="file";picker.multiple=true;
+  picker.accept="*/*";
+  picker.onchange=async()=>{
+    const files=[...(picker.files||[])];if(!files.length)return;
+    const tooLarge=files.filter(f=>f.size>5*1024*1024);
+    if(tooLarge.length){status("Attachment limit is 5 MB per file. Remove: "+tooLarge.map(f=>f.name).join(", "));return;}
+    try{
+      status("Reading "+files.length+" attachment file(s)...");
+      const encoded=await Promise.all(files.map(file=>new Promise((resolve,reject)=>{
+        const reader=new FileReader();reader.onload=()=>resolve({name:file.name,type:file.type||"application/octet-stream",size:file.size,dataUrl:String(reader.result||"")});reader.onerror=()=>reject(new Error("Could not read "+file.name));reader.readAsDataURL(file);
+      })));
+      recordUndoState();
+      r.feature.properties=r.feature.properties||{};
+      const old=Array.isArray(r.feature.properties._attachments)?r.feature.properties._attachments:[];
+      r.feature.properties._attachments=old.concat(encoded);
+      refreshAll();scheduleAutoSave();
+      status(encoded.length+" file(s) attached and embedded in the current project. Attachments are stored in the browser project, not uploaded to a server.");
+    }catch(err){status("Attachment import failed: "+(err.message||"file read error"));}
+  };
+  picker.click();
 }
 function chartStats(){
-  const rs=getFeatureRecords();const vals=rs.map(r=>Object.values(r.feature.properties||{}).filter(v=>!isNaN(Number(v))).map(Number)).flat();if(!vals.length){status("No numeric attribute values were found.");return;}const sum=vals.reduce((a,b)=>a+b,0),avg=sum/vals.length;$("professionalToolOutput").textContent="Statistics — Count: "+vals.length+" | Sum: "+sum+" | Mean: "+avg.toFixed(3)+" | Min: "+Math.min(...vals)+" | Max: "+Math.max(...vals);
+  const rs=getFeatureRecords();
+  const vals=[];
+  rs.forEach(r=>Object.values(r.feature.properties||{}).forEach(v=>{
+    if(v===null||v===undefined||typeof v==="boolean"||String(v).trim()==="")return;
+    const n=typeof v==="number"?v:Number(v);if(Number.isFinite(n))vals.push(n);
+  }));
+  if(!vals.length){status("No numeric attribute values were found.");return;}
+  let sum=0,min=Infinity,max=-Infinity;
+  vals.forEach(v=>{sum+=v;if(v<min)min=v;if(v>max)max=v;});
+  const avg=sum/vals.length;
+  $("professionalToolOutput").textContent="Statistics — Count: "+vals.length+" | Sum: "+sum+" | Mean: "+avg.toFixed(3)+" | Min: "+min+" | Max: "+max;
+  status("Statistics calculated from "+vals.length+" numeric attribute value(s).");
 }
 
 function runGisTool(tool){
