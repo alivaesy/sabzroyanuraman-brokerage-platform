@@ -2638,32 +2638,60 @@ function editableSelectedRecords(){
   if(!editSessionActive){status("Start Editing before modifying features.");return []}
   const rs=selectedRecords().filter(r=>r.owner?.layer===editTarget);
   if(!rs.length)status("Select features from the active edit layer.");
-  else recordUndoState();
   return rs;
 }
 function moveSelected(){
   const rs=editableSelectedRecords();if(!rs.length)return;
-  const dx=Number(prompt("Move Features East X (meters):","0")),dy=Number(prompt("Move Features North Y (meters):","0"));
-  if(!Number.isFinite(dx)||!Number.isFinite(dy))return;
-  const moveCoord=c=>{const p=projectCoords("EPSG:4326",currentCRS,c);const q=[p[0]+dx,p[1]+dy];return proj4(currentCRS,"EPSG:4326",q);};
-  rs.forEach(r=>{const walk=c=>Array.isArray(c[0])?c.map(walk):moveCoord(c);r.feature.geometry.coordinates=walk(r.feature.geometry.coordinates);});
-  rebuildVectorLayerGeometry(rs); refreshAll(); status("Features moved.");
+  const dx=Number(prompt("Move East X (meters; positive = east):","0"));
+  if(!Number.isFinite(dx))return;
+  const dy=Number(prompt("Move North Y (meters; positive = north):","0"));
+  if(!Number.isFinite(dy))return;
+  if(dx===0&&dy===0){status("No movement specified.");return;}
+  const distance=Math.hypot(dx,dy),bearing=(Math.atan2(dx,dy)*180/Math.PI+360)%360;
+  const updates=[];
+  try{rs.forEach(r=>{
+    if(!r.feature.geometry)throw new Error("A selected feature has no geometry.");
+    const moved=turf.transformTranslate(r.feature,distance,bearing,{units:"meters"});
+    updates.push({r,geometry:moved.geometry});
+  });}catch(e){status("Move cancelled: "+(e.message||"geometry transform failed"));return;}
+  recordUndoState();
+  updates.forEach(x=>{x.r.feature.geometry=x.geometry;});
+  rebuildVectorLayerGeometry(updates.map(x=>x.r));refreshAll();
+  status(updates.length+" feature(s) moved "+distance.toFixed(2)+" m.");
 }
 function rotateSelected(){
   const rs=editableSelectedRecords();if(!rs.length)return;
-  const deg=Number(prompt("Angle Rotate Features (degrees):","90")); if(!Number.isFinite(deg))return;
-  rs.forEach(r=>{try{
-    const c=featureCenterLatLng(r.layer), fc=turf.point([c.lng,c.lat]);
-    const g=turf.transformRotate(r.feature,deg,{pivot:fc});
-    r.feature.geometry=g.geometry;
-  }catch(_){}});
-  rebuildVectorLayerGeometry(rs); refreshAll(); status("Features rotated.");
+  const deg=Number(prompt("Rotation angle in degrees (positive = counterclockwise):","90"));
+  if(!Number.isFinite(deg))return;
+  if(deg===0){status("Rotation angle is zero.");return;}
+  const updates=[];
+  try{rs.forEach(r=>{
+    if(!r.feature.geometry)throw new Error("A selected feature has no geometry.");
+    const c=featureCenterLatLng(r.layer);if(!c)throw new Error("Could not determine a rotation origin.");
+    const rotated=turf.transformRotate(r.feature,deg,{pivot:turf.point([c.lng,c.lat])});
+    updates.push({r,geometry:rotated.geometry});
+  });}catch(e){status("Rotation cancelled: "+(e.message||"geometry transform failed"));return;}
+  recordUndoState();
+  updates.forEach(x=>{x.r.feature.geometry=x.geometry;});
+  rebuildVectorLayerGeometry(updates.map(x=>x.r));refreshAll();
+  status(updates.length+" feature(s) rotated by "+deg+"°.");
 }
 function scaleSelected(){
   const rs=editableSelectedRecords();if(!rs.length)return;
-  const factor=Number(prompt("Factor Scale:","1.1")); if(!Number.isFinite(factor)||factor<=0)return;
-  rs.forEach(r=>{try{const c=featureCenterLatLng(r.layer);r.feature.geometry=turf.transformScale(r.feature,factor,{origin:[c.lng,c.lat]}).geometry;}catch(_){}});
-  rebuildVectorLayerGeometry(rs); refreshAll(); status("Features scaled.");
+  const factor=Number(prompt("Scale factor (greater than 0; 1 = unchanged):","1.1"));
+  if(!Number.isFinite(factor)||factor<=0){status("Scale cancelled: enter a number greater than zero.");return;}
+  if(factor===1){status("Scale factor is 1; geometry unchanged.");return;}
+  const updates=[];
+  try{rs.forEach(r=>{
+    if(!r.feature.geometry)throw new Error("A selected feature has no geometry.");
+    const c=featureCenterLatLng(r.layer);if(!c)throw new Error("Could not determine a scale origin.");
+    const scaled=turf.transformScale(r.feature,factor,{origin:[c.lng,c.lat]});
+    updates.push({r,geometry:scaled.geometry});
+  });}catch(e){status("Scale cancelled: "+(e.message||"geometry transform failed"));return;}
+  recordUndoState();
+  updates.forEach(x=>{x.r.feature.geometry=x.geometry;});
+  rebuildVectorLayerGeometry(updates.map(x=>x.r));refreshAll();
+  status(updates.length+" feature(s) scaled by ×"+factor+".");
 }
 function rebuildVectorLayerGeometry(rs){
   rs.forEach(r=>{
@@ -2688,10 +2716,35 @@ function rebuildVectorLayerGeometry(rs){
   applySelectionVisual();renderLayerList();refreshAttributeLayers();scheduleAutoSave();
 }
 function reshapeSelected(){
-  const r=selectedRecords()[0]; if(!r){status("Select at least one feature first.");return;}
-  status("Draw a polygon to reshape the selected feature.");
-  const h=new L.Draw.Polygon(map,{shapeOptions:{color:"#e67e22",weight:2,dashArray:"4,4"}});h.enable();
-  const once=e=>{map.off(L.Draw.Event.CREATED,once);map.removeLayer(e.layer);r.feature.geometry=e.layer.toGeoJSON().geometry;rebuildVectorLayerGeometry([r]);refreshAll();status("Feature geometry updated.");};map.on(L.Draw.Event.CREATED,once);
+  const r=selectedRecords()[0];
+  if(!r){status("Select one polygon feature first.");return;}
+  const type=r.feature?.geometry?.type;
+  if(!["Polygon","MultiPolygon"].includes(type)){status("Reshape currently supports Polygon and MultiPolygon features only.");return;}
+  if(editSessionActive&&r.owner?.layer!==editTarget){status("The selected feature is not in the active edit layer.");return;}
+  if(typeof turf.booleanIntersects!=="function"||typeof turf.booleanWithin!=="function"||typeof turf.difference!=="function"||typeof turf.union!=="function"){
+    status("Reshape unavailable: required Turf geometry operations are not loaded.");return;
+  }
+  status("Draw a polygon overlapping the selected polygon to reshape it. Drawing inside removes that area; drawing across/alongside merges the areas.");
+  const h=new L.Draw.Polygon(map,{shapeOptions:{color:"#e67e22",weight:2,dashArray:"4,4"}});
+  const once=e=>{
+    map.off(L.Draw.Event.CREATED,once);
+    try{
+      map.removeLayer(e.layer);
+      const sketch=e.layer.toGeoJSON();
+      if(!sketch.geometry||sketch.geometry.type!=="Polygon"){status("Reshape cancelled: draw a valid polygon.");return;}
+      if(!turf.booleanIntersects(r.feature,sketch)){status("Reshape cancelled: the drawn polygon must overlap or touch the selected polygon.");return;}
+      const cut=turf.booleanWithin(sketch,r.feature);
+      const fc={type:"FeatureCollection",features:[r.feature,sketch]};
+      const result=cut?turf.difference(fc):turf.union(fc);
+      if(!result?.geometry||!["Polygon","MultiPolygon"].includes(result.geometry.type)){status("Reshape failed: no valid polygon result was produced.");return;}
+      recordUndoState();
+      r.feature.geometry=result.geometry;
+      rebuildVectorLayerGeometry([r]);refreshAll();
+      status(cut?"Selected polygon reshaped by removing the drawn interior area.":"Selected polygon reshaped by merging the drawn area.");
+    }catch(err){console.error("Reshape failed",err);status("Reshape failed: "+(err.message||"geometry operation error"));}
+  };
+  map.on(L.Draw.Event.CREATED,once);
+  h.enable();
 }
 function editVertices(){
   const r=selectedRecords()[0];
