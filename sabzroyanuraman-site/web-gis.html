@@ -1835,16 +1835,34 @@ $("pasteRows").onclick=()=>{
 };
 $("fillSelected").onclick=()=>{
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before calculating fields.");return}
- const value=$("fillValue").value,items=currentAttributeItems(),inds=selectedTableIndexes();
+ const raw=$("fillValue").value,items=currentAttributeItems(),inds=selectedTableIndexes();
  if(!inds.length){status("Select one or more rows before calculating a field.");return}
- const layerKeys=tableKeys(items),key=prompt("Field to calculate:\n"+layerKeys.join(", "));
+ const keys=tableKeys(items),key=prompt("Field to calculate:\n"+keys.join(", "));
  if(key===null)return;
- if(!layerKeys.includes(key)){status("Choose an existing field from the list.");return}
- const targets=inds.filter(i=>items[i]);
+ if(!keys.includes(key)){status("Choose an existing field from the list.");return}
+ const targets=inds.map(i=>items[i]).filter(Boolean);
  if(!targets.length){status("No valid rows are selected.");return}
+ let value=raw;
+ const samples=targets.map(x=>(x.feature.properties||{})[key]).filter(v=>v!==null&&v!==undefined);
+ const sample=samples.find(v=>typeof v!=="string")??samples[0];
+ try{
+  if(typeof sample==="number"){
+   if(raw.trim()==="")value=null;
+   else if(!Number.isFinite(Number(raw)))throw new Error("Enter a valid number for field '"+key+"'.");
+   else value=Number(raw);
+  }else if(typeof sample==="boolean"){
+   if(!/^(true|false)$/i.test(raw.trim()))throw new Error("Enter true or false for field '"+key+"'.");
+   value=raw.trim().toLowerCase()==="true";
+  }else if(sample!==null&&typeof sample==="object"){
+   value=JSON.parse(raw);
+   if(value===null||typeof value!=="object")throw new Error("Enter a valid JSON object or array.");
+  }
+ }catch(err){status("Field calculation cancelled: "+err.message);return}
+ const changed=targets.filter(x=>JSON.stringify((x.feature.properties||{})[key])!==JSON.stringify(value));
+ if(!changed.length){status("The selected features already have this value.");return}
  recordUndoState();
- targets.forEach(i=>{ensureFeatureProperties(items[i].layer);items[i].feature.properties[key]=value;updateFeaturePopup(items[i].layer)});
- renderEditableTable();scheduleAutoSave();status("Calculated field '"+key+"' for "+targets.length+" rows.");
+ changed.forEach(item=>{ensureFeatureProperties(item.layer);item.feature.properties[key]=value;updateFeaturePopup(item.layer)});
+ renderEditableTable();scheduleAutoSave();status("Calculated field '"+key+"' for "+changed.length+" feature(s).");
 };
 $("measureSelected").onclick=()=>{if(selectedLayer)calcMeasure(selectedLayer);else status("Select a feature on the map first.");};
 $("basemap").onchange=e=>selectBasemap(e.target.value);
