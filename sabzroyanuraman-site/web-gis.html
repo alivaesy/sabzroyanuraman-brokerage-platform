@@ -1852,15 +1852,27 @@ $("layerContextMenu").querySelectorAll("button[data-action]").forEach(btn=>btn.o
   renderLayerList();hideLayerContextMenu();
 });
 $("selectFiltered").onclick=()=>{
- const idx=$("attributeLayer").value;if(idx===""){status("Select a feature layer.");return}
+ if($("attributeLayer").value===""){status("Select a feature layer.");return}
+ if(hasUnsavedTableEdits()){status("Save Table Edits before selecting filtered records; unsaved cell values have been preserved.");return}
  const filter=$("attributeFilter").value.trim().toLowerCase(),items=currentAttributeItems();
  selectedFeatures.clear();
  let n=0;
  items.forEach(x=>{
-   const hit=!filter||Object.entries(x.feature.properties||{}).some(([k,v])=>k!=="_attachments"&&String(v??"").toLowerCase().includes(filter));
+   const hit=!filter||Object.entries(x.feature.properties||{}).some(([k,v])=>{
+     if(k==="_attachments")return false;
+     const value=v===null||v===undefined?"":typeof v==="object"?JSON.stringify(v):String(v);
+     return k.toLowerCase().includes(filter)||value.toLowerCase().includes(filter);
+   });
    if(hit){selectedFeatures.add(x.layer);n++;}
  });
+ $("attributeTableWrap").querySelectorAll("tbody tr").forEach(row=>{
+   const item=items[Number(row.dataset.index)],check=row.querySelector(".row-check");
+   if(check&&item)check.checked=selectedFeatures.has(item.layer);
+ });
+ const all=$("checkAllRows"),checks=[...$("attributeTableWrap").querySelectorAll(".row-check")];
+ if(all){const checked=checks.filter(ch=>ch.checked).length;all.checked=checks.length>0&&checked===checks.length;all.indeterminate=checked>0&&checked<checks.length}
  applySelectionVisual();updateMultiSelectionUI();
+ $("attributeTableWindowSelection").textContent=selectedFeatures.size+" selected";
  status(n+" feature(s) selected from the filtered attribute table.");
 };
 $("editAttributes").onclick=renderAttributeEditor;
