@@ -1153,8 +1153,34 @@ function startNativeDraw(type,button){
     const tolerance=Number(window._drawingConstraintMeters)||0;
     if(tolerance){
       let nearest=null,best=tolerance;
-      getFeatureRecords().forEach(r=>{const walk=c=>{if(Array.isArray(c)&&typeof c[0]==="number"&&typeof c[1]==="number"){const ll=L.latLng(c[1],c[0]),d=point.distanceTo(ll);if(d<best){best=d;nearest=ll}}else if(Array.isArray(c))c.forEach(walk)};
-        try{walk(r.feature.geometry.coordinates)}catch(_){}
+      const consider=candidate=>{
+        if(!candidate||!Number.isFinite(candidate.lat)||!Number.isFinite(candidate.lng))return;
+        const d=point.distanceTo(candidate);
+        if(d<best){best=d;nearest=candidate}
+      };
+      const visitCoordinates=coords=>{
+        if(!Array.isArray(coords)||!coords.length)return;
+        // A coordinate sequence is a list of [longitude, latitude, ...] positions.
+        if(Array.isArray(coords[0])&&typeof coords[0][0]==="number"&&typeof coords[0][1]==="number"){
+          const positions=coords;
+          positions.forEach(pos=>consider(L.latLng(pos[1],pos[0])));
+          // Snap to the closest point on segments as well as to their vertices.
+          // The candidate is found in map projection, then checked in ground meters.
+          for(let i=1;i<positions.length;i++){
+            const a=L.latLng(positions[i-1][1],positions[i-1][0]);
+            const b=L.latLng(positions[i][1],positions[i][0]);
+            try{
+              const p1=map.latLngToLayerPoint(a),p2=map.latLngToLayerPoint(b),p=map.latLngToLayerPoint(point);
+              const closest=L.LineUtil.closestPointOnSegment(p,p1,p2);
+              if(closest)consider(map.layerPointToLatLng(closest));
+            }catch(_){}
+          }
+          return;
+        }
+        coords.forEach(visitCoordinates);
+      };
+      getFeatureRecords().forEach(record=>{
+        try{visitCoordinates(record.feature.geometry?.coordinates)}catch(_){}
       });
       if(nearest)point=nearest;
     }
