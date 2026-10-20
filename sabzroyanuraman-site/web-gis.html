@@ -840,6 +840,9 @@ function refreshEditorTargets(){
   editTarget=sel.value==="drawn"?drawn:(namedLayers[Number(sel.value)]?.layer||drawn);
 }
 function startEditing(item=null){
+  // Keep unsaved Attribute Table cells attached to their original edit target.
+  // Switching targets here would make Save Table Edits reject those pending values.
+  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("changing the edit target"))return;
   if(item&&item.layer!==drawn&&!isVectorLayer(item.layer)){status("This layer cannot be edited.");return}
   const sel=$("editTargetLayer");
   if(item){
