@@ -1881,10 +1881,11 @@ $("gdbInput").onchange=async e=>{
 };
 
 async function importDXFFile(file){
-  const enteredCrs=prompt("Enter the DXF drawing's source CRS (EPSG code). Default: "+currentCRS,currentCRS);
+  const enteredCrs=prompt("Enter the CAD drawing's source CRS. You may enter EPSG:32638 or 32638. CAD files often do not store a reliable CRS; use the default only if the drawing really uses "+currentCRS+".",currentCRS);
   if(enteredCrs===null)return;
-  const sourceCRS=enteredCrs.trim().toUpperCase().replace(/^EPSG\s*:/,"EPSG:");
-  if(!/^EPSG:\d+$/.test(sourceCRS)){status("DXF import cancelled: enter a CRS such as EPSG:32638.");return}
+  const crsInput=enteredCrs.trim().toUpperCase().replace(/^EPSG\s*:\s*/,"");
+  const sourceCRS="EPSG:"+crsInput;
+  if(!/^EPSG:\d+$/.test(sourceCRS)){status("CAD import cancelled: enter an EPSG code such as EPSG:32638 or 32638.");return}
   try{
     status("Reading DXF drawing in "+sourceCRS+"...");
     const Gdal=await getGdalBrowser();
