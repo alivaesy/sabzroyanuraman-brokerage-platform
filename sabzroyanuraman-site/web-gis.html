@@ -1716,7 +1716,7 @@ function renderEditableTable(){
  const keys=tableKeys(items);
  let html="<table style='width:100%;border-collapse:collapse;direction:rtl'><thead><tr><th><input type='checkbox' class='attr-check' id='checkAllRows'></th><th>#</th>"+
  keys.map(k=>"<th style='padding:3px;border-bottom:1px solid #ccd9df;white-space:nowrap'>"+esc(k)+"</th>").join("")+"</tr></thead><tbody>";
- rows.forEach(o=>{html+="<tr data-index='"+o.i+"'><td><input type='checkbox' class='row-check attr-check'></td><td>"+(o.i+1)+"</td>"+
+ rows.forEach(o=>{html+="<tr data-index='"+o.i+"'><td><input type='checkbox' class='row-check attr-check' "+(selectedFeatures.has(o.x.layer)?"checked":"")+"></td><td>"+(o.i+1)+"</td>"+
  keys.map(k=>{const v=(o.x.feature.properties||{})[k],shown=v!==null&&typeof v==="object"?JSON.stringify(v):v;return "<td style='padding:2px'><input class='cell-edit' data-key='"+esc(k)+"' value='"+esc(shown) +"'></td>"}).join("")+"</tr>"});
  $("attributeTableWrap").innerHTML=html+"</tbody></table>";$("attributeTableWrap").style.display="block";
  const all=$("checkAllRows"),rowChecks=[...$("attributeTableWrap").querySelectorAll(".row-check")];
@@ -1726,8 +1726,19 @@ function renderEditableTable(){
   all.checked=rowChecks.length>0&&checked===rowChecks.length;
   all.indeterminate=checked>0&&checked<rowChecks.length;
  };
- if(all)all.onchange=()=>{rowChecks.forEach(ch=>ch.checked=all.checked);syncCheckAll()};
- rowChecks.forEach(ch=>ch.onchange=syncCheckAll);
+ const syncMapSelection=()=>{
+  rowChecks.forEach(ch=>{
+   const row=ch.closest("tr"),item=items[Number(row?.dataset.index)];
+   if(!item)return;
+   if(ch.checked)selectedFeatures.add(item.layer);
+   else selectedFeatures.delete(item.layer);
+  });
+  applySelectionVisual();
+  syncCheckAll();
+ };
+ if(all)all.onchange=()=>{rowChecks.forEach(ch=>ch.checked=all.checked);syncMapSelection()};
+ rowChecks.forEach(ch=>ch.onchange=syncMapSelection);
+ syncCheckAll();
  status(rows.length+" rows displayed.");
 }
 $("openTable").onclick=renderEditableTable;
