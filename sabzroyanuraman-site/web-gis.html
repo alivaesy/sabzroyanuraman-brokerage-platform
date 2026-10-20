@@ -2897,8 +2897,10 @@ function reshapeSelected(){
 function editVertices(){
   const r=selectedRecords()[0];
   if(!r){status("Select a feature first.");return;}
+  if(!editSessionActive){status("Start Editing before modifying vertices.");return;}
   const owner=r.owner?.layer||drawn;
   if(!owner||!owner.getLayers){status("This feature cannot be vertex edited.");return;}
+  if(owner!==editTarget){status("The selected feature is not in the active edit layer.");return;}
   try{
     if(window._vertexEditControl){
       map.removeControl(window._vertexEditControl);
@@ -2908,35 +2910,41 @@ function editVertices(){
       map.off(L.Draw.Event.EDITED,window._vertexEditHandler);
       window._vertexEditHandler=null;
     }
+    const baseline=JSON.parse(JSON.stringify(serializeProject()));
     window._vertexEditOwner=owner;
     window._vertexEditHandler=function(event){
-      let count=0;
+      if(!editSessionActive||editTarget!==owner){status("Vertex edits ignored because the active edit layer changed.");return;}
+      const edited=[];
       event.layers.eachLayer(layer=>{
-        if(!layer||typeof layer.toGeoJSON!=="function")return;
-        const oldFeature=layer.feature||{};
-        const updated=layer.toGeoJSON();
+        if(!layer||typeof layer.toGeoJSON!=="function"||!owner.hasLayer(layer))return;
+        const oldFeature=layer.feature||{},updated=layer.toGeoJSON();
         updated.properties={...(oldFeature.properties||{}),...(updated.properties||{})};
         layer.feature=updated;
-        count++;
+        edited.push(layer);
       });
-      if(count){
-        refreshAll();
-        status("Saved geometry edits for "+count+" feature(s).");
-      }
+      if(!edited.length)return;
+      try{
+        const current=JSON.stringify(serializeProject());
+        if(current!==JSON.stringify(baseline)){
+          undoStack.push(baseline);if(undoStack.length>40)undoStack.shift();
+          redoStack.length=0;updateUndoButtons();
+        }
+      }catch(err){console.warn("Could not preserve vertex-edit history:",err)}
+      refreshAll();
+      scheduleAutoSave();
+      status("Saved vertex edits for "+edited.length+" feature(s).");
     };
     map.on(L.Draw.Event.EDITED,window._vertexEditHandler);
     window._vertexEditControl=new L.Control.Draw({
       draw:false,
-      edit:{
-        featureGroup:owner,
-        selectedPathOptions:{maintainColor:true,opacity:0.9}
-      }
+      edit:{featureGroup:owner,selectedPathOptions:{maintainColor:true,opacity:0.9}}
     });
     map.addControl(window._vertexEditControl);
     status("Vertex editing toolbar enabled. Click the pencil, edit vertices, then click Save in the toolbar.");
   }catch(e){
     if(window._vertexEditHandler)map.off(L.Draw.Event.EDITED,window._vertexEditHandler);
     window._vertexEditHandler=null;
+    if(window._vertexEditControl){try{map.removeControl(window._vertexEditControl)}catch(_){}window._vertexEditControl=null}
     status("Vertex editing failed: "+e.message);
   }
 }
