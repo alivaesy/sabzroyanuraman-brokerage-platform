@@ -2694,14 +2694,50 @@ function reshapeSelected(){
   const once=e=>{map.off(L.Draw.Event.CREATED,once);map.removeLayer(e.layer);r.feature.geometry=e.layer.toGeoJSON().geometry;rebuildVectorLayerGeometry([r]);refreshAll();status("Feature geometry updated.");};map.on(L.Draw.Event.CREATED,once);
 }
 function editVertices(){
-  const r=selectedRecords()[0];if(!r){status("Select a feature first.");return}
+  const r=selectedRecords()[0];
+  if(!r){status("Select a feature first.");return;}
   const owner=r.owner?.layer||drawn;
+  if(!owner||!owner.getLayers){status("This feature cannot be vertex edited.");return;}
   try{
-    if(!owner||!owner.getLayers){status("This feature cannot be vertex edited.");return}
-    if(window._vertexEditControl){map.removeControl(window._vertexEditControl);window._vertexEditControl=null}
-    window._vertexEditControl=new L.Control.Draw({draw:false,edit:{featureGroup:owner,edit:{selectedPathOptions:{maintainColor:true}}}});
-    map.addControl(window._vertexEditControl);status("Vertex editing enabled. Use the edit toolbar, then save edits.");
-  }catch(e){status("Vertex editing failed: "+e.message)}
+    if(window._vertexEditControl){
+      map.removeControl(window._vertexEditControl);
+      window._vertexEditControl=null;
+    }
+    if(window._vertexEditHandler){
+      map.off(L.Draw.Event.EDITED,window._vertexEditHandler);
+      window._vertexEditHandler=null;
+    }
+    window._vertexEditOwner=owner;
+    window._vertexEditHandler=function(event){
+      let count=0;
+      event.layers.eachLayer(layer=>{
+        if(!layer||typeof layer.toGeoJSON!=="function")return;
+        const oldFeature=layer.feature||{};
+        const updated=layer.toGeoJSON();
+        updated.properties={...(oldFeature.properties||{}),...(updated.properties||{})};
+        layer.feature=updated;
+        count++;
+      });
+      if(count){
+        refreshAll();
+        status("Saved geometry edits for "+count+" feature(s).");
+      }
+    };
+    map.on(L.Draw.Event.EDITED,window._vertexEditHandler);
+    window._vertexEditControl=new L.Control.Draw({
+      draw:false,
+      edit:{
+        featureGroup:owner,
+        selectedPathOptions:{maintainColor:true,opacity:0.9}
+      }
+    });
+    map.addControl(window._vertexEditControl);
+    status("Vertex editing toolbar enabled. Click the pencil, edit vertices, then click Save in the toolbar.");
+  }catch(e){
+    if(window._vertexEditHandler)map.off(L.Draw.Event.EDITED,window._vertexEditHandler);
+    window._vertexEditHandler=null;
+    status("Vertex editing failed: "+e.message);
+  }
 }
 function advancedSnap(){
   const pts=selectedRecords().filter(r=>r.feature.geometry?.type==="Point");
