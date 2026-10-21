@@ -4389,18 +4389,32 @@ function attachmentsTool(){
   picker.click();
 }
 function chartStats(){
-  const rs=getFeatureRecords();
+  const all=getFeatureRecords();
+  const rs=selectedFeatures.size?all.filter(r=>selectedFeatures.has(r.layer)):all;
+  if(!rs.length){status("Load features or select features before calculating statistics.");return;}
+  const fields=[...new Set(rs.flatMap(r=>Object.keys(r.feature.properties||{})))];
+  const numericFields=fields.filter(field=>rs.some(r=>{
+    const v=r.feature.properties?.[field];
+    return v!==null&&v!==undefined&&typeof v!=="boolean"&&String(v).trim()!==""&&Number.isFinite(typeof v==="number"?v:Number(v));
+  }));
+  if(!numericFields.length){status("No numeric attribute fields were found in the current feature set.");return;}
+  const field=numericFields.length===1?numericFields[0]:prompt("Numeric field for statistics:\n"+numericFields.map((name,i)=>(i+1)+". "+name).join("\n"),"1");
+  if(field===null)return;
+  const chosen=typeof field==="number"?String(field):String(field).trim();
+  const fieldName=/^\\d+$/.test(chosen)?numericFields[Number(chosen)-1]:chosen;
+  if(!numericFields.includes(fieldName)){status("Choose a valid numeric field.");return;}
   const vals=[];
-  rs.forEach(r=>Object.values(r.feature.properties||{}).forEach(v=>{
+  rs.forEach(r=>{
+    const v=r.feature.properties?.[fieldName];
     if(v===null||v===undefined||typeof v==="boolean"||String(v).trim()==="")return;
     const n=typeof v==="number"?v:Number(v);if(Number.isFinite(n))vals.push(n);
-  }));
-  if(!vals.length){status("No numeric attribute values were found.");return;}
+  });
+  if(!vals.length){status("The selected field contains no numeric values.");return;}
   let sum=0,min=Infinity,max=-Infinity;
   vals.forEach(v=>{sum+=v;if(v<min)min=v;if(v>max)max=v;});
   const avg=sum/vals.length;
-  $("professionalToolOutput").textContent="Statistics — Count: "+vals.length+" | Sum: "+sum+" | Mean: "+avg.toFixed(3)+" | Min: "+min+" | Max: "+max;
-  status("Statistics calculated from "+vals.length+" numeric attribute value(s).");
+  $("professionalToolOutput").textContent="Statistics — Field: "+fieldName+" | Features: "+rs.length+" | Numeric values: "+vals.length+" | Sum: "+sum+" | Mean: "+avg.toFixed(3)+" | Min: "+min+" | Max: "+max;
+  status("Statistics calculated for field "+fieldName+" across "+vals.length+" numeric value(s)"+(selectedFeatures.size?" in the current selection.":"."));
 }
 
 function runGisTool(tool){
