@@ -3942,7 +3942,13 @@ function spatialFilter(){
   });
   if(mode==="1")selectedFeatures.clear();
   if(mode==="3")matches.forEach(layer=>selectedFeatures.delete(layer));
-  else matches.forEach(layer=>selectedFeatures.add(layer));
+  else if(mode==="4"){
+    // ArcMap-style "select from current selection" must remove prior selections
+    // that fail the predicate, not merely add the matching subset.
+    const current=new Set(selectedFeatures);
+    current.forEach(layer=>{if(rs.some(r=>r.layer===layer)&&!matches.has(layer))selectedFeatures.delete(layer);});
+    matches.forEach(layer=>{if(current.has(layer))selectedFeatures.add(layer);});
+  }else matches.forEach(layer=>selectedFeatures.add(layer));
   const first=[...selectedFeatures].map(layer=>rs.find(r=>r.layer===layer)).find(Boolean);
   selectedLayer=first?.layer||null;
   selectedOverlay=null;
@@ -3992,8 +3998,14 @@ function reprojectLayer(){
     else if(code>=32701&&code<=32760)proj4.defs(target,"+proj=utm +zone="+(code-32700)+" +south +datum=WGS84 +units=m +no_defs");
     const transformCoords=c=>Array.isArray(c)&&typeof c[0]==="number"
       ?[...proj4("EPSG:4326",target,[c[0],c[1]]),...c.slice(2)]
-      :c.map(transformCoords);
-    const features=rs.map(r=>{const f=JSON.parse(JSON.stringify(r.feature));f.geometry.coordinates=transformCoords(f.geometry.coordinates);return f});
+      :Array.isArray(c)?c.map(transformCoords):c;
+    const transformGeometry=g=>{
+      if(!g)return g;
+      if(g.type==="GeometryCollection")return {...g,geometries:(g.geometries||[]).map(transformGeometry)};
+      if(!g.coordinates)return g;
+      return {...g,coordinates:transformCoords(g.coordinates)};
+    };
+    const features=rs.map(r=>{const f=JSON.parse(JSON.stringify(r.feature));f.geometry=transformGeometry(f.geometry);return f});
     const data={type:"FeatureCollection",features,crs:{type:"name",properties:{name:target}}};
     const blob=new Blob([JSON.stringify(data)],{type:"application/geo+json"}),a=document.createElement("a");
     a.href=URL.createObjectURL(blob);a.download="reprojected-"+epsg+".geojson";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
