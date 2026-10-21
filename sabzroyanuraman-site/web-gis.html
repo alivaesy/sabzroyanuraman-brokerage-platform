@@ -377,6 +377,19 @@ body{background:#dfe5e8;color:#173b57}
 @media(max-width:800px){#attributeTableWindow{left:8px;right:8px;bottom:24px;width:auto;min-width:0;height:45vh}#attributeTableWindow.maximized{top:95px}}
 
 </style>
+<style>
+/* ArcMap Editor task menu + KMZ support */
+#editorTaskMenu{display:none;position:fixed;z-index:10020;min-width:215px;padding:3px;background:#f3f3f3;border:1px solid #8b969d;box-shadow:2px 3px 8px #0003;color:#222;direction:ltr;font:12px Arial,sans-serif}
+#editorTaskMenu.open{display:block}
+#editorTaskMenu .menu-caption{padding:5px 8px;color:#526675;font-size:10px;font-weight:bold;border-bottom:1px solid #c5cbd0}
+#editorTaskMenu button{display:flex;width:100%;align-items:center;gap:9px;padding:6px 9px;border:0;background:transparent;text-align:left;color:#222;font:12px Arial,sans-serif;cursor:pointer}
+#editorTaskMenu button:hover{background:#dceaf5;outline:1px solid #abc6d9}
+#editorTaskMenu .task-icon{width:18px;text-align:center;color:#397da2;font-size:15px}
+#editorTaskMenu .task-sep{height:1px;background:#c8cdd0;margin:3px 4px}
+#editorTaskMenu .task-hint{padding:5px 8px;color:#65737b;font-size:10px}
+#goToXYBtn .arcmap-icon{stroke:#2479a9;stroke-width:1.25}
+#goToXYBtn .arcmap-icon path{stroke-linecap:round;stroke-linejoin:round}
+</style>
 </head>
 <body>
 <svg class="arcmap-icon-defs" aria-hidden="true" focusable="false"><defs><symbol id="arc-icon-new" viewBox="0 0 16 16"><path d="M3 1.5h7l3 3V14H3z"/><path d="M10 1.5V5h3M8 7v5M5.5 9.5h5"/></symbol><symbol id="arc-icon-open" viewBox="0 0 16 16"><path d="M1.5 4h5l1.5 1.5h6.5v7h-13z"/><path d="M1.5 6h13l-1.5 7h-12z"/></symbol><symbol id="arc-icon-save" viewBox="0 0 16 16"><path d="M2 1.5h10l2 2V14H2z"/><path d="M4 1.5v4h6v-4M4 14V8h8v6M5.5 9.5h5"/></symbol><symbol id="arc-icon-print" viewBox="0 0 16 16"><path d="M4 4V1.5h8V4M3 11H1.5V5.5h13V11H13"/><path d="M4 9h8v5H4zM11.5 7.5h.1"/></symbol><symbol id="arc-icon-cut" viewBox="0 0 16 16"><circle cx="4" cy="11.5" r="2"/><circle cx="4" cy="4.5" r="2"/><path d="m5.5 6 8 7M5.5 10 13 2"/></symbol><symbol id="arc-icon-copy" viewBox="0 0 16 16"><path d="M5 4h8v10H5zM2 11H1.5V1.5H10V3"/></symbol><symbol id="arc-icon-paste" viewBox="0 0 16 16"><path d="M5 2H3v12h10V2h-2"/><path d="M5 1.5h6v3H5zM6 8h4M6 10.5h4"/></symbol><symbol id="arc-icon-delete" viewBox="0 0 16 16"><path d="M2.5 4h11M5 4V2h6v2M4 4.5l.7 9h6.6l.7-9M6.5 6.5v5M9.5 6.5v5"/></symbol><symbol id="arc-icon-undo" viewBox="0 0 16 16"><path d="M5 4 2 7l3 3"/><path d="M2.5 7h6a5 5 0 0 1 5 5"/></symbol><symbol id="arc-icon-redo" viewBox="0 0 16 16"><path d="m11 4 3 3-3 3"/><path d="M13.5 7h-6a5 5 0 0 0-5 5"/></symbol><symbol id="arc-icon-adddata" viewBox="0 0 16 16"><path d="M2 3.5h12v8H2zM2 6h12M5 3.5V2M11 3.5V2"/><path d="M8 7.5v3M6.5 9h3"/></symbol><symbol id="arc-icon-webdata" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5"/><path d="M1.8 8h12.4M8 1.5c2 2 2 11 0 13M8 1.5c-2 2-2 11 0 13"/></symbol><symbol id="arc-icon-editor" viewBox="0 0 16 16"><path d="m3 11 7.8-7.8 2 2L5 13H3zM9.5 4.5l2 2M2 14h12"/></symbol><symbol id="arc-icon-toolbox" viewBox="0 0 16 16"><path d="M1.5 5h13v8h-13zM5 5V2h6v3M1.5 8h13M6.5 8v2h3V8"/></symbol><symbol id="arc-icon-command" viewBox="0 0 16 16"><path d="m3 4 4 4-4 4M8.5 12h4.5"/></symbol><symbol id="arc-icon-search" viewBox="0 0 16 16"><circle cx="6.5" cy="6.5" r="4"/><path d="m9.5 9.5 4 4"/></symbol><symbol id="arc-icon-help" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5"/><path d="M6 6a2 2 0 1 1 3.6 1.2C8.7 8.2 8 8.4 8 10M8 12.5h.1"/></symbol><symbol id="arc-icon-zoomIn" viewBox="0 0 16 16"><circle cx="6.5" cy="6.5" r="4"/><path d="m9.5 9.5 4 4M6.5 4.5v4M4.5 6.5h4"/></symbol><symbol id="arc-icon-zoomOut" viewBox="0 0 16 16"><circle cx="6.5" cy="6.5" r="4"/><path d="m9.5 9.5 4 4M4.5 6.5h4"/></symbol><symbol id="arc-icon-pan" viewBox="0 0 16 16"><path d="M8 1.5v13M1.5 8h13M4 4l4-2.5L12 4M4 12l4 2.5 4-2.5M4 4 1.5 8 4 12M12 4l2.5 4-2.5 4"/></symbol><symbol id="arc-icon-extent" viewBox="0 0 16 16"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/><path d="M5 5l-3-3M11 5l3-3M11 11l3 3M5 11l-3 3"/></symbol><symbol id="arc-icon-fixedIn" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4v8M4 8h8"/></symbol><symbol id="arc-icon-fixedOut" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M4 8h8"/></symbol><symbol id="arc-icon-back" viewBox="0 0 16 16"><path d="m6 3-4 4 4 4"/><path d="M2.5 7h6a5 5 0 0 1 5 5"/></symbol><symbol id="arc-icon-forward" viewBox="0 0 16 16"><path d="m10 3 4 4-4 4"/><path d="M13.5 7h-6a5 5 0 0 0-5 5"/></symbol><symbol id="arc-icon-select" viewBox="0 0 16 16"><path d="M3 1.5 12 9l-4 .5-2 4z"/><path d="M9.5 11 12 14"/></symbol><symbol id="arc-icon-clear" viewBox="0 0 16 16"><path d="m3 3 10 10M13 3 3 13"/></symbol><symbol id="arc-icon-element" viewBox="0 0 16 16"><path d="M3 2 11 9l-3.5.5L6 13z"/><rect x="9.5" y="9.5" width="5" height="5"/></symbol><symbol id="arc-icon-identify" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5"/><path d="M8 7v4M8 4.5h.1"/></symbol><symbol id="arc-icon-link" viewBox="0 0 16 16"><path d="M6.5 10 5 11.5a3 3 0 0 1-4-4l2.5-2.5a3 3 0 0 1 4-.2M9.5 6 11 4.5a3 3 0 0 1 4 4l-2.5 2.5a3 3 0 0 1-4 .2M5.5 8.5h5"/></symbol><symbol id="arc-icon-popup" viewBox="0 0 16 16"><path d="M2 2.5h12v8H8l-3 3v-3H2z"/><path d="M4.5 5h7M4.5 7.5h5"/></symbol><symbol id="arc-icon-measure" viewBox="0 0 16 16"><path d="m2 11 9-9 4 4-9 9z"/><path d="m8 5 2 2M5.5 7.5l1 1M10.5 3.5l1 1"/></symbol><symbol id="arc-icon-find" viewBox="0 0 16 16"><circle cx="4.5" cy="5" r="2.5"/><circle cx="11.5" cy="5" r="2.5"/><path d="M1.5 12c0-2 1-3 3-3s3 1 3 3M8.5 12c0-2 1-3 3-3s3 1 3 3M7 4.5h2"/></symbol><symbol id="arc-icon-route" viewBox="0 0 16 16"><path d="M3 13c3-7 7 1 10-8"/><circle cx="3" cy="13" r="1.5"/><path d="M13 2.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></symbol><symbol id="arc-icon-goxy" viewBox="0 0 16 16"><path d="M2 13h12M3 14V2M3 13l6-6"/><path d="m7 7 2 0-2 2"/></symbol><symbol id="arc-icon-time" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5"/><path d="M8 4v4l3 2"/></symbol><symbol id="arc-icon-viewer" viewBox="0 0 16 16"><rect x="1.5" y="2" width="9" height="8"/><rect x="5.5" y="6" width="9" height="8"/><path d="M10 6v-2"/></symbol><symbol id="arc-icon-point" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3.2"/></symbol><symbol id="arc-icon-line" viewBox="0 0 16 16"><path d="m2 13 4-8 3 5 5-7"/></symbol><symbol id="arc-icon-polygon" viewBox="0 0 16 16"><path d="m2 11 3-8 8 2 1 7-7 2z"/></symbol><symbol id="arc-icon-rectangle" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10"/></symbol><symbol id="arc-icon-circle" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/></symbol><symbol id="arc-icon-check" viewBox="0 0 16 16"><path d="m2.5 8 3.7 3.7 7.3-7.5"/></symbol></defs></svg>
@@ -453,6 +466,24 @@ body{background:#dfe5e8;color:#173b57}
 <button type="button" class="icon-tool" id="finishSketchBtn" disabled title="Finish Sketch" aria-label="Finish Sketch"><svg class="arcmap-icon"><use href="#arc-icon-check"></use></svg></button>
 <span class="toolbar-separator" aria-hidden="true"></span>
 <button type="button" class="icon-tool" data-action="clearDraw" title="Clear Drawings" aria-label="Clear Drawings"><svg class="arcmap-icon"><use href="#arc-icon-delete"></use></svg></button></div>
+
+<div id="editorTaskMenu" role="menu" aria-label="Editor tasks">
+ <div class="menu-caption">EDITOR — ARCMAP TASKS</div>
+ <button type="button" data-editor-task="start"><span class="task-icon">▶</span>Start Editing</button>
+ <button type="button" data-editor-task="save"><span class="task-icon">▣</span>Save Edits</button>
+ <button type="button" data-editor-task="stop"><span class="task-icon">■</span>Stop Editing</button>
+ <div class="task-sep"></div>
+ <button type="button" data-editor-task="point"><span class="task-icon">●</span>Create Features — Point</button>
+ <button type="button" data-editor-task="line"><span class="task-icon">／</span>Create Features — Line</button>
+ <button type="button" data-editor-task="polygon"><span class="task-icon">⬠</span>Create Features — Polygon</button>
+ <button type="button" data-editor-task="rectangle"><span class="task-icon">▱</span>Rectangle</button>
+ <button type="button" data-editor-task="circle"><span class="task-icon">○</span>Circle</button>
+ <div class="task-sep"></div>
+ <button type="button" data-editor-task="attributes"><span class="task-icon">▦</span>Open Attribute Table</button>
+ <button type="button" data-editor-task="clear"><span class="task-icon">⌫</span>Clear Drawings</button>
+ <div class="task-hint">Choose a task; editing tools remain on the Editor toolbar.</div>
+</div>
+
 </div>
 <div id="arcMenus">
   <div class="arc-dropdown" id="fileMenu">
@@ -561,7 +592,7 @@ body{background:#dfe5e8;color:#173b57}
     </div>
 
     <div style="display:none">
-      <input id="fileInput" type="file" accept=".geojson,.json,.kml,.zip,.shp">
+      <input id="fileInput" type="file" accept=".geojson,.json,.kml,.kmz,.zip,.shp">
       <input id="gdbInput" type="file" webkitdirectory directory multiple>
       <button id="exportGeoJSON" type="button"></button>
       <button id="exportKML" type="button"></button>
@@ -1291,6 +1322,31 @@ function createMapViewer(){
 })();
 </script>
 
+<script>
+/* ArcMap Editor task menu + KMZ support */
+(function(){
+ const toggle=document.getElementById("editorToolbarToggleBtn"),menu=document.getElementById("editorTaskMenu");
+ if(!toggle||!menu)return;
+ toggle.title="Editor Toolbar — click to open Editor tasks";
+ toggle.addEventListener("click",function(e){
+  e.preventDefault();e.stopPropagation();
+  const r=toggle.getBoundingClientRect();menu.style.left=Math.min(r.left,window.innerWidth-230)+"px";menu.style.top=Math.min(r.bottom+3,window.innerHeight-360)+"px";
+  menu.classList.toggle("open");toggle.classList.toggle("active",menu.classList.contains("open"));
+ });
+ menu.addEventListener("click",function(e){
+  const b=e.target.closest("[data-editor-task]");if(!b)return;
+  const actions={start:"startEditingBtn",save:"saveEditsBtn",stop:"stopEditingBtn",attributes:"openTable",clear:null};
+  const draw={point:"Marker",line:"Polyline",polygon:"Polygon",rectangle:"Rectangle",circle:"Circle"};
+  const task=b.dataset.editorTask;
+  if(draw[task]){document.querySelector('[data-editor-draw="'+draw[task]+'"]')?.click();}
+  else if(task==="clear"){document.querySelector('[data-action="clearDraw"]')?.click();}
+  else document.getElementById(actions[task])?.click();
+  menu.classList.remove("open");toggle.classList.remove("active");
+ });
+ document.addEventListener("click",e=>{if(!menu.contains(e.target)&&e.target!==toggle){menu.classList.remove("open");toggle.classList.remove("active")}});
+ document.addEventListener("keydown",e=>{if(e.key==="Escape"){menu.classList.remove("open");toggle.classList.remove("active")}});
+})();
+</script>
 </body></html>";
   win.document.open();win.document.write(html);win.document.close();status("Map viewer opened.");
 }
@@ -2715,7 +2771,13 @@ $("fileInput").onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
   try{
     const ext=f.name.toLowerCase().split(".").pop();
-    if(ext==="zip"||ext==="shp"){
+    if(ext==="kmz"){
+      if(typeof JSZip==="undefined")throw new Error("KMZ support requires the ZIP library.");
+      const archive=await JSZip.loadAsync(await f.arrayBuffer());
+      const kmlEntry=Object.values(archive.files).find(x=>!x.dir&&/\.kml$/i.test(x.name));
+      if(!kmlEntry)throw new Error("No .kml document was found inside this KMZ.");
+      geoJsonLayer(parseKML(await kmlEntry.async("text")),f.name);
+    }else if(ext==="zip"||ext==="shp"){
       const buf=await f.arrayBuffer();
       const data=await shp(buf);
       geoJsonLayer(data,f.name);
@@ -2736,9 +2798,9 @@ function openDataFormatDialog(mode,sourceLayer=null){
   const importing=mode==="import",dlg=$("dataCommandDialog"),select=$("dataFormatSelect");
   exportSourceLayer=importing?null:sourceLayer;
   const choices=importing?[
-    ["geojson","GeoJSON (.geojson, .json)"],["kml","KML (.kml)"],["shapefile","Shapefile archive (.zip)"],["dxf","CAD drawing (.dxf)"],["dwg","AutoCAD drawing (.dwg)"],["csv","XY data (.csv)"],["gdb","File geodatabase (.gdb)"]
+    ["geojson","GeoJSON (.geojson, .json)"],["kml","KML (.kml)"],["kmz","KMZ compressed Google Earth file (.kmz)"],["shapefile","Shapefile archive (.zip)"],["dxf","CAD drawing (.dxf)"],["dwg","AutoCAD drawing (.dwg)"],["csv","XY data (.csv)"],["gdb","File geodatabase (.gdb)"]
   ]:[
-    ["geojson","GeoJSON (.geojson)"],["kml","KML (.kml)"],["gpx","GPX (.gpx)"],["shp","Shapefile archive (.zip)"],["gdb","File geodatabase archive (.zip)"],["dxf","DXF (.dxf)"]
+    ["geojson","GeoJSON (.geojson)"],["kml","KML (.kml)"],["kmz","KMZ compressed Google Earth file (.kmz)"],["gpx","GPX (.gpx)"],["shp","Shapefile archive (.zip)"],["gdb","File geodatabase archive (.zip)"],["dxf","DXF (.dxf)"]
   ];
   $("dataDialogTitle").textContent=importing?"Add Data":"Export Data";
   $("dataDialogDescription").textContent=importing?"Choose an input format.":"Choose an output format.";
@@ -2789,9 +2851,10 @@ $("dataDialogContinue").onclick=()=>{
       input.click();return;
     }
     const input=$("fileInput");
-    input.accept=format==="geojson"?".geojson,.json":format==="kml"?".kml":".zip";
+    input.accept=format==="geojson"?".geojson,.json":format==="kml"?".kml":format==="kmz"?".kmz":".zip";
     input.click();return;
   }
+  if(format==="kmz"){exportKMZ();return;}
   const buttons={geojson:"exportGeoJSON",kml:"exportKML",gpx:"exportGPX",shp:"exportSHP",gdb:"exportGDB",dxf:"exportDXF"};
   $(buttons[format])?.click();
 };
@@ -3077,6 +3140,17 @@ function gpxFromFC(fc){
 }
 $("exportGeoJSON").onclick=()=>{download(JSON.stringify(collectGeoJSON(),null,2),"sabz-royan-webgis.geojson","application/geo+json");exportSourceLayer=null};
 $("exportKML").onclick=()=>{download(kmlFromFC(collectGeoJSON()),"sabz-royan-webgis.kml","application/vnd.google-earth.kml+xml");exportSourceLayer=null};
+async function exportKMZ(){
+ try{
+  if(typeof JSZip==="undefined")throw new Error("ZIP library unavailable.");
+  const fc=collectGeoJSON();if(!fc.features.length)throw new Error("No features to export.");
+  const zip=new JSZip();zip.file("doc.kml",kmlFromFC(fc));
+  const blob=await zip.generateAsync({type:"blob",compression:"DEFLATE"});
+  download(blob,"sabz-royan-webgis.kmz","application/vnd.google-earth.kmz");
+  exportSourceLayer=null;status("KMZ exported with doc.kml and "+fc.features.length+" feature(s).");
+ }catch(e){console.error(e);status("KMZ export failed: "+e.message)}
+}
+
 $("exportGPX").onclick=()=>{download(gpxFromFC(collectGeoJSON()),"sabz-royan-webgis.gpx","application/gpx+xml");exportSourceLayer=null};
 
 function projectGeometry(feature){
