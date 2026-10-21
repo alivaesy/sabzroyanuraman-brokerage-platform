@@ -998,7 +998,7 @@ function copySelectedFeatures(cut=false){
   if(cut){
     recordUndoState();
     records.forEach(r=>r.owner.layer.removeLayer(r.layer));
-    selectedFeatures.clear();selectedOverlay=null;renderLayerList();refreshAttributeLayers();scheduleAutoSave();
+    selectedFeatures.clear();selectedLayer=null;selectedOverlay=null;const editor=$("attributeEditor");if(editor)editor.style.display="none";renderLayerList();refreshAttributeLayers();scheduleAutoSave();
     status(records.length+" feature(s) cut.");
   }else status(featureClipboard.length+" feature(s) copied.");
   updateStandardActionButtons();
@@ -1025,7 +1025,7 @@ function deleteSelectedFeatures(){
   if(!confirm("Delete "+records.length+" selected feature(s)?"))return;
   recordUndoState();
   records.forEach(r=>r.owner.layer.removeLayer(r.layer));
-  selectedFeatures.clear();selectedOverlay=null;refreshAll();scheduleAutoSave();updateStandardActionButtons();status(records.length+" feature(s) deleted.");
+  selectedFeatures.clear();selectedLayer=null;selectedOverlay=null;const editor=$("attributeEditor");if(editor)editor.style.display="none";applySelectionVisual();refreshAll();scheduleAutoSave();updateStandardActionButtons();status(records.length+" feature(s) deleted.");
 }
 function openOnlineData(){
   const value=prompt("Enter a public GeoJSON URL or ArcGIS Feature Service layer URL:");
@@ -3053,7 +3053,7 @@ function selectByRectangle(){
    const first=records.find(r=>selectedFeatures.has(r.layer));
    selectedLayer=first?.layer||null;selectedOverlay=null;
    if(!selectedLayer){const editor=$("attributeEditor");if(editor)editor.style.display="none";}
-   applySelectionVisual();status(selectedFeatures.size+" features selected.");
+   applySelectionVisual();if(selectedLayer)renderAttributeEditor();status(selectedFeatures.size+" features selected.");
  });
 }
 function selectByPolygon(){
@@ -3065,7 +3065,7 @@ function selectByPolygon(){
    const first=records.find(r=>selectedFeatures.has(r.layer));
    selectedLayer=first?.layer||null;selectedOverlay=null;
    if(!selectedLayer){const editor=$("attributeEditor");if(editor)editor.style.display="none";}
-   applySelectionVisual();status(selectedFeatures.size+" features selected.");
+   applySelectionVisual();if(selectedLayer)renderAttributeEditor();status(selectedFeatures.size+" features selected.");
  });
 }
 function selectByLocation(){
@@ -3165,7 +3165,7 @@ function invertSelection(){
   const first=all.find(r=>selectedFeatures.has(r.layer));
   selectedLayer=first?.layer||null;selectedOverlay=null;
   if(!selectedLayer){const editor=$("attributeEditor");if(editor)editor.style.display="none";}
-  applySelectionVisual(); status(selectedFeatures.size+" features selected.");
+  applySelectionVisual();if(selectedLayer)renderAttributeEditor(); status(selectedFeatures.size+" features selected.");
 }
 function selectByLasso(){
  status("Draw a freehand selection polygon.");
@@ -3175,7 +3175,7 @@ function selectByLasso(){
    const first=records.find(r=>selectedFeatures.has(r.layer));
    selectedLayer=first?.layer||null;selectedOverlay=null;
    if(!selectedLayer){const editor=$("attributeEditor");if(editor)editor.style.display="none";}
-   applySelectionVisual();status(selectedFeatures.size+" features selected by lasso.");
+   applySelectionVisual();if(selectedLayer)renderAttributeEditor();status(selectedFeatures.size+" features selected by lasso.");
  });
 }
 function selectByAttribute(){
@@ -3189,7 +3189,7 @@ function selectByAttribute(){
   const target=vectorLayers.find(x=>x.name===layerChoice.trim());
   if(!target){status("Unknown layer name. Choose one of the listed vector layers.");return}
   const records=allRecords.filter(r=>(r.owner?.layer||drawn)===target.layer);
-  const fields=[...new Set(records.flatMap(r=>Object.keys(r.feature.properties||{}).filter(k=>k!=="_attachments")))];
+  const fields=[...new Set(records.flatMap(r=>Object.keys(r.feature.properties||{}).filter(k=>!isReservedAttributeField(k))))];
   if(!records.length||!fields.length){status("The chosen layer has no features with attribute fields.");return}
   const field=prompt("Field Name (case-sensitive):\n"+fields.join(", "),fields[0]||"");
   if(field===null)return;
