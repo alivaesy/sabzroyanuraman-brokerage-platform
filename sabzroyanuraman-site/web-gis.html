@@ -3508,10 +3508,6 @@ function editVertices(){
     status("Vertex editing failed: "+e.message);
   }
 }
-function advancedSnap(){
-  status("Advanced Snap uses the same validated point-to-line snapping engine.");
-  snapTool();
-}
 function spatialFilter(){
   const rs=getFeatureRecords();
   const typeInput=prompt("Spatial relationship: intersects / within / contains / touches / overlaps / crosses","intersects");
@@ -4216,7 +4212,14 @@ function networkQaTool(){
 };
 
 /* Snap GIS to GIS GIS to GIS Point/vertex Line */
-function snapTool(){
+function advancedSnap(){
+  const choice=prompt("Advanced snapping target:\n1 = Line vertices\n2 = Line segments\n3 = Vertices and segments","3");
+  if(choice===null)return;
+  const modes={"1":"vertices","2":"segments","3":"both"};
+  if(!modes[choice.trim()]){status("Choose snapping mode 1, 2, or 3.");return;}
+  snapTool(modes[choice.trim()]);
+}
+function snapTool(snapMode="segments"){
   const selected=editableSelectedRecords(false).filter(r=>r.feature.geometry?.type==="Point");
   if(!selected.length){status("Select point features in the active edit layer, then run Snap Points to Lines.");return;}
   const lineRecords=getFeatureRecords().filter(r=>r.owner?.layer&&map.hasLayer(r.owner.layer)&&["LineString","MultiLineString"].includes(r.feature.geometry?.type));
@@ -4224,17 +4227,23 @@ function snapTool(){
   const raw=prompt("Snap tolerance in meters:","5");if(raw===null)return;
   const tolerance=Number(raw);
   if(!Number.isFinite(tolerance)||tolerance<=0){status("Snap tolerance must be greater than zero.");return;}
-  const lineParts=[];
+  const lineParts=[],vertexPoints=[];
   lineRecords.forEach(r=>{
     const g=r.feature.geometry,parts=g.type==="LineString"?[g.coordinates]:g.coordinates;
-    parts.forEach(coords=>{if(Array.isArray(coords)&&coords.length>=2){try{lineParts.push(turf.lineString(coords));}catch(_){}}});
+    parts.forEach(coords=>{
+      if(!Array.isArray(coords)||coords.length<2)return;
+      if(snapMode==="vertices"||snapMode==="both")coords.forEach(c=>{if(Array.isArray(c)&&c.length>=2&&c.every(Number.isFinite))vertexPoints.push(turf.point(c.slice(0,2)));});
+      if(snapMode==="segments"||snapMode==="both"){try{lineParts.push(turf.lineString(coords));}catch(_){}}
+    });
   });
-  if(!lineParts.length){status("No usable line segments were found.");return;}
+  if(!lineParts.length&&!vertexPoints.length){status("No usable line vertices or segments were found.");return;}
   const updates=[];
   selected.forEach(r=>{
     try{
       const p=turf.point(r.feature.geometry.coordinates);let best=null,bestDistance=Infinity;
-      lineParts.forEach(line=>{try{const candidate=turf.nearestPointOnLine(line,p,{units:"kilometers"});const distance=turf.distance(p,candidate,{units:"meters"});if(distance<bestDistance){bestDistance=distance;best=candidate;}}catch(_){}});
+      const consider=candidate=>{try{const distance=turf.distance(p,candidate,{units:"meters"});if(distance<bestDistance){bestDistance=distance;best=candidate;}}catch(_){}};
+      vertexPoints.forEach(point=>consider(point));
+      lineParts.forEach(line=>{try{consider(turf.nearestPointOnLine(line,p,{units:"kilometers"}));}catch(_){}});
       if(best&&bestDistance<=tolerance&&bestDistance>0)updates.push({r,coordinates:best.geometry.coordinates.slice(0,2),distance:bestDistance});
     }catch(_){}
   });
@@ -4243,7 +4252,7 @@ function snapTool(){
   updates.forEach(x=>{x.r.feature.geometry.coordinates=x.coordinates;});
   rebuildVectorLayerGeometry(updates.map(x=>x.r));refreshAll();
   $("professionalToolOutput").textContent="Snapping result: "+updates.length+" of "+selected.length+" selected point(s) moved to the nearest line segment (tolerance "+tolerance+" m).";
-  status(updates.length+" selected point feature(s) snapped to line segments.");
+  status(updates.length+" selected point feature(s) snapped to "+snapMode+" (tolerance "+tolerance+" m).");
 }
 
 $("exportSHP").onclick=exportRealSHP;
