@@ -2395,7 +2395,10 @@ $("saveTableEdits").onclick=()=>{
  // non-empty values so editing a previously-missing cell does not silently
  // turn numeric, boolean, or JSON fields into strings.
  const fieldTypes={};
+ const schema=currentAttributeLayer()?._gdbMetadata?.fields||[];
+ schema.forEach(field=>{const name=typeof field==="string"?field:field.name,type=typeof field==="string"?"TEXT":String(field.type||"TEXT").toUpperCase();if(name)fieldTypes[name]=({INTEGER:"number",REAL:"number",DATE:"date",TEXT:"string"})[type]||"string"});
  tableKeys(items).forEach(key=>{
+  if(fieldTypes[key])return;
   const values=items.map(item=>item.feature.properties?.[key]).filter(v=>v!==null&&v!==undefined&&v!=="");
   if(values.length&&values.every(v=>typeof v==="number"&&Number.isFinite(v)))fieldTypes[key]="number";
   else if(values.length&&values.every(v=>typeof v==="boolean"))fieldTypes[key]="boolean";
@@ -2423,6 +2426,10 @@ $("saveTableEdits").onclick=()=>{
     }else if(valueType==="boolean"){
      if(!/^(true|false)$/i.test(raw.trim()))throw new Error("Field '"+key+"' accepts only true or false.");
      value=raw.trim().toLowerCase()==="true";
+    }else if(valueType==="date"){
+     if(raw.trim()&&!/^\\d{4}-\\d{2}-\\d{2}(?:T.*)?$/.test(raw.trim()))throw new Error("Field '"+key+"' requires an ISO date (YYYY-MM-DD).");
+     if(raw.trim()&&Number.isNaN(Date.parse(raw.trim())))throw new Error("Field '"+key+"' requires a valid date.");
+     value=raw.trim()===""?null:raw.trim();
     }else if(valueType==="object"){
      try{value=JSON.parse(raw)}catch(e){throw new Error("Field '"+key+"' requires valid JSON.");}
      if(value===null||typeof value!=="object")throw new Error("Field '"+key+"' must remain a JSON object or array.");
