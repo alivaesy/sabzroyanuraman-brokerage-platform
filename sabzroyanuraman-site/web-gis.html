@@ -2123,9 +2123,12 @@ $("applyMultiAttribute").onclick=()=>{
     targets.forEach(layer=>{
       const props=layer.feature?.properties||{},old=props[key];let value=raw;
       const valueType=old===null||old===undefined||old===""?fieldType:(typeof old==="object"?"object":typeof old);
-      if(valueType==="number"){
-        if(raw.trim()==="")value=null;
-        else if(Number.isFinite(Number(raw)))value=Number(raw);
+      if(raw.trim()===""&&["number","boolean","object"].includes(valueType)){
+        // Match Attribute Table semantics: blanking a typed value stores null,
+        // rather than rejecting the whole bulk edit or coercing it to a string.
+        value=null;
+      }else if(valueType==="number"){
+        if(Number.isFinite(Number(raw)))value=Number(raw);
         else throw new Error("Field '"+key+"' requires a valid number.");
       }else if(valueType==="boolean"){
         if(!/^(true|false)$/i.test(raw.trim()))throw new Error("Field '"+key+"' accepts only true or false.");
