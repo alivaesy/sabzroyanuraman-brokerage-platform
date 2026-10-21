@@ -998,7 +998,7 @@ function copySelectedFeatures(cut=false){
   if(cut&&blockForUnsavedTableEdits("cutting features"))return;
   let records=selectedRecords();
   if(cut){
-    records=editableSelectedRecords();if(!records.length)return;
+    records=editableSelectedRecords(false);if(!records.length)return;
   }
   if(!records.length){status("Select one or more features first.");return;}
   featureClipboard=records.map(r=>JSON.parse(JSON.stringify(r.feature)));
