@@ -390,6 +390,22 @@ body{background:#dfe5e8;color:#173b57}
 #goToXYBtn .arcmap-icon{stroke:#2479a9;stroke-width:1.25}
 #goToXYBtn .arcmap-icon path{stroke-linecap:round;stroke-linejoin:round}
 </style>
+<style>
+#geodatabaseManagerDialog{position:fixed;inset:0;z-index:10040;display:none;align-items:center;justify-content:center;background:#0005;font:12px Arial,sans-serif;direction:ltr;color:#253746}
+#geodatabaseManagerDialog.open{display:flex}
+#geodatabaseManagerDialog .gdb-panel{width:min(620px,94vw);max-height:85vh;overflow:auto;background:#f2f3f4;border:1px solid #71818b;box-shadow:0 8px 28px #0004}
+#geodatabaseManagerDialog .gdb-title{display:flex;align-items:center;padding:8px 12px;background:linear-gradient(#fff,#dce2e5);border-bottom:1px solid #aeb9bf;font-weight:bold}
+#geodatabaseManagerDialog .gdb-title button{margin-left:auto;border:1px solid #adb7bd;background:#f8f8f8;font-size:18px}
+#geodatabaseManagerDialog .gdb-body{padding:12px}
+#geodatabaseManagerDialog .gdb-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#geodatabaseManagerDialog label{display:flex;flex-direction:column;gap:4px;font-weight:bold}
+#geodatabaseManagerDialog input,#geodatabaseManagerDialog select{width:100%;box-sizing:border-box;padding:7px;border:1px solid #aab6bc;background:white}
+#geodatabaseManagerDialog .gdb-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:12px}
+#geodatabaseManagerDialog button{padding:5px 10px;cursor:pointer}
+#geodatabaseManagerDialog .gdb-note{margin:8px 0;color:#586b77;line-height:1.5}
+#geodatabaseManagerList{margin-top:12px;border:1px solid #c4cdd1;background:#fff;max-height:160px;overflow:auto}
+#geodatabaseManagerList .gdb-row{display:flex;justify-content:space-between;gap:8px;padding:6px 8px;border-bottom:1px solid #e2e6e8}
+</style>
 </head>
 <body>
 <svg class="arcmap-icon-defs" aria-hidden="true" focusable="false"><defs><symbol id="arc-icon-new" viewBox="0 0 16 16"><path d="M3 1.5h7l3 3V14H3z"/><path d="M10 1.5V5h3M8 7v5M5.5 9.5h5"/></symbol><symbol id="arc-icon-open" viewBox="0 0 16 16"><path d="M1.5 4h5l1.5 1.5h6.5v7h-13z"/><path d="M1.5 6h13l-1.5 7h-12z"/></symbol><symbol id="arc-icon-save" viewBox="0 0 16 16"><path d="M2 1.5h10l2 2V14H2z"/><path d="M4 1.5v4h6v-4M4 14V8h8v6M5.5 9.5h5"/></symbol><symbol id="arc-icon-print" viewBox="0 0 16 16"><path d="M4 4V1.5h8V4M3 11H1.5V5.5h13V11H13"/><path d="M4 9h8v5H4zM11.5 7.5h.1"/></symbol><symbol id="arc-icon-cut" viewBox="0 0 16 16"><circle cx="4" cy="11.5" r="2"/><circle cx="4" cy="4.5" r="2"/><path d="m5.5 6 8 7M5.5 10 13 2"/></symbol><symbol id="arc-icon-copy" viewBox="0 0 16 16"><path d="M5 4h8v10H5zM2 11H1.5V1.5H10V3"/></symbol><symbol id="arc-icon-paste" viewBox="0 0 16 16"><path d="M5 2H3v12h10V2h-2"/><path d="M5 1.5h6v3H5zM6 8h4M6 10.5h4"/></symbol><symbol id="arc-icon-delete" viewBox="0 0 16 16"><path d="M2.5 4h11M5 4V2h6v2M4 4.5l.7 9h6.6l.7-9M6.5 6.5v5M9.5 6.5v5"/></symbol><symbol id="arc-icon-undo" viewBox="0 0 16 16"><path d="M5 4 2 7l3 3"/><path d="M2.5 7h6a5 5 0 0 1 5 5"/></symbol><symbol id="arc-icon-redo" viewBox="0 0 16 16"><path d="m11 4 3 3-3 3"/><path d="M13.5 7h-6a5 5 0 0 0-5 5"/></symbol><symbol id="arc-icon-adddata" viewBox="0 0 16 16"><path d="M2 3.5h12v8H2zM2 6h12M5 3.5V2M11 3.5V2"/><path d="M8 7.5v3M6.5 9h3"/></symbol><symbol id="arc-icon-webdata" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5"/><path d="M1.8 8h12.4M8 1.5c2 2 2 11 0 13M8 1.5c-2 2-2 11 0 13"/></symbol><symbol id="arc-icon-editor" viewBox="0 0 16 16"><path d="m3 11 7.8-7.8 2 2L5 13H3zM9.5 4.5l2 2M2 14h12"/></symbol><symbol id="arc-icon-toolbox" viewBox="0 0 16 16"><path d="M1.5 5h13v8h-13zM5 5V2h6v3M1.5 8h13M6.5 8v2h3V8"/></symbol><symbol id="arc-icon-command" viewBox="0 0 16 16"><path d="m3 4 4 4-4 4M8.5 12h4.5"/></symbol><symbol id="arc-icon-search" viewBox="0 0 16 16"><circle cx="6.5" cy="6.5" r="4"/><path d="m9.5 9.5 4 4"/></symbol><symbol id="arc-icon-help" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5"/><path d="M6 6a2 2 0 1 1 3.6 1.2C8.7 8.2 8 8.4 8 10M8 12.5h.1"/></symbol><symbol id="arc-icon-zoomIn" viewBox="0 0 16 16"><circle cx="6.5" cy="6.5" r="4"/><path d="m9.5 9.5 4 4M6.5 4.5v4M4.5 6.5h4"/></symbol><symbol id="arc-icon-zoomOut" viewBox="0 0 16 16"><circle cx="6.5" cy="6.5" r="4"/><path d="m9.5 9.5 4 4M4.5 6.5h4"/></symbol><symbol id="arc-icon-pan" viewBox="0 0 16 16"><path d="M8 1.5v13M1.5 8h13M4 4l4-2.5L12 4M4 12l4 2.5 4-2.5M4 4 1.5 8 4 12M12 4l2.5 4-2.5 4"/></symbol><symbol id="arc-icon-extent" viewBox="0 0 16 16"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/><path d="M5 5l-3-3M11 5l3-3M11 11l3 3M5 11l-3 3"/></symbol><symbol id="arc-icon-fixedIn" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4v8M4 8h8"/></symbol><symbol id="arc-icon-fixedOut" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M4 8h8"/></symbol><symbol id="arc-icon-back" viewBox="0 0 16 16"><path d="m6 3-4 4 4 4"/><path d="M2.5 7h6a5 5 0 0 1 5 5"/></symbol><symbol id="arc-icon-forward" viewBox="0 0 16 16"><path d="m10 3 4 4-4 4"/><path d="M13.5 7h-6a5 5 0 0 0-5 5"/></symbol><symbol id="arc-icon-select" viewBox="0 0 16 16"><path d="M3 1.5 12 9l-4 .5-2 4z"/><path d="M9.5 11 12 14"/></symbol><symbol id="arc-icon-clear" viewBox="0 0 16 16"><path d="m3 3 10 10M13 3 3 13"/></symbol><symbol id="arc-icon-element" viewBox="0 0 16 16"><path d="M3 2 11 9l-3.5.5L6 13z"/><rect x="9.5" y="9.5" width="5" height="5"/></symbol><symbol id="arc-icon-identify" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5"/><path d="M8 7v4M8 4.5h.1"/></symbol><symbol id="arc-icon-link" viewBox="0 0 16 16"><path d="M6.5 10 5 11.5a3 3 0 0 1-4-4l2.5-2.5a3 3 0 0 1 4-.2M9.5 6 11 4.5a3 3 0 0 1 4 4l-2.5 2.5a3 3 0 0 1-4 .2M5.5 8.5h5"/></symbol><symbol id="arc-icon-popup" viewBox="0 0 16 16"><path d="M2 2.5h12v8H8l-3 3v-3H2z"/><path d="M4.5 5h7M4.5 7.5h5"/></symbol><symbol id="arc-icon-measure" viewBox="0 0 16 16"><path d="m2 11 9-9 4 4-9 9z"/><path d="m8 5 2 2M5.5 7.5l1 1M10.5 3.5l1 1"/></symbol><symbol id="arc-icon-find" viewBox="0 0 16 16"><circle cx="4.5" cy="5" r="2.5"/><circle cx="11.5" cy="5" r="2.5"/><path d="M1.5 12c0-2 1-3 3-3s3 1 3 3M8.5 12c0-2 1-3 3-3s3 1 3 3M7 4.5h2"/></symbol><symbol id="arc-icon-route" viewBox="0 0 16 16"><path d="M3 13c3-7 7 1 10-8"/><circle cx="3" cy="13" r="1.5"/><path d="M13 2.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></symbol><symbol id="arc-icon-goxy" viewBox="0 0 16 16"><path d="M2 13h12M3 14V2M3 13l6-6"/><path d="m7 7 2 0-2 2"/></symbol><symbol id="arc-icon-time" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5"/><path d="M8 4v4l3 2"/></symbol><symbol id="arc-icon-viewer" viewBox="0 0 16 16"><rect x="1.5" y="2" width="9" height="8"/><rect x="5.5" y="6" width="9" height="8"/><path d="M10 6v-2"/></symbol><symbol id="arc-icon-point" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3.2"/></symbol><symbol id="arc-icon-line" viewBox="0 0 16 16"><path d="m2 13 4-8 3 5 5-7"/></symbol><symbol id="arc-icon-polygon" viewBox="0 0 16 16"><path d="m2 11 3-8 8 2 1 7-7 2z"/></symbol><symbol id="arc-icon-rectangle" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10"/></symbol><symbol id="arc-icon-circle" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/></symbol><symbol id="arc-icon-check" viewBox="0 0 16 16"><path d="m2.5 8 3.7 3.7 7.3-7.5"/></symbol></defs></svg>
@@ -467,6 +483,7 @@ body{background:#dfe5e8;color:#173b57}
 <span class="toolbar-separator" aria-hidden="true"></span>
 <button type="button" class="icon-tool" data-action="clearDraw" title="Clear Drawings" aria-label="Clear Drawings"><svg class="arcmap-icon"><use href="#arc-icon-delete"></use></svg></button></div>
 
+<div id="geodatabaseManagerDialog" aria-hidden="true"><div class="gdb-panel" role="dialog" aria-modal="true" aria-label="Geodatabase Manager"><div class="gdb-title">Catalog — Create Geodatabase / Feature Dataset / Feature Class <button type="button" id="gdbManagerClose">×</button></div><div class="gdb-body"><p class="gdb-note">Create a workspace structure and empty editable feature classes. To create a portable Esri File Geodatabase on disk, use Export Data → File Geodatabase (.gdb.zip) after adding features.</p><div class="gdb-grid"><label>Geodatabase name<input id="gdbWorkspaceName" value="MyGeodatabase"></label><label>Feature Dataset name<input id="gdbDatasetName" value="Dataset1"></label><label>Feature Class name<input id="gdbFeatureClassName" value="NewFeatureClass"></label><label>Geometry type<select id="gdbGeometryType"><option value="Point">Point</option><option value="LineString">Polyline</option><option value="Polygon">Polygon</option></select></label><label>Coordinate system<select id="gdbCrs"><option value="current">Current map CRS</option><option value="EPSG:4326">WGS 84 (EPSG:4326)</option></select></label></div><div class="gdb-actions"><button type="button" id="gdbCreateDataset">Create Dataset</button><button type="button" id="gdbCreateFeatureClass">Create Feature Class</button><button type="button" id="gdbExportNow">Export Geodatabase</button></div><div id="geodatabaseManagerList"></div><div id="gdbManagerStatus" class="gdb-note" role="status"></div></div></div></div>
 <div id="editorTaskMenu" role="menu" aria-label="Editor tasks">
  <div class="menu-caption">EDITOR — ARCMAP TASKS</div>
  <button type="button" data-editor-task="start"><span class="task-icon">▶</span>Start Editing</button>
@@ -500,6 +517,7 @@ body{background:#dfe5e8;color:#173b57}
     <button data-action="addOnlineData">Add Data from ArcGIS Online...</button>
     <button data-action="wms">Add WMS Layer...</button>
     <button data-action="exportData">Export Data...</button>
+    <div class="arc-sep"></div><button type="button" data-action="geodatabaseManager">Create / Manage Geodatabase...</button>
   </div>
   <div class="arc-dropdown" id="projectMenu">
     <div class="arc-menu-title">Edit</div>
@@ -1346,6 +1364,53 @@ function createMapViewer(){
  document.addEventListener("click",e=>{if(!menu.contains(e.target)&&e.target!==toggle){menu.classList.remove("open");toggle.classList.remove("active")}});
  document.addEventListener("keydown",e=>{if(e.key==="Escape"){menu.classList.remove("open");toggle.classList.remove("active")}});
 })();
+</script>
+<script>
+/* Geodatabase Catalog: workspace / dataset / feature-class authoring */
+const gdbCatalog={workspaces:new Map()};
+function openGeodatabaseManager(){
+ const dlg=$("geodatabaseManagerDialog");dlg.classList.add("open");dlg.setAttribute("aria-hidden","false");renderGdbCatalog();
+}
+function closeGeodatabaseManager(){const dlg=$("geodatabaseManagerDialog");dlg.classList.remove("open");dlg.setAttribute("aria-hidden","true")}
+function gdbWorkspace(){
+ const name=$("gdbWorkspaceName").value.trim();if(!name)throw new Error("Enter a geodatabase name.");
+ if(!gdbCatalog.workspaces.has(name))gdbCatalog.workspaces.set(name,{name,datasets:new Map()});
+ return gdbCatalog.workspaces.get(name);
+}
+function renderGdbCatalog(){
+ const list=$("geodatabaseManagerList");if(!list)return;
+ const rows=[];
+ gdbCatalog.workspaces.forEach(w=>{rows.push('<div class="gdb-row"><b>▣ '+esc(w.name)+'.gdb</b><span>File Geodatabase</span></div>');
+  w.datasets.forEach(d=>{rows.push('<div class="gdb-row" style="padding-left:24px"><b>▰ '+esc(d.name)</b><span>Feature Dataset · '+esc(d.crs)+'</span></div>');
+   d.classes.forEach(c=>rows.push('<div class="gdb-row" style="padding-left:44px"><span>◈ '+esc(c.name)+'</span><span>'+esc(c.geometryType)+' · '+c.count+' features</span></div>'));
+  });
+ });
+ list.innerHTML=rows.join("")||'<div class="gdb-row">No geodatabases created in this session.</div>';
+}
+$("gdbManagerClose").onclick=closeGeodatabaseManager;
+$("geodatabaseManagerDialog").addEventListener("click",e=>{if(e.target===$("geodatabaseManagerDialog"))closeGeodatabaseManager()});
+$("gdbCreateDataset").onclick=()=>{
+ try{const w=gdbWorkspace(),name=$("gdbDatasetName").value.trim();if(!name)throw new Error("Enter a feature dataset name.");
+ if(!w.datasets.has(name))w.datasets.set(name,{name,crs:$("gdbCrs").value==="current"?currentCRS:$("gdbCrs").value,classes:[]});
+ $("gdbManagerStatus").textContent='Feature Dataset "'+name+'" created in '+w.name+".";
+ renderGdbCatalog();}catch(e){$("gdbManagerStatus").textContent=e.message}
+};
+$("gdbCreateFeatureClass").onclick=()=>{
+ try{
+  const w=gdbWorkspace(),dsName=$("gdbDatasetName").value.trim(),className=$("gdbFeatureClassName").value.trim(),type=$("gdbGeometryType").value;
+  if(!dsName||!className)throw new Error("Enter dataset and feature class names.");
+  if(!w.datasets.has(dsName))w.datasets.set(dsName,{name:dsName,crs:$("gdbCrs").value==="current"?currentCRS:$("gdbCrs").value,classes:[]});
+  const ds=w.datasets.get(dsName);if(ds.classes.some(c=>c.name.toLowerCase()===className.toLowerCase()))throw new Error("Feature class already exists in this dataset.");
+  const fc={name:className,geometryType:type,count:0};
+  const layer=L.geoJSON({type:"FeatureCollection",features:[]},{style:()=>({color:"#2d78a5",weight:2,fillOpacity:.18}),pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:5,color:"#2d78a5",fillOpacity:.8})});
+  layer._gdbMetadata={workspace:w.name,dataset:dsName,featureClass:className,geometryType:type,crs:ds.crs};
+  addNamedLayer(w.name+" / "+dsName+" / "+className,layer,false);
+  ds.classes.push(fc);refreshEditorTargets();$("editTargetLayer").value=String(namedLayers.findIndex(x=>x.layer===layer));$("editTargetLayer").dispatchEvent(new Event("change",{bubbles:true}));
+  $("gdbManagerStatus").textContent='Created empty '+type+' feature class "'+className+'". Choose it in the Editor target layer, then Start Editing.';
+  renderGdbCatalog();scheduleAutoSave();
+ }catch(e){$("gdbManagerStatus").textContent=e.message}
+};
+$("gdbExportNow").onclick=()=>{closeGeodatabaseManager();openDataFormatDialog("export")};
 </script>
 </body></html>";
   win.document.open();win.document.write(html);win.document.close();status("Map viewer opened.");
