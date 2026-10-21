@@ -4913,7 +4913,7 @@ function nearestMatchTool(){
   if(maxRaw===null)return;
   const maxDistance=Number(maxRaw);
   if(!Number.isFinite(maxDistance)||maxDistance<0){status("Enter a valid non-negative distance.");return;}
-  recordUndoState();let count=0,distances=[];
+  const updates=[];
   dst.forEach(t=>{
     let best=null,bestD=Infinity;
     const p=t.feature.geometry.type==="Point"?turf.point(t.feature.geometry.coordinates):turf.centroid(t.feature);
@@ -4926,16 +4926,25 @@ function nearestMatchTool(){
       }catch(_){}
     });
     if(best&&(!maxDistance||bestD<=maxDistance)){
-      t.feature.properties=t.feature.properties||{};
-      t.feature.properties.nearest_id=best.properties?._webgis_id??best.properties?.OBJECTID??best.properties?.objectid??best.properties?.id??"";
-      t.feature.properties.nearest_distance_m=Number(bestD.toFixed(3));
-      count++;distances.push(bestD);
+      const props=t.feature.properties||{};
+      const sourceId=best.properties?._webgis_id??best.properties?.OBJECTID??best.properties?.objectid??best.properties?.id??"";
+      // Do not overwrite target identity fields if a dataset happens to use these names.
+      const patch={};
+      if(!["id","fid","objectid","object_id","globalid","global_id"].includes("nearest_id"))patch.nearest_id=sourceId;
+      if(!["id","fid","objectid","object_id","globalid","global_id"].includes("nearest_distance_m"))patch.nearest_distance_m=Number(bestD.toFixed(3));
+      if(Object.keys(patch).some(k=>props[k]!==patch[k]))updates.push({t,patch,distance:bestD});
     }
   });
+  if(!updates.length){
+    $("professionalToolOutput").textContent="Nearest feature match: no target features matched within "+(maxDistance?fmtMeters(maxDistance):"unlimited distance")+".";
+    status("No target attributes changed; no undo checkpoint was created.");return;
+  }
+  recordUndoState();
+  updates.forEach(({t,patch})=>{t.feature.properties=t.feature.properties||{};Object.assign(t.feature.properties,patch);});
   refreshAll();
-  const max=distances.length?Math.max(...distances):0;
-  $("professionalToolOutput").textContent="Nearest feature match: "+count+" target features | Maximum matched distance: "+fmtMeters(max)+" | "+source.name+" → "+target.name;
-  status("Nearest-feature attributes calculated for "+count+" target feature(s).");
+  const distances=updates.map(x=>x.distance),max=Math.max(...distances);
+  $("professionalToolOutput").textContent="Nearest feature match: "+updates.length+" target features | Maximum matched distance: "+fmtMeters(max)+" | "+source.name+" → "+target.name;
+  status("Nearest-feature attributes calculated for "+updates.length+" target feature(s).");
 }
 
 function transferAttributesTool(){
