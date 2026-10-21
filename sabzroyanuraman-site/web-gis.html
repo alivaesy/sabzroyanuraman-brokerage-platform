@@ -4893,8 +4893,10 @@ function snapTool(snapMode="segments"){
     try{
       const p=turf.point(r.feature.geometry.coordinates);let best=null,bestDistance=Infinity;
       const consider=candidate=>{try{const distance=turf.distance(p,candidate,{units:"meters"});if(distance<bestDistance){bestDistance=distance;best=candidate;}}catch(_){}};
-      vertexPoints.forEach(point=>consider(point));
-      lineParts.forEach(line=>{try{consider(turf.nearestPointOnLine(line,p,{units:"kilometers"}));}catch(_){}});
+      // Respect the requested snapping mode: segment-only snapping must not
+      // silently prefer a nearby vertex, and vertex-only mode must not use segments.
+      if(snapMode==="vertices"||snapMode==="both")vertexPoints.forEach(point=>consider(point));
+      if(snapMode==="segments"||snapMode==="both")lineParts.forEach(line=>{try{consider(turf.nearestPointOnLine(line,p,{units:"kilometers"}));}catch(_){}});
       if(best&&bestDistance<=tolerance&&bestDistance>0)updates.push({r,coordinates:best.geometry.coordinates.slice(0,2),distance:bestDistance});
     }catch(_){}
   });
