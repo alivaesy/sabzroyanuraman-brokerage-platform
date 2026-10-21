@@ -1212,11 +1212,17 @@ function startDraw(type,button){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("starting a drawing"))return;
   stopActiveDraw();
   if(!editSessionActive)startEditing();
+  // startEditing can refuse to start when table edits are pending; never let
+  // drawing continue outside a valid editor session.
+  if(!editSessionActive){status("Save or discard pending table edits before drawing.");return}
   if(!editTarget||typeof editTarget.addLayer!=="function"){status("Choose a vector layer in the Editor toolbar.");return}
   startNativeDraw(type,button);
 }
 function startNativeDraw(type,button){
-  const target=editTarget||drawn;
+  if(!editSessionActive||!editTarget||typeof editTarget.addLayer!=="function"){
+    status("Start Editing and choose a vector target before drawing.");return;
+  }
+  const target=editTarget;
   const style={color:"#146c43",weight:3,fillColor:"#4b9b71",fillOpacity:.2};
   let points=[],preview=null,finished=false;
   const removePreview=()=>{if(preview&&map.hasLayer(preview))map.removeLayer(preview);preview=null};
