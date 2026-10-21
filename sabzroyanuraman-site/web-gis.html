@@ -1545,6 +1545,28 @@ function goToXY(){
 function startDraw(type,button){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("starting a drawing"))return;
   stopActiveDraw();
+  // ArcMap-style behavior: when no edit session is active, use the vector
+  // layer selected in the Table Of Contents as the drawing target. If none is
+  // selected there, honor the layer chosen in the Attribute Table; otherwise
+  // retain the explicit Editor target (My Drawings by default).
+  if(!editSessionActive){
+    let preferredIndex=-1;
+    if(selectedOverlay&&selectedOverlay!==drawn){
+      preferredIndex=namedLayers.findIndex(item=>item.layer===selectedOverlay&&isVectorLayer(item.layer));
+    }
+    const attributeChoice=$("attributeLayer")?.value;
+    if(preferredIndex<0&&attributeChoice&&attributeChoice!=="drawn"){
+      const idx=Number(attributeChoice);
+      if(Number.isInteger(idx)&&namedLayers[idx]&&isVectorLayer(namedLayers[idx].layer))preferredIndex=idx;
+    }
+    if(preferredIndex>=0){
+      $("editTargetLayer").value=String(preferredIndex);
+      editTarget=namedLayers[preferredIndex].layer;
+    }else if(attributeChoice==="drawn"){
+      $("editTargetLayer").value="drawn";
+      editTarget=drawn;
+    }
+  }
   if(!editSessionActive)startEditing();
   // startEditing can refuse to start when table edits are pending; never let
   // drawing continue outside a valid editor session.
