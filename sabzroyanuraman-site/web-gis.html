@@ -867,7 +867,7 @@ function startEditing(item=null){
   status("Edit session started for "+(value==="drawn"?"My Drawings":namedLayers[Number(value)]?.name||"selected layer")+".");
 }
 function isLayerInEditTarget(layer){return editTarget===drawn?drawn.hasLayer(layer):!!editTarget?.hasLayer?.(layer)}
-async async async function saveEdits(){
+async function saveEdits(){
   if(!editSessionActive){status("No edit session is active.");return false}
   if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){
     status("Save Table Edits before saving the edit session; unsaved attribute values are still in the table.");
