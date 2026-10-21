@@ -2242,7 +2242,7 @@ $("deleteTableField").onclick=()=>{
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before changing its table.");return}
  const layer=currentAttributeLayer(),items=currentAttributeItems();
  if(!layer||!items.length){status("Select a feature layer containing records.");return}
- const fields=tableKeys(items).filter(key=>!key.startsWith("_")&&key!=="geometry");
+ const fields=tableKeys(items).filter(key=>!isReservedAttributeField(key));
  if(!fields.length){status("There are no deletable attribute fields. Internal fields are protected.");return}
  const requested=prompt("Enter the field name to delete (case-insensitive):\n"+fields.join(", "),fields[0]);
  if(requested===null)return;
