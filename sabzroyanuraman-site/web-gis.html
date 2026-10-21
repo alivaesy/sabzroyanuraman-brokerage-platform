@@ -2181,6 +2181,14 @@ $("pasteRows").onclick=()=>{
  if(!inds.length){status("Select destination rows.");return}
  const valid=inds.filter(i=>items[i]);
  if(!valid.length){status("The selected destination rows are no longer available.");return}
+ const fieldTypes={};
+ keys.forEach(key=>{
+  const values=items.map(item=>item.feature.properties?.[key]).filter(v=>v!==null&&v!==undefined&&v!=="");
+  if(values.length&&values.every(v=>typeof v==="number"&&Number.isFinite(v)))fieldTypes[key]="number";
+  else if(values.length&&values.every(v=>typeof v==="boolean"))fieldTypes[key]="boolean";
+  else if(values.length&&values.every(v=>typeof v==="object"))fieldTypes[key]="object";
+  else fieldTypes[key]="string";
+ });
  const staged=[];
  try{
   valid.forEach((idx,n)=>{
@@ -2189,26 +2197,26 @@ $("pasteRows").onclick=()=>{
     // Match fields by name, not column position. Leave destination-only fields
     // untouched rather than replacing them with blanks from an unrelated schema.
     if(!sourceKeys.includes(key))return;
-    const old=props[key],sourceIndex=sourceKeys.indexOf(key),raw=src[sourceIndex]===undefined?"":src[sourceIndex];
+    const old=props[key],sourceIndex=sourceKeys.indexOf(key),raw=src[sourceIndex];
+    const valueType=old===null||old===undefined||old===""?fieldTypes[key]:(old!==null&&typeof old==="object"?"object":typeof old);
     let value=raw;
-    if(typeof old==="number"){
-     if(raw===""||raw===null||raw===undefined)value=null;
-     else if(typeof raw==="number"&&Number.isFinite(raw))value=raw;
+    if(raw===undefined||raw===null||raw===""){
+     value=null;
+    }else if(valueType==="number"){
+     if(typeof raw==="number"&&Number.isFinite(raw))value=raw;
      else if(Number.isFinite(Number(raw)))value=Number(raw);
      else throw new Error("Field '"+key+"' requires a valid number.");
-    }else if(typeof old==="boolean"){
+    }else if(valueType==="boolean"){
      if(typeof raw==="boolean")value=raw;
      else if(/^(true|false)$/i.test(String(raw).trim()))value=String(raw).trim().toLowerCase()==="true";
      else throw new Error("Field '"+key+"' accepts only true or false.");
-    }else if(old!==null&&typeof old==="object"){
+    }else if(valueType==="object"){
      if(raw!==null&&typeof raw==="object")value=raw;
      else{
       try{value=JSON.parse(String(raw))}catch(e){throw new Error("Field '"+key+"' requires valid JSON.")}
      }
      if(value===null||typeof value!=="object")throw new Error("Field '"+key+"' must remain a JSON object or array.");
-    }else if(old===null){
-     value=raw===null||raw===undefined||String(raw).trim()===""?null:raw;
-    }
+    }else value=String(raw);
     next[key]=value;
    });
    staged.push({item,props:next});
