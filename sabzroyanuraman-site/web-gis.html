@@ -1433,6 +1433,14 @@ function startSelectionShape(type,options,callback){
   map.on(L.Draw.Event.CREATED,once);try{handler.enable()}catch(err){map.off(L.Draw.Event.CREATED,once);if(activeDrawCreatedHandler===once)activeDrawCreatedHandler=null;stopActiveDraw();console.error(err);status("Could not start the selection tool.")}
 }
 document.addEventListener("keydown",e=>{
+  if(e.key!=="Delete"||e.ctrlKey||e.metaKey||e.altKey||activeDrawHandler)return;
+  const target=e.target;
+  if(target?.isContentEditable||target?.closest?.("input,textarea,select,button,a,[role=button],[contenteditable=true]"))return;
+  if(!editSessionActive||!selectedFeatures.size)return;
+  e.preventDefault();
+  deleteSelectedFeatures();
+});
+document.addEventListener("keydown",e=>{
   if(!activeDrawHandler)return;
   const tag=(e.target&&e.target.tagName||"").toLowerCase();
   if(["input","textarea","select"].includes(tag)||e.target?.isContentEditable)return;
