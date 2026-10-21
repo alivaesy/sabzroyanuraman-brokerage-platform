@@ -1992,7 +1992,7 @@ $("selectFiltered").onclick=()=>{
  let n=0;
  items.forEach(x=>{
    const hit=!filter||Object.entries(x.feature.properties||{}).some(([k,v])=>{
-     if(k==="_attachments")return false;
+     if(isReservedAttributeField(k))return false;
      const value=v===null||v===undefined?"":typeof v==="object"?JSON.stringify(v):String(v);
      return k.toLowerCase().includes(filter)||value.toLowerCase().includes(filter);
    });
