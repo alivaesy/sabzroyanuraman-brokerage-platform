@@ -3851,8 +3851,12 @@ function labelLayer(){
   const field=prompt("Label field:\n"+fields.join(", "),fields.includes("name")?"name":fields[0]);if(field===null)return;
   if(!fields.includes(field)){status("Choose an existing attribute field.");return}
   let count=0;
-  rs.forEach(r=>{const v=r.feature.properties?.[field];if(v!==null&&v!==undefined&&v!==""&&r.layer.bindTooltip){r.layer.unbindTooltip?.();r.layer.bindTooltip(String(v),{permanent:true,direction:"center"});count++;}});
-  status(count+" feature(s) labeled by "+field+".");
+  rs.forEach(r=>{
+    if(r.layer.unbindTooltip)r.layer.unbindTooltip();
+    const v=r.feature.properties?.[field];
+    if(v!==null&&v!==undefined&&v!==""&&r.layer.bindTooltip){r.layer.bindTooltip(String(v),{permanent:true,direction:"center"});count++;}
+  });
+  status(count+" feature(s) labeled by "+field+"; previous labels were refreshed.");
 }
 function groupLayers(){
   if(!namedLayers.length){status("Add at least one data layer first.");return}
