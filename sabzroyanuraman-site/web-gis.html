@@ -894,7 +894,7 @@ let selectedOverlay=null;
 let selectedFeatures=new Set();
 let selectionVersion=0;
 let currentCRS="EPSG:32638";
-function utmEpsg(zone,north=true){return "EPSG:"+(north?32600:32700)+zone}
+function utmEpsg(zone,north=true){if(!Number.isInteger(zone)||zone<1||zone>60)throw new Error("UTM zone must be an integer from 1 to 60.");return "EPSG:"+((north?32600:32700)+zone)}
 function defineUTM(zone,north=true){
   const epsg=utmEpsg(zone,north);
   if(!proj4.defs(epsg)){
