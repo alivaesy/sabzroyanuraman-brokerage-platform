@@ -1241,14 +1241,14 @@ function createMapViewer(){
       if(!typing){document.querySelectorAll('#classicToolbars button.active').forEach(el=>el.classList.remove('active'));event.preventDefault();}
       return;
     }
-    if(typing || event.altKey || event.shiftKey) return;
-    if((event.ctrlKey || event.metaKey) && key==='z'){
-      event.preventDefault();click('undoBtn');return;
-    }
-    if((event.ctrlKey || event.metaKey) && (key==='y' || (event.shiftKey && key==='z'))){
+    if(typing || event.altKey) return;
+    if((event.ctrlKey || event.metaKey) && (key==='y' || (key==='z' && event.shiftKey))){
       event.preventDefault();click('redoBtn');return;
     }
-    if((event.ctrlKey || event.metaKey) && key==='s'){
+    if((event.ctrlKey || event.metaKey) && key==='z' && !event.shiftKey){
+      event.preventDefault();click('undoBtn');return;
+    }
+        if((event.ctrlKey || event.metaKey) && key==='s'){
       event.preventDefault();
       const save=document.getElementById('saveEditsBtn');
       if(save && !save.disabled) save.click();
