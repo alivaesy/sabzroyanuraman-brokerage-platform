@@ -1462,32 +1462,44 @@ function createMapViewer(){
   const table=()=>document.getElementById("attributeTableWrap");
   const rows=()=>[...(table()?.querySelectorAll("tbody tr[data-index]")||[])];
   const focusCell=(rowIndex,colIndex,selectText=true)=>{
-    const row=rows()[rowIndex];if(!row)return;
+    const list=rows();if(!list.length)return;
+    const index=Math.max(0,Math.min(list.length-1,rowIndex)),row=list[index];
     const cells=[...row.querySelectorAll(".cell-edit")];
-    const target=cells[Math.max(0,Math.min(colIndex,cells.length-1))];
+    row.focus({preventScroll:true});
+    const target=cells.length?cells[Math.max(0,Math.min(cells.length-1,colIndex))]:null;
     if(target){target.focus();if(selectText&&target.select)target.select();}
-    else row.focus();
+    row.scrollIntoView({block:"nearest",inline:"nearest"});
+  };
+  const zoomRow=row=>{
+    const item=(typeof currentAttributeItems==="function"?currentAttributeItems():[])[Number(row?.dataset.index)];
+    if(!item)return;
+    const layer=item.layer;
+    try{
+      if(layer?.getBounds&&layer.getBounds().isValid())map.fitBounds(layer.getBounds(),{padding:[25,25],maxZoom:18});
+      else if(layer?.getLatLng)map.setView(layer.getLatLng(),Math.max(map.getZoom(),16));
+    }catch(_){}
   };
   document.addEventListener("keydown",event=>{
     const wrap=table();if(!wrap||wrap.style.display==="none")return;
     const input=event.target.closest?.("#attributeTableWrap .cell-edit");
     const row=event.target.closest?.("#attributeTableWrap tbody tr[data-index]");
     if(!input&&!row)return;
-    if(event.altKey||event.ctrlKey||event.metaKey)return;
     const visible=rows(),current=row||input?.closest("tr"),ri=visible.indexOf(current);
     if(ri<0)return;
-    if(event.key==="ArrowDown"||event.key==="ArrowUp"){
-      if(input){
-        const ci=[...current.querySelectorAll(".cell-edit")].indexOf(input);
-        event.preventDefault();focusCell(ri+(event.key==="ArrowDown"?1:-1),ci);
-      }else if(current.tabIndex===0){
-        event.preventDefault();focusCell(ri+(event.key==="ArrowDown"?1:-1),0);
-      }
-    }else if(event.key==="Home"&&event.ctrlKey===false&&row&&!input){
-      event.preventDefault();focusCell(ri,0,false);
-    }else if(event.key==="Enter"&&row&&!input){
-      event.preventDefault();const item=(typeof currentAttributeItems==="function"?currentAttributeItems():[])[Number(current.dataset.index)];
-      if(item){const layer=item.layer;if(layer?.getBounds&&layer.getBounds().isValid())map.fitBounds(layer.getBounds(),{padding:[25,25],maxZoom:18});else if(layer?.getLatLng)map.setView(layer.getLatLng(),Math.max(map.getZoom(),16));}
+    const cells=[...current.querySelectorAll(".cell-edit")],ci=input?cells.indexOf(input):0;
+    if(event.ctrlKey||event.metaKey){
+      if((event.key==="Home"||event.key==="End")&&!input){event.preventDefault();focusCell(event.key==="Home"?0:visible.length-1,0,false);}
+      return;
+    }
+    if(event.altKey)return;
+    if(input&&(event.key==="ArrowDown"||event.key==="ArrowUp")){
+      event.preventDefault();focusCell(ri+(event.key==="ArrowDown"?1:-1),ci);
+    }else if(!input&&(event.key==="ArrowDown"||event.key==="ArrowUp"||event.key==="Home"||event.key==="End"||event.key==="PageDown"||event.key==="PageUp")){
+      event.preventDefault();
+      const delta=event.key==="ArrowDown"?1:event.key==="ArrowUp"?-1:event.key==="PageDown"?10:event.key==="PageUp"?-10:0;
+      focusCell(event.key==="Home"?0:event.key==="End"?visible.length-1:ri+delta,0,false);
+    }else if(event.key==="Enter"&&!input){
+      event.preventDefault();zoomRow(current);
     }
   });
   const observe=()=>{
@@ -1495,16 +1507,12 @@ function createMapViewer(){
     wrap.querySelectorAll("tbody tr[data-index]").forEach(row=>{
       if(!row.hasAttribute("tabindex"))row.tabIndex=0;
       row.setAttribute("role","row");
-      const n=Number(row.dataset.index);
-      row.setAttribute("aria-label","Record "+(n+1));
+      row.setAttribute("aria-label","Record "+(Number(row.dataset.index)+1));
     });
   };
-  const original=window.syncVisibleAttributeTableSelection;
-  if(typeof original==="function"){
-    window.syncVisibleAttributeTableSelection=function(){original();observe();};
-  }
-  document.addEventListener("click",event=>{if(event.target.closest("#openTable,#attributeLayer"))setTimeout(observe,0);});
-  const wrap=table();if(wrap)new MutationObserver(observe).observe(wrap,{childList:true,subtree:true});
+  const wrap=table();
+  if(wrap)new MutationObserver(observe).observe(wrap,{childList:true,subtree:true});
+  observe();
 })();
 </script>
 
