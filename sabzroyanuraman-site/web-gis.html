@@ -3212,9 +3212,32 @@ function getFeatureRecords(){
 }
 function selectedRecords(){return [...selectedFeatures].map(l=>{const v=getFeatureRecords().find(r=>r.layer===l);return v;}).filter(Boolean);}
 function zoomToSelection(){
-  const ls=[...selectedFeatures].filter(l=>l&&l.getBounds&&l.getBounds().isValid());
-  if(!ls.length){status("No selected features to zoom to.");return;}
-  const g=L.featureGroup(ls); map.fitBounds(g.getBounds(),{padding:[30,30]});
+  // Leaflet markers do not expose getBounds(); include their coordinates as
+  // well as line/polygon bounds so Zoom To Selection also works for point-only
+  // and mixed selections, matching desktop GIS behavior.
+  const layers=[...selectedFeatures].filter(Boolean);
+  if(!layers.length){status("No selected features to zoom to.");return;}
+  const bounds=L.latLngBounds([]);
+  let count=0;
+  layers.forEach(layer=>{
+    try{
+      if(typeof layer.getBounds==="function"){
+        const b=layer.getBounds();
+        if(b&&b.isValid()){bounds.extend(b);count++;return;}
+      }
+      if(typeof layer.getLatLng==="function"){
+        const ll=layer.getLatLng();
+        if(ll&&Number.isFinite(ll.lat)&&Number.isFinite(ll.lng)){bounds.extend(ll);count++;}
+      }
+    }catch(err){console.warn("Could not include selected feature in zoom bounds",err);}
+  });
+  if(!count||!bounds.isValid()){status("Selected features have no usable map extent.");return;}
+  if(bounds.getSouthWest().equals(bounds.getNorthEast())){
+    map.setView(bounds.getCenter(),Math.max(map.getZoom(),16));
+  }else{
+    map.fitBounds(bounds,{padding:[30,30],maxZoom:18});
+  }
+  status("Zoomed to "+count+" selected feature(s).");
 }
 function invertSelection(){
   const all=getFeatureRecords(),layers=all.map(r=>r.layer),old=new Set(selectedFeatures);
