@@ -1885,9 +1885,23 @@ function renderEditableTable(){
    if(ch.checked)selectedFeatures.add(item.layer);
    else selectedFeatures.delete(item.layer);
   });
+  // Keep single-feature tools aligned with the latest selection made in the table.
+  const checkedRow=rowChecks.find(ch=>ch.checked);
+  const checkedItem=checkedRow?items[Number(checkedRow.closest("tr")?.dataset.index)]:null;
+  if(checkedItem){
+   selectedLayer=checkedItem.layer;
+   selectedOverlay=checkedItem.layer;
+  }else if(selectedLayer&&items.some(item=>item.layer===selectedLayer)){
+   const remaining=items.find(item=>selectedFeatures.has(item.layer));
+   selectedLayer=remaining?.layer||null;
+   selectedOverlay=remaining?.layer||null;
+  }
   applySelectionVisual();
   syncCheckAll();
+  if(typeof updateMultiSelectionUI==="function")updateMultiSelectionUI();
+  $("attributeTableWindowSelection").textContent=selectedFeatures.size+" selected";
  };
+
  if(all)all.onchange=()=>{rowChecks.forEach(ch=>ch.checked=all.checked);syncMapSelection()};
  rowChecks.forEach(ch=>ch.onchange=syncMapSelection);
  syncCheckAll();
