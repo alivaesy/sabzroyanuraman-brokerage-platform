@@ -4119,6 +4119,18 @@ function ringArea(r){
   return Math.abs(a/2);
 }
 function geometryMetrics(g){
+  if(!g||!g.type||!Array.isArray(g.coordinates))return {length:0,area:0};
+  // Geographic CRSs use angular coordinates: never report degree-based planar
+  // measurements as meters. Turf computes geodesic length and ellipsoidal area
+  // from the original WGS84 GeoJSON coordinates.
+  if(/^(?:EPSG:)?(?:4326|4269|4258)$/i.test(String(currentCRS||""))&&typeof turf!=="undefined"){
+    try{
+      const feature={type:"Feature",properties:{},geometry:g};
+      const length=Number(turf.length(feature,{units:"meters"}))||0;
+      const area=Number(turf.area(feature))||0;
+      return {length,area};
+    }catch(err){console.warn("Geodesic measurement fallback failed:",err);}
+  }
   const p=geometryProjected(g); if(!p)return {length:0,area:0};
   let length=0,area=0;
   function polygonArea(rings){
