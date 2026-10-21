@@ -1641,9 +1641,15 @@ function clearMultiSelection(){
   updateMultiSelectionUI();
 }
 function toggleMultiSelection(layer){
-  if(selectedFeatures.has(layer))selectedFeatures.delete(layer);
+  const wasSelected=selectedFeatures.has(layer);
+  if(wasSelected)selectedFeatures.delete(layer);
   else selectedFeatures.add(layer);
-  selectedLayer=layer;
+  if(!wasSelected){
+    selectedLayer=layer;
+  }else{
+    if(selectedLayer===layer)selectedLayer=[...selectedFeatures].pop()||null;
+    if(selectedOverlay===layer)selectedOverlay=null;
+  }
   updateMultiSelectionUI();
   renderAttributeEditor();
 }
@@ -1885,8 +1891,13 @@ function renderEditableTable(){
    if(ch.checked)selectedFeatures.add(item.layer);
    else selectedFeatures.delete(item.layer);
   });
+  const firstSelected=items.find(item=>selectedFeatures.has(item.layer));
+  selectedLayer=firstSelected?.layer||null;
+  selectedOverlay=null;
   applySelectionVisual();
   syncCheckAll();
+  updateMultiSelectionUI();
+  $("attributeTableWindowSelection").textContent=selectedFeatures.size+" selected";
  };
  if(all)all.onchange=()=>{rowChecks.forEach(ch=>ch.checked=all.checked);syncMapSelection()};
  rowChecks.forEach(ch=>ch.onchange=syncMapSelection);
@@ -1953,6 +1964,9 @@ $("selectFiltered").onclick=()=>{
    });
    if(hit){selectedFeatures.add(x.layer);n++;}
  });
+ const firstSelected=items.find(item=>selectedFeatures.has(item.layer));
+ selectedLayer=firstSelected?.layer||null;
+ selectedOverlay=null;
  $("attributeTableWrap").querySelectorAll("tbody tr").forEach(row=>{
    const item=items[Number(row.dataset.index)],check=row.querySelector(".row-check");
    if(check&&item)check.checked=selectedFeatures.has(item.layer);
@@ -3209,6 +3223,8 @@ function rebuildVectorLayerGeometry(rs){
   rs.forEach(r=>{
     try{
       const old=r.layer,owner=r.owner?.layer||drawn,opts={...(old?.options||{})};
+      const wasSelected=selectedFeatures.has(old);
+      const wasActive=selectedLayer===old,wasOverlay=selectedOverlay===old;
       const temp=L.geoJSON(r.feature,{
         style:opts,
         pointToLayer:(feature,latlng)=>old instanceof L.Circle&&typeof old.getRadius==="function"
@@ -3220,9 +3236,10 @@ function rebuildVectorLayerGeometry(rs){
       if(!replacement)return;
       replacement.feature=r.feature;
       owner.removeLayer(old);owner.addLayer(replacement);
-      selectedFeatures.delete(old);selectedFeatures.add(replacement);
-      if(selectedLayer===old)selectedLayer=replacement;
-      if(selectedOverlay===old)selectedOverlay=replacement;
+      selectedFeatures.delete(old);
+      if(wasSelected)selectedFeatures.add(replacement);
+      if(wasActive)selectedLayer=replacement;
+      if(wasOverlay)selectedOverlay=replacement;
     }catch(err){console.error("Could not rebuild feature geometry",err)}
   });
   applySelectionVisual();renderLayerList();refreshAttributeLayers();scheduleAutoSave();
