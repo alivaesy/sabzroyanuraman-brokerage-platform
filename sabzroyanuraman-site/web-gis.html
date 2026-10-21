@@ -3588,7 +3588,7 @@ function selectByLocation(){
   const rel=prompt("Spatial relationship:\n1 = Intersects\n2 = Within (source inside target)\n3 = Contains (source contains target)\n4 = Touches\n5 = Overlaps\n6 = Crosses\n7 = Disjoint (does not intersect any target)","1");
   if(rel===null)return;
   const relation={"1":"intersects","2":"within","3":"contains","4":"touches","5":"overlaps","6":"crosses","7":"disjoint"}[rel.trim()];
-  if(!relation){status("Choose relationship 1, 2, or 3.");return;}
+  if(!relation){status("Choose a spatial relationship from 1 through 7.");return;}
   const menu=items.map((x,i)=>(i+1)+". "+x.name+" ("+vectorFeatures(x.layer).length+" features)").join("\n");
   const a=prompt("Source layer number:\n"+menu,"1");
   if(a===null)return;
