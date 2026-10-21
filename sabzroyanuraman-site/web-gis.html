@@ -4895,7 +4895,7 @@ function renderGdbCatalog(){
  const rows=[];
  namedLayers.forEach(item=>{const m=item.layer?._gdbMetadata;if(!m)return;const w=gdbCatalog.workspaces.get(m.workspace),d=w?.datasets.get(m.dataset),c=d?.classes.find(x=>x.name===m.featureClass);if(c)c.count=vectorFeatures(item.layer).length;});
  gdbCatalog.workspaces.forEach(w=>{rows.push('<div class="gdb-row"><b>▣ '+esc(w.name)+'.gdb</b><span>File Geodatabase</span></div>');
-  w.datasets.forEach(d=>{rows.push('<div class="gdb-row" style="padding-left:24px"><b>▰ '+esc(d.name)</b><span>Feature Dataset · '+esc(d.crs)+'</span></div>');
+  w.datasets.forEach(d=>{rows.push('<div class="gdb-row" style="padding-left:24px"><b>▰ '+esc(d.name)+'</b><span>Feature Dataset · '+esc(d.crs)+'</span></div>');
    d.classes.forEach(c=>rows.push('<div class="gdb-row" style="padding-left:44px"><span>◈ '+esc(c.name)+'</span><span>'+esc(c.geometryType)+' · '+c.count+' features</span></div>'));
   });
  });
