@@ -2240,10 +2240,14 @@ $("fillSelected").onclick=()=>{
  if(!keys.includes(key)){status("Choose an existing field from the list.");return}
  const targets=inds.map(i=>items[i]).filter(Boolean);
  if(!targets.length){status("No valid rows are selected.");return}
- const samples=targets.map(x=>(x.feature.properties||{})[key]).filter(v=>v!==null&&v!==undefined);
+ const samples=targets.map(x=>(x.feature.properties||{})[key]).filter(v=>v!==null&&v!==undefined&&v!=="");
  const types=[...new Set(samples.map(v=>Array.isArray(v)?"array":typeof v))];
  if(types.length>1){status("Field calculation cancelled: selected rows contain mixed data types.");return}
- const type=types[0]||"string",staged=[];
+ // Null cells inherit the field's type from non-empty records elsewhere in the layer.
+ const layerSamples=items.map(x=>(x.feature.properties||{})[key]).filter(v=>v!==null&&v!==undefined&&v!=="");
+ const layerTypes=[...new Set(layerSamples.map(v=>Array.isArray(v)?"array":typeof v))];
+ if(layerTypes.length>1){status("Field calculation cancelled: this field has mixed data types in the layer.");return}
+ const type=layerTypes[0]||types[0]||"string",staged=[];
  try{
   targets.forEach(item=>{
    const old=(item.feature.properties||{})[key];let value=raw;
