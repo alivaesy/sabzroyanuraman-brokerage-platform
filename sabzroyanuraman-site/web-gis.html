@@ -2248,24 +2248,7 @@ function renderEditableTable(){
  };
  if(all)all.onchange=()=>{rowChecks.forEach(ch=>ch.checked=all.checked);syncMapSelection()};
  rowChecks.forEach(ch=>ch.onchange=syncMapSelection);
- // ArcMap-style row selection: click selects one record; Ctrl/Cmd-click toggles
- // an individual record without disturbing selections in other layers.
- $("attributeTableWrap").querySelectorAll("tbody tr[data-index]").forEach(row=>{
-  row.addEventListener("click",event=>{
-   if(event.target.closest("button,a,select,textarea"))return;
-   const clickedInput=event.target.closest("input");
-   if(clickedInput&&!clickedInput.matches(".cell-edit,.row-check"))return;
-   const item=items[Number(row.dataset.index)];if(!item)return;
-   const checkbox=row.querySelector(".row-check");if(!checkbox)return;
-   if(event.ctrlKey||event.metaKey)checkbox.checked=!checkbox.checked;
-   else{
-    items.forEach(other=>selectedFeatures.delete(other.layer));
-    checkbox.checked=true;
-    rowChecks.forEach(ch=>{if(ch!==checkbox)ch.checked=false;});
-   }
-   syncMapSelection();
-  });
- });
+  // Row selection is handled once by the delegated handler below.
  syncCheckAll();
  $("attributeTableWrap").querySelectorAll("th[data-sort-key]").forEach(th=>{
   th.onclick=()=>{
@@ -2284,21 +2267,29 @@ $("openTable").onclick=()=>{
  renderEditableTable();
 };
 $("attributeTableWrap").addEventListener("change",event=>{if(event.target.matches(".row-check,#checkAllRows"))updateMultiSelectionUI()});
-/* ArcMap-style row click selection; modifier-click adds/removes rows. */
+/* ArcMap-style row selection: one click selects, Ctrl/Cmd toggles, Shift selects a range.
+   A single delegated handler prevents double toggling and works after table rerenders. */
+let attributeLastClickedIndex=null;
 $("attributeTableWrap").addEventListener("click",event=>{
  const row=event.target.closest("tbody tr[data-index]");
  if(!row||event.target.closest("input,button,select,textarea,[role='separator']"))return;
- const items=currentAttributeItems(),item=items[Number(row.dataset.index)];
- if(!item)return;
- if(event.ctrlKey||event.metaKey||event.shiftKey){
-   if(selectedFeatures.has(item.layer))selectedFeatures.delete(item.layer);
-   else selectedFeatures.add(item.layer);
+ const table=$("attributeTableWrap"),visibleRows=[...table.querySelectorAll("tbody tr[data-index]")];
+ const rowIndex=visibleRows.indexOf(row),items=currentAttributeItems(),item=items[Number(row.dataset.index)];
+ if(!item||rowIndex<0)return;
+ if(event.shiftKey&&attributeLastClickedIndex!==null){
+   const anchor=visibleRows.findIndex(r=>Number(r.dataset.index)===attributeLastClickedIndex);
+   if(!event.ctrlKey&&!event.metaKey)selectedFeatures.clear();
+   visibleRows.slice(Math.min(anchor<0?rowIndex:anchor,rowIndex),Math.max(anchor<0?rowIndex:anchor,rowIndex)+1)
+     .forEach(r=>{const feature=items[Number(r.dataset.index)];if(feature)selectedFeatures.add(feature.layer)});
+ }else if(event.ctrlKey||event.metaKey){
+   if(selectedFeatures.has(item.layer))selectedFeatures.delete(item.layer);else selectedFeatures.add(item.layer);
  }else{
    selectedFeatures.clear();selectedFeatures.add(item.layer);
  }
+ attributeLastClickedIndex=Number(row.dataset.index);
  const first=getFeatureRecords().find(record=>selectedFeatures.has(record.layer));
  selectedLayer=first?.layer||null;selectedOverlay=null;
- applySelectionVisual();updateMultiSelectionUI();
+ applySelectionVisual();syncVisibleAttributeTableSelection();updateMultiSelectionUI();
  if(selectedLayer)showUTM(selectedLayer);
  status(selectedFeatures.size+" feature(s) selected from the Attribute Table.");
 });$("attributeFilter").addEventListener("input",()=>{
