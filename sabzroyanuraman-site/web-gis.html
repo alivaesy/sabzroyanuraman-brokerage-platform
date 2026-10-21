@@ -352,6 +352,12 @@ body{background:#dfe5e8;color:#173b57}
 #attributeTableWindow{display:none;position:fixed;left:300px;right:12px;bottom:28px;width:auto;height:min(390px,52vh);min-width:420px;min-height:190px;resize:both;overflow:hidden;background:#f4f6f7;border:1px solid #778892;box-shadow:0 5px 18px #0003;z-index:4600;direction:ltr;color:#263f50}
 #attributeTableWindow.open{display:flex;flex-direction:column}
 #attributeTableWindow.maximized{left:8px;right:8px;top:78px;bottom:28px;width:auto;height:auto;min-width:0;min-height:0;resize:none}
+/* The main Windows > Attribute Table command opens a tall, dock-like view;
+   the layer context menu keeps the wide horizontal table used for inspection. */
+#attributeTableWindow.vertical-table-mode{left:auto;right:8px;top:78px;bottom:28px;width:min(430px,42vw);height:auto;min-width:300px;min-height:0;resize:horizontal}
+#attributeTableWindow.vertical-table-mode #attributeTableViewport{overflow:auto}
+#attributeTableWindow.vertical-table-mode #attributeTableWrap table.arc-attribute-grid{width:max-content;min-width:100%}
+#attributeTableWindow.vertical-table-mode.maximized{left:8px;right:8px;top:78px;bottom:28px;width:auto;min-width:0;resize:none}
 #attributeTableWindowTitlebar{height:29px;flex:0 0 29px;display:flex;align-items:center;gap:8px;padding:0 7px;background:linear-gradient(#fdfdfd,#dfe5e8);border-bottom:1px solid #a6b2b8;font-size:11px;font-weight:700;cursor:move;user-select:none}
 #attributeTableWindowTitle{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #attributeTableWindowActions{display:flex;gap:3px}
@@ -1825,13 +1831,14 @@ function openGisDock(section){
   const titles={analysis:"ArcToolbox",attribute:"Attribute Table",display:"Display",edit:"Editor",project:"Project and Settings"};
   const title=$("gisDockTitle");if(title)title.textContent=titles[section]||"ArcToolbox";
 }
-function openLayerAttributeTable(item){
+function openLayerAttributeTable(item,layout="horizontal"){
  if(hasUnsavedTableEdits()){status("Save Table Edits before switching the attribute table layer; unsaved values have been preserved.");return}
  const idx=namedLayers.findIndex(x=>x.layer===item.layer);
  if(item.layer===drawn)$("attributeLayer").value="drawn";
  else if(idx>=0)$("attributeLayer").value=String(idx);
  else return;
  lastAttributeLayerValue=$("attributeLayer").value;
+ attributeTableLayoutMode=layout==="vertical"?"vertical":"horizontal";
  openGisDock("attribute");
  $("openTable").click();
 }
@@ -2290,7 +2297,7 @@ map.on("click",e=>{
 
 
 /* Main ArcMap-style dockable attribute table */
-let attributeTableHome=null,attributeTableWindow=null,attributeTableViewport=null;
+let attributeTableHome=null,attributeTableWindow=null,attributeTableViewport=null,attributeTableLayoutMode="horizontal";
 function ensureAttributeTableWindow(){
  const wrap=$("attributeTableWrap");if(!wrap)return null;
  if(attributeTableWindow)return attributeTableWindow;
@@ -2316,6 +2323,8 @@ function ensureAttributeTableWindow(){
 function showAttributeTableWindow(){
  const win=ensureAttributeTableWindow();if(!win)return;
  const wrap=$("attributeTableWrap");if(wrap&&attributeTableViewport&&wrap.parentElement!==attributeTableViewport)attributeTableViewport.appendChild(wrap);
+ win.classList.toggle("vertical-table-mode",attributeTableLayoutMode==="vertical");
+ win.classList.remove("maximized");
  win.classList.add("open");
  const label=$("attributeLayer")?.selectedOptions?.[0]?.textContent||"Attribute Table";
  win.querySelector("#attributeTableWindowTitle").textContent="Table — "+label;
@@ -4732,7 +4741,7 @@ function addMapDecoration(kind){
         const candidates=[selectedOverlay,selectedLayer,currentAttributeLayer(),drawn,...namedLayers.map(x=>x.layer)];
         const layer=candidates.find(x=>x&&isVectorLayer(x));
         if(!layer){status("Select a vector feature layer before opening its attribute table.");return}
-        openLayerAttributeTable({layer});
+        openLayerAttributeTable({layer},"vertical");
       },
       showToolbox:()=>{openGisDock("analysis");document.getElementById("gisToolSearch")?.focus()},
       editorOptions:()=>openGisDock("edit"),
