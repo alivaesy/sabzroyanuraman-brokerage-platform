@@ -1646,6 +1646,10 @@ function updateMultiSelectionUI(){
 function clearMultiSelection(){
   selectedFeatures.forEach(l=>{if(l&&l._path)L.DomUtil.removeClass(l._path,"multi-selected-feature")});
   selectedFeatures.clear();
+  selectedLayer=null;
+  selectedOverlay=null;
+  const editor=$("attributeEditor");
+  if(editor)editor.style.display="none";
   updateMultiSelectionUI();
 }
 function toggleMultiSelection(layer){
@@ -3076,8 +3080,9 @@ function selectByPolygon(){
  });
 }
 function selectByLocation(){
-  const items=namedLayers.filter(x=>isVectorLayer(x.layer)&&vectorFeatures(x.layer).length);
-  if(items.length<2){status("Load at least two vector layers before spatial selection.");return;}
+  const items=[{name:"My Drawings",layer:drawn},...namedLayers]
+    .filter((x,i,arr)=>x.layer&&isVectorLayer(x.layer)&&vectorFeatures(x.layer).length&&arr.findIndex(y=>y.layer===x.layer)===i);
+  if(items.length<2){status("Load at least two vector layers (including My Drawings when it contains features) before spatial selection.");return;}
   const rel=prompt("Spatial relationship:\n1 = Intersects\n2 = Within (source inside target)\n3 = Contains (source contains target)","1");
   if(rel===null)return;
   const relation={"1":"intersects","2":"within","3":"contains"}[rel.trim()];
