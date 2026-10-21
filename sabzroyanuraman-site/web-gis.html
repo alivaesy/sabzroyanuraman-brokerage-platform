@@ -1997,7 +1997,7 @@ $("applyMultiAttribute").onclick=()=>{
   const key=$("multiFieldName").value.trim(),raw=$("multiFieldValue").value;
   if(!targets.length){status("Select features from the active edit layer first.");return}
   if(!key){status("Enter a field name.");return}
-  if(key==="_attachments"||key==="geometry"){status("This field name is reserved by the editor.");return}
+  if(key.startsWith("_")||key==="geometry"){status("Field names starting with underscore and the name geometry are reserved by the editor.");return}
   const staged=[];
   // Infer the field schema from the active edit layer, not only from selected
   // features; selected records may have missing/null values for an existing field.
