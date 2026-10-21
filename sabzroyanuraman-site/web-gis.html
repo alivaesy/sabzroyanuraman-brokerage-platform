@@ -1858,8 +1858,11 @@ function currentAttributeItems(){
  const layer=currentAttributeLayer();
  return layer?vectorFeatures(layer):[];
 }
+function isReservedAttributeField(key){return typeof key!=="string"||key.startsWith("_")||key==="geometry"}
 function tableKeys(items){
- return [...new Set(items.flatMap(x=>Object.keys(x.feature.properties||{}).filter(k=>k!=="_attachments")))];
+ // Keep editor-managed metadata out of the user-editable schema. Preserve it
+ // on each feature when saving table cells, but never expose it as a field.
+ return [...new Set(items.flatMap(x=>Object.keys(x.feature.properties||{}).filter(k=>!isReservedAttributeField(k))))];
 }
 let attributeSort={key:null,direction:1};
 function renderEditableTable(){
@@ -1867,7 +1870,7 @@ function renderEditableTable(){
  const tableWrap=$("attributeTableWrap");
  if(tableWrap)tableWrap.style.display="block";
  const items=currentAttributeItems(),filter=$("attributeFilter").value.trim().toLowerCase();
- let rows=items.map((x,i)=>({x,i})).filter(o=>!filter||Object.entries(o.x.feature.properties||{}).some(([k,v])=>k!=="_attachments"&&(k.toLowerCase().includes(filter)||String(v===null||v===undefined?"":typeof v==="object"?JSON.stringify(v):v).toLowerCase().includes(filter))));
+ let rows=items.map((x,i)=>({x,i})).filter(o=>!filter||Object.entries(o.x.feature.properties||{}).some(([k,v])=>!isReservedAttributeField(k)&&(k.toLowerCase().includes(filter)||String(v===null||v===undefined?"":typeof v==="object"?JSON.stringify(v):v).toLowerCase().includes(filter))));
  const keys=tableKeys(items);
  if(attributeSort.key&&keys.includes(attributeSort.key)){
   const key=attributeSort.key,dir=attributeSort.direction;
