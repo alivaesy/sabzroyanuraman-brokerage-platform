@@ -2269,7 +2269,8 @@ $("saveTableEdits").onclick=()=>{
   const values=items.map(item=>item.feature.properties?.[key]).filter(v=>v!==null&&v!==undefined&&v!=="");
   if(values.length&&values.every(v=>typeof v==="number"&&Number.isFinite(v)))fieldTypes[key]="number";
   else if(values.length&&values.every(v=>typeof v==="boolean"))fieldTypes[key]="boolean";
-  else if(values.length&&values.every(v=>typeof v==="object"))fieldTypes[key]="object";
+  else if(values.length&&values.every(v=>Array.isArray(v)))fieldTypes[key]="array";
+  else if(values.length&&values.every(v=>typeof v==="object"&&!Array.isArray(v)))fieldTypes[key]="object";
   else fieldTypes[key]="string";
  });
  try{
@@ -2293,9 +2294,9 @@ $("saveTableEdits").onclick=()=>{
     }else if(valueType==="boolean"){
      if(!/^(true|false)$/i.test(raw.trim()))throw new Error("Field '"+key+"' accepts only true or false.");
      value=raw.trim().toLowerCase()==="true";
-    }else if(valueType==="object"){
+    }else if(valueType==="object"||valueType==="array"){
      try{value=JSON.parse(raw)}catch(e){throw new Error("Field '"+key+"' requires valid JSON.");}
-     if(value===null||typeof value!=="object")throw new Error("Field '"+key+"' must remain a JSON object or array.");
+     if(value===null||typeof value!=="object"||(valueType==="array"&&!Array.isArray(value))||(valueType==="object"&&Array.isArray(value)))throw new Error("Field '"+key+"' must remain a JSON "+valueType+".");
     }else if(oldValue===null){
      value=raw.trim()===""?null:raw;
     }
@@ -2356,7 +2357,8 @@ $("pasteRows").onclick=()=>{
   const values=items.map(item=>item.feature.properties?.[key]).filter(v=>v!==null&&v!==undefined&&v!=="");
   if(values.length&&values.every(v=>typeof v==="number"&&Number.isFinite(v)))fieldTypes[key]="number";
   else if(values.length&&values.every(v=>typeof v==="boolean"))fieldTypes[key]="boolean";
-  else if(values.length&&values.every(v=>typeof v==="object"))fieldTypes[key]="object";
+  else if(values.length&&values.every(v=>Array.isArray(v)))fieldTypes[key]="array";
+  else if(values.length&&values.every(v=>typeof v==="object"&&!Array.isArray(v)))fieldTypes[key]="object";
   else fieldTypes[key]="string";
  });
  const staged=[];
