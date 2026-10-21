@@ -1974,6 +1974,28 @@ $("attributeTableWrap").addEventListener("input",event=>{
  const input=event.target.closest(".cell-edit");
  if(input)input.dataset.dirty=String(input.value!==input.dataset.original);
 });
+ // Attribute-table keyboard workflow: Enter advances to the next editable cell,
+ // while Escape restores the cell's last saved value without discarding other edits.
+ $("attributeTableWrap").addEventListener("keydown",event=>{
+  const input=event.target.closest(".cell-edit");
+  if(!input)return;
+  if(event.key==="Escape"){
+   event.preventDefault();
+   input.value=input.dataset.original??"";
+   input.dataset.dirty="false";
+   input.dispatchEvent(new Event("input",{bubbles:true}));
+   input.select();
+   return;
+  }
+  if(event.key==="Enter"){
+   event.preventDefault();
+   const cells=[...$("attributeTableWrap").querySelectorAll(".cell-edit")];
+   const index=cells.indexOf(input);
+   const next=cells[index+1];
+   if(next){next.focus();next.select();}
+   else input.blur();
+  }
+ });
 document.addEventListener("click",e=>{if(!e.target.closest("#layerContextMenu"))hideLayerContextMenu();});
 $("layerContextMenu").querySelectorAll("button[data-action]").forEach(btn=>btn.onclick=e=>{
   e.stopPropagation();
