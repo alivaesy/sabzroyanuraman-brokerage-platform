@@ -3349,9 +3349,24 @@ function getFeatureRecords(){
 }
 function selectedRecords(){return [...selectedFeatures].map(l=>{const v=getFeatureRecords().find(r=>r.layer===l);return v;}).filter(Boolean);}
 function zoomToSelection(){
-  const ls=[...selectedFeatures].filter(l=>l&&l.getBounds&&l.getBounds().isValid());
-  if(!ls.length){status("No selected features to zoom to.");return;}
-  const g=L.featureGroup(ls); map.fitBounds(g.getBounds(),{padding:[30,30]});
+  const bounds=L.latLngBounds([]);
+  let count=0;
+  [...selectedFeatures].forEach(layer=>{
+    if(!layer)return;
+    try{
+      if(typeof layer.getBounds==="function"){
+        const b=layer.getBounds();
+        if(b&&b.isValid()){bounds.extend(b);count++;return;}
+      }
+      // Leaflet Marker and CircleMarker expose getLatLng(), not getBounds().
+      if(typeof layer.getLatLng==="function"){
+        const point=layer.getLatLng();
+        if(point&&Number.isFinite(point.lat)&&Number.isFinite(point.lng)){bounds.extend(point);count++;}
+      }
+    }catch(err){console.debug("Skipping selected feature with invalid extent:",err);}
+  });
+  if(!count||!bounds.isValid()){status("No selected features with a valid map extent.");return;}
+  map.fitBounds(bounds,{padding:[30,30],maxZoom:18});
 }
 function invertSelection(){
   const all=getFeatureRecords(),layers=all.map(r=>r.layer),old=new Set(selectedFeatures);
