@@ -959,7 +959,7 @@ document.addEventListener("keydown",e=>{
     return;
   }
   if(["input","textarea","select"].includes(tag)||e.target?.isContentEditable)return;
-  if(key==="a"&&e.shiftKey){
+  if(key==="a"){
     e.preventDefault();
     if(!editSessionActive||!editTarget){status("Start Editing and choose an edit layer before selecting all features.");return;}
     const item=editTarget===drawn?{name:"My Drawings",layer:drawn}:namedLayers.find(x=>x.layer===editTarget);
