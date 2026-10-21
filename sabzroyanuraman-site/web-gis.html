@@ -363,6 +363,11 @@ body{background:#dfe5e8;color:#173b57}
 #attributeTableWindowActions{display:flex;gap:3px}
 #attributeTableWindowActions button{width:25px;height:22px;padding:0;border:1px solid #aeb9bf;background:#f8f9fa;color:#263f50;border-radius:1px;cursor:pointer}
 #attributeTableWindowToolbar{display:flex;align-items:center;gap:6px;min-height:30px;flex:0 0 30px;padding:3px 7px;background:#edf0f2;border-bottom:1px solid #c1cbd0;font-size:10px}
+#attributeTableWindowToolbar{flex-wrap:wrap;min-height:34px;height:auto;flex:0 0 auto}
+#attributeTableWindowToolbar button[data-table-action="layout"]{font-weight:700;background:linear-gradient(#fdfefe,#d9e6ed);border-color:#879da9}
+#attributeTableWindow.vertical-table-mode #attributeTableWindowToolbar{gap:4px;padding:5px;min-height:0}
+#attributeTableWindow.vertical-table-mode #attributeTableWindowToolbar .table-count{width:100%;margin-left:0}
+
 #attributeTableWindowToolbar button{height:22px;padding:1px 7px;border:1px solid #aab6bc;background:linear-gradient(#fff,#e7ebed);color:#263f50;border-radius:1px;font-size:10px;cursor:pointer}
 #attributeTableWindowToolbar .table-layer-label{font-weight:700}
 #attributeTableWindowToolbar .table-count{margin-left:auto;color:#536b78;white-space:nowrap}
@@ -2303,12 +2308,20 @@ function ensureAttributeTableWindow(){
  if(attributeTableWindow)return attributeTableWindow;
  attributeTableHome={parent:wrap.parentElement,next:wrap.nextSibling};
  const win=document.createElement("section");win.id="attributeTableWindow";win.setAttribute("aria-label","Attribute Table");
- win.innerHTML='<div id="attributeTableWindowTitlebar"><span>▦</span><span id="attributeTableWindowTitle">Attribute Table</span><div id="attributeTableWindowActions"><button type="button" title="Minimize table">_</button><button type="button" title="Maximize/restore table">□</button><button type="button" title="Close table">×</button></div></div><div id="attributeTableWindowToolbar"><span class="table-layer-label" id="attributeTableWindowLayer">Layer</span><button type="button" data-table-action="save">Save Edits</button><button type="button" data-table-action="add">Add Field</button><button type="button" data-table-action="delete">Delete Selected</button><button type="button" data-table-action="refresh">Refresh</button><span class="table-count" id="attributeTableWindowCount">0 records</span></div><div id="attributeTableViewport"></div><div id="attributeTableWindowFooter"><span id="attributeTableWindowStatus">Ready</span></div>';
+ win.innerHTML='<div id="attributeTableWindowTitlebar"><span>▦</span><span id="attributeTableWindowTitle">Attribute Table</span><div id="attributeTableWindowActions"><button type="button" title="Minimize table">_</button><button type="button" title="Maximize/restore table">□</button><button type="button" title="Close table">×</button></div></div><div id="attributeTableWindowToolbar"><span class="table-layer-label" id="attributeTableWindowLayer">Layer</span><button type="button" data-table-action="layout" title="Switch between docked and horizontal table">Dock / Horizontal</button><button type="button" data-table-action="save">Save Edits</button><button type="button" data-table-action="add">Add Field</button><button type="button" data-table-action="delete">Delete Selected</button><button type="button" data-table-action="refresh">Refresh</button><span class="table-count" id="attributeTableWindowCount">0 records</span></div><div id="attributeTableViewport"></div><div id="attributeTableWindowFooter"><span id="attributeTableWindowStatus">Ready</span></div>';
  document.body.appendChild(win);attributeTableWindow=win;attributeTableViewport=win.querySelector("#attributeTableViewport");attributeTableViewport.appendChild(wrap);
  const buttons=win.querySelectorAll("#attributeTableWindowActions button");
  buttons[0].onclick=()=>win.classList.remove("open");
  buttons[1].onclick=()=>win.classList.toggle("maximized");
  buttons[2].onclick=()=>{win.classList.remove("open","maximized");if(attributeTableHome?.parent){attributeTableHome.parent.insertBefore(wrap,attributeTableHome.next&&attributeTableHome.next.parentNode===attributeTableHome.parent?attributeTableHome.next:null);wrap.style.display="none";}};
+ win.querySelector('[data-table-action="layout"]').onclick=()=>{
+  attributeTableLayoutMode=attributeTableLayoutMode==="vertical"?"horizontal":"vertical";
+  win.classList.toggle("vertical-table-mode",attributeTableLayoutMode==="vertical");
+  win.classList.remove("maximized");
+  const toggle=win.querySelector('[data-table-action="layout"]');
+  toggle.textContent=attributeTableLayoutMode==="vertical"?"Docked Table":"Horizontal Table";
+  toggle.title=attributeTableLayoutMode==="vertical"?"Switch to the wide horizontal table":"Switch to the narrow docked table";
+ };
  win.querySelector('[data-table-action="save"]').onclick=()=>$("saveTableEdits").click();
  win.querySelector('[data-table-action="add"]').onclick=()=>$("addTableField").click();
  win.querySelector('[data-table-action="delete"]').onclick=()=>$("deleteSelectedRows").click();
@@ -2325,6 +2338,8 @@ function showAttributeTableWindow(){
  const wrap=$("attributeTableWrap");if(wrap&&attributeTableViewport&&wrap.parentElement!==attributeTableViewport)attributeTableViewport.appendChild(wrap);
  win.classList.toggle("vertical-table-mode",attributeTableLayoutMode==="vertical");
  win.classList.remove("maximized");
+ const layoutButton=win.querySelector('[data-table-action="layout"]');
+ if(layoutButton){layoutButton.textContent=attributeTableLayoutMode==="vertical"?"Docked Table":"Horizontal Table";layoutButton.title=attributeTableLayoutMode==="vertical"?"Switch to the wide horizontal table":"Switch to the narrow docked table";}
  win.classList.add("open");
  const label=$("attributeLayer")?.selectedOptions?.[0]?.textContent||"Attribute Table";
  win.querySelector("#attributeTableWindowTitle").textContent="Table — "+label;
