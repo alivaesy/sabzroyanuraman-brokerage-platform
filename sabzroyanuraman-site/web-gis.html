@@ -1416,6 +1416,11 @@ function startNativeDraw(type,button){
     status("Start Editing and choose a vector target before drawing.");return;
   }
   const target=editTarget;
+  const targetMeta=target._gdbMetadata;
+  if(targetMeta){
+    const actual=type==="Marker"?"Point":type==="Polyline"?"LineString":"Polygon";
+    if(targetMeta.geometryType!==actual){status("Geometry mismatch: this feature class accepts "+targetMeta.geometryType+" features only. Choose the matching drawing tool.");return;}
+  }
   const style={color:"#146c43",weight:3,fillColor:"#4b9b71",fillOpacity:.2};
   let points=[],preview=null,finished=false;
   const removePreview=()=>{if(preview&&map.hasLayer(preview))map.removeLayer(preview);preview=null};
