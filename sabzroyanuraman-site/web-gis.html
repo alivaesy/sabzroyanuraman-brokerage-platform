@@ -1742,25 +1742,29 @@ function updateCoordinateStatus(latlng){
  const geographicNode=$("coordGeographic"),utmNode=$("coordUtm");
  if(!geographicNode||!utmNode||!latlng)return;
  const lat=Number(latlng.lat),lon=Number(latlng.lng);
- if(!Number.isFinite(lat)||!Number.isFinite(lon))return;
+ if(!Number.isFinite(lat)||!Number.isFinite(lon)||lat < -80||lat > 84||lon < -180||lon > 180)return;
  geographicNode.textContent=lat.toFixed(6)+", "+lon.toFixed(6);
  try{
+  // Derive the standard UTM zone from the actual coordinate every time.
   const zone=Math.max(1,Math.min(60,Math.floor((lon+180)/6)+1));
-  const epsg=utmEpsg(zone,lat>=0);
+  const north=lat>=0;
+  const epsg=utmEpsg(zone,north);
   const xy=projectCoords("EPSG:4326",epsg,[lon,lat]);
   utmNode.textContent=Array.isArray(xy)&&xy.length>=2&&xy.every(Number.isFinite)
-   ?"E "+xy[0].toFixed(2)+" m · N "+xy[1].toFixed(2)+" m"
+   ?zone+(north?"N":"S")+" · E "+xy[0].toFixed(2)+" m · N "+xy[1].toFixed(2)+" m"
    :"Coordinates unavailable";
  }catch(err){
   utmNode.textContent="Coordinates unavailable";
   console.debug("UTM coordinate unavailable.",err);
  }
 }
+// Update from the pointer, and refresh from map center after pan/zoom so a
+// drag cannot leave the displayed coordinates stuck in the previous zone.
 map.on("mousemove",e=>updateCoordinateStatus(e.latlng));
 map.on("moveend",()=>updateCoordinateStatus(map.getCenter()));
-updateCoordinateStatus(map.getCenter());
-// Keep the coordinate readout populated when the pointer leaves the map.
+map.on("zoomend",()=>updateCoordinateStatus(map.getCenter()));
 map.on("mouseout",()=>updateCoordinateStatus(map.getCenter()));
+map.whenReady(()=>updateCoordinateStatus(map.getCenter()));
 refreshEditorTargets();updateEditorToolbar();
 $("startEditingBtn").onclick=()=>startEditing();
 $("newMapBtn").onclick=clearWorkspace;
