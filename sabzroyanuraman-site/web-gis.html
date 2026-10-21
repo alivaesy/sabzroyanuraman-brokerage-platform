@@ -1254,6 +1254,11 @@ function startNativeDraw(type,button){
   if(!editSessionActive||!editTarget||typeof editTarget.addLayer!=="function"){
     status("Start Editing and choose a vector target before drawing.");return;
   }
+  // Switching drawing tools must dispose of the previous sketch/listeners first.
+  // Otherwise two active handlers can react to the same map click and make editing feel erratic.
+  if(activeDrawHandler||activeDrawCreatedHandler)stopActiveDraw(true);
+  if(window._reshapeDrawHandler)stopReshapeDraw();
+  if(window._vertexEditControl)stopVertexEditing();
   const target=editTarget;
   const style={color:"#146c43",weight:3,fillColor:"#4b9b71",fillOpacity:.2};
   let points=[],preview=null,finished=false;
