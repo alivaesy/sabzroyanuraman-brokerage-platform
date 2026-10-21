@@ -3883,8 +3883,10 @@ function selectWithinDistance(){
   const records=getFeatureRecords(),previous=new Set(selectedFeatures),matches=new Set();
   records.forEach(r=>{
     if(mode==="4"&&!previous.has(r.layer))return;
+    // Compare geometries, not Leaflet layer objects: every feature in the
+    // same layer is not automatically within the requested distance. This also
+    // correctly supports selecting nearby features inside the reference layer.
     const near=refs.some(ref=>{
-      if(r.layer===ref.layer)return true;
       const d=featureDistanceMeters(r.feature,ref.feature);
       return Number.isFinite(d)&&d<=meters;
     });
