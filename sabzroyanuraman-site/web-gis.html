@@ -3327,10 +3327,14 @@ function selectByAttribute(){
   const current=currentAttributeLayer();
   const defaultIndex=Math.max(0,vectorLayers.findIndex(x=>x.layer===current));
   if(!vectorLayers.length||!allRecords.length){status("Select By Attributes requires at least one vector layer with features.");return}
-  const layerChoice=prompt("Choose target layer by exact name; selection will be limited to that layer:\n"+vectorLayers.map(x=>x.name).join("\n"),vectorLayers[defaultIndex].name);
+  // Use numbered choices because layer names are not guaranteed to be unique.
+  // This avoids silently querying the wrong layer when two datasets share a name.
+  const layerMenu=vectorLayers.map((x,i)=>(i+1)+". "+x.name+" ("+vectorFeatures(x.layer).length+" features)").join("\n");
+  const layerChoice=prompt("Choose target layer number; selection will be limited to that layer:\n"+layerMenu,String(defaultIndex+1));
   if(layerChoice===null)return;
-  const target=vectorLayers.find(x=>x.name===layerChoice.trim());
-  if(!target){status("Unknown layer name. Choose one of the listed vector layers.");return}
+  const layerIndex=Number(layerChoice.trim())-1;
+  if(!Number.isInteger(layerIndex)||layerIndex<0||layerIndex>=vectorLayers.length){status("Invalid layer number. Choose one of the listed layer numbers.");return}
+  const target=vectorLayers[layerIndex]
   const records=allRecords.filter(r=>(r.owner?.layer||drawn)===target.layer);
   const fields=[...new Set(records.flatMap(r=>Object.keys(r.feature.properties||{}).filter(k=>!isReservedAttributeField(k))))];
   if(!records.length||!fields.length){status("The chosen layer has no features with attribute fields.");return}
