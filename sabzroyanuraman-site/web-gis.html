@@ -947,6 +947,13 @@ function applyHistorySnapshot(source,destination,message){
 }
 function undoMapEdit(){applyHistorySnapshot(undoStack,redoStack,"Undo");}
 function redoMapEdit(){applyHistorySnapshot(redoStack,undoStack,"Redo");}
+document.addEventListener("keydown",e=>{
+  const tag=(e.target&&e.target.tagName||"").toLowerCase();
+  if(!(e.ctrlKey||e.metaKey)||e.altKey||["input","textarea","select"].includes(tag)||e.target?.isContentEditable)return;
+  const key=e.key.toLowerCase();
+  if(key==="z"&&!e.shiftKey){e.preventDefault();undoMapEdit();}
+  else if(key==="y"||(key==="z"&&e.shiftKey)){e.preventDefault();redoMapEdit();}
+});
 function recordMapExtent(){
   const c=map.getCenter(),entry={lat:c.lat,lng:c.lng,zoom:map.getZoom()};
   if(mapExtentTarget){
