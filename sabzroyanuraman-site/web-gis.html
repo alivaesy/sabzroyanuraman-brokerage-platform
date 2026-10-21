@@ -2124,9 +2124,9 @@ function currentAttributeItems(){
 }
 function isReservedAttributeField(key){return typeof key!=="string"||key.startsWith("_")||key.toLowerCase()==="geometry"}
 function tableKeys(items){
- // Keep editor-managed metadata out of the user-editable schema. Preserve it
- // on each feature when saving table cells, but never expose it as a field.
- return [...new Set(items.flatMap(x=>Object.keys(x.feature.properties||{}).filter(k=>!isReservedAttributeField(k))))];
+ // Include declared schema fields even when a feature class contains zero rows.
+ const layer=currentAttributeLayer(),schema=layer?._gdbMetadata?.fields||[];
+ return [...new Set([...schema.map(f=>typeof f==="string"?f:f.name),...items.flatMap(x=>Object.keys(x.feature.properties||{}).filter(k=>!isReservedAttributeField(k)))].filter(k=>k&&!isReservedAttributeField(k)))];
 }
 let attributeSort={key:null,direction:1};
 function renderEditableTable(){
@@ -2150,11 +2150,23 @@ function renderEditableTable(){
    return cmp===0?a.i-b.i:cmp*dir;
   });
  }
- let html="<table class='arc-attribute-grid'><thead><tr><th><input type='checkbox' class='attr-check' id='checkAllRows'></th><th>#</th>"+
+ let html="<div class='attribute-schema-toolbar' style='display:flex;gap:5px;padding:4px;background:#edf2f5;border-bottom:1px solid #ccd9df'><button type='button' id='attributeAddField' title='Add a field to the feature class'>＋ Add Field</button><span style='align-self:center;color:#526775'>"+keys.length+" field(s) · "+items.length+" record(s)</span></div><table class='arc-attribute-grid'><thead><tr><th><input type='checkbox' class='attr-check' id='checkAllRows'></th><th>#</th>"+
  keys.map(k=>"<th data-sort-key='"+esc(k)+"' title='Sort by "+esc(k)+"' style='padding:3px;border-bottom:1px solid #ccd9df;white-space:nowrap;cursor:pointer;user-select:none'>"+esc(k)+(attributeSort.key===k?(attributeSort.direction===1?" ▲":" ▼"):" ↕")+"</th>").join("")+"</tr></thead><tbody>";
  rows.forEach(o=>{html+="<tr data-index='"+o.i+"'><td><input type='checkbox' class='row-check attr-check' "+(selectedFeatures.has(o.x.layer)?"checked":"")+"></td><td>"+(o.i+1)+"</td>"+
  keys.map(k=>{const v=(o.x.feature.properties||{})[k],shown=v===null||v===undefined?"":typeof v==="object"?JSON.stringify(v):String(v);return "<td style='padding:2px'><input class='cell-edit' data-key='"+esc(k)+"' data-original='"+esc(shown)+"' value='"+esc(shown) +"'></td>"}).join("")+"</tr>"});
  $("attributeTableWrap").innerHTML=html+"</tbody></table>";$("attributeTableWrap").style.display="block";
+ const addFieldBtn=$("attributeAddField");if(addFieldBtn)addFieldBtn.onclick=()=>{
+  const layer=currentAttributeLayer();if(!layer)return;
+  if(!editSessionActive||!isLayerInEditTarget(layer)){status("Start Editing this feature class before adding fields.");return;}
+  const name=prompt("New field name (letters, numbers, underscore):","NEW_FIELD");if(name===null)return;
+  const field=name.trim();if(!/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(field)){status("Field names must start with a letter and contain only letters, numbers, or underscores (max 64 characters).");return;}
+  if(keys.some(k=>k.toLowerCase()===field.toLowerCase())){status("A field with that name already exists.");return;}
+  const type=prompt("Field type: TEXT, INTEGER, REAL, or DATE","TEXT");if(type===null)return;
+  const fieldType=type.trim().toUpperCase();if(!["TEXT","INTEGER","REAL","DATE"].includes(fieldType)){status("Choose TEXT, INTEGER, REAL, or DATE.");return;}
+  recordUndoState();const meta=layer._gdbMetadata||(layer._gdbMetadata={fields:[]});meta.fields=meta.fields||[];meta.fields.push({name:field,type:fieldType});
+  items.forEach(item=>{const props=ensureFeatureProperties(item.layer);if(!(field in props))props[field]=null;});
+  window.__webGisGdbBridge?.save();renderEditableTable();status("Field "+field+" ("+fieldType+") added to the feature class.");
+ };
  const all=$("checkAllRows"),rowChecks=[...$("attributeTableWrap").querySelectorAll(".row-check")];
  const syncCheckAll=()=>{
   if(!all)return;
