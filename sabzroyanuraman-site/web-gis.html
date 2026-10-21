@@ -4916,13 +4916,10 @@ function nearestMatchTool(){
   const updates=[];
   dst.forEach(t=>{
     let best=null,bestD=Infinity;
-    const p=t.feature.geometry.type==="Point"?turf.point(t.feature.geometry.coordinates):turf.centroid(t.feature);
     src.forEach(v=>{
       try{
-        const nearest=nearestPointOnFeatureSafe(v.feature,p);
-        if(!nearest)return;
-        const d=turf.distance(p,nearest,{units:"meters"});
-        if(d<bestD){bestD=d;best=v.feature;}
+        const d=featureDistanceMeters(t.feature,v.feature);
+        if(Number.isFinite(d)&&d<bestD){bestD=d;best=v.feature;}
       }catch(_){}
     });
     if(best&&(!maxDistance||bestD<=maxDistance)){
@@ -4975,14 +4972,11 @@ function transferAttributesTool(){
   if(!chosen.length){status("No valid source fields were selected.");return;}
   const updates=[];
   dst.forEach(t=>{
-    let best=null,bestD=Infinity,targetPoint;
-    try{targetPoint=t.feature.geometry.type==="Point"?turf.point(t.feature.geometry.coordinates):turf.centroid(t.feature);}catch(_){return;}
+    let best=null,bestD=Infinity;
     src.forEach(v=>{
       try{
-        const nearest=nearestPointOnFeatureSafe(v.feature,targetPoint);
-        if(!nearest)return;
-        const d=turf.distance(targetPoint,nearest,{units:"meters"});
-        if(d<bestD){bestD=d;best=v.feature;}
+        const d=featureDistanceMeters(t.feature,v.feature);
+        if(Number.isFinite(d)&&d<bestD){bestD=d;best=v.feature;}
       }catch(_){}
     });
     if(!best||bestD>maxDistance)return;
