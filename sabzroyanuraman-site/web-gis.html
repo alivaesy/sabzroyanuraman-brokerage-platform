@@ -4260,97 +4260,81 @@ function nearestMatchTool(){
   const items=getAllVectorItems();
   if(items.length<2){status("Add at least two vector layers first.");return;}
   const list=items.map((x,i)=>(i+1)+". "+x.name).join("\n");
-  const si=Number(prompt("Source layer (nearest features will be searched here):\n"+list,"1"))-1;
-  if(!Number.isInteger(si)||!items[si])return;
-  const ti=Number(prompt("Target layer (attributes will be written here):\n"+list,items.length>1?(si===0?"2":"1"):""))-1;
-  if(!Number.isInteger(ti)||!items[ti]||si===ti){status("Choose two different valid layers.");return;}
+  const sourceRaw=prompt("Source layer (nearest features will be searched here):\n"+list,"1");if(sourceRaw===null)return;
+  const si=Number(sourceRaw)-1;
+  if(!Number.isInteger(si)||!items[si]){status("Choose a valid source layer number.");return}
+  const targetRaw=prompt("Target layer (attributes will be written here):\n"+list,items.length>1?(si===0?"2":"1"):"");if(targetRaw===null)return;
+  const ti=Number(targetRaw)-1;
+  if(!Number.isInteger(ti)||!items[ti]||si===ti){status("Choose two different valid layers.");return}
   const source=items[si],target=items[ti];
-  if(!editSessionActive||editTarget!==target.layer){
-    status("Start Editing on the target layer before writing nearest-feature attributes. The source layer will remain unchanged.");
-    return;
-  }
-  const src=vectorFeatures(source.layer).filter(v=>v.feature?.geometry);
-  const dst=vectorFeatures(target.layer).filter(v=>v.feature?.geometry);
-  if(!src.length||!dst.length){status("Both layers must contain valid features.");return;}
-  const maxRaw=prompt("Maximum search distance in meters (0 = unlimited):","1000");
-  if(maxRaw===null)return;
+  if(!editSessionActive||editTarget!==target.layer){status("Start Editing on the target layer before writing nearest-feature attributes. The source layer will remain unchanged.");return}
+  const src=vectorFeatures(source.layer).filter(v=>v.feature?.geometry),dst=vectorFeatures(target.layer).filter(v=>v.feature?.geometry);
+  if(!src.length||!dst.length){status("Both layers must contain valid features.");return}
+  const maxRaw=prompt("Maximum search distance in meters (0 = unlimited):","1000");if(maxRaw===null)return;
   const maxDistance=Number(maxRaw);
-  if(!Number.isFinite(maxDistance)||maxDistance<0){status("Enter a valid non-negative distance.");return;}
-  recordUndoState();let count=0,distances=[];
+  if(!Number.isFinite(maxDistance)||maxDistance<0){status("Enter a valid non-negative distance.");return}
+  const staged=[];
   dst.forEach(t=>{
     let best=null,bestD=Infinity;
-    const p=t.feature.geometry.type==="Point"?turf.point(t.feature.geometry.coordinates):turf.centroid(t.feature);
-    src.forEach(v=>{
-      try{
-        const nearest=nearestPointOnFeatureSafe(v.feature,p);
-        if(!nearest)return;
-        const d=turf.distance(p,nearest,{units:"meters"});
-        if(d<bestD){bestD=d;best=v.feature;}
-      }catch(_){}
-    });
-    if(best&&(!maxDistance||bestD<=maxDistance)){
-      t.feature.properties=t.feature.properties||{};
-      t.feature.properties.nearest_id=best.properties?._webgis_id??best.properties?.OBJECTID??best.properties?.objectid??best.properties?.id??"";
-      t.feature.properties.nearest_distance_m=Number(bestD.toFixed(3));
-      count++;distances.push(bestD);
-    }
+    let p;
+    try{p=t.feature.geometry.type==="Point"?turf.point(t.feature.geometry.coordinates):turf.centroid(t.feature)}catch(_){return}
+    src.forEach(v=>{try{
+      const nearest=nearestPointOnFeatureSafe(v.feature,p);if(!nearest)return;
+      const d=turf.distance(p,nearest,{units:"meters"});if(d<bestD){bestD=d;best=v.feature}
+    }catch(_){}});
+    if(best&&(!maxDistance||bestD<=maxDistance))staged.push({feature:t.feature,properties:{nearest_id:best.properties?._webgis_id??best.properties?.OBJECTID??best.properties?.objectid??best.properties?.id??"",nearest_distance_m:Number(bestD.toFixed(3))},distance:bestD});
   });
+  if(!staged.length){status("No target features matched within the requested distance; no edits or undo entry were created.");return}
+  recordUndoState();
+  staged.forEach(x=>{x.feature.properties=x.feature.properties||{};Object.assign(x.feature.properties,x.properties)});
   refreshAll();
-  const max=distances.length?Math.max(...distances):0;
-  $("professionalToolOutput").textContent="Nearest feature match: "+count+" target features | Maximum matched distance: "+fmtMeters(max)+" | "+source.name+" → "+target.name;
-  status("Nearest-feature attributes calculated for "+count+" target feature(s).");
+  const max=Math.max(...staged.map(x=>x.distance));
+  $("professionalToolOutput").textContent="Nearest feature match: "+staged.length+" target features | Maximum matched distance: "+fmtMeters(max)+" | "+source.name+" → "+target.name;
+  status("Nearest-feature attributes calculated for "+staged.length+" target feature(s).");
 }
-
 function transferAttributesTool(){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("transferring attributes between layers"))return;
   const layers=getAllVectorItems();
-  if(layers.length<2){status("At least two vector layers are required.");return;}
+  if(layers.length<2){status("At least two vector layers are required.");return}
   const list=layers.map((x,i)=>(i+1)+". "+x.name).join("\n");
-  const si=Number(prompt("Source layer (attributes copied from):\n"+list,"1"))-1;
-  if(!Number.isInteger(si)||!layers[si])return;
-  const ti=Number(prompt("Target layer (attributes copied to):\n"+list,si===0?"2":"1"))-1;
-  if(!Number.isInteger(ti)||!layers[ti]||si===ti){status("Choose two different valid layers.");return;}
-  const distanceRaw=prompt("Maximum distance in meters for matching features:","50");
-  if(distanceRaw===null)return;
+  const sourceRaw=prompt("Source layer (attributes copied from):\n"+list,"1");if(sourceRaw===null)return;
+  const si=Number(sourceRaw)-1;
+  if(!Number.isInteger(si)||!layers[si]){status("Choose a valid source layer number.");return}
+  const targetRaw=prompt("Target layer (attributes copied to):\n"+list,si===0?"2":"1");if(targetRaw===null)return;
+  const ti=Number(targetRaw)-1;
+  if(!Number.isInteger(ti)||!layers[ti]||si===ti){status("Choose two different valid layers.");return}
+  const distanceRaw=prompt("Maximum distance in meters for matching features:","50");if(distanceRaw===null)return;
   const maxDistance=Number(distanceRaw);
-  if(!Number.isFinite(maxDistance)||maxDistance<0){status("Enter a valid non-negative distance.");return;}
+  if(!Number.isFinite(maxDistance)||maxDistance<0){status("Enter a valid non-negative distance.");return}
   const source=layers[si],target=layers[ti];
-  if(!editSessionActive||editTarget!==target.layer){
-    status("Start Editing on the target layer before transferring attributes. No features were changed.");
-    return;
-  }
-  const src=vectorFeatures(source.layer).filter(v=>v.feature?.geometry);
-  const dst=vectorFeatures(target.layer).filter(v=>v.feature?.geometry);
-  if(!src.length||!dst.length){status("Both layers must contain valid features.");return;}
+  if(!editSessionActive||editTarget!==target.layer){status("Start Editing on the target layer before transferring attributes. No features were changed.");return}
+  const src=vectorFeatures(source.layer).filter(v=>v.feature?.geometry),dst=vectorFeatures(target.layer).filter(v=>v.feature?.geometry);
+  if(!src.length||!dst.length){status("Both layers must contain valid features.");return}
   const fields=[...new Set(src.flatMap(v=>Object.keys(v.feature.properties||{}).filter(k=>!k.startsWith("_"))))];
-  if(!fields.length){status("The source layer has no transferable attribute fields.");return;}
-  const fieldRaw=prompt("Fields to copy (comma-separated), or leave blank for all:\n"+fields.join(", "), "");
-  if(fieldRaw===null)return;
+  if(!fields.length){status("The source layer has no transferable attribute fields.");return}
+  const fieldRaw=prompt("Fields to copy (comma-separated), or leave blank for all:\n"+fields.join(", "), "");if(fieldRaw===null)return;
   const chosen=fieldRaw.trim()?fieldRaw.split(",").map(x=>x.trim()).filter(x=>fields.includes(x)):fields;
-  if(!chosen.length){status("No valid source fields were selected.");return;}
-  recordUndoState();let count=0;
+  if(!chosen.length){status("No valid source fields were selected.");return}
+  const staged=[];
   dst.forEach(t=>{
     let best=null,bestD=Infinity,targetPoint;
-    try{targetPoint=t.feature.geometry.type==="Point"?turf.point(t.feature.geometry.coordinates):turf.centroid(t.feature);}catch(_){return;}
-    src.forEach(v=>{
-      try{
-        const nearest=nearestPointOnFeatureSafe(v.feature,targetPoint);
-        if(!nearest)return;
-        const d=turf.distance(targetPoint,nearest,{units:"meters"});
-        if(d<bestD){bestD=d;best=v.feature;}
-      }catch(_){}
-    });
+    try{targetPoint=t.feature.geometry.type==="Point"?turf.point(t.feature.geometry.coordinates):turf.centroid(t.feature)}catch(_){return}
+    src.forEach(v=>{try{
+      const nearest=nearestPointOnFeatureSafe(v.feature,targetPoint);if(!nearest)return;
+      const d=turf.distance(targetPoint,nearest,{units:"meters"});if(d<bestD){bestD=d;best=v.feature}
+    }catch(_){}});
     if(!best||bestD>maxDistance)return;
-    t.feature.properties=t.feature.properties||{};
-    chosen.forEach(k=>{t.feature.properties[k]=best.properties?.[k]??"";});
-    t.feature.properties.source_distance_m=Number(bestD.toFixed(3));
-    count++;
+    const properties={};chosen.forEach(k=>{properties[k]=best.properties?.[k]??""});
+    properties.source_distance_m=Number(bestD.toFixed(3));
+    staged.push({feature:t.feature,properties});
   });
+  if(!staged.length){status("No target features matched within "+maxDistance+" m; no edits or undo entry were created.");return}
+  recordUndoState();
+  staged.forEach(x=>{x.feature.properties=x.feature.properties||{};Object.assign(x.feature.properties,x.properties)});
   refreshAll();
-  $("professionalToolOutput").textContent="Transferred "+chosen.length+" field(s) to "+count+" target feature(s) within "+maxDistance+" m. "+source.name+" → "+target.name;
-  status("Attribute transfer complete: "+count+" target feature(s) updated.");
+  $("professionalToolOutput").textContent="Transferred "+chosen.length+" field(s) to "+staged.length+" target feature(s) within "+maxDistance+" m. "+source.name+" → "+target.name;
+  status("Attribute transfer complete: "+staged.length+" target feature(s) updated.");
 }
-
 function networkQaTool(){
   const items=getAllVectorItems();
   const pointItems=items.filter(x=>vectorFeatures(x.layer).some(v=>["Point","MultiPoint"].includes(v.feature.geometry?.type)));
