@@ -3465,8 +3465,11 @@ function syncVisibleAttributeTableSelection(){
     all.checked=checks.length>0&&count===checks.length;
     all.indeterminate=count>0&&count<checks.length;
   }
-  const countLabel=$("attributeSelectionCount");
-  if(countLabel)countLabel.textContent=selectedFeatures.size+" selected";
+  const summary=$("attributeTableSummary");
+  if(summary){
+    const fieldCount=table.querySelectorAll("thead th[data-sort-key]").length;
+    summary.textContent=fieldCount+" field(s) · "+items.length+" record(s) · "+selectedFeatures.size+" selected";
+  }
 }
 function applySelectionVisual(){
   allSelectableFeatureLayers().forEach(x=>vectorFeatures(x.layer).forEach(v=>{
