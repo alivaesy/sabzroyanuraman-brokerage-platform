@@ -3441,6 +3441,7 @@ function cloneSelectedFeatures(){
   status(clones.length+" feature(s) cloned into a new vector layer.");
 }
 function editableSelectedRecords(recordHistory=true){
+  if(window._vertexEditControl||window._reshapeDrawHandler||activeDrawHandler){status("Finish or cancel the active drawing/geometry edit before starting another feature operation.");return [];}
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("modifying selected feature geometry"))return [];
   if(!editSessionActive){status("Start Editing before modifying features.");return []}
   const rs=selectedRecords().filter(r=>r.owner?.layer===editTarget);
