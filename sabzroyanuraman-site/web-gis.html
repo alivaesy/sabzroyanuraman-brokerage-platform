@@ -3623,8 +3623,8 @@ function selectByLocation(){
   });
   if(mode==="1")selectedFeatures.clear();
   if(mode==="4"){
-    const current=new Set(selectedFeatures),sourceLayers=new Set(source.map(v=>v.layer)),matchedLayers=new Set(matches);
-    sourceLayers.forEach(layer=>{if(current.has(layer)&&!matchedLayers.has(layer))selectedFeatures.delete(layer);});
+    const current=new Set(selectedFeatures);
+    selectedFeatures.clear();
     matches.forEach(layer=>{if(current.has(layer))selectedFeatures.add(layer);});
   }else if(mode==="3")matches.forEach(layer=>selectedFeatures.delete(layer));
   else matches.forEach(layer=>selectedFeatures.add(layer));
