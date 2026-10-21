@@ -2170,7 +2170,7 @@ function renderEditableTable(){
    if(event.button!==0)return;
    event.preventDefault();event.stopPropagation();
    const startX=event.clientX,startWidth=th.getBoundingClientRect().width;
-   const move=e=>{const width=Math.max(70,Math.min(600,startWidth+e.clientX-startX));th.style.width=width+"px";th.style.minWidth=width+"px";th.querySelectorAll(".cell-edit").forEach(input=>input.style.width=Math.max(60,width-12)+"px");};
+   const move=e=>{const width=Math.max(70,Math.min(600,startWidth+e.clientX-startX));th.style.width=width+"px";th.style.minWidth=width+"px";$("attributeTableWrap").querySelectorAll("input.cell-edit[data-key]").forEach(input=>{if(input.dataset.key===th.dataset.sortKey)input.style.width=Math.max(60,width-12)+"px";});};
    const stop=()=>{document.removeEventListener("pointermove",move);document.removeEventListener("pointerup",stop);document.removeEventListener("pointercancel",stop);};
    document.addEventListener("pointermove",move);document.addEventListener("pointerup",stop);document.addEventListener("pointercancel",stop);
   });
