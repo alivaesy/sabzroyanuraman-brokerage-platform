@@ -2160,6 +2160,22 @@ function renderEditableTable(){
  rows.forEach(o=>{html+="<tr data-index='"+o.i+"'><td><input type='checkbox' class='row-check attr-check' "+(selectedFeatures.has(o.x.layer)?"checked":"")+"></td><td>"+(o.i+1)+"</td>"+
  keys.map(k=>{const v=(o.x.feature.properties||{})[k],shown=v===null||v===undefined?"":typeof v==="object"?JSON.stringify(v):String(v);return "<td style='padding:2px'><input class='cell-edit' data-key='"+esc(k)+"' data-original='"+esc(shown)+"' value='"+esc(shown) +"'></td>"}).join("")+"</tr>"});
  $("attributeTableWrap").innerHTML=html+"</tbody></table>";$("attributeTableWrap").style.display="block";
+ // Resizable field columns, similar to the desktop ArcMap attribute grid.
+ $("attributeTableWrap").querySelectorAll("th[data-sort-key]").forEach(th=>{
+  th.style.position="sticky";th.style.minWidth="90px";
+  const grip=document.createElement("span");
+  grip.setAttribute("role","separator");grip.setAttribute("aria-label","Resize column "+th.dataset.sortKey);
+  grip.title="Drag to resize column";grip.style.cssText="position:absolute;right:0;top:0;width:5px;height:100%;cursor:col-resize;user-select:none;touch-action:none;z-index:6";
+  grip.addEventListener("pointerdown",event=>{
+   if(event.button!==0)return;
+   event.preventDefault();event.stopPropagation();
+   const startX=event.clientX,startWidth=th.getBoundingClientRect().width;
+   const move=e=>{const width=Math.max(70,Math.min(600,startWidth+e.clientX-startX));th.style.width=width+"px";th.style.minWidth=width+"px";th.querySelectorAll(".cell-edit").forEach(input=>input.style.width=Math.max(60,width-12)+"px");};
+   const stop=()=>{document.removeEventListener("pointermove",move);document.removeEventListener("pointerup",stop);document.removeEventListener("pointercancel",stop);};
+   document.addEventListener("pointermove",move);document.addEventListener("pointerup",stop);document.addEventListener("pointercancel",stop);
+  });
+  th.appendChild(grip);
+ });
  const queryBtn=$("attributeSelectByQuery");if(queryBtn)queryBtn.onclick=()=>selectByAttribute();
  const zoomBtn=$("attributeZoomSelected");if(zoomBtn)zoomBtn.onclick=()=>zoomToSelection();
  const clearBtn=$("attributeClearSelection");if(clearBtn)clearBtn.onclick=()=>{
