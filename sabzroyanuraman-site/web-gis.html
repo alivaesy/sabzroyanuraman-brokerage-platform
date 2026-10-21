@@ -1859,7 +1859,7 @@ function currentAttributeItems(){
  const layer=currentAttributeLayer();
  return layer?vectorFeatures(layer):[];
 }
-function isReservedAttributeField(key){return typeof key!=="string"||key.startsWith("_")||key==="geometry"}
+function isReservedAttributeField(key){return typeof key!=="string"||key.startsWith("_")||key.toLowerCase()==="geometry"}
 function tableKeys(items){
  // Keep editor-managed metadata out of the user-editable schema. Preserve it
  // on each feature when saving table cells, but never expose it as a field.
