@@ -4663,6 +4663,7 @@ $("applyCrs").onclick=()=>{
   const v=$("customEpsg").value.trim();
   try{setCRS("EPSG:"+v.replace(/^EPSG:/i,""))}catch(e){status(e.message)}
 };
+window.__webGisGdbBridge={get currentCRS(){return currentCRS},addLayer(name,layer){addNamedLayer(name,layer,false)},refreshEditorTargets,layerIndex(layer){return namedLayers.findIndex(x=>x.layer===layer)},save(){scheduleAutoSave()},openExport(){openDataFormatDialog("export")}};
 })();
 </script>
 <script>
@@ -4786,6 +4787,8 @@ $("applyCrs").onclick=()=>{
 </script>
 <script>
 /* Geodatabase Catalog: workspace / dataset / feature-class authoring */
+const $=id=>document.getElementById(id);
+const esc=value=>String(value??"").replace(/[&<>"\']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","\'":"&#39;"}[ch]));
 const gdbCatalog={workspaces:new Map()};
 function openGeodatabaseManager(){
  const dlg=$("geodatabaseManagerDialog");dlg.classList.add("open");dlg.setAttribute("aria-hidden","false");renderGdbCatalog();
@@ -4810,7 +4813,7 @@ $("gdbManagerClose").onclick=closeGeodatabaseManager;
 $("geodatabaseManagerDialog").addEventListener("click",e=>{if(e.target===$("geodatabaseManagerDialog"))closeGeodatabaseManager()});
 $("gdbCreateDataset").onclick=()=>{
  try{const w=gdbWorkspace(),name=$("gdbDatasetName").value.trim();if(!name)throw new Error("Enter a feature dataset name.");
- if(!w.datasets.has(name))w.datasets.set(name,{name,crs:$("gdbCrs").value==="current"?currentCRS:$("gdbCrs").value,classes:[]});
+ if(!w.datasets.has(name))w.datasets.set(name,{name,crs:$("gdbCrs").value==="current"?window.__webGisGdbBridge.currentCRS:$("gdbCrs").value,classes:[]});
  $("gdbManagerStatus").textContent='Feature Dataset "'+name+'" created in '+w.name+".";
  renderGdbCatalog();}catch(e){$("gdbManagerStatus").textContent=e.message}
 };
@@ -4823,13 +4826,13 @@ $("gdbCreateFeatureClass").onclick=()=>{
   const fc={name:className,geometryType:type,count:0};
   const layer=L.geoJSON({type:"FeatureCollection",features:[]},{style:()=>({color:"#2d78a5",weight:2,fillOpacity:.18}),pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:5,color:"#2d78a5",fillOpacity:.8})});
   layer._gdbMetadata={workspace:w.name,dataset:dsName,featureClass:className,geometryType:type,crs:ds.crs};
-  addNamedLayer(w.name+" / "+dsName+" / "+className,layer,false);
-  ds.classes.push(fc);refreshEditorTargets();$("editTargetLayer").value=String(namedLayers.findIndex(x=>x.layer===layer));$("editTargetLayer").dispatchEvent(new Event("change",{bubbles:true}));
+  window.__webGisGdbBridge.addLayer(w.name+" / "+dsName+" / "+className,layer);
+  ds.classes.push(fc);window.__webGisGdbBridge.refreshEditorTargets();$("editTargetLayer").value=String(window.__webGisGdbBridge.layerIndex(layer));$("editTargetLayer").dispatchEvent(new Event("change",{bubbles:true}));
   $("gdbManagerStatus").textContent='Created empty '+type+' feature class "'+className+'". Choose it in the Editor target layer, then Start Editing.';
-  renderGdbCatalog();scheduleAutoSave();
+  renderGdbCatalog();window.__webGisGdbBridge.save();
  }catch(e){$("gdbManagerStatus").textContent=e.message}
 };
-$("gdbExportNow").onclick=()=>{closeGeodatabaseManager();openDataFormatDialog("export")};
+$("gdbExportNow").onclick=()=>{closeGeodatabaseManager();window.__webGisGdbBridge.openExport()};
 </script>
 </body>
 </html>
