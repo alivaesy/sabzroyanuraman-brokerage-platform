@@ -153,9 +153,9 @@ body{background:#dfe5e8;color:#173b57}
 .layer-row.layer-active{border-left-color:#347ca5;outline:0}
 .layer-row input[type=checkbox]{width:14px;height:14px;flex:0 0 14px}
 .panel .accordion-section{flex:0 0 auto}
-.arcmap-statusbar{display:flex!important;visibility:visible!important;opacity:1!important;position:relative;inset:auto;align-items:center;justify-content:space-between;gap:12px;flex:0 0 24px;min-height:24px;height:24px;padding:0 8px;background:#e5e8ea;border-top:1px solid #98a5ac;color:#263f50;font-size:10px;direction:ltr;z-index:2100}
-.arcmap-statusbar .status,.arcmap-statusbar .coord{position:static;inset:auto;background:transparent;border:0;border-radius:0;box-shadow:none;padding:0;margin:0;color:inherit;font-size:10px;z-index:auto;white-space:nowrap}
-.arcmap-statusbar .coord{margin-left:auto;direction:ltr}
+#map{position:relative}
+.map-coordinate-readout{position:absolute;left:10px;bottom:8px;z-index:1000;max-width:calc(100% - 20px);pointer-events:none;direction:ltr;text-align:left;white-space:nowrap;font:11px/1.4 Arial,Helvetica,sans-serif;color:#172b36;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:0!important;margin:0!important}
+@media(max-width:650px){.map-coordinate-readout{left:8px;bottom:8px;font-size:10px}}
 @media(max-width:850px){.arc-search{width:205px}.arc-menu-btn{padding:0 8px}.panel{width:270px;min-width:270px}}
 @media(max-width:650px){.arcmap-topbar{height:auto;min-height:48px;flex-wrap:wrap;padding:4px 6px}.arc-menu{order:3;width:100%;overflow-x:auto}.arc-search{width:min(48vw,220px);margin-left:auto}.arcmap-statusbar{height:22px}.panel{position:absolute;left:0;top:0;bottom:0;height:auto;width:285px;min-width:285px;transform:translateX(-100%)}.panel.open{transform:translateX(0)}}
 
@@ -610,7 +610,7 @@ body{background:#dfe5e8;color:#173b57}
   </div>
 </div>
 <div class="workspace">
-  <div id="map"></div>
+  <div id="map"><div class="map-coordinate-readout" id="coord" aria-label="Map coordinates">—, — | —, —</div></div>
   <div class="arcmap-search-dock" id="searchDock"><button type="button" id="searchTab" aria-label="Open Search" title="Search">Search</button><div id="searchPanel"><div class="arc-search"><input id="topToolSearch" placeholder="Search for tools..." autocomplete="off"><div id="topToolResults"></div></div></div></div>
   <aside class="panel" id="panel">
     <div class="section layer-section">
@@ -806,7 +806,7 @@ body{background:#dfe5e8;color:#173b57}
     </div>
   </section>
 </div>
-<div id="projectManager"><div class="pm-card"><div style="font-size:18px;font-weight:800;color:#07573e">🗺️ Web GIS Project Manager</div><div class="small" style="margin:5px 0 14px">Create a project or open a recent project. Projects are stored locally in this browser.</div><div class="section"><h3>➕ New Project</h3><div class="pm-grid"><input id="newProjectName" placeholder="Project name, for example: wastewater network"><select id="newProjectCrs"><option value="EPSG:32638">WGS 84 / UTM 38N — EPSG:32638</option><option value="EPSG:32637">WGS 84 / UTM 37N — EPSG:32637</option><option value="EPSG:32639">WGS 84 / UTM 39N — EPSG:32639</option><option value="EPSG:32640">WGS 84 / UTM 40N — EPSG:32640</option></select><textarea id="newProjectDescription" class="full" placeholder="Project description (optional)"></textarea></div><div class="pm-actions"><button class="action" id="createProjectBtn">Create and Open Project</button><button class="action secondary" id="closeProjectManager">Continue Without a Project</button></div></div><div class="pm-list"><h3>📂 Recent Projects</h3><div id="projectList">Loading...</div></div></div></div><footer class="arcmap-statusbar" aria-label="Map status"><div class="status" id="status">Ready.</div><div class="coord" id="coord">—, — | —, —</div></footer>
+<div id="projectManager"><div class="pm-card"><div style="font-size:18px;font-weight:800;color:#07573e">🗺️ Web GIS Project Manager</div><div class="small" style="margin:5px 0 14px">Create a project or open a recent project. Projects are stored locally in this browser.</div><div class="section"><h3>➕ New Project</h3><div class="pm-grid"><input id="newProjectName" placeholder="Project name, for example: wastewater network"><select id="newProjectCrs"><option value="EPSG:32638">WGS 84 / UTM 38N — EPSG:32638</option><option value="EPSG:32637">WGS 84 / UTM 37N — EPSG:32637</option><option value="EPSG:32639">WGS 84 / UTM 39N — EPSG:32639</option><option value="EPSG:32640">WGS 84 / UTM 40N — EPSG:32640</option></select><textarea id="newProjectDescription" class="full" placeholder="Project description (optional)"></textarea></div><div class="pm-actions"><button class="action" id="createProjectBtn">Create and Open Project</button><button class="action secondary" id="closeProjectManager">Continue Without a Project</button></div></div><div class="pm-list"><h3>📂 Recent Projects</h3><div id="projectList">Loading...</div></div></div></div>
 <div class="tool-feedback" id="toolFeedback" role="status" aria-live="polite"></div>
 </div>
 
