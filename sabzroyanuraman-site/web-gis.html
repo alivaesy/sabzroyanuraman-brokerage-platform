@@ -1458,6 +1458,7 @@ function startNativeDraw(type,button){
   status(instructions[type]||"Drawing tool active.");
 }
 function startSelectionShape(type,options,callback){
+  if(window._vertexEditControl||window._reshapeDrawHandler){status("Finish or cancel the active geometry edit before starting a selection tool.");return;}
   stopActiveDraw();
   if(!window.L||!L.Draw){status("The drawing library is unavailable.");return}
   const Ctor=L.Draw[type];if(typeof Ctor!=="function"){status("This selection shape is unavailable.");return}
