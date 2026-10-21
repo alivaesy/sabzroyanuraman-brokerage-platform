@@ -4973,7 +4973,7 @@ function transferAttributesTool(){
   if(fieldRaw===null)return;
   const chosen=fieldRaw.trim()?fieldRaw.split(",").map(x=>x.trim()).filter(x=>fields.includes(x)):fields;
   if(!chosen.length){status("No valid source fields were selected.");return;}
-  recordUndoState();let count=0;
+  const updates=[];
   dst.forEach(t=>{
     let best=null,bestD=Infinity,targetPoint;
     try{targetPoint=t.feature.geometry.type==="Point"?turf.point(t.feature.geometry.coordinates):turf.centroid(t.feature);}catch(_){return;}
@@ -4986,14 +4986,20 @@ function transferAttributesTool(){
       }catch(_){}
     });
     if(!best||bestD>maxDistance)return;
-    t.feature.properties=t.feature.properties||{};
-    chosen.forEach(k=>{t.feature.properties[k]=best.properties?.[k]??"";});
-    t.feature.properties.source_distance_m=Number(bestD.toFixed(3));
-    count++;
+    const props=t.feature.properties||{},patch={};
+    chosen.forEach(k=>{patch[k]=best.properties?.[k]??"";});
+    patch.source_distance_m=Number(bestD.toFixed(3));
+    if(Object.keys(patch).some(k=>props[k]!==patch[k]))updates.push({t,patch});
   });
+  if(!updates.length){
+    $("professionalToolOutput").textContent="Attribute transfer: no target attributes changed within "+maxDistance+" m.";
+    status("No matching attribute changes; no undo checkpoint was created.");return;
+  }
+  recordUndoState();
+  updates.forEach(({t,patch})=>{t.feature.properties=t.feature.properties||{};Object.assign(t.feature.properties,patch);});
   refreshAll();
-  $("professionalToolOutput").textContent="Transferred "+chosen.length+" field(s) to "+count+" target feature(s) within "+maxDistance+" m. "+source.name+" → "+target.name;
-  status("Attribute transfer complete: "+count+" target feature(s) updated.");
+  $("professionalToolOutput").textContent="Transferred "+chosen.length+" field(s) to "+updates.length+" target feature(s) within "+maxDistance+" m. "+source.name+" → "+target.name;
+  status("Attribute transfer complete: "+updates.length+" target feature(s) updated.");
 }
 
 function networkQaTool(){
