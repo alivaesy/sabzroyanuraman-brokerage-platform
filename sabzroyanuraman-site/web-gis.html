@@ -1595,7 +1595,7 @@ function saveAttributes(){
   $( "attributeRows" ).querySelectorAll(".attr-edit-row").forEach(row=>{
     const key=row.querySelector(".attr-key").value.trim(),raw=row.querySelector(".attr-value").value;
     if(!key)return;
-    if(key==="_attachments"||key==="geometry"){errors.push("Reserved field name: "+key);return}
+    if(key.startsWith("_")||key==="geometry"){errors.push("Reserved field name: "+key+" (names beginning with underscore and geometry are managed by the editor)");return}
     if(Object.prototype.hasOwnProperty.call(props,key)){errors.push("Duplicate field name: "+key);return}
     const old=previous[key];
     let value=raw;
