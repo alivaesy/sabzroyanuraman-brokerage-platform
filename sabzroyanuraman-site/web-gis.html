@@ -3027,7 +3027,8 @@ async function scheduleAutoSave(){
       const p=serializeProject();
       p.id=projectId();p.updatedAt=new Date().toISOString();
       await putProject(p);currentProjectId=p.id;
-      $("projectStatus").textContent="Saved locally: "+new Date().toLocaleString("en-US");
+      const tablePending=typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits();
+      $("projectStatus").textContent=(tablePending?"Map auto-saved; Attribute Table edits still pending: ":"Saved locally: ")+new Date().toLocaleString("en-US");
     }catch(e){console.warn("IndexedDB autosave:",e)}
   },700);
 }
