@@ -1612,8 +1612,8 @@ function vectorFeatures(layer){const out=[];if(!layer)return out;if(layer instan
 function refreshAttributeLayers(){
  const sel=$("attributeLayer");if(!sel)return;const old=sel.value;sel.innerHTML="";
  const empty=document.createElement("option");empty.value="";empty.textContent="Select a feature layer...";sel.appendChild(empty);
- if(vectorFeatures(drawn).length){const d=document.createElement("option");d.value="drawn";d.textContent="My Drawings";sel.appendChild(d)}
- namedLayers.forEach((x,i)=>{if(isVectorLayer(x.layer)&&vectorFeatures(x.layer).length){const o=document.createElement("option");o.value=String(i);o.textContent=x.name;sel.appendChild(o)}});
+ if(isVectorLayer(drawn)){const d=document.createElement("option");d.value="drawn";d.textContent="My Drawings";sel.appendChild(d)}
+ namedLayers.forEach((x,i)=>{if(isVectorLayer(x.layer)){const o=document.createElement("option");o.value=String(i);o.textContent=x.name;sel.appendChild(o)}});
  if([...sel.options].some(o=>o.value===old))sel.value=old;
 }
 function addNamedLayer(name,layer,zoom){
@@ -2896,7 +2896,7 @@ function layerToProjectItem(item){
     transparent:layer.options.transparent!==false,
     version:layer.options.version||"1.3.0"
   }:null;
-  return {name:item.name,type:wms?"wms":"vector",features,wms};
+  return {name:item.name,type:wms?"wms":"vector",features,wms,gdb:layer?._gdbMetadata||null};
 }
 function serializeProject(){
   const project={
@@ -2911,7 +2911,8 @@ function serializeProject(){
     basemap:$("basemap").value,
     basemapWms:customWmsConfig?{...customWmsConfig}:null,
     drawn:[],
-    layers:[]
+    layers:[],
+    gdbCatalog:typeof gdbCatalogToJSON==="function"?gdbCatalogToJSON():null
   };
   drawn.eachLayer(l=>{try{const f=l.toGeoJSON();if(f&&f.geometry)project.drawn.push(f)}catch(e){}});
   namedLayers.forEach(x=>project.layers.push(layerToProjectItem(x)));
@@ -2966,9 +2967,13 @@ function restoreProject(project,fromHistory=false){
       addNamedLayer(item.name||"WMS",l,false);
       l.addTo(map);
     }else{
-      projectFeatureLayer(item.features||[],item.name||"Layer");
+      const features=item.features||[];
+      const layer=L.geoJSON({type:"FeatureCollection",features},{style:{color:"#2d78a5",weight:2,fillOpacity:.18},pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:5,color:"#2d78a5",fillOpacity:.8})});
+      if(item.gdb)layer._gdbMetadata=item.gdb;
+      addNamedLayer(item.name||"Layer",layer,false);
     }
   });
+  if(typeof restoreGdbCatalogFromJSON==="function")restoreGdbCatalogFromJSON(project.gdbCatalog||null);
   $("projectName").value=project.name||"Untitled Project";
   renderLayerList();refreshAttributeLayers();
   $("projectStatus").textContent= "Project restored: "+(project.savedAt?new Date(project.savedAt).toLocaleString("en-US"):"—");
@@ -4795,6 +4800,14 @@ window.__webGisGdbBridge={get currentCRS(){return currentCRS},addLayer(name,laye
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??"").replace(/[&<>"\']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","\'":"&#39;"}[ch]));
 const gdbCatalog={workspaces:new Map()};
+function gdbCatalogToJSON(){return {workspaces:[...gdbCatalog.workspaces.values()].map(w=>({name:w.name,datasets:[...w.datasets.values()].map(d=>({name:d.name,crs:d.crs,classes:d.classes.map(c=>({...c}))}))}))};}
+function restoreGdbCatalogFromJSON(data){
+ gdbCatalog.workspaces.clear();
+ (data?.workspaces||[]).forEach(raw=>{const w={name:raw.name,datasets:new Map()};(raw.datasets||[]).forEach(rd=>w.datasets.set(rd.name,{name:rd.name,crs:rd.crs,classes:(rd.classes||[]).map(c=>({...c}))}));gdbCatalog.workspaces.set(w.name,w);});
+ // Reconcile catalog counts with actual restored feature layers.
+ namedLayers.forEach(item=>{const m=item.layer?._gdbMetadata;if(!m)return;let w=gdbCatalog.workspaces.get(m.workspace);if(!w){w={name:m.workspace,datasets:new Map()};gdbCatalog.workspaces.set(w.name,w)}let d=w.datasets.get(m.dataset);if(!d){d={name:m.dataset,crs:m.crs||currentCRS,classes:[]};w.datasets.set(d.name,d)}let c=d.classes.find(x=>x.name===m.featureClass);if(!c){c={name:m.featureClass,geometryType:m.geometryType,count:0};d.classes.push(c)}c.count=vectorFeatures(item.layer).length;});
+ renderGdbCatalog();
+}
 function openGeodatabaseManager(){
  const dlg=$("geodatabaseManagerDialog");dlg.classList.add("open");dlg.setAttribute("aria-hidden","false");renderGdbCatalog();
 }
@@ -4807,6 +4820,7 @@ function gdbWorkspace(){
 function renderGdbCatalog(){
  const list=$("geodatabaseManagerList");if(!list)return;
  const rows=[];
+ namedLayers.forEach(item=>{const m=item.layer?._gdbMetadata;if(!m)return;const w=gdbCatalog.workspaces.get(m.workspace),d=w?.datasets.get(m.dataset),c=d?.classes.find(x=>x.name===m.featureClass);if(c)c.count=vectorFeatures(item.layer).length;});
  gdbCatalog.workspaces.forEach(w=>{rows.push('<div class="gdb-row"><b>▣ '+esc(w.name)+'.gdb</b><span>File Geodatabase</span></div>');
   w.datasets.forEach(d=>{rows.push('<div class="gdb-row" style="padding-left:24px"><b>▰ '+esc(d.name)</b><span>Feature Dataset · '+esc(d.crs)+'</span></div>');
    d.classes.forEach(c=>rows.push('<div class="gdb-row" style="padding-left:44px"><span>◈ '+esc(c.name)+'</span><span>'+esc(c.geometryType)+' · '+c.count+' features</span></div>'));
