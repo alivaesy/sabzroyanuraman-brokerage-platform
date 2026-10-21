@@ -3448,14 +3448,24 @@ function rebuildVectorLayerGeometry(rs){
       const old=r.layer,owner=r.owner?.layer||drawn,opts={...(old?.options||{})};
       const wasSelected=selectedFeatures.has(old);
       const wasActive=selectedLayer===old,wasOverlay=selectedOverlay===old;
-      const temp=L.geoJSON(r.feature,{
-        style:opts,
-        pointToLayer:(feature,latlng)=>old instanceof L.Circle&&typeof old.getRadius==="function"
-          ?L.circle(latlng,{...opts,radius:old.getRadius()})
-          :old instanceof L.CircleMarker?L.circleMarker(latlng,opts):L.marker(latlng,opts),
-        onEachFeature:(feature,layer)=>bindFeature(layer,feature)
-      });
-      const replacement=temp.getLayers()[0];
+      let replacement;
+      // A Leaflet Circle serializes as a polygon, so L.geoJSON would silently
+      // replace it with an ordinary polygon during move/rotate/scale/vertex edits.
+      if(old instanceof L.Circle&&typeof old.getRadius==="function"){
+        const center=typeof turf!=="undefined"&&turf.centroid
+          ?turf.centroid(r.feature).geometry.coordinates
+          :old.getLatLng()&&[old.getLatLng().lng,old.getLatLng().lat];
+        if(!center||!Number.isFinite(center[0])||!Number.isFinite(center[1]))throw new Error("Could not determine circle center");
+        replacement=L.circle([center[1],center[0]],{...opts,radius:old.getRadius()});
+        bindFeature(replacement,r.feature);
+      }else{
+        const temp=L.geoJSON(r.feature,{
+          style:opts,
+          pointToLayer:(feature,latlng)=>old instanceof L.CircleMarker?L.circleMarker(latlng,opts):L.marker(latlng,opts),
+          onEachFeature:(feature,layer)=>bindFeature(layer,feature)
+        });
+        replacement=temp.getLayers()[0];
+      }
       if(!replacement)return;
       replacement.feature=r.feature;
       owner.removeLayer(old);owner.addLayer(replacement);
