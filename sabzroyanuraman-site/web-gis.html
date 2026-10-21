@@ -3103,7 +3103,7 @@ function selectByLocation(){
   const ai=Number(a)-1,bi=Number(b)-1;
   if(!Number.isInteger(ai)||!Number.isInteger(bi)||!items[ai]||!items[bi]){status("Invalid layer number.");return;}
   if(ai===bi){status("Choose different source and target layers.");return;}
-  const modeInput=prompt("Selection type:\\n1 = New selection\\n2 = Add to current selection\\n3 = Remove from current selection\\n4 = Select from current selection","1");
+  const modeInput=prompt("Selection type:\n1 = New selection\n2 = Add to current selection\n3 = Remove from current selection\n4 = Select from current selection","1");
   if(modeInput===null)return;
   const mode=modeInput.trim();
   if(!["1","2","3","4"].includes(mode)){status("Choose selection type 1, 2, 3, or 4.");return;}
