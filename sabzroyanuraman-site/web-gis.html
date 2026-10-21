@@ -2207,6 +2207,23 @@ function renderEditableTable(){
  };
  if(all)all.onchange=()=>{rowChecks.forEach(ch=>ch.checked=all.checked);syncMapSelection()};
  rowChecks.forEach(ch=>ch.onchange=syncMapSelection);
+ // ArcMap-style row selection: click selects one record; Ctrl/Cmd-click toggles
+ // an individual record without disturbing selections in other layers.
+ $("attributeTableWrap").querySelectorAll("tbody tr[data-index]").forEach(row=>{
+  row.addEventListener("click",event=>{
+   if(event.target.closest("input,button,a,select,textarea"))return;
+   const item=items[Number(row.dataset.index)];if(!item)return;
+   const checkbox=row.querySelector(".row-check");if(!checkbox)return;
+   if(event.ctrlKey||event.metaKey)checkbox.checked=!checkbox.checked;
+   else{
+    items.forEach(other=>selectedFeatures.delete(other.layer));
+    checkbox.checked=true;
+    rowChecks.forEach(ch=>{if(ch!==checkbox)ch.checked=false;});
+   }
+   syncMapSelection();
+   if(selectedLayer)renderAttributeEditor();
+  });
+ });
  syncCheckAll();
  $("attributeTableWrap").querySelectorAll("th[data-sort-key]").forEach(th=>{
   th.onclick=()=>{
