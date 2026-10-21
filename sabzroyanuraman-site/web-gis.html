@@ -4077,10 +4077,44 @@ function layerTransparency(){
   const rs=getFeatureRecords();if(!rs.length)return;const v=Math.max(0,Math.min(1,Number(prompt("Transparency (0 to 1):","0.5"))));rs.forEach(r=>{if(r.layer.setStyle)r.layer.setStyle({opacity:v,fillOpacity:v});});status("Transparency updated.");
 }
 function styleLayer(){
-  const rs=getFeatureRecords();if(!rs.length)return;const col=prompt("Color HEX:","#146c43");const w=Number(prompt("Line width:","2"));rs.forEach(r=>{if(r.layer.setStyle)r.layer.setStyle({color:col,weight:w,fillColor:col});});status("Layer symbology updated.");
+  const rs=getFeatureRecords().filter(r=>r.layer&&typeof r.layer.setStyle==="function");
+  if(!rs.length){status("No stylable vector features are available.");return;}
+  const colInput=prompt("Outline and fill color (HEX, e.g. #146c43):","#146c43");
+  if(colInput===null)return;
+  const col=colInput.trim();
+  if(!/^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(col)){status("Enter a valid 3-, 6-, or 8-digit HEX color.");return;}
+  const widthInput=prompt("Outline width (0.5–20 pixels):","2");
+  if(widthInput===null)return;
+  const w=Number(widthInput);
+  if(!Number.isFinite(w)||w<0.5||w>20){status("Outline width must be between 0.5 and 20 pixels.");return;}
+  const opacityInput=prompt("Fill opacity (0–1):","0.2");
+  if(opacityInput===null)return;
+  const opacity=Number(opacityInput);
+  if(!Number.isFinite(opacity)||opacity<0||opacity>1){status("Fill opacity must be between 0 and 1.");return;}
+  rs.forEach(r=>{try{r.layer.setStyle({color:col,weight:w,fillColor:col,fillOpacity:opacity});}catch(e){console.debug("Skipped unsupported feature style",e);}});
+  status("Symbology applied to "+rs.length+" feature(s).");
 }
 function labelLayer(){
-  const rs=getFeatureRecords();if(!rs.length)return;const field=prompt("Label field:","name");rs.forEach(r=>{const v=r.feature.properties?.[field];if(v!=null&&r.layer.bindTooltip)r.layer.bindTooltip(String(v),{permanent:true,direction:"center"});});status("Labels enabled.");
+  const rs=getFeatureRecords();
+  if(!rs.length){status("No vector features are available for labeling.");return;}
+  const fields=[...new Set(rs.flatMap(r=>Object.keys(r.feature.properties||{}).filter(k=>!isReservedAttributeField(k))))];
+  if(!fields.length){status("Features have no attribute fields to use as labels.");return;}
+  const fieldInput=prompt("Label field (case-sensitive):\\n"+fields.join(", "),fields.includes("name")?"name":fields[0]);
+  if(fieldInput===null)return;
+  const field=fieldInput.trim();
+  if(!fields.includes(field)){status("Unknown label field. Choose one of the listed fields.");return;}
+  let count=0;
+  rs.forEach(r=>{
+    try{
+      if(typeof r.layer.unbindTooltip==="function")r.layer.unbindTooltip();
+      const v=r.feature.properties?.[field];
+      if(v!==null&&v!==undefined&&String(v).trim()!==""&&typeof r.layer.bindTooltip==="function"){
+        r.layer.bindTooltip(String(typeof v==="object"?JSON.stringify(v):v),{permanent:true,direction:"center",className:"gis-feature-label",interactive:false});
+        count++;
+      }
+    }catch(e){console.debug("Could not label feature",e);}
+  });
+  status("Labels enabled for "+count+" feature(s) using field '"+field+"'.");
 }
 function groupLayers(){
   if(!namedLayers.length){status("Add at least one data layer first.");return}
