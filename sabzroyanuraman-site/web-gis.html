@@ -856,8 +856,12 @@ function startEditing(item=null){
     else if(idx>=0)sel.value=String(idx);
   }
   const value=sel?.value||"drawn";
-  editTarget=value==="drawn"?drawn:(namedLayers[Number(value)]?.layer||drawn);
-  recordUndoState();
+  const nextTarget=value==="drawn"?drawn:(namedLayers[Number(value)]?.layer||drawn);
+  const startingSession=!editSessionActive;
+  // Reopening the Editor toolbar for the same target must not create a
+  // redundant Undo checkpoint. A new session still gets its initial baseline.
+  if(startingSession||nextTarget!==editTarget)recordUndoState();
+  editTarget=nextTarget;
   editSessionActive=true;
   updateEditorToolbar();
   status("Edit session started for "+(value==="drawn"?"My Drawings":namedLayers[Number(value)]?.name||"selected layer")+".");
@@ -939,6 +943,9 @@ function applyHistorySnapshot(source,destination,message){
   if(!source.length){status("There is no "+message.toLowerCase()+" history.");return;}
   const current=JSON.parse(JSON.stringify(serializeProject()));
   destination.push(current);
+  // Keep both history directions bounded; repeated Undo/Redo must not grow
+  // the in-memory project snapshots without limit.
+  if(destination.length>40)destination.shift();
   const snapshot=source.pop();
   historyRestoring=true;
   try{restoreProject(snapshot,true);}
