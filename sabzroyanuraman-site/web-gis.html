@@ -3600,11 +3600,13 @@ function parseDelimitedText(text){
 function csvImport(){
   const input=document.createElement("input");input.type="file";input.accept=".csv,.tsv,.txt";
   input.onchange=async()=>{
-    const file=input.files[0];if(!file)return;
+    const file=input.files?.[0];if(!file)return;
     try{
       const rows=parseDelimitedText(await file.text());
       if(rows.length<2){status("The selected table has no data rows.");return}
-      const headers=rows[0].map(x=>x.trim());
+      const rawHeaders=rows[0].map((x,i)=>String(x??"").trim().replace(/^\\uFEFF/,""));
+      if(rawHeaders.some(x=>!x)){status("Every CSV column needs a header; fill blank header cells and retry.");return}
+      const counts=new Map(),headers=rawHeaders.map(h=>{const n=(counts.get(h)||0)+1;counts.set(h,n);return n===1?h:h+"_"+n;});
       const latGuess=headers.findIndex(x=>/^(lat|latitude|y)$/i.test(x));
       const lngGuess=headers.findIndex(x=>/^(lon|lng|long|longitude|x)$/i.test(x));
       const latName=prompt("Latitude field:",headers[latGuess]||"");
@@ -3613,15 +3615,18 @@ function csvImport(){
       if(lngName===null)return;
       const lat=headers.findIndex(x=>x.toLowerCase()===latName.trim().toLowerCase());
       const lng=headers.findIndex(x=>x.toLowerCase()===lngName.trim().toLowerCase());
-      if(lat<0||lng<0){status("Choose latitude and longitude fields from the table.");return}
-      const features=rows.slice(1).map(row=>{
-        const y=Number(String(row[lat]??"").trim()),x=Number(String(row[lng]??"").trim());
+      if(lat<0||lng<0||lat===lng){status("Choose two different existing latitude and longitude fields.");return}
+      const features=rows.slice(1).filter(row=>row.some(v=>String(v??"").trim()!=="")).map(row=>{
+        const ys=String(row[lat]??"").trim(),xs=String(row[lng]??"").trim();
+        if(!ys||!xs)return null;
+        const y=Number(ys),x=Number(xs);
+        if(!Number.isFinite(x)||!Number.isFinite(y)||Math.abs(x)>180||Math.abs(y)>90)return null;
         return {type:"Feature",properties:Object.fromEntries(headers.map((h,i)=>[h,row[i]??""])),geometry:{type:"Point",coordinates:[x,y]}};
-      }).filter(f=>Number.isFinite(f.geometry.coordinates[0])&&Number.isFinite(f.geometry.coordinates[1])&&Math.abs(f.geometry.coordinates[0])<=180&&Math.abs(f.geometry.coordinates[1])<=90);
-      if(!features.length){status("No rows had valid longitude and latitude values.");return}
+      }).filter(Boolean);
+      if(!features.length){status("No rows had valid, non-empty longitude and latitude values; blank coordinates are not treated as zero.");return}
       const layer=L.geoJSON({type:"FeatureCollection",features},{onEachFeature:(f,l)=>bindFeature(l,f)});
       addNamedLayer("XY Data - "+file.name.replace(/\\.[^.]+$/,""),layer,true);
-      scheduleAutoSave();status(features.length+" XY features imported from "+file.name+".");
+      scheduleAutoSave();status(features.length+" XY features imported from "+file.name+"; invalid or blank coordinate rows were skipped.");
     }catch(err){console.error(err);status("Could not import the CSV table: "+err.message)}
   };
   input.click();
