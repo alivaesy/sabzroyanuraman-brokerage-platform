@@ -2052,8 +2052,8 @@ $("attributeTableWrap").addEventListener("input",event=>{
  const input=event.target.closest(".cell-edit");
  if(input)input.dataset.dirty=String(input.value!==input.dataset.original);
 });
-// ArcMap-style table keyboard editing: Enter commits the cell and moves down,
-// Shift+Enter moves up, and Escape restores the cell's original value.
+// ArcMap-style table keyboard navigation: Enter moves to the same column in
+// the next row, Shift+Enter moves up, and Escape restores the original cell value.
 $("attributeTableWrap").addEventListener("keydown",event=>{
  const input=event.target.closest(".cell-edit");
  if(!input)return;
@@ -2064,16 +2064,10 @@ $("attributeTableWrap").addEventListener("keydown",event=>{
  }
  if(event.key!=="Enter")return;
  event.preventDefault();
- if(hasUnsavedTableEdits()){
-  // Keep the value in place; Enter never silently saves a partially edited row.
-  const cells=[...$("attributeTableWrap").querySelectorAll(".cell-edit")];
-  const index=cells.indexOf(input),step=event.shiftKey?-1:1;
-  const next=cells[index+step];
-  if(next){next.focus();next.select();}
-  return;
- }
- const cells=[...$("attributeTableWrap").querySelectorAll(".cell-edit")];
- const index=cells.indexOf(input),step=event.shiftKey?-1:1,next=cells[index+step];
+ const row=input.closest("tr"),cellIndex=[...row.querySelectorAll(".cell-edit")].indexOf(input);
+ const rows=[...$("attributeTableWrap").querySelectorAll("tbody tr")],rowIndex=rows.indexOf(row);
+ const targetRow=rows[rowIndex+(event.shiftKey?-1:1)];
+ const next=targetRow?.querySelectorAll(".cell-edit")[cellIndex];
  if(next){next.focus();next.select();}
 });
 document.addEventListener("click",e=>{if(!e.target.closest("#layerContextMenu"))hideLayerContextMenu();});
