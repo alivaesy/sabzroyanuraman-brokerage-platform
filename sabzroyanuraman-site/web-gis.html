@@ -1932,7 +1932,7 @@ function calcMeasure(layer){
   try{
     const f=layer.toGeoJSON(),g=f.geometry;
     if(g.type==="Polygon"||g.type==="MultiPolygon"){const a=turf.area(f);$("utmInfo").innerHTML+="<br>Area: "+a.toLocaleString("en-US",{maximumFractionDigits:2})+" m²";return}
-    if(g.type==="LineString"||g.type==="MultiLineString"){const d=turf.length(f,{units:"meters"});$("utmInfo").innerHTML+="<br>Longitude: "+d.toLocaleString("en-US",{maximumFractionDigits:2})+" m";return}
+    if(g.type==="LineString"||g.type==="MultiLineString"){const d=turf.length(f,{units:"meters"});$("utmInfo").innerHTML+="<br>Length: "+d.toLocaleString("en-US",{maximumFractionDigits:2})+" m";return}
     if(g.type==="Point"){showUTM(layer)}
   }catch(e){status("Calculation failed: "+e.message)}
 }
@@ -3400,7 +3400,9 @@ function selectByAttribute(){
     return op===">"?n>numericNeedle:op===">="?n>=numericNeedle:op==="<"?n<numericNeedle:n<=numericNeedle;
   };
   const matched=records.filter(matches);
-  records.forEach(r=>selectedFeatures.delete(r.layer));
+  // A new attribute query replaces the current selection across layers;
+  // leaving unrelated selections behind makes the map and attribute editor disagree.
+  selectedFeatures.clear();
   matched.forEach(r=>selectedFeatures.add(r.layer));
   const first=allRecords.find(r=>selectedFeatures.has(r.layer));
   selectedLayer=first?.layer||null;selectedOverlay=null;
@@ -3827,13 +3829,30 @@ function showBookmarks(){
   const n=prompt("Bookmark name:\n"+bs.map(x=>x.name).join("\n"),bs[0].name);const b=bs.find(x=>x.name===n);if(b){const a=b.bounds.split(",").map(Number);map.fitBounds([[a[1],a[0]],[a[3],a[2]]]);}
 }
 function layerTransparency(){
-  const rs=getFeatureRecords();if(!rs.length)return;const v=Math.max(0,Math.min(1,Number(prompt("Transparency (0 to 1):","0.5"))));rs.forEach(r=>{if(r.layer.setStyle)r.layer.setStyle({opacity:v,fillOpacity:v});});status("Transparency updated.");
+  const rs=getFeatureRecords();if(!rs.length){status("Add a vector feature layer first.");return}
+  const raw=prompt("Transparency (0 = opaque, 1 = fully transparent):","0.5");if(raw===null)return;
+  const v=Number(raw);if(!Number.isFinite(v)||v<0||v>1){status("Transparency must be a number from 0 to 1.");return}
+  rs.forEach(r=>{if(r.layer.setStyle)r.layer.setStyle({opacity:1-v,fillOpacity:1-v});});
+  status("Transparency set to "+Math.round(v*100)+"%.");
 }
 function styleLayer(){
-  const rs=getFeatureRecords();if(!rs.length)return;const col=prompt("Color HEX:","#146c43");const w=Number(prompt("Line width:","2"));rs.forEach(r=>{if(r.layer.setStyle)r.layer.setStyle({color:col,weight:w,fillColor:col});});status("Layer symbology updated.");
+  const rs=getFeatureRecords();if(!rs.length){status("Add a vector feature layer first.");return}
+  const col=prompt("Color HEX (for example #146c43):","#146c43");if(col===null)return;
+  if(!/^#[0-9a-f]{6}$/i.test(col.trim())){status("Enter a valid six-digit HEX color.");return}
+  const rawWidth=prompt("Line width (1–12):","2");if(rawWidth===null)return;
+  const w=Number(rawWidth);if(!Number.isFinite(w)||w<1||w>12){status("Line width must be between 1 and 12.");return}
+  rs.forEach(r=>{if(r.layer.setStyle)r.layer.setStyle({color:col.trim(),weight:w,fillColor:col.trim()});});
+  status("Layer symbology updated.");
 }
 function labelLayer(){
-  const rs=getFeatureRecords();if(!rs.length)return;const field=prompt("Label field:","name");rs.forEach(r=>{const v=r.feature.properties?.[field];if(v!=null&&r.layer.bindTooltip)r.layer.bindTooltip(String(v),{permanent:true,direction:"center"});});status("Labels enabled.");
+  const rs=getFeatureRecords();if(!rs.length){status("Add a vector feature layer first.");return}
+  const fields=[...new Set(rs.flatMap(r=>Object.keys(r.feature.properties||{}).filter(k=>!isReservedAttributeField(k))))];
+  if(!fields.length){status("No attribute fields are available for labeling.");return}
+  const field=prompt("Label field:\n"+fields.join(", "),fields.includes("name")?"name":fields[0]);if(field===null)return;
+  if(!fields.includes(field)){status("Choose an existing attribute field.");return}
+  let count=0;
+  rs.forEach(r=>{const v=r.feature.properties?.[field];if(v!==null&&v!==undefined&&v!==""&&r.layer.bindTooltip){r.layer.unbindTooltip?.();r.layer.bindTooltip(String(v),{permanent:true,direction:"center"});count++;}});
+  status(count+" feature(s) labeled by "+field+".");
 }
 function groupLayers(){
   if(!namedLayers.length){status("Add at least one data layer first.");return}
