@@ -3342,18 +3342,21 @@ function selectByAttribute(){
 }
 function newLayerFromSelection(){
   const rs=selectedRecords(); if(!rs.length){status("Select at least one feature first.");return;}
+  // Use the common layer-registration path so Undo, layer controls, Editor
+  // targets, attribute tables, and persistence stay in sync.
   const fc={type:"FeatureCollection",features:rs.map(r=>JSON.parse(JSON.stringify(r.feature)))};
   const layer=L.geoJSON(fc,{onEachFeature:(f,l)=>bindFeature(l,f)});
-  layer.addTo(map); namedLayers.push({name:"Selection_"+new Date().toISOString().slice(0,19).replace(/[:T]/g,"-"),layer,source:"selection"});
-  renderLayerList(); refreshAttributeLayers(); scheduleAutoSave(); status("Layer created from selected features.");
+  const name="Selection_"+new Date().toISOString().slice(0,19).replace(/[:T]/g,"-");
+  addNamedLayer(name,layer,false);
+  scheduleAutoSave(); status("Layer created from "+rs.length+" selected feature(s).");
 }
 function cloneSelectedFeatures(){
   const rs=editableSelectedRecords(false);if(!rs.length)return;
   const clones=rs.map(r=>JSON.parse(JSON.stringify(r.feature)));
   const layer=L.geoJSON({type:"FeatureCollection",features:clones},{onEachFeature:(f,l)=>bindFeature(l,f)});
-  recordUndoState();
+  // addNamedLayer records the single Undo checkpoint for layer creation.
   addNamedLayer("Clone_"+new Date().toISOString().replace(/[:.]/g,"-"),layer,true);
-  refreshEditorTargets();refreshAttributeLayers();scheduleAutoSave();
+  scheduleAutoSave();
   status(clones.length+" feature(s) cloned into a new vector layer.");
 }
 function editableSelectedRecords(recordHistory=true){
