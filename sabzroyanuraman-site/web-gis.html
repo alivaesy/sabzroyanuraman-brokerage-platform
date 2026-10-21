@@ -3401,7 +3401,7 @@ function selectByAttribute(){
     const raw=r.feature.properties?.[field];
     if(op==="is null")return raw===null||raw===undefined||raw==="";
     if(op==="is not null")return raw!==null&&raw!==undefined&&raw!=="";
-    if(raw===null||raw===undefined)return op==="!="&&needle!=="";
+    if(raw===null||raw===undefined)return false;
     if(op==="="||op==="!="){
       let equal;
       if(typeof raw==="number"&&Number.isFinite(numericNeedle))equal=raw===numericNeedle;
