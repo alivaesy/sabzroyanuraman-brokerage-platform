@@ -898,7 +898,7 @@ function utmEpsg(zone,north=true){return "EPSG:"+(north?32600:32700)+zone}
 function defineUTM(zone,north=true){
   const epsg=utmEpsg(zone,north);
   if(!proj4.defs(epsg)){
-    proj4.defs(epsg,"+proj=utm +zone="+zone+(north?"":"+south")+" +datum=WGS84 +units=m +no_defs +type=crs");
+    proj4.defs(epsg,"+proj=utm +zone="+zone+(north?"":" +south")+" +datum=WGS84 +units=m +no_defs +type=crs");
   }
   return epsg;
 }
