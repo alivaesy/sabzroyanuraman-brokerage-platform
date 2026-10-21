@@ -1112,12 +1112,25 @@ document.addEventListener("keydown",e=>{
   // Save remains available while focus is inside an Attribute Table cell.
   if(key==="s"){
     e.preventDefault();
+    // ArcMap-style distinction: Ctrl+S saves edits; Ctrl+Shift+S saves the project.
+    if(e.shiftKey){
+      if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits())status("Save Table Edits before saving the project.");
+      else if(typeof saveProject==="function")saveProject();
+      return;
+    }
     if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits())$("saveTableEdits")?.click();
     else if(editSessionActive)saveEdits();
     else status("Start Editing before saving edits.");
     return;
   }
   if(["input","textarea","select"].includes(tag)||e.target?.isContentEditable)return;
+  // Ctrl+O opens the saved-project picker, unless focus is in an editable control.
+  if(key==="o"){
+    e.preventDefault();
+    if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits())status("Save Table Edits before opening another project.");
+    else if(typeof loadProject==="function")loadProject();
+    return;
+  }
   // Desktop-GIS history shortcuts: Ctrl/Cmd+Z undo, Ctrl/Cmd+Y or
   // Ctrl/Cmd+Shift+Z redo. Keep native undo inside editable controls above.
   if(key==="z"||key==="y"){
@@ -5065,6 +5078,17 @@ $("gdbCreateFeatureClass").onclick=()=>{
  }catch(e){$("gdbManagerStatus").textContent=e.message}
 };
 $("gdbExportNow").onclick=()=>{closeGeodatabaseManager();window.__webGisGdbBridge.openExport()};
+</script>
+<script>
+/* ArcMap-style guard against losing pending Attribute Table edits on navigation. */
+window.addEventListener("beforeunload",event=>{
+  try{
+    if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){
+      event.preventDefault();
+      event.returnValue="";
+    }
+  }catch(_){}
+});
 </script>
 </body>
 </html>
