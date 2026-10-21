@@ -1713,16 +1713,19 @@ map.on(L.Draw.Event.CREATED,e=>{
 });
 map.on(L.Draw.Event.EDITED,e=>{status("Feature edits saved.");scheduleAutoSave()});
 map.on(L.Draw.Event.DELETED,e=>{status("Feature deleted.");renderLayerList();scheduleAutoSave()});
-map.on("mousemove",e=>{
- const node=$("coord");if(!node||!e.latlng)return;
- const lat=e.latlng.lat,lon=e.latlng.lng;
- let geographic=lat.toFixed(6)+", "+lon.toFixed(6),projected="";
+function updateCoordinateStatus(latlng){
+ const node=$("coord");if(!node||!latlng)return;
+ const lat=latlng.lat,lon=latlng.lng;
+ const geographic=lat.toFixed(6)+", "+lon.toFixed(6);let projected="";
  try{
   const xy=projectCoords("EPSG:4326","EPSG:32638",[lon,lat]);
   if(Array.isArray(xy)&&xy.length>=2&&xy.every(Number.isFinite))projected=xy[0].toFixed(2)+", "+xy[1].toFixed(2);
  }catch(err){console.debug("Projected coordinate unavailable; showing geographic coordinates.",err)}
  node.textContent=projected?geographic+" | "+projected:geographic;
-});
+}
+map.on("mousemove",e=>updateCoordinateStatus(e.latlng));
+map.on("moveend",()=>updateCoordinateStatus(map.getCenter()));
+updateCoordinateStatus(map.getCenter());
 refreshEditorTargets();updateEditorToolbar();
 $("startEditingBtn").onclick=()=>startEditing();
 $("newMapBtn").onclick=clearWorkspace;
