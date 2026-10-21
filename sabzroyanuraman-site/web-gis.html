@@ -139,7 +139,7 @@ body{background:#dfe5e8;color:#173b57}
 #arcMenus{top:48px}
 @media(max-width:800px){#classicToolbars{max-height:100px;overflow:auto}.classic-toolbar{flex-wrap:nowrap}.classic-toolbar button,.classic-toolbar select{white-space:nowrap}}
 
-/* ArcMap 10.8 desktop workspace refinements */
+\n/* ArcMap-style linked selection feedback in the Attribute Table. */\n#attributeTableWrap tbody tr.attribute-row-selected{background:#d9eaf5!important;outline:1px solid #80a9c0;outline-offset:-1px}\n#attributeTableWrap tbody tr.attribute-row-selected td{background:transparent}\n#attributeTableWrap tbody tr:focus-within{outline:2px solid #4a8bb2;outline-offset:-2px}\n\n/* ArcMap 10.8 desktop workspace refinements */
 #app{min-height:0}
 .arcmap-topbar{flex:none;min-height:48px}
 #classicToolbars{flex:none;box-shadow:inset 0 1px #fff}
@@ -3450,9 +3450,14 @@ function syncVisibleAttributeTableSelection(){
   const table=$("attributeTableWrap");
   if(!table||table.style.display==="none")return;
   const items=currentAttributeItems();
+  let firstSelectedRow=null;
   table.querySelectorAll("tbody tr").forEach(row=>{
     const item=items[Number(row.dataset.index)],check=row.querySelector(".row-check");
-    if(item&&check)check.checked=selectedFeatures.has(item.layer);
+    const selected=!!(item&&selectedFeatures.has(item.layer));
+    row.classList.toggle("attribute-row-selected",selected);
+    row.setAttribute("aria-selected",selected?"true":"false");
+    if(item&&check)check.checked=selected;
+    if(selected&&!firstSelectedRow)firstSelectedRow=row;
   });
   const all=$("checkAllRows"),checks=[...table.querySelectorAll(".row-check")];
   if(all){
@@ -3460,6 +3465,8 @@ function syncVisibleAttributeTableSelection(){
     all.checked=checks.length>0&&count===checks.length;
     all.indeterminate=count>0&&count<checks.length;
   }
+  const countLabel=$("attributeSelectionCount");
+  if(countLabel)countLabel.textContent=selectedFeatures.size+" selected";
 }
 function applySelectionVisual(){
   allSelectableFeatureLayers().forEach(x=>vectorFeatures(x.layer).forEach(v=>{
