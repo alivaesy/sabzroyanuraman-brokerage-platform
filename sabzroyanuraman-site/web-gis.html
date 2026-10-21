@@ -1863,6 +1863,8 @@ function tableKeys(items){
 let attributeSort={key:null,direction:1};
 function renderEditableTable(){
  if(!currentAttributeLayer()){status("Select a feature layer.");return}
+ const tableWrap=$("attributeTableWrap");
+ if(tableWrap)tableWrap.style.display="block";
  const items=currentAttributeItems(),filter=$("attributeFilter").value.trim().toLowerCase();
  let rows=items.map((x,i)=>({x,i})).filter(o=>!filter||Object.entries(o.x.feature.properties||{}).some(([k,v])=>k!=="_attachments"&&(k.toLowerCase().includes(filter)||String(v===null||v===undefined?"":typeof v==="object"?JSON.stringify(v):v).toLowerCase().includes(filter))));
  const keys=tableKeys(items);
