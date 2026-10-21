@@ -3456,7 +3456,15 @@ function rebuildVectorLayerGeometry(rs){
           ?turf.centroid(r.feature).geometry.coordinates
           :old.getLatLng()&&[old.getLatLng().lng,old.getLatLng().lat];
         if(!center||!Number.isFinite(center[0])||!Number.isFinite(center[1]))throw new Error("Could not determine circle center");
-        replacement=L.circle([center[1],center[0]],{...opts,radius:old.getRadius()});
+        let radius=old.getRadius();
+        const ring=r.feature.geometry?.type==="Polygon"?r.feature.geometry.coordinates?.[0]:null;
+        if(ring?.length&&typeof turf!=="undefined"&&turf.distance&&turf.point){
+          const first=ring[0],derived=first&&turf.distance(turf.point(center),turf.point(first),{units:"kilometers"})*1000;
+          if(Number.isFinite(derived)&&derived>0)radius=derived;
+        }
+        r.feature.properties=r.feature.properties||{};
+        r.feature.properties._radius_m=radius;
+        replacement=L.circle([center[1],center[0]],{...opts,radius});
         bindFeature(replacement,r.feature);
       }else{
         const temp=L.geoJSON(r.feature,{
