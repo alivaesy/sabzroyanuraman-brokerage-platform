@@ -3232,8 +3232,13 @@ function selectByAttribute(){
     if(op==="is null")return raw===null||raw===undefined||raw==="";
     if(op==="is not null")return raw!==null&&raw!==undefined&&raw!=="";
     if(raw===null||raw===undefined)return op==="!="&&needle!=="";
-    if(op==="=")return String(raw).toLowerCase()===needle;
-    if(op==="!=")return String(raw).toLowerCase()!==needle;
+    if(op==="="||op==="!="){
+      let equal;
+      if(typeof raw==="number"&&Number.isFinite(numericNeedle))equal=raw===numericNeedle;
+      else if(typeof raw==="boolean"&&/^(true|false)$/i.test(val.trim()))equal=raw===(val.trim().toLowerCase()==="true");
+      else equal=String(typeof raw==="object"?JSON.stringify(raw):raw).toLowerCase()===needle;
+      return op==="="?equal:!equal;
+    }
     if(op==="contains")return String(typeof raw==="object"?JSON.stringify(raw):raw).toLowerCase().includes(needle);
     if(op==="starts")return String(raw).toLowerCase().startsWith(needle);
     if(op==="ends")return String(raw).toLowerCase().endsWith(needle);
