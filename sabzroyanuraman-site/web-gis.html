@@ -2160,13 +2160,39 @@ function runGisOperation(){
       if(!f2||!f2.geometry){status("The overlay feature geometry is invalid.");return;}
       if(op==="clip"||op==="intersection"){
         const polygonal=g=>g&&["Polygon","MultiPolygon"].includes(g.type);
-        if(!polygonal(f1.geometry)||!polygonal(f2.geometry)){
-          status((op==="clip"?"Clip":"Intersect")+" currently requires polygon or multipolygon input and overlay features. No output was created.");return;
-        }
-        result=turf.intersect(turf.featureCollection([f1,f2]));
-        if(result){
-          if(op==="clip")result.properties={...(f1.properties||{}),_operation:"Clip"};
-          else{
+        if(op==="clip"){
+          if(!polygonal(f2.geometry)){
+            status("Clip overlay must be a Polygon or MultiPolygon. No output was created.");return;
+          }
+          if(f1.geometry.type==="Point"){
+            result=turf.booleanPointInPolygon(turf.point(f1.geometry.coordinates),f2)
+              ?{...JSON.parse(JSON.stringify(f1)),properties:{...(f1.properties||{}),_operation:"Clip"}}
+              :null;
+          }else if(polygonal(f1.geometry)){
+            result=turf.intersect(turf.featureCollection([f1,f2]));
+            if(result)result.properties={...(f1.properties||{}),_operation:"Clip"};
+          }else if(["LineString","MultiLineString"].includes(f1.geometry.type)){
+            const boundary=turf.polygonToLine(f2);
+            const split=turf.lineSplit(f1,boundary);
+            const parts=(split.features||[]).filter(part=>{
+              try{
+                const mid=turf.along(part,turf.length(part,{units:"kilometers"})/2,{units:"kilometers"});
+                return turf.booleanPointInPolygon(mid,f2);
+              }catch(_){return false;}
+            }).map((part,index)=>({...part,properties:{...(f1.properties||{}),_operation:"Clip",_part:index+1}}));
+            if(!parts.length){
+              try{if(turf.booleanPointInPolygon(turf.along(f1,turf.length(f1,{units:"kilometers"})/2,{units:"kilometers"}),f2))parts.push({...JSON.parse(JSON.stringify(f1)),properties:{...(f1.properties||{}),_operation:"Clip",_part:1}})}catch(_){}
+            }
+            result=parts.length?{type:"FeatureCollection",features:parts}:null;
+          }else{
+            status("Clip supports point, line, and polygon input with a polygon overlay.");return;
+          }
+        }else{
+          if(!polygonal(f1.geometry)||!polygonal(f2.geometry)){
+            status("Intersect currently requires polygon or multipolygon input and overlay features. No output was created.");return;
+          }
+          result=turf.intersect(turf.featureCollection([f1,f2]));
+          if(result){
             const props={_operation:"Intersect"};
             Object.entries(f1.properties||{}).forEach(([k,v])=>props["input_"+k]=v);
             Object.entries(f2.properties||{}).forEach(([k,v])=>{let key="overlay_"+k;if(Object.prototype.hasOwnProperty.call(props,key))key+="_2";props[key]=v;});
