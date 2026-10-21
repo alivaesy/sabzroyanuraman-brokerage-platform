@@ -1041,9 +1041,20 @@ function pasteFeatures(){
   recordUndoState();
   featureClipboard.forEach(feature=>{
     const copy=JSON.parse(JSON.stringify(feature));
+    const radius=Number(copy.properties?._radius_m);
+    // Leaflet exports circles as polygon GeoJSON; restore the native circle
+    // when our saved radius metadata is present, instead of pasting a polygon.
+    if(Number.isFinite(radius)&&radius>0&&copy.geometry?.type==="Polygon"&&window.turf){
+      try{
+        const center=turf.centroid(copy).geometry.coordinates;
+        const circle=L.circle([center[1],center[0]],{radius,color:"#146c43",weight:3,fillColor:"#4b9b71",fillOpacity:.16});
+        circle.feature=copy;editTarget.addLayer(circle);attachFeatureSelection(circle);
+        return;
+      }catch(err){console.warn("Could not restore pasted circle; using its GeoJSON geometry.",err);}
+    }
     const group=L.geoJSON(copy,{
-      style:{color:"#146c43",weight:3,fillOpacity:.18},
-      pointToLayer:(f,ll)=>{const radius=Number(f.properties?._radius_m);return Number.isFinite(radius)&&radius>0?L.circle(ll,{radius,color:"#146c43",weight:3,fillColor:"#4b9b71",fillOpacity:.16}):L.circleMarker(ll,{radius:6,color:"#146c43",fillColor:"#fff",fillOpacity:.9,weight:2})}
+      style:{color:"#146c43",weight:3,fillColor:"#4b9b71",fillOpacity:.18},
+      pointToLayer:(f,ll)=>{const r=Number(f.properties?._radius_m);return Number.isFinite(r)&&r>0?L.circle(ll,{radius:r,color:"#146c43",weight:3,fillColor:"#4b9b71",fillOpacity:.16}):L.circleMarker(ll,{radius:6,color:"#146c43",fillColor:"#fff",fillOpacity:.9,weight:2})}
     });
     group.eachLayer(layer=>{layer.feature=copy;editTarget.addLayer(layer);attachFeatureSelection(layer);});
   });
