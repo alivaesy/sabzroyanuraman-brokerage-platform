@@ -2181,7 +2181,7 @@ function renderEditableTable(){
    return cmp===0?a.i-b.i:cmp*dir;
   });
  }
- let html="<div class='attribute-schema-toolbar' style='display:flex;gap:5px;align-items:center;flex-wrap:wrap;padding:4px;background:#edf2f5;border-bottom:1px solid #ccd9df'><button type='button' id='attributeAddField' title='Add a field to the feature class'>＋ Add Field</button><button type='button' id='attributeSelectByQuery' title='Select records using attribute criteria'>Select By Attributes</button><button type='button' id='attributeZoomSelected' title='Zoom the map to selected records'>Zoom To Selected</button><button type='button' id='attributeClearSelection' title='Clear the current map and table selection'>Clear Selection</button><span id='attributeTableSummary' style='align-self:center;color:#526775'>"+keys.length+" field(s) · "+items.length+" record(s) · "+selectedFeatures.size+" selected</span></div><table class='arc-attribute-grid'><thead><tr><th><input type='checkbox' class='attr-check' id='checkAllRows'></th><th>#</th>"+
+ let html="<div class='attribute-schema-toolbar' style='display:flex;gap:5px;align-items:center;flex-wrap:wrap;padding:4px;background:#edf2f5;border-bottom:1px solid #ccd9df'><button type='button' id='attributeAddField' title='Add a field to the feature class'>＋ Add Field</button><button type='button' id='attributeDeleteField' title='Delete a field from the feature class'>− Delete Field</button><button type='button' id='attributeSwitchSelection' title='Invert selection for displayed records'>Switch Selection</button><button type='button' id='attributeSelectByQuery' title='Select records using attribute criteria'>Select By Attributes</button><button type='button' id='attributeZoomSelected' title='Zoom the map to selected records'>Zoom To Selected</button><button type='button' id='attributeClearSelection' title='Clear the current map and table selection'>Clear Selection</button><span id='attributeTableSummary' style='align-self:center;color:#526775'>"+keys.length+" field(s) · "+items.length+" record(s) · "+selectedFeatures.size+" selected</span></div><table class='arc-attribute-grid'><thead><tr><th><input type='checkbox' class='attr-check' id='checkAllRows'></th><th>#</th>"+
  keys.map(k=>"<th data-sort-key='"+esc(k)+"' title='Sort by "+esc(k)+"' style='padding:3px;border-bottom:1px solid #ccd9df;white-space:nowrap;cursor:pointer;user-select:none'>"+esc(k)+(attributeSort.key===k?(attributeSort.direction===1?" ▲":" ▼"):" ↕")+"</th>").join("")+"</tr></thead><tbody>";
  rows.forEach(o=>{html+="<tr data-index='"+o.i+"'><td><input type='checkbox' class='row-check attr-check' "+(selectedFeatures.has(o.x.layer)?"checked":"")+"></td><td>"+(o.i+1)+"</td>"+
  keys.map(k=>{const v=(o.x.feature.properties||{})[k],shown=v===null||v===undefined?"":typeof v==="object"?JSON.stringify(v):String(v);return "<td style='padding:2px'><input class='cell-edit' data-key='"+esc(k)+"' data-original='"+esc(shown)+"' value='"+esc(shown) +"'></td>"}).join("")+"</tr>"});
@@ -2222,6 +2222,30 @@ function renderEditableTable(){
   recordUndoState();const meta=layer._gdbMetadata||(layer._gdbMetadata={fields:[]});meta.fields=meta.fields||[];meta.fields.push({name:field,type:fieldType});
   items.forEach(item=>{const props=ensureFeatureProperties(item.layer);if(!(field in props))props[field]=null;});
   window.__webGisGdbBridge?.save();renderEditableTable();status("Field "+field+" ("+fieldType+") added to the feature class.");
+ };
+ const deleteFieldBtn=$("attributeDeleteField");if(deleteFieldBtn)deleteFieldBtn.onclick=()=>{
+  const layer=currentAttributeLayer();if(!layer)return;
+  if(hasUnsavedTableEdits()){status("Save or discard pending cell edits before deleting a field.");return}
+  if(!editSessionActive||!isLayerInEditTarget(layer)){status("Start Editing this feature class before deleting fields.");return}
+  if(!keys.length){status("This feature class has no fields to delete.");return}
+  const field=prompt("Enter the exact field name to delete:\n"+keys.join(", "),keys[0]);if(field===null)return;
+  const name=field.trim(),actual=keys.find(k=>k.toLowerCase()===name.toLowerCase());
+  if(!actual){status("Field not found: "+name);return}
+  if(!confirm("Permanently remove field '"+actual+"' from all features in this edit session?"))return;
+  recordUndoState();
+  items.forEach(item=>{if(item.feature.properties)delete item.feature.properties[actual]});
+  if(layer._gdbMetadata?.fields)layer._gdbMetadata.fields=layer._gdbMetadata.fields.filter(f=>(typeof f==="string"?f:f.name)!==actual);
+  window.__webGisGdbBridge?.save();renderEditableTable();status("Field "+actual+" deleted. Save edits to persist the change.");
+ };
+ const switchSelectionBtn=$("attributeSwitchSelection");if(switchSelectionBtn)switchSelectionBtn.onclick=()=>{
+  if(hasUnsavedTableEdits()){status("Save Table Edits before changing selection.");return}
+  const visibleRows=[...$("attributeTableWrap").querySelectorAll("tbody tr[data-index]")];
+  if(!visibleRows.length){status("There are no displayed records to switch.");return}
+  visibleRows.forEach(row=>{const item=items[Number(row.dataset.index)];if(item){if(selectedFeatures.has(item.layer))selectedFeatures.delete(item.layer);else selectedFeatures.add(item.layer)}});
+  const first=getFeatureRecords().find(item=>selectedFeatures.has(item.layer));
+  selectedLayer=first?.layer||null;selectedOverlay=null;
+  applySelectionVisual();updateMultiSelectionUI();renderEditableTable();
+  status("Selection switched for "+visibleRows.length+" displayed record(s).");
  };
  const all=$("checkAllRows"),rowChecks=[...$("attributeTableWrap").querySelectorAll(".row-check")];
  const syncCheckAll=()=>{
