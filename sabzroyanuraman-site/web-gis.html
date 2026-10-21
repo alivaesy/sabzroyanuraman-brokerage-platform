@@ -153,7 +153,7 @@ body{background:#dfe5e8;color:#173b57}
 .layer-row.layer-active{border-left-color:#347ca5;outline:0}
 .layer-row input[type=checkbox]{width:14px;height:14px;flex:0 0 14px}
 .panel .accordion-section{flex:0 0 auto}
-.arcmap-statusbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;height:24px;padding:0 8px;background:#e5e8ea;border-top:1px solid #98a5ac;color:#263f50;font-size:10px;direction:ltr}
+.arcmap-statusbar{display:flex!important;visibility:visible!important;opacity:1!important;position:relative;inset:auto;align-items:center;justify-content:space-between;gap:12px;flex:0 0 24px;min-height:24px;height:24px;padding:0 8px;background:#e5e8ea;border-top:1px solid #98a5ac;color:#263f50;font-size:10px;direction:ltr;z-index:2100}
 .arcmap-statusbar .status,.arcmap-statusbar .coord{position:static;inset:auto;background:transparent;border:0;border-radius:0;box-shadow:none;padding:0;margin:0;color:inherit;font-size:10px;z-index:auto;white-space:nowrap}
 .arcmap-statusbar .coord{margin-left:auto;direction:ltr}
 @media(max-width:850px){.arc-search{width:205px}.arc-menu-btn{padding:0 8px}.panel{width:270px;min-width:270px}}
@@ -1729,6 +1729,8 @@ function updateCoordinateStatus(latlng){
 map.on("mousemove",e=>updateCoordinateStatus(e.latlng));
 map.on("moveend",()=>updateCoordinateStatus(map.getCenter()));
 updateCoordinateStatus(map.getCenter());
+// Keep the coordinate readout populated when the pointer leaves the map.
+map.on("mouseout",()=>updateCoordinateStatus(map.getCenter()));
 refreshEditorTargets();updateEditorToolbar();
 $("startEditingBtn").onclick=()=>startEditing();
 $("newMapBtn").onclick=clearWorkspace;
@@ -2540,7 +2542,7 @@ $("saveTableEdits").onclick=()=>{
      if(!/^(true|false)$/i.test(raw.trim()))throw new Error("Field '"+key+"' accepts only true or false.");
      value=raw.trim().toLowerCase()==="true";
     }else if(valueType==="date"){
-     if(raw.trim()&&!/^\\d{4}-\\d{2}-\\d{2}(?:T.*)?$/.test(raw.trim()))throw new Error("Field '"+key+"' requires an ISO date (YYYY-MM-DD).");
+     if(raw.trim()&&!/^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(raw.trim()))throw new Error("Field '"+key+"' requires an ISO date (YYYY-MM-DD).");
      if(raw.trim()&&Number.isNaN(Date.parse(raw.trim())))throw new Error("Field '"+key+"' requires a valid date.");
      value=raw.trim()===""?null:raw.trim();
     }else if(valueType==="object"){
