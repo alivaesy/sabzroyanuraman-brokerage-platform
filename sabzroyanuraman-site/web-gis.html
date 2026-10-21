@@ -3414,8 +3414,8 @@ function selectByAttribute(){
   const needle=val.toLowerCase(),numericNeedle=val.trim()!==""?Number(val):NaN;
   const matches=r=>{
     const raw=r.feature.properties?.[field];
-    if(op==="is null")return raw===null||raw===undefined||raw==="";
-    if(op==="is not null")return raw!==null&&raw!==undefined&&raw!=="";
+    if(op==="is null")return raw===null||raw===undefined;
+    if(op==="is not null")return raw!==null&&raw!==undefined;
     if(raw===null||raw===undefined)return false;
     if(op==="="||op==="!="){
       let equal;
@@ -3425,8 +3425,8 @@ function selectByAttribute(){
       return op==="="?equal:!equal;
     }
     if(op==="contains")return String(typeof raw==="object"?JSON.stringify(raw):raw).toLowerCase().includes(needle);
-    if(op==="starts")return String(raw).toLowerCase().startsWith(needle);
-    if(op==="ends")return String(raw).toLowerCase().endsWith(needle);
+    if(op==="starts")return String(typeof raw==="object"?JSON.stringify(raw):raw).toLowerCase().startsWith(needle);
+    if(op==="ends")return String(typeof raw==="object"?JSON.stringify(raw):raw).toLowerCase().endsWith(needle);
     if(String(raw).trim()===""||!Number.isFinite(Number(raw))||!Number.isFinite(numericNeedle))return false;
     const n=Number(raw);
     return op===">"?n>numericNeedle:op===">="?n>=numericNeedle:op==="<"?n<numericNeedle:n<=numericNeedle;
