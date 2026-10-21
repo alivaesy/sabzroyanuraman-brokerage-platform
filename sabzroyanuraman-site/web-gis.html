@@ -901,33 +901,7 @@ function defineUTM(zone,north=true){
   return epsg;
 }
 for(let z=1;z<=60;z++){defineUTM(z,true);defineUTM(z,false);}
-// Live ArcMap-style coordinate readout: decimal degrees and automatic UTM zone.
-const coordinateReadout=L.control({position:"bottomright"});
-coordinateReadout.onAdd=function(){
- const el=L.DomUtil.create("div","gis-coordinate-readout");
- el.setAttribute("role","status");el.setAttribute("aria-live","polite");
- el.style.cssText="background:rgba(255,255,255,.96);border:1px solid #8e9da5;border-radius:2px;padding:5px 8px;color:#203744;font:11px/1.5 Arial,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.18);min-width:245px;max-width:75vw;pointer-events:none;font-variant-numeric:tabular-nums";
- el.innerHTML="<b>Map Coordinates</b><div>Move pointer over map</div><div>Decimal degrees · UTM</div>";
- this._element=el;return el;
-};
-coordinateReadout.addTo(map);
-function updateCoordinateReadout(latlng){
- const el=coordinateReadout._element;if(!el||!latlng)return;
- const lat=Number(latlng.lat),lng=Number(latlng.lng);
- if(!Number.isFinite(lat)||!Number.isFinite(lng))return;
- const zone=Math.max(1,Math.min(60,Math.floor((lng+180)/6)+1)),north=lat>=0,epsg=utmEpsg(zone,north);
- let utmText="UTM unavailable";
- try{
-  if(lat>=-80&&lat<=84){
-   const xy=proj4("EPSG:4326",epsg,[lng,lat]);
-   utmText=epsg+" · Zone "+zone+(north?"N":"S")+" · E "+xy[0].toFixed(2)+" m · N "+xy[1].toFixed(2)+" m";
-  }else utmText="UTM not defined beyond 80°S–84°N";
- }catch(err){console.debug("Coordinate conversion failed:",err)}
- el.innerHTML="<b>Map Coordinates</b><div>Decimal degrees (Lat, Lon): "+lat.toFixed(6)+", "+lng.toFixed(6)+"</div><div>"+utmText+"</div>";
-}
-map.on("mousemove",e=>updateCoordinateReadout(e.latlng));
-map.on("click",e=>updateCoordinateReadout(e.latlng));
-function ensureCRSDefinition(epsg){
+// Coordinate readout intentionally removed from the map UI.\nfunction ensureCRSDefinition(epsg){
   if(!/^EPSG:\d+$/.test(epsg))throw new Error("Invalid EPSG code.");
   if(!proj4.defs(epsg)){
     const n=Number(epsg.slice(5));
