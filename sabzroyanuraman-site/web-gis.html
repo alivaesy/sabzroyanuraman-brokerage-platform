@@ -989,7 +989,7 @@ function clearWorkspace(){
   if(count&&!confirm("Create a new blank map and remove the current layers?"))return;
   recordUndoState();stopActiveDraw(true);drawn.clearLayers();
   namedLayers.slice().forEach(item=>{map.removeLayer(item.layer);layerControl.removeLayer(item.layer)});
-  namedLayers.length=0;selectedFeatures.clear();selectedLayer=null;selectedOverlay=null;
+  namedLayers.length=0;selectedFeatures.clear();selectedLayer=null;selectedOverlay=null;updateMultiSelectionUI();
   currentProjectId=null;$("projectName").value="New Project";window.currentProjectDescription="";
   editSessionActive=false;editTarget=drawn;refreshEditorTargets();updateEditorToolbar();renderLayerList();refreshAttributeLayers();
   map.setView([34.5,46.5],8);status("New blank map created.");scheduleAutoSave();
@@ -1005,7 +1005,7 @@ function copySelectedFeatures(cut=false){
   if(cut){
     recordUndoState();
     records.forEach(r=>r.owner.layer.removeLayer(r.layer));
-    selectedFeatures.clear();selectedLayer=null;selectedOverlay=null;const editor=$("attributeEditor");if(editor)editor.style.display="none";renderLayerList();refreshAttributeLayers();scheduleAutoSave();
+    selectedFeatures.clear();selectedLayer=null;selectedOverlay=null;const editor=$("attributeEditor");if(editor)editor.style.display="none";updateMultiSelectionUI();renderLayerList();refreshAttributeLayers();scheduleAutoSave();
     status(records.length+" feature(s) cut.");
   }else status(featureClipboard.length+" feature(s) copied.");
   updateStandardActionButtons();
