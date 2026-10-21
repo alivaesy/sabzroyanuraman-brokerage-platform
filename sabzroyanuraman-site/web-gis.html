@@ -4909,7 +4909,7 @@ $("applyCrs").onclick=()=>{
   const v=$("customEpsg").value.trim();
   try{setCRS("EPSG:"+v.replace(/^EPSG:/i,""))}catch(e){status(e.message)}
 };
-window.__webGisGdbBridge={get currentCRS(){return currentCRS},addLayer(name,layer){addNamedLayer(name,layer,false)},refreshEditorTargets,layerIndex(layer){return namedLayers.findIndex(x=>x.layer===layer)},save(){scheduleAutoSave()},openExport(){openDataFormatDialog("export")}};
+window.__webGisGdbBridge={get currentCRS(){return currentCRS},addLayer(name,layer){addNamedLayer(name,layer,false)},refreshEditorTargets,layerIndex(layer){return namedLayers.findIndex(x=>x.layer===layer)},save(){scheduleAutoSave()},openExport(){openDataFormatDialog("export")},cancelActiveTool(){if(!activeDrawHandler)return false;stopActiveDraw(true);return true}};
 })();
 </script>
 <script>
@@ -4983,8 +4983,7 @@ window.__webGisGdbBridge={get currentCRS(){return currentCRS},addLayer(name,laye
       if(dialog){click('dataDialogCancel');event.preventDefault();return;}
       const projectDialog=document.getElementById('projectManager');
       if(projectDialog?.classList.contains('show')){click('closeProjectManager');event.preventDefault();return;}
-      if(typeof activeDrawHandler!=='undefined'&&activeDrawHandler){
-        stopActiveDraw(true);
+      if(window.__webGisGdbBridge?.cancelActiveTool?.()){
         status('Active sketch/tool cancelled.');
         event.preventDefault();
         return;
