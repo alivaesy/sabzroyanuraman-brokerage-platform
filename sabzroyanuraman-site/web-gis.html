@@ -1028,7 +1028,7 @@ function pasteFeatures(){
 function deleteSelectedFeatures(){
   if(blockForUnsavedTableEdits("deleting features"))return;
   if(!editSessionActive||!editTarget){status("Start Editing before deleting features.");return;}
-  const records=editableSelectedRecords();if(!records.length)return;
+  const records=editableSelectedRecords(false);if(!records.length)return;
   if(!confirm("Delete "+records.length+" selected feature(s)?"))return;
   recordUndoState();
   records.forEach(r=>r.owner.layer.removeLayer(r.layer));
@@ -3256,8 +3256,9 @@ function newLayerFromSelection(){
 }
 function cloneSelectedFeatures(){
   const rs=editableSelectedRecords(false);if(!rs.length)return;
-  const clones=rs.map(r=>{const f=JSON.parse(JSON.stringify(r.feature));f.properties={...(f.properties||{}),_clone:true};return f;});
+  const clones=rs.map(r=>JSON.parse(JSON.stringify(r.feature)));
   const layer=L.geoJSON({type:"FeatureCollection",features:clones},{onEachFeature:(f,l)=>bindFeature(l,f)});
+  recordUndoState();
   addNamedLayer("Clone_"+new Date().toISOString().replace(/[:.]/g,"-"),layer,true);
   refreshEditorTargets();refreshAttributeLayers();scheduleAutoSave();
   status(clones.length+" feature(s) cloned into a new vector layer.");
