@@ -1991,7 +1991,7 @@ $("attributeTableWrap").addEventListener("input",event=>{
    event.preventDefault();
    const cells=[...$("attributeTableWrap").querySelectorAll(".cell-edit")];
    const index=cells.indexOf(input);
-   const next=cells[index+1];
+   const next=cells[index+(event.shiftKey?-1:1)];
    if(next){next.focus();next.select();}
    else input.blur();
   }
