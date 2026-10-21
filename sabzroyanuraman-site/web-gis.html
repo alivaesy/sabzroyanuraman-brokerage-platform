@@ -2018,7 +2018,9 @@ $("applyMultiAttribute").onclick=()=>{
   const key=$("multiFieldName").value.trim(),raw=$("multiFieldValue").value;
   if(!targets.length){status("Select features from the active edit layer first.");return}
   if(!key){status("Enter a field name.");return}
-  if(key.startsWith("_")||key==="geometry"){status("Field names starting with underscore and the name geometry are reserved by the editor.");return}
+  if(isReservedAttributeField(key)){status("Field names starting with underscore and the name geometry (case-insensitive) are reserved by the editor.");return}
+  const existingField=tableKeys(vectorFeatures(editTarget)).find(field=>field.toLowerCase()===key.toLowerCase());
+  if(existingField&&existingField!==key){status("Field already exists as '"+existingField+"'. Use the existing field name with the same capitalization.");return}
   const staged=[];
   // Infer the field schema from the active edit layer, not only from selected
   // features; selected records may have missing/null values for an existing field.
@@ -2097,9 +2099,10 @@ $("deleteTableField").onclick=()=>{
  if(!layer||!items.length){status("Select a feature layer containing records.");return}
  const fields=tableKeys(items).filter(key=>!key.startsWith("_")&&key!=="geometry");
  if(!fields.length){status("There are no deletable attribute fields. Internal fields are protected.");return}
- const key=prompt("Enter the exact field name to delete:\n"+fields.join(", "),fields[0]);
- if(key===null)return;
- if(!fields.includes(key)){status("Field not found or protected. Choose one of: "+fields.join(", "));return}
+ const requested=prompt("Enter the field name to delete (case-insensitive):\n"+fields.join(", "),fields[0]);
+ if(requested===null)return;
+ const key=fields.find(field=>field.toLowerCase()===requested.trim().toLowerCase());
+ if(!key){status("Field not found or protected. Choose one of: "+fields.join(", "));return}
  if(!confirm("Permanently remove field '"+key+"' from "+items.length+" feature(s) in this edit session?"))return;
  recordUndoState();
  items.forEach(item=>{if(item.feature.properties)delete item.feature.properties[key];updateFeaturePopup(item.layer)});
