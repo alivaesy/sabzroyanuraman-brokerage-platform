@@ -2365,32 +2365,36 @@ $("addTableField").onclick=()=>{
  if(hasUnsavedTableEdits()){status("Save Table Edits before adding a field; unsaved cell values have been preserved.");return}
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before changing its table.");return}
  if(!$("attributeLayer").value){status("Select a feature layer.");return}
- const name=prompt("New field name:");if(name===null||!name.trim())return;
- const key=name.trim(),items=currentAttributeItems();
- if(!items.length){status("The selected layer has no features to receive this field.");return}
- if(isReservedAttributeField(key)){status("Field names starting with underscore and the name geometry are reserved by the editor.");return}
- if(items.some(x=>Object.keys(x.feature.properties||{}).some(existing=>existing.toLowerCase()===key.toLowerCase()))){status("A field with this name already exists (field names are case-insensitive).");return}
+ const name=prompt("New field name (letters, numbers, underscore):");if(name===null||!name.trim())return;
+ const key=name.trim(),items=currentAttributeItems(),layer=currentAttributeLayer();
+ if(!/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(key)||isReservedAttributeField(key)){status("Use a field name starting with a letter, containing only letters, numbers or underscores (max 64 characters).");return}
+ const schema=layer?._gdbMetadata?.fields||[],known=tableKeys(items);
+ if(known.some(existing=>existing.toLowerCase()===key.toLowerCase())){status("A field with this name already exists (field names are case-insensitive).");return}
+ const rawType=prompt("Field type: TEXT, INTEGER, REAL, or DATE","TEXT");if(rawType===null)return;
+ const type=rawType.trim().toUpperCase();if(!["TEXT","INTEGER","REAL","DATE"].includes(type)){status("Choose TEXT, INTEGER, REAL, or DATE.");return}
  recordUndoState();
- items.forEach(x=>{ensureFeatureProperties(x.layer);x.feature.properties[key]="";updateFeaturePopup(x.layer);});
- renderEditableTable();scheduleAutoSave();status("Field '"+key+"' added to "+items.length+" feature(s).");
+ if(layer?._gdbMetadata){layer._gdbMetadata.fields=schema;schema.push({name:key,type});}
+ items.forEach(x=>{ensureFeatureProperties(x.layer)[key]=null;updateFeaturePopup(x.layer);});
+ renderEditableTable();window.__webGisGdbBridge?.save();scheduleAutoSave();status("Field '"+key+"' ("+type+") added to "+items.length+" feature(s).");
 };
 
 $("deleteTableField").onclick=()=>{
  if(hasUnsavedTableEdits()){status("Save Table Edits before deleting a field; unsaved cell values have been preserved.");return}
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before changing its table.");return}
  const layer=currentAttributeLayer(),items=currentAttributeItems();
- if(!layer||!items.length){status("Select a feature layer containing records.");return}
- const fields=tableKeys(items).filter(key=>!key.startsWith("_")&&key!=="geometry");
+ if(!layer){status("Select a feature layer.");return}
+ const fields=tableKeys(items).filter(key=>!isReservedAttributeField(key));
  if(!fields.length){status("There are no deletable attribute fields. Internal fields are protected.");return}
  const requested=prompt("Enter the field name to delete (case-insensitive):\n"+fields.join(", "),fields[0]);
  if(requested===null)return;
  const key=fields.find(field=>field.toLowerCase()===requested.trim().toLowerCase());
  if(!key){status("Field not found or protected. Choose one of: "+fields.join(", "));return}
- if(!confirm("Permanently remove field '"+key+"' from "+items.length+" feature(s) in this edit session?"))return;
+ if(!confirm("Permanently remove field '"+key+"' from the feature class and "+items.length+" feature(s)?"))return;
  recordUndoState();
  items.forEach(item=>{if(item.feature.properties)delete item.feature.properties[key];updateFeaturePopup(item.layer)});
+ if(layer._gdbMetadata?.fields)layer._gdbMetadata.fields=layer._gdbMetadata.fields.filter(f=>(typeof f==="string"?f:f.name)!==key);
  if(attributeSort.key===key)attributeSort={key:null,direction:1};
- renderEditableTable();scheduleAutoSave();status("Field '"+key+"' deleted from "+items.length+" feature(s). Use Undo to reverse this change.");
+ renderEditableTable();window.__webGisGdbBridge?.save();scheduleAutoSave();status("Field '"+key+"' deleted from the feature class and "+items.length+" feature(s). Use Undo to reverse this change.");
 };
 $("saveTableEdits").onclick=()=>{
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before saving table changes.");return}
