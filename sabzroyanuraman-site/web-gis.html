@@ -4000,6 +4000,11 @@ function nearestPointOnFeatureSafe(feature, point){
   const g=feature?.geometry;
   if(!g||!point?.geometry)return null;
   if(g.type==="Point")return turf.point(g.coordinates);
+  // For polygon targets, an interior point is already the nearest point (distance 0).
+  // Only search polygon rings when the point lies outside the polygon.
+  if((g.type==="Polygon"||g.type==="MultiPolygon")&&typeof turf.booleanPointInPolygon==="function"){
+    try{if(turf.booleanPointInPolygon(point,feature))return turf.point(point.geometry.coordinates);}catch(_){}
+  }
   let parts=[];
   if(g.type==="LineString")parts=[g.coordinates];
   else if(g.type==="MultiLineString")parts=g.coordinates;
