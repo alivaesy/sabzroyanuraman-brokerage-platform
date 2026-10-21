@@ -2133,10 +2133,12 @@ $("saveTableEdits").onclick=()=>{
     if(raw===inp.dataset.original)return;
     let value=raw;
     const valueType=oldValue===null||oldValue===undefined||oldValue===""?fieldTypes[key]:(typeof oldValue==="object"?"object":typeof oldValue);
-    if(valueType==="number"){
-     if(raw.trim()==="")value=null;
-     else if(!Number.isFinite(Number(raw)))throw new Error("Field '"+key+"' requires a valid number.");
-     else value=Number(raw);
+    if(raw.trim()===""&&(valueType==="number"||valueType==="boolean"||valueType==="object")){
+     // A blank cell in a typed field means null, not an invalid boolean/JSON value.
+     value=null;
+    }else if(valueType==="number"){
+     if(!Number.isFinite(Number(raw)))throw new Error("Field '"+key+"' requires a valid number.");
+     value=Number(raw);
     }else if(valueType==="boolean"){
      if(!/^(true|false)$/i.test(raw.trim()))throw new Error("Field '"+key+"' accepts only true or false.");
      value=raw.trim().toLowerCase()==="true";
@@ -3202,7 +3204,8 @@ function selectByLasso(){
 }
 function selectByAttribute(){
   const allRecords=getFeatureRecords();
-  const vectorLayers=[{name:"My Drawings",layer:drawn},...namedLayers.filter(x=>isVectorLayer(x.layer)).map(x=>({name:x.name,layer:x.layer}))];
+  const vectorLayers=[{name:"My Drawings",layer:drawn},...namedLayers.filter(x=>isVectorLayer(x.layer)).map(x=>({name:x.name,layer:x.layer}))]
+    .filter((x,i,arr)=>x.layer&&arr.findIndex(y=>y.layer===x.layer)===i);
   const current=currentAttributeLayer();
   const defaultIndex=Math.max(0,vectorLayers.findIndex(x=>x.layer===current));
   if(!vectorLayers.length||!allRecords.length){status("Select By Attributes requires at least one vector layer with features.");return}
