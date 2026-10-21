@@ -1590,13 +1590,14 @@ function saveAttributes(){
   if(!editSessionActive||!isLayerInEditTarget(selectedLayer)){status("Start Editing this layer before changing attributes.");return}
   const previous=selectedLayer.feature?.properties||{};
   const props={};
-  if(Object.prototype.hasOwnProperty.call(previous,"_attachments"))props._attachments=previous._attachments;
+  // Preserve editor-managed metadata when rebuilding the editable property set.
+  Object.keys(previous).filter(isReservedAttributeField).forEach(key=>{props[key]=previous[key]});
   const errors=[];
   $( "attributeRows" ).querySelectorAll(".attr-edit-row").forEach(row=>{
     const key=row.querySelector(".attr-key").value.trim(),raw=row.querySelector(".attr-value").value;
     if(!key)return;
-    if(key.startsWith("_")||key==="geometry"){errors.push("Reserved field name: "+key+" (names beginning with underscore and geometry are managed by the editor)");return}
-    if(Object.prototype.hasOwnProperty.call(props,key)){errors.push("Duplicate field name: "+key);return}
+    if(isReservedAttributeField(key)){errors.push("Reserved field name: "+key+" (names beginning with underscore and geometry are managed by the editor)");return}
+    if(Object.keys(props).some(existing=>existing.toLowerCase()===key.toLowerCase())){errors.push("Duplicate field name (field names are case-insensitive): "+key);return}
     const old=previous[key];
     let value=raw;
     if(typeof old==="number"){
@@ -2065,8 +2066,8 @@ $("addTableField").onclick=()=>{
  const name=prompt("New field name:");if(name===null||!name.trim())return;
  const key=name.trim(),items=currentAttributeItems();
  if(!items.length){status("The selected layer has no features to receive this field.");return}
- if(items.some(x=>Object.prototype.hasOwnProperty.call(x.feature.properties||{},key))){status("A field with this name already exists.");return}
- if(key.startsWith("_")||key==="geometry"){status("Field names starting with underscore and the name geometry are reserved by the editor.");return}
+ if(isReservedAttributeField(key)){status("Field names starting with underscore and the name geometry are reserved by the editor.");return}
+ if(items.some(x=>Object.keys(x.feature.properties||{}).some(existing=>existing.toLowerCase()===key.toLowerCase()))){status("A field with this name already exists (field names are case-insensitive).");return}
  recordUndoState();
  items.forEach(x=>{ensureFeatureProperties(x.layer);x.feature.properties[key]="";updateFeaturePopup(x.layer);});
  renderEditableTable();scheduleAutoSave();status("Field '"+key+"' added to "+items.length+" feature(s).");
