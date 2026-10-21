@@ -3449,6 +3449,7 @@ function editableSelectedRecords(recordHistory=true){
   return rs;
 }
 function moveSelected(){
+  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("moving selected features"))return;
   const rs=editableSelectedRecords(false);if(!rs.length)return;
   const rawDx=prompt("Move East X (meters; positive = east):","0");if(rawDx===null)return;
   const dx=Number(rawDx);if(!Number.isFinite(dx)) {status("Enter a valid east offset.");return;}
@@ -3468,6 +3469,7 @@ function moveSelected(){
   status(updates.length+" feature(s) moved "+distance.toFixed(2)+" m.");
 }
 function rotateSelected(){
+  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("rotating selected features"))return;
   const rs=editableSelectedRecords(false);if(!rs.length)return;
   const raw=prompt("Rotation angle in degrees (positive = counterclockwise):","90");if(raw===null)return;
   const deg=Number(raw);if(!Number.isFinite(deg)){status("Enter a valid rotation angle.");return;}
@@ -3485,6 +3487,7 @@ function rotateSelected(){
   status(updates.length+" feature(s) rotated by "+deg+"°.");
 }
 function scaleSelected(){
+  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("scaling selected features"))return;
   const rs=editableSelectedRecords(false);if(!rs.length)return;
   const raw=prompt("Scale factor (greater than 0; 1 = unchanged):","1.1");if(raw===null)return;
   const factor=Number(raw);
