@@ -948,17 +948,19 @@ function applyHistorySnapshot(source,destination,message){
 function undoMapEdit(){applyHistorySnapshot(undoStack,redoStack,"Undo");}
 function redoMapEdit(){applyHistorySnapshot(redoStack,undoStack,"Redo");}
 document.addEventListener("keydown",e=>{
-  const tag=(e.target&&e.target.tagName||"").toLowerCase();
-  if(!(e.ctrlKey||e.metaKey)||e.altKey||["input","textarea","select"].includes(tag)||e.target?.isContentEditable)return;
-  const key=e.key.toLowerCase();
-  if(key==="z"&&!e.shiftKey){e.preventDefault();undoMapEdit();}
-  else if(key==="y"||(key==="z"&&e.shiftKey)){e.preventDefault();redoMapEdit();}
-  else if(key==="s"){
+  if(!(e.ctrlKey||e.metaKey)||e.altKey)return;
+  const key=e.key.toLowerCase(),tag=(e.target&&e.target.tagName||"").toLowerCase();
+  // Save remains available while focus is inside an Attribute Table cell.
+  if(key==="s"){
     e.preventDefault();
     if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits())$("saveTableEdits")?.click();
     else if(editSessionActive)saveEdits();
     else status("Start Editing before saving edits.");
+    return;
   }
+  if(["input","textarea","select"].includes(tag)||e.target?.isContentEditable)return;
+  if(key==="z"&&!e.shiftKey){e.preventDefault();undoMapEdit();}
+  else if(key==="y"||(key==="z"&&e.shiftKey)){e.preventDefault();redoMapEdit();}
 });
 function recordMapExtent(){
   const c=map.getCenter(),entry={lat:c.lat,lng:c.lng,zoom:map.getZoom()};
