@@ -154,7 +154,7 @@ body{background:#dfe5e8;color:#173b57}
 .layer-row input[type=checkbox]{width:14px;height:14px;flex:0 0 14px}
 .panel .accordion-section{flex:0 0 auto}
 #map{position:relative}
-.map-coordinate-readout{position:absolute;left:10px;right:10px;bottom:8px;z-index:1000;pointer-events:none;direction:ltr;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;white-space:nowrap;font:11px/1.4 Arial,Helvetica,sans-serif;color:#172b36;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:0!important;margin:0!important}.map-coordinate-geographic{display:block;min-width:0;background:transparent!important;border:0!important;padding:0!important;margin:0!important}.map-coordinate-geographic{text-align:left;margin-right:auto!important}
+.map-coordinate-readout{position:absolute;left:10px;right:10px;bottom:8px;z-index:1000;pointer-events:none;direction:ltr;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;white-space:nowrap;font:11px/1.4 Arial,Helvetica,sans-serif;color:#172b36;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:0!important;margin:0!important}.map-coordinate-geographic{display:block;min-width:0;background:transparent!important;border:0!important;padding:0!important;margin:0!important}.map-coordinate-geographic{text-align:left}.map-coordinate-utm{text-align:right;margin-left:auto!important}
 @media(max-width:650px){.map-coordinate-readout{left:8px;right:8px;bottom:8px;gap:8px;font-size:10px}.map-coordinate-geographic{max-width:100%;overflow:hidden;text-overflow:ellipsis}}
 @media(max-width:850px){.arc-search{width:205px}.arc-menu-btn{padding:0 8px}.panel{width:270px;min-width:270px}}
 @media(max-width:650px){.arcmap-topbar{height:auto;min-height:48px;flex-wrap:wrap;padding:4px 6px}.arc-menu{order:3;width:100%;overflow-x:auto}.arc-search{width:min(48vw,220px);margin-left:auto}.arcmap-statusbar{height:22px}.panel{position:absolute;left:0;top:0;bottom:0;height:auto;width:285px;min-width:285px;transform:translateX(-100%)}.panel.open{transform:translateX(0)}}
@@ -610,7 +610,7 @@ body{background:#dfe5e8;color:#173b57}
   </div>
 </div>
 <div class="workspace">
-  <div id="map"><div class="map-coordinate-readout" aria-label="Geographic coordinates"><span class="map-coordinate-geographic" id="coordGeographic">—, —</span></div></div>
+  <div id="map"><div class="map-coordinate-readout" aria-label="Map coordinates"><span class="map-coordinate-geographic" id="coordGeographic">—, —</span><span class="map-coordinate-utm" id="coordUtm">—, —</span></div></div>
   <div class="arcmap-search-dock" id="searchDock"><button type="button" id="searchTab" aria-label="Open Search" title="Search">Search</button><div id="searchPanel"><div class="arc-search"><input id="topToolSearch" placeholder="Search for tools..." autocomplete="off"><div id="topToolResults"></div></div></div></div>
   <aside class="panel" id="panel">
     <div class="section layer-section">
@@ -1739,10 +1739,20 @@ map.on(L.Draw.Event.DELETESTART,()=>{if(editSessionActive)recordUndoState()});
 map.on(L.Draw.Event.EDITED,e=>{status("Feature edits saved.");scheduleAutoSave()});
 map.on(L.Draw.Event.DELETED,e=>{status("Feature deleted.");renderLayerList();scheduleAutoSave()});
 function updateCoordinateStatus(latlng){
- const geographicNode=$("coordGeographic");if(!geographicNode||!latlng)return;
+ const geographicNode=$("coordGeographic"),utmNode=$("coordUtm");
+ if(!geographicNode||!utmNode||!latlng)return;
  const lat=Number(latlng.lat),lon=Number(latlng.lng);
  if(!Number.isFinite(lat)||!Number.isFinite(lon))return;
  geographicNode.textContent=lat.toFixed(6)+", "+lon.toFixed(6);
+ try{
+  const xy=projectCoords("EPSG:4326","EPSG:32638",[lon,lat]);
+  utmNode.textContent=Array.isArray(xy)&&xy.length>=2&&xy.every(Number.isFinite)
+   ?"E "+xy[0].toFixed(2)+" m · N "+xy[1].toFixed(2)+" m"
+   :"UTM unavailable";
+ }catch(err){
+  utmNode.textContent="UTM unavailable";
+  console.debug("UTM coordinate unavailable.",err);
+ }
 }
 map.on("mousemove",e=>updateCoordinateStatus(e.latlng));
 map.on("moveend",()=>updateCoordinateStatus(map.getCenter()));
