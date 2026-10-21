@@ -1641,9 +1641,15 @@ function clearMultiSelection(){
   updateMultiSelectionUI();
 }
 function toggleMultiSelection(layer){
-  if(selectedFeatures.has(layer))selectedFeatures.delete(layer);
+  const wasSelected=selectedFeatures.has(layer);
+  if(wasSelected)selectedFeatures.delete(layer);
   else selectedFeatures.add(layer);
-  selectedLayer=layer;
+  if(!wasSelected){
+    selectedLayer=layer;
+  }else{
+    if(selectedLayer===layer)selectedLayer=[...selectedFeatures].pop()||null;
+    if(selectedOverlay===layer)selectedOverlay=null;
+  }
   updateMultiSelectionUI();
   renderAttributeEditor();
 }
