@@ -856,7 +856,17 @@ function startEditing(item=null){
     else if(idx>=0)sel.value=String(idx);
   }
   const value=sel?.value||"drawn";
-  editTarget=value==="drawn"?drawn:(namedLayers[Number(value)]?.layer||drawn);
+  const requestedTarget=value==="drawn"?drawn:(namedLayers[Number(value)]?.layer||drawn);
+  if(editSessionActive&&editTarget===requestedTarget){
+    updateEditorToolbar();
+    status("Edit session is already active for "+(value==="drawn"?"My Drawings":namedLayers[Number(value)]?.name||"selected layer")+".");
+    return;
+  }
+  if(editSessionActive){
+    status("Stop the current edit session before switching targets.");
+    return;
+  }
+  editTarget=requestedTarget;
   recordUndoState();
   editSessionActive=true;
   updateEditorToolbar();
@@ -937,12 +947,33 @@ function applyHistorySnapshot(source,destination,message){
     return;
   }
   if(!source.length){status("There is no "+message.toLowerCase()+" history.");return;}
-  const current=JSON.parse(JSON.stringify(serializeProject()));
-  destination.push(current);
-  const snapshot=source.pop();
-  historyRestoring=true;
-  try{restoreProject(snapshot,true);}
-  finally{historyRestoring=false;updateUndoButtons();}
+  let current,snapshot;
+  try{
+    current=JSON.parse(JSON.stringify(serializeProject()));
+    snapshot=source[source.length-1];
+  }catch(err){
+    status(message+" unavailable: could not prepare a history snapshot.");
+    console.warn("Could not prepare edit history snapshot:",err);
+    return;
+  }
+  if(!snapshot){status("There is no "+message.toLowerCase()+" history.");return;}
+  try{
+    historyRestoring=true;
+    if(restoreProject(snapshot,true)===false){
+      status(message+" cancelled: the saved project snapshot is invalid.");
+      return;
+    }
+    source.pop();
+    destination.push(current);
+    if(destination.length>40)destination.shift();
+  }catch(err){
+    console.error("Could not restore edit history snapshot:",err);
+    status(message+" failed; check the map before continuing.");
+    return;
+  }finally{
+    historyRestoring=false;
+    updateUndoButtons();
+  }
   scheduleAutoSave();status(message+" applied.");
 }
 function undoMapEdit(){applyHistorySnapshot(undoStack,redoStack,"Undo");}
