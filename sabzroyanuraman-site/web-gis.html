@@ -4928,10 +4928,7 @@ function nearestMatchTool(){
     if(best&&(!maxDistance||bestD<=maxDistance)){
       const props=t.feature.properties||{};
       const sourceId=best.properties?._webgis_id??best.properties?.OBJECTID??best.properties?.objectid??best.properties?.id??"";
-      // Do not overwrite target identity fields if a dataset happens to use these names.
-      const patch={};
-      if(!["id","fid","objectid","object_id","globalid","global_id"].includes("nearest_id"))patch.nearest_id=sourceId;
-      if(!["id","fid","objectid","object_id","globalid","global_id"].includes("nearest_distance_m"))patch.nearest_distance_m=Number(bestD.toFixed(3));
+      const patch={nearest_id:sourceId,nearest_distance_m:Number(bestD.toFixed(3))};
       if(Object.keys(patch).some(k=>props[k]!==patch[k]))updates.push({t,patch,distance:bestD});
     }
   });
