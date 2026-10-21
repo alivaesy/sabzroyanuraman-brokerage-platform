@@ -2061,6 +2061,17 @@ $("saveTableEdits").onclick=()=>{
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before saving table changes.");return}
  if($("attributeLayer").value===""){status("Select a feature layer.");return}
  const items=currentAttributeItems(),table=$("attributeTableWrap"),changes=[];
+ // GeoJSON has no formal field schema. Infer a field's type from existing
+ // non-empty values so editing a previously-missing cell does not silently
+ // turn numeric, boolean, or JSON fields into strings.
+ const fieldTypes={};
+ tableKeys(items).forEach(key=>{
+  const values=items.map(item=>item.feature.properties?.[key]).filter(v=>v!==null&&v!==undefined&&v!=="");
+  if(values.length&&values.every(v=>typeof v==="number"&&Number.isFinite(v)))fieldTypes[key]="number";
+  else if(values.length&&values.every(v=>typeof v==="boolean"))fieldTypes[key]="boolean";
+  else if(values.length&&values.every(v=>typeof v==="object"))fieldTypes[key]="object";
+  else fieldTypes[key]="string";
+ });
  try{
   table.querySelectorAll("tbody tr").forEach(row=>{
    const item=items[Number(row.dataset.index)];if(!item)return;
@@ -2072,14 +2083,15 @@ $("saveTableEdits").onclick=()=>{
     // missing property or null rather than an empty string.
     if(raw===inp.dataset.original)return;
     let value=raw;
-    if(typeof oldValue==="number"){
+    const valueType=oldValue===null||oldValue===undefined||oldValue===""?fieldTypes[key]:(typeof oldValue==="object"?"object":typeof oldValue);
+    if(valueType==="number"){
      if(raw.trim()==="")value=null;
      else if(!Number.isFinite(Number(raw)))throw new Error("Field '"+key+"' requires a valid number.");
      else value=Number(raw);
-    }else if(typeof oldValue==="boolean"){
+    }else if(valueType==="boolean"){
      if(!/^(true|false)$/i.test(raw.trim()))throw new Error("Field '"+key+"' accepts only true or false.");
      value=raw.trim().toLowerCase()==="true";
-    }else if(oldValue!==null&&typeof oldValue==="object"){
+    }else if(valueType==="object"){
      try{value=JSON.parse(raw)}catch(e){throw new Error("Field '"+key+"' requires valid JSON.");}
      if(value===null||typeof value!=="object")throw new Error("Field '"+key+"' must remain a JSON object or array.");
     }else if(oldValue===null){
