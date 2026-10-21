@@ -3875,12 +3875,18 @@ function rotateSelected(){
   const deg=Number(raw);if(!Number.isFinite(deg)){status("Enter a valid rotation angle.");return;}
   if(deg===0){status("Rotation angle is zero.");return;}
   const updates=[];
-  try{rs.forEach(r=>{
-    if(!r.feature.geometry)throw new Error("A selected feature has no geometry.");
-    const c=featureCenterLatLng(r.layer);if(!c)throw new Error("Could not determine a rotation origin.");
-    const rotated=turf.transformRotate(r.feature,deg,{pivot:[c.lng,c.lat]});
-    updates.push({r,geometry:rotated.geometry});
-  });}catch(e){status("Rotation cancelled: "+(e.message||"geometry transform failed"));return;}
+  try{
+    const valid=rs.filter(r=>r.feature?.geometry);
+    if(valid.length!==rs.length)throw new Error("A selected feature has no geometry.");
+    // Rotate a multi-feature selection around one shared extent center, as in ArcMap.
+    const bounds=turf.bbox(turf.featureCollection(valid.map(r=>r.feature)));
+    const pivot=[(bounds[0]+bounds[2])/2,(bounds[1]+bounds[3])/2];
+    if(!pivot.every(Number.isFinite))throw new Error("Could not determine a common rotation origin.");
+    valid.forEach(r=>{
+      const rotated=turf.transformRotate(r.feature,deg,{pivot});
+      updates.push({r,geometry:rotated.geometry});
+    });
+  }catch(e){status("Rotation cancelled: "+(e.message||"geometry transform failed"));return;}
   recordUndoState();
   updates.forEach(x=>{x.r.feature.geometry=x.geometry;});
   rebuildVectorLayerGeometry(updates.map(x=>x.r));refreshAll();
@@ -3894,12 +3900,18 @@ function scaleSelected(){
   if(!Number.isFinite(factor)||factor<=0){status("Scale cancelled: enter a number greater than zero.");return;}
   if(factor===1){status("Scale factor is 1; geometry unchanged.");return;}
   const updates=[];
-  try{rs.forEach(r=>{
-    if(!r.feature.geometry)throw new Error("A selected feature has no geometry.");
-    const c=featureCenterLatLng(r.layer);if(!c)throw new Error("Could not determine a scale origin.");
-    const scaled=turf.transformScale(r.feature,factor,{origin:[c.lng,c.lat]});
-    updates.push({r,geometry:scaled.geometry});
-  });}catch(e){status("Scale cancelled: "+(e.message||"geometry transform failed"));return;}
+  try{
+    const valid=rs.filter(r=>r.feature?.geometry);
+    if(valid.length!==rs.length)throw new Error("A selected feature has no geometry.");
+    // Scale the whole selection around a shared extent center to preserve relative spacing.
+    const bounds=turf.bbox(turf.featureCollection(valid.map(r=>r.feature)));
+    const origin=[(bounds[0]+bounds[2])/2,(bounds[1]+bounds[3])/2];
+    if(!origin.every(Number.isFinite))throw new Error("Could not determine a common scale origin.");
+    valid.forEach(r=>{
+      const scaled=turf.transformScale(r.feature,factor,{origin});
+      updates.push({r,geometry:scaled.geometry});
+    });
+  }catch(e){status("Scale cancelled: "+(e.message||"geometry transform failed"));return;}
   recordUndoState();
   updates.forEach(x=>{x.r.feature.geometry=x.geometry;});
   rebuildVectorLayerGeometry(updates.map(x=>x.r));refreshAll();
