@@ -585,6 +585,7 @@ body{background:#dfe5e8;color:#173b57}
         <div class="row"><button class="action" id="openTable">Open Attribute Table</button><button class="action secondary" id="selectFiltered">Select Filtered Records</button></div>
         <div class="attr-toolbar">
           <button class="action secondary" id="addTableField">+ Field</button>
+          <button class="action secondary" id="deleteTableField">− Field</button>
           <button class="action secondary" id="deleteSelectedRows">Delete Selected Rows</button>
           <button class="action secondary" id="copySelectedRows">Copy Rows</button>
           <button class="action secondary" id="pasteRows">Paste Rows</button>
@@ -820,7 +821,7 @@ function stopActiveDraw(cancel=true){
 function updateEditorToolbar(){
   $("startEditingBtn").disabled=editSessionActive;
   $("saveEditsBtn").disabled=!editSessionActive;
-  ["saveTableEdits","addTableField","deleteSelectedRows","fillSelected"].forEach(id=>{const b=$(id);if(b)b.disabled=!editSessionActive});
+  ["saveTableEdits","addTableField","deleteTableField","deleteSelectedRows","fillSelected"].forEach(id=>{const b=$(id);if(b)b.disabled=!editSessionActive});
   $("stopEditingBtn").disabled=!editSessionActive;
   $("editTargetLayer").disabled=editSessionActive;
   document.querySelectorAll("[data-editor-draw]").forEach(b=>{b.disabled=false;b.title=editSessionActive?"Create "+(b.getAttribute("aria-label")||"feature"):"Create "+(b.getAttribute("aria-label")||"feature")+" (starts editing automatically)";});
@@ -2066,6 +2067,23 @@ $("addTableField").onclick=()=>{
  recordUndoState();
  items.forEach(x=>{ensureFeatureProperties(x.layer);x.feature.properties[key]="";updateFeaturePopup(x.layer);});
  renderEditableTable();scheduleAutoSave();status("Field '"+key+"' added to "+items.length+" feature(s).");
+};
+
+$("deleteTableField").onclick=()=>{
+ if(hasUnsavedTableEdits()){status("Save Table Edits before deleting a field; unsaved cell values have been preserved.");return}
+ if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before changing its table.");return}
+ const layer=currentAttributeLayer(),items=currentAttributeItems();
+ if(!layer||!items.length){status("Select a feature layer containing records.");return}
+ const fields=tableKeys(items).filter(key=>!key.startsWith("_")&&key!=="geometry");
+ if(!fields.length){status("There are no deletable attribute fields. Internal fields are protected.");return}
+ const key=prompt("Enter the exact field name to delete:\n"+fields.join(", "),fields[0]);
+ if(key===null)return;
+ if(!fields.includes(key)){status("Field not found or protected. Choose one of: "+fields.join(", "));return}
+ if(!confirm("Permanently remove field '"+key+"' from "+items.length+" feature(s) in this edit session?"))return;
+ recordUndoState();
+ items.forEach(item=>{if(item.feature.properties)delete item.feature.properties[key];updateFeaturePopup(item.layer)});
+ if(attributeSort.key===key)attributeSort={key:null,direction:1};
+ renderEditableTable();scheduleAutoSave();status("Field '"+key+"' deleted from "+items.length+" feature(s). Use Undo to reverse this change.");
 };
 $("saveTableEdits").onclick=()=>{
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before saving table changes.");return}
