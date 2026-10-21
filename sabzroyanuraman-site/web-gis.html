@@ -3644,9 +3644,28 @@ function excelImport(){
   }catch(e){status("Spreadsheet import failed: "+e.message+" Try saving it as CSV.");}};input.click();
 }
 function searchFeature(){
-  const q=prompt("Search feature ID or attribute value:","");if(q===null)return;const s=q.toLowerCase();
-  const r=getFeatureRecords().find(x=>Object.values(x.feature.properties||{}).some(v=>String(v).toLowerCase().includes(s)));
-  if(r){selectedFeatures.clear();selectedFeatures.add(r.layer);applySelectionVisual();if(r.layer.getBounds)map.fitBounds(r.layer.getBounds(),{padding:[30,30]});else if(r.layer.getLatLng)map.setView(r.layer.getLatLng(),17);status("Feature found.");}else status("No matching feature found.");
+  const q=prompt("Search feature ID or attribute value (partial, case-insensitive):","");if(q===null)return;
+  const query=q.trim().toLocaleLowerCase();
+  if(!query){status("Enter a search value.");return}
+  const records=getFeatureRecords();
+  const matches=records.filter(x=>Object.entries(x.feature.properties||{}).some(([k,v])=>
+    !isReservedAttributeField(k)&&String(v??"").toLocaleLowerCase().includes(query)
+  ));
+  if(!matches.length){status("No matching features found.");return}
+  selectedFeatures.clear();
+  matches.forEach(x=>selectedFeatures.add(x.layer));
+  const first=matches[0];selectedLayer=first.layer;selectedOverlay=null;
+  applySelectionVisual();
+  const validBounds=matches.map(x=>x.layer).filter(l=>l&&typeof l.getBounds==="function").map(l=>l.getBounds()).filter(b=>b&&b.isValid&&b.isValid());
+  if(validBounds.length){
+    const group=L.featureGroup(matches.map(x=>x.layer).filter(l=>l&&typeof l.getBounds==="function"));
+    if(group.getBounds().isValid())map.fitBounds(group.getBounds(),{padding:[30,30],maxZoom:17});
+  }else{
+    const point=matches.find(x=>x.layer&&typeof x.layer.getLatLng==="function");
+    if(point)map.setView(point.layer.getLatLng(),17);
+  }
+  if(typeof renderAttributeEditor==="function")renderAttributeEditor();
+  status(matches.length+" matching feature(s) selected.");
 }
 function addBookmark(){
   const name=prompt("Bookmark name:","Current Extent");if(!name)return;
