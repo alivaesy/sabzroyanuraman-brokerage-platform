@@ -3098,6 +3098,8 @@ function selectByLocation(){
     if(ok)matches.push(v.layer);
   });
   selectedFeatures.clear();matches.forEach(layer=>selectedFeatures.add(layer));
+  selectedLayer=matches[0]||null;selectedOverlay=null;
+  if(selectedLayer)renderAttributeEditor();else{const editor=$("attributeEditor");if(editor)editor.style.display="none";}
   applySelectionVisual();
   status(matches.length+" feature(s) selected from '"+items[ai].name+"' using "+relation+" against '"+items[bi].name+"'.");
 }
@@ -3141,6 +3143,8 @@ function selectWithinDistance(){
     const d=featureDistanceMeters(r.feature,ref.feature);
     if(d<=meters)selectedFeatures.add(r.layer);
   });
+  const first=records.find(r=>selectedFeatures.has(r.layer));selectedLayer=first?.layer||null;selectedOverlay=null;
+  if(selectedLayer)renderAttributeEditor();else{const editor=$("attributeEditor");if(editor)editor.style.display="none";}
   applySelectionVisual();
   $("professionalToolOutput").textContent=selectedFeatures.size+" feature(s) selected within "+meters+" m of the reference geometry.";
   status(selectedFeatures.size+" features selected within "+meters+" meters.");
@@ -3221,7 +3225,7 @@ function selectByAttribute(){
   matched.forEach(r=>selectedFeatures.add(r.layer));
   const first=allRecords.find(r=>selectedFeatures.has(r.layer));
   selectedLayer=first?.layer||null;selectedOverlay=null;
-  if(!selectedLayer){const editor=$("attributeEditor");if(editor)editor.style.display="none";}
+  if(selectedLayer)renderAttributeEditor();else{const editor=$("attributeEditor");if(editor)editor.style.display="none";}
   applySelectionVisual();
   status(matched.length+" feature(s) selected in "+target.name+" by attribute query: "+field+" "+op+" "+val+".");
 }
