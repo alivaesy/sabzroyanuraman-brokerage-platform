@@ -1374,7 +1374,7 @@ function goToXY(){
       const sourceCRS=system.value==="utm"?utmEpsg(Number(utmZone.value),utmHemisphere.value==="N"):currentCRS;
       if(system.value==="utm"&&(!Number.isInteger(Number(utmZone.value))||Number(utmZone.value)<1||Number(utmZone.value)>60))throw new Error("UTM zone must be between 1 and 60.");
       ll=sourceCRS==="EPSG:4326"?[x,y]:projectCoords(sourceCRS,"EPSG:4326",[x,y]);
-      if(!Array.isArray(ll)||ll.length<2||!ll.slice(0,2).every(Number.isFinite))throw new Error("The coordinates could not be converted from "+currentCRS+".");
+      if(!Array.isArray(ll)||ll.length<2||!ll.slice(0,2).every(Number.isFinite))throw new Error("The coordinates could not be converted from "+sourceCRS+".");
       if(ll[0] < -180 || ll[0] > 180 || ll[1] < -90 || ll[1] > 90)throw new Error("The coordinates fall outside the valid geographic range. Check the selected coordinate system.");
     }
     return L.latLng(ll[1],ll[0]);
