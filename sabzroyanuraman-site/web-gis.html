@@ -3162,24 +3162,34 @@ function featureDistanceMeters(a,b){
   return best;
 }
 function selectWithinDistance(){
-  const raw=prompt("Maximum distance from the selected reference feature (meters):","5");
+  const raw=prompt("Maximum distance from selected reference feature(s), in meters:","5");
   if(raw===null)return;
   const meters=Number(raw);
-  if(!Number.isFinite(meters)||meters<0){status("Enter a valid non-negative distance.");return;}
-  const ref=selectedRecords()[0];
-  if(!ref){status("Select a reference feature first.");return;}
-  const records=getFeatureRecords();
-  selectedFeatures.clear();
+  if(!Number.isFinite(meters)||meters<0){status("Enter a valid non-negative distance.");return}
+  const refs=selectedRecords().filter(r=>r.feature?.geometry);
+  if(!refs.length){status("Select one or more reference features first.");return}
+  const modeInput=prompt("Selection mode:\n1 = New selection\n2 = Add to current selection\n3 = Remove from current selection\n4 = Select from current selection","1");
+  if(modeInput===null)return;
+  const mode=modeInput.trim();
+  if(!["1","2","3","4"].includes(mode)){status("Choose selection mode 1, 2, 3, or 4.");return}
+  const records=getFeatureRecords(),previous=new Set(selectedFeatures),matches=new Set();
   records.forEach(r=>{
-    if(r.layer===ref.layer){selectedFeatures.add(r.layer);return;}
-    const d=featureDistanceMeters(r.feature,ref.feature);
-    if(d<=meters)selectedFeatures.add(r.layer);
+    if(mode==="4"&&!previous.has(r.layer))return;
+    const near=refs.some(ref=>{
+      if(r.layer===ref.layer)return true;
+      const d=featureDistanceMeters(r.feature,ref.feature);
+      return Number.isFinite(d)&&d<=meters;
+    });
+    if(near)matches.add(r.layer);
   });
+  if(mode==="1")selectedFeatures.clear();
+  if(mode==="3")matches.forEach(layer=>selectedFeatures.delete(layer));
+  else matches.forEach(layer=>selectedFeatures.add(layer));
   const first=records.find(r=>selectedFeatures.has(r.layer));selectedLayer=first?.layer||null;selectedOverlay=null;
   if(selectedLayer)renderAttributeEditor();else{const editor=$("attributeEditor");if(editor)editor.style.display="none";}
   applySelectionVisual();
-  $("professionalToolOutput").textContent=selectedFeatures.size+" feature(s) selected within "+meters+" m of the reference geometry.";
-  status(selectedFeatures.size+" features selected within "+meters+" meters.");
+  $("professionalToolOutput").textContent=selectedFeatures.size+" feature(s) selected within "+meters+" m of "+refs.length+" reference feature(s).";
+  status(selectedFeatures.size+" features selected by distance ("+({1:"new",2:"added",3:"removed",4:"current selection filtered"}[mode])+").");
 }
 
 
