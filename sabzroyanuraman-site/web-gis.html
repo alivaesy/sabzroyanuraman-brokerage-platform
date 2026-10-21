@@ -3389,28 +3389,45 @@ function featureCenterLatLng(layer){
   }catch(e){}
   return null;
 }
+function shapeSelectionMode(){
+ const raw=prompt("Selection type:\\n1 = New selection\\n2 = Add to current selection\\n3 = Remove from current selection\\n4 = Select from current selection","1");
+ if(raw===null)return null;
+ const mode=raw.trim();
+ if(!["1","2","3","4"].includes(mode)){status("Choose selection mode 1, 2, 3, or 4.");return null;}
+ return mode;
+}
+function finishShapeSelection(matches,records,mode,label){
+ if(mode==="1")selectedFeatures.clear();
+ if(mode==="3")matches.forEach(layer=>selectedFeatures.delete(layer));
+ else if(mode==="4"){
+  const current=new Set(selectedFeatures);
+  selectedFeatures.clear();
+  matches.forEach(layer=>{if(current.has(layer))selectedFeatures.add(layer);});
+ }else matches.forEach(layer=>selectedFeatures.add(layer));
+ const first=records.find(r=>selectedFeatures.has(r.layer));
+ selectedLayer=first?.layer||null;selectedOverlay=null;
+ if(!selectedLayer){const editor=$("attributeEditor");if(editor)editor.style.display="none";}
+ applySelectionVisual();if(selectedLayer)renderAttributeEditor();
+ status(selectedFeatures.size+" features selected"+(label?" "+label:"")+".");
+}
 function selectByRectangle(){
+ const mode=shapeSelectionMode();if(mode===null)return;
  status("Drag a rectangle to select features.");
  startSelectionShape("Rectangle",{shapeOptions:{color:"#1683c4",weight:2,dashArray:"5,4"}},shape=>{
-   const polygon=shape.toGeoJSON(),items=allSelectableFeatureLayers();selectedFeatures.clear();
-   const records=items.flatMap(item=>vectorFeatures(item.layer).map(v=>({owner:item,layer:v.layer,feature:v.feature})));
-   records.forEach(r=>{try{if(turf.booleanIntersects(r.feature,polygon))selectedFeatures.add(r.layer)}catch(_){}});
-   const first=records.find(r=>selectedFeatures.has(r.layer));
-   selectedLayer=first?.layer||null;selectedOverlay=null;
-   if(!selectedLayer){const editor=$("attributeEditor");if(editor)editor.style.display="none";}
-   applySelectionVisual();if(selectedLayer)renderAttributeEditor();status(selectedFeatures.size+" features selected.");
+  const polygon=shape.toGeoJSON(),items=allSelectableFeatureLayers();
+  const records=items.flatMap(item=>vectorFeatures(item.layer).map(v=>({owner:item,layer:v.layer,feature:v.feature}))),matches=new Set();
+  records.forEach(r=>{try{if(turf.booleanIntersects(r.feature,polygon))matches.add(r.layer)}catch(_){}});
+  finishShapeSelection(matches,records,mode,"by rectangle");
  });
 }
 function selectByPolygon(){
+ const mode=shapeSelectionMode();if(mode===null)return;
  status("Draw a polygon to select features.");
  startSelectionShape("Polygon",{allowIntersection:false,shapeOptions:{color:"#1683c4",weight:2,dashArray:"5,4"}},shape=>{
-   const polygon=shape.toGeoJSON(),items=allSelectableFeatureLayers();selectedFeatures.clear();
-   const records=items.flatMap(item=>vectorFeatures(item.layer).map(v=>({owner:item,layer:v.layer,feature:v.feature})));
-   records.forEach(r=>{try{if(turf.booleanIntersects(r.feature,polygon))selectedFeatures.add(r.layer)}catch(_){}});
-   const first=records.find(r=>selectedFeatures.has(r.layer));
-   selectedLayer=first?.layer||null;selectedOverlay=null;
-   if(!selectedLayer){const editor=$("attributeEditor");if(editor)editor.style.display="none";}
-   applySelectionVisual();if(selectedLayer)renderAttributeEditor();status(selectedFeatures.size+" features selected.");
+  const polygon=shape.toGeoJSON(),items=allSelectableFeatureLayers();
+  const records=items.flatMap(item=>vectorFeatures(item.layer).map(v=>({owner:item,layer:v.layer,feature:v.feature}))),matches=new Set();
+  records.forEach(r=>{try{if(turf.booleanIntersects(r.feature,polygon))matches.add(r.layer)}catch(_){}});
+  finishShapeSelection(matches,records,mode,"by polygon");
  });
 }
 function selectByLocation(){
@@ -3562,14 +3579,12 @@ function invertSelection(){
   applySelectionVisual();if(selectedLayer)renderAttributeEditor(); status(selectedFeatures.size+" features selected.");
 }
 function selectByLasso(){
+ const mode=shapeSelectionMode();if(mode===null)return;
  status("Draw a freehand selection polygon.");
  startSelectionShape("Polygon",{allowIntersection:false,shapeOptions:{color:"#8e44ad",weight:2,dashArray:"5,4"}},shape=>{
-   const polygon=shape.toGeoJSON(),records=getFeatureRecords();selectedFeatures.clear();
-   records.forEach(r=>{try{if(turf.booleanIntersects(r.feature,polygon))selectedFeatures.add(r.layer)}catch(_){}});
-   const first=records.find(r=>selectedFeatures.has(r.layer));
-   selectedLayer=first?.layer||null;selectedOverlay=null;
-   if(!selectedLayer){const editor=$("attributeEditor");if(editor)editor.style.display="none";}
-   applySelectionVisual();if(selectedLayer)renderAttributeEditor();status(selectedFeatures.size+" features selected by lasso.");
+  const polygon=shape.toGeoJSON(),records=getFeatureRecords(),matches=new Set();
+  records.forEach(r=>{try{if(turf.booleanIntersects(r.feature,polygon))matches.add(r.layer)}catch(_){}});
+  finishShapeSelection(matches,records,mode,"by lasso");
  });
 }
 function selectByAttribute(){
