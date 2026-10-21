@@ -965,13 +965,21 @@ function updateExtentButtons(){
   if(b)b.disabled=mapExtentIndex<=0;
   if(n)n.disabled=mapExtentIndex<0||mapExtentIndex>=mapExtentHistory.length-1;
 }
+function pushUndoSnapshot(snapshot){
+  if(!snapshot)return false;
+  const last=undoStack[undoStack.length-1];
+  // Avoid duplicate checkpoints when a command and its editor both record the
+  // same pre-edit state (common with attribute and vertex editing).
+  if(last&&JSON.stringify(last)===JSON.stringify(snapshot))return false;
+  undoStack.push(snapshot);
+  if(undoStack.length>40)undoStack.shift();
+  redoStack.length=0;updateUndoButtons();
+  return true;
+}
 function recordUndoState(){
   if(historyRestoring)return;
-  try{
-    const snapshot=JSON.parse(JSON.stringify(serializeProject()));
-    undoStack.push(snapshot);if(undoStack.length>40)undoStack.shift();
-    redoStack.length=0;updateUndoButtons();
-  }catch(err){console.warn("Could not create edit history snapshot:",err);}
+  try{pushUndoSnapshot(JSON.parse(JSON.stringify(serializeProject())));}
+  catch(err){console.warn("Could not create edit history snapshot:",err);}
 }
 function applyHistorySnapshot(source,destination,message){
   if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){
@@ -983,12 +991,21 @@ function applyHistorySnapshot(source,destination,message){
     return;
   }
   if(!source.length){status("There is no "+message.toLowerCase()+" history.");return;}
-  const current=JSON.parse(JSON.stringify(serializeProject()));
-  destination.push(current);
-  const snapshot=source.pop();
-  historyRestoring=true;
-  try{restoreProject(snapshot,true);}
-  finally{historyRestoring=false;updateUndoButtons();}
+  let current,snapshot;
+  try{
+    current=JSON.parse(JSON.stringify(serializeProject()));
+    snapshot=source[source.length-1];
+    historyRestoring=true;
+    restoreProject(snapshot,true);
+    source.pop();
+    destination.push(current);
+  }catch(err){
+    console.error(message+" failed:",err);
+    status(message+" failed; history checkpoint was retained.");
+    return;
+  }finally{
+    historyRestoring=false;updateUndoButtons();
+  }
   scheduleAutoSave();status(message+" applied.");
 }
 function undoMapEdit(){applyHistorySnapshot(undoStack,redoStack,"Undo");}
@@ -3597,8 +3614,7 @@ function stopVertexEditing(){
       }catch(err){console.warn("Could not finalize vertex geometry",err)}
     });
     if(geometryChanged&&baseline&&!historyRestoring){
-      undoStack.push(baseline);if(undoStack.length>40)undoStack.shift();
-      redoStack.length=0;updateUndoButtons();
+      pushUndoSnapshot(baseline);
       refreshAll();scheduleAutoSave();
       status("Vertex edits finalized and added to Undo history.");
     }
