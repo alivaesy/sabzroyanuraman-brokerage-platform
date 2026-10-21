@@ -3748,7 +3748,29 @@ function groupLayers(){
   const name=prompt("Group name:","Layer Group");if(!name)return;
   namedLayers.push({name,layer:group});layerControl.addOverlay(group,name);renderLayerList();refreshAttributeLayers();status("Layer group created.");
 }
-function gridToggle(){if(window._gridLayer){map.removeLayer(window._gridLayer);window._gridLayer=null;status("Editor grid hidden.");return;}const b=map.getBounds(),z=map.getZoom(),step=z>15?.001:z>12?.01:.1;const lines=[];for(let x=Math.floor(b.getWest()/step)*step;x<=b.getEast();x+=step)lines.push([[b.getSouth(),x],[b.getNorth(),x]]);for(let y=Math.floor(b.getSouth()/step)*step;y<=b.getNorth();y+=step)lines.push([[y,b.getWest()],[y,b.getEast()]]);window._gridLayer=L.polyline(lines,{color:"#7f8c8d",weight:.5,opacity:.45}).addTo(map);status("Editor grid enabled.");}
+function gridToggle(){
+  if(window._gridLayer){
+    map.off("moveend zoomend",window._gridRefreshHandler);
+    window._gridRefreshHandler=null;map.removeLayer(window._gridLayer);window._gridLayer=null;
+    status("Editor grid hidden.");return;
+  }
+  const refresh=()=>{
+    if(!window._gridLayer)return;
+    const b=map.getBounds(),z=map.getZoom();
+    const step=z>16?.0005:z>14?.002:z>11?.01:.1;
+    const lines=[];
+    const west=Math.floor(b.getWest()/step)*step,east=b.getEast();
+    const south=Math.floor(b.getSouth()/step)*step,north=b.getNorth();
+    // Guard against excessive vertices when the map is zoomed far out.
+    for(let x=west;x<=east&&lines.length<300;x+=step)lines.push([[south,x],[north,x]]);
+    for(let y=south;y<=north&&lines.length<600;y+=step)lines.push([[y,b.getWest()],[y,b.getEast()]]);
+    window._gridLayer.setLatLngs(lines);
+  };
+  window._gridLayer=L.polyline([],{color:"#7f8c8d",weight:.5,opacity:.45,interactive:false}).addTo(map);
+  window._gridRefreshHandler=refresh;
+  map.on("moveend zoomend",refresh);refresh();
+  status("Editor grid enabled; it follows map pan and zoom.");
+}
 function constraintTool(){
   const d=Number(prompt("Vertex snap tolerance in meters (0 disables snapping):",String(window._drawingConstraintMeters||10)));if(!Number.isFinite(d)||d<0)return;
   window._drawingConstraintMeters=d||null;
