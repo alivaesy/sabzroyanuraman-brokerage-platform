@@ -3108,7 +3108,7 @@ function gpxFromFC(fc){
 }
 $("exportGeoJSON").onclick=()=>{download(JSON.stringify(collectGeoJSON(),null,2),"sabz-royan-webgis.geojson","application/geo+json");exportSourceLayer=null};
 $("exportKML").onclick=()=>{download(kmlFromFC(collectGeoJSON()),"sabz-royan-webgis.kml","application/vnd.google-earth.kml+xml");exportSourceLayer=null};
-async function exportKMZ(){
+async async function exportKMZ(){
  try{
   if(typeof JSZip==="undefined")throw new Error("ZIP library unavailable.");
   const fc=collectGeoJSON();if(!fc.features.length)throw new Error("No features to export.");
