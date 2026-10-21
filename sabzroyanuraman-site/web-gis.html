@@ -3604,7 +3604,7 @@ function csvImport(){
     try{
       const rows=parseDelimitedText(await file.text());
       if(rows.length<2){status("The selected table has no data rows.");return}
-      const rawHeaders=rows[0].map((x,i)=>String(x??"").trim().replace(/^\\uFEFF/,""));
+      const rawHeaders=rows[0].map((x,i)=>String(x??"").trim().replace(/^\uFEFF/,""));
       if(rawHeaders.some(x=>!x)){status("Every CSV column needs a header; fill blank header cells and retry.");return}
       const counts=new Map(),headers=rawHeaders.map(h=>{const n=(counts.get(h)||0)+1;counts.set(h,n);return n===1?h:h+"_"+n;});
       const latGuess=headers.findIndex(x=>/^(lat|latitude|y)$/i.test(x));
