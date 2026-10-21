@@ -3819,10 +3819,35 @@ function groupLayers(){
   const name=prompt("Group name:","Layer Group");if(!name)return;
   namedLayers.push({name,layer:group});layerControl.addOverlay(group,name);renderLayerList();refreshAttributeLayers();status("Layer group created.");
 }
-function gridToggle(){if(window._gridLayer){map.removeLayer(window._gridLayer);window._gridLayer=null;status("Editor grid hidden.");return;}const b=map.getBounds(),z=map.getZoom(),step=z>15?.001:z>12?.01:.1;const lines=[];for(let x=Math.floor(b.getWest()/step)*step;x<=b.getEast();x+=step)lines.push([[b.getSouth(),x],[b.getNorth(),x]]);for(let y=Math.floor(b.getSouth()/step)*step;y<=b.getNorth();y+=step)lines.push([[y,b.getWest()],[y,b.getEast()]]);window._gridLayer=L.polyline(lines,{color:"#7f8c8d",weight:.5,opacity:.45}).addTo(map);status("Editor grid enabled.");}
+function redrawEditorGrid(){
+  if(!window._gridLayer||!map)return;
+  const b=map.getBounds(),z=map.getZoom();
+  // Use finer spacing as the user zooms in, keeping the grid useful while panning.
+  const step=z>17?.0001:z>15?.001:z>12?.01:z>9?.1:1;
+  const lines=[];
+  const west=Math.floor(b.getWest()/step)*step,east=Math.ceil(b.getEast()/step)*step;
+  const south=Math.floor(b.getSouth()/step)*step,north=Math.ceil(b.getNorth()/step)*step;
+  for(let x=west;x<=east&&lines.length<500;x+=step)lines.push([[south,x],[north,x]]);
+  for(let y=south;y<=north&&lines.length<1000;y+=step)lines.push([[y,west],[y,east]]);
+  window._gridLayer.setLatLngs(lines);
+}
+function gridToggle(){
+  if(window._gridLayer){
+    map.off("moveend zoomend",redrawEditorGrid);
+    map.removeLayer(window._gridLayer);window._gridLayer=null;
+    status("Editor grid hidden.");return;
+  }
+  window._gridLayer=L.polyline([],{color:"#7f8c8d",weight:.5,opacity:.45,interactive:false}).addTo(map);
+  map.on("moveend zoomend",redrawEditorGrid);redrawEditorGrid();
+  status("Editor grid enabled; it follows map pan and zoom.");
+}
 function constraintTool(){
-  const d=Number(prompt("Vertex snap tolerance in meters (0 disables snapping):",String(window._drawingConstraintMeters||10)));if(!Number.isFinite(d)||d<0)return;
-  window._drawingConstraintMeters=d||null;
+  const raw=prompt("Vertex snap tolerance in meters (0 disables snapping):",String(window._drawingConstraintMeters||10));
+  if(raw===null)return;
+  if(raw.trim()===""){status("Enter a tolerance in meters, or 0 to disable snapping.");return;}
+  const d=Number(raw);
+  if(!Number.isFinite(d)||d<0){status("Snap tolerance must be a non-negative number.");return;}
+  window._drawingConstraintMeters=d===0?null:d;
   status(d?"Drawing vertex snapping enabled within "+d+" m.":"Drawing vertex snapping disabled.");
 }
 function attachmentsTool(){
