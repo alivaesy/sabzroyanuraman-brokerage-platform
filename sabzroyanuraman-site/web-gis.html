@@ -2964,7 +2964,10 @@ function selectFeatureLayerObj(v,add=true){
 }
 function clearSelection(){
   selectedFeatures.clear();
+  selectedLayer=null;
   selectedOverlay=null;
+  const editor=$("attributeEditor");if(editor)editor.style.display="none";
+  const info=$("gisSelectionInfo");if(info)info.textContent="No feature selected";
   applySelectionVisual();
   $("professionalToolOutput").textContent="Selection cleared.";
   status("Selection cleared.");
@@ -2979,16 +2982,24 @@ function featureCenterLatLng(layer){
 function selectByRectangle(){
  status("Drag a rectangle to select features.");
  startSelectionShape("Rectangle",{shapeOptions:{color:"#1683c4",weight:2,dashArray:"5,4"}},shape=>{
-   const polygon=shape.toGeoJSON();selectedFeatures.clear();
-   allSelectableFeatureLayers().forEach(item=>vectorFeatures(item.layer).forEach(v=>{try{if(turf.booleanIntersects(v.feature,polygon))selectedFeatures.add(v.layer)}catch(_){}}));
+   const polygon=shape.toGeoJSON(),items=allSelectableFeatureLayers();selectedFeatures.clear();
+   const records=items.flatMap(item=>vectorFeatures(item.layer).map(v=>({owner:item,layer:v.layer,feature:v.feature})));
+   records.forEach(r=>{try{if(turf.booleanIntersects(r.feature,polygon))selectedFeatures.add(r.layer)}catch(_){}});
+   const first=records.find(r=>selectedFeatures.has(r.layer));
+   selectedLayer=first?.layer||null;selectedOverlay=null;
+   if(!selectedLayer){const editor=$("attributeEditor");if(editor)editor.style.display="none";}
    applySelectionVisual();status(selectedFeatures.size+" features selected.");
  });
 }
 function selectByPolygon(){
  status("Draw a polygon to select features.");
  startSelectionShape("Polygon",{allowIntersection:false,shapeOptions:{color:"#1683c4",weight:2,dashArray:"5,4"}},shape=>{
-   const polygon=shape.toGeoJSON();selectedFeatures.clear();
-   allSelectableFeatureLayers().forEach(item=>vectorFeatures(item.layer).forEach(v=>{try{if(turf.booleanIntersects(v.feature,polygon))selectedFeatures.add(v.layer)}catch(_){}}));
+   const polygon=shape.toGeoJSON(),items=allSelectableFeatureLayers();selectedFeatures.clear();
+   const records=items.flatMap(item=>vectorFeatures(item.layer).map(v=>({owner:item,layer:v.layer,feature:v.feature})));
+   records.forEach(r=>{try{if(turf.booleanIntersects(r.feature,polygon))selectedFeatures.add(r.layer)}catch(_){}});
+   const first=records.find(r=>selectedFeatures.has(r.layer));
+   selectedLayer=first?.layer||null;selectedOverlay=null;
+   if(!selectedLayer){const editor=$("attributeEditor");if(editor)editor.style.display="none";}
    applySelectionVisual();status(selectedFeatures.size+" features selected.");
  });
 }
@@ -3084,15 +3095,21 @@ function zoomToSelection(){
   const g=L.featureGroup(ls); map.fitBounds(g.getBounds(),{padding:[30,30]});
 }
 function invertSelection(){
-  const all=getFeatureRecords().map(r=>r.layer), old=new Set(selectedFeatures);
-  selectedFeatures.clear(); all.forEach(l=>{if(!old.has(l))selectedFeatures.add(l);});
+  const all=getFeatureRecords(),layers=all.map(r=>r.layer),old=new Set(selectedFeatures);
+  selectedFeatures.clear(); layers.forEach(layer=>{if(!old.has(layer))selectedFeatures.add(layer);});
+  const first=all.find(r=>selectedFeatures.has(r.layer));
+  selectedLayer=first?.layer||null;selectedOverlay=null;
+  if(!selectedLayer){const editor=$("attributeEditor");if(editor)editor.style.display="none";}
   applySelectionVisual(); status(selectedFeatures.size+" features selected.");
 }
 function selectByLasso(){
  status("Draw a freehand selection polygon.");
  startSelectionShape("Polygon",{allowIntersection:false,shapeOptions:{color:"#8e44ad",weight:2,dashArray:"5,4"}},shape=>{
-   const polygon=shape.toGeoJSON();selectedFeatures.clear();
-   getFeatureRecords().forEach(r=>{try{if(turf.booleanIntersects(r.feature,polygon))selectedFeatures.add(r.layer)}catch(_){}});
+   const polygon=shape.toGeoJSON(),records=getFeatureRecords();selectedFeatures.clear();
+   records.forEach(r=>{try{if(turf.booleanIntersects(r.feature,polygon))selectedFeatures.add(r.layer)}catch(_){}});
+   const first=records.find(r=>selectedFeatures.has(r.layer));
+   selectedLayer=first?.layer||null;selectedOverlay=null;
+   if(!selectedLayer){const editor=$("attributeEditor");if(editor)editor.style.display="none";}
    applySelectionVisual();status(selectedFeatures.size+" features selected by lasso.");
  });
 }
@@ -3135,10 +3152,11 @@ function selectByAttribute(){
     return op===">"?n>numericNeedle:op===">="?n>=numericNeedle:op==="<"?n<numericNeedle:n<=numericNeedle;
   };
   const matched=records.filter(matches);
-  // Attribute selection is layer-scoped, as in ArcMap: replace the selection
-  // for the chosen layer without discarding selections on other layers.
   records.forEach(r=>selectedFeatures.delete(r.layer));
   matched.forEach(r=>selectedFeatures.add(r.layer));
+  const first=allRecords.find(r=>selectedFeatures.has(r.layer));
+  selectedLayer=first?.layer||null;selectedOverlay=null;
+  if(!selectedLayer){const editor=$("attributeEditor");if(editor)editor.style.display="none";}
   applySelectionVisual();
   status(matched.length+" feature(s) selected in "+target.name+" by attribute query: "+field+" "+op+" "+val+".");
 }
