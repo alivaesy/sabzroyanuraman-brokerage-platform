@@ -3387,16 +3387,21 @@ function advancedSnap(){
   snapTool();
 }
 function spatialFilter(){
-  const rs=getFeatureRecords(); const type=prompt("Spatial relationship: intersects / within / contains / touches / overlaps / crosses","intersects");
-  if(!type)return; const ref=selectedRecords()[0]; if(!ref){status("Select a reference feature first.");return;}
+  const rs=getFeatureRecords();
+  const typeInput=prompt("Spatial relationship: intersects / within / contains / touches / overlaps / crosses","intersects");
+  if(typeInput===null)return;
+  const type=typeInput.trim().toLowerCase();
+  const relationships={intersects:"booleanIntersects",within:"booleanWithin",contains:"booleanContains",touches:"booleanTouches",overlaps:"booleanOverlap",crosses:"booleanCrosses"};
+  if(!Object.prototype.hasOwnProperty.call(relationships,type)){status("Unsupported spatial relationship. Choose intersects, within, contains, touches, overlaps, or crosses.");return;}
+  const ref=selectedRecords()[0]; if(!ref){status("Select a reference feature first.");return;}
   selectedFeatures.clear();
   rs.forEach(r=>{try{
-    const a=r.feature,b=ref.feature; let ok=false;
-    if(type==="within")ok=turf.booleanWithin(a,b); else if(type==="contains")ok=turf.booleanContains(a,b);
-    else if(type==="touches")ok=turf.booleanTouches(a,b); else if(type==="overlaps")ok=turf.booleanOverlap(a,b);
-    else if(type==="crosses")ok=turf.booleanCrosses(a,b); else ok=turf.booleanIntersects(a,b);
-    if(ok)selectedFeatures.add(r.layer);
+    const predicate=turf[relationships[type]];
+    if(typeof predicate==="function"&&predicate(r.feature,ref.feature))selectedFeatures.add(r.layer);
   }catch(_){}});
+  const first=[...selectedFeatures].map(layer=>rs.find(r=>r.layer===layer)).find(Boolean);
+  selectedLayer=first?.layer||null;
+  selectedOverlay=null;
   applySelectionVisual(); status(selectedFeatures.size+" features selected by spatial filter.");
 }
 function joinWizard(){
@@ -3407,6 +3412,10 @@ function joinWizard(){
   const si=Number(siRaw)-1,ti=Number(tiRaw)-1;
   if(!Number.isInteger(si)||!Number.isInteger(ti)||si===ti||!namedLayers[si]||!namedLayers[ti]){status("Choose two different valid layers.");return}
   const source=namedLayers[si],target=namedLayers[ti];
+  if(!editSessionActive||editTarget!==target.layer){
+    status("Start Editing on the target layer before applying the attribute join. No features were changed.");
+    return;
+  }
   const sourceRows=getFeatureRecords().filter(r=>r.owner?.layer===source.layer),targetRows=getFeatureRecords().filter(r=>r.owner?.layer===target.layer);
   if(!sourceRows.length||!targetRows.length){status("Both selected layers must contain features.");return}
   const sourceFields=[...new Set(sourceRows.flatMap(r=>Object.keys(r.feature.properties||{})))],targetFields=[...new Set(targetRows.flatMap(r=>Object.keys(r.feature.properties||{})) )];
@@ -3810,14 +3819,18 @@ function ringArea(r){
 function geometryMetrics(g){
   const p=geometryProjected(g); if(!p)return {length:0,area:0};
   let length=0,area=0;
+  function polygonArea(rings){
+    if(!Array.isArray(rings)||!rings.length)return 0;
+    return Math.max(0,ringArea(rings[0])-rings.slice(1).reduce((sum,r)=>sum+ringArea(r),0));
+  }
   function walk(type,c){
     if(type==="LineString")length+=planarDistance(c);
-    else if(type==="PolygonRing")area+=ringArea(c);
+    else if(type==="PolygonRing")length+=planarDistance(c);
   }
   eachGeometryPart(p,(type,coords)=>walk(type,coords));
-  if(p.type==="Polygon")area=p.coordinates.reduce((s,r)=>s+ringArea(r),0);
-  if(p.type==="MultiPolygon")area=p.coordinates.reduce((s,poly)=>s+poly.reduce((a,r)=>a+ringArea(r),0),0);
-  if(p.type==="MultiLineString")length=p.coordinates.reduce((s,l)=>s+planarDistance(l),0);
+  if(p.type==="Polygon")area=polygonArea(p.coordinates);
+  if(p.type==="MultiPolygon")area=p.coordinates.reduce((sum,poly)=>sum+polygonArea(poly),0);
+  if(p.type==="MultiLineString")length=p.coordinates.reduce((sum,line)=>sum+planarDistance(line),0);
   return {length,area};
 }
 function fmtMeters(v){return Number(v||0).toLocaleString("en-US",{maximumFractionDigits:3})+" meters";}
@@ -3918,6 +3931,10 @@ function nearestMatchTool(){
   const ti=Number(prompt("Target layer (attributes will be written here):\n"+list,items.length>1?(si===0?"2":"1"):""))-1;
   if(!Number.isInteger(ti)||!items[ti]||si===ti){status("Choose two different valid layers.");return;}
   const source=items[si],target=items[ti];
+  if(!editSessionActive||editTarget!==target.layer){
+    status("Start Editing on the target layer before writing nearest-feature attributes. The source layer will remain unchanged.");
+    return;
+  }
   const src=vectorFeatures(source.layer).filter(v=>v.feature?.geometry);
   const dst=vectorFeatures(target.layer).filter(v=>v.feature?.geometry);
   if(!src.length||!dst.length){status("Both layers must contain valid features.");return;}
@@ -3938,9 +3955,8 @@ function nearestMatchTool(){
       }catch(_){}
     });
     if(best&&(!maxDistance||bestD<=maxDistance)){
-      ensureFeatureId(best);
       t.feature.properties=t.feature.properties||{};
-      t.feature.properties.nearest_id=best.properties._webgis_id;
+      t.feature.properties.nearest_id=best.properties?._webgis_id??best.properties?.OBJECTID??best.properties?.objectid??best.properties?.id??"";
       t.feature.properties.nearest_distance_m=Number(bestD.toFixed(3));
       count++;distances.push(bestD);
     }
@@ -3964,6 +3980,10 @@ function transferAttributesTool(){
   const maxDistance=Number(distanceRaw);
   if(!Number.isFinite(maxDistance)||maxDistance<0){status("Enter a valid non-negative distance.");return;}
   const source=layers[si],target=layers[ti];
+  if(!editSessionActive||editTarget!==target.layer){
+    status("Start Editing on the target layer before transferring attributes. No features were changed.");
+    return;
+  }
   const src=vectorFeatures(source.layer).filter(v=>v.feature?.geometry);
   const dst=vectorFeatures(target.layer).filter(v=>v.feature?.geometry);
   if(!src.length||!dst.length){status("Both layers must contain valid features.");return;}
