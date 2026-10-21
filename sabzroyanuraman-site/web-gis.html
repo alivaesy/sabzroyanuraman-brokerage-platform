@@ -3681,6 +3681,7 @@ function editVertices(){
     if(window._vertexEditHandler)map.off(L.Draw.Event.EDITED,window._vertexEditHandler);
     window._vertexEditHandler=null;
     if(window._vertexEditControl){try{map.removeControl(window._vertexEditControl)}catch(_){}window._vertexEditControl=null}
+    window._vertexEditOwner=null;window._vertexEditLayers=null;window._vertexEditBaseline=null;
     status("Vertex editing failed: "+e.message);
   }
 }
