@@ -959,6 +959,22 @@ document.addEventListener("keydown",e=>{
     return;
   }
   if(["input","textarea","select"].includes(tag)||e.target?.isContentEditable)return;
+  if(key==="a"&&e.shiftKey){
+    e.preventDefault();
+    if(!editSessionActive||!editTarget){status("Start Editing and choose an edit layer before selecting all features.");return;}
+    const item=editTarget===drawn?{name:"My Drawings",layer:drawn}:namedLayers.find(x=>x.layer===editTarget);
+    if(!item){status("The active edit layer is unavailable.");return;}
+    if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("changing the feature selection"))return;
+    selectedFeatures.clear();
+    const records=vectorFeatures(editTarget).filter(v=>v.layer&&v.feature?.geometry);
+    records.forEach(v=>selectedFeatures.add(v.layer));
+    selectedLayer=records[0]?.layer||null;selectedOverlay=null;
+    applySelectionVisual();
+    if(records.length)renderAttributeEditor();
+    else {const editor=$("attributeEditor");if(editor)editor.style.display="none";}
+    status("Selected "+records.length+" feature(s) in "+item.name+".");
+    return;
+  }
   if(key==="z"&&!e.shiftKey){e.preventDefault();undoMapEdit();}
   else if(key==="y"||(key==="z"&&e.shiftKey)){e.preventDefault();redoMapEdit();}
 });
