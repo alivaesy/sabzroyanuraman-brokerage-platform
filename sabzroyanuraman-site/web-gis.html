@@ -1996,17 +1996,25 @@ $("applyMultiAttribute").onclick=()=>{
   if(!key){status("Enter a field name.");return}
   if(key==="_attachments"||key==="geometry"){status("This field name is reserved by the editor.");return}
   const staged=[];
+  // Infer the field schema from the active edit layer, not only from selected
+  // features; selected records may have missing/null values for an existing field.
+  const schemaValues=vectorFeatures(editTarget).map(item=>item.feature.properties?.[key]).filter(v=>v!==null&&v!==undefined&&v!=="");
+  let fieldType="string";
+  if(schemaValues.length&&schemaValues.every(v=>typeof v==="number"&&Number.isFinite(v)))fieldType="number";
+  else if(schemaValues.length&&schemaValues.every(v=>typeof v==="boolean"))fieldType="boolean";
+  else if(schemaValues.length&&schemaValues.every(v=>typeof v==="object"))fieldType="object";
   try{
     targets.forEach(layer=>{
       const props=layer.feature?.properties||{},old=props[key];let value=raw;
-      if(typeof old==="number"){
+      const valueType=old===null||old===undefined||old===""?fieldType:(typeof old==="object"?"object":typeof old);
+      if(valueType==="number"){
         if(raw.trim()==="")value=null;
         else if(Number.isFinite(Number(raw)))value=Number(raw);
         else throw new Error("Field '"+key+"' requires a valid number.");
-      }else if(typeof old==="boolean"){
+      }else if(valueType==="boolean"){
         if(!/^(true|false)$/i.test(raw.trim()))throw new Error("Field '"+key+"' accepts only true or false.");
         value=raw.trim().toLowerCase()==="true";
-      }else if(old!==null&&typeof old==="object"){
+      }else if(valueType==="object"){
         try{value=JSON.parse(raw)}catch(_){throw new Error("Field '"+key+"' requires valid JSON.");}
         if(value===null||typeof value!=="object")throw new Error("Field '"+key+"' must remain a JSON object or array.");
       }else if(old===null){
