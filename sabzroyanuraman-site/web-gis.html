@@ -3585,9 +3585,9 @@ function selectByLocation(){
   const items=[{name:"My Drawings",layer:drawn},...namedLayers]
     .filter((x,i,arr)=>x.layer&&isVectorLayer(x.layer)&&vectorFeatures(x.layer).length&&arr.findIndex(y=>y.layer===x.layer)===i);
   if(items.length<2){status("Load at least two vector layers (including My Drawings when it contains features) before spatial selection.");return;}
-  const rel=prompt("Spatial relationship:\n1 = Intersects\n2 = Within (source inside target)\n3 = Contains (source contains target)","1");
+  const rel=prompt("Spatial relationship:\n1 = Intersects\n2 = Within (source inside target)\n3 = Contains (source contains target)\n4 = Touches\n5 = Overlaps\n6 = Crosses","1");
   if(rel===null)return;
-  const relation={"1":"intersects","2":"within","3":"contains"}[rel.trim()];
+  const relation={"1":"intersects","2":"within","3":"contains","4":"touches","5":"overlaps","6":"crosses"}[rel.trim()];
   if(!relation){status("Choose relationship 1, 2, or 3.");return;}
   const menu=items.map((x,i)=>(i+1)+". "+x.name+" ("+vectorFeatures(x.layer).length+" features)").join("\n");
   const a=prompt("Source layer number:\n"+menu,"1");
@@ -3610,6 +3610,9 @@ function selectByLocation(){
       try{
         if(relation==="within")ok=turf.booleanWithin(v.feature,f);
         else if(relation==="contains")ok=turf.booleanContains(v.feature,f);
+        else if(relation==="touches")ok=turf.booleanTouches(v.feature,f);
+        else if(relation==="overlaps")ok=turf.booleanOverlap(v.feature,f);
+        else if(relation==="crosses")ok=turf.booleanCrosses(v.feature,f);
         else ok=turf.booleanIntersects(v.feature,f);
       }catch(e){ok=false;}
       if(ok)break;
