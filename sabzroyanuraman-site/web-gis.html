@@ -154,7 +154,7 @@ body{background:#dfe5e8;color:#173b57}
 .layer-row input[type=checkbox]{width:14px;height:14px;flex:0 0 14px}
 .panel .accordion-section{flex:0 0 auto}
 #map{position:relative}
-.map-coordinate-readout{position:absolute!important;left:10px!important;right:10px!important;bottom:8px!important;z-index:10000!important;pointer-events:none!important;direction:ltr!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-end!important;gap:1px!important;white-space:nowrap!important;font:12px/1.5 Arial,Helvetica,sans-serif!important;font-weight:600!important;color:#172b36!important;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff!important;visibility:visible!important;opacity:1!important;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:0!important;margin:0!important}.map-coordinate-geographic,.map-coordinate-utm{display:block!important;visibility:visible!important;opacity:1!important;position:relative!important;min-width:0;max-width:100%;text-align:left;background:transparent!important;border:0!important;padding:0!important;margin:0!important;overflow:visible!important;text-overflow:clip!important}
+.map-coordinate-readout{position:absolute!important;left:10px!important;right:10px!important;bottom:8px!important;z-index:10000!important;pointer-events:none!important;direction:ltr!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-end!important;gap:0!important;white-space:nowrap!important;font:10px/1.3 Arial,Helvetica,sans-serif!important;font-weight:500!important;color:#172b36!important;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff!important;visibility:visible!important;opacity:1!important;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:0!important;margin:0!important}.map-coordinate-geographic,.map-coordinate-utm{display:block!important;visibility:visible!important;opacity:1!important;position:relative!important;min-width:0;max-width:100%;text-align:left;background:transparent!important;border:0!important;padding:0!important;margin:0!important;overflow:visible!important;text-overflow:clip!important}
 @media(max-width:650px){.map-coordinate-readout{left:8px!important;right:8px!important;bottom:8px!important;gap:1px!important;font-size:11px!important}.map-coordinate-geographic,.map-coordinate-utm{max-width:100%}}
 @media(max-width:850px){.arc-search{width:205px}.arc-menu-btn{padding:0 8px}.panel{width:270px;min-width:270px}}
 @media(max-width:650px){.arcmap-topbar{height:auto;min-height:48px;flex-wrap:wrap;padding:4px 6px}.arc-menu{order:3;width:100%;overflow-x:auto}.arc-search{width:min(48vw,220px);margin-left:auto}.arcmap-statusbar{height:22px}.panel{position:absolute;left:0;top:0;bottom:0;height:auto;width:285px;min-width:285px;transform:translateX(-100%)}.panel.open{transform:translateX(0)}}
@@ -1743,13 +1743,13 @@ function updateCoordinateStatus(latlng){
  if(!geographicNode||!utmNode||!latlng)return;
  const lat=Number(latlng.lat),lon=Number(latlng.lng);
  if(!Number.isFinite(lat)||!Number.isFinite(lon))return;
- geographicNode.textContent="WGS 1984 · Lat "+lat.toFixed(6)+" · Lon "+lon.toFixed(6);
+ geographicNode.textContent=lat.toFixed(6)+", "+lon.toFixed(6);
  try{
   const zone=Math.max(1,Math.min(60,Math.floor((lon+180)/6)+1));
   const epsg=utmEpsg(zone,lat>=0);
   const xy=projectCoords("EPSG:4326",epsg,[lon,lat]);
   utmNode.textContent=Array.isArray(xy)&&xy.length>=2&&xy.every(Number.isFinite)
-   ?"UTM "+zone+(lat>=0?"N":"S")+" · E "+xy[0].toFixed(2)+" m · N "+xy[1].toFixed(2)+" m"
+   ?"E "+xy[0].toFixed(2)+" m · N "+xy[1].toFixed(2)+" m"
    :"UTM: unavailable";
  }catch(err){
   utmNode.textContent="UTM: unavailable";
