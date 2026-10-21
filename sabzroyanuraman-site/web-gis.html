@@ -4401,7 +4401,7 @@ function chartStats(){
   const field=numericFields.length===1?numericFields[0]:prompt("Numeric field for statistics:\n"+numericFields.map((name,i)=>(i+1)+". "+name).join("\n"),"1");
   if(field===null)return;
   const chosen=typeof field==="number"?String(field):String(field).trim();
-  const fieldName=/^\\d+$/.test(chosen)?numericFields[Number(chosen)-1]:chosen;
+  const fieldName=/^\d+$/.test(chosen)?numericFields[Number(chosen)-1]:chosen;
   if(!numericFields.includes(fieldName)){status("Choose a valid numeric field.");return;}
   const vals=[];
   rs.forEach(r=>{
