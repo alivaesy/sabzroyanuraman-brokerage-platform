@@ -2431,6 +2431,8 @@ $("saveTableEdits").onclick=()=>{
      value=null;
     }else if(valueType==="number"){
      if(!Number.isFinite(Number(raw)))throw new Error("Field '"+key+"' requires a valid number.");
+     const schemaField=(currentAttributeLayer()?._gdbMetadata?.fields||[]).find(f=>(typeof f==="string"?f:f.name)===key);
+     if(String(schemaField?.type||"").toUpperCase()==="INTEGER"&&!Number.isInteger(Number(raw)))throw new Error("Field '"+key+"' requires a whole number.");
      value=Number(raw);
     }else if(valueType==="boolean"){
      if(!/^(true|false)$/i.test(raw.trim()))throw new Error("Field '"+key+"' accepts only true or false.");
@@ -4911,7 +4913,7 @@ $("gdbCreateDataset").onclick=()=>{
  try{const w=gdbWorkspace(),name=$("gdbDatasetName").value.trim();if(!name)throw new Error("Enter a feature dataset name.");
  if(!w.datasets.has(name))w.datasets.set(name,{name,crs:$("gdbCrs").value==="current"?window.__webGisGdbBridge.currentCRS:$("gdbCrs").value,classes:[]});
  $("gdbManagerStatus").textContent='Feature Dataset "'+name+'" created in '+w.name+".";
- renderGdbCatalog();}catch(e){$("gdbManagerStatus").textContent=e.message}
+ renderGdbCatalog();window.__webGisGdbBridge.save();}catch(e){$("gdbManagerStatus").textContent=e.message}
 };
 $("gdbCreateFeatureClass").onclick=()=>{
  try{
@@ -4921,7 +4923,7 @@ $("gdbCreateFeatureClass").onclick=()=>{
   const ds=w.datasets.get(dsName);if(ds.classes.some(c=>c.name.toLowerCase()===className.toLowerCase()))throw new Error("Feature class already exists in this dataset.");
   const fc={name:className,geometryType:type,count:0};
   const layer=L.geoJSON({type:"FeatureCollection",features:[]},{style:()=>({color:"#2d78a5",weight:2,fillOpacity:.18}),pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:5,color:"#2d78a5",fillOpacity:.8})});
-  layer._gdbMetadata={workspace:w.name,dataset:dsName,featureClass:className,geometryType:type,crs:ds.crs};
+  layer._gdbMetadata={workspace:w.name,dataset:dsName,featureClass:className,geometryType:type,crs:ds.crs,fields:[]};
   window.__webGisGdbBridge.addLayer(w.name+" / "+dsName+" / "+className,layer);
   ds.classes.push(fc);window.__webGisGdbBridge.refreshEditorTargets();$("editTargetLayer").value=String(window.__webGisGdbBridge.layerIndex(layer));$("editTargetLayer").dispatchEvent(new Event("change",{bubbles:true}));
   $("gdbManagerStatus").textContent='Created empty '+type+' feature class "'+className+'". Choose it in the Editor target layer, then Start Editing.';
