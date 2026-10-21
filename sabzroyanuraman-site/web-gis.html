@@ -3659,8 +3659,7 @@ function editVertices(){
       try{
         const current=JSON.stringify(serializeProject()),previous=JSON.stringify(baseline);
         if(current!==previous){
-          undoStack.push(baseline);if(undoStack.length>40)undoStack.shift();
-          redoStack.length=0;updateUndoButtons();
+          pushUndoSnapshot(baseline);
           baseline=JSON.parse(current);window._vertexEditBaseline=baseline;
         }
       }catch(err){console.warn("Could not preserve vertex-edit history:",err)}
