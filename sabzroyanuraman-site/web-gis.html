@@ -3234,6 +3234,8 @@ function rebuildVectorLayerGeometry(rs){
   rs.forEach(r=>{
     try{
       const old=r.layer,owner=r.owner?.layer||drawn,opts={...(old?.options||{})};
+      const wasSelected=selectedFeatures.has(old);
+      const wasActive=selectedLayer===old,wasOverlay=selectedOverlay===old;
       const temp=L.geoJSON(r.feature,{
         style:opts,
         pointToLayer:(feature,latlng)=>old instanceof L.Circle&&typeof old.getRadius==="function"
@@ -3245,9 +3247,10 @@ function rebuildVectorLayerGeometry(rs){
       if(!replacement)return;
       replacement.feature=r.feature;
       owner.removeLayer(old);owner.addLayer(replacement);
-      selectedFeatures.delete(old);selectedFeatures.add(replacement);
-      if(selectedLayer===old)selectedLayer=replacement;
-      if(selectedOverlay===old)selectedOverlay=replacement;
+      selectedFeatures.delete(old);
+      if(wasSelected)selectedFeatures.add(replacement);
+      if(wasActive)selectedLayer=replacement;
+      if(wasOverlay)selectedOverlay=replacement;
     }catch(err){console.error("Could not rebuild feature geometry",err)}
   });
   applySelectionVisual();renderLayerList();refreshAttributeLayers();scheduleAutoSave();
