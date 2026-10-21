@@ -1458,9 +1458,14 @@ function startNativeDraw(type,button){
     if(type==="Circle")layer.feature.properties._radius_m=layer.getRadius();
     target.addLayer(layer);
     attachFeatureSelection(layer);
-    status("Feature added to "+(target===drawn?"My Drawings":namedLayers.find(x=>x.layer===target)?.name||"target layer")+".");
+    const targetName=target===drawn?"My Drawings":namedLayers.find(x=>x.layer===target)?.name||"target layer";
     scheduleAutoSave();renderLayerList();refreshAttributeLayers();
-    stopActiveDraw(false);
+    // ArcMap-style continuous sketching: keep the selected construction tool
+    // active and reset only the current geometry, so multiple features can be
+    // placed without clicking the toolbar icon again.
+    points=[];finished=false;removePreview();updateEditorToolbar();
+    const ready={Marker:"Point created. Click the map to place another point.",Polyline:"Line created. Continue clicking to draw another line; double-click/Enter to finish each line.",Polygon:"Polygon created. Click to start another polygon; double-click/Enter to finish each polygon.",Rectangle:"Rectangle created. Click to draw another rectangle.",Circle:"Circle created. Click to draw another circle."};
+    status("Feature added to "+targetName+". "+(ready[type]||"Drawing tool remains active."));
   };
   const onClick=e=>{
     if(finished||e.originalEvent?.detail>=2)return;
