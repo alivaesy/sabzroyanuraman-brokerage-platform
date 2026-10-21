@@ -4362,7 +4362,9 @@ function advancedSnap(){
   snapTool(modes[choice.trim()]);
 }
 function snapTool(snapMode="segments"){
-  const selected=editableSelectedRecords(false).filter(r=>r.feature.geometry?.type==="Point");
+  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("snapping point features"))return;
+  if(!editSessionActive||!editTarget){status("Start Editing the target point layer before snapping features.");return;}
+  const selected=editableSelectedRecords(false).filter(r=>r.feature.geometry?.type==="Point"&&(r.owner?.layer||drawn)===editTarget);
   if(!selected.length){status("Select point features in the active edit layer, then run Snap Points to Lines.");return;}
   const lineRecords=getFeatureRecords().filter(r=>r.owner?.layer&&map.hasLayer(r.owner.layer)&&["LineString","MultiLineString"].includes(r.feature.geometry?.type));
   if(!lineRecords.length){status("Add a line feature before snapping points.");return;}
@@ -4393,7 +4395,7 @@ function snapTool(snapMode="segments"){
   recordUndoState();
   updates.forEach(x=>{x.r.feature.geometry.coordinates=x.coordinates;});
   rebuildVectorLayerGeometry(updates.map(x=>x.r));refreshAll();
-  $("professionalToolOutput").textContent="Snapping result: "+updates.length+" of "+selected.length+" selected point(s) moved to the nearest line segment (tolerance "+tolerance+" m).";
+  $("professionalToolOutput").textContent="Snapping result: "+updates.length+" of "+selected.length+" selected point(s) moved to the nearest "+(snapMode==="vertices"?"line vertex":snapMode==="both"?"line vertex or segment":"line segment")+" (tolerance "+tolerance+" m).";
   status(updates.length+" selected point feature(s) snapped to "+snapMode+" (tolerance "+tolerance+" m).");
 }
 
