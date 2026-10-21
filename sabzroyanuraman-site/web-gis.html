@@ -292,8 +292,37 @@ body{background:#dfe5e8;color:#173b57}
 
 /* Small native SVG glyphs and docked search reproduce the ArcMap desktop toolbars. */
 .arcmap-icon-defs{position:absolute;width:0;height:0;overflow:hidden}
-.arcmap-icon{width:16px;height:16px;display:block;fill:none;stroke:#334d5c;stroke-width:1.25;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.arcmap-icon{width:17px;height:17px;display:block;fill:none;stroke:#334d5c;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
 .arcmap-icon use{pointer-events:none}
+/* ArcMap 10.x-inspired toolbar glyph palette: restrained classic GIS colors instead of uniform outline icons. */
+#newMapBtn .arcmap-icon{stroke:#477b9b}
+#openProjectBtn .arcmap-icon{stroke:#a87827}
+#saveProjectIcon .arcmap-icon{stroke:#286d9b}
+#printMapBtn .arcmap-icon{stroke:#5e6e78}
+#cutBtn .arcmap-icon{stroke:#b15a48}
+#copyBtn .arcmap-icon{stroke:#477b9b}
+#pasteBtn .arcmap-icon{stroke:#4f8056}
+#deleteBtn .arcmap-icon,#stopEditingBtn .arcmap-icon{stroke:#b43d36}
+#undoBtn .arcmap-icon,#redoBtn .arcmap-icon{stroke:#526f9c}
+#addDataIcon .arcmap-icon{stroke:#a77a24}
+#addOnlineDataBtn .arcmap-icon{stroke:#397f9c}
+#editorToolbarToggleBtn .arcmap-icon,#startEditingBtn .arcmap-icon{stroke:#b17c2d}
+#toolboxToggleBtn .arcmap-icon{stroke:#6d7d87}
+#zoomInBtn .arcmap-icon,#zoomOutBtn .arcmap-icon{stroke:#3d7595}
+#panMapBtn .arcmap-icon{stroke:#3d7d72}
+#fullExtentBtn .arcmap-icon,#fixedZoomInBtn .arcmap-icon,#fixedZoomOutBtn .arcmap-icon{stroke:#477b9b}
+#selectFeaturesBtn .arcmap-icon,#selectElementsBtn .arcmap-icon{stroke:#394b58}
+#identifyFeatureBtn .arcmap-icon{stroke:#b17a28}
+#measureToolBtn .arcmap-icon{stroke:#4c7c53}
+#goToXYBtn .arcmap-icon{stroke:#397f9c}
+#editorToolbar .arcmap-icon{stroke:#a87527}
+#editorToolbar [data-editor-draw="Marker"] .arcmap-icon{stroke:#377caa}
+#editorToolbar [data-editor-draw="Polyline"] .arcmap-icon{stroke:#397c91}
+#editorToolbar [data-editor-draw="Polygon"] .arcmap-icon{stroke:#4d8055}
+#editorToolbar [data-editor-draw="Rectangle"] .arcmap-icon{stroke:#4d8055}
+#editorToolbar [data-editor-draw="Circle"] .arcmap-icon{stroke:#4d8055}
+#classicToolbars .icon-tool{vertical-align:middle}
+
 #standardToolbar,#toolsToolbar{min-height:27px;height:28px;gap:1px;flex-wrap:nowrap;overflow:visible}
 #standardToolbar{border-bottom:1px solid #b8c0c4}
 #standardToolbar .icon-tool,#toolsToolbar .icon-tool{width:24px;min-width:24px;height:24px;padding:2px;border:1px solid transparent;border-radius:1px;background:transparent}
