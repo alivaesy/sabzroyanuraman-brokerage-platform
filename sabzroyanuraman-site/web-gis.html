@@ -863,7 +863,7 @@ function startEditing(item=null){
   status("Edit session started for "+(value==="drawn"?"My Drawings":namedLayers[Number(value)]?.name||"selected layer")+".");
 }
 function isLayerInEditTarget(layer){return editTarget===drawn?drawn.hasLayer(layer):!!editTarget?.hasLayer?.(layer)}
-async function saveEdits(){
+async async function saveEdits(){
   if(!editSessionActive){status("No edit session is active.");return false}
   if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){
     status("Save Table Edits before saving the edit session; unsaved attribute values are still in the table.");
@@ -3519,16 +3519,30 @@ function spatialFilter(){
   const type=typeInput.trim().toLowerCase();
   const relationships={intersects:"booleanIntersects",within:"booleanWithin",contains:"booleanContains",touches:"booleanTouches",overlaps:"booleanOverlap",crosses:"booleanCrosses"};
   if(!Object.prototype.hasOwnProperty.call(relationships,type)){status("Unsupported spatial relationship. Choose intersects, within, contains, touches, overlaps, or crosses.");return;}
-  const ref=selectedRecords()[0]; if(!ref){status("Select a reference feature first.");return;}
-  selectedFeatures.clear();
-  rs.forEach(r=>{try{
-    const predicate=turf[relationships[type]];
-    if(typeof predicate==="function"&&predicate(r.feature,ref.feature))selectedFeatures.add(r.layer);
-  }catch(_){}});
+  const refs=selectedRecords().filter(r=>r.feature?.geometry);
+  if(!refs.length){status("Select one or more reference features first.");return;}
+  const modeInput=prompt("Selection mode:\n1 = New selection\n2 = Add to current selection\n3 = Remove from current selection\n4 = Select from current selection","1");
+  if(modeInput===null)return;
+  const mode=modeInput.trim();
+  if(!["1","2","3","4"].includes(mode)){status("Choose selection mode 1, 2, 3, or 4.");return;}
+  const previous=new Set(selectedFeatures),matches=new Set();
+  rs.forEach(r=>{
+    if(!r.feature?.geometry)return;
+    if(mode==="4"&&!previous.has(r.layer))return;
+    try{
+      const predicate=turf[relationships[type]];
+      if(typeof predicate!=="function")return;
+      if(refs.some(ref=>ref.layer!==r.layer&&predicate(r.feature,ref.feature)))matches.add(r.layer);
+    }catch(_){}
+  });
+  if(mode==="1")selectedFeatures.clear();
+  if(mode==="3")matches.forEach(layer=>selectedFeatures.delete(layer));
+  else matches.forEach(layer=>selectedFeatures.add(layer));
   const first=[...selectedFeatures].map(layer=>rs.find(r=>r.layer===layer)).find(Boolean);
   selectedLayer=first?.layer||null;
   selectedOverlay=null;
-  applySelectionVisual(); status(selectedFeatures.size+" features selected by spatial filter.");
+  applySelectionVisual();
+  status(selectedFeatures.size+" features selected by spatial filter ("+({1:"new",2:"added",3:"removed",4:"current selection filtered"}[mode])+").");
 }
 function joinWizard(){
   if(namedLayers.length<2){status("At least two named data layers are required.");return}
