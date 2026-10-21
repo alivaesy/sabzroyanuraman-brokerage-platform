@@ -1975,14 +1975,17 @@ map.on("click",e=>{
     else if(mapFeatureHit(l,e.latlng))found=l;
   });
   if(found){
-    selectedLayer=found;
-    if(e.originalEvent?.shiftKey){
-      if(selectedFeatures.has(found))selectedFeatures.delete(found);else selectedFeatures.add(found);
-    }else{
-      selectedFeatures.clear();selectedFeatures.add(found);
+    // Feature click handlers run before the map click bubbles here. Preserve
+    // their input/overlay and modifier-key selection decisions.
+    if(found!==selectedLayer&&found!==selectedOverlay){
+      if(e.originalEvent?.shiftKey){
+        if(selectedFeatures.has(found))selectedFeatures.delete(found);else selectedFeatures.add(found);
+      }else{
+        selectedFeatures.clear();selectedFeatures.add(found);
+        selectedLayer=found;selectedOverlay=null;
+      }
+      applySelectionVisual();
     }
-    selectedOverlay=null;
-    applySelectionVisual();
     showUTM(found);calcMeasure(found);
   }
 });
