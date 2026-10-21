@@ -3272,8 +3272,9 @@ function selectByLocation(){
   });
   if(mode==="1")selectedFeatures.clear();
   if(mode==="4"){
-    const current=new Set(selectedFeatures);
-    selectedFeatures.clear();matches.forEach(layer=>{if(current.has(layer))selectedFeatures.add(layer);});
+    const current=new Set(selectedFeatures),sourceLayers=new Set(source.map(v=>v.layer));
+    sourceLayers.forEach(layer=>{if(current.has(layer)&&!matches.includes(layer))selectedFeatures.delete(layer);});
+    matches.forEach(layer=>{if(current.has(layer))selectedFeatures.add(layer);});
   }else if(mode==="3")matches.forEach(layer=>selectedFeatures.delete(layer));
   else matches.forEach(layer=>selectedFeatures.add(layer));
   const all=getFeatureRecords(),first=all.find(r=>selectedFeatures.has(r.layer));
@@ -3332,7 +3333,10 @@ function selectWithinDistance(){
   });
   if(mode==="1")selectedFeatures.clear();
   if(mode==="3")matches.forEach(layer=>selectedFeatures.delete(layer));
-  else matches.forEach(layer=>selectedFeatures.add(layer));
+  else if(mode==="4"){
+    const current=new Set(selectedFeatures);
+    selectedFeatures.clear();matches.forEach(layer=>{if(current.has(layer))selectedFeatures.add(layer);});
+  }else matches.forEach(layer=>selectedFeatures.add(layer));
   const first=records.find(r=>selectedFeatures.has(r.layer));selectedLayer=first?.layer||null;selectedOverlay=null;
   if(selectedLayer)renderAttributeEditor();else{const editor=$("attributeEditor");if(editor)editor.style.display="none";}
   applySelectionVisual();
