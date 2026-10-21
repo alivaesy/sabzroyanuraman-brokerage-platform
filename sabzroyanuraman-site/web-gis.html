@@ -2308,7 +2308,25 @@ $("openTable").onclick=()=>{
  if(hasUnsavedTableEdits()){status("Save Table Edits before reopening the table; unsaved values have been preserved.");return}
  renderEditableTable();
 };
-$("attributeTableWrap").addEventListener("change",event=>{if(event.target.matches(".row-check,#checkAllRows"))updateMultiSelectionUI()});$("attributeFilter").addEventListener("input",()=>{
+$("attributeTableWrap").addEventListener("change",event=>{if(event.target.matches(".row-check,#checkAllRows"))updateMultiSelectionUI()});
+/* ArcMap-style row click selection; modifier-click adds/removes rows. */
+$("attributeTableWrap").addEventListener("click",event=>{
+ const row=event.target.closest("tbody tr[data-index]");
+ if(!row||event.target.closest("input,button,select,textarea,[role='separator']"))return;
+ const items=currentAttributeItems(),item=items[Number(row.dataset.index)];
+ if(!item)return;
+ if(event.ctrlKey||event.metaKey||event.shiftKey){
+   if(selectedFeatures.has(item.layer))selectedFeatures.delete(item.layer);
+   else selectedFeatures.add(item.layer);
+ }else{
+   selectedFeatures.clear();selectedFeatures.add(item.layer);
+ }
+ const first=getFeatureRecords().find(record=>selectedFeatures.has(record.layer));
+ selectedLayer=first?.layer||null;selectedOverlay=null;
+ applySelectionVisual();updateMultiSelectionUI();
+ if(selectedLayer)showUTM(selectedLayer);
+ status(selectedFeatures.size+" feature(s) selected from the Attribute Table.");
+});$("attributeFilter").addEventListener("input",()=>{
  if($("attributeTableWrap").style.display==="none")return;
  if(hasUnsavedTableEdits()){
   status("Save Table Edits before changing the filter; this prevents unsaved cell values from being discarded.");
