@@ -1178,7 +1178,7 @@ function goToXY(){
   overlay.style.cssText="position:fixed;inset:0;z-index:10050;background:rgba(15,23,42,.42);display:flex;align-items:center;justify-content:center;padding:18px;";
   const panel=document.createElement("section");
   panel.style.cssText="width:min(470px,100%);background:var(--panel-bg,#fff);color:var(--text-color,#202124);border:1px solid var(--border-color,#c8ccd0);border-radius:7px;box-shadow:0 12px 40px rgba(0,0,0,.25);font:13px/1.45 Arial,sans-serif;overflow:hidden;";
-  panel.innerHTML='<header style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:var(--toolbar-bg,#f2f3f5);border-bottom:1px solid var(--border-color,#c8ccd0)"><strong id="goToXYTitle" style="font-size:14px">Go To XY</strong><button type="button" id="goToXYClose" aria-label="Close" style="border:0;background:transparent;font-size:21px;cursor:pointer;line-height:1">×</button></header><div style="padding:16px"><label for="goToXYSystem" style="display:block;margin-bottom:5px;font-weight:600">Coordinate system</label><select id="goToXYSystem" style="box-sizing:border-box;width:100%;padding:7px;margin-bottom:14px"><option value="map">Map coordinate system ('+String(currentCRS).replace(/&/g,"&amp;").replace(/</g,"&lt;") +')</option><option value="wgs84">Geographic coordinates (WGS 84, longitude/latitude)</option></select><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><label style="display:block;font-weight:600">X / Longitude<input id="goToXYX" inputmode="decimal" autocomplete="off" placeholder="Enter X" style="box-sizing:border-box;width:100%;padding:8px;margin-top:5px;border:1px solid #9ca3af;border-radius:3px;font-weight:400"></label><label style="display:block;font-weight:600">Y / Latitude<input id="goToXYY" inputmode="decimal" autocomplete="off" placeholder="Enter Y" style="box-sizing:border-box;width:100%;padding:8px;margin-top:5px;border:1px solid #9ca3af;border-radius:3px;font-weight:400"></label></div><div id="goToXYError" role="alert" style="min-height:18px;margin-top:8px;color:#b42318"></div><div style="font-size:12px;color:var(--muted,#666);margin:2px 0 14px">Enter decimal coordinates. In WGS 84, X is longitude and Y is latitude.</div><div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button type="button" id="goToXYFlash">Flash Location</button><button type="button" id="goToXYPan">Pan To</button><button type="button" id="goToXYZoom" style="font-weight:600">Zoom To</button></div></div>';
+  panel.innerHTML='<header style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:var(--toolbar-bg,#f2f3f5);border-bottom:1px solid var(--border-color,#c8ccd0)"><strong id="goToXYTitle" style="font-size:14px">Go To XY</strong><button type="button" id="goToXYClose" aria-label="Close" style="border:0;background:transparent;font-size:21px;cursor:pointer;line-height:1">×</button></header><div style="padding:16px"><label for="goToXYSystem" style="display:block;margin-bottom:5px;font-weight:600">Coordinate system</label><select id="goToXYSystem" style="box-sizing:border-box;width:100%;padding:7px;margin-bottom:14px"><option value="map">Map coordinate system ('+String(currentCRS).replace(/&/g,"&amp;").replace(/</g,"&lt;") +')</option><option value="wgs84">Geographic coordinates (WGS 84, longitude/latitude)</option><optgroup label="UTM — WGS 84"><option value="EPSG:32637">UTM Zone 37N (EPSG:32637)</option><option value="EPSG:32638">UTM Zone 38N (EPSG:32638)</option><option value="EPSG:32639">UTM Zone 39N (EPSG:32639)</option><option value="EPSG:32640">UTM Zone 40N (EPSG:32640)</option><option value="EPSG:32737">UTM Zone 37S (EPSG:32737)</option><option value="EPSG:32738">UTM Zone 38S (EPSG:32738)</option><option value="EPSG:32739">UTM Zone 39S (EPSG:32739)</option><option value="EPSG:32740">UTM Zone 40S (EPSG:32740)</option></optgroup></select><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><label style="display:block;font-weight:600">X / Longitude<input id="goToXYX" inputmode="decimal" autocomplete="off" placeholder="Enter X" style="box-sizing:border-box;width:100%;padding:8px;margin-top:5px;border:1px solid #9ca3af;border-radius:3px;font-weight:400"></label><label style="display:block;font-weight:600">Y / Latitude<input id="goToXYY" inputmode="decimal" autocomplete="off" placeholder="Enter Y" style="box-sizing:border-box;width:100%;padding:8px;margin-top:5px;border:1px solid #9ca3af;border-radius:3px;font-weight:400"></label></div><div id="goToXYError" role="alert" style="min-height:18px;margin-top:8px;color:#b42318"></div><div style="font-size:12px;color:var(--muted,#666);margin:2px 0 14px">Enter decimal coordinates. In WGS 84, X is longitude and Y is latitude.</div><div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button type="button" id="goToXYFlash">Flash Location</button><button type="button" id="goToXYPan">Pan To</button><button type="button" id="goToXYZoom" style="font-weight:600">Zoom To</button></div></div>';
   overlay.appendChild(panel);document.body.appendChild(overlay);
   const xInput=panel.querySelector("#goToXYX"),yInput=panel.querySelector("#goToXYY"),system=panel.querySelector("#goToXYSystem"),error=panel.querySelector("#goToXYError");
   const close=()=>{overlay.remove();document.removeEventListener("keydown",onKey)};
@@ -1189,14 +1189,19 @@ function goToXY(){
   const getLatLng=()=>{
     const x=Number(xInput.value.trim()),y=Number(yInput.value.trim());
     if(!xInput.value.trim()||!yInput.value.trim()||!Number.isFinite(x)||!Number.isFinite(y))throw new Error("Enter valid numeric values for both X and Y.");
-    let ll;
+    let ll,sourceCRS;
     if(system.value==="wgs84"){
       if(x < -180 || x > 180 || y < -90 || y > 90)throw new Error("WGS 84 requires longitude between -180 and 180 and latitude between -90 and 90.");
       ll=[x,y];
     }else{
-      ll=currentCRS==="EPSG:4326"?[x,y]:projectCoords(currentCRS,"EPSG:4326",[x,y]);
-      if(!Array.isArray(ll)||ll.length<2||!ll.slice(0,2).every(Number.isFinite))throw new Error("The coordinates could not be converted from "+currentCRS+".");
-      if(ll[0] < -180 || ll[0] > 180 || ll[1] < -90 || ll[1] > 90)throw new Error("The coordinates fall outside the valid geographic range. Check the selected coordinate system.");
+      sourceCRS=system.value==="map"?currentCRS:system.value;
+      if(sourceCRS==="EPSG:4326")ll=[x,y];
+      else{
+        if(sourceCRS.startsWith("EPSG:326")||sourceCRS.startsWith("EPSG:327"))ensureCRSDefinition(sourceCRS);
+        ll=projectCoords(sourceCRS,"EPSG:4326",[x,y]);
+      }
+      if(!Array.isArray(ll)||ll.length<2||!ll.slice(0,2).every(Number.isFinite))throw new Error("The coordinates could not be converted from "+sourceCRS+".");
+      if(ll[0] < -180 || ll[0] > 180 || ll[1] < -90 || ll[1] > 90)throw new Error("The coordinates fall outside the valid geographic range. Check the selected coordinate system and UTM zone.");
     }
     return L.latLng(ll[1],ll[0]);
   };
@@ -1219,8 +1224,20 @@ function goToXY(){
   panel.querySelector("#goToXYPan").onclick=()=>go("pan");
   panel.querySelector("#goToXYZoom").onclick=()=>go("zoom");
   [xInput,yInput].forEach(input=>input.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();go("zoom")}}));
+  const updateCoordinateHints=()=>{
+    const utm=system.value.startsWith("EPSG:326")||system.value.startsWith("EPSG:327");
+    const labels=panel.querySelectorAll("label");
+    if(labels[1])labels[1].firstChild.textContent=utm?"Easting (X, metres)":"X / Longitude";
+    if(labels[2])labels[2].firstChild.textContent=utm?"Northing (Y, metres)":"Y / Latitude";
+    xInput.placeholder=utm?"Easting (e.g. 500000)":"Enter X";
+    yInput.placeholder=utm?"Northing (e.g. 3800000)":"Enter Y";
+    const hint=panel.querySelector("div[style*='font-size:12px']");
+    if(hint)hint.textContent=utm?"Enter UTM Easting and Northing in metres using the selected WGS 84 zone. Verify the zone and hemisphere.":"Enter decimal coordinates. In WGS 84, X is longitude and Y is latitude.";
+  };
+  system.addEventListener("change",updateCoordinateHints);
   const center=map.getCenter();
   if(currentCRS==="EPSG:4326"){xInput.value=center.lng.toFixed(6);yInput.value=center.lat.toFixed(6);system.value="wgs84";}
+  updateCoordinateHints();
   xInput.focus();xInput.select();
 }
 function startDraw(type,button){
