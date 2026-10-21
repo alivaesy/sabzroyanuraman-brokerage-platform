@@ -805,6 +805,7 @@ let editTarget=drawn;
 function stopActiveDraw(cancel=true){
   const wasDrawing=activeMapTool==="draw";
   const handler=activeDrawHandler;
+  const purpose=activeDrawPurpose;
   activeDrawHandler=null;
   activeDrawPurpose=null;
   if(activeDrawCreatedHandler){
@@ -816,6 +817,8 @@ function stopActiveDraw(cancel=true){
   activeDrawButton=null;
   try{map.doubleClickZoom.enable()}catch(_){}
   if(wasDrawing){activeMapTool="select";try{map.dragging.enable()}catch(_){} map.getContainer().style.cursor="";}
+  else if(purpose==="selection"){try{map.getContainer().style.cursor=""}catch(_){}}
+  if(cancel&&purpose==="draw")status("Sketch cancelled; no feature was added.");
   updateEditorToolbar();
 }
 function updateEditorToolbar(){
@@ -867,7 +870,7 @@ function startEditing(item=null){
   status("Edit session started for "+(value==="drawn"?"My Drawings":namedLayers[Number(value)]?.name||"selected layer")+".");
 }
 function isLayerInEditTarget(layer){return editTarget===drawn?drawn.hasLayer(layer):!!editTarget?.hasLayer?.(layer)}
-async function saveEdits(){
+async async function saveEdits(){
   if(!editSessionActive){status("No edit session is active.");return false}
   if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){
     status("Save Table Edits before saving the edit session; unsaved attribute values are still in the table.");
