@@ -1905,9 +1905,33 @@ function calcMeasure(layer){
     if(g.type==="Point"){showUTM(layer)}
   }catch(e){status("Calculation failed: "+e.message)}
 }
+function mapFeatureHit(layer,latlng){
+  if(!layer||layer===drawn||layer instanceof L.TileLayer)return false;
+  if(typeof layer._containsPoint==="function"){
+    try{if(layer._containsPoint(map.latLngToLayerPoint(latlng)))return true}catch(_){}
+  }
+  if(typeof layer.getLatLng==="function"){
+    try{return map.latLngToContainerPoint(layer.getLatLng()).distanceTo(map.latLngToContainerPoint(latlng))<=12}catch(_){}
+  }
+  if(typeof layer.eachLayer==="function"){
+    let hit=false;layer.eachLayer(child=>{if(mapFeatureHit(child,latlng))hit=true});return hit;
+  }
+  const feature=layer.feature;
+  if(feature?.geometry&&window.turf){
+    try{
+      const point=turf.point([latlng.lng,latlng.lat]);
+      if(["Polygon","MultiPolygon"].includes(feature.geometry.type)&&turf.booleanPointInPolygon(point,feature))return true;
+    }catch(_){}
+  }
+  return false;
+}
 map.on("click",e=>{
   let found=null;
-  map.eachLayer(l=>{if(l===base.osm||l===base.topo||l===base.sat||l===drawn||l instanceof L.TileLayer)return;if(l.getLayers){l.getLayers().forEach(x=>{if(x.getBounds&&x.getBounds().contains(e.latlng))found=x})}});
+  map.eachLayer(l=>{
+    if(l===base.osm||l===base.topo||l===base.sat||l===drawn||l instanceof L.TileLayer)return;
+    if(typeof l.eachLayer==="function")l.eachLayer(x=>{if(mapFeatureHit(x,e.latlng))found=x});
+    else if(mapFeatureHit(l,e.latlng))found=l;
+  });
   if(found){selectedLayer=found;showUTM(found);calcMeasure(found)}
 });
 
@@ -3929,9 +3953,17 @@ function addMapDecoration(kind){
     controls.north.onAdd=()=>{const d=L.DomUtil.create("div","map-insert-north");d.innerHTML="<b>N</b><br>▲";return d};controls.north.addTo(map);
   }else if(kind==="scale"){controls.scale?.remove();controls.scale=L.control.scale({metric:true,imperial:false});controls.scale.addTo(map)}
   else if(kind==="frame"){
+    if(controls.frameSync)map.off("moveend",controls.frameSync);
+    if(controls.frameMap){try{controls.frameMap.remove()}catch(_){}controls.frameMap=null}
     controls.frame?.remove();controls.frame=L.control({position:"bottomleft"});
     controls.frame.onAdd=()=>{const box=L.DomUtil.create("div","map-insert-frame"),child=L.DomUtil.create("div","map-insert-frame-map",box),label=L.DomUtil.create("div","map-insert-frame-label",box);label.textContent="Overview";
-      setTimeout(()=>{if(!child.isConnected)return;try{const mini=L.map(child,{zoomControl:false,attributionControl:false,scrollWheelZoom:false,dragging:false});let layer=customWmsConfig?L.tileLayer.wms(customWmsConfig.url,{layers:customWmsConfig.layers,format:"image/png",version:customWmsConfig.version||"1.3.0"}):L.tileLayer(currentBase._url||"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:currentBase.options.maxZoom||19});layer.addTo(mini);const sync=()=>mini.setView(map.getCenter(),Math.max(1,map.getZoom()-4));sync();map.on("moveend",sync)}catch(error){console.warn("Overview frame:",error)}},0);return box};
+      setTimeout(()=>{if(!child.isConnected)return;try{
+        const mini=L.map(child,{zoomControl:false,attributionControl:false,scrollWheelZoom:false,dragging:false});
+        controls.frameMap=mini;
+        const layer=customWmsConfig?L.tileLayer.wms(customWmsConfig.url,{layers:customWmsConfig.layers,format:"image/png",version:customWmsConfig.version||"1.3.0"}):L.tileLayer(currentBase._url||"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:currentBase.options.maxZoom||19});
+        layer.addTo(mini);controls.frameSync=()=>{if(controls.frameMap===mini&&child.isConnected)mini.setView(map.getCenter(),Math.max(1,map.getZoom()-4))};
+        controls.frameSync();map.on("moveend",controls.frameSync);
+      }catch(error){console.warn("Overview frame:",error)}},0);return box};
     controls.frame.addTo(map);
   }
   status("Map layout element inserted.");
