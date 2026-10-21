@@ -1005,6 +1005,14 @@ document.addEventListener("keydown",e=>{
     return;
   }
   if(["input","textarea","select"].includes(tag)||e.target?.isContentEditable)return;
+  // Desktop-GIS history shortcuts: Ctrl/Cmd+Z undo, Ctrl/Cmd+Y or
+  // Ctrl/Cmd+Shift+Z redo. Keep native undo inside editable controls above.
+  if(key==="z"||key==="y"){
+    e.preventDefault();
+    if(key==="y"||(key==="z"&&e.shiftKey))redoMapEdit();
+    else undoMapEdit();
+    return;
+  }
   if(key==="a"){
     e.preventDefault();
     if(!editSessionActive||!editTarget){status("Start Editing and choose an edit layer before selecting all features.");return;}
