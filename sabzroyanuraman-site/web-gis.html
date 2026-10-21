@@ -1711,6 +1711,9 @@ map.on(L.Draw.Event.CREATED,e=>{
   status("Feature added to "+(target===drawn?"My Drawings":namedLayers.find(x=>x.layer===target)?.name||"target layer")+".");
   scheduleAutoSave();renderLayerList();refreshAttributeLayers();
 });
+// Capture pre-edit state before Leaflet.Draw mutates geometry, enabling Undo.
+map.on(L.Draw.Event.EDITSTART,()=>{if(editSessionActive)recordUndoState()});
+map.on(L.Draw.Event.DELETESTART,()=>{if(editSessionActive)recordUndoState()});
 map.on(L.Draw.Event.EDITED,e=>{status("Feature edits saved.");scheduleAutoSave()});
 map.on(L.Draw.Event.DELETED,e=>{status("Feature deleted.");renderLayerList();scheduleAutoSave()});
 function updateCoordinateStatus(latlng){
