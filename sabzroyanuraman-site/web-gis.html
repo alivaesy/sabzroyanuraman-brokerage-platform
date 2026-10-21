@@ -1967,6 +1967,11 @@ $("selectFiltered").onclick=()=>{
    });
    if(hit){selectedFeatures.add(x.layer);n++;}
  });
+ // Keep the active feature target in sync with filtered-table selection.
+ // This prevents single-feature tools from acting on a stale prior selection.
+ const firstSelected=items.find(x=>selectedFeatures.has(x.layer));
+ selectedLayer=firstSelected?.layer||null;
+ selectedOverlay=firstSelected?.layer||null;
  $("attributeTableWrap").querySelectorAll("tbody tr").forEach(row=>{
    const item=items[Number(row.dataset.index)],check=row.querySelector(".row-check");
    if(check&&item)check.checked=selectedFeatures.has(item.layer);
