@@ -804,7 +804,7 @@ body{background:#dfe5e8;color:#173b57}
     </div>
   </section>
 </div>
-<div id="projectManager"><div class="pm-card"><div style="font-size:18px;font-weight:800;color:#07573e">🗺️ Web GIS Project Manager</div><div class="small" style="margin:5px 0 14px">Create a project or open a recent project. Projects are stored locally in this browser.</div><div class="section"><h3>➕ New Project</h3><div class="pm-grid"><input id="newProjectName" placeholder="Project name, for example: wastewater network"><select id="newProjectCrs"><option value="EPSG:32638">WGS 84 / UTM 38N — EPSG:32638</option><option value="EPSG:32637">WGS 84 / UTM 37N — EPSG:32637</option><option value="EPSG:32639">WGS 84 / UTM 39N — EPSG:32639</option><option value="EPSG:32640">WGS 84 / UTM 40N — EPSG:32640</option></select><textarea id="newProjectDescription" class="full" placeholder="Project description (optional)"></textarea></div><div class="pm-actions"><button class="action" id="createProjectBtn">Create and Open Project</button><button class="action secondary" id="closeProjectManager">Continue Without a Project</button></div></div><div class="pm-list"><h3>📂 Recent Projects</h3><div id="projectList">Loading...</div></div></div></div><footer class="arcmap-statusbar" aria-label="Map status"><div class="status" id="status">Ready.</div><div class="coord" id="coord">X: — | Y: —</div></footer>
+<div id="projectManager"><div class="pm-card"><div style="font-size:18px;font-weight:800;color:#07573e">🗺️ Web GIS Project Manager</div><div class="small" style="margin:5px 0 14px">Create a project or open a recent project. Projects are stored locally in this browser.</div><div class="section"><h3>➕ New Project</h3><div class="pm-grid"><input id="newProjectName" placeholder="Project name, for example: wastewater network"><select id="newProjectCrs"><option value="EPSG:32638">WGS 84 / UTM 38N — EPSG:32638</option><option value="EPSG:32637">WGS 84 / UTM 37N — EPSG:32637</option><option value="EPSG:32639">WGS 84 / UTM 39N — EPSG:32639</option><option value="EPSG:32640">WGS 84 / UTM 40N — EPSG:32640</option></select><textarea id="newProjectDescription" class="full" placeholder="Project description (optional)"></textarea></div><div class="pm-actions"><button class="action" id="createProjectBtn">Create and Open Project</button><button class="action secondary" id="closeProjectManager">Continue Without a Project</button></div></div><div class="pm-list"><h3>📂 Recent Projects</h3><div id="projectList">Loading...</div></div></div></div><footer class="arcmap-statusbar" aria-label="Map status"><div class="status" id="status">Ready.</div><div class="coord" id="coord">—, — | —, —</div></footer>
 <div class="tool-feedback" id="toolFeedback" role="status" aria-live="polite"></div>
 </div>
 
@@ -901,7 +901,8 @@ function defineUTM(zone,north=true){
   return epsg;
 }
 for(let z=1;z<=60;z++){defineUTM(z,true);defineUTM(z,false);}
-// Coordinate readout intentionally removed from the map UI.\nfunction ensureCRSDefinition(epsg){
+// Compact coordinates appear only in the unboxed status bar.
+function ensureCRSDefinition(epsg){
   if(!/^EPSG:\d+$/.test(epsg))throw new Error("Invalid EPSG code.");
   if(!proj4.defs(epsg)){
     const n=Number(epsg.slice(5));
@@ -1712,7 +1713,7 @@ map.on(L.Draw.Event.EDITED,e=>{status("Feature edits saved.");scheduleAutoSave()
 map.on(L.Draw.Event.DELETED,e=>{status("Feature deleted.");renderLayerList();scheduleAutoSave()});
 map.on("mousemove",e=>{
  const utm=projectCoords("EPSG:4326","EPSG:32638",[e.latlng.lng,e.latlng.lat]);
- $("coord").textContent="X "+utm[0].toFixed(2)+" | Y "+utm[1].toFixed(2)+" | UTM 38N";
+ $("coord").textContent=e.latlng.lat.toFixed(6)+", "+e.latlng.lng.toFixed(6)+" | "+utm[0].toFixed(2)+", "+utm[1].toFixed(2);
 });
 refreshEditorTargets();updateEditorToolbar();
 $("startEditingBtn").onclick=()=>startEditing();
