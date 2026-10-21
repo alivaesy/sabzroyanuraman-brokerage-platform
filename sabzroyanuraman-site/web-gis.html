@@ -1096,7 +1096,15 @@ function applyHistorySnapshot(source,destination,message){
   }
   scheduleAutoSave();status(message+" applied.");
 }
-function undoMapEdit(){applyHistorySnapshot(undoStack,redoStack,"Undo");}
+function undoMapEdit(){
+  // Desktop-GIS behavior: Ctrl+Z removes the last vertex while sketching;
+  // once a sketch is empty, stop the continuous tool and undo the last feature.
+  if(activeDrawHandler&&activeDrawPurpose==="draw"){
+    if(activeDrawHandler.hasSketchVertices?.()){activeDrawHandler.removeLastVertex();return;}
+    stopActiveDraw();
+  }
+  applyHistorySnapshot(undoStack,redoStack,"Undo");
+}
 function redoMapEdit(){applyHistorySnapshot(redoStack,undoStack,"Redo");}
 document.addEventListener("keydown",e=>{
   if(!(e.ctrlKey||e.metaKey)||e.altKey)return;
@@ -1541,6 +1549,7 @@ function startNativeDraw(type,button){
   const handler={
     disable(){map.off("click",onClick);map.off("mousemove",onMove);map.off("dblclick",onDoubleClick);removePreview()},
     completeShape:complete,
+    hasSketchVertices(){return !finished&&points.length>0},
     removeLastVertex(){
       if(finished||!points.length){status("There are no sketch vertices to undo.");return}
       points.pop();removePreview();if(points.length)updatePreview();
