@@ -3351,7 +3351,10 @@ function selectWithinDistance(){
 function getFeatureRecords(){
   return allSelectableFeatureLayers().flatMap(x=>vectorFeatures(x.layer).map(v=>({owner:x,layer:v.layer,feature:v.feature})));
 }
-function selectedRecords(){return [...selectedFeatures].map(l=>{const v=getFeatureRecords().find(r=>r.layer===l);return v;}).filter(Boolean);}
+function selectedRecords(){
+  const records=getFeatureRecords(),byLayer=new Map(records.map(r=>[r.layer,r]));
+  return [...selectedFeatures].map(layer=>byLayer.get(layer)).filter(Boolean);
+}
 function zoomToSelection(){
   const bounds=L.latLngBounds([]);
   let count=0;
