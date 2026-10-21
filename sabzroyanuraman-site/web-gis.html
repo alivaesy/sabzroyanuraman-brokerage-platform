@@ -318,8 +318,6 @@ body{background:#dfe5e8;color:#173b57}
 @media(max-width:700px){#searchDock.open #searchTab{right:min(300px,70vw)}}
 
 .map-insert-title{padding:7px 13px;background:rgba(255,255,255,.94);border:1px solid #73838b;font:bold 15px Arial;color:#243e50}.map-insert-legend{padding:7px 10px;max-height:180px;overflow:auto;background:rgba(255,255,255,.94);border:1px solid #73838b;color:#243e50;font:11px Arial}.map-insert-legend strong{display:block;margin-bottom:4px}.map-insert-north{padding:5px 9px;text-align:center;background:rgba(255,255,255,.94);border:1px solid #73838b;font:13px Arial;color:#243e50}.map-insert-frame{width:190px;height:145px;padding:3px;background:#fff;border:1px solid #73838b;box-shadow:0 1px 4px #777}.map-insert-frame-map{width:182px;height:120px}.map-insert-frame-label{text-align:center;font:bold 10px Arial;color:#243e50}
-/* The floating Attribute Table shell is not wired to the main-page controls yet; prevent its raw markup leaking into the menu/workspace. The functional #attributeTableWrap remains in use. */
-#attributeTableWindow{display:none!important}
 </style>
 </head>
 <body>
@@ -1587,6 +1585,7 @@ function renderAttributeEditor(){
 }
 function saveAttributes(){
   if(!selectedLayer){status("Select a feature before editing attributes.");return}
+  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("saving feature attributes"))return;
   if(!editSessionActive||!isLayerInEditTarget(selectedLayer)){status("Start Editing this layer before changing attributes.");return}
   const previous=selectedLayer.feature?.properties||{};
   const props={};
@@ -1861,22 +1860,30 @@ function currentAttributeItems(){
 function tableKeys(items){
  return [...new Set(items.flatMap(x=>Object.keys(x.feature.properties||{}).filter(k=>k!=="_attachments")))];
 }
+let attributeSort={key:null,direction:1};
 function renderEditableTable(){
  if(!currentAttributeLayer()){status("Select a feature layer.");return}
  const items=currentAttributeItems(),filter=$("attributeFilter").value.trim().toLowerCase();
- const rows=items.map((x,i)=>({x,i})).filter(o=>!filter||Object.entries(o.x.feature.properties||{}).some(([k,v])=>k!=="_attachments"&&(k.toLowerCase().includes(filter)||String(v===null||v===undefined?"":typeof v==="object"?JSON.stringify(v):v).toLowerCase().includes(filter))));
+ let rows=items.map((x,i)=>({x,i})).filter(o=>!filter||Object.entries(o.x.feature.properties||{}).some(([k,v])=>k!=="_attachments"&&(k.toLowerCase().includes(filter)||String(v===null||v===undefined?"":typeof v==="object"?JSON.stringify(v):v).toLowerCase().includes(filter))));
  const keys=tableKeys(items);
+ if(attributeSort.key&&keys.includes(attributeSort.key)){
+  const key=attributeSort.key,dir=attributeSort.direction;
+  rows.sort((a,b)=>{
+   const av=a.x.feature.properties?.[key],bv=b.x.feature.properties?.[key];
+   const aEmpty=av===null||av===undefined||av==="",bEmpty=bv===null||bv===undefined||bv==="";
+   if(aEmpty||bEmpty)return aEmpty===bEmpty?a.i-b.i:(aEmpty?1:-1);
+   let cmp;
+   if(typeof av==="number"&&typeof bv==="number")cmp=av-bv;
+   else if(typeof av==="boolean"&&typeof bv==="boolean")cmp=Number(av)-Number(bv);
+   else cmp=String(typeof av==="object"?JSON.stringify(av):av).localeCompare(String(typeof bv==="object"?JSON.stringify(bv):bv),undefined,{numeric:true,sensitivity:"base"});
+   return cmp===0?a.i-b.i:cmp*dir;
+  });
+ }
  let html="<table class='arc-attribute-grid'><thead><tr><th><input type='checkbox' class='attr-check' id='checkAllRows'></th><th>#</th>"+
- keys.map(k=>"<th style='padding:3px;border-bottom:1px solid #ccd9df;white-space:nowrap'>"+esc(k)+"</th>").join("")+"</tr></thead><tbody>";
+ keys.map(k=>"<th data-sort-key='"+esc(k)+"' title='Sort by "+esc(k)+"' style='padding:3px;border-bottom:1px solid #ccd9df;white-space:nowrap;cursor:pointer;user-select:none'>"+esc(k)+(attributeSort.key===k?(attributeSort.direction===1?" ▲":" ▼"):" ↕")+"</th>").join("")+"</tr></thead><tbody>";
  rows.forEach(o=>{html+="<tr data-index='"+o.i+"'><td><input type='checkbox' class='row-check attr-check' "+(selectedFeatures.has(o.x.layer)?"checked":"")+"></td><td>"+(o.i+1)+"</td>"+
  keys.map(k=>{const v=(o.x.feature.properties||{})[k],shown=v===null||v===undefined?"":typeof v==="object"?JSON.stringify(v):String(v);return "<td style='padding:2px'><input class='cell-edit' data-key='"+esc(k)+"' data-original='"+esc(shown)+"' value='"+esc(shown) +"'></td>"}).join("")+"</tr>"});
  $("attributeTableWrap").innerHTML=html+"</tbody></table>";$("attributeTableWrap").style.display="block";
- const layerLabel=$("attributeLayer").selectedOptions?.[0]?.textContent||"Feature layer";
- $("attributeTableWindowTitle").textContent="Attribute Table — "+layerLabel;
- $("attributeTableWindowLayer").textContent="Layer: "+layerLabel;
- $("attributeTableWindowInfo").textContent=rows.length+" visible / "+items.length+" total records";
- $("attributeTableWindowRows").textContent=items.length+" records";
- $("attributeTableWindowSelection").textContent=selectedFeatures.size+" selected";
  const all=$("checkAllRows"),rowChecks=[...$("attributeTableWrap").querySelectorAll(".row-check")];
  const syncCheckAll=()=>{
   if(!all)return;
@@ -1897,23 +1904,26 @@ function renderEditableTable(){
   applySelectionVisual();
   syncCheckAll();
   updateMultiSelectionUI();
-  $("attributeTableWindowSelection").textContent=selectedFeatures.size+" selected";
  };
  if(all)all.onchange=()=>{rowChecks.forEach(ch=>ch.checked=all.checked);syncMapSelection()};
  rowChecks.forEach(ch=>ch.onchange=syncMapSelection);
  syncCheckAll();
- status(rows.length+" rows displayed.");
+ $("attributeTableWrap").querySelectorAll("th[data-sort-key]").forEach(th=>{
+  th.onclick=()=>{
+   if(hasUnsavedTableEdits()){status("Save Table Edits before sorting; unsaved cell values have been preserved.");return}
+   const key=th.dataset.sortKey;
+   if(attributeSort.key===key)attributeSort.direction*=-1;
+   else{attributeSort.key=key;attributeSort.direction=1}
+   renderEditableTable();
+  };
+ });
+ status(rows.length+" rows displayed."+(attributeSort.key?" · sorted by "+attributeSort.key+(attributeSort.direction===1?" ascending":" descending"):""));
 }
 $("openTable").onclick=()=>{
  if(hasUnsavedTableEdits()){status("Save Table Edits before reopening the table; unsaved values have been preserved.");return}
- $("attributeTableWindow").classList.add("open");
- $("attributeTableViewport").appendChild($("attributeTableWrap"));
  renderEditableTable();
 };
-$("attributeTableClose").onclick=()=>{$("attributeTableWindow").classList.remove("open")};
-$("attributeTableMinimize").onclick=()=>{$("attributeTableWindow").classList.remove("open")};
-$("attributeTableMaximize").onclick=()=>{const win=$("attributeTableWindow");win.classList.toggle("maximized");$("attributeTableMaximize").textContent=win.classList.contains("maximized")?"❐":"□"};
-$("attributeTableWrap").addEventListener("change",event=>{if(event.target.matches(".row-check,#checkAllRows"))$("attributeTableWindowSelection").textContent=selectedFeatures.size+" selected"});$("attributeFilter").addEventListener("input",()=>{
+$("attributeTableWrap").addEventListener("change",event=>{if(event.target.matches(".row-check,#checkAllRows"))updateMultiSelectionUI()});$("attributeFilter").addEventListener("input",()=>{
  if($("attributeTableWrap").style.display==="none")return;
  if(hasUnsavedTableEdits()){
   status("Save Table Edits before changing the filter; this prevents unsaved cell values from being discarded.");
@@ -1974,7 +1984,6 @@ $("selectFiltered").onclick=()=>{
  const all=$("checkAllRows"),checks=[...$("attributeTableWrap").querySelectorAll(".row-check")];
  if(all){const checked=checks.filter(ch=>ch.checked).length;all.checked=checks.length>0&&checked===checks.length;all.indeterminate=checked>0&&checked<checks.length}
  applySelectionVisual();updateMultiSelectionUI();
- $("attributeTableWindowSelection").textContent=selectedFeatures.size+" selected";
  status(n+" feature(s) selected from the filtered attribute table.");
 };
 $("editAttributes").onclick=renderAttributeEditor;
