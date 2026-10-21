@@ -953,6 +953,12 @@ document.addEventListener("keydown",e=>{
   const key=e.key.toLowerCase();
   if(key==="z"&&!e.shiftKey){e.preventDefault();undoMapEdit();}
   else if(key==="y"||(key==="z"&&e.shiftKey)){e.preventDefault();redoMapEdit();}
+  else if(key==="s"){
+    e.preventDefault();
+    if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits())$("saveTableEdits")?.click();
+    else if(editSessionActive)saveEdits();
+    else status("Start Editing before saving edits.");
+  }
 });
 function recordMapExtent(){
   const c=map.getCenter(),entry={lat:c.lat,lng:c.lng,zoom:map.getZoom()};
