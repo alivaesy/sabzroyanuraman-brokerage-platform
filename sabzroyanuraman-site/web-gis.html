@@ -3390,7 +3390,7 @@ function featureCenterLatLng(layer){
   return null;
 }
 function shapeSelectionMode(){
- const raw=prompt("Selection type:\\n1 = New selection\\n2 = Add to current selection\\n3 = Remove from current selection\\n4 = Select from current selection","1");
+ const raw=prompt("Selection type:\n1 = New selection\n2 = Add to current selection\n3 = Remove from current selection\n4 = Select from current selection","1");
  if(raw===null)return null;
  const mode=raw.trim();
  if(!["1","2","3","4"].includes(mode)){status("Choose selection mode 1, 2, 3, or 4.");return null;}
