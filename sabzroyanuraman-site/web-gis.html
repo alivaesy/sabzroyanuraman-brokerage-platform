@@ -3998,20 +3998,29 @@ function ringArea(r){
   return Math.abs(a/2);
 }
 function geometryMetrics(g){
-  const p=geometryProjected(g); if(!p)return {length:0,area:0};
+  // Leaflet stores GeoJSON coordinates in WGS84 (longitude/latitude). Measuring
+  // those values as planar coordinates produced degree-based lengths/areas that
+  // were incorrectly labelled as metres, especially when the project CRS changed.
+  if(!g||!g.type)return {length:0,area:0};
   let length=0,area=0;
-  function polygonArea(rings){
-    if(!Array.isArray(rings)||!rings.length)return 0;
-    return Math.max(0,ringArea(rings[0])-rings.slice(1).reduce((sum,r)=>sum+ringArea(r),0));
-  }
-  function walk(type,c){
-    if(type==="LineString")length+=planarDistance(c);
-    else if(type==="PolygonRing")length+=planarDistance(c);
-  }
-  eachGeometryPart(p,(type,coords)=>walk(type,coords));
-  if(p.type==="Polygon")area=polygonArea(p.coordinates);
-  if(p.type==="MultiPolygon")area=p.coordinates.reduce((sum,poly)=>sum+polygonArea(poly),0);
-  if(p.type==="MultiLineString")length=p.coordinates.reduce((sum,line)=>sum+planarDistance(line),0);
+  try{
+    if(["LineString","MultiLineString","Polygon","MultiPolygon"].includes(g.type)){
+      if(typeof turf!=="undefined"&&typeof turf.length==="function"){
+        const km=Number(turf.length(g,{units:"kilometers"}));
+        if(Number.isFinite(km))length=km*1000;
+      }
+      if(["Polygon","MultiPolygon"].includes(g.type)&&typeof turf!=="undefined"&&typeof turf.area==="function"){
+        const sqm=Number(turf.area(g));
+        if(Number.isFinite(sqm))area=sqm;
+      }
+    }else if(g.type==="Point"||g.type==="MultiPoint"){
+      length=0;area=0;
+    }else if(g.type==="GeometryCollection"&&Array.isArray(g.geometries)){
+      for(const child of g.geometries){
+        const m=geometryMetrics(child);length+=m.length;area+=m.area;
+      }
+    }
+  }catch(err){console.warn("Geometry measurement failed",err);}
   return {length,area};
 }
 function fmtMeters(v){return Number(v||0).toLocaleString("en-US",{maximumFractionDigits:3})+" meters";}
