@@ -1720,8 +1720,8 @@ function saveAttributes(){
     }else if(old!==null&&typeof old==="object"){
       try{
         value=JSON.parse(raw);
-        if(value===null||typeof value!=="object")throw new Error("Expected object or array");
-      }catch(e){errors.push("Field "+key+" must contain valid JSON object or array data.");return}
+        if(value===null||typeof value!=="object"||(Array.isArray(old)!==Array.isArray(value)))throw new Error("JSON value type does not match the existing field");
+      }catch(e){errors.push("Field "+key+" must contain valid JSON "+(Array.isArray(old)?"array":"object")+" data.");return}
     }else if(old===null){
       value=raw.trim()===""?null:raw;
     }
@@ -2385,7 +2385,7 @@ $("pasteRows").onclick=()=>{
      else{
       try{value=JSON.parse(String(raw))}catch(e){throw new Error("Field '"+key+"' requires valid JSON.")}
      }
-     if(value===null||typeof value!=="object")throw new Error("Field '"+key+"' must remain a JSON object or array.");
+     if(value===null||typeof value!=="object"||(Array.isArray(old)!==Array.isArray(value)))throw new Error("Field '"+key+"' must remain a JSON "+(Array.isArray(old)?"array":"object")+".");
     }else value=String(raw);
     next[key]=value;
    });
