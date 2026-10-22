@@ -1181,7 +1181,7 @@ function validateAndSyncEditTarget(){
   }
   return {ok:true,count:records.length};
 }
-async function saveEdits(){
+async async function saveEdits(){
   if(!editSessionActive){status("No edit session is active.");return false}
   if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){
     status("Save Table Edits before saving the edit session; unsaved attribute values are still in the table.");
