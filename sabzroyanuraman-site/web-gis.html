@@ -1121,6 +1121,8 @@ function stopActiveDraw(cancel=true){
   updateEditorToolbar();
 }
 function updateEditorToolbar(){
+  $("editorToolbar")?.classList.toggle("editing-active",editSessionActive);
+  $("editMenu")?.classList.toggle("editing-active",editSessionActive);
   $("startEditingBtn").disabled=editSessionActive;
   $("saveEditsBtn").disabled=!editSessionActive;
   ["saveTableEdits","addTableField","deleteTableField","deleteSelectedRows","fillSelected"].forEach(id=>{const b=$(id);if(b)b.disabled=!editSessionActive});
@@ -4097,6 +4099,78 @@ function checkEditTopology(){
   status(issues.length?"Topology check found "+issues.length+" issue(s); see Tool Output.":(!gapChecked?"Basic geometry checks passed for "+records.length+" feature(s); "+gapSummary:"Topology check passed for "+records.length+" feature(s); "+gapSummary));
 }
 
+function modifyLasso(){
+  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("modifying a polygon with Lasso"))return;
+  if(!editSessionActive||!editTarget){status("Start Editing before using Modify Lasso.");return;}
+  const r=selectedRecords().find(x=>x.owner?.layer===editTarget&&["Polygon","MultiPolygon"].includes(x.feature?.geometry?.type));
+  if(!r){status("Select one polygon feature in the active edit layer first.");return;}
+  if(typeof turf.difference!=="function"||typeof turf.union!=="function"){status("Modify Lasso needs Turf polygon operations.");return;}
+  stopActiveDraw(true);stopReshapeDraw();
+  const original=JSON.parse(JSON.stringify(r.feature)),owner=editTarget;
+  status("Sketch a closed lasso across the polygon. A lasso inside removes area; one crossing or outside adds area. Esc cancels.");
+  const handler=new L.Draw.Polygon(map,{shapeOptions:{color:"#7b3fb2",weight:2,dashArray:"4,3"}});
+  window._reshapeDrawHandler=handler;
+  const created=e=>{
+    map.off(L.Draw.Event.CREATED,created);window._reshapeCreatedHandler=null;window._reshapeDrawHandler=null;
+    try{
+      if(!editSessionActive||editTarget!==owner||!owner.hasLayer(r.layer)){status("Modify Lasso cancelled because the edit target changed.");return;}
+      if(map.hasLayer(e.layer))map.removeLayer(e.layer);
+      const sketch=e.layer.toGeoJSON();
+      if(!vertexGeometryIsValid(sketch.geometry)||sketch.geometry.type!=="Polygon")throw new Error("Draw a valid lasso polygon.");
+      if(!turf.booleanIntersects(original,sketch))throw new Error("The lasso must overlap the selected polygon.");
+      const cut=turf.booleanWithin(sketch,original);
+      const result=cut?turf.difference({type:"FeatureCollection",features:[original,sketch]}):turf.union({type:"FeatureCollection",features:[original,sketch]});
+      if(!result?.geometry||!["Polygon","MultiPolygon"].includes(result.geometry.type)||!vertexGeometryIsValid(result.geometry))throw new Error("The lasso result is not a valid polygon.");
+      if(JSON.stringify(result.geometry)===JSON.stringify(original.geometry)){status("Modify Lasso made no geometry changes.");return;}
+      recordUndoState();r.feature.geometry=result.geometry;rebuildVectorLayerGeometry([r]);refreshAll();
+      Promise.all([flushGeodatabaseEdits(),scheduleAutoSave()]).then(([a,b])=>status("Modify Lasso applied."+(a&&b?"":" Save failed; retry Save Edits.")));
+    }catch(err){status("Modify Lasso cancelled: "+(err.message||"geometry operation failed"));}
+    finally{if(map.hasLayer(e.layer))map.removeLayer(e.layer);}
+  };
+  window._reshapeCreatedHandler=created;map.once(L.Draw.Event.CREATED,created);handler.enable();
+}
+function drawCurveFeature(){
+  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("drawing a curve"))return;
+  if(!editSessionActive||!editTarget){status("Start Editing before drawing a curve.");return;}
+  const target=editTarget;
+  if(target._gdbMetadata&&target._gdbMetadata.geometryType!=="LineString"){status("Curve creates a line; choose a polyline feature class.");return;}
+  stopActiveDraw(true);
+  const points=[],preview=L.polyline([],{color:"#7b3fb2",weight:2,dashArray:"4,3",interactive:false}).addTo(map);
+  let done=false;
+  const cleanup=()=>{
+    if(done)return;done=true;map.off("click",onClick);map.off("mousemove",onMove);map.off("dblclick",onDouble);
+    if(map.hasLayer(preview))map.removeLayer(preview);map.doubleClickZoom.enable();map.dragging.enable();
+    activeMapTool="select";map.getContainer().style.cursor="";window._curveToolCancel=null;updateEditorToolbar();
+  };
+  const bezier=()=>{
+    const [a,c,b]=points,coords=[];
+    for(let i=0;i<=32;i++){const t=i/32,u=1-t;coords.push([u*u*a.lng+2*u*t*c.lng+t*t*b.lng,u*u*a.lat+2*u*t*c.lat+t*t*b.lat]);}
+    return coords;
+  };
+  const onMove=e=>{if(points.length===1)preview.setLatLngs([points[0],e.latlng]);else if(points.length===2)preview.setLatLngs(bezier());};
+  const onDouble=e=>{if(points.length<3)return;e.originalEvent?.preventDefault?.();finish();};
+  const finish=()=>{
+    if(points.length!==3){status("Curve needs start, control, and end points.");return;}
+    if(!editSessionActive||editTarget!==target){cleanup();status("Curve cancelled because the edit target changed.");return;}
+    const coordinates=bezier(),feature={type:"Feature",properties:{},geometry:{type:"LineString",coordinates}};
+    if(!vertexGeometryIsValid(feature.geometry)){cleanup();status("Curve geometry failed validation.");return;}
+    const existing=vectorFeatures(target).map(x=>Number(x.feature?.properties?.FeatureID)).filter(Number.isFinite);
+    feature.properties.FeatureID=(existing.length?Math.max(...existing):0)+1;
+    feature.properties.Length_m=Number(geometryMetrics(feature.geometry).length.toFixed(3));
+    const layer=L.polyline(coordinates,{color:"#146c43",weight:3});layer.feature=feature;ensureFeatureId(feature);recordUndoState();target.addLayer(layer);attachFeatureSelection(layer);
+    selectedFeatures.clear();selectedFeatures.add(layer);selectedLayer=layer;selectedOverlay=null;
+    cleanup();applySelectionVisual();refreshAll();renderLayerList();refreshAttributeLayers();
+    Promise.all([flushGeodatabaseEdits(),scheduleAutoSave()]).then(([a,b])=>status("Bezier curve created from 3 control points."+(a&&b?"":" Save failed; retry Save Edits.")));
+  };
+  const onClick=e=>{if(points.length>=3)return;points.push(e.latlng);if(points.length===1)preview.setLatLngs(points);else if(points.length===2)preview.setLatLngs([points[0],points[1]]);else finish();};
+  window._curveToolCancel=()=>{cleanup();status("Curve drawing cancelled.");};
+  map.on("click",onClick);map.on("mousemove",onMove);map.on("dblclick",onDouble);
+  map.doubleClickZoom.disable();map.dragging.disable();activeMapTool="draw";map.getContainer().style.cursor="crosshair";
+  status("Click start, curve control point, then end. Esc cancels.");
+  const previous=window._curveKeyHandler;if(previous)document.removeEventListener("keydown",previous,true);
+  window._curveKeyHandler=e=>{if(e.key==="Escape"&&window._curveToolCancel){e.preventDefault();e.stopPropagation();window._curveToolCancel();}};
+  document.addEventListener("keydown",window._curveKeyHandler,true);
+}
 /* =========================
    GIS TOOLBOX — GIS available Search
    ========================= */
