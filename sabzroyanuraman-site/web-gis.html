@@ -5443,8 +5443,11 @@ window.addEventListener("beforeunload",event=>{
 .feedback-actions button{border:1px solid #8f9da5;background:#f8fafb;padding:6px 12px;color:#263f50;font-size:11px;cursor:pointer}
 .feedback-actions #publicFeedbackSend{background:#286b4d;color:#fff;border-color:#286b4d}
 #publicFeedbackStatus{font-size:11px;line-height:1.7;margin-top:8px;white-space:pre-wrap}
-.feedback-list-title{font-size:12px;font-weight:700;margin:16px 0 7px;border-bottom:1px solid #c8d2d7;padding-bottom:6px}
-#publicFeedbackList{display:flex;flex-direction:column;gap:7px}
+.feedback-list-title{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:700;margin:16px 0 7px;border-bottom:1px solid #c8d2d7;padding-bottom:6px}
+.feedback-list-toggle{display:inline-flex;align-items:center;justify-content:center;width:25px;height:22px;border:1px solid #aab5bb;background:#f8fafb;color:#263f50;cursor:pointer;font-size:12px;line-height:1}
+.feedback-list-toggle[aria-expanded="true"]{background:#e2e8eb}
+#publicFeedbackList{display:none;flex-direction:column;gap:7px}
+#publicFeedbackList.expanded{display:flex}
 .public-feedback-item{--feedback-accent:#477da8;border:1px solid #d1dadd;border-right:4px solid var(--feedback-accent);background:#fff;padding:8px;font-size:11px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere;direction:rtl;text-align:right}
 .public-feedback-item:nth-child(6n+2){--feedback-accent:#43856b}.public-feedback-item:nth-child(6n+3){--feedback-accent:#a87936}.public-feedback-item:nth-child(6n+4){--feedback-accent:#8065a5}.public-feedback-item:nth-child(6n+5){--feedback-accent:#ad6262}.public-feedback-item:nth-child(6n){--feedback-accent:#438c91}
 .public-feedback-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;color:#536875;margin-bottom:5px;direction:rtl;text-align:right}
@@ -5458,12 +5461,12 @@ window.addEventListener("beforeunload",event=>{
    <form id="publicFeedbackForm">
     <label for="publicFeedbackText" style="display:block;font-size:11px;font-weight:700;margin-bottom:6px">نظر یا پیشنهاد خود را بنویسید (حداکثر ۶ خط)</label>
     <textarea id="publicFeedbackText" maxlength="600" rows="6" dir="rtl" required placeholder="متن بازخورد شما..." aria-describedby="publicFeedbackCount"></textarea>
-    <div class="feedback-form-row"><span id="publicFeedbackCount">۰ / ۶۰۰</span><span>بازخوردها برای همه قابل مشاهده است.</span></div>
+    <div class="feedback-form-row"><span id="publicFeedbackCount">۰ / ۶۰۰</span><span></span></div>
     <div class="feedback-actions"><button type="submit" id="publicFeedbackSend">Send Feedback</button><button type="button" id="publicFeedbackRefresh">Refresh</button></div>
    </form>
    <div id="publicFeedbackStatus" role="status" aria-live="polite"></div>
-   <div class="feedback-list-title">All Feedback</div>
-   <div id="publicFeedbackList" aria-live="polite"><div class="public-feedback-item">در حال دریافت بازخوردها…</div></div>
+   <div class="feedback-list-title"><span>All Feedback</span><button type="button" id="publicFeedbackToggle" class="feedback-list-toggle" aria-label="نمایش بازخوردها" aria-expanded="false" title="نمایش بازخوردها">▾</button></div>
+   <div id="publicFeedbackList" aria-live="polite"><div class="public-feedback-item">برای نمایش بازخوردها، فلش را بزنید.</div></div>
   </div>
  </section>
 </div>
@@ -5478,13 +5481,14 @@ window.addEventListener("beforeunload",event=>{
  const count=document.getElementById("publicFeedbackCount");
  const status=document.getElementById("publicFeedbackStatus");
  const list=document.getElementById("publicFeedbackList");
+ const listToggle=document.getElementById("publicFeedbackToggle");
  const send=document.getElementById("publicFeedbackSend");
  if(!modal||!openBtn||!form||!field||!list)return;
  const setStatus=(message,isError=false)=>{status.textContent=message;status.style.color=isError?"#a33":"#286b4d"};
  const normalized=()=>field.value.replace(/\r\n?/g,"\n");
  const lineCount=value=>value.length?value.split("\n").length:0;
  const updateCount=()=>{const v=normalized();count.textContent=v.length+" / 600 · "+lineCount(v)+" / 6 lines";field.setCustomValidity(lineCount(v)>6?"لطفاً متن را حداکثر در ۶ خط بنویسید.":"");};
- function open(){modal.classList.add("show");document.body.style.overflow="hidden";load();setTimeout(()=>field.focus(),20)}
+ function open(){modal.classList.add("show");document.body.style.overflow="hidden";setTimeout(()=>field.focus(),20)}
  function close(){modal.classList.remove("show");document.body.style.overflow="";}
  function dateLabel(value){const d=new Date(value);if(Number.isNaN(d.getTime()))return "";try{return new Intl.DateTimeFormat("fa-IR-u-ca-persian",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(d)}catch(_){return d.toLocaleString("fa-IR")}}
  function render(items){
@@ -5508,6 +5512,15 @@ window.addEventListener("beforeunload",event=>{
    catch(error){list.replaceChildren();const err=document.createElement("div");err.className="public-feedback-item";err.textContent="دریافت بازخوردها ممکن نشد. مطمئن شوید نسخه روی میزبانی دارای PHP منتشر شده است.";list.append(err);setStatus(error.message,true);}
  }
  openBtn.addEventListener("click",open);closeBtn.addEventListener("click",close);
+ listToggle.addEventListener("click",()=>{
+  const expanded=listToggle.getAttribute("aria-expanded")!=="true";
+  listToggle.setAttribute("aria-expanded",String(expanded));
+  listToggle.textContent=expanded?"▴":"▾";
+  listToggle.setAttribute("aria-label",expanded?"پنهان‌کردن بازخوردها":"نمایش بازخوردها");
+  listToggle.title=expanded?"پنهان‌کردن بازخوردها":"نمایش بازخوردها";
+  list.classList.toggle("expanded",expanded);
+  if(expanded)load();
+ });
  modal.addEventListener("click",event=>{if(event.target===modal)close()});
  document.addEventListener("keydown",event=>{if(event.key==="Escape"&&modal.classList.contains("show"))close()});
  field.addEventListener("input",updateCount);
@@ -5520,7 +5533,7 @@ window.addEventListener("beforeunload",event=>{
    try{
      const response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({text})});
      const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||"ارسال بازخورد انجام نشد.");
-     field.value="";updateCount();setStatus("بازخورد شما ثبت شد و برای همه قابل مشاهده است.");await load();
+     field.value="";updateCount();setStatus("بازخورد شما ثبت شد و برای همه قابل مشاهده است.");if(list.classList.contains("expanded"))await load();
    }catch(error){setStatus(error.message||"ارسال بازخورد ناموفق بود.",true);}
    finally{send.disabled=false;}
  });
