@@ -596,6 +596,7 @@ body{background:#dfe5e8;color:#173b57}
     <button data-action="stopEditing">Stop Editing</button>
     <div class="arc-sep"></div><button data-tool="moveFeatures">Move Features</button><button data-tool="splitFeatures">Split Features</button><button data-tool="mergeFeatures">Merge Selected Features</button><button data-tool="explodeFeatures">Explode Multipart Features</button><button data-tool="rotateFeatures">Rotate Features</button>
     <button data-tool="scaleFeatures">Scale Features</button><button data-tool="reshapeFeatures">Reshape</button>
+    <button data-tool="topologyCheckTool">Check Topology</button>
     <button data-tool="snapTool">Snap Points to Lines</button>
     <div class="arc-sep"></div><button data-action="editorOptions">Editing Options...</button>
   </div>
@@ -1293,6 +1294,10 @@ function recordUndoState(){
   catch(err){console.warn("Could not create edit history snapshot:",err);}
 }
 function applyHistorySnapshot(source,destination,message){
+  if(window._splitDrawHandler){
+    status("Finish or cancel the active Split sketch before using "+message+".");
+    return;
+  }
   if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){
     status("Save Table Edits before using "+message+"; pending cell values have been preserved.");
     return;
@@ -1327,6 +1332,9 @@ function applyHistorySnapshot(source,destination,message){
   scheduleAutoSave();status(message+" applied.");
 }
 function undoMapEdit(){
+  // A pending split sketch is a transient operation, not a committed edit.
+  // First Ctrl+Z cancels it rather than rewinding project history.
+  if(window._splitDrawHandler){stopSplitDraw();status("Split sketch cancelled.");return;}
   // Desktop-GIS behavior: Ctrl+Z removes the last vertex while sketching;
   // once a sketch is empty, stop the continuous tool and undo the last feature.
   if(activeDrawHandler&&activeDrawPurpose==="draw"){
@@ -3927,6 +3935,47 @@ async function exportRealGDB(){
   }
 }
 
+function checkEditTopology(){
+  if(!editSessionActive||!editTarget){status("Start Editing and choose an editable layer before checking topology.");return;}
+  const records=vectorFeatures(editTarget),issues=[];
+  const same=(a,b)=>Array.isArray(a)&&Array.isArray(b)&&a.length>=2&&b.length>=2&&Math.abs(a[0]-b[0])<1e-12&&Math.abs(a[1]-b[1])<1e-12;
+  records.forEach((r,index)=>{
+    const f=r.feature||r.layer?.feature||{},g=f.geometry;
+    const id=f.id??f.properties?.OBJECTID??f.properties?.FID??(index+1);
+    if(!g){issues.push({id,issue:"Missing geometry"});return;}
+    const checkLine=(coords,label)=>{
+      if(!Array.isArray(coords)||coords.length<2){issues.push({id,issue:label+": fewer than 2 vertices"});return;}
+      for(let i=1;i<coords.length;i++)if(same(coords[i-1],coords[i]))issues.push({id,issue:label+": duplicate consecutive vertices at "+i});
+    };
+    if(g.type==="LineString")checkLine(g.coordinates,"Line");
+    else if(g.type==="MultiLineString")g.coordinates.forEach((line,i)=>checkLine(line,"Line part "+(i+1)));
+    if(g.type==="Polygon"){
+      g.coordinates.forEach((ring,i)=>{
+        if(!Array.isArray(ring)||ring.length<4||!same(ring[0],ring[ring.length-1]))issues.push({id,issue:"Polygon ring "+(i+1)+" is not closed or has too few vertices"});
+        checkLine(ring,"Polygon ring "+(i+1));
+      });
+    }else if(g.type==="MultiPolygon"){
+      g.coordinates.forEach((poly,p)=>poly.forEach((ring,i)=>{
+        if(!Array.isArray(ring)||ring.length<4||!same(ring[0],ring[ring.length-1]))issues.push({id,issue:"Polygon "+(p+1)+" ring "+(i+1)+" is not closed"});
+        checkLine(ring,"Polygon "+(p+1)+" ring "+(i+1));
+      }));
+    }
+    if(["Polygon","MultiPolygon"].includes(g.type)){
+      try{
+        if(typeof turf.kinks==="function"){
+          const k=turf.kinks(f).features||[];
+          if(k.length)issues.push({id,issue:"Self-intersecting polygon ("+k.length+" intersection(s))"});
+        }
+        const area=turf.area(f);
+        if(!Number.isFinite(area)||area<=0)issues.push({id,issue:"Polygon has zero or invalid area"});
+      }catch(e){issues.push({id,issue:"Topology check failed: "+(e.message||"unknown error")});}
+    }
+  });
+  const output=$("professionalToolOutput");
+  if(output)output.textContent="Topology Check — Layer features: "+records.length+" | Issues: "+issues.length+"\n"+(issues.length?issues.slice(0,100).map(x=>"Feature "+x.id+": "+x.issue).join("\n"):"No basic geometry topology issues detected.")+(issues.length>100?"\n... "+(issues.length-100)+" more issue(s) omitted.":"");
+  status(issues.length?"Topology check found "+issues.length+" issue(s); see Tool Output.":"Topology check passed for "+records.length+" feature(s).");
+}
+
 /* =========================
    GIS TOOLBOX — GIS available Search
    ========================= */
@@ -3960,6 +4009,7 @@ const GIS_TOOLS=[
  {id:"runGisOperation",op:"intersection",title:"Intersect",category:"Geoprocessing",keys:"intersection"},
  {id:"runGisOperation",op:"split",title:"Split",category:"Geoprocessing",keys:"split line"},
  {id:"runGisOperation",op:"merge",title:"Merge",category:"Geoprocessing",keys:"merge"},
+ {id:"topologyCheckTool",title:"Check Topology",category:"Editor",keys:"topology geometry self intersection duplicate vertices polygon validity"},
  {id:"snapTool",title:"Snapping",category:"Editor",keys:"snap"},
  {id:"advancedSnap",title:"Advanced Snapping",category:"Editor",keys:"snap vertex edge tolerance"},
  {id:"vertexEdit",title:"Edit Vertices",category:"Editor",keys:"vertex node reshape geometry"},
@@ -5219,6 +5269,7 @@ function runGisTool(tool){
  if(tool.id==="nearestMatchTool"){nearestMatchTool();return;}
  if(tool.id==="transferAttributesTool"){transferAttributesTool();return;}
  if(tool.id==="networkQaTool"){networkQaTool();return;}
+ if(tool.id==="topologyCheckTool"){checkEditTopology();return;}
  if(tool.id==="snapTool"){snapTool();return;}
  if(tool.id==="attachmentsTool"){attachmentsTool();return;}
  if(tool.id==="chartStats"){chartStats();return;}
