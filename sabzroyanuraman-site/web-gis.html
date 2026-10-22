@@ -1190,9 +1190,11 @@ async function saveEdits(){
   const validation=validateAndSyncEditTarget();
   if(!validation.ok){status("Edits not saved: "+validation.message);return false}
   try{
-    // Flush the geodatabase bridge before persisting the project snapshot.
+    // The bridge currently persists the browser-local project snapshot.
+    // Treat an explicit autosave failure as a failed edit save, not success.
     if(window.__webGisGdbBridge&&typeof window.__webGisGdbBridge.save==="function"){
-      await window.__webGisGdbBridge.save();
+      const bridgeSaved=await window.__webGisGdbBridge.save();
+      if(bridgeSaved===false)throw new Error("Automatic local save failed; retry Save Edits.");
     }
     const project=serializeProject();
     project.id=projectId();
@@ -4528,7 +4530,7 @@ function editVertices(){
     const editableGroup=L.featureGroup(selectedLayers);
     let baseline=JSON.parse(JSON.stringify(serializeProject()));
     window._vertexEditOwner=owner;window._vertexEditLayers=selectedLayers;window._vertexEditBaseline=baseline;
-    window._vertexEditHandler=function(event){
+    window._vertexEditHandler=async function(event){
       if(!editSessionActive||editTarget!==owner){status("Vertex edits ignored because the active edit layer changed.");return;}
       const edited=[];
       event.layers.eachLayer(layer=>{
@@ -4539,6 +4541,11 @@ function editVertices(){
         edited.push(layer);
       });
       if(!edited.length)return;
+      const validation=validateAndSyncEditTarget();
+      if(!validation.ok){
+        status("Vertex geometry is invalid: "+validation.message+" Correct the vertices before saving.");
+        return;
+      }
       try{
         const current=JSON.stringify(serializeProject()),previous=JSON.stringify(baseline);
         if(current!==previous){
@@ -4547,8 +4554,10 @@ function editVertices(){
         }
       }catch(err){console.warn("Could not preserve vertex-edit history:",err)}
       refreshAll();
-      window.__webGisGdbBridge?.save();scheduleAutoSave();
-      status("Saved vertex edits for "+edited.length+" selected feature(s).");
+      const synced=await flushGeodatabaseEdits();
+      status(synced
+        ?"Vertex edits saved locally for "+edited.length+" selected feature(s)."
+        :"Vertex edits remain on the map, but local autosave failed. Retry Save Edits.");
     };
     map.on(L.Draw.Event.EDITED,window._vertexEditHandler);
     window._vertexEditControl=new L.Control.Draw({
