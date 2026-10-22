@@ -1573,16 +1573,22 @@ function drawingLayerForType(type){
   const currentItem=namedLayers.find(x=>x.layer===editTarget);
   if(currentItem&&currentItem.drawingSet)activeDrawingSetName=currentItem.drawingSet;
   const setName=activeDrawingSetName||"My Drawings";
-  const name=setName==="My Drawings"?suffix:setName+" / "+suffix;
+  const name=setName+" / "+suffix;
   let item=namedLayers.find(x=>x.drawingSet===setName&&x._webgisDrawingType===kind);
   if(!item)item=namedLayers.find(x=>x.name===name);
+  // Reuse and relabel legacy default drawing layers instead of creating duplicates.
+  if(!item&&setName==="My Drawings")item=namedLayers.find(x=>x.name===suffix);
   if(!item){
     const layer=new L.FeatureGroup();layer._webgisDrawingType=kind;
     addNamedLayer(name,layer,false);
     item=namedLayers.find(x=>x.layer===layer);
-    if(item){item._webgisDrawingType=kind;item.drawingSet=setName;}
   }
   if(!item)return drawn;
+  if(item.name!==name){
+    layerControl.removeLayer(item.layer);
+    item.name=name;
+    layerControl.addOverlay(item.layer,name);
+  }
   item.drawingSet=setName;item._webgisDrawingType=kind;
   selectedOverlay=item.layer;editTarget=item.layer;
   const index=namedLayers.findIndex(x=>x.layer===item.layer);
