@@ -1,0 +1,114 @@
+name: Vendor Web GIS dependencies
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - ".github/workflows/vendor-web-gis.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vendor-web-gis-dependencies
+  cancel-in-progress: false
+
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Download pinned packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          TMP="$RUNNER_TEMP/web-gis-npm"
+          DEST="sabzroyanuraman-site/vendor/web-gis"
+          mkdir -p "$TMP" "$DEST"
+          npm install --prefix "$TMP" --no-save --no-package-lock \
+            leaflet@1.9.4 \
+            leaflet-draw@1.0.4 \
+            shp-write@0.3.2 \
+            dxf-writer@1.18.4 \
+            shpjs@6.1.0 \
+            proj4@2.9.2 \
+            @turf/turf@7.2.0 \
+            gdal3.js@2.8.1 \
+            jszip@3.10.1 \
+            dwgdxf@2.0.1 \
+            esbuild
+          N="$TMP/node_modules"
+          mkdir -p "$DEST/leaflet" "$DEST/leaflet-draw" "$DEST/shp-write" \
+            "$DEST/dxf-writer" "$DEST/shpjs" "$DEST/proj4" "$DEST/turf" \
+            "$DEST/jszip" "$DEST/gdal3.js" "$DEST/dwgdxf"
+          cp -a "$N/leaflet/dist/." "$DEST/leaflet/"
+          cp -a "$N/leaflet-draw/dist/." "$DEST/leaflet-draw/"
+          cp -a "$N/shp-write/." "$DEST/shp-write/"
+          cp -a "$N/dxf-writer/dist/." "$DEST/dxf-writer/"
+          cp -a "$N/shpjs/dist/." "$DEST/shpjs/"
+          cp -a "$N/proj4/dist/." "$DEST/proj4/"
+          cp -a "$N/@turf/turf/dist/." "$DEST/turf/"
+          cp -a "$N/jszip/dist/." "$DEST/jszip/"
+          cp -a "$N/gdal3.js/dist/package/." "$DEST/gdal3.js/"
+          cp -a "$N/dwgdxf/." "$DEST/dwgdxf/"
+          # Keep a standalone browser bundle when the package can be bundled cleanly.
+          ENTRY="$(node -e "const p=require(process.argv[1]); console.log(p.module || p.browser || p.main || 'index.js')" "$N/dwgdxf/package.json")"
+          if [[ -f "$N/dwgdxf/$ENTRY" ]]; then
+            "$N/.bin/esbuild" "$N/dwgdxf/$ENTRY" --bundle --format=esm --platform=browser --outfile="$DEST/dwgdxf.bundle.js" || true
+          fi
+          # Preserve upstream license files and record exact versions/source locations.
+          mkdir -p "$DEST/licenses"
+          for pkg in leaflet leaflet-draw shp-write dxf-writer shpjs proj4 @turf/turf gdal3.js jszip dwgdxf; do
+            src="$N/$pkg"
+            safe="$(echo "$pkg" | tr '/@' '__')"
+            node -e "const p=require(process.argv[1]); console.log(p.name+' '+p.version+' | license: '+(typeof p.license==='string'?p.license:JSON.stringify(p.license||'unspecified')))" "$src/package.json" >> "$DEST/manifest.txt"
+            for f in LICENSE LICENSE.md LICENSE.txt COPYING; do
+              if [[ -f "$src/$f" ]]; then cp "$src/$f" "$DEST/licenses/$safe-$f"; break; fi
+            done
+          done
+          cat > "$DEST/README.md" <<'EOF'
+          # Web GIS vendored dependencies
+          
+          Downloaded from pinned npm package versions for local hosting. The main
+          `web-gis.html` file is intentionally not modified; CDN references remain
+          active until local assets are tested and switched in a separate change.
+          
+          See `manifest.txt` and `licenses/` for package versions and license files.
+          GDAL3.js runtime resources are kept together because its WASM/worker files
+          must remain available beside the JavaScript entry point.
+          EOF
+          # Verify required files/resources before committing.
+          test -s "$DEST/leaflet/leaflet.js"
+          test -s "$DEST/leaflet/leaflet.css"
+          test -s "$DEST/leaflet-draw/leaflet.draw.js"
+          test -s "$DEST/leaflet-draw/leaflet.draw.css"
+          test -s "$DEST/shp-write/shpwrite.js"
+          test -s "$DEST/dxf-writer/dxf-writer.js"
+          test -s "$DEST/shpjs/shp.js"
+          test -s "$DEST/proj4/proj4.js"
+          test -s "$DEST/turf/turf.min.js"
+          test -s "$DEST/jszip/jszip.min.js"
+          test -s "$DEST/gdal3.js/gdal3.js"
+          find "$DEST" -type f -printf '%s %p\n' | sort -n > "$RUNNER_TEMP/web-gis-file-sizes.txt"
+          cat "$RUNNER_TEMP/web-gis-file-sizes.txt"
+          du -sh "$DEST"
+      - name: Commit downloaded assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add sabzroyanuraman-site/vendor/web-gis
+          if git diff --cached --quiet; then
+            echo "Vendor files are already up to date."
+            exit 0
+          fi
+          git commit -m "vendor: add pinned Web GIS dependencies"
+          git push origin HEAD:master
