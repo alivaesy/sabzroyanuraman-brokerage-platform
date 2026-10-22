@@ -3992,9 +3992,33 @@ function checkEditTopology(){
       }catch(e){issues.push({id,issue:"Topology check failed: "+(e.message||"unknown error")});}
     }
   });
+  // Pairwise polygon checks catch partial overlaps between parcel-like
+  // features while allowing polygons that merely share a boundary.
+  const polygons=records.map((r,index)=>({r,index,g:r.feature?.geometry,id:r.feature?.id??r.feature?.properties?.OBJECTID??r.feature?.properties?.FID??(index+1)}))
+    .filter(x=>x.g&&["Polygon","MultiPolygon"].includes(x.g.type));
+  if(typeof turf.booleanOverlap==="function"){
+    for(let i=0;i<polygons.length;i++)for(let j=i+1;j<polygons.length;j++){
+      const a=polygons[i],b=polygons[j];
+      try{
+        if(turf.booleanOverlap(a.r.feature,b.r.feature))
+          issues.push({id:a.id,issue:"Polygon overlaps feature "+b.id+" (partial area overlap)"});
+      }catch(e){
+        // Invalid geometry is reported by the per-feature checks above.
+      }
+    }
+  }
+  if(typeof turf.booleanEqual==="function"){
+    for(let i=0;i<polygons.length;i++)for(let j=i+1;j<polygons.length;j++){
+      const a=polygons[i],b=polygons[j];
+      try{
+        if(turf.booleanEqual(a.r.feature,b.r.feature))
+          issues.push({id:a.id,issue:"Duplicate polygon geometry matches feature "+b.id});
+      }catch(e){}
+    }
+  }
   const output=$("professionalToolOutput");
   if(output)output.textContent="Topology Check — Layer features: "+records.length+" | Issues: "+issues.length+"\n"+(issues.length?issues.slice(0,100).map(x=>"Feature "+x.id+": "+x.issue).join("\n"):"No basic geometry topology issues detected.")+(issues.length>100?"\n... "+(issues.length-100)+" more issue(s) omitted.":"");
-  status(issues.length?"Topology check found "+issues.length+" issue(s); see Tool Output.":"Topology check passed for "+records.length+" feature(s).");
+  status(issues.length?"Topology check found "+issues.length+" issue(s) (including polygon overlaps/duplicates where supported); see Tool Output.":"Topology check passed for "+records.length+" feature(s); no basic geometry errors or partial polygon overlaps were detected.");
 }
 
 /* =========================
