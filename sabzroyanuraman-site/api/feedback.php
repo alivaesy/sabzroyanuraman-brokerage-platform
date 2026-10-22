@@ -112,6 +112,8 @@ if (!save_feedback_items($store, $items, $useCompression)) {
     fclose($handle);
     respond(500, ['ok' => false, 'error' => 'Could not save feedback.']);
 }
+// Remove the legacy plain-text file only after the compressed copy is safely written.
+if ($useCompression && is_file($legacyStore)) @unlink($legacyStore);
 flock($handle, LOCK_UN);
 fclose($handle);
 $_SESSION['feedback_last_submit'] = $now;
