@@ -1623,6 +1623,7 @@ function startDraw(type,button){
     !!currentDrawingItem.drawingSet || currentDrawingItem.name==="My Drawings" ||
     /^My Drawings(?: \\d+)? \\/ (?:Points|Lines|Polygons)$/.test(currentDrawingItem.name)
   );
+  if(isDrawingSetTarget&&currentDrawingItem.drawingSet)activeDrawingSetName=currentDrawingItem.drawingSet;
   const useAutomaticDrawingLayer=editTarget===drawn||isDrawingSetTarget;
   if(useAutomaticDrawingLayer){
     drawingLayerForType(type);
