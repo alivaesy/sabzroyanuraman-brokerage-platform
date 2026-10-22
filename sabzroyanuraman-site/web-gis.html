@@ -1568,33 +1568,47 @@ function goToXY(){
   xInput.focus();xInput.select();
 }
 function drawingLayerForType(type){
-  const kind=type==="Marker"?"Point":type==="Polyline"?"Line":"Polygon";
-  const suffix=kind==="Point"?"Points":kind==="Line"?"Lines":"Polygons";
-  const currentItem=namedLayers.find(x=>x.layer===editTarget);
-  if(currentItem&&currentItem.drawingSet)activeDrawingSetName=currentItem.drawingSet;
+  // ArcMap-style drawing sets: Point, Line and Polygon features share one
+  // FeatureGroup. A new set is created only by the New Drawing button.
   const setName=activeDrawingSetName||"My Drawings";
-  const name=setName+" / "+suffix;
-  let item=namedLayers.find(x=>x.drawingSet===setName&&x._webgisDrawingType===kind);
-  if(!item)item=namedLayers.find(x=>x.name===name);
-  // Reuse and relabel legacy default drawing layers instead of creating duplicates.
-  if(!item&&setName==="My Drawings")item=namedLayers.find(x=>x.name===suffix);
+  if(setName==="My Drawings"){
+    editTarget=drawn;selectedOverlay=drawn;
+    $("editTargetLayer").value="drawn";
+    refreshAttributeLayers();
+    if($("attributeLayer"))$("attributeLayer").value="drawn";
+    renderLayerList();
+    return drawn;
+  }
+  let item=namedLayers.find(x=>x.drawingSet===setName);
   if(!item){
-    const layer=new L.FeatureGroup();layer._webgisDrawingType=kind;
-    addNamedLayer(name,layer,false);
+    const layer=new L.FeatureGroup();
+    addNamedLayer(setName,layer,false);
     item=namedLayers.find(x=>x.layer===layer);
+    if(item)item.drawingSet=setName;
   }
   if(!item)return drawn;
-  if(item.name!==name){
-    layerControl.removeLayer(item.layer);
-    item.name=name;
-    layerControl.addOverlay(item.layer,name);
-  }
-  item.drawingSet=setName;item._webgisDrawingType=kind;
+  // Consolidate any legacy per-geometry layers belonging to this set.
+  const legacy=namedLayers.filter(x=>x!==item&&
+    (x.drawingSet===setName || x.name===setName+" / Points" ||
+     x.name===setName+" / Lines" || x.name===setName+" / Polygons"));
+  legacy.forEach(old=>{
+    if(old.layer&&old.layer.eachLayer){
+      const features=[];old.layer.eachLayer(feature=>features.push(feature));
+      features.forEach(feature=>{old.layer.removeLayer(feature);item.layer.addLayer(feature)});
+    }
+    layerControl.removeLayer(old.layer);
+    if(map.hasLayer(old.layer))map.removeLayer(old.layer);
+    namedLayers=namedLayers.filter(x=>x!==old);
+  });
+  item.name=setName;
+  item.drawingSet=setName;
+  delete item._webgisDrawingType;
   selectedOverlay=item.layer;editTarget=item.layer;
   const index=namedLayers.findIndex(x=>x.layer===item.layer);
   if(index>=0)$("editTargetLayer").value=String(index);
   refreshAttributeLayers();if($("attributeLayer"))$("attributeLayer").value=String(index);
-  renderLayerList();return item.layer;
+  renderLayerList();
+  return item.layer;
 }
 function startDraw(type,button){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("starting a drawing"))return;
@@ -1603,14 +1617,13 @@ function startDraw(type,button){
     if(!window.confirm("طرح فعلی هنوز تمام نشده است. با تعویض ابزار، همین طرح ناتمام کنار گذاشته می‌شود. ادامه می‌دهید؟"))return;
   }
   stopActiveDraw();
-  // Keep the three built-in drawing destinations separate even after the
-  // first feature has changed editTarget from My Drawings to Points/Lines/Polygons.
+  // All geometry types in a drawing set share the same destination layer.
   const currentDrawingItem=namedLayers.find(item=>item.layer===editTarget);
-  const isDedicatedDrawingTarget=!!currentDrawingItem&&(
-    ["Point","Line","Polygon"].includes(currentDrawingItem._webgisDrawingType)||
-    ["Points","Lines","Polygons"].includes(currentDrawingItem.name)
+  const isDrawingSetTarget=!!currentDrawingItem&&(
+    !!currentDrawingItem.drawingSet || currentDrawingItem.name==="My Drawings" ||
+    /^My Drawings(?: \\d+)? \\/ (?:Points|Lines|Polygons)$/.test(currentDrawingItem.name)
   );
-  const useAutomaticDrawingLayer=editTarget===drawn||isDedicatedDrawingTarget;
+  const useAutomaticDrawingLayer=editTarget===drawn||isDrawingSetTarget;
   if(useAutomaticDrawingLayer){
     drawingLayerForType(type);
   }else if(!editSessionActive){
