@@ -1960,6 +1960,17 @@ function renderLayerList(){
   });
   namedLayers.filter(x=>!x.drawingSet).forEach((x,i)=>addRow(x,x.name,false));
 }
+// Initialize the default drawing set as three independent feature layers.
+if(!namedLayers.some(item=>item.drawingSet==="My Drawings")){
+  ["Point","Line","Polygon"].forEach(kind=>{
+    const suffix=kind==="Point"?"Points":kind==="Line"?"Lines":"Polygons";
+    const layer=new L.FeatureGroup();
+    addNamedLayer("My Drawings / "+suffix,layer,false);
+    const item=namedLayers.find(x=>x.layer===layer);
+    if(item){item.drawingSet="My Drawings";item._webgisDrawingType=kind;item.displayName=suffix}
+  });
+}
+activeDrawingSetName="My Drawings";
 renderLayerList();
 openProjectDB().then(()=>listProjects()).then(ps=>{
   if(ps.length)$("projectStatus").textContent=ps.length+" local projects available in this browser.";
