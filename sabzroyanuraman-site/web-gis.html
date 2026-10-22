@@ -4028,8 +4028,31 @@ function checkEditTopology(){
       issues.push({id:a.id,issue:(duplicate?"Duplicate polygon geometry matches feature ":"Polygon overlaps feature ")+b.id+" ("+(duplicate?"same geometry":"overlap area "+overlapArea.toFixed(2)+" m²")+")"});
     }
   }catch(e){/* Invalid geometries are reported by the per-feature checks. */}});
+  // Optional gap check: use a separately selected polygon as the coverage
+  // boundary. Without an explicit boundary, gaps cannot be inferred reliably.
+  let gapSummary="Gap check skipped (select a polygon boundary from another layer).";
+  try{
+    const boundaryLayer=selectedLayer;
+    const boundaryFeature=boundaryLayer&&!isLayerInEditTarget(boundaryLayer)?(boundaryLayer.feature||boundaryLayer.toGeoJSON?.()):null;
+    if(boundaryFeature?.geometry&&["Polygon","MultiPolygon"].includes(boundaryFeature.geometry.type)){
+      const coverage=polygons.map(p=>p.r.feature).filter(f=>f?.geometry);
+      if(coverage.length&&typeof turf.union==="function"&&typeof turf.difference==="function"){
+        let merged=null;
+        if(coverage.length===1)merged=coverage[0];
+        else{
+          try{merged=turf.union(turf.featureCollection(coverage));}
+          catch(_){merged=coverage[0];for(let i=1;i<coverage.length&&merged;i++)merged=turf.union(turf.featureCollection([merged,coverage[i]]));}
+        }
+        const gap=merged?turf.difference(turf.featureCollection([boundaryFeature,merged])):boundaryFeature;
+        const gapArea=gap?.geometry?Number(turf.area(gap))||0:0;
+        gapSummary="Gap check against selected boundary: "+(gapArea>1?"possible uncovered area "+gapArea.toFixed(2)+" m²":"no material uncovered area detected")+" (1 m² reporting threshold).";
+        if(gapArea>1)issues.push({id:boundaryFeature.id??boundaryFeature.properties?.OBJECTID??"boundary",issue:"Coverage gap inside selected boundary ("+gapArea.toFixed(2)+" m²)"});
+      }else gapSummary="Gap check unavailable: Turf union/difference is unavailable or the active layer has no polygons.";
+    }
+  }catch(e){gapSummary="Gap check could not be completed: "+(e.message||"geometry operation failed")+".";
+  }
   const output=$("professionalToolOutput");
-  if(output)output.textContent="Topology Check — Layer features: "+records.length+" | Issues: "+issues.length+"\n"+(issues.length?issues.slice(0,100).map(x=>"Feature "+x.id+": "+x.issue).join("\n"):"No basic geometry topology issues detected.")+(issues.length>100?"\n... "+(issues.length-100)+" more issue(s) omitted.":"");
+  if(output)output.textContent="Topology Check — Layer features: "+records.length+" | Issues: "+issues.length+"\n"+gapSummary+"\n"+(issues.length?issues.slice(0,100).map(x=>"Feature "+x.id+": "+x.issue).join("\n"):"No basic geometry topology issues detected.")+(issues.length>100?"\n... "+(issues.length-100)+" more issue(s) omitted.":"");
   status(issues.length?"Topology check found "+issues.length+" issue(s) (including polygon overlaps/duplicates where supported); see Tool Output.":"Topology check passed for "+records.length+" feature(s); no basic geometry errors or partial polygon overlaps were detected.");
 }
 
