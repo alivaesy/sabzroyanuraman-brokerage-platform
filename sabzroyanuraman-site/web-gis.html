@@ -3536,6 +3536,15 @@ function projectFeatureLayer(features,name){
 function restoreProject(project,fromHistory=false){
   const historyEditState=fromHistory&&editSessionActive?{active:true,isDrawnTarget:editTarget===drawn,targetName:namedLayers.find(item=>item.layer===editTarget)?.name||null}:null;
   if(!project||![1,2].includes(project.version)){status("This project file version is not supported.");return false}
+  // Preflight the complete project envelope before clearing any live map layers.
+  // This keeps malformed history/import data from leaving a half-restored map.
+  const finitePair=value=>Array.isArray(value)&&value.length>=2&&Number.isFinite(Number(value[0]))&&Number.isFinite(Number(value[1]));
+  const validFeatureList=value=>Array.isArray(value)&&value.every(feature=>feature&&feature.type==="Feature"&&(!feature.geometry||typeof feature.geometry.type==="string")&&(!feature.properties||typeof feature.properties==="object"));
+  if((project.drawn!==undefined&&!validFeatureList(project.drawn))||(project.layers!==undefined&&(!Array.isArray(project.layers)||!project.layers.every(item=>item&&typeof item==="object"&&(!item.features||validFeatureList(item.features)))))){
+    status("Project data is malformed; the current map was left unchanged.");return false;
+  }
+  if(project.center!==undefined&&!finitePair(project.center)){status("Project map extent is invalid; the current map was left unchanged.");return false}
+  if(project.zoom!==undefined&&(!Number.isFinite(Number(project.zoom))||Number(project.zoom)<0||Number(project.zoom)>24)){status("Project zoom is invalid; the current map was left unchanged.");return false}
   if(!fromHistory&&typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before opening or importing a project; unsaved cell values have been preserved.");return false}
   if(!fromHistory&&!historyRestoring)recordUndoState();
   const previousHistoryRestoring=historyRestoring;historyRestoring=true;
