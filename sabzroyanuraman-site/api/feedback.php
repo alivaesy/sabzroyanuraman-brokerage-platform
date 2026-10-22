@@ -72,8 +72,15 @@ rewind($handle);
 $current = stream_get_contents($handle);
 $items = is_string($current) && $current !== '' ? json_decode($current, true) : [];
 if (!is_array($items)) $items = [];
+$nextNumber = 1;
+foreach ($items as $existing) {
+    $existingNumber = (int)($existing['number'] ?? 0);
+    if ($existingNumber >= $nextNumber) $nextNumber = $existingNumber + 1;
+}
+$nextNumber = max($nextNumber, count($items) + 1);
 $item = [
     'id' => bin2hex(random_bytes(8)),
+    'number' => $nextNumber,
     'text' => $text,
     'created_at' => gmdate('c')
 ];
