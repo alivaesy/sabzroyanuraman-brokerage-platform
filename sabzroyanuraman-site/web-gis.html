@@ -502,7 +502,22 @@ body{background:#dfe5e8;color:#173b57}
 <button type="button" class="icon-tool" data-editor-draw="Circle" title="Create Circle" aria-label="Create Circle"><svg class="arcmap-icon"><use href="#arc-icon-circle"></use></svg></button>
 <button type="button" class="icon-tool" id="finishSketchBtn" disabled title="Finish Sketch" aria-label="Finish Sketch"><svg class="arcmap-icon"><use href="#arc-icon-check"></use></svg></button>
 <span class="toolbar-separator" aria-hidden="true"></span>
-<button type="button" class="icon-tool" data-action="clearDraw" title="Clear Drawings" aria-label="Clear Drawings"><svg class="arcmap-icon"><use href="#arc-icon-delete"></use></svg></button></div>
+<button type="button" class="icon-tool" data-action="clearDraw" title="Clear Drawings" aria-label="Clear Drawings"><svg class="arcmap-icon"><use href="#arc-icon-delete"></use></svg></button>
+<span class="toolbar-separator" aria-hidden="true"></span>
+<button type="button" class="icon-tool" data-tool="moveFeatures" title="Move Features" aria-label="Move Features"><svg class="arcmap-icon"><use href="#arc-icon-move-feature"></use></svg></button>
+<button type="button" class="icon-tool" data-tool="splitFeatures" title="Split Features" aria-label="Split Features"><svg class="arcmap-icon"><use href="#arc-icon-split"></use></svg></button>
+<button type="button" class="icon-tool" data-tool="mergeFeatures" title="Merge Selected Features" aria-label="Merge Selected Features"><svg class="arcmap-icon"><use href="#arc-icon-merge"></use></svg></button>
+<button type="button" class="icon-tool" data-tool="explodeFeatures" title="Explode Multipart Features" aria-label="Explode Multipart Features"><svg class="arcmap-icon"><use href="#arc-icon-explode"></use></svg></button>
+<button type="button" class="icon-tool" data-tool="rotateFeatures" title="Rotate Features" aria-label="Rotate Features"><svg class="arcmap-icon"><use href="#arc-icon-rotate-feature"></use></svg></button>
+<button type="button" class="icon-tool" data-tool="scaleFeatures" title="Scale Features" aria-label="Scale Features"><svg class="arcmap-icon"><use href="#arc-icon-scale-feature"></use></svg></button>
+<button type="button" class="icon-tool" data-tool="reshapeFeatures" title="Reshape" aria-label="Reshape"><svg class="arcmap-icon"><use href="#arc-icon-reshape"></use></svg></button>
+<button type="button" class="icon-tool" data-tool="vertexEdit" title="Edit Vertices" aria-label="Edit Vertices"><svg class="arcmap-icon"><use href="#arc-icon-vertex"></use></svg></button>
+<button type="button" class="icon-tool" data-tool="advancedSnap" title="Advanced Snapping" aria-label="Advanced Snapping"><svg class="arcmap-icon"><use href="#arc-icon-snap"></use></svg></button>
+<button type="button" class="icon-tool" data-tool="showVerticesTool" title="Show Vertices" aria-label="Show Vertices"><svg class="arcmap-icon"><use href="#arc-icon-show-vertices"></use></svg></button>
+<button type="button" class="icon-tool" data-tool="flipLineDirection" title="Flip Line Direction" aria-label="Flip Line Direction"><svg class="arcmap-icon"><use href="#arc-icon-flip"></use></svg></button>
+<button type="button" class="icon-tool" data-tool="featureTemplates" title="Feature Templates" aria-label="Feature Templates"><svg class="arcmap-icon"><use href="#arc-icon-template"></use></svg></button>
+<button type="button" class="icon-tool" data-tool="topologyCheckTool" title="Check Topology" aria-label="Check Topology"><svg class="arcmap-icon"><use href="#arc-icon-check"></use></svg></button>
+<button type="button" class="icon-tool" data-tool="snapTool" title="Snap Points to Lines" aria-label="Snap Points to Lines"><svg class="arcmap-icon"><use href="#arc-icon-snap"></use></svg></button></div>
 
 <div id="geodatabaseManagerDialog" aria-hidden="true"><div class="gdb-panel" role="dialog" aria-modal="true" aria-label="Geodatabase Manager"><div class="gdb-title">Catalog — Create Geodatabase / Feature Dataset / Feature Class <button type="button" id="gdbManagerClose">×</button></div><div class="gdb-body"><p class="gdb-note">Create a workspace structure and empty editable feature classes. To create a portable Esri File Geodatabase on disk, use Export Data → File Geodatabase (.gdb.zip) after adding features.</p><div class="gdb-grid"><label>Geodatabase name<input id="gdbWorkspaceName" value="MyGeodatabase"></label><label>Feature Dataset name<input id="gdbDatasetName" value="Dataset1"></label><label>Feature Class name<input id="gdbFeatureClassName" value="NewFeatureClass"></label><label>Geometry type<select id="gdbGeometryType"><option value="Point">Point</option><option value="LineString">Polyline</option><option value="Polygon">Polygon</option></select></label><label>Coordinate system<select id="gdbCrs"><option value="current">Current map CRS</option><option value="EPSG:4326">WGS 84 (EPSG:4326)</option></select></label></div><div class="gdb-actions"><button type="button" id="gdbCreateDataset">Create Dataset</button><button type="button" id="gdbCreateFeatureClass">Create Feature Class</button><button type="button" id="gdbExportNow">Export Geodatabase</button></div><div id="geodatabaseManagerList"></div><div id="gdbManagerStatus" class="gdb-note" role="status"></div></div></div></div>
 <div id="editorTaskMenu" role="menu" aria-label="Editor tasks">
@@ -5570,7 +5585,7 @@ function addMapDecoration(kind){
   const menus=[...document.querySelectorAll(".arc-menu-btn")];
   const drops=[...document.querySelectorAll(".arc-dropdown")];
   function closeMenus(){drops.forEach(x=>x.classList.remove("show"));menus.forEach(x=>x.classList.remove("active"))}
-  document.querySelectorAll(".arc-dropdown button[data-tool]").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll(".arc-dropdown button[data-tool], .editor-toolbar button[data-tool]").forEach(b=>b.onclick=()=>{
     const t=(typeof GIS_TOOLS!=="undefined")?GIS_TOOLS.find(x=>x.id===b.dataset.tool):null;
     if(t)runGisTool(t); closeMenus();
   });
