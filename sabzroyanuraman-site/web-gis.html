@@ -4593,14 +4593,15 @@ function mergeSelectedFeatures(){
       merged={type:"Feature",properties:props,geometry:chains.length===1?{type:"LineString",coordinates:chains[0]}:{type:"MultiLineString",coordinates:chains}};
     }
     merged.properties={...props};
+    if(!merged.geometry||!vertexGeometryIsValid(merged.geometry))throw new Error("The merged geometry failed validity checks.");
   }catch(err){status("Merge cancelled: "+(err.message||"geometry operation failed"));return;}
   recordUndoState();
   const owner=editTarget,selected=records.map(r=>r.layer);
   selected.forEach(layer=>{owner.removeLayer(layer);selectedFeatures.delete(layer);});
   const temp=L.geoJSON(merged,{style:records[0].layer.options||{},pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:6})});
   temp.eachLayer(layer=>{layer.feature=merged;owner.addLayer(layer);attachFeatureSelection(layer);selectedFeatures.add(layer);selectedLayer=layer;});
-  selectedOverlay=null;applySelectionVisual();refreshAll();updateStandardActionButtons();scheduleAutoSave();
-  status("Merged "+records.length+" features. Attributes were retained from the first selected feature.");
+  selectedOverlay=null;applySelectionVisual();refreshAll();updateStandardActionButtons();
+  Promise.all([flushGeodatabaseEdits(),scheduleAutoSave()]).then(([synced,saved])=>status("Merged "+records.length+" features. Attributes were retained from the first selected feature."+(synced&&saved?"":" Saving failed; retry Save Edits."))).catch(err=>status("Merge applied in memory but saving failed: "+err.message));
 }
 function stopSplitDraw(){
   const created=window._splitCreatedHandler,handler=window._splitDrawHandler;
@@ -4681,15 +4682,26 @@ function splitSelectedLines(){
         if(wasSplit&&allParts.length>1)results.push({r,parts:allParts});
       });
       if(!results.length){status("No selected feature was split. The cutting line must cross the feature away from its endpoints.");return;}
+      if(results.some(item=>!item.parts.length||item.parts.some(part=>!part.geometry||!vertexGeometryIsValid(part.geometry)))){
+        status("Split cancelled: one or more output parts have invalid geometry.");return;
+      }
+      // Build replacement layers before removing source features so construction errors cannot erase the originals.
+      results.forEach(({r,parts})=>{parts.forEach(part=>{
+        part.properties={...(r.feature.properties||{})};
+        const group=L.geoJSON(part,{style:r.layer.options||{},pointToLayer:(f,ll)=>r.layer instanceof L.CircleMarker?L.circleMarker(ll,r.layer.options||{}):L.marker(ll,r.layer.options||{}),onEachFeature:(f,l)=>bindFeature(l,f)});
+        part._preparedLayers=group.getLayers();
+        if(!part._preparedLayers.length)throw new Error("Could not build a split output feature.");
+      });});
       recordUndoState();
       results.forEach(({r,parts})=>{
         const owner=r.owner.layer,old=r.layer,wasSelected=selectedFeatures.has(old);owner.removeLayer(old);selectedFeatures.delete(old);
-        parts.forEach(part=>{part.properties={...(r.feature.properties||{})};const group=L.geoJSON(part,{style:old.options||{}});
-          group.eachLayer(layer=>{layer.feature=part;owner.addLayer(layer);attachFeatureSelection(layer);if(wasSelected)selectedFeatures.add(layer);});
+        parts.forEach(part=>{
+          (part._preparedLayers||[]).forEach(layer=>{layer.feature={type:"Feature",properties:{...(part.properties||{})},geometry:part.geometry};owner.addLayer(layer);attachFeatureSelection(layer);if(wasSelected)selectedFeatures.add(layer);});
+          delete part._preparedLayers;
         });
       });
-      selectedLayer=selectedRecords()[0]?.layer||null;selectedOverlay=null;applySelectionVisual();refreshAll();updateStandardActionButtons();scheduleAutoSave();
-      status(polygonMode?"Split one polygon into two polygon features.":"Split "+results.length+" selected line feature(s) into "+results.reduce((n,x)=>n+x.parts.length,0)+" line parts.");
+      selectedLayer=selectedRecords()[0]?.layer||null;selectedOverlay=null;applySelectionVisual();refreshAll();updateStandardActionButtons();
+      Promise.all([flushGeodatabaseEdits(),scheduleAutoSave()]).then(([synced,saved])=>status((polygonMode?"Split one polygon into two polygon features.":"Split "+results.length+" selected line feature(s) into "+results.reduce((n,x)=>n+x.parts.length,0)+" line parts.")+(synced&&saved?"":" Saving failed; retry Save Edits."))).catch(err=>status("Split applied in memory but saving failed: "+err.message));
     }catch(err){status("Split failed: "+(err.message||"invalid cutting geometry"));}
     finally{if(event.layer&&map.hasLayer(event.layer))map.removeLayer(event.layer);}
   };
