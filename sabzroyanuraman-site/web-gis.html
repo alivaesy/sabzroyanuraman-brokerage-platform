@@ -1930,6 +1930,16 @@ function openLayerAttributeTable(item,layout="horizontal"){
  else if(idx>=0)$("attributeLayer").value=String(idx);
  else return;
  lastAttributeLayerValue=$("attributeLayer").value;
+ // Keep the Editor target aligned with the layer whose table was opened.
+ // This lets the normal Start Editing command authorize table modifications.
+ if(!editSessionActive){
+  const targetIndex=namedLayers.findIndex(x=>x.layer===item.layer);
+  if(item.layer===drawn){$("editTargetLayer").value="drawn";editTarget=drawn;}
+  else if(targetIndex>=0){$("editTargetLayer").value=String(targetIndex);editTarget=item.layer;}
+  refreshEditorTargets();
+  if(item.layer===drawn){$("editTargetLayer").value="drawn";editTarget=drawn;}
+  else if(targetIndex>=0){$("editTargetLayer").value=String(targetIndex);editTarget=item.layer;}
+ }
  attributeTableLayoutMode=layout==="vertical"?"vertical":"horizontal";
  if(attributeTableLayoutMode==="vertical")openGisDock("attribute");
  $("openTable").click();
