@@ -2879,7 +2879,7 @@ $("clearGisSelection").onclick=()=>{
 
 $("addTableField").onclick=()=>{
  if(hasUnsavedTableEdits()){status("Save Table Edits before adding a field; unsaved cell values have been preserved.");return}
- if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before changing its table.");return}
+ if(!editSessionActive||!isLayerInEditTarget(currentAttributeLayer())){status("Start Editing this layer before changing its table.");return}
  if(!$("attributeLayer").value){status("Select a feature layer.");return}
  const name=prompt("New field name (letters, numbers, underscore):");if(name===null||!name.trim())return;
  const key=name.trim(),items=currentAttributeItems(),layer=currentAttributeLayer();
@@ -2913,7 +2913,7 @@ $("deleteTableField").onclick=()=>{
  renderEditableTable();window.__webGisGdbBridge?.save();scheduleAutoSave();status("Field '"+key+"' deleted from the feature class and "+items.length+" feature(s). Use Undo to reverse this change.");
 };
 $("saveTableEdits").onclick=()=>{
- if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before saving table changes.");return}
+ if(!editSessionActive||!isLayerInEditTarget(currentAttributeLayer())){status("Start Editing this layer before saving table changes.");return}
  if($("attributeLayer").value===""){status("Select a feature layer.");return}
  const items=currentAttributeItems(),table=$("attributeTableWrap"),changes=[];
  // GeoJSON has no formal field schema. Infer a field's type from existing
