@@ -4512,9 +4512,11 @@ function stopVertexEditing(){
 }
 function editVertices(){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("editing feature vertices"))return;
+  if(!editSessionActive||!editTarget){status("Start Editing the target layer before editing vertices.");return}
   const selected=editableSelectedRecords(false);
   if(!selected.length)return;
   const owner=selected[0].owner?.layer||drawn;
+  if(owner!==editTarget){status("Vertex editing is limited to the active edit layer. Select features in that layer.");return}
   if(!owner||!owner.getLayers){status("These features cannot be vertex edited.");return;}
   if(selected.some(r=>(r.owner?.layer||drawn)!==owner)){status("Vertex editing requires selected features from one layer at a time.");return;}
   const selectedLayers=selected.map(r=>r.layer).filter(layer=>layer&&owner.hasLayer(layer));
