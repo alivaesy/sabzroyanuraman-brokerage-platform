@@ -1183,6 +1183,10 @@ async function saveEdits(){
   if(!validation.ok){status("Edits not saved: "+validation.message);return false}
   clearTimeout(autoSaveTimer);
   try{
+    // Flush the geodatabase bridge before persisting the project snapshot.
+    if(window.__webGisGdbBridge&&typeof window.__webGisGdbBridge.save==="function"){
+      await window.__webGisGdbBridge.save();
+    }
     const project=serializeProject();
     project.id=projectId();
     project.updatedAt=new Date().toISOString();
