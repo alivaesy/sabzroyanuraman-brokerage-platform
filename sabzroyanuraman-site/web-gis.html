@@ -1584,11 +1584,18 @@ function startDraw(type,button){
     if(!window.confirm("طرح فعلی هنوز تمام نشده است. با تعویض ابزار، همین طرح ناتمام کنار گذاشته می‌شود. ادامه می‌دهید؟"))return;
   }
   stopActiveDraw();
-  // ArcMap-style behavior: when no edit session is active, use the vector
-  // layer selected in the Table Of Contents as the drawing target. If none is
-  // selected there, honor the layer chosen in the Attribute Table; otherwise
-  // retain the explicit Editor target (My Drawings by default).
-  if(!editSessionActive){
+  // Keep the three built-in drawing destinations separate even after the
+  // first feature has changed editTarget from My Drawings to Points/Lines/Polygons.
+  const currentDrawingItem=namedLayers.find(item=>item.layer===editTarget);
+  const isDedicatedDrawingTarget=!!currentDrawingItem&&(
+    ["Point","Line","Polygon"].includes(currentDrawingItem._webgisDrawingType)||
+    ["Points","Lines","Polygons"].includes(currentDrawingItem.name)
+  );
+  const useAutomaticDrawingLayer=editTarget===drawn||isDedicatedDrawingTarget;
+  if(useAutomaticDrawingLayer){
+    drawingLayerForType(type);
+  }else if(!editSessionActive){
+    // Respect an explicitly selected imported vector layer, like ArcMap.
     let preferredIndex=-1;
     if(selectedOverlay&&selectedOverlay!==drawn){
       preferredIndex=namedLayers.findIndex(item=>item.layer===selectedOverlay&&isVectorLayer(item.layer));
@@ -1604,9 +1611,9 @@ function startDraw(type,button){
     }else if(attributeChoice==="drawn"){
       $("editTargetLayer").value="drawn";
       editTarget=drawn;
+      drawingLayerForType(type);
     }
   }
-  if(editTarget===drawn)drawingLayerForType(type);
   if(!editSessionActive)startEditing();
   // startEditing can refuse to start when table edits are pending; never let
   // drawing continue outside a valid editor session.
