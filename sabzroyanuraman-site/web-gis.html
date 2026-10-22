@@ -4462,9 +4462,19 @@ function splitSelectedLines(){
       if(!cutter.geometry||cutter.geometry.coordinates.length<2)throw new Error("Draw a line with at least two vertices.");
       const results=[];
       records.forEach(r=>{
-        const split=turf.lineSplit(r.feature,cutter);
-        const parts=(split.features||[]).filter(f=>f.geometry?.type==="LineString"&&f.geometry.coordinates.length>=2);
-        if(parts.length>1)results.push({r,parts});
+        const geometry=r.feature.geometry;
+        const sourceLines=geometry.type==="LineString"?[geometry.coordinates]:geometry.coordinates;
+        const allParts=[];let wasSplit=false;
+        sourceLines.forEach(coordinates=>{
+          if(!Array.isArray(coordinates)||coordinates.length<2)return;
+          const source=turf.lineString(coordinates,{...(r.feature.properties||{})});
+          const split=turf.lineSplit(source,cutter);
+          const parts=(split.features||[]).filter(f=>f.geometry?.type==="LineString"&&f.geometry.coordinates.length>=2);
+          if(parts.length>1)wasSplit=true;
+          if(parts.length)allParts.push(...parts);
+          else allParts.push(source);
+        });
+        if(wasSplit&&allParts.length>1)results.push({r,parts:allParts});
       });
       if(!results.length){status("No selected line was split. The cutting line must cross or touch a line away from its endpoints.");return;}
       recordUndoState();
