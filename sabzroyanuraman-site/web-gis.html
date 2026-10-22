@@ -1181,7 +1181,40 @@ function validateAndSyncEditTarget(){
   }
   return {ok:true,count:records.length};
 }
+function syncLiveVertexEditsForSave(){
+  const owner=window._vertexEditOwner,layers=Array.isArray(window._vertexEditLayers)?window._vertexEditLayers:[],baseline=window._vertexEditBaseline,lastValid=window._vertexEditLastValid;
+  if(!owner||!layers.length||!editSessionActive||editTarget!==owner)return true;
+  let invalid=0;
+  layers.forEach(layer=>{
+    if(!layer||!owner.hasLayer(layer)||typeof layer.toGeoJSON!=="function")return;
+    try{
+      const updated=layer.toGeoJSON(),old=layer.feature||{};
+      if(!vertexGeometryIsValid(updated.geometry)){
+        if(lastValid&&restoreVertexGeometry(layer,lastValid.get(layer)))invalid++;
+        else invalid++;
+        return;
+      }
+      updated.properties={...(old.properties||{}),...(updated.properties||{})};
+      layer.feature=updated;
+      if(lastValid)lastValid.set(layer,JSON.parse(JSON.stringify(updated.geometry)));
+    }catch(err){console.warn("Could not sync live vertex edit",err);invalid++;}
+  });
+  if(invalid){
+    refreshAll();
+    status("Save rejected: "+invalid+" invalid vertex geometry edit(s) were restored where possible. Correct the geometry and try again.");
+    return false;
+  }
+  try{
+    const current=JSON.stringify(serializeProject()),previous=JSON.stringify(baseline);
+    if(current!==previous&&baseline){
+      pushUndoSnapshot(baseline);
+      window._vertexEditBaseline=JSON.parse(current);
+    }
+  }catch(err){console.warn("Could not checkpoint live vertex edits",err);}
+  return true;
+}
 async function saveEdits(){
+  if(!syncLiveVertexEditsForSave())return false;
   if(!editSessionActive){status("No edit session is active.");return false}
   if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){
     status("Save Table Edits before saving the edit session; unsaved attribute values are still in the table.");
