@@ -5328,6 +5328,107 @@ function chartStats(){
   status("Statistics calculated for field "+fieldName+" across "+vals.length+" numeric value(s)"+(selectedFeatures.size?" in the current selection.":"."));
 }
 
+/* ArcMap-style editing helpers: vertex inspection, line direction and templates. */
+function clearShownVertices(){
+  if(window._shownVertexLayer){try{map.removeLayer(window._shownVertexLayer)}catch(_){}window._shownVertexLayer=null;}
+}
+function showVerticesTool(){
+  if(window._shownVertexLayer){clearShownVertices();status("Vertex markers hidden.");return}
+  const records=selectedRecords().filter(r=>r.layer&&r.feature?.geometry);
+  if(!records.length){status("Select one or more features to show their vertices.");return}
+  const group=L.layerGroup(),seen=new Set();let count=0;
+  const visit=(value)=>{
+    if(!Array.isArray(value))return;
+    if(value.length>=2&&typeof value[0]==="number"&&typeof value[1]==="number"){
+      const key=value[0]+","+value[1];if(seen.has(key))return;seen.add(key);
+      const marker=L.circleMarker([value[1],value[0]],{radius:4,color:"#1565c0",weight:1.5,fillColor:"#fff",fillOpacity:1,interactive:false});
+      marker.addTo(group);count++;return;
+    }
+    value.forEach(visit);
+  };
+  records.forEach(r=>visit(r.feature.geometry?.coordinates));
+  if(!count){status("No vertices found in the selected features.");return}
+  group.addTo(map);window._shownVertexLayer=group;
+  status("Showing "+count+" unique vertex positions. Run Show Vertices again to hide them.");
+}
+async function flipLineDirection(){
+  const records=editableSelectedRecords(false);
+  if(!records.length)return;
+  if(records.some(r=>!["LineString","MultiLineString"].includes(r.feature?.geometry?.type))){
+    status("Flip Line Direction accepts only selected LineString or MultiLineString features.");return;
+  }
+  if(!confirm("Reverse the vertex order of "+records.length+" selected line feature(s)?"))return;
+  const changes=[];
+  try{
+    records.forEach(r=>{
+      const g=JSON.parse(JSON.stringify(r.feature.geometry));
+      if(g.type==="LineString")g.coordinates.reverse();
+      else g.coordinates.forEach(line=>line.reverse());
+      if(!g.coordinates.length||g.type==="LineString"&&g.coordinates.length<2||g.type==="MultiLineString"&&g.coordinates.some(line=>line.length<2))throw new Error("A line has too few vertices.");
+      changes.push({r,g});
+    });
+  }catch(err){status("Flip cancelled: "+err.message);return}
+  recordUndoState();
+  try{
+    changes.forEach(({r,g})=>{
+      const layer=r.layer;
+      if(typeof layer.setLatLngs!=="function")throw new Error("A selected line cannot be updated.");
+      layer.setLatLngs(L.GeoJSON.coordsToLatLngs(g.coordinates,g.type==="MultiLineString"?1:0));
+      layer.feature=layer.feature||{};
+      layer.feature.type="Feature";layer.feature.geometry=g;
+      layer.feature.properties={...(r.feature.properties||{})};
+      if(typeof layer.redraw==="function")layer.redraw();
+    });
+    const synced=await flushGeodatabaseEdits(),saved=await scheduleAutoSave();
+    renderEditableTable();renderLayerList();refreshAttributeLayers();
+    status("Direction reversed for "+changes.length+" line feature(s)."+(synced&&saved?"":" Local save/synchronization failed; retry Save Edits."));
+  }catch(err){status("Could not reverse line direction: "+err.message)}
+}
+function featureTemplates(){
+  const key="sabzRoyanWebGisFeatureTemplates";let templates=[];
+  try{templates=JSON.parse(localStorage.getItem(key)||"[]");if(!Array.isArray(templates))templates=[]}catch(_){templates=[]}
+  const action=prompt("Feature Templates\n1 = Save template from one selected feature\n2 = Apply a saved template to selected features\n3 = List templates\n4 = Delete a template","1");
+  if(action===null)return;
+  if(action.trim()==="3"){status(templates.length?"Templates: "+templates.map((t,i)=>(i+1)+". "+t.name+" ("+t.geometryType+")").join(" | "):"No feature templates saved yet.");return}
+  if(action.trim()==="4"){
+    if(!templates.length){status("No templates to delete.");return}
+    const n=Number(prompt("Template number to delete:\n"+templates.map((t,i)=>(i+1)+". "+t.name).join("\n"),"1"));
+    if(!Number.isInteger(n)||n<1||n>templates.length){status("Invalid template number.");return}
+    templates.splice(n-1,1);localStorage.setItem(key,JSON.stringify(templates));status("Template deleted.");return;
+  }
+  if(action.trim()==="1"){
+    const records=selectedRecords();
+    if(records.length!==1){status("Select exactly one feature to create a template.");return}
+    const r=records[0],name=prompt("Template name:",r.feature?.properties?.name||r.feature?.geometry?.type+" template");
+    if(name===null||!name.trim())return;
+    const item={name:name.trim(),geometryType:r.feature?.geometry?.type||"Unknown",properties:JSON.parse(JSON.stringify(r.feature?.properties||{})),createdAt:new Date().toISOString()};
+    const old=templates.findIndex(t=>t.name.toLowerCase()===item.name.toLowerCase());
+    if(old>=0&&!confirm("A template with this name exists. Replace it?"))return;
+    if(old>=0)templates[old]=item;else templates.push(item);
+    try{localStorage.setItem(key,JSON.stringify(templates));status("Template saved: "+item.name+". It can now be applied to selected features.");}
+    catch(err){status("Could not save template in browser storage: "+err.message)}
+    return;
+  }
+  if(action.trim()==="2"){
+    if(!templates.length){status("Save a feature template first.");return}
+    const choice=Number(prompt("Choose template number:\n"+templates.map((t,i)=>(i+1)+". "+t.name+" — "+t.geometryType).join("\n"),"1"));
+    if(!Number.isInteger(choice)||choice<1||choice>templates.length){status("Invalid template number.");return}
+    const records=selectedRecords();
+    if(!records.length){status("Select target features before applying a template.");return}
+    const template=templates[choice-1],compatible=records.filter(r=>r.feature?.geometry?.type===template.geometryType);
+    if(!compatible.length){status("No selected features match template geometry type "+template.geometryType+".");return}
+    if(!confirm("Apply template attributes to "+compatible.length+" selected feature(s)? Existing fields with matching names will be overwritten."))return;
+    recordUndoState();
+    compatible.forEach(r=>{
+      const properties={...(r.feature.properties||{}),...(template.properties||{})};
+      r.feature.properties=properties;r.layer.feature=r.layer.feature||{};r.layer.feature.properties={...properties};
+    });
+    renderEditableTable();renderLayerList();refreshAttributeLayers();
+    Promise.all([flushGeodatabaseEdits(),scheduleAutoSave()]).then(([synced,saved])=>status("Template applied to "+compatible.length+" feature(s)."+(synced&&saved?"":" Save/synchronization failed; retry Save Edits.")));
+    return;
+  }
+  status("Choose 1, 2, 3, or 4.");
+}
 function runGisTool(tool){
  if(tool.id==="selectFeatures"){$("selectFeaturesBtn").click();return;}
   if(tool.id==="importData"){openDataFormatDialog("import");return;}
@@ -5354,6 +5455,9 @@ function runGisTool(tool){
  if(tool.id==="scaleFeatures"){scaleSelected();return;}
  if(tool.id==="reshapeFeatures"){reshapeSelected();return;}
  if(tool.id==="vertexEdit"){editVertices();return;}
+ if(tool.id==="showVerticesTool"){showVerticesTool();return;}
+ if(tool.id==="flipLineDirection"){flipLineDirection();return;}
+ if(tool.id==="featureTemplates"){featureTemplates();return;}
  if(tool.id==="advancedSnap"){advancedSnap();return;}
  if(tool.id==="gridToggle"){gridToggle();return;}
  if(tool.id==="constraintTool"){constraintTool();return;}
