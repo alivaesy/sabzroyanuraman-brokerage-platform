@@ -4548,8 +4548,8 @@ function moveSelected(){
   });}catch(e){status("Move cancelled: "+(e.message||"geometry transform failed"));return;}
   recordUndoState();
   updates.forEach(x=>{x.r.feature.geometry=x.geometry;});
-  rebuildVectorLayerGeometry(updates.map(x=>x.r));refreshAll();
-  status(updates.length+" feature(s) moved "+distance.toFixed(2)+" m.");
+  rebuildVectorLayerGeometry(updates.map(x=>x.r));refreshAll();updateStandardActionButtons();scheduleAutoSave();
+  status(updates.length+" feature(s) moved "+distance.toFixed(2)+" m; changes queued for autosave.");
 }
 function rotateSelected(){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("rotating selected features"))return;
@@ -4572,8 +4572,8 @@ function rotateSelected(){
   }catch(e){status("Rotation cancelled: "+(e.message||"geometry transform failed"));return;}
   recordUndoState();
   updates.forEach(x=>{x.r.feature.geometry=x.geometry;});
-  rebuildVectorLayerGeometry(updates.map(x=>x.r));refreshAll();
-  status(updates.length+" feature(s) rotated by "+deg+"°.");
+  rebuildVectorLayerGeometry(updates.map(x=>x.r));refreshAll();updateStandardActionButtons();scheduleAutoSave();
+  status(updates.length+" feature(s) rotated by "+deg+"°; changes queued for autosave.");
 }
 function scaleSelected(){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("scaling selected features"))return;
@@ -4597,8 +4597,8 @@ function scaleSelected(){
   }catch(e){status("Scale cancelled: "+(e.message||"geometry transform failed"));return;}
   recordUndoState();
   updates.forEach(x=>{x.r.feature.geometry=x.geometry;});
-  rebuildVectorLayerGeometry(updates.map(x=>x.r));refreshAll();
-  status(updates.length+" feature(s) scaled by ×"+factor+".");
+  rebuildVectorLayerGeometry(updates.map(x=>x.r));refreshAll();updateStandardActionButtons();scheduleAutoSave();
+  status(updates.length+" feature(s) scaled by ×"+factor+"; changes queued for autosave.");
 }
 function rebuildVectorLayerGeometry(rs){
   rs.forEach(r=>{
