@@ -2639,7 +2639,7 @@ function renderEditableTable(){
   const fieldType=type.trim().toUpperCase();if(!["TEXT","INTEGER","REAL","DATE"].includes(fieldType)){status("Choose TEXT, INTEGER, REAL, or DATE.");return;}
   recordUndoState();const meta=layer._gdbMetadata||(layer._gdbMetadata={fields:[]});meta.fields=meta.fields||[];meta.fields.push({name:field,type:fieldType});
   items.forEach(item=>{const props=ensureFeatureProperties(item.layer);if(!(field in props))props[field]=null;});
-  const synced=await flushGeodatabaseEdits();renderEditableTable();status("Field "+field+" ("+fieldType+") added to the feature class."+(synced?"":" Local autosave failed; retry Save Edits."));
+  const synced=await flushGeodatabaseEdits();scheduleAutoSave();renderEditableTable();status("Field "+field+" ("+fieldType+") added to the feature class."+(synced?"":" Local autosave failed; retry Save Edits."));
  };
  const deleteFieldBtn=$("attributeDeleteField");if(deleteFieldBtn)deleteFieldBtn.onclick=async()=>{
   const layer=currentAttributeLayer();if(!layer)return;
@@ -2655,7 +2655,7 @@ function renderEditableTable(){
   items.forEach(item=>{if(item.feature.properties)delete item.feature.properties[actual];updateFeaturePopup(item.layer)});
   if(layer._gdbMetadata?.fields)layer._gdbMetadata.fields=layer._gdbMetadata.fields.filter(f=>(typeof f==="string"?f:f.name)!==actual);
   if(attributeSort.key===actual)attributeSort={key:null,direction:1};
-  const synced=await flushGeodatabaseEdits();renderEditableTable();status("Field "+actual+" deleted."+(synced?"":" Local autosave failed; retry Save Edits."));
+  const synced=await flushGeodatabaseEdits();scheduleAutoSave();renderEditableTable();status("Field "+actual+" deleted."+(synced?"":" Local autosave failed; retry Save Edits."));
  };
  const switchSelectionBtn=$("attributeSwitchSelection");if(switchSelectionBtn)switchSelectionBtn.onclick=()=>{
   if(hasUnsavedTableEdits()){status("Save Table Edits before changing selection.");return}
