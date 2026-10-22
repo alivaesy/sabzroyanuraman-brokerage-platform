@@ -727,6 +727,11 @@ body{background:#dfe5e8;color:#173b57}
             <option value="intersection">Intersect</option>
             <option value="split">Split</option>
             <option value="merge">Merge</option>
+            <option value="erase">Erase</option>
+            <option value="union">Union</option>
+            <option value="centroid">Feature To Point (Centroid)</option>
+            <option value="convexHull">Minimum Bounding Geometry (Convex Hull)</option>
+            <option value="boundingBox">Minimum Bounding Geometry (Envelope)</option>
           </select>
           <input id="bufferDistance" type="number" step="0.1" min="0" value="5" placeholder="Buffer distance (meters)" style="margin-top:6px">
           <div class="row">
@@ -2477,12 +2482,41 @@ function runGisOperation(){
       result=turf.buffer(f1,d,{units:"meters"});
       if(result)result.properties={...(f1.properties||{}),operation:"Buffer",buffer_meters:d};
       name="Buffer "+d+"m";
+    }else if(op==="centroid"){
+      result=turf.centroid(f1,{properties:{...(f1.properties||{}),_operation:"Centroid"}});
+      name="Centroid";
+    }else if(op==="convexHull"){
+      result=turf.convex(f1);
+      if(result)result.properties={...(f1.properties||{}),_operation:"Convex Hull"};
+      name="Convex Hull";
+    }else if(op==="boundingBox"){
+      const b=turf.bbox(f1);
+      result=turf.bboxPolygon(b);
+      if(result)result.properties={_operation:"Bounding Box",min_x:b[0],min_y:b[1],max_x:b[2],max_y:b[3]};
+      name="Bounding Box";
     }else{
       if(!selectedOverlay){status("Shift-click to select the overlay feature.");return;}
       const f2=asFeature(selectedOverlay);
       if(!f2||!f2.geometry){status("The overlay feature geometry is invalid.");return;}
-      if(op==="clip"||op==="intersection"){
+      if(op==="clip"||op==="intersection"||op==="erase"||op==="union"){
         const polygonal=g=>g&&["Polygon","MultiPolygon"].includes(g.type);
+        if((op==="erase"||op==="union")&&(!polygonal(f1.geometry)||!polygonal(f2.geometry))){
+          status(op==="erase"?"Erase requires polygon or multipolygon input and overlay features.":"Union requires polygon or multipolygon input and overlay features.");return;
+        }
+        if(op==="erase"){
+          result=turf.difference(turf.featureCollection([f1,f2]));
+          if(result)result.properties={...(f1.properties||{}),_operation:"Erase"};
+          name="Erase";
+        }else if(op==="union"){
+          result=turf.union(turf.featureCollection([f1,f2]));
+          if(result){
+            const props={_operation:"Union"};
+            Object.entries(f1.properties||{}).forEach(([k,v])=>props["input_"+k]=v);
+            Object.entries(f2.properties||{}).forEach(([k,v])=>{let key="overlay_"+k;if(Object.prototype.hasOwnProperty.call(props,key))key+="_2";props[key]=v;});
+            result.properties=props;
+          }
+          name="Union";
+        }else if(op==="clip"||op==="intersection"){
         if(op==="clip"){
           if(!polygonal(f2.geometry)){
             status("Clip overlay must be a Polygon or MultiPolygon. No output was created.");return;
