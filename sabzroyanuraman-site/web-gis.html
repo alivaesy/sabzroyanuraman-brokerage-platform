@@ -1318,7 +1318,7 @@ function recordUndoState(){
   try{pushUndoSnapshot(JSON.parse(JSON.stringify(serializeProject())));}
   catch(err){console.warn("Could not create edit history snapshot:",err);}
 }
-function applyHistorySnapshot(source,destination,message){
+async function applyHistorySnapshot(source,destination,message){
   if(window._splitDrawHandler){
     status("Finish or cancel the active Split sketch before using "+message+".");
     return;
@@ -1354,7 +1354,8 @@ function applyHistorySnapshot(source,destination,message){
   }finally{
     historyRestoring=false;updateUndoButtons();
   }
-  scheduleAutoSave();status(message+" applied.");
+  const persisted=await scheduleAutoSave();
+  status(message+" applied."+(persisted?"":"; local autosave failed, so retry Save Edits before leaving."));
 }
 function undoMapEdit(){
   // A pending split sketch is a transient operation, not a committed edit.
