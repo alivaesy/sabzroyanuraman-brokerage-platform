@@ -2636,7 +2636,7 @@ function renderEditableTable(){
   const fieldType=type.trim().toUpperCase();if(!["TEXT","INTEGER","REAL","DATE"].includes(fieldType)){status("Choose TEXT, INTEGER, REAL, or DATE.");return;}
   recordUndoState();const meta=layer._gdbMetadata||(layer._gdbMetadata={fields:[]});meta.fields=meta.fields||[];meta.fields.push({name:field,type:fieldType});
   items.forEach(item=>{const props=ensureFeatureProperties(item.layer);if(!(field in props))props[field]=null;});
-  const synced=await flushGeodatabaseEdits();scheduleAutoSave();renderEditableTable();status("Field "+field+" ("+fieldType+") added to the feature class."+(synced?"":" Local autosave failed; retry Save Edits."));
+  const synced=await flushGeodatabaseEdits();const projectSaved=await scheduleAutoSave();renderEditableTable();status("Field "+field+" ("+fieldType+") added to the feature class."+(synced&&projectSaved?"":" Local save failed; retry Save Edits."));
  };
  const deleteFieldBtn=$("attributeDeleteField");if(deleteFieldBtn)deleteFieldBtn.onclick=async()=>{
   const layer=currentAttributeLayer();if(!layer)return;
@@ -2652,7 +2652,7 @@ function renderEditableTable(){
   items.forEach(item=>{if(item.feature.properties)delete item.feature.properties[actual];updateFeaturePopup(item.layer)});
   if(layer._gdbMetadata?.fields)layer._gdbMetadata.fields=layer._gdbMetadata.fields.filter(f=>(typeof f==="string"?f:f.name)!==actual);
   if(attributeSort.key===actual)attributeSort={key:null,direction:1};
-  const synced=await flushGeodatabaseEdits();scheduleAutoSave();renderEditableTable();status("Field "+actual+" deleted."+(synced?"":" Local autosave failed; retry Save Edits."));
+  const synced=await flushGeodatabaseEdits();const projectSaved=await scheduleAutoSave();renderEditableTable();status("Field "+actual+" deleted."+(synced&&projectSaved?"":" Local save failed; retry Save Edits."));
  };
  const switchSelectionBtn=$("attributeSwitchSelection");if(switchSelectionBtn)switchSelectionBtn.onclick=()=>{
   if(hasUnsavedTableEdits()){status("Save Table Edits before changing selection.");return}
@@ -2969,7 +2969,7 @@ $("addTableField").onclick=async()=>{
  recordUndoState();
  if(!layer._gdbMetadata)layer._gdbMetadata={fields:[]};if(!Array.isArray(layer._gdbMetadata.fields))layer._gdbMetadata.fields=[];layer._gdbMetadata.fields.push({name:key,type});
  items.forEach(x=>{ensureFeatureProperties(x.layer)[key]=null;updateFeaturePopup(x.layer);});
- renderEditableTable();const synced=await flushGeodatabaseEdits();scheduleAutoSave();status("Field '"+key+"' ("+type+") added to "+items.length+" feature(s)."+(synced?"":" Local autosave failed; retry Save Edits."));
+ renderEditableTable();const synced=await flushGeodatabaseEdits();const projectSaved=await scheduleAutoSave();status("Field '"+key+"' ("+type+") added to "+items.length+" feature(s)."+(synced&&projectSaved?"":" Local save failed; retry Save Edits."));
 };
 
 $("deleteTableField").onclick=async()=>{
@@ -2988,7 +2988,7 @@ $("deleteTableField").onclick=async()=>{
  items.forEach(item=>{if(item.feature.properties)delete item.feature.properties[key];updateFeaturePopup(item.layer)});
  if(layer._gdbMetadata?.fields)layer._gdbMetadata.fields=layer._gdbMetadata.fields.filter(f=>(typeof f==="string"?f:f.name)!==key);
  if(attributeSort.key===key)attributeSort={key:null,direction:1};
- renderEditableTable();const synced=await flushGeodatabaseEdits();scheduleAutoSave();status("Field '"+key+"' deleted from the feature class and "+items.length+" feature(s). Use Undo to reverse this change."+(synced?"":" Local autosave failed; retry Save Edits."));
+ renderEditableTable();const synced=await flushGeodatabaseEdits();const projectSaved=await scheduleAutoSave();status("Field '"+key+"' deleted from the feature class and "+items.length+" feature(s). Use Undo to reverse this change."+(synced&&projectSaved?"":" Local save failed; retry Save Edits."));
 };
 $("saveTableEdits").onclick=async()=>{
  if(!editSessionActive||!isLayerInEditTarget(currentAttributeLayer())){status("Start Editing this layer before saving table changes.");return}
@@ -3060,7 +3060,7 @@ $("saveTableEdits").onclick=async()=>{
  if(!changes.length){status("No attribute changes to save.");return}
  recordUndoState();
  changes.forEach(({item,props})=>{item.feature.properties=props;item.feature.geometry=item.layer.toGeoJSON().geometry;updateFeaturePopup(item.layer)});
- renderEditableTable();const synced=await flushGeodatabaseEdits();scheduleAutoSave();status("Saved attribute changes for "+changes.length+" feature(s)."+(synced?"":" Local autosave failed; retry Save Edits before leaving."));
+ renderEditableTable();const synced=await flushGeodatabaseEdits();const projectSaved=await scheduleAutoSave();status("Saved attribute changes for "+changes.length+" feature(s)."+(synced&&projectSaved?"":" Local save failed; retry Save Edits before leaving."));
 };
 function selectedTableIndexes(){
  return [...$("attributeTableWrap").querySelectorAll("tbody tr")].filter(r=>r.querySelector(".row-check")?.checked).map(r=>Number(r.dataset.index));
@@ -3083,8 +3083,8 @@ $("deleteSelectedRows").onclick=async()=>{
  targets.forEach(featureLayer=>{layer.removeLayer(featureLayer);selectedFeatures.delete(featureLayer)});
  if(targets.includes(selectedLayer))selectedLayer=null;
  if(targets.includes(selectedOverlay))selectedOverlay=null;
- renderEditableTable();renderLayerList();refreshAttributeLayers();refreshEditorTargets();updateMultiSelectionUI();const synced=await flushGeodatabaseEdits();scheduleAutoSave();
- status(targets.length+" feature(s) deleted from the active edit layer."+(synced?"":" Local autosave failed; retry Save Edits before leaving."));
+ renderEditableTable();renderLayerList();refreshAttributeLayers();refreshEditorTargets();updateMultiSelectionUI();const synced=await flushGeodatabaseEdits();const projectSaved=await scheduleAutoSave();
+ status(targets.length+" feature(s) deleted from the active edit layer."+(synced&&projectSaved?"":" Local save failed; retry Save Edits before leaving."));
 };
 $("copySelectedRows").onclick=()=>{
  if(hasUnsavedTableEdits()){status("Save Table Edits before copying rows; pending cell values have not been applied to the features yet.");return}
