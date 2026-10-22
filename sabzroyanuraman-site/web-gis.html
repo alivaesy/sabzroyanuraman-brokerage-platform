@@ -1170,6 +1170,13 @@ function validateAndSyncEditTarget(){
     try{geojson=layer.toGeoJSON();}catch(_){return fail("Feature "+(i+1)+" could not be converted to GeoJSON.")}
     const geometry=geojson?.geometry;
     if(!geometryValid(geometry))return fail("Feature "+(i+1)+" has invalid or incomplete geometry. Check its vertices, line length, and polygon closure before saving.");
+    const expected=String(editTarget?._gdbMetadata?.geometryType||"").toLowerCase();
+    const actual=String(geometry.type||"").toLowerCase();
+    const matches= !expected ||
+      (expected==="point"&&["point","multipoint"].includes(actual)) ||
+      (expected==="polyline"&&["linestring","multilinestring"].includes(actual)) ||
+      (expected==="polygon"&&["polygon","multipolygon"].includes(actual));
+    if(!matches)return fail("Feature "+(i+1)+" geometry type ("+geometry.type+") does not match this feature class ("+editTarget._gdbMetadata.geometryType+").");
     if(!layer.feature)layer.feature={type:"Feature",properties:feature?.properties||{},geometry};
     else layer.feature.geometry=geometry;
   }
