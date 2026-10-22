@@ -5508,9 +5508,9 @@ window.addEventListener("beforeunload",event=>{
      card.append(meta);list.append(card);
    });
  }
- async function load(){
+ async function load(limit=null){
    list.replaceChildren();const loading=document.createElement("div");loading.className="public-feedback-item";loading.textContent="در حال دریافت بازخوردها…";list.append(loading);
-   try{const response=await fetch(endpoint+"?t="+Date.now(),{headers:{Accept:"application/json"},cache:"no-store"});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||"دریافت بازخوردها ناموفق بود.");render(Array.isArray(data.feedback)?data.feedback:[]);}
+   try{const response=await fetch(endpoint+"?t="+Date.now(),{headers:{Accept:"application/json"},cache:"no-store"});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||"دریافت بازخوردها ناموفق بود.");const items=Array.isArray(data.feedback)?data.feedback:[];render(Number.isInteger(limit)&&limit>0?items.slice(0,limit):items);}
    catch(error){list.replaceChildren();const err=document.createElement("div");err.className="public-feedback-item";err.textContent="دریافت بازخوردها ممکن نشد. مطمئن شوید نسخه روی میزبانی دارای PHP منتشر شده است.";list.append(err);setStatus(error.message,true);}
  }
  openBtn.addEventListener("click",open);closeBtn.addEventListener("click",close);
@@ -5535,7 +5535,7 @@ window.addEventListener("beforeunload",event=>{
    try{
      const response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({text})});
      const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||"ارسال بازخورد انجام نشد.");
-     field.value="";updateCount();setStatus("بازخورد شما ثبت شد و برای همه قابل مشاهده است.");if(list.classList.contains("expanded"))await load();
+     field.value="";updateCount();setStatus("بازخورد شما ثبت شد؛ بازخورد شما و دو بازخورد اخیر نمایش داده می‌شوند.");list.classList.add("expanded");listToggle.setAttribute("aria-expanded","true");listToggle.textContent="▴";listToggle.setAttribute("aria-label","پنهان‌کردن بازخوردها");listToggle.title="پنهان‌کردن بازخوردها";await load(3);
    }catch(error){setStatus(error.message||"ارسال بازخورد ناموفق بود.",true);}
    finally{send.disabled=false;}
  });
