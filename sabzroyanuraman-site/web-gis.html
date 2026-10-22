@@ -1909,7 +1909,7 @@ function startNativeDraw(type,button){
         if(d<best){best=d;nearest=candidate;}
       };
       const addVertex=pos=>{
-        if((snapMode==="vertices"||snapMode==="all")&&Array.isArray(pos)&&typeof pos[0]==="number"&&typeof pos[1]==="number"){
+        if((snapMode==="vertices"||snapMode==="endpoints"||snapMode==="all")&&Array.isArray(pos)&&typeof pos[0]==="number"&&typeof pos[1]==="number"){
           consider(L.latLng(pos[1],pos[0]));
         }
       };
@@ -1923,7 +1923,7 @@ function startNativeDraw(type,button){
           try{
             const p1=map.latLngToLayerPoint(L.latLng(a[1],a[0]));
             const p2=map.latLngToLayerPoint(L.latLng(b[1],b[0]));
-            if((snapMode==="midpoints"||snapMode==="all")&&i===1&&positions.length>1){
+            if((snapMode==="midpoints"||snapMode==="all")&&positions.length>1){
               const mid=L.latLng((a[1]+b[1])/2,(a[0]+b[0])/2);consider(mid);
             }
             if(snapMode==="segments"||snapMode==="all"){
