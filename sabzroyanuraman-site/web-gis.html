@@ -2958,7 +2958,7 @@ $("clearGisSelection").onclick=()=>{
   status("Selection cleared.");
 };
 
-$("addTableField").onclick=()=>{
+$("addTableField").onclick=async()=>{
  if(hasUnsavedTableEdits()){status("Save Table Edits before adding a field; unsaved cell values have been preserved.");return}
  if(!editSessionActive||!isLayerInEditTarget(currentAttributeLayer())){status("Start Editing this layer before changing its table.");return}
  if(!$("attributeLayer").value){status("Select a feature layer.");return}
@@ -2970,7 +2970,7 @@ $("addTableField").onclick=()=>{
  const rawType=prompt("Field type: TEXT, INTEGER, REAL, or DATE","TEXT");if(rawType===null)return;
  const type=rawType.trim().toUpperCase();if(!["TEXT","INTEGER","REAL","DATE"].includes(type)){status("Choose TEXT, INTEGER, REAL, or DATE.");return}
  recordUndoState();
- if(layer?._gdbMetadata){layer._gdbMetadata.fields=schema;schema.push({name:key,type});}
+ if(!layer._gdbMetadata)layer._gdbMetadata={fields:[]};if(!Array.isArray(layer._gdbMetadata.fields))layer._gdbMetadata.fields=[];layer._gdbMetadata.fields.push({name:key,type});
  items.forEach(x=>{ensureFeatureProperties(x.layer)[key]=null;updateFeaturePopup(x.layer);});
  renderEditableTable();const synced=await flushGeodatabaseEdits();status("Field '"+key+"' ("+type+") added to "+items.length+" feature(s)."+(synced?"":" Local autosave failed; retry Save Edits."));
 };
