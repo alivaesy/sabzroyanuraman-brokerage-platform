@@ -5373,17 +5373,12 @@ async function flipLineDirection(){
   }catch(err){status("Flip cancelled: "+err.message);return}
   recordUndoState();
   try{
-    changes.forEach(({r,g})=>{
-      const layer=r.layer;
-      if(typeof layer.setLatLngs!=="function")throw new Error("A selected line cannot be updated.");
-      layer.setLatLngs(L.GeoJSON.coordsToLatLngs(g.coordinates,g.type==="MultiLineString"?1:0));
-      layer.feature=layer.feature||{};
-      layer.feature.type="Feature";layer.feature.geometry=g;
-      layer.feature.properties={...(r.feature.properties||{})};
-      if(typeof layer.redraw==="function")layer.redraw();
-    });
+    changes.forEach(({r,g})=>{r.feature.geometry=g;});
+    rebuildVectorLayerGeometry(changes.map(x=>x.r));
+    const validation=validateAndSyncEditTarget();
+    if(!validation.ok)throw new Error(validation.message);
+    refreshAll();updateStandardActionButtons();
     const synced=await flushGeodatabaseEdits(),saved=await scheduleAutoSave();
-    renderEditableTable();renderLayerList();refreshAttributeLayers();
     status("Direction reversed for "+changes.length+" line feature(s)."+(synced&&saved?"":" Local save/synchronization failed; retry Save Edits."));
   }catch(err){status("Could not reverse line direction: "+err.message)}
 }
@@ -5397,7 +5392,7 @@ function featureTemplates(){
     if(!templates.length){status("No templates to delete.");return}
     const n=Number(prompt("Template number to delete:\n"+templates.map((t,i)=>(i+1)+". "+t.name).join("\n"),"1"));
     if(!Number.isInteger(n)||n<1||n>templates.length){status("Invalid template number.");return}
-    templates.splice(n-1,1);localStorage.setItem(key,JSON.stringify(templates));status("Template deleted.");return;
+    templates.splice(n-1,1);try{localStorage.setItem(key,JSON.stringify(templates));status("Template deleted.");}catch(err){status("Could not update browser template storage: "+err.message)}return;
   }
   if(action.trim()==="1"){
     const records=selectedRecords();
@@ -5422,12 +5417,14 @@ function featureTemplates(){
     if(!compatible.length){status("No selected features match template geometry type "+template.geometryType+".");return}
     if(!confirm("Apply template attributes to "+compatible.length+" selected feature(s)? Existing fields with matching names will be overwritten."))return;
     recordUndoState();
+    const reserved=key=>typeof isReservedAttributeField==="function"&&isReservedAttributeField(key);
     compatible.forEach(r=>{
-      const properties={...(r.feature.properties||{}),...(template.properties||{})};
+      const additions=Object.fromEntries(Object.entries(template.properties||{}).filter(([key])=>!reserved(key)));
+      const properties={...(r.feature.properties||{}),...additions};
       r.feature.properties=properties;r.layer.feature=r.layer.feature||{};r.layer.feature.properties={...properties};
     });
     renderEditableTable();renderLayerList();refreshAttributeLayers();
-    Promise.all([flushGeodatabaseEdits(),scheduleAutoSave()]).then(([synced,saved])=>status("Template applied to "+compatible.length+" feature(s)."+(synced&&saved?"":" Save/synchronization failed; retry Save Edits.")));
+    Promise.all([flushGeodatabaseEdits(),scheduleAutoSave()]).then(([synced,saved])=>status("Template applied to "+compatible.length+" feature(s)."+(synced&&saved?"":" Save/synchronization failed; retry Save Edits."))).catch(err=>status("Template was applied in memory, but saving failed: "+err.message));
     return;
   }
   status("Choose 1, 2, 3, or 4.");
