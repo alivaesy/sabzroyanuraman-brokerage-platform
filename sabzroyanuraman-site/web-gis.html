@@ -1897,7 +1897,10 @@ function startNativeDraw(type,button){
   const onClick=e=>{
     if(finished||e.originalEvent?.detail>=2)return;
     let point=e.latlng;
-    const tolerance=Number(window._drawingConstraintMeters)||0;
+    let snapSettings={mode:"all",tolerance:5};
+    try{snapSettings={...snapSettings,...JSON.parse(localStorage.getItem("sabzRoyanWebGisSnapSettings")||"{}")}}catch(_){}
+    const tolerance=window._drawingConstraintMeters===null?0:(Number(window._drawingConstraintMeters)>0?Number(window._drawingConstraintMeters):(Number(snapSettings.tolerance)>0?Number(snapSettings.tolerance):0));
+    const snapMode=["endpoints","vertices","segments","midpoints","all"].includes(snapSettings.mode)?snapSettings.mode:"all";
     if(tolerance>0){
       let nearest=null,best=tolerance;
       const consider=candidate=>{
@@ -1906,22 +1909,28 @@ function startNativeDraw(type,button){
         if(d<best){best=d;nearest=candidate;}
       };
       const addVertex=pos=>{
-        if(Array.isArray(pos)&&typeof pos[0]==="number"&&typeof pos[1]==="number"){
+        if((snapMode==="vertices"||snapMode==="all")&&Array.isArray(pos)&&typeof pos[0]==="number"&&typeof pos[1]==="number"){
           consider(L.latLng(pos[1],pos[0]));
         }
       };
       const addLine=positions=>{
         if(!Array.isArray(positions))return;
-        positions.forEach(addVertex);
+        if(snapMode==="vertices"||snapMode==="all")positions.forEach(addVertex);
+        if(snapMode==="endpoints"&&positions.length){addVertex(positions[0]);addVertex(positions[positions.length-1]);}
         for(let i=1;i<positions.length;i++){
           const a=positions[i-1],b=positions[i];
           if(!Array.isArray(a)||!Array.isArray(b)||typeof a[0]!=="number"||typeof a[1]!=="number"||typeof b[0]!=="number"||typeof b[1]!=="number")continue;
           try{
             const p1=map.latLngToLayerPoint(L.latLng(a[1],a[0]));
             const p2=map.latLngToLayerPoint(L.latLng(b[1],b[0]));
-            const p=map.latLngToLayerPoint(point);
-            const closest=L.LineUtil.closestPointOnSegment(p,p1,p2);
-            if(closest)consider(map.layerPointToLatLng(closest));
+            if((snapMode==="midpoints"||snapMode==="all")&&i===1&&positions.length>1){
+              const mid=L.latLng((a[1]+b[1])/2,(a[0]+b[0])/2);consider(mid);
+            }
+            if(snapMode==="segments"||snapMode==="all"){
+              const p=map.latLngToLayerPoint(point);
+              const closest=L.LineUtil.closestPointOnSegment(p,p1,p2);
+              if(closest)consider(map.layerPointToLatLng(closest));
+            }
           }catch(_){}
         }
       };
