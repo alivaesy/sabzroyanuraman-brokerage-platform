@@ -4295,6 +4295,12 @@ const GIS_TOOLS=[
  {id:"runGisOperation",op:"intersection",title:"Intersect",category:"Geoprocessing",keys:"intersection"},
  {id:"runGisOperation",op:"split",title:"Split",category:"Geoprocessing",keys:"split line"},
  {id:"runGisOperation",op:"merge",title:"Merge",category:"Geoprocessing",keys:"merge"},
+ {id:"runGisOperation",op:"erase",title:"Erase",category:"Geoprocessing",keys:"erase difference polygon"},
+ {id:"runGisOperation",op:"union",title:"Union",category:"Geoprocessing",keys:"union dissolve polygons"},
+ {id:"runGisOperation",op:"centroid",title:"Feature To Point (Centroid)",category:"Geoprocessing",keys:"centroid point from polygon"},
+ {id:"runGisOperation",op:"convexHull",title:"Minimum Bounding Geometry (Convex Hull)",category:"Geoprocessing",keys:"convex hull"},
+ {id:"runGisOperation",op:"boundingBox",title:"Minimum Bounding Geometry (Envelope)",category:"Geoprocessing",keys:"envelope bounding box"},
+ {id:"modelBuilder",title:"ModelBuilder",category:"Geoprocessing",keys:"workflow model chain automate geoprocessing"},
  {id:"topologyCheckTool",title:"Check Topology",category:"Editor",keys:"topology geometry self intersection duplicate vertices polygon validity"},
  {id:"repairSelectedGeometry",title:"Repair Selected Geometry",category:"Editor",keys:"repair geometry remove duplicate vertices close polygon rings fix invalid line polygon"},
  {id:"snapTool",title:"Snapping",category:"Editor",keys:"snap"},
@@ -5701,6 +5707,7 @@ function featureTemplates(){
   status("Choose 1, 2, 3, or 4.");
 }
 function runGisTool(tool){
+ if(tool.id==="modelBuilder"){openModelBuilder();return;}
  if(tool.id==="selectFeatures"){$("selectFeaturesBtn").click();return;}
   if(tool.id==="importData"){openDataFormatDialog("import");return;}
   if(tool.id==="exportData"){openDataFormatDialog("export");return;}
@@ -6257,6 +6264,97 @@ $("applyCrs").onclick=()=>{
   try{setCRS("EPSG:"+v.replace(/^EPSG:/i,""))}catch(e){status(e.message)}
 };
 window.__webGisGdbBridge={get currentCRS(){return currentCRS},addLayer(name,layer){addNamedLayer(name,layer,false)},refreshEditorTargets,layerIndex(layer){return namedLayers.findIndex(x=>x.layer===layer)},save(){scheduleAutoSave()},openExport(){openDataFormatDialog("export")},cancelActiveTool(){if(!activeDrawHandler)return false;stopActiveDraw(true);return true}};
+
+/* ArcMap-like ModelBuilder: chained, in-memory geoprocessing steps. */
+function openModelBuilder(){
+  let modal=document.getElementById("gisModelBuilder");
+  if(!modal){
+    modal=document.createElement("div");modal.id="gisModelBuilder";
+    modal.style.cssText="position:fixed;inset:0;z-index:12000;background:rgba(12,24,36,.58);display:flex;align-items:center;justify-content:center;padding:12px;font:13px Arial,sans-serif";
+    modal.innerHTML='<section style="background:#fff;color:#17212b;width:min(900px,98vw);max-height:92vh;overflow:auto;border:1px solid #8294a7;border-radius:5px;box-shadow:0 12px 40px #0005"><header style="display:flex;align-items:center;justify-content:space-between;background:#e9eff5;padding:10px 14px;border-bottom:1px solid #c5d0dc"><strong style="font-size:16px">ModelBuilder — Geoprocessing Workflow</strong><button type="button" data-mb-close style="font-size:18px">✕</button></header><div style="padding:14px"><div style="display:grid;grid-template-columns:minmax(160px,1fr) minmax(160px,1fr);gap:10px"><label>Input feature layer<select data-mb-source style="display:block;width:100%;padding:7px;margin-top:4px"></select></label><label>Output layer name<input data-mb-name value="Model_Output" style="display:block;width:100%;padding:7px;margin-top:4px;box-sizing:border-box"></label></div><p style="color:#536273;margin:10px 0">Steps run in order; each step receives the previous step’s output. Overlay operations use the selected overlay layer.</p><div data-mb-steps></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"><button type="button" data-mb-add>Add Step</button><button type="button" data-mb-run style="background:#176b42;color:white;border:0;padding:8px 14px">Run Model</button><button type="button" data-mb-clear>Clear Steps</button></div><div data-mb-status role="status" style="padding:8px;background:#f2f5f8;border:1px solid #d8e0e8;white-space:pre-wrap">Build a workflow, then run it.</div></div></section>';
+    document.body.appendChild(modal);
+    modal.addEventListener("click",e=>{if(e.target===modal||e.target.closest("[data-mb-close]"))modal.style.display="none";});
+    modal.querySelector("[data-mb-add]").onclick=()=>addModelBuilderStep(modal);
+    modal.querySelector("[data-mb-clear]").onclick=()=>{modal.querySelector("[data-mb-steps]").replaceChildren();addModelBuilderStep(modal);};
+    modal.querySelector("[data-mb-run]").onclick=()=>runModelBuilder(modal);
+    modal.addEventListener("click",e=>{const b=e.target.closest("[data-mb-remove]");if(b){b.closest("[data-mb-step]").remove();}});
+  }
+  const source=modal.querySelector("[data-mb-source]"),old=source.value;
+  source.replaceChildren();
+  getAllVectorItems().forEach((item,i)=>{const o=document.createElement("option");o.value=String(i);o.textContent=item.name+" ("+vectorFeatures(item.layer).length+")";source.appendChild(o);});
+  if([...source.options].some(o=>o.value===old))source.value=old;
+  if(!modal.querySelector("[data-mb-step]"))addModelBuilderStep(modal);
+  modal.style.display="flex";
+}
+function addModelBuilderStep(modal,op="buffer"){
+  const host=modal.querySelector("[data-mb-steps]"),row=document.createElement("div");
+  row.dataset.mbStep="1";row.style.cssText="display:grid;grid-template-columns:38px minmax(150px,1fr) minmax(110px,.7fr) minmax(150px,1fr) 34px;gap:7px;align-items:center;padding:8px 0;border-bottom:1px solid #dce3ea";
+  const number=document.createElement("strong");number.textContent=String(host.children.length+1);
+  const operation=document.createElement("select");operation.dataset.mbOp="1";operation.style.cssText="width:100%;padding:7px";
+  [["buffer","Buffer (meters)"],["centroid","Centroid"],["convexHull","Convex Hull (all features)"],["boundingBox","Envelope (all features)"],["simplify","Simplify"],["clip","Clip"],["intersection","Intersect"],["erase","Erase"],["union","Union"]].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;operation.appendChild(o);});operation.value=op;
+  const param=document.createElement("input");param.dataset.mbParam="1";param.type="number";param.min="0";param.step="any";param.value="50";param.title="Buffer distance in meters or simplification tolerance in coordinate units";param.style.cssText="width:100%;padding:7px;box-sizing:border-box";
+  const overlay=document.createElement("select");overlay.dataset.mbOverlay="1";overlay.style.cssText="width:100%;padding:7px";
+  const refreshOverlay=()=>{overlay.replaceChildren();const none=document.createElement("option");none.value="";none.textContent="Overlay layer (if needed)";overlay.appendChild(none);getAllVectorItems().forEach((item,i)=>{const o=document.createElement("option");o.value=String(i);o.textContent=item.name;overlay.appendChild(o);});overlay.style.visibility=["clip","intersection","erase","union"].includes(operation.value)?"visible":"hidden";param.style.visibility=["buffer","simplify"].includes(operation.value)?"visible":"hidden";};
+  operation.onchange=refreshOverlay;refreshOverlay();
+  const remove=document.createElement("button");remove.type="button";remove.dataset.mbRemove="1";remove.textContent="−";remove.title="Remove step";
+  row.append(number,operation,param,overlay,remove);host.appendChild(row);
+  [...host.children].forEach((el,i)=>{const n=el.querySelector("strong");if(n)n.textContent=String(i+1);});
+}
+function modelBuilderLayerFeatures(index){
+  const items=getAllVectorItems(),item=items[Number(index)];
+  if(!item)throw new Error("Choose a valid input layer.");
+  const features=vectorFeatures(item.layer).map(v=>JSON.parse(JSON.stringify(v.feature))).filter(f=>f&&f.geometry);
+  if(!features.length)throw new Error("The input layer contains no usable features.");
+  return features;
+}
+function runModelBuilder(modal){
+  const say=message=>{modal.querySelector("[data-mb-status]").textContent=message;};
+  try{
+    let current=modelBuilderLayerFeatures(modal.querySelector("[data-mb-source]").value);
+    const steps=[...modal.querySelectorAll("[data-mb-step]")];
+    if(!steps.length)throw new Error("Add at least one processing step.");
+    for(let si=0;si<steps.length;si++){
+      const row=steps[si],op=row.querySelector("[data-mb-op]").value,raw=Number(row.querySelector("[data-mb-param]").value);
+      const overlayIndex=row.querySelector("[data-mb-overlay]").value;
+      let next=[];
+      if(op==="buffer"){
+        if(!Number.isFinite(raw)||raw<=0)throw new Error("Step "+(si+1)+": buffer distance must be greater than zero.");
+        current.forEach(f=>{const out=turf.buffer(f,raw,{units:"meters"});if(out){out.properties={...(f.properties||{}),_model_step:si+1,_model_operation:"Buffer",_buffer_m:raw};next.push(out);}});
+      }else if(op==="centroid"){
+        current.forEach(f=>{const out=turf.centroid(f,{properties:{...(f.properties||{}),_model_step:si+1,_model_operation:"Centroid"}});if(out)next.push(out);});
+      }else if(op==="convexHull"||op==="boundingBox"){
+        const fc=turf.featureCollection(current);
+        if(op==="convexHull"){const out=turf.convex(fc);if(out){out.properties={_model_step:si+1,_model_operation:"Convex Hull",_source_count:current.length};next=[out];}}
+        else{const b=turf.bbox(fc),out=turf.bboxPolygon(b);out.properties={_model_step:si+1,_model_operation:"Envelope",min_x:b[0],min_y:b[1],max_x:b[2],max_y:b[3]};next=[out];}
+      }else if(op==="simplify"){
+        if(!Number.isFinite(raw)||raw<=0)throw new Error("Step "+(si+1)+": simplify tolerance must be greater than zero.");
+        current.forEach(f=>{if(["LineString","MultiLineString","Polygon","MultiPolygon"].includes(f.geometry?.type)){const out=turf.simplify(f,{tolerance:raw,highQuality:true,mutate:false});if(out){out.properties={...(f.properties||{}),_model_step:si+1,_model_operation:"Simplify"};next.push(out);}}else next.push(f);});
+      }else{
+        if(!overlayIndex)throw new Error("Step "+(si+1)+": choose an overlay layer.");
+        const overlays=modelBuilderLayerFeatures(overlayIndex);
+        if(!current.every(f=>["Polygon","MultiPolygon"].includes(f.geometry?.type))||!overlays.every(f=>["Polygon","MultiPolygon"].includes(f.geometry?.type)))throw new Error("Step "+(si+1)+": overlay operations currently require polygon or multipolygon features in both layers.");
+        if(op==="union"){
+          let merged=current.concat(overlays).reduce((acc,f)=>{if(!acc)return f;return turf.union(turf.featureCollection([acc,f]));},null);
+          if(merged){merged.properties={_model_step:si+1,_model_operation:"Union",_source_count:current.length+overlays.length};next=[merged];}
+        }else{
+          current.forEach(f=>overlays.forEach(o=>{
+            let out=null;
+            if(op==="clip"||op==="intersection")out=turf.intersect(turf.featureCollection([f,o]));
+            else if(op==="erase")out=turf.difference(turf.featureCollection([f,o]));
+            if(out){out.properties={...(f.properties||{}),_model_step:si+1,_model_operation:op==="intersection"?"Intersect":op[0].toUpperCase()+op.slice(1)};next.push(out);}
+          }));
+        }
+      }
+      current=next.filter(f=>f&&f.geometry);
+      if(!current.length)throw new Error("Step "+(si+1)+" ("+op+") returned no features; model stopped without creating an output layer.");
+      if(current.length>20000)throw new Error("Step "+(si+1)+" produced more than 20,000 features; model stopped for safety.");
+    }
+    const name=(modal.querySelector("[data-mb-name]").value||"Model_Output").trim().replace(/[<>]/g,"").slice(0,80)||"Model_Output";
+    geoJsonLayer({type:"FeatureCollection",features:current},name);
+    say("Model completed successfully. Output: "+name+"\nSteps: "+steps.length+" · Features: "+current.length);
+  }catch(err){say("Model failed: "+(err.message||String(err)));status("ModelBuilder: "+(err.message||String(err)));}
+}
+
 })();
 </script>
 <script>
