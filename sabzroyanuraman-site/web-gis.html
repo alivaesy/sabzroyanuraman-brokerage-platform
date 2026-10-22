@@ -1165,6 +1165,25 @@ function validateAndSyncEditTarget(){
       default: return false;
     }
   };
+  const hasDuplicateAdjacent=(coords)=>Array.isArray(coords)&&coords.some((p,i)=>i>0&&Array.isArray(p)&&Array.isArray(coords[i-1])&&p.length>=2&&coords[i-1].length>=2&&Number(p[0])===Number(coords[i-1][0])&&Number(p[1])===Number(coords[i-1][1]));
+  const topologyIssue=(feature)=>{
+    const g=feature?.geometry;if(!g)return "missing geometry";
+    const lineSets=[];
+    if(g.type==="LineString")lineSets.push(g.coordinates);
+    else if(g.type==="MultiLineString")lineSets.push(...g.coordinates);
+    else if(g.type==="Polygon")lineSets.push(...g.coordinates);
+    else if(g.type==="MultiPolygon")g.coordinates.forEach(poly=>lineSets.push(...poly));
+    if(lineSets.some(hasDuplicateAdjacent))return "contains consecutive duplicate vertices";
+    if(["Polygon","MultiPolygon"].includes(g.type)){
+      if(typeof turf!=="undefined"&&typeof turf.kinks==="function"){
+        try{if((turf.kinks(feature).features||[]).length)return "contains self-intersections";}
+        catch(_){return "could not validate polygon topology";}
+      }
+      try{if(typeof turf!=="undefined"&&typeof turf.area==="function"&&(!Number.isFinite(turf.area(feature))||turf.area(feature)<=0))return "has zero or invalid area";}
+      catch(_){return "could not validate polygon area";}
+    }
+    return "";
+  };
   const records=vectorFeatures(editTarget);
   for(let i=0;i<records.length;i++){
     const {layer,feature}=records[i];
@@ -1172,6 +1191,8 @@ function validateAndSyncEditTarget(){
     try{geojson=layer.toGeoJSON();}catch(_){return fail("Feature "+(i+1)+" could not be converted to GeoJSON.")}
     const geometry=geojson?.geometry;
     if(!geometryValid(geometry))return fail("Feature "+(i+1)+" has invalid or incomplete geometry. Check its vertices, line length, and polygon closure before saving.");
+    const topology=topologyIssue({...geojson,geometry});
+    if(topology)return fail("Feature "+(i+1)+" "+topology+". Correct the topology before saving edits.");
     const expected=String(editTarget?._gdbMetadata?.geometryType||"").toLowerCase();
     const actual=String(geometry.type||"").toLowerCase();
     const matches= !expected ||
