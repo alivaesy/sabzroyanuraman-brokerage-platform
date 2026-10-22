@@ -3453,7 +3453,7 @@ $("setWmsBasemap").onclick=activateWmsBasemap;
 const PROJECT_DB_NAME="sabzroyan-webgis";
 const PROJECT_DB_VERSION=1;
 const PROJECT_STORE="projects";
-let autoSaveTimer=null,autoSavePromise=null,autoSaveResolve=null;
+let autoSaveTimer=null,autoSavePromise=null,autoSaveResolve=null,autoSaveGeneration=0;
 let currentProjectId=null;
 function openProjectDB(){
   return new Promise((resolve,reject)=>{
@@ -3484,6 +3484,7 @@ async function listProjects(){
 function projectId(){return currentProjectId||(crypto.randomUUID?crypto.randomUUID():"p-"+Date.now()+"-"+Math.random().toString(36).slice(2))}
 function scheduleAutoSave(){
   clearTimeout(autoSaveTimer);
+  const generation=++autoSaveGeneration;
   if(!autoSavePromise)autoSavePromise=new Promise(resolve=>{autoSaveResolve=resolve});
   autoSaveTimer=setTimeout(async()=>{
     let saved=false;
@@ -3494,6 +3495,9 @@ function scheduleAutoSave(){
       const tablePending=typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits();
       $("projectStatus").textContent=(tablePending?"Map auto-saved; Attribute Table edits still pending: ":"Saved locally: ")+new Date().toLocaleString("en-US");
     }catch(e){console.warn("IndexedDB autosave:",e);status("Autosave failed: "+(e.message||"local storage unavailable")+". Save the project manually.")}
+    // A newer edit may have rescheduled autosave while this write was in flight.
+    // Keep the shared promise pending until the newest snapshot has been persisted.
+    if(generation!==autoSaveGeneration)return;
     const resolve=autoSaveResolve;autoSavePromise=null;autoSaveResolve=null;
     if(resolve)resolve(saved);
   },700);
