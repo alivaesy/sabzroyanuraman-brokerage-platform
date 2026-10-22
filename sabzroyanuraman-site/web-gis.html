@@ -3012,8 +3012,18 @@ $("saveTableEdits").onclick=async()=>{
   else fieldTypes[key]="string";
  });
  try{
-  table.querySelectorAll("tbody tr").forEach(row=>{
-   const item=items[Number(row.dataset.index)];if(!item)return;
+  const rows=[...table.querySelectorAll("tbody tr")];
+  const seenIndexes=new Set();
+  for(const row of rows){
+   const index=Number(row.dataset.index);
+   const item=Number.isInteger(index)&&index>=0?items[index]:null;
+   if(!item||!item.layer||!item.feature||seenIndexes.has(index)||!isLayerInEditTarget(item.layer)){
+    throw new Error("The attribute table contains a stale row or a row outside the active edit layer. Refresh the table and retry.");
+   }
+   seenIndexes.add(index);
+  }
+  rows.forEach(row=>{
+   const item=items[Number(row.dataset.index)];
    const props=item.feature.properties||{},next={};
    row.querySelectorAll(".cell-edit").forEach(inp=>{
     const key=inp.dataset.key,oldValue=props[key],raw=inp.value;
@@ -3028,7 +3038,7 @@ $("saveTableEdits").onclick=async()=>{
      value=null;
     }else if(valueType==="number"){
      if(!Number.isFinite(Number(raw)))throw new Error("Field '"+key+"' requires a valid number.");
-     const schemaField=(currentAttributeLayer()?._gdbMetadata?.fields||[]).find(f=>(typeof f==="string"?f:f.name)===key);
+     const schemaField=(currentAttributeLayer()?._gdbMetadata?.fields||[]).find(f=>String(typeof f==="string"?f:f.name).toLowerCase()===key.toLowerCase());
      if(String(schemaField?.type||"").toUpperCase()==="INTEGER"&&!Number.isInteger(Number(raw)))throw new Error("Field '"+key+"' requires a whole number.");
      value=Number(raw);
     }else if(valueType==="boolean"){
@@ -3053,7 +3063,7 @@ $("saveTableEdits").onclick=async()=>{
  if(!changes.length){status("No attribute changes to save.");return}
  recordUndoState();
  changes.forEach(({item,props})=>{item.feature.properties=props;item.feature.geometry=item.layer.toGeoJSON().geometry;updateFeaturePopup(item.layer)});
- renderEditableTable();const synced=await flushGeodatabaseEdits();scheduleAutoSave();status("Saved attribute changes for "+changes.length+" feature(s)."+(synced?"":" Geodatabase sync failed; retry Save Edits before leaving."));
+ renderEditableTable();const synced=await flushGeodatabaseEdits();scheduleAutoSave();status("Saved attribute changes for "+changes.length+" feature(s)."+(synced?"":" Local autosave failed; retry Save Edits before leaving."));
 };
 function selectedTableIndexes(){
  return [...$("attributeTableWrap").querySelectorAll("tbody tr")].filter(r=>r.querySelector(".row-check")?.checked).map(r=>Number(r.dataset.index));
