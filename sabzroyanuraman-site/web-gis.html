@@ -1374,6 +1374,15 @@ function updateStandardActionButtons(){
   $("deleteBtn").disabled=!hasSelection||!editSessionActive;
   $("pasteBtn").disabled=!featureClipboard.length||!editSessionActive;
 }
+async function flushGeodatabaseEdits(){
+  try{
+    if(window.__webGisGdbBridge&&typeof window.__webGisGdbBridge.save==="function")await window.__webGisGdbBridge.save();
+    return true;
+  }catch(err){
+    console.error("Geodatabase edit sync failed:",err);
+    return false;
+  }
+}
 function clearWorkspace(){
   if(blockForUnsavedTableEdits("clearing the workspace"))return;
   const count=drawn.getLayers().length+namedLayers.length;
@@ -1385,7 +1394,7 @@ function clearWorkspace(){
   editSessionActive=false;editTarget=drawn;refreshEditorTargets();updateEditorToolbar();renderLayerList();refreshAttributeLayers();
   map.setView([34.5,46.5],8);status("New blank map created.");scheduleAutoSave();
 }
-function copySelectedFeatures(cut=false){
+async function copySelectedFeatures(cut=false){
   if(cut&&blockForUnsavedTableEdits("cutting features"))return;
   let records=selectedRecords();
   if(cut){
@@ -1396,12 +1405,13 @@ function copySelectedFeatures(cut=false){
   if(cut){
     recordUndoState();
     records.forEach(r=>r.owner.layer.removeLayer(r.layer));
-    selectedFeatures.clear();selectedLayer=null;selectedOverlay=null;const editor=$("attributeEditor");if(editor)editor.style.display="none";updateMultiSelectionUI();renderLayerList();refreshAttributeLayers();scheduleAutoSave();
-    status(records.length+" feature(s) cut.");
+    selectedFeatures.clear();selectedLayer=null;selectedOverlay=null;const editor=$("attributeEditor");if(editor)editor.style.display="none";updateMultiSelectionUI();renderLayerList();refreshAttributeLayers();
+    const synced=await flushGeodatabaseEdits();scheduleAutoSave();
+    status(records.length+" feature(s) cut."+(synced?"":" Geodatabase sync failed; save edits again."));
   }else status(featureClipboard.length+" feature(s) copied.");
   updateStandardActionButtons();
 }
-function pasteFeatures(){
+async function pasteFeatures(){
   if(blockForUnsavedTableEdits("pasting features"))return;
   if(!editSessionActive||!editTarget){status("Start Editing before pasting features.");return;}
   if(!featureClipboard.length){status("Copy or cut features before pasting.");return;}
@@ -1425,16 +1435,16 @@ function pasteFeatures(){
     });
     group.eachLayer(layer=>{layer.feature=copy;editTarget.addLayer(layer);attachFeatureSelection(layer);});
   });
-  refreshAll();updateStandardActionButtons();status(featureClipboard.length+" feature(s) pasted into the edit layer.");
+  refreshAll();updateStandardActionButtons();const synced=await flushGeodatabaseEdits();scheduleAutoSave();status(featureClipboard.length+" feature(s) pasted into the edit layer."+(synced?"":" Geodatabase sync failed; save edits again."));
 }
-function deleteSelectedFeatures(){
+async function deleteSelectedFeatures(){
   if(blockForUnsavedTableEdits("deleting features"))return;
   if(!editSessionActive||!editTarget){status("Start Editing before deleting features.");return;}
   const records=editableSelectedRecords(false);if(!records.length)return;
   if(!confirm("Delete "+records.length+" selected feature(s)?"))return;
   recordUndoState();
   records.forEach(r=>r.owner.layer.removeLayer(r.layer));
-  selectedFeatures.clear();selectedLayer=null;selectedOverlay=null;const editor=$("attributeEditor");if(editor)editor.style.display="none";applySelectionVisual();refreshAll();scheduleAutoSave();updateStandardActionButtons();status(records.length+" feature(s) deleted.");
+  selectedFeatures.clear();selectedLayer=null;selectedOverlay=null;const editor=$("attributeEditor");if(editor)editor.style.display="none";applySelectionVisual();refreshAll();const synced=await flushGeodatabaseEdits();scheduleAutoSave();updateStandardActionButtons();status(records.length+" feature(s) deleted."+(synced?"":" Geodatabase sync failed; save edits again."));
 }
 function openOnlineData(){
   const value=prompt("Enter a public GeoJSON URL or ArcGIS Feature Service layer URL:");
