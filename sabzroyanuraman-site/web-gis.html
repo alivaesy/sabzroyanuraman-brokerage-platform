@@ -4116,17 +4116,37 @@ function modifyLasso(){
   if(!r){status("Select one polygon feature in the active edit layer first.");return;}
   if(typeof turf.difference!=="function"||typeof turf.union!=="function"){status("Modify Lasso needs Turf polygon operations.");return;}
   stopActiveDraw(true);stopReshapeDraw();
-  const original=JSON.parse(JSON.stringify(r.feature)),owner=editTarget;
-  status("Sketch a closed lasso across the polygon. A lasso inside removes area; one crossing or outside adds area. Esc cancels.");
-  const handler=new L.Draw.Polygon(map,{shapeOptions:{color:"#7b3fb2",weight:2,dashArray:"4,3"}});
-  window._reshapeDrawHandler=handler;
-  const created=e=>{
-    map.off(L.Draw.Event.CREATED,created);window._reshapeCreatedHandler=null;window._reshapeDrawHandler=null;
+  const original=JSON.parse(JSON.stringify(r.feature)),owner=editTarget,points=[];
+  let drawing=false,done=false,preview=null;
+  const cleanup=()=>{
+    if(done)return;done=true;
+    map.off("mousedown",onDown);map.off("mousemove",onMove);map.off("mouseup",onUp);
+    if(preview&&map.hasLayer(preview))map.removeLayer(preview);
+    map.dragging.enable();map.getContainer().style.cursor="";
+    document.removeEventListener("keydown",onKey,true);window._modifyLassoCancel=null;
+    updateEditorToolbar();
+  };
+  const onKey=e=>{if(e.key==="Escape"&&window._modifyLassoCancel){e.preventDefault();e.stopPropagation();window._modifyLassoCancel();}};
+  const onDown=e=>{
+    if(e.originalEvent?.button!==0)return;
+    drawing=true;points.length=0;points.push(e.latlng);
+    if(preview&&map.hasLayer(preview))map.removeLayer(preview);
+    preview=L.polygon(points,{color:"#7b3fb2",weight:2,dashArray:"4,3",fillOpacity:.12,interactive:false}).addTo(map);
+  };
+  const onMove=e=>{
+    if(!drawing)return;
+    const last=points[points.length-1];
+    if(!last||last.distanceTo(e.latlng)>=map.distance(0,0)||last.distanceTo(e.latlng)>=0.5)points.push(e.latlng);
+    if(preview)preview.setLatLngs(points);
+  };
+  const onUp=()=>{
+    if(!drawing)return;drawing=false;
+    if(points.length<4){status("Lasso cancelled: drag a closed area with at least four sampled points.");return;}
+    const ring=points.map(p=>[p.lng,p.lat]);ring.push(ring[0].slice());
+    const sketch={type:"Feature",properties:{},geometry:{type:"Polygon",coordinates:[ring]}};
     try{
-      if(!editSessionActive||editTarget!==owner||!owner.hasLayer(r.layer)){status("Modify Lasso cancelled because the edit target changed.");return;}
-      if(map.hasLayer(e.layer))map.removeLayer(e.layer);
-      const sketch=e.layer.toGeoJSON();
-      if(!vertexGeometryIsValid(sketch.geometry)||sketch.geometry.type!=="Polygon")throw new Error("Draw a valid lasso polygon.");
+      if(!editSessionActive||editTarget!==owner||!owner.hasLayer(r.layer))throw new Error("The edit target changed.");
+      if(!vertexGeometryIsValid(sketch.geometry))throw new Error("Draw a valid lasso polygon.");
       if(!turf.booleanIntersects(original,sketch))throw new Error("The lasso must overlap the selected polygon.");
       const cut=turf.booleanWithin(sketch,original);
       const result=cut?turf.difference({type:"FeatureCollection",features:[original,sketch]}):turf.union({type:"FeatureCollection",features:[original,sketch]});
@@ -4135,10 +4155,15 @@ function modifyLasso(){
       recordUndoState();r.feature.geometry=result.geometry;rebuildVectorLayerGeometry([r]);refreshAll();
       Promise.all([flushGeodatabaseEdits(),scheduleAutoSave()]).then(([a,b])=>status("Modify Lasso applied."+(a&&b?"":" Save failed; retry Save Edits.")));
     }catch(err){status("Modify Lasso cancelled: "+(err.message||"geometry operation failed"));}
-    finally{if(map.hasLayer(e.layer))map.removeLayer(e.layer);}
+    finally{cleanup();}
   };
-  window._reshapeCreatedHandler=created;map.once(L.Draw.Event.CREATED,created);handler.enable();
+  window._modifyLassoCancel=()=>{cleanup();status("Modify Lasso cancelled.");};
+  map.dragging.disable();map.getContainer().style.cursor="crosshair";
+  map.on("mousedown",onDown);map.on("mousemove",onMove);map.on("mouseup",onUp);
+  document.addEventListener("keydown",onKey,true);
+  status("Drag a freehand lasso across the selected polygon. Inside removes area; crossing/outside adds area. Esc cancels.");
 }
+
 function drawCurveFeature(){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("drawing a curve"))return;
   if(!editSessionActive||!editTarget){status("Start Editing before drawing a curve.");return;}
