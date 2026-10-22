@@ -2972,12 +2972,12 @@ $("addTableField").onclick=async()=>{
  recordUndoState();
  if(!layer._gdbMetadata)layer._gdbMetadata={fields:[]};if(!Array.isArray(layer._gdbMetadata.fields))layer._gdbMetadata.fields=[];layer._gdbMetadata.fields.push({name:key,type});
  items.forEach(x=>{ensureFeatureProperties(x.layer)[key]=null;updateFeaturePopup(x.layer);});
- renderEditableTable();const synced=await flushGeodatabaseEdits();status("Field '"+key+"' ("+type+") added to "+items.length+" feature(s)."+(synced?"":" Local autosave failed; retry Save Edits."));
+ renderEditableTable();const synced=await flushGeodatabaseEdits();scheduleAutoSave();status("Field '"+key+"' ("+type+") added to "+items.length+" feature(s)."+(synced?"":" Local autosave failed; retry Save Edits."));
 };
 
 $("deleteTableField").onclick=async()=>{
  if(hasUnsavedTableEdits()){status("Save Table Edits before deleting a field; unsaved cell values have been preserved.");return}
- if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before changing its table.");return}
+ if(!editSessionActive||!isLayerInEditTarget(currentAttributeLayer())){status("Start Editing this layer before changing its table.");return}
  const layer=currentAttributeLayer(),items=currentAttributeItems();
  if(!layer){status("Select a feature layer.");return}
  const fields=tableKeys(items).filter(key=>!isReservedAttributeField(key));
