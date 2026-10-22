@@ -4005,6 +4005,13 @@ async function exportRealGDB(){
 
 function checkEditTopology(){
   if(!editSessionActive||!editTarget){status("Start Editing and choose an editable layer before checking topology.");return;}
+  const settingsKey="sabzRoyanWebGisTopologyRules";let rules="all";
+  try{rules=localStorage.getItem(settingsKey)||"all"}catch(_){}
+  const ruleChoice=prompt("Topology rules to run:\n1 = All checks\n2 = Geometry validity / duplicate vertices\n3 = Self-intersections\n4 = Polygon overlaps / duplicates\n5 = Coverage gaps (requires selected boundary polygon outside edit layer)",""+({"all":"1","geometry":"2","self":"3","overlap":"4","gaps":"5"}[rules]||"1"));
+  if(ruleChoice===null)return;
+  const ruleMap={"1":"all","2":"geometry","3":"self","4":"overlap","5":"gaps"};
+  if(!ruleMap[ruleChoice.trim()]){status("Choose a topology rule set from 1 to 5.");return;}
+  rules=ruleMap[ruleChoice.trim()];try{localStorage.setItem(settingsKey,rules)}catch(_){}
   const records=vectorFeatures(editTarget),issues=[];
   const same=(a,b)=>Array.isArray(a)&&Array.isArray(b)&&a.length>=2&&b.length>=2&&Math.abs(a[0]-b[0])<1e-12&&Math.abs(a[1]-b[1])<1e-12;
   records.forEach((r,index)=>{
@@ -4104,9 +4111,18 @@ function checkEditTopology(){
       }else gapSummary="Gap check unavailable: Turf union/difference is unavailable.";
     }
   }catch(e){gapSummary="Gap check could not be completed: "+(e.message||"geometry operation failed")+".";}
+  const ruleMatches=issue=>{
+    const t=String(issue.issue||"").toLowerCase();
+    if(rules==="geometry")return /missing geometry|fewer than|not closed|too few vertices|duplicate consecutive|zero or invalid area|topology check failed/.test(t);
+    if(rules==="self")return /self-intersect|kink/.test(t);
+    if(rules==="overlap")return /overlap|duplicate polygon/.test(t);
+    if(rules==="gaps")return /coverage gap/.test(t);
+    return true;
+  };
+  const filteredIssues=issues.filter(ruleMatches),gapRelevant=rules==="all"||rules==="gaps";
   const output=$("professionalToolOutput");
-  if(output)output.textContent="Topology Check — Layer features: "+records.length+" | Issues: "+issues.length+"\n"+gapSummary+"\n"+(issues.length?issues.slice(0,100).map(x=>"Feature "+x.id+": "+x.issue).join("\n"):"No basic geometry topology issues detected.")+(issues.length>100?"\n... "+(issues.length-100)+" more issue(s) omitted.":"");
-  status(issues.length?"Topology check found "+issues.length+" issue(s); see Tool Output.":(!gapChecked?"Basic geometry checks passed for "+records.length+" feature(s); "+gapSummary:"Topology check passed for "+records.length+" feature(s); "+gapSummary));
+  if(output)output.textContent="Topology Check — Rule set: "+rules+" | Layer features: "+records.length+" | Issues: "+filteredIssues.length+"\\n"+(gapRelevant?gapSummary:"Coverage-gap check not requested.")+"\\n"+(filteredIssues.length?filteredIssues.slice(0,100).map(x=>"Feature "+x.id+": "+x.issue).join("\\n"):"No issues found for the selected rule set.")+(filteredIssues.length>100?"\\n... "+(filteredIssues.length-100)+" more issue(s) omitted.":"");
+  status(filteredIssues.length?"Topology check found "+filteredIssues.length+" issue(s); see Tool Output.":(!gapRelevant?"Selected topology checks passed for "+records.length+" feature(s).":!gapChecked?"Selected topology checks passed for "+records.length+" feature(s); "+gapSummary:"Topology check passed for "+records.length+" feature(s); "+gapSummary));
 }
 
 function modifyLasso(){
@@ -6072,32 +6088,49 @@ function networkQaTool(){
 
 /* Snap GIS to GIS GIS to GIS Point/vertex Line */
 function advancedSnap(){
-  const choice=prompt("Advanced snapping target:\n1 = Line vertices\n2 = Line segments\n3 = Vertices and segments","3");
+  const key="sabzRoyanWebGisSnapSettings";let settings={mode:"all",tolerance:5};
+  try{settings={...settings,...JSON.parse(localStorage.getItem(key)||"{}")}}catch(_){}
+  const choice=prompt("Advanced snapping targets:\n1 = Endpoints only\n2 = All line vertices\n3 = Line segments (edges)\n4 = Segment midpoints\n5 = Vertices + edges + midpoints\n6 = Set tolerance only",""+({"endpoints":"1","vertices":"2","segments":"3","midpoints":"4","all":"5"}[settings.mode]||"5"));
   if(choice===null)return;
-  const modes={"1":"vertices","2":"segments","3":"both"};
-  if(!modes[choice.trim()]){status("Choose snapping mode 1, 2, or 3.");return;}
-  snapTool(modes[choice.trim()]);
+  const modes={"1":"endpoints","2":"vertices","3":"segments","4":"midpoints","5":"all"};
+  if(choice.trim()==="6"){
+    const raw=prompt("Snapping tolerance in meters:",String(settings.tolerance));if(raw===null)return;
+    const tolerance=Number(raw);if(!Number.isFinite(tolerance)||tolerance<=0){status("Snapping tolerance must be greater than zero.");return;}settings.tolerance=tolerance;
+  }else{
+    if(!modes[choice.trim()]){status("Choose snapping mode 1 to 6.");return;}settings.mode=modes[choice.trim()];
+    const raw=prompt("Snapping tolerance in meters:",String(settings.tolerance));if(raw===null)return;
+    const tolerance=Number(raw);if(!Number.isFinite(tolerance)||tolerance<=0){status("Snapping tolerance must be greater than zero.");return;}settings.tolerance=tolerance;
+  }
+  try{localStorage.setItem(key,JSON.stringify(settings))}catch(_){}
+  snapTool(settings.mode,settings.tolerance);
 }
-function snapTool(snapMode="segments"){
+function snapTool(snapMode="segments",configuredTolerance=null){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("snapping point features"))return;
   if(!editSessionActive||!editTarget){status("Start Editing the target point layer before snapping features.");return;}
   const selected=editableSelectedRecords(false).filter(r=>r.feature.geometry?.type==="Point"&&(r.owner?.layer||drawn)===editTarget);
   if(!selected.length){status("Select point features in the active edit layer, then run Snap Points to Lines.");return;}
   const lineRecords=getFeatureRecords().filter(r=>r.owner?.layer&&map.hasLayer(r.owner.layer)&&["LineString","MultiLineString"].includes(r.feature.geometry?.type));
   if(!lineRecords.length){status("Add a line feature before snapping points.");return;}
-  const raw=prompt("Snap tolerance in meters:","5");if(raw===null)return;
-  const tolerance=Number(raw);
-  if(!Number.isFinite(tolerance)||tolerance<=0){status("Snap tolerance must be greater than zero.");return;}
-  const lineParts=[],vertexPoints=[];
+  let tolerance=Number(configuredTolerance);
+  if(!Number.isFinite(tolerance)||tolerance<=0){
+    let settings={tolerance:5};try{settings={...settings,...JSON.parse(localStorage.getItem("sabzRoyanWebGisSnapSettings")||"{}")}}catch(_){}
+    const raw=prompt("Snap tolerance in meters:",String(settings.tolerance));if(raw===null)return;
+    tolerance=Number(raw);if(!Number.isFinite(tolerance)||tolerance<=0){status("Snap tolerance must be greater than zero.");return;}
+    settings.tolerance=tolerance;try{localStorage.setItem("sabzRoyanWebGisSnapSettings",JSON.stringify(settings))}catch(_){}
+  }
+  if(!["vertices","segments","both","endpoints","midpoints","all"].includes(snapMode)){status("Unsupported snapping mode.");return;}
+  const lineParts=[],vertexPoints=[],endPoints=[],midPoints=[];
   lineRecords.forEach(r=>{
     const g=r.feature.geometry,parts=g.type==="LineString"?[g.coordinates]:g.coordinates;
     parts.forEach(coords=>{
       if(!Array.isArray(coords)||coords.length<2)return;
-      if(snapMode==="vertices"||snapMode==="both")coords.forEach(c=>{if(Array.isArray(c)&&c.length>=2&&c.every(Number.isFinite))vertexPoints.push(turf.point(c.slice(0,2)));});
-      if(snapMode==="segments"||snapMode==="both"){try{lineParts.push(turf.lineString(coords));}catch(_){}}
+      if(snapMode==="vertices"||snapMode==="both"||snapMode==="all")coords.forEach(c=>{if(Array.isArray(c)&&c.length>=2&&c.every(Number.isFinite))vertexPoints.push(turf.point(c.slice(0,2)));});
+      if(snapMode==="endpoints"||snapMode==="all")[coords[0],coords[coords.length-1]].forEach(c=>{if(Array.isArray(c)&&c.length>=2&&c.every(Number.isFinite))endPoints.push(turf.point(c.slice(0,2)));});
+      if(snapMode==="midpoints"||snapMode==="all")for(let i=1;i<coords.length;i++){const a=coords[i-1],b=coords[i];if(a?.length>=2&&b?.length>=2&&a.every(Number.isFinite)&&b.every(Number.isFinite))midPoints.push(turf.point([(a[0]+b[0])/2,(a[1]+b[1])/2]));}
+      if(snapMode==="segments"||snapMode==="both"||snapMode==="all"){try{lineParts.push(turf.lineString(coords));}catch(_){}}
     });
   });
-  if(!lineParts.length&&!vertexPoints.length){status("No usable line vertices or segments were found.");return;}
+  if(!lineParts.length&&!vertexPoints.length&&!endPoints.length&&!midPoints.length){status("No usable line vertices, endpoints, segments, or midpoints were found.");return;}
   const updates=[];
   selected.forEach(r=>{
     try{
@@ -6105,8 +6138,10 @@ function snapTool(snapMode="segments"){
       const consider=candidate=>{try{const distance=turf.distance(p,candidate,{units:"meters"});if(distance<bestDistance){bestDistance=distance;best=candidate;}}catch(_){}};
       // Respect the requested snapping mode: segment-only snapping must not
       // silently prefer a nearby vertex, and vertex-only mode must not use segments.
-      if(snapMode==="vertices"||snapMode==="both")vertexPoints.forEach(point=>consider(point));
-      if(snapMode==="segments"||snapMode==="both")lineParts.forEach(line=>{try{consider(turf.nearestPointOnLine(line,p,{units:"kilometers"}));}catch(_){}});
+      if(snapMode==="vertices"||snapMode==="both"||snapMode==="all")vertexPoints.forEach(point=>consider(point));
+      if(snapMode==="endpoints"||snapMode==="all")endPoints.forEach(point=>consider(point));
+      if(snapMode==="midpoints"||snapMode==="all")midPoints.forEach(point=>consider(point));
+      if(snapMode==="segments"||snapMode==="both"||snapMode==="all")lineParts.forEach(line=>{try{consider(turf.nearestPointOnLine(line,p,{units:"kilometers"}));}catch(_){}});
       if(best&&bestDistance<=tolerance&&bestDistance>0)updates.push({r,coordinates:best.geometry.coordinates.slice(0,2),distance:bestDistance});
     }catch(_){}
   });
@@ -6114,8 +6149,9 @@ function snapTool(snapMode="segments"){
   // One atomic checkpoint and validation for the whole snapping operation.
   const snapUpdates=updates.map(x=>({r:x.r,geometry:{type:"Point",coordinates:x.coordinates}}));
   commitGeometryOperation(snapUpdates,"Snap").then(ok=>{
-    $("professionalToolOutput").textContent="Snapping result: "+updates.length+" of "+selected.length+" selected point(s) moved to the nearest "+(snapMode==="vertices"?"line vertex":snapMode==="both"?"line vertex or segment":"line segment")+" (tolerance "+tolerance+" m).";
-    if(ok)status(updates.length+" selected point feature(s) snapped to "+snapMode+" (tolerance "+tolerance+" m) and saved.");
+    const snapLabel=({"vertices":"line vertex","both":"line vertex or segment","segments":"line segment","endpoints":"line endpoint","midpoints":"segment midpoint","all":"vertex, endpoint, segment or midpoint"})[snapMode]||snapMode;
+    $("professionalToolOutput").textContent="Snapping result: "+updates.length+" of "+selected.length+" selected point(s) moved to nearest "+snapLabel+" (tolerance "+tolerance+" m).";
+    if(ok)status(updates.length+" selected point feature(s) snapped to "+snapLabel+" (tolerance "+tolerance+" m) and saved.");
   });
 }
 
