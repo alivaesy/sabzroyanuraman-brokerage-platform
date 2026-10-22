@@ -1629,7 +1629,7 @@ function startDraw(type,button){
   const isDrawingSetTarget=!!currentDrawingItem&&(
     !!currentDrawingItem.drawingSet||
     currentDrawingItem.name==="My Drawings"||
-    /^My Drawings(?: \\d+)? \\/ (?:Points|Lines|Polygons)$/.test(currentDrawingItem.name)
+    currentDrawingItem.name.indexOf("My Drawings ")===0
   );
   if(isDrawingSetTarget&&currentDrawingItem.drawingSet)activeDrawingSetName=currentDrawingItem.drawingSet;
   const useAutomaticDrawingLayer=editTarget===drawn||isDrawingSetTarget;
