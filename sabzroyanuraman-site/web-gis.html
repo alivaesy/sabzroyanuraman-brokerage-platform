@@ -1135,7 +1135,7 @@ function startEditing(item=null){
   updateEditorToolbar();
   status("Edit session started for "+(value==="drawn"?"My Drawings":namedLayers[Number(value)]?.name||"selected layer")+".");
 }
-function isLayerInEditTarget(layer){return editTarget===drawn?drawn.hasLayer(layer):!!editTarget?.hasLayer?.(layer)}
+function isLayerInEditTarget(layer){if(!layer||!editTarget)return false;if(layer===editTarget)return true;return editTarget===drawn?drawn.hasLayer(layer):!!editTarget?.hasLayer?.(layer)}
 async function saveEdits(){
   if(!editSessionActive){status("No edit session is active.");return false}
   if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){
