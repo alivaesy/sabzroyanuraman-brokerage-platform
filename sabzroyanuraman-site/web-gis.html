@@ -5436,8 +5436,10 @@ window.addEventListener("beforeunload",event=>{
 #publicFeedbackStatus{font-size:11px;line-height:1.7;margin-top:8px;white-space:pre-wrap}
 .feedback-list-title{font-size:12px;font-weight:700;margin:16px 0 7px;border-bottom:1px solid #c8d2d7;padding-bottom:6px}
 #publicFeedbackList{display:flex;flex-direction:column;gap:7px}
-.public-feedback-item{border:1px solid #d1dadd;background:#fff;padding:8px;font-size:11px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere;direction:rtl;text-align:right}
-.public-feedback-meta{font-size:9px;color:#71828b;margin-bottom:3px;direction:ltr;text-align:left}
+.public-feedback-item{--feedback-accent:#477da8;border:1px solid #d1dadd;border-right:4px solid var(--feedback-accent);background:#fff;padding:8px;font-size:11px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere;direction:rtl;text-align:right}
+.public-feedback-item:nth-child(6n+2){--feedback-accent:#43856b}.public-feedback-item:nth-child(6n+3){--feedback-accent:#a87936}.public-feedback-item:nth-child(6n+4){--feedback-accent:#8065a5}.public-feedback-item:nth-child(6n+5){--feedback-accent:#ad6262}.public-feedback-item:nth-child(6n){--feedback-accent:#438c91}
+.public-feedback-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;color:#536875;margin-bottom:5px;direction:rtl;text-align:right}
+.public-feedback-number{display:inline-block;flex:none;padding:1px 6px;border-radius:2px;background:var(--feedback-accent);color:#fff;font-weight:700;font-size:10px}
 @media(max-width:650px){.feedback-open-btn{margin-right:4px;padding:0 7px}#publicFeedbackModal{padding:7px}.feedback-content{padding:9px}}
 </style>
 <div id="publicFeedbackModal" role="dialog" aria-modal="true" aria-labelledby="publicFeedbackTitle">
@@ -5475,13 +5477,18 @@ window.addEventListener("beforeunload",event=>{
  const updateCount=()=>{const v=normalized();count.textContent=v.length+" / 600 · "+lineCount(v)+" / 6 lines";field.setCustomValidity(lineCount(v)>6?"لطفاً متن را حداکثر در ۶ خط بنویسید.":"");};
  function open(){modal.classList.add("show");document.body.style.overflow="hidden";load();setTimeout(()=>field.focus(),20)}
  function close(){modal.classList.remove("show");document.body.style.overflow="";}
- function dateLabel(value){const d=new Date(value);return Number.isNaN(d.getTime())?"":d.toLocaleString("fa-IR");}
+ function dateLabel(value){const d=new Date(value);if(Number.isNaN(d.getTime()))return "";try{return new Intl.DateTimeFormat("fa-IR-u-ca-persian",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(d)}catch(_){return d.toLocaleString("fa-IR")}}
  function render(items){
    list.replaceChildren();
    if(!items.length){const empty=document.createElement("div");empty.className="public-feedback-item";empty.textContent="هنوز بازخوردی ثبت نشده است.";list.append(empty);return;}
+   const chronological=[...items].sort((a,b)=>String(a.created_at||"").localeCompare(String(b.created_at||"")));
+   const numbers=new Map();let next=1;chronological.forEach(item=>{const n=Number(item.number);const key=item.id||item;numbers.set(key,Number.isInteger(n)&&n>0?n:next);next=Math.max(next+1,Number.isInteger(n)&&n>0?n+1:next+1)});
    items.forEach(item=>{
      const card=document.createElement("article");card.className="public-feedback-item";
-     const meta=document.createElement("div");meta.className="public-feedback-meta";meta.textContent=dateLabel(item.created_at);
+     const meta=document.createElement("div");meta.className="public-feedback-meta";
+     const number=document.createElement("span");number.className="public-feedback-number";number.textContent="#"+String(numbers.get(item.id||item)||"");
+     const date=document.createElement("time");date.textContent=dateLabel(item.created_at);date.dateTime=String(item.created_at||"");
+     meta.append(number,date);
      const body=document.createElement("div");body.dir="rtl";body.textContent=String(item.text||"");
      card.append(meta,body);list.append(card);
    });
