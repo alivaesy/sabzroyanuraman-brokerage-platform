@@ -2515,7 +2515,7 @@ function renderEditableTable(){
  }
  let html="<div class='attribute-schema-toolbar' style='display:flex;gap:5px;align-items:center;flex-wrap:wrap;padding:4px;background:#edf2f5;border-bottom:1px solid #ccd9df'><button type='button' id='attributeAddField' title='Add a field to the feature class'>＋ Add Field</button><button type='button' id='attributeDeleteField' title='Delete a field from the feature class'>− Delete Field</button><button type='button' id='attributeSwitchSelection' title='Invert selection for displayed records'>Switch Selection</button><button type='button' id='attributeSelectByQuery' title='Select records using attribute criteria'>Select By Attributes</button><button type='button' id='attributeZoomSelected' title='Zoom the map to selected records'>Zoom To Selected</button><button type='button' id='attributeClearSelection' title='Clear the current map and table selection'>Clear Selection</button><span id='attributeTableSummary' style='align-self:center;color:#526775'>"+keys.length+" field(s) · "+items.length+" record(s) · "+selectedFeatures.size+" selected</span></div><table class='arc-attribute-grid'><thead><tr><th><input type='checkbox' class='attr-check' id='checkAllRows'></th><th>#</th>"+
  keys.map(k=>"<th data-sort-key='"+esc(k)+"' title='Sort by "+esc(k)+"' style='padding:3px;border-bottom:1px solid #ccd9df;white-space:nowrap;cursor:pointer;user-select:none'>"+esc(k)+(attributeSort.key===k?(attributeSort.direction===1?" ▲":" ▼"):" ↕")+"</th>").join("")+"</tr></thead><tbody>";
- rows.forEach(o=>{html+="<tr data-index='"+o.i+"'><td><input type='checkbox' class='row-check attr-check' "+(selectedFeatures.has(o.x.layer)?"checked":"")+"></td><td>"+(o.i+1)+"</td>"+
+ rows.forEach(o=>{html+="<tr data-index='"+o.i+"' tabindex='0' role='row' aria-selected='"+(selectedFeatures.has(o.x.layer)?"true":"false")+"' class='"+(selectedFeatures.has(o.x.layer)?"attribute-row-selected":"")+"'><td><input type='checkbox' class='row-check attr-check' "+(selectedFeatures.has(o.x.layer)?"checked":"")+"></td><td>"+(o.i+1)+"</td>"+
  keys.map(k=>{const v=(o.x.feature.properties||{})[k],shown=v===null||v===undefined?"":typeof v==="object"?JSON.stringify(v):String(v);return "<td style='padding:2px'><input class='cell-edit' data-key='"+esc(k)+"' data-original='"+esc(shown)+"' value='"+esc(shown) +"'></td>"}).join("")+"</tr>"});
  $("attributeTableWrap").innerHTML=html+"</tbody></table>";$("attributeTableWrap").style.display="block";
  // Resizable field columns, similar to the desktop ArcMap attribute grid.
@@ -2649,7 +2649,45 @@ $("attributeTableWrap").addEventListener("click",event=>{
  applySelectionVisual();syncVisibleAttributeTableSelection();updateMultiSelectionUI();
  if(selectedLayer)showUTM(selectedLayer);
  status(selectedFeatures.size+" feature(s) selected from the Attribute Table.");
-});$("attributeFilter").addEventListener("input",()=>{
+});
+/* ArcMap-style keyboard navigation for record rows (Arrow keys, Home/End, Shift range). */
+$("attributeTableWrap").addEventListener("keydown",event=>{
+ if(event.target.closest(".cell-edit,input,button,select,textarea"))return;
+ const row=event.target.closest("tbody tr[data-index]");
+ if(!row)return;
+ const rows=[...$("attributeTableWrap").querySelectorAll("tbody tr[data-index]")];
+ const at=rows.indexOf(row);let nextIndex=at;
+ if(event.key==="ArrowDown")nextIndex=Math.min(rows.length-1,at+1);
+ else if(event.key==="ArrowUp")nextIndex=Math.max(0,at-1);
+ else if(event.key==="Home")nextIndex=0;
+ else if(event.key==="End")nextIndex=rows.length-1;
+ else if(event.key===" "||event.key==="Enter"){
+  if(event.target===row){event.preventDefault();row.click();}
+  return;
+ }else return;
+ event.preventDefault();
+ const target=rows[nextIndex];if(!target)return;
+ const items=currentAttributeItems(),targetIndex=Number(target.dataset.index),targetItem=items[targetIndex];
+ if(!targetItem)return;
+ if(event.shiftKey){
+  if(attributeLastClickedIndex===null)attributeLastClickedIndex=Number(row.dataset.index);
+  const anchor=rows.findIndex(r=>Number(r.dataset.index)===attributeLastClickedIndex);
+  selectedFeatures.clear();
+  rows.slice(Math.min(anchor,nextIndex),Math.max(anchor,nextIndex)+1).forEach(r=>{
+   const item=items[Number(r.dataset.index)];if(item)selectedFeatures.add(item.layer);
+  });
+ }else{
+  selectedFeatures.clear();selectedFeatures.add(targetItem.layer);
+  attributeLastClickedIndex=targetIndex;
+ }
+ const first=getFeatureRecords().find(record=>selectedFeatures.has(record.layer));
+ selectedLayer=first?.layer||null;selectedOverlay=null;
+ target.focus({preventScroll:true});target.scrollIntoView({block:"nearest"});
+ applySelectionVisual();syncVisibleAttributeTableSelection();updateMultiSelectionUI();
+ if(selectedLayer)showUTM(selectedLayer);
+ status(selectedFeatures.size+" feature(s) selected from the Attribute Table.");
+});
+$("attributeFilter").addEventListener("input",()=>{
  if($("attributeTableWrap").style.display==="none")return;
  if(hasUnsavedTableEdits()){
   status("Save Table Edits before changing the filter; this prevents unsaved cell values from being discarded.");
