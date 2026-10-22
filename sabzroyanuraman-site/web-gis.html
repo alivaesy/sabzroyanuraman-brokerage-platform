@@ -1384,7 +1384,10 @@ function updateStandardActionButtons(){
 }
 async function flushGeodatabaseEdits(){
   try{
-    if(window.__webGisGdbBridge&&typeof window.__webGisGdbBridge.save==="function")await window.__webGisGdbBridge.save();
+    if(window.__webGisGdbBridge&&typeof window.__webGisGdbBridge.save==="function"){
+      const result=await window.__webGisGdbBridge.save();
+      if(result===false)return false;
+    }
     return true;
   }catch(err){
     console.error("Geodatabase edit sync failed:",err);
@@ -2060,8 +2063,15 @@ map.on(L.Draw.Event.CREATED,e=>{
 // Capture pre-edit state before Leaflet.Draw mutates geometry, enabling Undo.
 map.on(L.Draw.Event.EDITSTART,()=>{if(editSessionActive)recordUndoState()});
 map.on(L.Draw.Event.DELETESTART,()=>{if(editSessionActive)recordUndoState()});
-map.on(L.Draw.Event.EDITED,e=>{window.__webGisGdbBridge?.save();status("Feature edits saved.");scheduleAutoSave()});
-map.on(L.Draw.Event.DELETED,e=>{window.__webGisGdbBridge?.save();status("Feature deleted.");renderLayerList();scheduleAutoSave()});
+map.on(L.Draw.Event.EDITED,async e=>{
+  const synced=await flushGeodatabaseEdits();
+  status("Feature edits "+(synced?"saved locally.":"remain in the map but autosave failed; retry Save Edits."));
+});
+map.on(L.Draw.Event.DELETED,async e=>{
+  renderLayerList();
+  const synced=await flushGeodatabaseEdits();
+  status("Feature deletion "+(synced?"saved locally.":"remains in the map but autosave failed; retry Save Edits."));
+});
 function utmZoneForCoordinate(lon,lat){
  // Standard 6-degree zones, including the official Norway and Svalbard exceptions.
  let zone=Math.floor((lon+180)/6)+1;
