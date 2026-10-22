@@ -4488,96 +4488,123 @@ function reshapeSelected(){
   map.on(L.Draw.Event.CREATED,once);
   h.enable();
 }
+function vertexGeometryIsValid(g){
+  const pos=p=>Array.isArray(p)&&p.length>=2&&Number.isFinite(Number(p[0]))&&Number.isFinite(Number(p[1]))&&Math.abs(Number(p[0]))<=180&&Math.abs(Number(p[1]))<=90;
+  const line=a=>Array.isArray(a)&&a.length>=2&&a.every(pos);
+  const ring=a=>Array.isArray(a)&&a.length>=4&&a.every(pos)&&a[0][0]===a[a.length-1][0]&&a[0][1]===a[a.length-1][1]&&new Set(a.slice(0,-1).map(p=>p[0]+","+p[1])).size>=3;
+  if(!g||!g.type)return false;
+  switch(g.type){
+    case "Point":return pos(g.coordinates);
+    case "LineString":return line(g.coordinates);
+    case "MultiLineString":return Array.isArray(g.coordinates)&&g.coordinates.length>0&&g.coordinates.every(line);
+    case "Polygon":return Array.isArray(g.coordinates)&&g.coordinates.length>0&&g.coordinates.every(ring);
+    case "MultiPolygon":return Array.isArray(g.coordinates)&&g.coordinates.length>0&&g.coordinates.every(p=>Array.isArray(p)&&p.length>0&&p.every(ring));
+    default:return false;
+  }
+}
+function restoreVertexGeometry(layer,geometry){
+  if(!layer||!geometry)return false;
+  try{
+    const g=JSON.parse(JSON.stringify(geometry));
+    if(g.type==="Point"&&layer.setLatLng){layer.setLatLng([g.coordinates[1],g.coordinates[0]])}
+    else if(layer.setLatLngs&&Array.isArray(g.coordinates)){
+      const levels={LineString:0,MultiLineString:1,Polygon:1,MultiPolygon:2}[g.type];
+      if(levels===undefined)return false;
+      layer.setLatLngs(L.GeoJSON.coordsToLatLngs(g.coordinates,levels));
+      if(layer.redraw)layer.redraw();
+    }else return false;
+    const old=layer.feature||{type:"Feature",properties:{}};
+    layer.feature={...old,type:"Feature",geometry:g,properties:{...(old.properties||{})}};
+    return true;
+  }catch(err){console.warn("Could not restore last valid vertex geometry",err);return false}
+}
 function stopVertexEditing(){
-  const owner=window._vertexEditOwner,layers=Array.isArray(window._vertexEditLayers)?window._vertexEditLayers:[],baseline=window._vertexEditBaseline;
-  let geometryChanged=false;
-  // Leaflet.Draw changes layer coordinates before its Save button emits EDITED.
-  // Finalize those live coordinates before removing the toolbar (e.g. Stop Editing).
+  const owner=window._vertexEditOwner,layers=Array.isArray(window._vertexEditLayers)?window._vertexEditLayers:[],baseline=window._vertexEditBaseline,lastValid=window._vertexEditLastValid;
+  let geometryChanged=false,invalidRestored=0;
+  // Validate live coordinates even if the user closes the toolbar without clicking its Save icon.
   if(owner&&layers.length&&editSessionActive&&editTarget===owner){
     layers.forEach(layer=>{
       if(!layer||!owner.hasLayer(layer)||typeof layer.toGeoJSON!=="function")return;
       try{
-        const oldFeature=layer.feature||{},updated=layer.toGeoJSON();
+        const updated=layer.toGeoJSON(),oldFeature=layer.feature||{};
+        if(!vertexGeometryIsValid(updated.geometry)){
+          if(lastValid&&restoreVertexGeometry(layer,lastValid.get(layer)))invalidRestored++;
+          else status("Invalid geometry detected; use the Editor Save button to validate vertices before stopping.");
+          return;
+        }
         if(JSON.stringify(oldFeature.geometry)!==JSON.stringify(updated.geometry))geometryChanged=true;
         updated.properties={...(oldFeature.properties||{}),...(updated.properties||{})};
         layer.feature=updated;
+        if(lastValid)lastValid.set(layer,JSON.parse(JSON.stringify(updated.geometry)));
       }catch(err){console.warn("Could not finalize vertex geometry",err)}
     });
+    if(invalidRestored){refreshAll();status("Rejected "+invalidRestored+" invalid vertex edit(s); last valid geometry restored.");}
     if(geometryChanged&&baseline&&!historyRestoring){
       pushUndoSnapshot(baseline);
       refreshAll();window.__webGisGdbBridge?.save();scheduleAutoSave();
       status("Vertex edits finalized and added to Undo history.");
     }
   }
-  if(window._vertexEditControl){
-    try{map.removeControl(window._vertexEditControl)}catch(err){console.warn("Could not remove vertex editing toolbar",err)}
-    window._vertexEditControl=null;
-  }
-  if(window._vertexEditHandler){
-    try{map.off(L.Draw.Event.EDITED,window._vertexEditHandler)}catch(err){console.warn("Could not detach vertex edit listener",err)}
-    window._vertexEditHandler=null;
-  }
-  window._vertexEditOwner=null;window._vertexEditLayers=null;window._vertexEditBaseline=null;
+  if(window._vertexEditControl){try{map.removeControl(window._vertexEditControl)}catch(err){console.warn("Could not remove vertex editing toolbar",err)}window._vertexEditControl=null;}
+  if(window._vertexEditHandler){try{map.off(L.Draw.Event.EDITED,window._vertexEditHandler)}catch(err){console.warn("Could not detach vertex edit listener",err)}window._vertexEditHandler=null;}
+  window._vertexEditOwner=null;window._vertexEditLayers=null;window._vertexEditBaseline=null;window._vertexEditLastValid=null;
 }
 function editVertices(){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("editing feature vertices"))return;
   if(!editSessionActive||!editTarget){status("Start Editing the target layer before editing vertices.");return}
   const selected=editableSelectedRecords(false);
-  if(!selected.length)return;
+  if(!selected.length){status("Select one or more features in the active edit layer first.");return}
   const owner=selected[0].owner?.layer||drawn;
   if(owner!==editTarget){status("Vertex editing is limited to the active edit layer. Select features in that layer.");return}
-  if(!owner||!owner.getLayers){status("These features cannot be vertex edited.");return;}
-  if(selected.some(r=>(r.owner?.layer||drawn)!==owner)){status("Vertex editing requires selected features from one layer at a time.");return;}
-  const selectedLayers=selected.map(r=>r.layer).filter(layer=>layer&&owner.hasLayer(layer));
-  if(!selectedLayers.length){status("The selected features are no longer available in the active layer.");return;}
+  if(!owner||!owner.getLayers){status("These features cannot be vertex edited.");return}
+  if(selected.some(r=>(r.owner?.layer||drawn)!==owner)){status("Vertex editing requires selected features from one layer at a time.");return}
+  const selectedLayers=selected.map(r=>r.layer).filter(layer=>layer&&owner.hasLayer(layer)&&typeof layer.toGeoJSON==="function");
+  if(!selectedLayers.length){status("The selected features are no longer available in the active layer.");return}
   try{
     stopVertexEditing();
-    // Restrict the Leaflet Draw edit toolbar to the selected features, as in a
-    // selection-based desktop GIS editor, instead of exposing every layer feature.
     const editableGroup=L.featureGroup(selectedLayers);
     let baseline=JSON.parse(JSON.stringify(serializeProject()));
-    window._vertexEditOwner=owner;window._vertexEditLayers=selectedLayers;window._vertexEditBaseline=baseline;
+    const lastValid=new Map();
+    selectedLayers.forEach(layer=>{const g=layer.toGeoJSON()?.geometry;if(g)lastValid.set(layer,JSON.parse(JSON.stringify(g)))});
+    window._vertexEditOwner=owner;window._vertexEditLayers=selectedLayers;window._vertexEditBaseline=baseline;window._vertexEditLastValid=lastValid;
     window._vertexEditHandler=async function(event){
-      if(!editSessionActive||editTarget!==owner){status("Vertex edits ignored because the active edit layer changed.");return;}
+      if(!editSessionActive||editTarget!==owner){status("Vertex edits ignored because the active edit layer changed.");return}
       const edited=[];
       event.layers.eachLayer(layer=>{
         if(!layer||typeof layer.toGeoJSON!=="function"||!selectedLayers.includes(layer)||!owner.hasLayer(layer))return;
-        const oldFeature=layer.feature||{},updated=layer.toGeoJSON();
+        const updated=layer.toGeoJSON(),oldFeature=layer.feature||{};
         updated.properties={...(oldFeature.properties||{}),...(updated.properties||{})};
-        layer.feature=updated;
-        edited.push(layer);
+        if(!vertexGeometryIsValid(updated.geometry)){
+          if(restoreVertexGeometry(layer,lastValid.get(layer)))status("Invalid geometry rejected. A line needs at least 2 vertices; polygon rings need at least 3 distinct vertices and a closed boundary.");
+          else status("Invalid geometry detected. Cancel the edit and restore the last saved feature.");
+          return;
+        }
+        layer.feature=updated;lastValid.set(layer,JSON.parse(JSON.stringify(updated.geometry)));edited.push(layer);
       });
-      if(!edited.length)return;
+      if(!edited.length){refreshAll();return}
       const validation=validateAndSyncEditTarget();
       if(!validation.ok){
-        status("Vertex geometry is invalid: "+validation.message+" Correct the vertices before saving.");
-        return;
+        edited.forEach(layer=>restoreVertexGeometry(layer,lastValid.get(layer)));
+        refreshAll();status("Vertex edit rejected: "+validation.message);return;
       }
       try{
         const current=JSON.stringify(serializeProject()),previous=JSON.stringify(baseline);
-        if(current!==previous){
-          pushUndoSnapshot(baseline);
-          baseline=JSON.parse(current);window._vertexEditBaseline=baseline;
-        }
-      }catch(err){console.warn("Could not preserve vertex-edit history:",err)}
+        if(current!==previous){pushUndoSnapshot(baseline);baseline=JSON.parse(current);window._vertexEditBaseline=baseline}
+      }catch(err){console.warn("Could not preserve vertex-edit history",err)}
       refreshAll();
       const synced=await flushGeodatabaseEdits();
-      status(synced
-        ?"Vertex edits saved locally for "+edited.length+" selected feature(s)."
-        :"Vertex edits remain on the map, but local autosave failed. Retry Save Edits.");
+      const saved=await scheduleAutoSave();
+      status(synced&&saved?"Vertex edits saved for "+edited.length+" selected feature(s).":"Vertex edits are visible but could not be fully saved; retry Save Edits.");
     };
     map.on(L.Draw.Event.EDITED,window._vertexEditHandler);
-    window._vertexEditControl=new L.Control.Draw({
-      draw:false,
-      edit:{featureGroup:editableGroup,selectedPathOptions:{maintainColor:true,opacity:0.9}}
-    });
+    window._vertexEditControl=new L.Control.Draw({draw:false,edit:{featureGroup:editableGroup,selectedPathOptions:{maintainColor:true,opacity:0.9}}});
     map.addControl(window._vertexEditControl);
-    status("Vertex editing enabled for "+selectedLayers.length+" selected feature(s). Click the pencil, edit vertices, then save in the toolbar.");
+    status("Vertex editor ready for "+selectedLayers.length+" selected feature(s): drag vertices, click a segment to add a vertex, or click a vertex to remove it; save with the pencil toolbar.");
   }catch(e){
     if(window._vertexEditHandler)map.off(L.Draw.Event.EDITED,window._vertexEditHandler);
     window._vertexEditHandler=null;
     if(window._vertexEditControl){try{map.removeControl(window._vertexEditControl)}catch(_){}window._vertexEditControl=null}
-    window._vertexEditOwner=null;window._vertexEditLayers=null;window._vertexEditBaseline=null;
+    window._vertexEditOwner=null;window._vertexEditLayers=null;window._vertexEditBaseline=null;window._vertexEditLastValid=null;
     status("Vertex editing failed: "+e.message);
   }
 }
