@@ -29,17 +29,42 @@ if (!in_array($method, ['GET', 'POST'], true)) {
     header('Allow: GET, POST');
     respond(405, ['ok' => false, 'error' => 'Method not allowed.']);
 }
-$store = __DIR__ . '/feedback-data.json';
+$legacyStore = __DIR__ . '/feedback-data.json';
+$useCompression = function_exists('gzencode') && function_exists('gzdecode');
+$store = $useCompression ? __DIR__ . '/feedback-data.json.gz' : $legacyStore;
+$lockPath = __DIR__ . '/feedback-data.lock';
+
+function load_feedback_items(string $store, string $legacyStore, bool $compressed): array {
+    $path = is_file($store) ? $store : $legacyStore;
+    if (!is_file($path)) return [];
+    $raw = @file_get_contents($path);
+    if (!is_string($raw) || $raw === '') return [];
+    if ($compressed && $path === $store) {
+        $decoded = @gzdecode($raw);
+        if (!is_string($decoded)) return [];
+        $raw = $decoded;
+    }
+    $items = json_decode($raw, true);
+    return is_array($items) ? $items : [];
+}
+
+function save_feedback_items(string $store, array $items, bool $compressed): bool {
+    $json = json_encode($items, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if (!is_string($json)) return false;
+    $data = $compressed ? gzencode($json, 9) : $json;
+    if (!is_string($data)) return false;
+    $tmp = $store . '.tmp';
+    if (@file_put_contents($tmp, $data, LOCK_EX) === false) return false;
+    if (!@rename($tmp, $store)) { @unlink($tmp); return false; }
+    return true;
+}
 
 if ($method === 'GET') {
-    $handle = @fopen($store, 'c+');
-    if (!$handle || !flock($handle, LOCK_SH)) respond(500, ['ok' => false, 'error' => 'Feedback storage is unavailable.']);
-    rewind($handle);
-    $raw = stream_get_contents($handle);
-    flock($handle, LOCK_UN);
-    fclose($handle);
-    $items = is_string($raw) && $raw !== '' ? json_decode($raw, true) : [];
-    if (!is_array($items)) $items = [];
+    $lock = @fopen($lockPath, 'c+');
+    if (!$lock || !flock($lock, LOCK_SH)) respond(500, ['ok' => false, 'error' => 'Feedback storage is unavailable.']);
+    $items = load_feedback_items($store, $legacyStore, $useCompression);
+    flock($lock, LOCK_UN);
+    fclose($lock);
     usort($items, static fn($a, $b) => strcmp((string)($b['created_at'] ?? ''), (string)($a['created_at'] ?? '')));
     respond(200, ['ok' => true, 'feedback' => array_values($items)]);
 }
@@ -65,13 +90,10 @@ if (isset($_SESSION['feedback_last_submit']) && $now - (int)$_SESSION['feedback_
     respond(429, ['ok' => false, 'error' => 'لطفاً ۱۵ ثانیه پیش از ارسال بعدی صبر کنید.']);
 }
 
-$handle = @fopen($store, 'c+');
+$handle = @fopen($lockPath, 'c+');
 if (!$handle) respond(500, ['ok' => false, 'error' => 'Feedback storage is unavailable.']);
 if (!flock($handle, LOCK_EX)) { fclose($handle); respond(500, ['ok' => false, 'error' => 'Feedback storage is busy.']); }
-rewind($handle);
-$current = stream_get_contents($handle);
-$items = is_string($current) && $current !== '' ? json_decode($current, true) : [];
-if (!is_array($items)) $items = [];
+$items = load_feedback_items($store, $legacyStore, $useCompression);
 $nextNumber = 1;
 foreach ($items as $existing) {
     $existingNumber = (int)($existing['number'] ?? 0);
@@ -85,8 +107,7 @@ $item = [
     'created_at' => gmdate('c')
 ];
 $items[] = $item;
-rewind($handle);
-if (!ftruncate($handle, 0) || fwrite($handle, json_encode($items, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) === false || !fflush($handle)) {
+if (!save_feedback_items($store, $items, $useCompression)) {
     flock($handle, LOCK_UN);
     fclose($handle);
     respond(500, ['ok' => false, 'error' => 'Could not save feedback.']);
