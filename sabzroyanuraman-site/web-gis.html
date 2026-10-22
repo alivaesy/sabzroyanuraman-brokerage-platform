@@ -3996,25 +3996,30 @@ function checkEditTopology(){
   // features while allowing polygons that merely share a boundary.
   const polygons=records.map((r,index)=>({r,index,g:r.feature?.geometry,id:r.feature?.id??r.feature?.properties?.OBJECTID??r.feature?.properties?.FID??(index+1)}))
     .filter(x=>x.g&&["Polygon","MultiPolygon"].includes(x.g.type));
-  if(typeof turf.booleanOverlap==="function"){
-    for(let i=0;i<polygons.length;i++)for(let j=i+1;j<polygons.length;j++){
-      const a=polygons[i],b=polygons[j];
-      try{
-        if(turf.booleanOverlap(a.r.feature,b.r.feature))
-          issues.push({id:a.id,issue:"Polygon overlaps feature "+b.id+" (partial area overlap)"});
-      }catch(e){
-        // Invalid geometry is reported by the per-feature checks above.
-      }
+  // Sweep by bounding-box minimum X to avoid an unconditional O(n²)
+  // geometry comparison on large cadastral/agricultural layers.
+  const indexed=[];
+  polygons.forEach(p=>{try{const box=turf.bbox(p.r.feature);if(box.every(Number.isFinite))indexed.push({...p,box});}catch(e){}});
+  indexed.sort((a,b)=>a.box[0]-b.box[0]);
+  const candidates=[];
+  for(let i=0;i<indexed.length;i++){
+    const a=indexed[i];
+    for(let j=i+1;j<indexed.length&&indexed[j].box[0]<=a.box[2];j++){
+      const b=indexed[j].box;
+      if(b[1]<=a.box[3]&&b[3]>=a.box[1])candidates.push([a,indexed[j]]);
     }
   }
+  if(typeof turf.booleanOverlap==="function"){
+    candidates.forEach(([a,b])=>{try{
+      if(turf.booleanOverlap(a.r.feature,b.r.feature))
+        issues.push({id:a.id,issue:"Polygon overlaps feature "+b.id+" (partial area overlap)"});
+    }catch(e){/* Per-feature checks report invalid geometries. */}});
+  }
   if(typeof turf.booleanEqual==="function"){
-    for(let i=0;i<polygons.length;i++)for(let j=i+1;j<polygons.length;j++){
-      const a=polygons[i],b=polygons[j];
-      try{
-        if(turf.booleanEqual(a.r.feature,b.r.feature))
-          issues.push({id:a.id,issue:"Duplicate polygon geometry matches feature "+b.id});
-      }catch(e){}
-    }
+    candidates.forEach(([a,b])=>{try{
+      if(turf.booleanEqual(a.r.feature,b.r.feature))
+        issues.push({id:a.id,issue:"Duplicate polygon geometry matches feature "+b.id});
+    }catch(e){}});
   }
   const output=$("professionalToolOutput");
   if(output)output.textContent="Topology Check — Layer features: "+records.length+" | Issues: "+issues.length+"\n"+(issues.length?issues.slice(0,100).map(x=>"Feature "+x.id+": "+x.issue).join("\n"):"No basic geometry topology issues detected.")+(issues.length>100?"\n... "+(issues.length-100)+" more issue(s) omitted.":"");
