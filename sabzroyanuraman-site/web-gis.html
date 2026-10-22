@@ -1145,7 +1145,9 @@ function startEditing(item=null){
 function isLayerInEditTarget(layer){if(!layer||!editTarget)return false;if(layer===editTarget)return true;return editTarget===drawn?drawn.hasLayer(layer):!!editTarget?.hasLayer?.(layer)}
 function validateAndSyncEditTarget(){
   const fail=(message)=>({ok:false,message});
-  const position=p=>Array.isArray(p)&&p.length>=2&&Number.isFinite(Number(p[0]))&&Number.isFinite(Number(p[1]));
+  // Leaflet.toGeoJSON emits longitude/latitude in WGS84 order. Reject
+  // impossible geographic coordinates before they enter saved project data.
+  const position=p=>Array.isArray(p)&&p.length>=2&&Number.isFinite(Number(p[0]))&&Number.isFinite(Number(p[1]))&&Number(p[0])>=-180&&Number(p[0])<=180&&Number(p[1])>=-90&&Number(p[1])<=90;
   const ringValid=ring=>Array.isArray(ring)&&ring.length>=4&&ring.every(position)&&ring[0][0]===ring[ring.length-1][0]&&ring[0][1]===ring[ring.length-1][1];
   const geometryValid=g=>{
     if(!g||typeof g.type!=="string")return false;
