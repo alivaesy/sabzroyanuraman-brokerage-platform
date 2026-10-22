@@ -594,7 +594,7 @@ body{background:#dfe5e8;color:#173b57}
     <button data-action="startEditing">Start Editing</button>
     <button data-action="saveEdits">Save Edits</button>
     <button data-action="stopEditing">Stop Editing</button>
-    <div class="arc-sep"></div><button data-tool="moveFeatures">Move Features</button><button data-tool="splitFeatures">Split Selected Lines</button><button data-tool="mergeFeatures">Merge Selected Features</button><button data-tool="explodeFeatures">Explode Multipart Features</button><button data-tool="rotateFeatures">Rotate Features</button>
+    <div class="arc-sep"></div><button data-tool="moveFeatures">Move Features</button><button data-tool="splitFeatures">Split Features</button><button data-tool="mergeFeatures">Merge Selected Features</button><button data-tool="explodeFeatures">Explode Multipart Features</button><button data-tool="rotateFeatures">Rotate Features</button>
     <button data-tool="scaleFeatures">Scale Features</button><button data-tool="reshapeFeatures">Reshape</button>
     <button data-tool="snapTool">Snap Points to Lines</button>
     <div class="arc-sep"></div><button data-action="editorOptions">Editing Options...</button>
@@ -4447,57 +4447,88 @@ function stopSplitDraw(){
   if(handler){try{handler.disable()}catch(_){}window._splitDrawHandler=null;}
 }
 document.addEventListener("keydown",event=>{if(event.key==="Escape"&&window._splitDrawHandler)stopSplitDraw();});
+
+function splitPolygonWithCutter(feature,cutter){
+  const g=feature?.geometry;
+  if(g?.type!=="Polygon"||!Array.isArray(g.coordinates)||g.coordinates.length!==1)
+    throw new Error("Polygon split currently requires one simple polygon without holes.");
+  const ring=g.coordinates[0];
+  if(!Array.isArray(ring)||ring.length<4)throw new Error("The polygon boundary is invalid.");
+  if(typeof turf.lineIntersect!=="function"||typeof turf.lineSlice!=="function"||typeof turf.nearestPointOnLine!=="function")
+    throw new Error("Required Turf line operations are unavailable.");
+  const boundary=turf.lineString(ring),raw=turf.lineIntersect(boundary,cutter).features||[],hits=[];
+  raw.forEach(f=>{const c=f.geometry?.coordinates;if(c&&!hits.some(p=>turf.distance(turf.point(p),turf.point(c),{units:"kilometers"})<1e-7))hits.push(c.slice(0,2));});
+  if(hits.length!==2)throw new Error("The cutting line must cross the polygon boundary at exactly two distinct points.");
+  const expanded=[];
+  for(let i=0;i<ring.length-1;i++){
+    const a=ring[i],b=ring[i+1];expanded.push(a.slice());
+    const seg=turf.lineString([a,b]),insert=[];
+    hits.forEach(c=>{try{
+      const near=turf.nearestPointOnLine(seg,turf.point(c),{units:"kilometers"}),loc=near.properties?.location;
+      if(near.properties?.dist<=0.002&&Number.isFinite(loc)){
+        const len=turf.length(seg,{units:"kilometers"});
+        if(loc>1e-9&&loc<len-1e-9)insert.push({c,loc});
+        else if(turf.distance(turf.point(c),turf.point(b),{units:"kilometers"})<1e-7)insert.push({c,loc:len});
+      }
+    }catch(_){}});
+    insert.sort((x,y)=>x.loc-y.loc).forEach(x=>{if(!expanded.some(p=>turf.distance(turf.point(p),turf.point(x.c),{units:"kilometers"})<1e-7))expanded.push(x.c.slice());});
+  }
+  const indices=hits.map(c=>expanded.findIndex(p=>turf.distance(turf.point(p),turf.point(c),{units:"kilometers"})<1e-7));
+  if(indices.some(i=>i<0)||indices[0]===indices[1])throw new Error("Could not locate both intersections on the polygon boundary.");
+  const arc=(from,to)=>{const out=[expanded[from].slice()];let i=from,guard=0;while(i!==to&&guard++<=expanded.length){i=(i+1)%expanded.length;out.push(expanded[i].slice());}if(i!==to)throw new Error("Could not trace polygon boundary.");return out;};
+  const a=arc(indices[0],indices[1]),b=arc(indices[1],indices[0]);
+  const cut=turf.lineSlice(turf.point(hits[0]),turf.point(hits[1]),cutter).geometry.coordinates;
+  if(!cut||cut.length<2)throw new Error("Could not extract the cutting segment inside the polygon.");
+  const close=coords=>{coords[coords.length-1]=coords[0].slice();return coords;};
+  const ringA=close(a.concat(cut.slice(1,-1).reverse(),[a[0].slice()]));
+  const ringB=close(b.concat(cut.slice(1,-1),[b[0].slice()]));
+  const parts=[ringA,ringB].map(coords=>({type:"Feature",properties:{...(feature.properties||{})},geometry:{type:"Polygon",coordinates:[coords]}}));
+  parts.forEach(part=>{if(!Number.isFinite(turf.area(part))||turf.area(part)<=0)throw new Error("The cut produced an empty polygon.");if(typeof turf.kinks==="function"&&(turf.kinks(part).features||[]).length)throw new Error("The cut produced a self-intersecting polygon; no changes were applied.");});
+  return parts;
+}
+
 function splitSelectedLines(){
   stopSplitDraw();
-  const records=editableSelectedRecords(false);
-  if(!records.length)return;
-  if(!records.every(r=>["LineString","MultiLineString"].includes(r.feature?.geometry?.type))){status("Split Lines requires only selected line features in the active edit layer.");return;}
-  if(typeof turf.lineSplit!=="function"){status("Split Lines unavailable: Turf.js lineSplit is not loaded.");return;}
+  const records=editableSelectedRecords(false);if(!records.length)return;
+  const lineMode=records.every(r=>["LineString","MultiLineString"].includes(r.feature?.geometry?.type));
+  const polygonMode=records.length===1&&records[0].feature?.geometry?.type==="Polygon";
+  if(!lineMode&&!polygonMode){status("Split supports selected lines, or one simple polygon without holes, in the active edit layer.");return;}
+  if(typeof turf.lineSplit!=="function"){status("Split unavailable: Turf.js lineSplit is not loaded.");return;}
   stopActiveDraw(true);
-  status("Draw a cutting line across the selected line feature(s); double-click to finish.");
-  const handler=new L.Draw.Polyline(map,{shapeOptions:{color:"#c0392b",weight:2,dashArray:"5,4"}});
-  window._splitDrawHandler=handler;
+  status(polygonMode?"Draw a cutting line across the polygon; it must cross the boundary twice.":"Draw a cutting line across selected line feature(s); double-click to finish.");
+  const handler=new L.Draw.Polyline(map,{shapeOptions:{color:"#c0392b",weight:2,dashArray:"5,4"}});window._splitDrawHandler=handler;
   const created=event=>{
     map.off(L.Draw.Event.CREATED,created);window._splitCreatedHandler=null;window._splitDrawHandler=null;
     try{
       const cutter=event.layer.toGeoJSON();
-      if(!cutter.geometry||cutter.geometry.coordinates.length<2)throw new Error("Draw a line with at least two vertices.");
+      if(cutter.geometry?.type!=="LineString"||cutter.geometry.coordinates.length<2)throw new Error("Draw a line with at least two vertices.");
       const results=[];
-      records.forEach(r=>{
-        const geometry=r.feature.geometry;
-        const sourceLines=geometry.type==="LineString"?[geometry.coordinates]:geometry.coordinates;
-        const allParts=[];let wasSplit=false;
+      if(polygonMode)results.push({r:records[0],parts:splitPolygonWithCutter(records[0].feature,cutter)});
+      else records.forEach(r=>{
+        const geometry=r.feature.geometry,sourceLines=geometry.type==="LineString"?[geometry.coordinates]:geometry.coordinates,allParts=[];let wasSplit=false;
         sourceLines.forEach(coordinates=>{
           if(!Array.isArray(coordinates)||coordinates.length<2)return;
-          const source=turf.lineString(coordinates,{...(r.feature.properties||{})});
-          const split=turf.lineSplit(source,cutter);
+          const source=turf.lineString(coordinates,{...(r.feature.properties||{})}),split=turf.lineSplit(source,cutter);
           const parts=(split.features||[]).filter(f=>f.geometry?.type==="LineString"&&f.geometry.coordinates.length>=2);
           if(parts.length>1)wasSplit=true;
-          if(parts.length)allParts.push(...parts);
-          else allParts.push(source);
+          if(parts.length)allParts.push(...parts);else allParts.push(source);
         });
         if(wasSplit&&allParts.length>1)results.push({r,parts:allParts});
       });
-      if(!results.length){status("No selected line was split. The cutting line must cross or touch a line away from its endpoints.");return;}
+      if(!results.length){status("No selected feature was split. The cutting line must cross the feature away from its endpoints.");return;}
       recordUndoState();
       results.forEach(({r,parts})=>{
-        const owner=r.owner.layer,old=r.layer,wasSelected=selectedFeatures.has(old);
-        owner.removeLayer(old);selectedFeatures.delete(old);
-        parts.forEach(part=>{
-          part.properties={...(r.feature.properties||{})};
-          const group=L.geoJSON(part,{style:old.options||{}});
+        const owner=r.owner.layer,old=r.layer,wasSelected=selectedFeatures.has(old);owner.removeLayer(old);selectedFeatures.delete(old);
+        parts.forEach(part=>{part.properties={...(r.feature.properties||{})};const group=L.geoJSON(part,{style:old.options||{}});
           group.eachLayer(layer=>{layer.feature=part;owner.addLayer(layer);attachFeatureSelection(layer);if(wasSelected)selectedFeatures.add(layer);});
         });
       });
-      selectedLayer=selectedRecords()[0]?.layer||null;selectedOverlay=null;
-      applySelectionVisual();refreshAll();updateStandardActionButtons();scheduleAutoSave();
-      status("Split "+results.length+" selected line feature(s) into "+results.reduce((n,x)=>n+x.parts.length,0)+" line parts.");
+      selectedLayer=selectedRecords()[0]?.layer||null;selectedOverlay=null;applySelectionVisual();refreshAll();updateStandardActionButtons();scheduleAutoSave();
+      status(polygonMode?"Split one polygon into two polygon features.":"Split "+results.length+" selected line feature(s) into "+results.reduce((n,x)=>n+x.parts.length,0)+" line parts.");
     }catch(err){status("Split failed: "+(err.message||"invalid cutting geometry"));}
     finally{if(event.layer&&map.hasLayer(event.layer))map.removeLayer(event.layer);}
   };
-  window._splitCreatedHandler=created;
-  map.once(L.Draw.Event.CREATED,created);
-  handler.enable();
+  window._splitCreatedHandler=created;map.once(L.Draw.Event.CREATED,created);handler.enable();
 }
 function moveSelected(){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("moving selected features"))return;
