@@ -2557,6 +2557,7 @@ function runGisOperation(){
           }
         }
         name=op==="clip"?"Clip":"Intersect";
+        }
       }else if(op==="split"){
         const lineTypes=["LineString","MultiLineString"];
         if(!lineTypes.includes(f1.geometry.type)||!lineTypes.includes(f2.geometry.type)){
