@@ -2979,7 +2979,7 @@ function selectedTableIndexes(){
 }
 $("deleteSelectedRows").onclick=()=>{
  if(hasUnsavedTableEdits()){status("Save Table Edits before deleting features; unsaved cell values have been preserved.");return}
- if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before deleting rows.");return}
+ if(!editSessionActive||!isLayerInEditTarget(currentAttributeLayer())){status("Start Editing this layer before deleting rows.");return}
  const items=currentAttributeItems(),inds=selectedTableIndexes();
  if(!inds.length){status("Select one or more rows first.");return}
  if(!confirm(inds.length+" feature(s) will be deleted. Continue?"))return;
