@@ -1567,6 +1567,10 @@ function goToXY(){
 }
 function startDraw(type,button){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("starting a drawing"))return;
+  // Never silently throw away an unfinished sketch when switching tools.
+  if(activeDrawHandler&&activeDrawPurpose==="draw"&&typeof activeDrawHandler.hasSketchVertices==="function"&&activeDrawHandler.hasSketchVertices()){
+    if(!window.confirm("طرح فعلی هنوز تمام نشده است. با تعویض ابزار، همین طرح ناتمام کنار گذاشته می‌شود. ادامه می‌دهید؟"))return;
+  }
   stopActiveDraw();
   // ArcMap-style behavior: when no edit session is active, use the vector
   // layer selected in the Table Of Contents as the drawing target. If none is
@@ -1645,7 +1649,27 @@ function startNativeDraw(type,button){
     if(!layer){status("This drawing tool is unavailable.");return}
     finished=true;removePreview();
     recordUndoState();
-    layer.feature={type:"Feature",properties:{},geometry:layer.toGeoJSON().geometry};
+    const geometry=layer.toGeoJSON().geometry;
+    const properties={};
+    const existingIds=vectorFeatures(target).map(item=>Number(item.feature?.properties?.FeatureID)).filter(Number.isFinite);
+    properties.FeatureID=(existingIds.length?Math.max(...existingIds):0)+1;
+    if(geometry.type==="Point"){
+      const [longitude,latitude]=geometry.coordinates;
+      properties.Longitude=Number(longitude.toFixed(8));
+      properties.Latitude=Number(latitude.toFixed(8));
+      try{
+        const xy=projectCoords("EPSG:4326",currentCRS,[longitude,latitude]);
+        if(Array.isArray(xy)&&xy.length>=2&&xy.every(Number.isFinite)){
+          properties.X=Number(xy[0].toFixed(3));properties.Y=Number(xy[1].toFixed(3));
+        }
+      }catch(_){}
+    }else if(geometry.type==="LineString"||geometry.type==="MultiLineString"){
+      properties.Length_m=Number(geometryMetrics(geometry).length.toFixed(3));
+    }else if(geometry.type==="Polygon"||geometry.type==="MultiPolygon"){
+      properties.Area_m2=Number(geometryMetrics(geometry).area.toFixed(3));
+    }
+    layer.feature={type:"Feature",properties,geometry};
+    ensureFeatureId(layer.feature);
     if(type==="Circle")layer.feature.properties._radius_m=layer.getRadius();
     target.addLayer(layer);
     attachFeatureSelection(layer);
