@@ -1688,24 +1688,41 @@ function createMapViewer(){
  }
  function safeFeature(x){try{const f=typeof asFeature==="function"?asFeature(x):null;return f&&f.geometry?f:null}catch(_){return null}}
  function fc(x){return x?.type==="FeatureCollection"?x:{type:"FeatureCollection",features:x?[x]:[]}}function first(x){return x?.type==="FeatureCollection"?x.features?.[0]:x}
- function execute(n,input,overlay,initial){const op=n.op,f=first(input),features=fc(input).features;let out=null;if(!f?.geometry)throw Error("Invalid input geometry.");
+ function execute(n,input,overlay,initial){
+  const op=n.op,features=fc(input).features.filter(x=>x&&x.geometry),f=features[0];let out=null;
+  if(!features.length)throw Error("Input has no valid geometry.");
+  const addOp=(x,extra={})=>({...x,properties:{...(x.properties||{}),...extra,_operation:op}});
   if(op==="buffer"){if(!(n.value>0&&Number.isFinite(n.value)))throw Error("Buffer distance must be positive.");out=turf.buffer(input,n.value,{units:"meters"})}
-  else if(op==="centroid")out=turf.centroid(input);
-  else if(op==="pointOnFeature")out=turf.pointOnFeature(input);
-  else if(op==="convexHull")out=turf.convex(input);
-  else if(op==="boundingBox")out=turf.bboxPolygon(turf.bbox(input));
+  else if(op==="centroid")out={type:"FeatureCollection",features:features.map(x=>addOp(turf.centroid(x)))};
+  else if(op==="pointOnFeature")out={type:"FeatureCollection",features:features.map(x=>addOp(turf.pointOnFeature(x)))};
+  else if(op==="convexHull"){out=turf.convex(input);if(out)out=addOp(out)}
+  else if(op==="boundingBox"){out=turf.bboxPolygon(turf.bbox(input));if(out)out=addOp(out)}
   else if(op==="simplify"){if(!(n.value>0&&Number.isFinite(n.value)))throw Error("Tolerance must be positive.");out=turf.simplify(input,{tolerance:n.value,highQuality:true,mutate:false})}
-  else if(op==="boundary")out={type:"FeatureCollection",features:features.filter(x=>poly(x.geometry)).map(x=>turf.polygonToLine(x))};
-  else if(op==="area"){out=clone(f);out.properties={...(f.properties||{}),_area_m2:turf.area(input),_operation:"Calculate Area"}}
-  else if(op==="length"){out=clone(f);out.properties={...(f.properties||{}),_length_km:turf.length(input,{units:"kilometers"}),_operation:"Calculate Length"}}
-  else if(op==="count"){out=clone(f);out.properties={...(f.properties||{}),_feature_count:features.length,_operation:"Feature Count"}}
-  else if(op==="dissolve"){const ps=(initial.features||[]).filter(x=>poly(x.geometry));if(!ps.length)throw Error("Dissolve requires selected polygon features.");out=ps.slice(1).reduce((acc,x)=>turf.union(turf.featureCollection([acc,x])),clone(ps[0]));if(out)out.properties={_operation:"Dissolve",_source_count:ps.length}}
-  else {if(!overlay?.geometry)throw Error("Select an overlay feature with Shift-click.");
-   if(op==="split"){if(!["LineString","MultiLineString"].includes(f.geometry.type)||!["LineString","MultiLineString"].includes(overlay.geometry.type))throw Error("Split requires two line features.");out=turf.lineSplit(f,overlay)}
-   else {if(!poly(f.geometry)||!poly(overlay.geometry))throw Error(op+" requires polygon input and polygon overlay.");const pair=turf.featureCollection([f,overlay]);if(op==="clip"||op==="intersection")out=turf.intersect(pair);else if(op==="erase")out=turf.difference(pair);else if(op==="union"||op==="merge")out=turf.union(pair)}
+  else if(op==="boundary")out={type:"FeatureCollection",features:features.filter(x=>poly(x.geometry)).map(x=>addOp(turf.polygonToLine(x)))};
+  else if(op==="area")out={type:"FeatureCollection",features:features.map(x=>({...x,properties:{...(x.properties||{}),_area_m2:turf.area(x),_operation:op}}))};
+  else if(op==="length")out={type:"FeatureCollection",features:features.map(x=>({...x,properties:{...(x.properties||{}),_length_km:turf.length(x,{units:"kilometers"}),_operation:op}}))};
+  else if(op==="count")out={type:"FeatureCollection",features:features.map(x=>({...x,properties:{...(x.properties||{}),_feature_count:features.length,_operation:op}}))};
+  else if(op==="dissolve"){const ps=features.filter(x=>poly(x.geometry));if(!ps.length)throw Error("Dissolve requires polygon input.");out=ps.slice(1).reduce((acc,x)=>acc?turf.union(turf.featureCollection([acc,x])):x,clone(ps[0]));if(out)out=addOp(out,{_source_count:ps.length})}
+  else {
+   if(op==="merge"){
+    if(!overlay?.geometry)throw Error("Select an overlay feature with Shift-click.");
+    out={type:"FeatureCollection",features:[...features,...fc(overlay).features].map((x,i)=>({...clone(x),properties:{...(x.properties||{}),_operation:op,_part:i+1}}))};
+   } else {
+    if(!overlay?.geometry)throw Error("Select an overlay feature with Shift-click.");
+    if(op==="split"){if(!["LineString","MultiLineString"].includes(f.geometry.type)||!["LineString","MultiLineString"].includes(overlay.geometry.type))throw Error("Split Lines requires line input and line overlay.");out={type:"FeatureCollection",features:features.flatMap(x=>{try{return fc(turf.lineSplit(x,overlay)).features}catch(_){return [x]}})}}
+    else if(op==="clip"&&features.every(x=>x.geometry.type==="Point"||x.geometry.type==="MultiPoint")&&poly(overlay.geometry)){
+     out={type:"FeatureCollection",features:features.filter(x=>{if(x.geometry.type==="Point")return turf.booleanPointInPolygon(x,overlay);return x.geometry.coordinates.some(c=>turf.booleanPointInPolygon(turf.point(c),overlay))})};
+    } else {
+     if(!poly(overlay.geometry)||!features.every(x=>poly(x.geometry)))throw Error(op+" currently requires polygon input and polygon overlay (except point Clip and line Split).");
+     const pairwise=features.map(x=>{const pair=turf.featureCollection([x,overlay]);if(op==="clip"||op==="intersection")return turf.intersect(pair);if(op==="erase")return turf.difference(pair);if(op==="union")return turf.union(pair);return null}).filter(Boolean);
+     if(op==="union")out=pairwise.length?pairwise.slice(1).reduce((acc,x)=>turf.union(turf.featureCollection([acc,x])),pairwise[0]):null;
+     else out={type:"FeatureCollection",features:pairwise};
+    }
+   }
   }
-  if(out?.type==="Feature"&&!["area","length","count"].includes(op))out.properties={...(f.properties||{}),...(out.properties||{}),_operation:op};
-  if(out?.type==="FeatureCollection"&&Array.isArray(out.features))out.features=out.features.map((x,i)=>({...x,properties:{...(x.properties||{}),_operation:op,_part:i+1}}));return out
+  if(out?.type==="Feature"&&!out.properties?._operation)out=addOp(out);
+  if(out?.type==="FeatureCollection"&&Array.isArray(out.features))out.features=out.features.map((x,i)=>({...x,properties:{...(x.properties||{}),_operation:op,_part:i+1}}));
+  return out
  }
  function normalize(x){if(!x)return null;if(x.type==="FeatureCollection"&&x.features?.length===1)return x.features[0];return x}
  $mb("mbRun").onclick=()=>{if(!model.length){say("Add at least one tool first.");return}if(!selectedLayer){say("Select an input feature on the map first.");return}
