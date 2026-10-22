@@ -968,7 +968,7 @@ if(typeof ResizeObserver!=="undefined"){
   if(mapElement)mapResizeObserver.observe(mapElement);
 }
 const base={
- osm:L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"}),
+ osm:L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors",updateWhenIdle:true,keepBuffer:2}),
  topo:L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",{maxZoom:17,attribution:"© OpenTopoMap contributors"}),
  sat:L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Tiles © Esri"}),
  esriStreet:L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Tiles © Esri"}),
@@ -976,8 +976,17 @@ const base={
  esriGray:L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Tiles © Esri"}),
  nasaWms:L.tileLayer.wms("https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi",{layers:"BlueMarble_ShadedRelief",format:"image/png",transparent:false,version:"1.3.0",attribution:"NASA GIBS • Blue Marble"}),
 };
+const basemapTileErrors=Object.create(null);
 Object.entries(base).forEach(([key,layer])=>{
-  layer.on("tileerror",()=>status("Basemap failed to load: "+key+". Check your connection."));
+  layer.on("tileerror",()=>{
+    basemapTileErrors[key]=(basemapTileErrors[key]||0)+1;
+    if(key==="osm"&&basemapTileErrors[key]>=3&&currentBase===layer&&map.hasLayer(layer)){
+      selectBasemap("esriStreet",false);
+      status("OpenStreetMap is not responding; switched to Esri Street Map automatically.");
+      return;
+    }
+    if(key!=="osm"||basemapTileErrors[key]===1)status("Basemap failed to load: "+key+". Check your connection.");
+  });
 });
 base.osm.addTo(map);
 let currentBase=base.osm;
