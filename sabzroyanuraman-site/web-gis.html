@@ -4467,8 +4467,9 @@ function splitPolygonWithCutter(feature,cutter){
       const near=turf.nearestPointOnLine(seg,turf.point(c),{units:"kilometers"}),loc=near.properties?.location;
       if(near.properties?.dist<=0.002&&Number.isFinite(loc)){
         const len=turf.length(seg,{units:"kilometers"});
+        // Endpoints are already added as ring vertices in the next iteration;
+        // insert only strict segment-interior intersections to avoid duplicate vertices.
         if(loc>1e-9&&loc<len-1e-9)insert.push({c,loc});
-        else if(turf.distance(turf.point(c),turf.point(b),{units:"kilometers"})<1e-7)insert.push({c,loc:len});
       }
     }catch(_){}});
     insert.sort((x,y)=>x.loc-y.loc).forEach(x=>{if(!expanded.some(p=>turf.distance(turf.point(p),turf.point(x.c),{units:"kilometers"})<1e-7))expanded.push(x.c.slice());});
