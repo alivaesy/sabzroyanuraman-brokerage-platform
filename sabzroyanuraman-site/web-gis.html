@@ -3964,6 +3964,9 @@ const GIS_TOOLS=[
  {id:"gridToggle",title:"Toggle Editor Grid",category:"Editor",keys:"grid coordinate"},
  {id:"constraintTool",title:"Set Snap Tolerance",category:"Editor",keys:"snapping distance meters"},
  {id:"attachmentsTool",title:"Feature Attachments",category:"Editor",keys:"attach files photos documents"},
+ {id:"splitFeatures",title:"Split Selected Lines",category:"Editor",keys:"split cut line sketch"},
+ {id:"mergeFeatures",title:"Merge Selected Features",category:"Editor",keys:"merge union combine"},
+ {id:"explodeFeatures",title:"Explode Multipart Features",category:"Editor",keys:"explode multipart multipoint multiline multipolygon"},
  {id:"moveFeatures",title:"Move Features",category:"Editor",keys:"move"},
  {id:"rotateFeatures",title:"Rotate Features",category:"Editor",keys:"rotate"},
  {id:"scaleFeatures",title:"Scale Features",category:"Editor",keys:"scale"},
@@ -4355,6 +4358,102 @@ function editableSelectedRecords(recordHistory=true){
   if(!rs.length)status("Select features from the active edit layer.");
   else if(recordHistory)recordUndoState();
   return rs;
+}
+function explodeSelectedFeatures(){
+  const records=editableSelectedRecords(false);
+  if(!records.length)return;
+  const multipart=records.filter(r=>["MultiPoint","MultiLineString","MultiPolygon"].includes(r.feature?.geometry?.type));
+  if(!multipart.length){status("Select at least one MultiPoint, MultiLineString, or MultiPolygon feature.");return;}
+  if(!confirm("Explode "+multipart.length+" selected multipart feature(s) into individual features?"))return;
+  const replacements=[];
+  try{
+    multipart.forEach(r=>{
+      const g=r.feature.geometry,types={MultiPoint:"Point",MultiLineString:"LineString",MultiPolygon:"Polygon"};
+      const parts=g.coordinates.map(coordinates=>({type:"Feature",properties:{...(r.feature.properties||{})},geometry:{type:types[g.type],coordinates:JSON.parse(JSON.stringify(coordinates))}}));
+      if(!parts.length)throw new Error("A selected multipart feature has no parts.");
+      replacements.push({r,parts});
+    });
+  }catch(err){status("Explode cancelled: "+err.message);return;}
+  recordUndoState();
+  replacements.forEach(({r,parts})=>{
+    const owner=r.owner.layer,old=r.layer,wasSelected=selectedFeatures.has(old),wasActive=selectedLayer===old;
+    owner.removeLayer(old);selectedFeatures.delete(old);
+    parts.forEach(feature=>{
+      const group=L.geoJSON(feature,{style:old.options||{},pointToLayer:(f,ll)=>old instanceof L.CircleMarker?L.circleMarker(ll,old.options||{}):L.marker(ll,old.options||{}),onEachFeature:(f,l)=>bindFeature(l,f)});
+      group.eachLayer(layer=>{layer.feature=feature;owner.addLayer(layer);attachFeatureSelection(layer);if(wasSelected)selectedFeatures.add(layer);if(wasActive)selectedLayer=layer;});
+    });
+  });
+  applySelectionVisual();refreshAll();updateStandardActionButtons();scheduleAutoSave();
+  status("Exploded "+replacements.length+" multipart feature(s) into "+replacements.reduce((n,x)=>n+x.parts.length,0)+" feature(s).");
+}
+function mergeSelectedFeatures(){
+  const records=editableSelectedRecords(false);
+  if(records.length<2){status("Select at least two features in the active edit layer to merge.");return;}
+  const type=records[0].feature?.geometry?.type;
+  if(!records.every(r=>r.owner.layer===editTarget&&r.feature?.geometry?.type===type)){status("Merge requires selected features of the same geometry type in one edit layer.");return;}
+  if(!["Polygon","MultiPolygon","LineString","MultiLineString"].includes(type)){status("Merge supports line and polygon features; point merging is not supported yet.");return;}
+  const props={...records[0].feature.properties};
+  if(!confirm("Merge "+records.length+" selected features? Attributes will be taken from the first selected feature."))return;
+  let merged;
+  try{
+    if(type==="Polygon"||type==="MultiPolygon"){
+      const collection={type:"FeatureCollection",features:records.map(r=>r.feature)};
+      merged=turf.union(collection);
+      if(!merged)throw new Error("The polygons do not produce a merged geometry.");
+    }else{
+      const lines=[];
+      records.forEach(r=>{const g=r.feature.geometry;if(g.type==="LineString")lines.push(g.coordinates);else lines.push(...g.coordinates);});
+      merged={type:"Feature",properties:props,geometry:lines.length===1?{type:"LineString",coordinates:lines[0]}:{type:"MultiLineString",coordinates:lines}};
+    }
+    merged.properties={...props};
+  }catch(err){status("Merge cancelled: "+(err.message||"geometry operation failed"));return;}
+  recordUndoState();
+  const owner=editTarget,selected=records.map(r=>r.layer);
+  selected.forEach(layer=>{owner.removeLayer(layer);selectedFeatures.delete(layer);});
+  const temp=L.geoJSON(merged,{style:records[0].layer.options||{},pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:6})});
+  temp.eachLayer(layer=>{layer.feature=merged;owner.addLayer(layer);attachFeatureSelection(layer);selectedFeatures.add(layer);selectedLayer=layer;});
+  selectedOverlay=null;applySelectionVisual();refreshAll();updateStandardActionButtons();scheduleAutoSave();
+  status("Merged "+records.length+" features. Attributes were retained from the first selected feature.");
+}
+function splitSelectedLines(){
+  const records=editableSelectedRecords(false);
+  if(!records.length)return;
+  if(!records.every(r=>["LineString","MultiLineString"].includes(r.feature?.geometry?.type))){status("Split Lines requires only selected line features in the active edit layer.");return;}
+  if(typeof turf.lineSplit!=="function"){status("Split Lines unavailable: Turf.js lineSplit is not loaded.");return;}
+  stopActiveDraw(true);
+  status("Draw a cutting line across the selected line feature(s); double-click to finish.");
+  const handler=new L.Draw.Polyline(map,{shapeOptions:{color:"#c0392b",weight:2,dashArray:"5,4"}});
+  window._splitDrawHandler=handler;
+  const created=event=>{
+    map.off(L.Draw.Event.CREATED,created);window._splitDrawHandler=null;
+    try{
+      const cutter=event.layer.toGeoJSON();
+      if(!cutter.geometry||cutter.geometry.coordinates.length<2)throw new Error("Draw a line with at least two vertices.");
+      const results=[];
+      records.forEach(r=>{
+        const split=turf.lineSplit(r.feature,cutter);
+        const parts=(split.features||[]).filter(f=>f.geometry?.type==="LineString"&&f.geometry.coordinates.length>=2);
+        if(parts.length>1)results.push({r,parts});
+      });
+      if(!results.length){status("No selected line was split. The cutting line must cross or touch a line away from its endpoints.");return;}
+      recordUndoState();
+      results.forEach(({r,parts})=>{
+        const owner=r.owner.layer,old=r.layer,wasSelected=selectedFeatures.has(old);
+        owner.removeLayer(old);selectedFeatures.delete(old);
+        parts.forEach(part=>{
+          part.properties={...(r.feature.properties||{})};
+          const group=L.geoJSON(part,{style:old.options||{}});
+          group.eachLayer(layer=>{layer.feature=part;owner.addLayer(layer);attachFeatureSelection(layer);if(wasSelected)selectedFeatures.add(layer);});
+        });
+      });
+      selectedLayer=selectedRecords()[0]?.layer||null;selectedOverlay=null;
+      applySelectionVisual();refreshAll();updateStandardActionButtons();scheduleAutoSave();
+      status("Split "+results.length+" selected line feature(s) into "+results.reduce((n,x)=>n+x.parts.length,0)+" line parts.");
+    }catch(err){status("Split failed: "+(err.message||"invalid cutting geometry"));}
+    finally{if(event.layer&&map.hasLayer(event.layer))map.removeLayer(event.layer);}
+  };
+  map.once(L.Draw.Event.CREATED,created);
+  handler.enable();
 }
 function moveSelected(){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("moving selected features"))return;
@@ -5015,6 +5114,9 @@ function runGisTool(tool){
  if(tool.id==="zoomSelection"){zoomToSelection();return;}
  if(tool.id==="newLayerSelection"){newLayerFromSelection();return;}
  if(tool.id==="cloneFeatures"){cloneSelectedFeatures();return;}
+ if(tool.id==="splitFeatures"){splitSelectedLines();return;}
+ if(tool.id==="mergeFeatures"){mergeSelectedFeatures();return;}
+ if(tool.id==="explodeFeatures"){explodeSelectedFeatures();return;}
  if(tool.id==="moveFeatures"){moveSelected();return;}
  if(tool.id==="rotateFeatures"){rotateSelected();return;}
  if(tool.id==="scaleFeatures"){scaleSelected();return;}
