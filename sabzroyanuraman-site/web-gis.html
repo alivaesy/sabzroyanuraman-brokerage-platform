@@ -1565,6 +1565,18 @@ function goToXY(){
   if(currentCRS==="EPSG:4326"){xInput.value=center.lng.toFixed(6);yInput.value=center.lat.toFixed(6);system.value="wgs84";}
   xInput.focus();xInput.select();
 }
+function drawingLayerForType(type){
+  const kind=type==="Marker"?"Point":type==="Polyline"?"Line":"Polygon";
+  const name=kind==="Point"?"Points":kind==="Line"?"Lines":"Polygons";
+  let item=namedLayers.find(x=>x._webgisDrawingType===kind);
+  if(!item){const layer=new L.FeatureGroup();layer._webgisDrawingType=kind;addNamedLayer(name,layer,false);item=namedLayers.find(x=>x.layer===layer);if(item)item._webgisDrawingType=kind;}
+  if(!item)return drawn;
+  selectedOverlay=item.layer;editTarget=item.layer;
+  const index=namedLayers.findIndex(x=>x.layer===item.layer);
+  if(index>=0)$("editTargetLayer").value=String(index);
+  refreshAttributeLayers();if($("attributeLayer"))$("attributeLayer").value=String(index);
+  renderLayerList();return item.layer;
+}
 function startDraw(type,button){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("starting a drawing"))return;
   // Never silently throw away an unfinished sketch when switching tools.
@@ -1594,6 +1606,7 @@ function startDraw(type,button){
       editTarget=drawn;
     }
   }
+  if(editTarget===drawn)drawingLayerForType(type);
   if(!editSessionActive)startEditing();
   // startEditing can refuse to start when table edits are pending; never let
   // drawing continue outside a valid editor session.
