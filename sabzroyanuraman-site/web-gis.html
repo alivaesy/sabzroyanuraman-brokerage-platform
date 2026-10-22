@@ -2605,15 +2605,17 @@ function renderEditableTable(){
   const layer=currentAttributeLayer();if(!layer)return;
   if(hasUnsavedTableEdits()){status("Save or discard pending cell edits before deleting a field.");return}
   if(!editSessionActive||!isLayerInEditTarget(layer)){status("Start Editing this feature class before deleting fields.");return}
-  if(!keys.length){status("This feature class has no fields to delete.");return}
-  const field=prompt("Enter the exact field name to delete:\n"+keys.join(", "),keys[0]);if(field===null)return;
-  const name=field.trim(),actual=keys.find(k=>k.toLowerCase()===name.toLowerCase());
-  if(!actual){status("Field not found: "+name);return}
+  const deletableFields=keys.filter(k=>!isReservedAttributeField(k));
+  if(!deletableFields.length){status("There are no deletable fields. Internal fields are protected.");return}
+  const field=prompt("Enter the exact field name to delete:\n"+deletableFields.join(", "),deletableFields[0]);if(field===null)return;
+  const name=field.trim(),actual=deletableFields.find(k=>k.toLowerCase()===name.toLowerCase());
+  if(!actual){status("Field not found or protected: "+name);return}
   if(!confirm("Permanently remove field '"+actual+"' from all features in this edit session?"))return;
   recordUndoState();
-  items.forEach(item=>{if(item.feature.properties)delete item.feature.properties[actual]});
+  items.forEach(item=>{if(item.feature.properties)delete item.feature.properties[actual];updateFeaturePopup(item.layer)});
   if(layer._gdbMetadata?.fields)layer._gdbMetadata.fields=layer._gdbMetadata.fields.filter(f=>(typeof f==="string"?f:f.name)!==actual);
-  window.__webGisGdbBridge?.save();renderEditableTable();status("Field "+actual+" deleted. Save edits to persist the change.");
+  if(attributeSort.key===actual)attributeSort={key:null,direction:1};
+  window.__webGisGdbBridge?.save();renderEditableTable();scheduleAutoSave();status("Field "+actual+" deleted. Save edits to persist the change.");
  };
  const switchSelectionBtn=$("attributeSwitchSelection");if(switchSelectionBtn)switchSelectionBtn.onclick=()=>{
   if(hasUnsavedTableEdits()){status("Save Table Edits before changing selection.");return}
