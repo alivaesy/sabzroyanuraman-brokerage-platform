@@ -1076,6 +1076,8 @@ let activeMapTool="select";
 let editTarget=drawn;
 
 function stopActiveDraw(cancel=true){
+  // Never leave a Split sketch listener armed when switching to another tool.
+  if(typeof stopSplitDraw==="function")stopSplitDraw();
   const wasDrawing=activeMapTool==="draw";
   const handler=activeDrawHandler;
   activeDrawHandler=null;
