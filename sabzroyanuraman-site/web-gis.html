@@ -1261,10 +1261,17 @@ function applyHistorySnapshot(source,destination,message){
   try{
     current=JSON.parse(JSON.stringify(serializeProject()));
     snapshot=source[source.length-1];
+    // A rejected snapshot must never consume history or create a false redo step.
+    if(!snapshot||![1,2].includes(snapshot.version))throw new Error("History checkpoint is invalid or unsupported.");
     historyRestoring=true;
-    restoreProject(snapshot,true);
+    if(restoreProject(snapshot,true)!==true)throw new Error("The saved project state could not be restored.");
     source.pop();
-    destination.push(current);
+    // Keep both stacks bounded and avoid consecutive duplicate checkpoints.
+    const lastDestination=destination[destination.length-1];
+    if(!lastDestination||JSON.stringify(lastDestination)!==JSON.stringify(current)){
+      destination.push(current);
+      if(destination.length>40)destination.shift();
+    }
   }catch(err){
     console.error(message+" failed:",err);
     status(message+" failed; history checkpoint was retained.");
