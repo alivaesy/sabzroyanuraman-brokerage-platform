@@ -1667,88 +1667,59 @@ function createMapViewer(){
 </div>
 <script>
 (function(){
- const $mb=id=>document.getElementById(id);
- const modal=$mb("modelBuilderModal"), nodesEl=$mb("mbNodes"), toolsEl=$mb("mbToolList"), statusEl=$mb("mbStatus");
+ const $mb=id=>document.getElementById(id),modal=$mb("modelBuilderModal"),nodesEl=$mb("mbNodes"),toolsEl=$mb("mbToolList"),statusEl=$mb("mbStatus");
  if(!modal||!nodesEl)return;
  const tools=[
-  {id:"buffer",name:"Buffer",binary:false,param:true},{id:"centroid",name:"Feature To Point (Centroid)",binary:false},
-  {id:"convexHull",name:"Minimum Bounding Geometry (Convex Hull)",binary:false},{id:"boundingBox",name:"Minimum Bounding Geometry (Envelope)",binary:false},
-  {id:"clip",name:"Clip",binary:true},{id:"intersection",name:"Intersect",binary:true},{id:"erase",name:"Erase",binary:true},
-  {id:"union",name:"Union",binary:true},{id:"merge",name:"Merge",binary:true},{id:"split",name:"Split Lines",binary:true}
+  {id:"buffer",name:"Buffer",param:"distance",value:100},{id:"clip",name:"Clip",binary:true},{id:"intersection",name:"Intersect",binary:true},{id:"erase",name:"Erase",binary:true},{id:"union",name:"Union",binary:true},
+  {id:"dissolve",name:"Dissolve",multi:true},{id:"merge",name:"Merge",binary:true},{id:"split",name:"Split Lines",binary:true},
+  {id:"centroid",name:"Feature To Point (Centroid)"},{id:"pointOnFeature",name:"Feature To Point (Inside)"},{id:"convexHull",name:"Minimum Bounding Geometry (Convex Hull)"},{id:"boundingBox",name:"Minimum Bounding Geometry (Envelope)"},
+  {id:"simplify",name:"Simplify Geometry",param:"tolerance",value:0.001},{id:"boundary",name:"Polygon To Boundary"},{id:"area",name:"Calculate Area"},{id:"length",name:"Calculate Length"},{id:"count",name:"Get Feature Count"}
  ];
- let model=[], nextId=1;
- function say(t){statusEl.textContent=t}
- function open(){modal.classList.add("show");renderTools();renderNodes()}
- function close(){modal.classList.remove("show")}
- window.openModelBuilder=open;
- function renderTools(){
-  const q=($mb("mbSearch").value||"").toLowerCase();toolsEl.replaceChildren();
-  tools.filter(t=>(t.name+" "+t.id).toLowerCase().includes(q)).forEach(t=>{
-   const b=document.createElement("button");b.className="mb-tool";b.type="button";b.textContent="＋ "+t.name;b.onclick=()=>add(t.id);toolsEl.appendChild(b)
-  });
+ let model=[],nextId=1;const clone=x=>JSON.parse(JSON.stringify(x)),poly=g=>g&&["Polygon","MultiPolygon"].includes(g.type);
+ function say(t){statusEl.textContent=t}function open(){modal.classList.add("show");renderTools();renderNodes()}function close(){modal.classList.remove("show")}window.openModelBuilder=open;
+ function renderTools(){const q=($mb("mbSearch").value||"").toLowerCase();toolsEl.replaceChildren();tools.filter(t=>(t.name+" "+t.id).toLowerCase().includes(q)).forEach(t=>{const b=document.createElement("button");b.className="mb-tool";b.type="button";b.textContent="＋ "+t.name;b.onclick=()=>add(t.id);toolsEl.appendChild(b)})}
+ function add(op){const t=tools.find(x=>x.id===op);model.push({id:nextId++,op,value:t?.value??0.001});renderNodes();say("Added "+t.name+".")}
+ function renderNodes(){nodesEl.replaceChildren();if(!model.length){const e=document.createElement("div");e.className="mb-hint";e.textContent="Add tools from the left. Select a map feature, or multiple features for Dissolve.";nodesEl.appendChild(e);return}
+  model.forEach((n,i)=>{const t=tools.find(x=>x.id===n.op),card=document.createElement("section");card.className="mb-node";const head=document.createElement("div");head.className="mb-node-head";const title=document.createElement("span");title.textContent=(i+1)+". "+t.name;head.appendChild(title);const acts=document.createElement("div");acts.className="mb-node-actions";
+   [["↑",()=>{if(i){[model[i-1],model[i]]=[model[i],model[i-1]];renderNodes()}}],["↓",()=>{if(i<model.length-1){[model[i+1],model[i]]=[model[i],model[i+1]];renderNodes()}}],["×",()=>{model.splice(i,1);renderNodes()}]].forEach(([v,fn])=>{const b=document.createElement("button");b.type="button";b.textContent=v;b.onclick=fn;acts.appendChild(b)});head.appendChild(acts);card.appendChild(head);
+   const body=document.createElement("div");body.className="mb-node-body";const lab=document.createElement("label");lab.textContent="Tool";const sel=document.createElement("select");tools.forEach(x=>{const o=document.createElement("option");o.value=x.id;o.textContent=x.name;sel.appendChild(o)});sel.value=n.op;sel.onchange=()=>{n.op=sel.value;n.value=tools.find(x=>x.id===n.op).value??0.001;renderNodes()};lab.appendChild(sel);body.appendChild(lab);
+   if(t.param){const l=document.createElement("label");l.textContent=t.param==="distance"?"Buffer distance (meters)":"Simplification tolerance (degrees)";const inp=document.createElement("input");inp.type="number";inp.min="0.000001";inp.step="any";inp.value=n.value;inp.onchange=()=>n.value=Number(inp.value);l.appendChild(inp);body.appendChild(l)}
+   const desc=document.createElement("div");desc.className="small";desc.textContent=t.binary?"Uses selected overlay feature (Shift-click).":t.multi?"Uses all currently selected features.":"Uses previous step output.";body.appendChild(desc);card.appendChild(body);nodesEl.appendChild(card)})
  }
- function add(op){model.push({id:nextId++,op,distance:5});renderNodes();say("Added "+tools.find(t=>t.id===op).name+".")}
- function renderNodes(){
-  nodesEl.replaceChildren();
-  if(!model.length){const e=document.createElement("div");e.className="mb-hint";e.textContent="Toolbox is empty. Add one or more tools from the left panel.";nodesEl.appendChild(e);return}
-  model.forEach((n,i)=>{
-   const t=tools.find(x=>x.id===n.op)||tools[0],card=document.createElement("section");card.className="mb-node";
-   const head=document.createElement("div");head.className="mb-node-head";
-   const title=document.createElement("span");title.textContent=(i+1)+". "+t.name;head.appendChild(title);
-   const actions=document.createElement("div");actions.className="mb-node-actions";
-   [["↑",()=>{if(i){[model[i-1],model[i]]=[model[i],model[i-1]];renderNodes()}}],["↓",()=>{if(i<model.length-1){[model[i+1],model[i]]=[model[i],model[i+1]];renderNodes()}}],["×",()=>{model.splice(i,1);renderNodes()}]].forEach(([label,fn])=>{const b=document.createElement("button");b.type="button";b.textContent=label;b.title=label==="×"?"Remove tool":label==="↑"?"Move up":"Move down";b.onclick=fn;actions.appendChild(b)});
-   head.appendChild(actions);card.appendChild(head);
-   const body=document.createElement("div");body.className="mb-node-body";
-   const label=document.createElement("label");label.textContent="Tool";
-   const sel=document.createElement("select");tools.forEach(opt=>{const o=document.createElement("option");o.value=opt.id;o.textContent=opt.name;sel.appendChild(o)});sel.value=n.op;sel.onchange=()=>{n.op=sel.value;renderNodes()};label.appendChild(sel);body.appendChild(label);
-   if(t.param){const l=document.createElement("label");l.textContent="Buffer distance (meters)";const inp=document.createElement("input");inp.type="number";inp.min="0.01";inp.step="0.1";inp.value=n.distance;inp.onchange=()=>n.distance=Number(inp.value);l.appendChild(inp);body.appendChild(l)}
-   const desc=document.createElement("div");desc.className="small";desc.textContent=t.binary?"Uses the selected overlay feature.":"Uses the previous step output.";body.appendChild(desc);card.appendChild(body);nodesEl.appendChild(card)
-  })
- }
- function asFeatureSafe(x){try{let f=typeof asFeature==="function"?asFeature(x):null;return f&&f.geometry?f:null}catch(_){return null}}
- function execute(op,input,overlay,distance){
-  const clone=x=>JSON.parse(JSON.stringify(x));
-  const poly=g=>g&&["Polygon","MultiPolygon"].includes(g.type);
-  let out=null;
-  if(op==="buffer"){if(!(distance>0&&Number.isFinite(distance)))throw Error("Buffer distance must be greater than zero.");out=turf.buffer(input,distance,{units:"meters"});if(out)out.properties={...(input.properties||{}),_operation:"Buffer",buffer_meters:distance}}
-  else if(op==="centroid"){out=turf.centroid(input);if(out)out.properties={...(input.properties||{}),_operation:"Centroid"}}
-  else if(op==="convexHull"){out=turf.convex(input);if(out)out.properties={...(input.properties||{}),_operation:"Convex Hull"}}
-  else if(op==="boundingBox"){const b=turf.bbox(input);out=turf.bboxPolygon(b);out.properties={_operation:"Bounding Box",min_x:b[0],min_y:b[1],max_x:b[2],max_y:b[3]}}
-  else {
-   if(!overlay||!overlay.geometry)throw Error("This workflow needs an overlay feature selected with Shift-click.");
-   if(["clip","intersection","erase","union","merge"].includes(op)&&(!poly(input.geometry)||!poly(overlay.geometry))&&op!=="clip")throw Error(op+" requires polygon input and overlay.");
-   if(op==="clip"){if(!poly(overlay.geometry))throw Error("Clip overlay must be polygonal.");if(poly(input.geometry))out=turf.intersect(turf.featureCollection([input,overlay]));else if(input.geometry.type==="Point")out=turf.booleanPointInPolygon(turf.point(input.geometry.coordinates),overlay)?clone(input):null;else throw Error("ModelBuilder Clip supports points and polygons; line clipping remains available in the main toolbox.");}
-   else if(op==="intersection")out=turf.intersect(turf.featureCollection([input,overlay]));
-   else if(op==="erase")out=turf.difference(turf.featureCollection([input,overlay]));
-   else if(op==="union"||op==="merge")out=turf.union(turf.featureCollection([input,overlay]));
-   else if(op==="split"){if(!["LineString","MultiLineString"].includes(input.geometry.type)||!["LineString","MultiLineString"].includes(overlay.geometry.type))throw Error("Split Lines requires two line features.");out=turf.lineSplit(input,overlay);}
-   if(out&&out.type==="Feature")out.properties={...(input.properties||{}),...(out.properties||{}),_operation:op};
-   if(out&&out.type==="FeatureCollection"&&Array.isArray(out.features))out.features=out.features.map((f,i)=>({...f,properties:{...(input.properties||{}),...(f.properties||{}),_operation:op,_part:i+1}}));
+ function safeFeature(x){try{const f=typeof asFeature==="function"?asFeature(x):null;return f&&f.geometry?f:null}catch(_){return null}}
+ function fc(x){return x?.type==="FeatureCollection"?x:{type:"FeatureCollection",features:x?[x]:[]}}function first(x){return x?.type==="FeatureCollection"?x.features?.[0]:x}
+ function execute(n,input,overlay,initial){const op=n.op,f=first(input),features=fc(input).features;let out=null;if(!f?.geometry)throw Error("Invalid input geometry.");
+  if(op==="buffer"){if(!(n.value>0&&Number.isFinite(n.value)))throw Error("Buffer distance must be positive.");out=turf.buffer(input,n.value,{units:"meters"})}
+  else if(op==="centroid")out=turf.centroid(input);
+  else if(op==="pointOnFeature")out=turf.pointOnFeature(input);
+  else if(op==="convexHull")out=turf.convex(input);
+  else if(op==="boundingBox")out=turf.bboxPolygon(turf.bbox(input));
+  else if(op==="simplify"){if(!(n.value>0&&Number.isFinite(n.value)))throw Error("Tolerance must be positive.");out=turf.simplify(input,{tolerance:n.value,highQuality:true,mutate:false})}
+  else if(op==="boundary")out={type:"FeatureCollection",features:features.filter(x=>poly(x.geometry)).map(x=>turf.polygonToLine(x))};
+  else if(op==="area"){out=clone(f);out.properties={...(f.properties||{}),_area_m2:turf.area(input),_operation:"Calculate Area"}}
+  else if(op==="length"){out=clone(f);out.properties={...(f.properties||{}),_length_km:turf.length(input,{units:"kilometers"}),_operation:"Calculate Length"}}
+  else if(op==="count"){out=clone(f);out.properties={...(f.properties||{}),_feature_count:features.length,_operation:"Feature Count"}}
+  else if(op==="dissolve"){const ps=(initial.features||[]).filter(x=>poly(x.geometry));if(!ps.length)throw Error("Dissolve requires selected polygon features.");out=ps.slice(1).reduce((acc,x)=>turf.union(turf.featureCollection([acc,x])),clone(ps[0]));if(out)out.properties={_operation:"Dissolve",_source_count:ps.length}}
+  else {if(!overlay?.geometry)throw Error("Select an overlay feature with Shift-click.");
+   if(op==="split"){if(!["LineString","MultiLineString"].includes(f.geometry.type)||!["LineString","MultiLineString"].includes(overlay.geometry.type))throw Error("Split requires two line features.");out=turf.lineSplit(f,overlay)}
+   else {if(!poly(f.geometry)||!poly(overlay.geometry))throw Error(op+" requires polygon input and polygon overlay.");const pair=turf.featureCollection([f,overlay]);if(op==="clip"||op==="intersection")out=turf.intersect(pair);else if(op==="erase")out=turf.difference(pair);else if(op==="union"||op==="merge")out=turf.union(pair)}
   }
-  return out;
+  if(out?.type==="Feature"&&!["area","length","count"].includes(op))out.properties={...(f.properties||{}),...(out.properties||{}),_operation:op};
+  if(out?.type==="FeatureCollection"&&Array.isArray(out.features))out.features=out.features.map((x,i)=>({...x,properties:{...(x.properties||{}),_operation:op,_part:i+1}}));return out
  }
- function normalizeResult(out){if(!out)return null;if(out.type==="FeatureCollection"){const fs=out.features||[];return fs.length===1?fs[0]:out}return out}
- $mb("mbRun").onclick=()=>{
-  if(!model.length){say("Add at least one tool first.");return}
-  if(!selectedLayer){say("Select an input feature on the map first.");return}
-  let current=asFeatureSafe(selectedLayer),overlay=asFeatureSafe(selectedOverlay);
-  if(!current){say("The selected input feature is invalid.");return}
-  try{
-   for(let i=0;i<model.length;i++){const n=model[i];say("Running "+(i+1)+"/"+model.length+": "+tools.find(t=>t.id===n.op).name+"…");current=normalizeResult(execute(n.op,current,overlay,n.distance));if(!current){say("Step "+(i+1)+" returned no geometry; no output layer created.");return}if(!current.geometry&&current.type!=="FeatureCollection")throw Error("Step "+(i+1)+" returned invalid geometry.");}
-   resultLayerFromFeature(current,"ModelBuilder Output");say("Model completed: "+model.length+" tool(s). Output added to Table Of Contents.");if(typeof scheduleAutoSave==="function")scheduleAutoSave();
+ function normalize(x){if(!x)return null;if(x.type==="FeatureCollection"&&x.features?.length===1)return x.features[0];return x}
+ $mb("mbRun").onclick=()=>{if(!model.length){say("Add at least one tool first.");return}if(!selectedLayer){say("Select an input feature on the map first.");return}
+  try{const input=safeFeature(selectedLayer);if(!input)throw Error("Invalid selected input.");const selected=[...(selectedFeatures||[])].map(safeFeature).filter(Boolean);const initial={type:"FeatureCollection",features:selected.length>1?selected:[input]};let current=input;const overlay=safeFeature(selectedOverlay);
+   model.forEach((n,i)=>{say("Running "+(i+1)+"/"+model.length+": "+tools.find(t=>t.id===n.op).name);current=normalize(execute(n,current,overlay,initial));if(!current)throw Error("Step "+(i+1)+" returned no geometry; check overlap and geometry types.")});
+   resultLayerFromFeature(current,"ModelBuilder Output");say("Model completed: "+model.length+" steps. Output added to Table Of Contents.");if(typeof scheduleAutoSave==="function")scheduleAutoSave()
   }catch(e){console.error(e);say("Model failed: "+(e.message||"geometry error"))}
  };
- $mb("mbAdd").onclick=()=>add("buffer");$mb("mbClear").onclick=()=>{model=[];renderNodes();say("Model cleared.")};
- $mb("mbClose").onclick=close;$mb("mbSearch").oninput=renderTools;
- $mb("mbSave").onclick=()=>{const blob=new Blob([JSON.stringify({format:"SabzRoyanWebGISModel",version:1,steps:model},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="webgis-model.json";a.click();URL.revokeObjectURL(url);say("Model JSON exported.")};
- $mb("mbLoad").onclick=()=>$mb("mbFile").click();
- $mb("mbFile").onchange=async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;try{const data=JSON.parse(await file.text());if(data.format!=="SabzRoyanWebGISModel"||!Array.isArray(data.steps)||data.steps.some(n=>!tools.some(t=>t.id===n.op)))throw Error("Unsupported model file.");model=data.steps.map(n=>({id:nextId++,op:n.op,distance:Number(n.distance)||5}));renderNodes();say("Model loaded: "+model.length+" tool(s).")}catch(err){say("Load failed: "+err.message)}finally{e.target.value=""}};
+ $mb("mbAdd").onclick=()=>add("buffer");$mb("mbClear").onclick=()=>{model=[];renderNodes();say("Model cleared.")};$mb("mbClose").onclick=close;$mb("mbSearch").oninput=renderTools;
+ $mb("mbSave").onclick=()=>{const data={format:"SabzRoyanWebGISModel",version:2,steps:model.map(({id,op,value})=>({id,op,value}))},blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="webgis-model.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);say("Model exported as JSON.")};
+ $mb("mbLoad").onclick=()=>$mb("mbFile").click();$mb("mbFile").onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{const d=JSON.parse(await file.text());if(d.format!=="SabzRoyanWebGISModel"||!Array.isArray(d.steps)||d.steps.some(n=>!tools.some(t=>t.id===n.op)))throw Error("Invalid model file.");model=d.steps.map(n=>({id:nextId++,op:n.op,value:Number(n.value??n.distance??tools.find(t=>t.id===n.op).value)||0.001}));renderNodes();say("Loaded "+model.length+" steps.")}catch(err){say("Load failed: "+err.message)}finally{e.target.value=""}};
  modal.addEventListener("click",e=>{if(e.target===modal)close()});document.addEventListener("keydown",e=>{if(e.key==="Escape"&&modal.classList.contains("show"))close()});
- const oldRender=renderTools; // keep toolbox search independent from model state
- const observer=new MutationObserver(()=>{if(modal.classList.contains("show"))renderTools()});
- const actionBtn=document.querySelector('#analysisMenu button[data-action="showToolbox"]');
- if(actionBtn){const b=document.createElement("button");b.type="button";b.textContent="ModelBuilder…";b.onclick=open;actionBtn.parentNode.insertBefore(b,actionBtn.nextSibling)}
- const dockTitle=document.querySelector("#gisDockTitle");if(dockTitle){const b=document.createElement("button");b.type="button";b.textContent="ModelBuilder";b.style.cssText="margin-left:8px;font-size:10px;cursor:pointer";b.onclick=open;dockTitle.parentNode.insertBefore(b,dockTitle.nextSibling)}
+ const dock=document.querySelector("#gisDockTitle");if(dock&&!document.querySelector("#openModelBuilderBtn")){const b=document.createElement("button");b.id="openModelBuilderBtn";b.type="button";b.textContent="ModelBuilder";b.style.cssText="margin-left:8px;font-size:10px;cursor:pointer";b.onclick=open;dock.parentNode.insertBefore(b,dock.nextSibling)}
+ const action=document.querySelector('#analysisMenu button[data-action="showToolbox"]');if(action&&!document.querySelector("#openModelBuilderMenuBtn")){const b=document.createElement("button");b.id="openModelBuilderMenuBtn";b.type="button";b.textContent="ModelBuilder…";b.onclick=open;action.parentNode.insertBefore(b,action.nextSibling)}
 })();
 </script>
 </body></html>";
