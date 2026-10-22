@@ -1596,17 +1596,6 @@ function drawingLayerForType(type){
   refreshAttributeLayers();if($("attributeLayer"))$("attributeLayer").value=String(index);
   renderLayerList();return item.layer;
 }
-$("newDrawingSetBtn").onclick=()=>{
-  if(editSessionActive){status("Stop Editing before creating another drawing set.");return;}
-  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("creating a drawing set"))return;
-  const used=new Set(["My Drawings",...namedLayers.map(x=>x.drawingSet).filter(Boolean)]);
-  let n=2;while(used.has("My Drawings "+n))n++;
-  activeDrawingSetName="My Drawings "+n;
-  editTarget=drawn;$("editTargetLayer").value="drawn";
-  selectedOverlay=drawn;renderLayerList();refreshEditorTargets();
-  $("editTargetLayer").value="drawn";editTarget=drawn;
-  status(activeDrawingSetName+" created. Choose Point, Line or Polygon to start drawing.");
-};
 function startDraw(type,button){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("starting a drawing"))return;
   // Never silently throw away an unfinished sketch when switching tools.
@@ -1863,6 +1852,18 @@ const drawControl=L.Control.extend({
 // Drawing controls are hosted in the Editor toolbar above the map.
 if(L.Control&&L.Control.Draw){try{new L.Control.Draw({edit:{featureGroup:drawn},draw:false}).addTo(map)}catch(err){console.warn("Leaflet Draw edit control unavailable",err)}}
 const $=id=>document.getElementById(id);
+$("newDrawingSetBtn").onclick=()=>{
+  if(editSessionActive){status("Stop Editing before creating another drawing set.");return;}
+  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("creating a drawing set"))return;
+  const used=new Set(["My Drawings",...namedLayers.map(x=>x.drawingSet).filter(Boolean)]);
+  let n=2;while(used.has("My Drawings "+n))n++;
+  activeDrawingSetName="My Drawings "+n;
+  editTarget=drawn;$("editTargetLayer").value="drawn";
+  selectedOverlay=drawn;renderLayerList();refreshEditorTargets();
+  $("editTargetLayer").value="drawn";editTarget=drawn;
+  status(activeDrawingSetName+" created. Choose Point, Line or Polygon to start drawing.");
+};
+
 let statusTimer=null;
 function status(message){
   const text=String(message??"");
