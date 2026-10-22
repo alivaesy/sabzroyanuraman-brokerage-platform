@@ -1931,7 +1931,7 @@ function openLayerAttributeTable(item,layout="horizontal"){
  else return;
  lastAttributeLayerValue=$("attributeLayer").value;
  attributeTableLayoutMode=layout==="vertical"?"vertical":"horizontal";
- openGisDock("attribute");
+ if(attributeTableLayoutMode==="vertical")openGisDock("attribute");
  $("openTable").click();
 }
 function displayLayerName(name,index){return /[\u0600-\u06FF]/.test(String(name||""))?"Layer "+(index+1):String(name||("Layer "+(index+1)))}
