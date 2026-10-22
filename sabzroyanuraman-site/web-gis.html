@@ -525,6 +525,7 @@ body{background:#dfe5e8;color:#173b57}
 <button type="button" class="icon-tool" data-tool="flipLineDirection" title="Flip Line Direction" aria-label="Flip Line Direction" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-flip"></use></svg></button>
 <button type="button" class="icon-tool" data-tool="featureTemplates" title="Feature Templates" aria-label="Feature Templates" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-template"></use></svg></button>
 <button type="button" class="icon-tool" data-tool="topologyCheckTool" title="Check Topology" aria-label="Check Topology" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-topology"></use></svg></button>
+<button type="button" class="icon-tool" data-tool="repairSelectedGeometry" title="Repair Selected Geometry" aria-label="Repair Selected Geometry" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-reshape"></use></svg></button>
 <button type="button" class="icon-tool" data-tool="snapTool" title="Snap Points to Lines" aria-label="Snap Points to Lines" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-snap"></use></svg></button></div>
 
 <div id="geodatabaseManagerDialog" aria-hidden="true"><div class="gdb-panel" role="dialog" aria-modal="true" aria-label="Geodatabase Manager"><div class="gdb-title">Catalog — Create Geodatabase / Feature Dataset / Feature Class <button type="button" id="gdbManagerClose">×</button></div><div class="gdb-body"><p class="gdb-note">Create a workspace structure and empty editable feature classes. To create a portable Esri File Geodatabase on disk, use Export Data → File Geodatabase (.gdb.zip) after adding features.</p><div class="gdb-grid"><label>Geodatabase name<input id="gdbWorkspaceName" value="MyGeodatabase"></label><label>Feature Dataset name<input id="gdbDatasetName" value="Dataset1"></label><label>Feature Class name<input id="gdbFeatureClassName" value="NewFeatureClass"></label><label>Geometry type<select id="gdbGeometryType"><option value="Point">Point</option><option value="LineString">Polyline</option><option value="Polygon">Polygon</option></select></label><label>Coordinate system<select id="gdbCrs"><option value="current">Current map CRS</option><option value="EPSG:4326">WGS 84 (EPSG:4326)</option></select></label></div><div class="gdb-actions"><button type="button" id="gdbCreateDataset">Create Dataset</button><button type="button" id="gdbCreateFeatureClass">Create Feature Class</button><button type="button" id="gdbExportNow">Export Geodatabase</button></div><div id="geodatabaseManagerList"></div><div id="gdbManagerStatus" class="gdb-note" role="status"></div></div></div></div>
@@ -4046,6 +4047,7 @@ function checkEditTopology(){
       }catch(e){issues.push({id,issue:"Topology check failed: "+(e.message||"unknown error")});}
     }
   });
+  if(rules==="all"||rules==="overlap"){
   // Pairwise polygon checks catch partial overlaps between parcel-like
   // features while allowing polygons that merely share a boundary.
   const polygons=records.map((r,index)=>({r,index,g:r.feature?.geometry,id:r.feature?.id??r.feature?.properties?.OBJECTID??r.feature?.properties?.FID??(index+1)}))
@@ -4078,8 +4080,10 @@ function checkEditTopology(){
       issues.push({id:a.id,issue:(duplicate?"Duplicate polygon geometry matches feature ":"Polygon overlaps feature ")+b.id+" ("+(duplicate?"same geometry":"overlap area "+overlapArea.toFixed(2)+" m²")+")"});
     }
   }catch(e){/* Invalid geometries are reported by the per-feature checks. */}});
+  }
   // Optional gap check: use a separately selected polygon as the coverage
   // boundary. Without an explicit boundary, gaps cannot be inferred reliably.
+  if(rules==="all"||rules==="gaps"){
   let gapSummary="Gap check skipped: select a polygon boundary from another layer to test coverage.";
   let gapChecked=false;
   try{
@@ -4111,6 +4115,7 @@ function checkEditTopology(){
       }else gapSummary="Gap check unavailable: Turf union/difference is unavailable.";
     }
   }catch(e){gapSummary="Gap check could not be completed: "+(e.message||"geometry operation failed")+".";}
+  }else gapSummary="Coverage-gap check not requested.";
   const ruleMatches=issue=>{
     const t=String(issue.issue||"").toLowerCase();
     if(rules==="geometry")return /missing geometry|fewer than|not closed|too few vertices|duplicate consecutive|zero or invalid area|topology check failed/.test(t);
@@ -4256,6 +4261,7 @@ const GIS_TOOLS=[
  {id:"runGisOperation",op:"split",title:"Split",category:"Geoprocessing",keys:"split line"},
  {id:"runGisOperation",op:"merge",title:"Merge",category:"Geoprocessing",keys:"merge"},
  {id:"topologyCheckTool",title:"Check Topology",category:"Editor",keys:"topology geometry self intersection duplicate vertices polygon validity"},
+ {id:"repairSelectedGeometry",title:"Repair Selected Geometry",category:"Editor",keys:"repair geometry remove duplicate vertices close polygon rings fix invalid line polygon"},
  {id:"snapTool",title:"Snapping",category:"Editor",keys:"snap"},
  {id:"advancedSnap",title:"Advanced Snapping",category:"Editor",keys:"snap vertex edge tolerance"},
  {id:"vertexEdit",title:"Edit Vertices",category:"Editor",keys:"vertex node reshape geometry"},
@@ -5530,6 +5536,45 @@ function showVerticesTool(){
   group.addTo(map);window._shownVertexLayer=group;
   status("Showing "+count+" unique vertex positions. Run Show Vertices again to hide them.");
 }
+async function repairSelectedGeometry(){
+  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("repairing selected geometry"))return;
+  const records=editableSelectedRecords(false);if(!records.length)return;
+  const updates=[];let unchanged=0;
+  const same=(a,b)=>Array.isArray(a)&&Array.isArray(b)&&a.length>=2&&b.length>=2&&Number(a[0])===Number(b[0])&&Number(a[1])===Number(b[1]);
+  const cleanLine=coords=>{
+    if(!Array.isArray(coords))throw new Error("A line coordinate array is missing.");
+    const out=[];coords.forEach(p=>{if(Array.isArray(p)&&p.length>=2&&p.every(v=>Number.isFinite(Number(v)))&&(!out.length||!same(out[out.length-1],p)))out.push(p.slice());});
+    if(out.length<2)throw new Error("A line has fewer than two distinct vertices after cleanup.");
+    return out;
+  };
+  const cleanRing=coords=>{
+    let out=cleanLine(coords);
+    while(out.length>1&&same(out[0],out[out.length-1])&&same(out[out.length-2],out[out.length-1]))out.pop();
+    if(!same(out[0],out[out.length-1]))out.push(out[0].slice());
+    if(out.length<4||new Set(out.slice(0,-1).map(p=>p[0]+","+p[1])).size<3)throw new Error("A polygon ring has fewer than three distinct vertices.");
+    return out;
+  };
+  const cleanGeometry=g=>{
+    const copy=JSON.parse(JSON.stringify(g));
+    if(copy.type==="LineString")copy.coordinates=cleanLine(copy.coordinates);
+    else if(copy.type==="MultiLineString")copy.coordinates=copy.coordinates.map(cleanLine);
+    else if(copy.type==="Polygon")copy.coordinates=copy.coordinates.map(cleanRing);
+    else if(copy.type==="MultiPolygon")copy.coordinates=copy.coordinates.map(poly=>poly.map(cleanRing));
+    else throw new Error("Repair supports LineString, MultiLineString, Polygon and MultiPolygon only.");
+    return copy;
+  };
+  try{
+    records.forEach(r=>{
+      const geometry=cleanGeometry(r.feature?.geometry);
+      if(!vertexGeometryIsValid(geometry))throw new Error("A cleaned geometry remains invalid or self-intersecting; use Edit Vertices to correct it manually.");
+      if(JSON.stringify(geometry)!==JSON.stringify(r.feature.geometry))updates.push({r,geometry});else unchanged++;
+    });
+  }catch(err){status("Geometry repair cancelled without changing features: "+(err.message||"unsupported geometry"));return;}
+  if(!updates.length){status("No automatic repairs were needed for "+unchanged+" selected feature(s).");return;}
+  if(!confirm("Apply safe automatic repairs to "+updates.length+" selected feature(s)? This removes consecutive duplicate vertices and closes polygon rings; other topology errors are not guessed."))return;
+  const ok=await commitGeometryOperation(updates,"Geometry repair");
+  if(ok)status("Repaired "+updates.length+" selected feature(s); "+unchanged+" already needed no changes.");
+}
 async function flipLineDirection(){
   const records=editableSelectedRecords(false);
   if(!records.length)return;
@@ -5665,6 +5710,7 @@ function runGisTool(tool){
  if(tool.id==="transferAttributesTool"){transferAttributesTool();return;}
  if(tool.id==="networkQaTool"){networkQaTool();return;}
  if(tool.id==="topologyCheckTool"){checkEditTopology();return;}
+ if(tool.id==="repairSelectedGeometry"){repairSelectedGeometry();return;}
  if(tool.id==="snapTool"){snapTool();return;}
  if(tool.id==="attachmentsTool"){attachmentsTool();return;}
  if(tool.id==="chartStats"){chartStats();return;}
