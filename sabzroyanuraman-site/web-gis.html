@@ -1130,18 +1130,57 @@ function startEditing(item=null){
   }
   const value=sel?.value||"drawn";
   editTarget=value==="drawn"?drawn:(namedLayers[Number(value)]?.layer||drawn);
+  if(editSessionActive){
+    if(editTarget=== (value==="drawn"?drawn:(namedLayers[Number(value)]?.layer||drawn))){
+      updateEditorToolbar();
+      status("This edit session is already active.");
+    }else status("Stop the current edit session before switching to another layer.");
+    return;
+  }
   recordUndoState();
   editSessionActive=true;
   updateEditorToolbar();
   status("Edit session started for "+(value==="drawn"?"My Drawings":namedLayers[Number(value)]?.name||"selected layer")+".");
 }
 function isLayerInEditTarget(layer){if(!layer||!editTarget)return false;if(layer===editTarget)return true;return editTarget===drawn?drawn.hasLayer(layer):!!editTarget?.hasLayer?.(layer)}
+function validateAndSyncEditTarget(){
+  const fail=(message)=>({ok:false,message});
+  const position=p=>Array.isArray(p)&&p.length>=2&&Number.isFinite(Number(p[0]))&&Number.isFinite(Number(p[1]));
+  const ringValid=ring=>Array.isArray(ring)&&ring.length>=4&&ring.every(position)&&ring[0][0]===ring[ring.length-1][0]&&ring[0][1]===ring[ring.length-1][1];
+  const geometryValid=g=>{
+    if(!g||typeof g.type!=="string")return false;
+    const c=g.coordinates;
+    switch(g.type){
+      case "Point": return position(c);
+      case "MultiPoint": return Array.isArray(c)&&c.length>0&&c.every(position);
+      case "LineString": return Array.isArray(c)&&c.length>=2&&c.every(position);
+      case "MultiLineString": return Array.isArray(c)&&c.length>0&&c.every(line=>Array.isArray(line)&&line.length>=2&&line.every(position));
+      case "Polygon": return Array.isArray(c)&&c.length>0&&c.every(ringValid);
+      case "MultiPolygon": return Array.isArray(c)&&c.length>0&&c.every(poly=>Array.isArray(poly)&&poly.length>0&&poly.every(ringValid));
+      case "GeometryCollection": return Array.isArray(g.geometries)&&g.geometries.length>0&&g.geometries.every(geometryValid);
+      default: return false;
+    }
+  };
+  const records=vectorFeatures(editTarget);
+  for(let i=0;i<records.length;i++){
+    const {layer,feature}=records[i];
+    let geojson;
+    try{geojson=layer.toGeoJSON();}catch(_){return fail("Feature "+(i+1)+" could not be converted to GeoJSON.")}
+    const geometry=geojson?.geometry;
+    if(!geometryValid(geometry))return fail("Feature "+(i+1)+" has invalid or incomplete geometry. Check its vertices, line length, and polygon closure before saving.");
+    if(!layer.feature)layer.feature={type:"Feature",properties:feature?.properties||{},geometry};
+    else layer.feature.geometry=geometry;
+  }
+  return {ok:true,count:records.length};
+}
 async function saveEdits(){
   if(!editSessionActive){status("No edit session is active.");return false}
   if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){
     status("Save Table Edits before saving the edit session; unsaved attribute values are still in the table.");
     return false;
   }
+  const validation=validateAndSyncEditTarget();
+  if(!validation.ok){status("Edits not saved: "+validation.message);return false}
   clearTimeout(autoSaveTimer);
   try{
     const project=serializeProject();
