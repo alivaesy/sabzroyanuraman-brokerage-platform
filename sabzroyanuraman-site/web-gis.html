@@ -490,6 +490,7 @@ body{background:#dfe5e8;color:#173b57}
 <button type="button" class="icon-tool" id="timeSliderBtn" title="Open Time Slider Window" aria-label="Open Time Slider Window"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-time"></use></svg></button>
 <button type="button" class="icon-tool" id="createViewerBtn" title="Create Viewer Window" aria-label="Create Viewer Window"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-viewer"></use></svg></button></div>
 <div class="classic-toolbar editor-toolbar" id="editorToolbar" role="toolbar" aria-label="Editor"><select id="editTargetLayer" title="Target layer" aria-label="Target layer"><option value="drawn">My Drawings</option></select>
+<button type="button" class="action secondary" id="newDrawingSetBtn" title="Create another drawing set">New Drawing</button>
 <button type="button" class="icon-tool" id="startEditingBtn" title="Start Editing" aria-label="Start Editing"><svg class="arcmap-icon"><use href="#arc-icon-editor"></use></svg></button>
 <button type="button" class="icon-tool" id="saveEditsBtn" disabled title="Save Edits" aria-label="Save Edits"><svg class="arcmap-icon"><use href="#arc-icon-save"></use></svg></button>
 <button type="button" class="icon-tool" id="stopEditingBtn" disabled title="Stop Editing" aria-label="Stop Editing"><svg class="arcmap-icon"><use href="#arc-icon-delete"></use></svg></button>
@@ -1026,6 +1027,7 @@ function activateWmsBasemap(){
 }
 const drawn=new L.FeatureGroup().addTo(map);
 const namedLayers=[];
+let activeDrawingSetName="My Drawings";
 let selectedLayer=null;
 let selectedOverlay=null;
 let selectedFeatures=new Set();
@@ -1567,16 +1569,38 @@ function goToXY(){
 }
 function drawingLayerForType(type){
   const kind=type==="Marker"?"Point":type==="Polyline"?"Line":"Polygon";
-  const name=kind==="Point"?"Points":kind==="Line"?"Lines":"Polygons";
-  let item=namedLayers.find(x=>x._webgisDrawingType===kind||x.name===name);
-  if(!item){const layer=new L.FeatureGroup();layer._webgisDrawingType=kind;addNamedLayer(name,layer,false);item=namedLayers.find(x=>x.layer===layer);if(item)item._webgisDrawingType=kind;}
+  const suffix=kind==="Point"?"Points":kind==="Line"?"Lines":"Polygons";
+  const currentItem=namedLayers.find(x=>x.layer===editTarget);
+  if(currentItem&&currentItem.drawingSet)activeDrawingSetName=currentItem.drawingSet;
+  const setName=activeDrawingSetName||"My Drawings";
+  const name=setName==="My Drawings"?suffix:setName+" / "+suffix;
+  let item=namedLayers.find(x=>x.drawingSet===setName&&x._webgisDrawingType===kind);
+  if(!item)item=namedLayers.find(x=>x.name===name);
+  if(!item){
+    const layer=new L.FeatureGroup();layer._webgisDrawingType=kind;
+    addNamedLayer(name,layer,false);
+    item=namedLayers.find(x=>x.layer===layer);
+    if(item){item._webgisDrawingType=kind;item.drawingSet=setName;}
+  }
   if(!item)return drawn;
+  item.drawingSet=setName;item._webgisDrawingType=kind;
   selectedOverlay=item.layer;editTarget=item.layer;
   const index=namedLayers.findIndex(x=>x.layer===item.layer);
   if(index>=0)$("editTargetLayer").value=String(index);
   refreshAttributeLayers();if($("attributeLayer"))$("attributeLayer").value=String(index);
   renderLayerList();return item.layer;
 }
+$("newDrawingSetBtn").onclick=()=>{
+  if(editSessionActive){status("Stop Editing before creating another drawing set.");return;}
+  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("creating a drawing set"))return;
+  const used=new Set(["My Drawings",...namedLayers.map(x=>x.drawingSet).filter(Boolean)]);
+  let n=2;while(used.has("My Drawings "+n))n++;
+  activeDrawingSetName="My Drawings "+n;
+  editTarget=drawn;$("editTargetLayer").value="drawn";
+  selectedOverlay=drawn;renderLayerList();refreshEditorTargets();
+  $("editTargetLayer").value="drawn";editTarget=drawn;
+  status(activeDrawingSetName+" created. Choose Point, Line or Polygon to start drawing.");
+};
 function startDraw(type,button){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("starting a drawing"))return;
   // Never silently throw away an unfinished sketch when switching tools.
@@ -3325,7 +3349,7 @@ function layerToProjectItem(item){
     transparent:layer.options.transparent!==false,
     version:layer.options.version||"1.3.0"
   }:null;
-  return {name:item.name,type:wms?"wms":"vector",features,wms,gdb:layer?._gdbMetadata||null};
+  return {name:item.name,type:wms?"wms":"vector",features,wms,gdb:layer?._gdbMetadata||null,drawingSet:item.drawingSet||null,drawingType:item._webgisDrawingType||null};
 }
 function serializeProject(){
   const project={
@@ -3400,6 +3424,8 @@ function restoreProject(project,fromHistory=false){
       const layer=L.geoJSON({type:"FeatureCollection",features},{style:{color:"#2d78a5",weight:2,fillOpacity:.18},pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:5,color:"#2d78a5",fillOpacity:.8})});
       if(item.gdb)layer._gdbMetadata=item.gdb;
       addNamedLayer(item.name||"Layer",layer,false);
+      const restoredItem=namedLayers.find(x=>x.layer===layer);
+      if(restoredItem){restoredItem.drawingSet=item.drawingSet||null;restoredItem._webgisDrawingType=item.drawingType||null;}
     }
   });
   if(typeof restoreGdbCatalogFromJSON==="function")restoreGdbCatalogFromJSON(project.gdbCatalog||null);
