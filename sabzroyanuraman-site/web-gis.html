@@ -1196,13 +1196,10 @@ async function saveEdits(){
       const bridgeSaved=await window.__webGisGdbBridge.save();
       if(bridgeSaved===false)throw new Error("Automatic local save failed; retry Save Edits.");
     }
-    const project=serializeProject();
-    project.id=projectId();
-    project.updatedAt=new Date().toISOString();
-    await putProject(project);
-    currentProjectId=project.id;
-    const savedAt=new Date().toLocaleString();
-    $("projectStatus").textContent="Saved locally: "+savedAt;
+    // Use the same debounced persistence queue as other edits so a pending
+    // older autosave cannot overwrite this edit-session snapshot.
+    const projectSaved=await scheduleAutoSave();
+    if(!projectSaved)throw new Error("Project autosave failed; retry Save Edits before leaving.");
     status("Edits saved to this browser's local project storage.");
     return true;
   }catch(err){
