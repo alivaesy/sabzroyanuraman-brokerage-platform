@@ -1710,7 +1710,7 @@ function createMapViewer(){
  function normalize(x){if(!x)return null;if(x.type==="FeatureCollection"&&x.features?.length===1)return x.features[0];return x}
  $mb("mbRun").onclick=()=>{if(!model.length){say("Add at least one tool first.");return}if(!selectedLayer){say("Select an input feature on the map first.");return}
   try{const input=safeFeature(selectedLayer);if(!input)throw Error("Invalid selected input.");const selected=[...(selectedFeatures||[])].map(safeFeature).filter(Boolean);const initial={type:"FeatureCollection",features:selected.length>1?selected:[input]};let current=input;const overlay=safeFeature(selectedOverlay);
-   model.forEach((n,i)=>{say("Running "+(i+1)+"/"+model.length+": "+tools.find(t=>t.id===n.op).name);current=normalize(execute(n,current,overlay,initial));if(!current)throw Error("Step "+(i+1)+" returned no geometry; check overlap and geometry types.")});
+   model.forEach((n,i)=>{say("Running "+(i+1)+"/"+model.length+": "+tools.find(t=>t.id===n.op).name);current=normalize(execute(n,current,overlay,initial));if(!current||(current.type==="FeatureCollection"&&!current.features?.length))throw Error("Step "+(i+1)+" returned no geometry; check overlap and geometry types.")});
    resultLayerFromFeature(current,"ModelBuilder Output");say("Model completed: "+model.length+" steps. Output added to Table Of Contents.");if(typeof scheduleAutoSave==="function")scheduleAutoSave()
   }catch(e){console.error(e);say("Model failed: "+(e.message||"geometry error"))}
  };
