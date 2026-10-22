@@ -2974,7 +2974,7 @@ $("deleteTableField").onclick=()=>{
  if(attributeSort.key===key)attributeSort={key:null,direction:1};
  renderEditableTable();window.__webGisGdbBridge?.save();scheduleAutoSave();status("Field '"+key+"' deleted from the feature class and "+items.length+" feature(s). Use Undo to reverse this change.");
 };
-$("saveTableEdits").onclick=()=>{
+$("saveTableEdits").onclick=async()=>{
  if(!editSessionActive||!isLayerInEditTarget(currentAttributeLayer())){status("Start Editing this layer before saving table changes.");return}
  if($("attributeLayer").value===""){status("Select a feature layer.");return}
  const items=currentAttributeItems(),table=$("attributeTableWrap"),changes=[];
@@ -3034,12 +3034,12 @@ $("saveTableEdits").onclick=()=>{
  if(!changes.length){status("No attribute changes to save.");return}
  recordUndoState();
  changes.forEach(({item,props})=>{item.feature.properties=props;item.feature.geometry=item.layer.toGeoJSON().geometry;updateFeaturePopup(item.layer)});
- renderEditableTable();window.__webGisGdbBridge?.save();scheduleAutoSave();status("Saved attribute changes for "+changes.length+" feature(s).");
+ renderEditableTable();const synced=await flushGeodatabaseEdits();scheduleAutoSave();status("Saved attribute changes for "+changes.length+" feature(s)."+(synced?"":" Geodatabase sync failed; retry Save Edits before leaving."));
 };
 function selectedTableIndexes(){
  return [...$("attributeTableWrap").querySelectorAll("tbody tr")].filter(r=>r.querySelector(".row-check")?.checked).map(r=>Number(r.dataset.index));
 }
-$("deleteSelectedRows").onclick=()=>{
+$("deleteSelectedRows").onclick=async()=>{
  if(hasUnsavedTableEdits()){status("Save Table Edits before deleting features; unsaved cell values have been preserved.");return}
  const layer=currentAttributeLayer();
  if(!editSessionActive||!isLayerInEditTarget(layer)){status("Start Editing this layer before deleting rows.");return}
@@ -3057,8 +3057,8 @@ $("deleteSelectedRows").onclick=()=>{
  targets.forEach(featureLayer=>{layer.removeLayer(featureLayer);selectedFeatures.delete(featureLayer)});
  if(targets.includes(selectedLayer))selectedLayer=null;
  if(targets.includes(selectedOverlay))selectedOverlay=null;
- renderEditableTable();renderLayerList();refreshAttributeLayers();refreshEditorTargets();updateMultiSelectionUI();window.__webGisGdbBridge?.save();scheduleAutoSave();
- status(targets.length+" feature(s) deleted from the active edit layer.");
+ renderEditableTable();renderLayerList();refreshAttributeLayers();refreshEditorTargets();updateMultiSelectionUI();const synced=await flushGeodatabaseEdits();scheduleAutoSave();
+ status(targets.length+" feature(s) deleted from the active edit layer."+(synced?"":" Geodatabase sync failed; retry Save Edits before leaving."));
 };
 $("copySelectedRows").onclick=()=>{
  if(hasUnsavedTableEdits()){status("Save Table Edits before copying rows; pending cell values have not been applied to the features yet.");return}
