@@ -4971,6 +4971,10 @@ function scaleSelected(){
 async function commitGeometryOperation(updates,label){
   if(!editSessionActive||!editTarget){status("Start Editing before "+label+".");return false;}
   if(!Array.isArray(updates)||!updates.length)return false;
+  // ArcMap-style edit target isolation: never mutate a selected feature from another layer.
+  const foreign=updates.find(({r})=>(r?.owner?.layer||drawn)!==editTarget);
+  if(foreign){status(label+" cancelled: all selected features must belong to the active edit layer. Choose that layer in the Editor toolbar and retry.");return false;}
+  if(updates.some(({r})=>!r?.feature||!r?.layer||!r.owner?.layer?.hasLayer?.(r.layer))){status(label+" cancelled: one or more selected features are no longer in the active layer.");return false;}
   const originals=updates.map(({r})=>({r,geometry:JSON.parse(JSON.stringify(r.feature.geometry))}));
   for(const item of updates){
     if(!item.r||!item.r.feature||!item.geometry||!vertexGeometryIsValid(item.geometry)){
