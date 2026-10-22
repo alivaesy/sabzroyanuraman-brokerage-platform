@@ -4415,7 +4415,14 @@ function mergeSelectedFeatures(){
   selectedOverlay=null;applySelectionVisual();refreshAll();updateStandardActionButtons();scheduleAutoSave();
   status("Merged "+records.length+" features. Attributes were retained from the first selected feature.");
 }
+function stopSplitDraw(){
+  const created=window._splitCreatedHandler,handler=window._splitDrawHandler;
+  if(created){map.off(L.Draw.Event.CREATED,created);window._splitCreatedHandler=null;}
+  if(handler){try{handler.disable()}catch(_){}window._splitDrawHandler=null;}
+}
+document.addEventListener("keydown",event=>{if(event.key==="Escape"&&window._splitDrawHandler)stopSplitDraw();});
 function splitSelectedLines(){
+  stopSplitDraw();
   const records=editableSelectedRecords(false);
   if(!records.length)return;
   if(!records.every(r=>["LineString","MultiLineString"].includes(r.feature?.geometry?.type))){status("Split Lines requires only selected line features in the active edit layer.");return;}
@@ -4425,7 +4432,7 @@ function splitSelectedLines(){
   const handler=new L.Draw.Polyline(map,{shapeOptions:{color:"#c0392b",weight:2,dashArray:"5,4"}});
   window._splitDrawHandler=handler;
   const created=event=>{
-    map.off(L.Draw.Event.CREATED,created);window._splitDrawHandler=null;
+    map.off(L.Draw.Event.CREATED,created);window._splitCreatedHandler=null;window._splitDrawHandler=null;
     try{
       const cutter=event.layer.toGeoJSON();
       if(!cutter.geometry||cutter.geometry.coordinates.length<2)throw new Error("Draw a line with at least two vertices.");
@@ -4452,6 +4459,7 @@ function splitSelectedLines(){
     }catch(err){status("Split failed: "+(err.message||"invalid cutting geometry"));}
     finally{if(event.layer&&map.hasLayer(event.layer))map.removeLayer(event.layer);}
   };
+  window._splitCreatedHandler=created;
   map.once(L.Draw.Event.CREATED,created);
   handler.enable();
 }
