@@ -5647,11 +5647,16 @@ function snapTool(snapMode="segments"){
     }catch(_){}
   });
   if(!updates.length){$("professionalToolOutput").textContent="Snapping result: no selected point required movement within "+tolerance+" m.";status("No selected points were within tolerance and needed snapping.");return;}
+  // Capture one checkpoint for the entire snap operation so Ctrl+Z restores
+  // all moved points together, just like an ArcMap edit operation.
   recordUndoState();
   updates.forEach(x=>{x.r.feature.geometry.coordinates=x.coordinates;});
-  rebuildVectorLayerGeometry(updates.map(x=>x.r));refreshAll();
+  rebuildVectorLayerGeometry(updates.map(x=>x.r));
+  refreshAll();
+  updateStandardActionButtons();
+  scheduleAutoSave();
   $("professionalToolOutput").textContent="Snapping result: "+updates.length+" of "+selected.length+" selected point(s) moved to the nearest "+(snapMode==="vertices"?"line vertex":snapMode==="both"?"line vertex or segment":"line segment")+" (tolerance "+tolerance+" m).";
-  status(updates.length+" selected point feature(s) snapped to "+snapMode+" (tolerance "+tolerance+" m).");
+  status(updates.length+" selected point feature(s) snapped to "+snapMode+" (tolerance "+tolerance+" m); changes queued for autosave.");
 }
 
 $("exportSHP").onclick=exportRealSHP;
