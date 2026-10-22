@@ -3020,23 +3020,24 @@ function selectedTableIndexes(){
 }
 $("deleteSelectedRows").onclick=()=>{
  if(hasUnsavedTableEdits()){status("Save Table Edits before deleting features; unsaved cell values have been preserved.");return}
- if(!editSessionActive||!isLayerInEditTarget(currentAttributeLayer())){status("Start Editing this layer before deleting rows.");return}
+ const layer=currentAttributeLayer();
+ if(!editSessionActive||!isLayerInEditTarget(layer)){status("Start Editing this layer before deleting rows.");return}
  const items=currentAttributeItems(),inds=selectedTableIndexes();
  if(!inds.length){status("Select one or more rows first.");return}
- if(!confirm(inds.length+" feature(s) will be deleted. Continue?"))return;
- const layer=currentAttributeLayer();
- const targets=inds.map(i=>items[i]?.layer).filter(Boolean);
- if(!targets.length){status("The selected table rows are no longer available.");return}
+ const targets=[...new Set(inds.map(i=>Number.isInteger(i)&&i>=0?items[i]?.layer:null).filter(Boolean))];
+ if(targets.length!==inds.length){status("Deletion cancelled: one or more selected rows are stale or duplicated. Refresh the table and select the rows again.");return}
+ const belongsToTarget=featureLayer=>{
+   if(!featureLayer||!layer)return false;
+   try{return typeof layer.hasLayer==="function"&&layer.hasLayer(featureLayer)}catch(_){return false}
+ };
+ if(!targets.every(belongsToTarget)){status("Deletion cancelled: a selected row does not belong to the active edit layer.");return}
+ if(!confirm(targets.length+" feature(s) will be deleted from the active edit layer. Continue?"))return;
  recordUndoState();
- targets.forEach(featureLayer=>{
-   if(layer===drawn)drawn.removeLayer(featureLayer);
-   else if(layer&&typeof layer.removeLayer==="function")layer.removeLayer(featureLayer);
- });
- selectedFeatures.forEach(featureLayer=>{if(targets.includes(featureLayer))selectedFeatures.delete(featureLayer)});
+ targets.forEach(featureLayer=>{layer.removeLayer(featureLayer);selectedFeatures.delete(featureLayer)});
  if(targets.includes(selectedLayer))selectedLayer=null;
  if(targets.includes(selectedOverlay))selectedOverlay=null;
  renderEditableTable();renderLayerList();refreshAttributeLayers();refreshEditorTargets();updateMultiSelectionUI();scheduleAutoSave();
- status(targets.length+" feature(s) deleted.");
+ status(targets.length+" feature(s) deleted from the active edit layer.");
 };
 $("copySelectedRows").onclick=()=>{
  if(hasUnsavedTableEdits()){status("Save Table Edits before copying rows; pending cell values have not been applied to the features yet.");return}
