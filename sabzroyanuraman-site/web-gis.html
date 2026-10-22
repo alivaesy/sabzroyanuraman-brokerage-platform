@@ -2991,7 +2991,7 @@ $("deleteTableField").onclick=async()=>{
  items.forEach(item=>{if(item.feature.properties)delete item.feature.properties[key];updateFeaturePopup(item.layer)});
  if(layer._gdbMetadata?.fields)layer._gdbMetadata.fields=layer._gdbMetadata.fields.filter(f=>(typeof f==="string"?f:f.name)!==key);
  if(attributeSort.key===key)attributeSort={key:null,direction:1};
- renderEditableTable();const synced=await flushGeodatabaseEdits();status("Field '"+key+"' deleted from the feature class and "+items.length+" feature(s). Use Undo to reverse this change."+(synced?"":" Local autosave failed; retry Save Edits."));
+ renderEditableTable();const synced=await flushGeodatabaseEdits();scheduleAutoSave();status("Field '"+key+"' deleted from the feature class and "+items.length+" feature(s). Use Undo to reverse this change."+(synced?"":" Local autosave failed; retry Save Edits."));
 };
 $("saveTableEdits").onclick=async()=>{
  if(!editSessionActive||!isLayerInEditTarget(currentAttributeLayer())){status("Start Editing this layer before saving table changes.");return}
