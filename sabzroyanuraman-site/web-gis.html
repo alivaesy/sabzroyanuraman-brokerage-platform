@@ -4493,14 +4493,20 @@ function vertexGeometryIsValid(g){
   const line=a=>Array.isArray(a)&&a.length>=2&&a.every(pos);
   const ring=a=>Array.isArray(a)&&a.length>=4&&a.every(pos)&&a[0][0]===a[a.length-1][0]&&a[0][1]===a[a.length-1][1]&&new Set(a.slice(0,-1).map(p=>p[0]+","+p[1])).size>=3;
   if(!g||!g.type)return false;
+  let valid=false;
   switch(g.type){
-    case "Point":return pos(g.coordinates);
-    case "LineString":return line(g.coordinates);
-    case "MultiLineString":return Array.isArray(g.coordinates)&&g.coordinates.length>0&&g.coordinates.every(line);
-    case "Polygon":return Array.isArray(g.coordinates)&&g.coordinates.length>0&&g.coordinates.every(ring);
-    case "MultiPolygon":return Array.isArray(g.coordinates)&&g.coordinates.length>0&&g.coordinates.every(p=>Array.isArray(p)&&p.length>0&&p.every(ring));
+    case "Point":valid=pos(g.coordinates);break;
+    case "LineString":valid=line(g.coordinates);break;
+    case "MultiLineString":valid=Array.isArray(g.coordinates)&&g.coordinates.length>0&&g.coordinates.every(line);break;
+    case "Polygon":valid=Array.isArray(g.coordinates)&&g.coordinates.length>0&&g.coordinates.every(ring);break;
+    case "MultiPolygon":valid=Array.isArray(g.coordinates)&&g.coordinates.length>0&&g.coordinates.every(p=>Array.isArray(p)&&p.length>0&&p.every(ring));break;
     default:return false;
   }
+  if(!valid)return false;
+  if(window.turf&&typeof window.turf.kinks==="function"&&["LineString","MultiLineString","Polygon","MultiPolygon"].includes(g.type)){
+    try{if(window.turf.kinks({type:"Feature",properties:{},geometry:g}).features.length)return false}catch(_){}
+  }
+  return true;
 }
 function restoreVertexGeometry(layer,geometry){
   if(!layer||!geometry)return false;
@@ -4569,10 +4575,11 @@ function editVertices(){
     window._vertexEditOwner=owner;window._vertexEditLayers=selectedLayers;window._vertexEditBaseline=baseline;window._vertexEditLastValid=lastValid;
     window._vertexEditHandler=async function(event){
       if(!editSessionActive||editTarget!==owner){status("Vertex edits ignored because the active edit layer changed.");return}
-      const edited=[];
+      const edited=[],previousValid=new Map();
       event.layers.eachLayer(layer=>{
         if(!layer||typeof layer.toGeoJSON!=="function"||!selectedLayers.includes(layer)||!owner.hasLayer(layer))return;
         const updated=layer.toGeoJSON(),oldFeature=layer.feature||{};
+        previousValid.set(layer,lastValid.get(layer)?JSON.parse(JSON.stringify(lastValid.get(layer))):null);
         updated.properties={...(oldFeature.properties||{}),...(updated.properties||{})};
         if(!vertexGeometryIsValid(updated.geometry)){
           if(restoreVertexGeometry(layer,lastValid.get(layer)))status("Invalid geometry rejected. A line needs at least 2 vertices; polygon rings need at least 3 distinct vertices and a closed boundary.");
@@ -4584,7 +4591,10 @@ function editVertices(){
       if(!edited.length){refreshAll();return}
       const validation=validateAndSyncEditTarget();
       if(!validation.ok){
-        edited.forEach(layer=>restoreVertexGeometry(layer,lastValid.get(layer)));
+        edited.forEach(layer=>{
+          const previous=previousValid.get(layer);
+          if(previous){restoreVertexGeometry(layer,previous);lastValid.set(layer,previous);}
+        });
         refreshAll();status("Vertex edit rejected: "+validation.message);return;
       }
       try{
