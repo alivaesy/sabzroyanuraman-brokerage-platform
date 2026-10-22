@@ -4550,6 +4550,8 @@ function explodeSelectedFeatures(){
   status("Exploded "+replacements.length+" multipart feature(s) into "+replacements.reduce((n,x)=>n+x.parts.length,0)+" feature(s).");
 }
 function mergeSelectedFeatures(){
+  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("merging features"))return;
+  if(!editSessionActive||!editTarget){status("Start Editing before merging features.");return;}
   const records=editableSelectedRecords(false);
   if(records.length<2){status("Select at least two features in the active edit layer to merge.");return;}
   const type=records[0].feature?.geometry?.type;
@@ -4648,8 +4650,11 @@ function splitPolygonWithCutter(feature,cutter){
 }
 
 function splitSelectedLines(){
+  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("splitting features"))return;
+  if(!editSessionActive||!editTarget){status("Start Editing before splitting features.");return;}
   stopSplitDraw();
   const records=editableSelectedRecords(false);if(!records.length)return;
+  if(records.some(r=>(r.owner?.layer||drawn)!==editTarget)){status("Split requires selected features from the active edit layer.");return;}
   const lineMode=records.every(r=>["LineString","MultiLineString"].includes(r.feature?.geometry?.type));
   const polygonMode=records.length===1&&records[0].feature?.geometry?.type==="Polygon";
   if(!lineMode&&!polygonMode){status("Split supports selected lines, or one simple polygon without holes, in the active edit layer.");return;}
@@ -4705,10 +4710,7 @@ function moveSelected(){
     const moved=turf.transformTranslate(r.feature,distance,bearing,{units:"meters"});
     updates.push({r,geometry:moved.geometry});
   });}catch(e){status("Move cancelled: "+(e.message||"geometry transform failed"));return;}
-  recordUndoState();
-  updates.forEach(x=>{x.r.feature.geometry=x.geometry;});
-  rebuildVectorLayerGeometry(updates.map(x=>x.r));refreshAll();updateStandardActionButtons();scheduleAutoSave();
-  status(updates.length+" feature(s) moved "+distance.toFixed(2)+" m; changes queued for autosave.");
+  commitGeometryOperation(updates,"Move").then(ok=>{if(ok)status(updates.length+" feature(s) moved "+distance.toFixed(2)+" m and saved.");});
 }
 function rotateSelected(){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("rotating selected features"))return;
@@ -4729,10 +4731,7 @@ function rotateSelected(){
       updates.push({r,geometry:rotated.geometry});
     });
   }catch(e){status("Rotation cancelled: "+(e.message||"geometry transform failed"));return;}
-  recordUndoState();
-  updates.forEach(x=>{x.r.feature.geometry=x.geometry;});
-  rebuildVectorLayerGeometry(updates.map(x=>x.r));refreshAll();updateStandardActionButtons();scheduleAutoSave();
-  status(updates.length+" feature(s) rotated by "+deg+"°; changes queued for autosave.");
+  commitGeometryOperation(updates,"Rotate").then(ok=>{if(ok)status(updates.length+" feature(s) rotated by "+deg+"° and saved.");});
 }
 function scaleSelected(){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("scaling selected features"))return;
@@ -4754,10 +4753,33 @@ function scaleSelected(){
       updates.push({r,geometry:scaled.geometry});
     });
   }catch(e){status("Scale cancelled: "+(e.message||"geometry transform failed"));return;}
+  commitGeometryOperation(updates,"Scale").then(ok=>{if(ok)status(updates.length+" feature(s) scaled by ×"+factor+" and saved.");});
+}
+async function commitGeometryOperation(updates,label){
+  if(!editSessionActive||!editTarget){status("Start Editing before "+label+".");return false;}
+  if(!Array.isArray(updates)||!updates.length)return false;
+  const originals=updates.map(({r})=>({r,geometry:JSON.parse(JSON.stringify(r.feature.geometry))}));
+  for(const item of updates){
+    if(!item.r||!item.r.feature||!item.geometry||!vertexGeometryIsValid(item.geometry)){
+      status(label+" cancelled: the resulting geometry is invalid.");return false;
+    }
+  }
   recordUndoState();
-  updates.forEach(x=>{x.r.feature.geometry=x.geometry;});
-  rebuildVectorLayerGeometry(updates.map(x=>x.r));refreshAll();updateStandardActionButtons();scheduleAutoSave();
-  status(updates.length+" feature(s) scaled by ×"+factor+"; changes queued for autosave.");
+  try{
+    updates.forEach(({r,geometry})=>{r.feature.geometry=JSON.parse(JSON.stringify(geometry));});
+    rebuildVectorLayerGeometry(updates.map(x=>x.r));
+    const validation=validateAndSyncEditTarget();
+    if(!validation.ok)throw new Error(validation.message);
+    refreshAll();updateStandardActionButtons();
+    const synced=await flushGeodatabaseEdits(),saved=await scheduleAutoSave();
+    status(label+" completed for "+updates.length+" feature(s)."+(synced&&saved?"":" Changes are visible, but saving/synchronization failed; retry Save Edits."));
+    return synced&&saved;
+  }catch(err){
+    originals.forEach(({r,geometry})=>{r.feature.geometry=geometry;});
+    try{rebuildVectorLayerGeometry(originals.map(x=>x.r));refreshAll();}catch(rollbackError){console.error("Geometry rollback failed",rollbackError);}
+    status(label+" cancelled and previous geometry restored where possible: "+(err.message||"validation failed"));
+    return false;
+  }
 }
 function rebuildVectorLayerGeometry(rs){
   rs.forEach(r=>{
@@ -4818,7 +4840,7 @@ function reshapeSelected(){
   if(!r){status("Select one polygon feature first.");return;}
   const type=r.feature?.geometry?.type;
   if(!["Polygon","MultiPolygon"].includes(type)){status("Reshape currently supports Polygon and MultiPolygon features only.");return;}
-  if(!editSessionActive){status("Start Editing before reshaping features.");return;}
+  if(!editSessionActive||!editTarget){status("Start Editing before reshaping features.");return;}
   if(r.owner?.layer!==editTarget){status("The selected feature is not in the active edit layer.");return;}
   if(typeof turf.booleanIntersects!=="function"||typeof turf.booleanWithin!=="function"||typeof turf.difference!=="function"||typeof turf.union!=="function"){
     status("Reshape unavailable: required Turf geometry operations are not loaded.");return;
@@ -5949,16 +5971,12 @@ function snapTool(snapMode="segments"){
     }catch(_){}
   });
   if(!updates.length){$("professionalToolOutput").textContent="Snapping result: no selected point required movement within "+tolerance+" m.";status("No selected points were within tolerance and needed snapping.");return;}
-  // Capture one checkpoint for the entire snap operation so Ctrl+Z restores
-  // all moved points together, just like an ArcMap edit operation.
-  recordUndoState();
-  updates.forEach(x=>{x.r.feature.geometry.coordinates=x.coordinates;});
-  rebuildVectorLayerGeometry(updates.map(x=>x.r));
-  refreshAll();
-  updateStandardActionButtons();
-  scheduleAutoSave();
-  $("professionalToolOutput").textContent="Snapping result: "+updates.length+" of "+selected.length+" selected point(s) moved to the nearest "+(snapMode==="vertices"?"line vertex":snapMode==="both"?"line vertex or segment":"line segment")+" (tolerance "+tolerance+" m).";
-  status(updates.length+" selected point feature(s) snapped to "+snapMode+" (tolerance "+tolerance+" m); changes queued for autosave.");
+  // One atomic checkpoint and validation for the whole snapping operation.
+  const snapUpdates=updates.map(x=>({r:x.r,geometry:{type:"Point",coordinates:x.coordinates}}));
+  commitGeometryOperation(snapUpdates,"Snap").then(ok=>{
+    $("professionalToolOutput").textContent="Snapping result: "+updates.length+" of "+selected.length+" selected point(s) moved to the nearest "+(snapMode==="vertices"?"line vertex":snapMode==="both"?"line vertex or segment":"line segment")+" (tolerance "+tolerance+" m).";
+    if(ok)status(updates.length+" selected point feature(s) snapped to "+snapMode+" (tolerance "+tolerance+" m) and saved.");
+  });
 }
 
 $("exportSHP").onclick=exportRealSHP;
