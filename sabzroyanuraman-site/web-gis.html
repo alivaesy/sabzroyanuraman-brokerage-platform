@@ -3013,7 +3013,7 @@ $("saveTableEdits").onclick=()=>{
  if(!changes.length){status("No attribute changes to save.");return}
  recordUndoState();
  changes.forEach(({item,props})=>{item.feature.properties=props;item.feature.geometry=item.layer.toGeoJSON().geometry;updateFeaturePopup(item.layer)});
- renderEditableTable();scheduleAutoSave();status("Saved attribute changes for "+changes.length+" feature(s).");
+ renderEditableTable();window.__webGisGdbBridge?.save();scheduleAutoSave();status("Saved attribute changes for "+changes.length+" feature(s).");
 };
 function selectedTableIndexes(){
  return [...$("attributeTableWrap").querySelectorAll("tbody tr")].filter(r=>r.querySelector(".row-check")?.checked).map(r=>Number(r.dataset.index));
@@ -3036,7 +3036,7 @@ $("deleteSelectedRows").onclick=()=>{
  targets.forEach(featureLayer=>{layer.removeLayer(featureLayer);selectedFeatures.delete(featureLayer)});
  if(targets.includes(selectedLayer))selectedLayer=null;
  if(targets.includes(selectedOverlay))selectedOverlay=null;
- renderEditableTable();renderLayerList();refreshAttributeLayers();refreshEditorTargets();updateMultiSelectionUI();scheduleAutoSave();
+ renderEditableTable();renderLayerList();refreshAttributeLayers();refreshEditorTargets();updateMultiSelectionUI();window.__webGisGdbBridge?.save();scheduleAutoSave();
  status(targets.length+" feature(s) deleted from the active edit layer.");
 };
 $("copySelectedRows").onclick=()=>{
