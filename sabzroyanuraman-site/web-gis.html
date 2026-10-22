@@ -4503,7 +4503,7 @@ function vertexGeometryIsValid(g){
     default:return false;
   }
   if(!valid)return false;
-  if(window.turf&&typeof window.turf.kinks==="function"&&["LineString","MultiLineString","Polygon","MultiPolygon"].includes(g.type)){
+  if(window.turf&&typeof window.turf.kinks==="function"&&["Polygon","MultiPolygon"].includes(g.type)){
     try{if(window.turf.kinks({type:"Feature",properties:{},geometry:g}).features.length)return false}catch(_){}
   }
   return true;
