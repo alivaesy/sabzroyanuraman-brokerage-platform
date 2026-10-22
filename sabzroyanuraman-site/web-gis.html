@@ -4136,7 +4136,7 @@ function modifyLasso(){
   const onMove=e=>{
     if(!drawing)return;
     const last=points[points.length-1];
-    if(!last||last.distanceTo(e.latlng)>=map.distance(0,0)||last.distanceTo(e.latlng)>=0.5)points.push(e.latlng);
+    if(!last||last.distanceTo(e.latlng)>=0.75)points.push(e.latlng);
     if(preview)preview.setLatLngs(points);
   };
   const onUp=()=>{
