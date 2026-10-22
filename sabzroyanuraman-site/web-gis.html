@@ -1568,7 +1568,7 @@ function goToXY(){
 function drawingLayerForType(type){
   const kind=type==="Marker"?"Point":type==="Polyline"?"Line":"Polygon";
   const name=kind==="Point"?"Points":kind==="Line"?"Lines":"Polygons";
-  let item=namedLayers.find(x=>x._webgisDrawingType===kind);
+  let item=namedLayers.find(x=>x._webgisDrawingType===kind||x.name===name);
   if(!item){const layer=new L.FeatureGroup();layer._webgisDrawingType=kind;addNamedLayer(name,layer,false);item=namedLayers.find(x=>x.layer===layer);if(item)item._webgisDrawingType=kind;}
   if(!item)return drawn;
   selectedOverlay=item.layer;editTarget=item.layer;
