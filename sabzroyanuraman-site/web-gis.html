@@ -5368,7 +5368,8 @@ async function flipLineDirection(){
       if(g.type==="LineString")g.coordinates.reverse();
       else g.coordinates.forEach(line=>line.reverse());
       if(!g.coordinates.length||g.type==="LineString"&&g.coordinates.length<2||g.type==="MultiLineString"&&g.coordinates.some(line=>line.length<2))throw new Error("A line has too few vertices.");
-      changes.push({r,g});
+      if(!vertexGeometryIsValid(g))throw new Error("A reversed line failed geometry validation.");
+      changes.push({r,g,original:JSON.parse(JSON.stringify(r.feature.geometry))});
     });
   }catch(err){status("Flip cancelled: "+err.message);return}
   recordUndoState();
@@ -5380,7 +5381,11 @@ async function flipLineDirection(){
     refreshAll();updateStandardActionButtons();
     const synced=await flushGeodatabaseEdits(),saved=await scheduleAutoSave();
     status("Direction reversed for "+changes.length+" line feature(s)."+(synced&&saved?"":" Local save/synchronization failed; retry Save Edits."));
-  }catch(err){status("Could not reverse line direction: "+err.message)}
+  }catch(err){
+    changes.forEach(({r,original})=>{if(original)r.feature.geometry=original;});
+    try{rebuildVectorLayerGeometry(changes.map(x=>x.r));refreshAll();}catch(_){}
+    status("Could not reverse line direction; original geometry restored where possible: "+err.message);
+  }
 }
 function featureTemplates(){
   const key="sabzRoyanWebGisFeatureTemplates";let templates=[];
@@ -5411,10 +5416,12 @@ function featureTemplates(){
     if(!templates.length){status("Save a feature template first.");return}
     const choice=Number(prompt("Choose template number:\n"+templates.map((t,i)=>(i+1)+". "+t.name+" — "+t.geometryType).join("\n"),"1"));
     if(!Number.isInteger(choice)||choice<1||choice>templates.length){status("Invalid template number.");return}
-    const records=selectedRecords();
-    if(!records.length){status("Select target features before applying a template.");return}
+    if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("applying a feature template"))return;
+    if(!editSessionActive||!editTarget){status("Start Editing the target layer before applying a feature template.");return}
+    const records=selectedRecords().filter(r=>(r.owner?.layer||drawn)===editTarget);
+    if(!records.length){status("Select target features from the active edit layer before applying a template.");return}
     const template=templates[choice-1],compatible=records.filter(r=>r.feature?.geometry?.type===template.geometryType);
-    if(!compatible.length){status("No selected features match template geometry type "+template.geometryType+".");return}
+    if(!compatible.length){status("No selected features in the active edit layer match template geometry type "+template.geometryType+".");return}
     if(!confirm("Apply template attributes to "+compatible.length+" selected feature(s)? Existing fields with matching names will be overwritten."))return;
     recordUndoState();
     const reserved=key=>typeof isReservedAttributeField==="function"&&isReservedAttributeField(key);
