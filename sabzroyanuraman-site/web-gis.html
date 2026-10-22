@@ -2628,7 +2628,7 @@ function renderEditableTable(){
   if(selectedLayer)renderAttributeEditor();else{const editor=$("attributeEditor");if(editor)editor.style.display="none";}
   applySelectionVisual();status("Selection cleared for this attribute table layer.");
  };
- const addFieldBtn=$("attributeAddField");if(addFieldBtn)addFieldBtn.onclick=()=>{
+ const addFieldBtn=$("attributeAddField");if(addFieldBtn)addFieldBtn.onclick=async()=>{
   const layer=currentAttributeLayer();if(!layer)return;
   if(!editSessionActive||!isLayerInEditTarget(layer)){status("Start Editing this feature class before adding fields.");return;}
   const name=prompt("New field name (letters, numbers, underscore):","NEW_FIELD");if(name===null)return;
@@ -2638,9 +2638,9 @@ function renderEditableTable(){
   const fieldType=type.trim().toUpperCase();if(!["TEXT","INTEGER","REAL","DATE"].includes(fieldType)){status("Choose TEXT, INTEGER, REAL, or DATE.");return;}
   recordUndoState();const meta=layer._gdbMetadata||(layer._gdbMetadata={fields:[]});meta.fields=meta.fields||[];meta.fields.push({name:field,type:fieldType});
   items.forEach(item=>{const props=ensureFeatureProperties(item.layer);if(!(field in props))props[field]=null;});
-  window.__webGisGdbBridge?.save();renderEditableTable();status("Field "+field+" ("+fieldType+") added to the feature class.");
+  const synced=await flushGeodatabaseEdits();renderEditableTable();status("Field "+field+" ("+fieldType+") added to the feature class."+(synced?"":" Local autosave failed; retry Save Edits."));
  };
- const deleteFieldBtn=$("attributeDeleteField");if(deleteFieldBtn)deleteFieldBtn.onclick=()=>{
+ const deleteFieldBtn=$("attributeDeleteField");if(deleteFieldBtn)deleteFieldBtn.onclick=async()=>{
   const layer=currentAttributeLayer();if(!layer)return;
   if(hasUnsavedTableEdits()){status("Save or discard pending cell edits before deleting a field.");return}
   if(!editSessionActive||!isLayerInEditTarget(layer)){status("Start Editing this feature class before deleting fields.");return}
@@ -2654,7 +2654,7 @@ function renderEditableTable(){
   items.forEach(item=>{if(item.feature.properties)delete item.feature.properties[actual];updateFeaturePopup(item.layer)});
   if(layer._gdbMetadata?.fields)layer._gdbMetadata.fields=layer._gdbMetadata.fields.filter(f=>(typeof f==="string"?f:f.name)!==actual);
   if(attributeSort.key===actual)attributeSort={key:null,direction:1};
-  window.__webGisGdbBridge?.save();renderEditableTable();scheduleAutoSave();status("Field "+actual+" deleted. Save edits to persist the change.");
+  const synced=await flushGeodatabaseEdits();renderEditableTable();status("Field "+actual+" deleted."+(synced?"":" Local autosave failed; retry Save Edits."));
  };
  const switchSelectionBtn=$("attributeSwitchSelection");if(switchSelectionBtn)switchSelectionBtn.onclick=()=>{
   if(hasUnsavedTableEdits()){status("Save Table Edits before changing selection.");return}
@@ -2971,10 +2971,10 @@ $("addTableField").onclick=()=>{
  recordUndoState();
  if(layer?._gdbMetadata){layer._gdbMetadata.fields=schema;schema.push({name:key,type});}
  items.forEach(x=>{ensureFeatureProperties(x.layer)[key]=null;updateFeaturePopup(x.layer);});
- renderEditableTable();window.__webGisGdbBridge?.save();scheduleAutoSave();status("Field '"+key+"' ("+type+") added to "+items.length+" feature(s).");
+ renderEditableTable();const synced=await flushGeodatabaseEdits();status("Field '"+key+"' ("+type+") added to "+items.length+" feature(s)."+(synced?"":" Local autosave failed; retry Save Edits."));
 };
 
-$("deleteTableField").onclick=()=>{
+$("deleteTableField").onclick=async()=>{
  if(hasUnsavedTableEdits()){status("Save Table Edits before deleting a field; unsaved cell values have been preserved.");return}
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before changing its table.");return}
  const layer=currentAttributeLayer(),items=currentAttributeItems();
@@ -2990,7 +2990,7 @@ $("deleteTableField").onclick=()=>{
  items.forEach(item=>{if(item.feature.properties)delete item.feature.properties[key];updateFeaturePopup(item.layer)});
  if(layer._gdbMetadata?.fields)layer._gdbMetadata.fields=layer._gdbMetadata.fields.filter(f=>(typeof f==="string"?f:f.name)!==key);
  if(attributeSort.key===key)attributeSort={key:null,direction:1};
- renderEditableTable();window.__webGisGdbBridge?.save();scheduleAutoSave();status("Field '"+key+"' deleted from the feature class and "+items.length+" feature(s). Use Undo to reverse this change.");
+ renderEditableTable();const synced=await flushGeodatabaseEdits();status("Field '"+key+"' deleted from the feature class and "+items.length+" feature(s). Use Undo to reverse this change."+(synced?"":" Local autosave failed; retry Save Edits."));
 };
 $("saveTableEdits").onclick=async()=>{
  if(!editSessionActive||!isLayerInEditTarget(currentAttributeLayer())){status("Start Editing this layer before saving table changes.");return}
@@ -3076,7 +3076,7 @@ $("deleteSelectedRows").onclick=async()=>{
  if(targets.includes(selectedLayer))selectedLayer=null;
  if(targets.includes(selectedOverlay))selectedOverlay=null;
  renderEditableTable();renderLayerList();refreshAttributeLayers();refreshEditorTargets();updateMultiSelectionUI();const synced=await flushGeodatabaseEdits();scheduleAutoSave();
- status(targets.length+" feature(s) deleted from the active edit layer."+(synced?"":" Geodatabase sync failed; retry Save Edits before leaving."));
+ status(targets.length+" feature(s) deleted from the active edit layer."+(synced?"":" Local autosave failed; retry Save Edits before leaving."));
 };
 $("copySelectedRows").onclick=()=>{
  if(hasUnsavedTableEdits()){status("Save Table Edits before copying rows; pending cell values have not been applied to the features yet.");return}
