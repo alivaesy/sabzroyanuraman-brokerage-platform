@@ -2520,7 +2520,7 @@ function renderEditableTable(){
    return cmp===0?a.i-b.i:cmp*dir;
   });
  }
- let html="<div class='attribute-schema-toolbar' style='display:flex;gap:5px;align-items:center;flex-wrap:wrap;padding:4px;background:#edf2f5;border-bottom:1px solid #ccd9df'><button type='button' id='attributeAddField' title='Add a field to the feature class'>＋ Add Field</button><button type='button' id='attributeDeleteField' title='Delete a field from the feature class'>− Delete Field</button><button type='button' id='attributeSwitchSelection' title='Invert selection for displayed records'>Switch Selection</button><button type='button' id='attributeSelectByQuery' title='Select records using attribute criteria'>Select By Attributes</button><button type='button' id='attributeZoomSelected' title='Zoom the map to selected records'>Zoom To Selected</button><button type='button' id='attributeClearSelection' title='Clear the current map and table selection'>Clear Selection</button><span id='attributeTableSummary' style='align-self:center;color:#526775'>"+keys.length+" field(s) · "+items.length+" record(s) · "+selectedFeatures.size+" selected</span></div><table class='arc-attribute-grid'><thead><tr><th><input type='checkbox' class='attr-check' id='checkAllRows'></th><th>#</th>"+
+ let html="<div class='attribute-schema-toolbar' style='display:flex;gap:5px;align-items:center;flex-wrap:wrap;padding:4px;background:#edf2f5;border-bottom:1px solid #ccd9df'><button type='button' id='attributeAddField' title='Add a field to the feature class'>＋ Add Field</button><button type='button' id='attributeDeleteField' title='Delete a field from the feature class'>− Delete Field</button><button type='button' id='attributeSwitchSelection' title='Invert selection for displayed records'>Switch Selection</button><button type='button' id='attributeSelectByQuery' title='Select records using attribute criteria'>Select By Attributes</button><button type='button' id='attributeZoomSelected' title='Zoom the map to selected records'>Zoom To Selected</button><button type='button' id='attributeClearSelection' title='Clear the current map and table selection'>Clear Selection</button><button type='button' id='attributeExportCsv' title='Export selected records, or all currently displayed records, as CSV'>Export CSV</button><span id='attributeTableSummary' style='align-self:center;color:#526775'>"+keys.length+" field(s) · "+items.length+" record(s) · "+selectedFeatures.size+" selected</span></div><table class='arc-attribute-grid'><thead><tr><th><input type='checkbox' class='attr-check' id='checkAllRows'></th><th>#</th>"+
  keys.map(k=>"<th data-sort-key='"+esc(k)+"' title='Sort by "+esc(k)+"' style='padding:3px;border-bottom:1px solid #ccd9df;white-space:nowrap;cursor:pointer;user-select:none'>"+esc(k)+(attributeSort.key===k?(attributeSort.direction===1?" ▲":" ▼"):" ↕")+"</th>").join("")+"</tr></thead><tbody>";
  rows.forEach(o=>{html+="<tr data-index='"+o.i+"' tabindex='0' role='row' aria-selected='"+(selectedFeatures.has(o.x.layer)?"true":"false")+"' class='"+(selectedFeatures.has(o.x.layer)?"attribute-row-selected":"")+"'><td><input type='checkbox' class='row-check attr-check' "+(selectedFeatures.has(o.x.layer)?"checked":"")+"></td><td>"+(o.i+1)+"</td>"+
  keys.map(k=>{const v=(o.x.feature.properties||{})[k],shown=v===null||v===undefined?"":typeof v==="object"?JSON.stringify(v):String(v);return "<td style='padding:2px'><input class='cell-edit' data-key='"+esc(k)+"' data-original='"+esc(shown)+"' value='"+esc(shown) +"'></td>"}).join("")+"</tr>"});
@@ -2585,6 +2585,32 @@ function renderEditableTable(){
   selectedLayer=first?.layer||null;selectedOverlay=null;
   applySelectionVisual();updateMultiSelectionUI();renderEditableTable();
   status("Selection switched for "+visibleRows.length+" displayed record(s).");
+ };
+ const exportCsvBtn=$("attributeExportCsv");
+ if(exportCsvBtn)exportCsvBtn.onclick=()=>{
+  if(hasUnsavedTableEdits()){status("Save Table Edits before exporting; unsaved cell values have been preserved.");return}
+  const visible=[...$("attributeTableWrap").querySelectorAll("tbody tr[data-index]")];
+  const selected=visible.filter(row=>{const item=items[Number(row.dataset.index)];return item&&selectedFeatures.has(item.layer)});
+  const sourceRows=selected.length?selected:visible;
+  const csvCell=value=>{const text=String(value===null||value===undefined?"":typeof value==="object"?JSON.stringify(value):value);return '"'+text.replace(/"/g,'""')+'"';};
+  const lines=[keys.map(csvCell).join(",")];
+  sourceRows.forEach(row=>{const item=items[Number(row.dataset.index)];if(item)lines.push(keys.map(key=>csvCell(item.feature.properties?.[key])).join(","));});
+  const blob=new Blob(["\\uFEFF"+lines.join("\\r\\n")],{type:"text/csv;charset=utf-8;"});
+  const url=URL.createObjectURL(blob),link=document.createElement("a");
+  link.href=url;link.download="attribute-table-"+new Date().toISOString().slice(0,10)+".csv";
+  document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  status("Exported "+sourceRows.length+" record(s) to CSV"+(selected.length?" (selected records).":" (displayed records)."));
+ };
+ const clearTableSelectionBtn=$("attributeClearSelection");
+ if(clearTableSelectionBtn)clearTableSelectionBtn.onclick=()=>{clearSelection();syncVisibleAttributeTableSelection();};
+ const zoomTableSelectionBtn=$("attributeZoomSelected");
+ if(zoomTableSelectionBtn)zoomTableSelectionBtn.onclick=()=>{
+  const chosen=getFeatureRecords().filter(item=>selectedFeatures.has(item.layer));
+  if(!chosen.length){status("Select one or more records first.");return}
+  let bounds=null;
+  chosen.forEach(item=>{try{const b=item.layer.getBounds?.();if(b&&b.isValid())bounds=bounds?bounds.extend(b):b;else{const ll=item.layer.getLatLng?.();if(ll)bounds=bounds?bounds.extend(ll):L.latLngBounds([ll,ll]);}}catch(e){}});
+  if(bounds&&bounds.isValid()){map.fitBounds(bounds.pad(0.12),{maxZoom:18});status("Zoomed to "+chosen.length+" selected feature(s).");}
+  else status("The selected features have no usable map bounds.");
  };
  const all=$("checkAllRows"),rowChecks=[...$("attributeTableWrap").querySelectorAll(".row-check")];
  const syncCheckAll=()=>{
