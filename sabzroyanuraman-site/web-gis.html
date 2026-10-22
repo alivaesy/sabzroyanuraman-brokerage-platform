@@ -4009,18 +4009,21 @@ function checkEditTopology(){
       if(b[1]<=a.box[3]&&b[3]>=a.box[1])candidates.push([a,indexed[j]]);
     }
   }
-  if(typeof turf.booleanOverlap==="function"){
-    candidates.forEach(([a,b])=>{try{
-      if(turf.booleanOverlap(a.r.feature,b.r.feature))
-        issues.push({id:a.id,issue:"Polygon overlaps feature "+b.id+" (partial area overlap)"});
-    }catch(e){/* Per-feature checks report invalid geometries. */}});
-  }
-  if(typeof turf.booleanEqual==="function"){
-    candidates.forEach(([a,b])=>{try{
-      if(turf.booleanEqual(a.r.feature,b.r.feature))
-        issues.push({id:a.id,issue:"Duplicate polygon geometry matches feature "+b.id});
-    }catch(e){}});
-  }
+  candidates.forEach(([a,b])=>{try{
+    let overlapArea=0,intersection=null;
+    // Turf 7 accepts a FeatureCollection; retain a legacy fallback for
+    // deployments where the intersection helper still uses two arguments.
+    if(typeof turf.intersect==="function"){
+      try{intersection=turf.intersect(turf.featureCollection([a.r.feature,b.r.feature]));}
+      catch(_){intersection=turf.intersect(a.r.feature,b.r.feature);}
+    }
+    if(intersection&&intersection.geometry)overlapArea=Number(turf.area(intersection))||0;
+    else if(typeof turf.booleanOverlap==="function"&&turf.booleanOverlap(a.r.feature,b.r.feature))overlapArea=0.01;
+    if(overlapArea>0.01){
+      const duplicate=typeof turf.booleanEqual==="function"&&turf.booleanEqual(a.r.feature,b.r.feature);
+      issues.push({id:a.id,issue:(duplicate?"Duplicate polygon geometry matches feature ":"Polygon overlaps feature ")+b.id+" ("+(duplicate?"same geometry":"overlap area "+overlapArea.toFixed(2)+" m²")+")"});
+    }
+  }catch(e){/* Invalid geometries are reported by the per-feature checks. */}});
   const output=$("professionalToolOutput");
   if(output)output.textContent="Topology Check — Layer features: "+records.length+" | Issues: "+issues.length+"\n"+(issues.length?issues.slice(0,100).map(x=>"Feature "+x.id+": "+x.issue).join("\n"):"No basic geometry topology issues detected.")+(issues.length>100?"\n... "+(issues.length-100)+" more issue(s) omitted.":"");
   status(issues.length?"Topology check found "+issues.length+" issue(s) (including polygon overlaps/duplicates where supported); see Tool Output.":"Topology check passed for "+records.length+" feature(s); no basic geometry errors or partial polygon overlaps were detected.");
