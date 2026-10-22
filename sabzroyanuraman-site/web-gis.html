@@ -1112,31 +1112,30 @@ function refreshEditorTargets(){
   editTarget=sel.value==="drawn"?drawn:(namedLayers[Number(sel.value)]?.layer||drawn);
 }
 function startEditing(item=null){
-  // Keep unsaved Attribute Table cells attached to their original edit target.
-  // Switching targets here would make Save Table Edits reject those pending values.
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("changing the edit target"))return;
   if(item&&item.layer!==drawn&&!isVectorLayer(item.layer)){status("This layer cannot be edited.");return}
-  // The target selector is locked during an edit session. The layer context
-  // menu can still invoke this function, so enforce the same rule here.
-  if(editSessionActive&&item&&item.layer!==editTarget){
-    status("Stop the current edit session before switching to another layer.");
-    return;
-  }
   const sel=$("editTargetLayer");
-  if(item){
+  if(item&&sel){
     const idx=namedLayers.findIndex(x=>x.layer===item.layer);
     if(item.layer===drawn)sel.value="drawn";
     else if(idx>=0)sel.value=String(idx);
   }
   const value=sel?.value||"drawn";
-  editTarget=value==="drawn"?drawn:(namedLayers[Number(value)]?.layer||drawn);
-  if(editSessionActive){
-    if(editTarget=== (value==="drawn"?drawn:(namedLayers[Number(value)]?.layer||drawn))){
-      updateEditorToolbar();
-      status("This edit session is already active.");
-    }else status("Stop the current edit session before switching to another layer.");
-    return;
+  const requestedTarget=value==="drawn"?drawn:(namedLayers[Number(value)]?.layer||null);
+  if(!requestedTarget||!isVectorLayer(requestedTarget)){
+    status("Choose a valid vector feature layer before starting editing.");return;
   }
+  // Never overwrite the active target before checking it. Previously the
+  // target was assigned first, making the active-session comparison tautological.
+  if(editSessionActive){
+    if(requestedTarget!==editTarget){
+      if(sel)sel.value=editTarget===drawn?"drawn":String(namedLayers.findIndex(x=>x.layer===editTarget));
+      status("Stop the current edit session before switching to another layer.");return;
+    }
+    updateEditorToolbar();
+    status("This edit session is already active.");return;
+  }
+  editTarget=requestedTarget;
   recordUndoState();
   editSessionActive=true;
   updateEditorToolbar();
