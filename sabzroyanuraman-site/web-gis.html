@@ -1673,7 +1673,7 @@ function createMapViewer(){
   {id:"buffer",name:"Buffer",param:"distance",value:100},{id:"clip",name:"Clip",binary:true},{id:"intersection",name:"Intersect",binary:true},{id:"erase",name:"Erase",binary:true},{id:"union",name:"Union",binary:true},
   {id:"dissolve",name:"Dissolve",multi:true},{id:"merge",name:"Merge",binary:true},{id:"split",name:"Split Lines",binary:true},
   {id:"centroid",name:"Feature To Point (Centroid)"},{id:"pointOnFeature",name:"Feature To Point (Inside)"},{id:"convexHull",name:"Minimum Bounding Geometry (Convex Hull)"},{id:"boundingBox",name:"Minimum Bounding Geometry (Envelope)"},
-  {id:"simplify",name:"Simplify Geometry",param:"tolerance",value:0.001},{id:"boundary",name:"Polygon To Boundary"},{id:"area",name:"Calculate Area"},{id:"length",name:"Calculate Length"},{id:"count",name:"Get Feature Count"}
+  {id:"simplify",name:"Simplify Geometry",param:"tolerance",value:0.001},{id:"boundary",name:"Polygon To Boundary"},{id:"selectByLocation",name:"Select By Location",binary:true},{id:"spatialJoin",name:"Spatial Join",binary:true},{id:"area",name:"Calculate Area"},{id:"length",name:"Calculate Length"},{id:"count",name:"Get Feature Count"}
  ];
  let model=[],nextId=1;const clone=x=>JSON.parse(JSON.stringify(x)),poly=g=>g&&["Polygon","MultiPolygon"].includes(g.type);
  function say(t){statusEl.textContent=t}function open(){modal.classList.add("show");renderTools();renderNodes()}function close(){modal.classList.remove("show")}window.openModelBuilder=open;
@@ -1704,7 +1704,14 @@ function createMapViewer(){
   else if(op==="count")out={type:"FeatureCollection",features:features.map(x=>({...x,properties:{...(x.properties||{}),_feature_count:features.length,_operation:op}}))};
   else if(op==="dissolve"){const ps=features.filter(x=>poly(x.geometry));if(!ps.length)throw Error("Dissolve requires polygon input.");out=ps.slice(1).reduce((acc,x)=>acc?turf.union(turf.featureCollection([acc,x])):x,clone(ps[0]));if(out)out=addOp(out,{_source_count:ps.length})}
   else {
-   if(op==="merge"){
+   if(op==="selectByLocation"){
+    if(!overlay?.geometry)throw Error("Select an overlay feature with Shift-click.");
+    out={type:"FeatureCollection",features:features.filter(x=>{try{return turf.booleanIntersects(x,overlay)}catch(_){return false}})};
+   } else if(op==="spatialJoin"){
+    if(!overlay?.geometry)throw Error("Select an overlay feature with Shift-click.");
+    const attrs=overlay.properties||{};
+    out={type:"FeatureCollection",features:features.map(x=>({...clone(x),properties:{...(x.properties||{}),...Object.fromEntries(Object.entries(attrs).map(([k,v])=>["_join_"+k,v])),_join_match:turf.booleanIntersects(x,overlay),_operation:op}})).filter(x=>x.properties._join_match)};
+   } else if(op==="merge"){
     if(!overlay?.geometry)throw Error("Select an overlay feature with Shift-click.");
     out={type:"FeatureCollection",features:[...features,...fc(overlay).features].map((x,i)=>({...clone(x),properties:{...(x.properties||{}),_operation:op,_part:i+1}}))};
    } else {
