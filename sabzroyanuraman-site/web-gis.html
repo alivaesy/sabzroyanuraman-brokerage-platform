@@ -4704,8 +4704,11 @@ function editableSelectedRecords(recordHistory=true){
   return rs;
 }
 function explodeSelectedFeatures(){
+  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("exploding multipart features"))return;
+  if(!editSessionActive||!editTarget){status("Start Editing the target layer before exploding multipart features.");return;}
   const records=editableSelectedRecords(false);
   if(!records.length)return;
+  if(records.some(r=>(r.owner?.layer||drawn)!==editTarget)){status("Explode requires all selected features to belong to the active edit layer.");return;}
   const multipart=records.filter(r=>["MultiPoint","MultiLineString","MultiPolygon"].includes(r.feature?.geometry?.type));
   if(multipart.length!==records.length){status("Explode requires only multipart features in the selection; deselect single-part features and try again.");return;}
   if(!multipart.length){status("Select at least one MultiPoint, MultiLineString, or MultiPolygon feature.");return;}
