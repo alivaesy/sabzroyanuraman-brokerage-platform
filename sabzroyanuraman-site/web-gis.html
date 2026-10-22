@@ -3160,7 +3160,7 @@ $("copySelectedRows").onclick=()=>{
  attributeClipboard={keys:[...keys],rows:inds.map(i=>{const p=items[i].feature.properties||{};return keys.map(k=>Object.prototype.hasOwnProperty.call(p,k)?p[k]:undefined)})};
  status(attributeClipboard.rows.length+" rows copied.");
 };
-$("pasteRows").onclick=()=>{
+$("pasteRows").onclick=async()=>{
  if(hasUnsavedTableEdits()){status("Save Table Edits before pasting rows; unsaved cell values have been preserved.");return}
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before pasting rows.");return}
  if(!attributeClipboard?.rows?.length||!Array.isArray(attributeClipboard.keys)){status("Copy rows before pasting.");return}
@@ -3215,9 +3215,11 @@ $("pasteRows").onclick=()=>{
  changed.forEach(({item,props})=>{
   item.feature.properties=props;item.feature.geometry=item.layer.toGeoJSON().geometry;updateFeaturePopup(item.layer);
  });
- renderEditableTable();window.__webGisGdbBridge?.save();scheduleAutoSave();status("Pasted values into "+changed.length+" rows.");
+ renderEditableTable();
+ const synced=await flushGeodatabaseEdits(),projectSaved=await scheduleAutoSave();
+ status("Pasted values into "+changed.length+" rows."+(synced&&projectSaved?"":" Local save/sync failed; retry Save Edits before leaving."));
 };
-$("fillSelected").onclick=()=>{
+$("fillSelected").onclick=async()=>{
  if(hasUnsavedTableEdits()){status("Save Table Edits before calculating fields; unsaved cell values have been preserved.");return}
  if(!editSessionActive||currentAttributeLayer()!==editTarget){status("Start Editing this layer before calculating fields.");return}
  const raw=$("fillValue").value,items=currentAttributeItems(),inds=selectedTableIndexes();
@@ -3258,7 +3260,9 @@ $("fillSelected").onclick=()=>{
  if(!changed.length){status("The selected features already have this value.");return}
  recordUndoState();
  changed.forEach(({item,value})=>{ensureFeatureProperties(item.layer);item.feature.properties[key]=value;updateFeaturePopup(item.layer)});
- renderEditableTable();window.__webGisGdbBridge?.save();scheduleAutoSave();status("Calculated field '"+key+"' for "+changed.length+" feature(s).");
+ renderEditableTable();
+ const synced=await flushGeodatabaseEdits(),projectSaved=await scheduleAutoSave();
+ status("Calculated field '"+key+"' for "+changed.length+" feature(s)."+(synced&&projectSaved?"":" Local save/sync failed; retry Save Edits before leaving."));
 };
 $("measureSelected").onclick=()=>{if(selectedLayer)calcMeasure(selectedLayer);else status("Select a feature on the map first.");};
 $("basemap").onchange=e=>selectBasemap(e.target.value);
