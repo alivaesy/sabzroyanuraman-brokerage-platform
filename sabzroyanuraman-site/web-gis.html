@@ -5576,7 +5576,9 @@ function showVerticesTool(){
 }
 async function repairSelectedGeometry(){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("repairing selected geometry"))return;
+  if(!editSessionActive||!editTarget){status("Start Editing the target layer before repairing geometry.");return;}
   const records=editableSelectedRecords(false);if(!records.length)return;
+  if(records.some(r=>(r.owner?.layer||drawn)!==editTarget)){status("Repair requires all selected features to belong to the active edit layer.");return;}
   const updates=[];let unchanged=0;
   const same=(a,b)=>Array.isArray(a)&&Array.isArray(b)&&a.length>=2&&b.length>=2&&Number(a[0])===Number(b[0])&&Number(a[1])===Number(b[1]);
   const cleanLine=coords=>{
@@ -5614,8 +5616,11 @@ async function repairSelectedGeometry(){
   if(ok)status("Repaired "+updates.length+" selected feature(s); "+unchanged+" already needed no changes.");
 }
 async function flipLineDirection(){
+  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("reversing line direction"))return;
+  if(!editSessionActive||!editTarget){status("Start Editing the target layer before reversing line direction.");return;}
   const records=editableSelectedRecords(false);
   if(!records.length)return;
+  if(records.some(r=>(r.owner?.layer||drawn)!==editTarget)){status("Flip Line Direction requires all selected features to belong to the active edit layer.");return;}
   if(records.some(r=>!["LineString","MultiLineString"].includes(r.feature?.geometry?.type))){
     status("Flip Line Direction accepts only selected LineString or MultiLineString features.");return;
   }
