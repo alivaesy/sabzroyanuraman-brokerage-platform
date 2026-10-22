@@ -3158,7 +3158,7 @@ $("fillSelected").onclick=()=>{
  if(!changed.length){status("The selected features already have this value.");return}
  recordUndoState();
  changed.forEach(({item,value})=>{ensureFeatureProperties(item.layer);item.feature.properties[key]=value;updateFeaturePopup(item.layer)});
- renderEditableTable();scheduleAutoSave();status("Calculated field '"+key+"' for "+changed.length+" feature(s).");
+ renderEditableTable();window.__webGisGdbBridge?.save();scheduleAutoSave();status("Calculated field '"+key+"' for "+changed.length+" feature(s).");
 };
 $("measureSelected").onclick=()=>{if(selectedLayer)calcMeasure(selectedLayer);else status("Select a feature on the map first.");};
 $("basemap").onchange=e=>selectBasemap(e.target.value);
@@ -4426,7 +4426,7 @@ function reshapeSelected(){
       if(JSON.stringify(original.geometry)===JSON.stringify(result.geometry)){status("Reshape made no geometry changes.");return;}
       recordUndoState();
       r.feature.geometry=result.geometry;
-      rebuildVectorLayerGeometry([r]);refreshAll();scheduleAutoSave();
+      rebuildVectorLayerGeometry([r]);refreshAll();window.__webGisGdbBridge?.save();scheduleAutoSave();
       status(cut?"Selected polygon reshaped by removing the drawn interior area.":"Selected polygon reshaped by merging the drawn area.");
     }catch(err){console.error("Reshape failed",err);status("Reshape failed: "+(err.message||"geometry operation error"));}
   };
@@ -4451,7 +4451,7 @@ function stopVertexEditing(){
     });
     if(geometryChanged&&baseline&&!historyRestoring){
       pushUndoSnapshot(baseline);
-      refreshAll();scheduleAutoSave();
+      refreshAll();window.__webGisGdbBridge?.save();scheduleAutoSave();
       status("Vertex edits finalized and added to Undo history.");
     }
   }
@@ -4500,7 +4500,7 @@ function editVertices(){
         }
       }catch(err){console.warn("Could not preserve vertex-edit history:",err)}
       refreshAll();
-      scheduleAutoSave();
+      window.__webGisGdbBridge?.save();scheduleAutoSave();
       status("Saved vertex edits for "+edited.length+" selected feature(s).");
     };
     map.on(L.Draw.Event.EDITED,window._vertexEditHandler);
