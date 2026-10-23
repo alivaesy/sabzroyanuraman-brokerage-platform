@@ -4952,6 +4952,36 @@ function splitPolygonAtTargetArea(feature,referenceLine,targetAreaM2,side){
   return {parts:best.parts,actualArea:best.area,targetArea:targetAreaM2};
 }
 
+function splitPolygonByRotatingCut(feature,referenceLine,targetAreaM2,side,direction){
+  if(feature?.geometry?.type!=="Polygon")throw new Error("Rotating target-area cut currently requires a single Polygon.");
+  const coords=referenceLine?.geometry?.coordinates||[];
+  if(coords.length<2)throw new Error("Draw a starting line from the pivot point.");
+  const pivot=coords[0],end=coords[coords.length-1],dx=end[0]-pivot[0],dy=end[1]-pivot[1],startAngle=Math.atan2(dy,dx);
+  const total=turf.area(feature);
+  if(!Number.isFinite(targetAreaM2)||targetAreaM2<=0||targetAreaM2>=total)throw new Error("Target area must be greater than zero and smaller than the polygon area.");
+  if(!turf.booleanPointInPolygon(turf.point(pivot),feature))throw new Error("The first point of the drawn line must be inside the polygon.");
+  const bbox=turf.bbox(feature),span=Math.max(Math.hypot(bbox[2]-bbox[0],bbox[3]-bbox[1])*3,0.001),steps=180,candidates=[];
+  for(let i=0;i<=steps;i++){
+    const angle=startAngle+(direction==="ccw"?1:-1)*Math.PI*2*i/steps;
+    const cutter=turf.lineString([[pivot[0]-Math.cos(angle)*span,pivot[1]-Math.sin(angle)*span],[pivot[0]+Math.cos(angle)*span,pivot[1]+Math.sin(angle)*span]]);
+    try{
+      const parts=splitPolygonWithCutter(feature,cutter);
+      const scored=parts.map(part=>{
+        const p=turf.centroid(part).geometry.coordinates;
+        const cross=Math.cos(angle)*(p[1]-pivot[1])-Math.sin(angle)*(p[0]-pivot[0]);
+        return {area:turf.area(part),isLeft:cross>=0};
+      });
+      const chosen=scored.find(x=>x.isLeft===(side!=="right"));
+      if(chosen)candidates.push({parts,area:chosen.area,diff:Math.abs(chosen.area-targetAreaM2)});
+    }catch(_){}
+  }
+  if(!candidates.length)throw new Error("No valid rotating cut found; ensure the pivot point is inside the polygon.");
+  candidates.sort((a,b)=>a.diff-b.diff);
+  const best=candidates[0];
+  if(best.diff>Math.max(1,total*0.003))throw new Error("Could not reach the target area accurately; try another pivot point.");
+  return {parts:best.parts,actualArea:best.area,targetArea:targetAreaM2};
+}
+
 function splitSelectedLines(){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("splitting features"))return;
   if(!editSessionActive||!editTarget){status("Start Editing before splitting features.");return;}
@@ -4974,17 +5004,26 @@ function splitSelectedLines(){
       if(polygonMode){
         const source=records[0].feature,g=source.geometry;
         let parts;
-        const splitMode=prompt("Polygon cut mode:\\n1 = Cut along the drawn line\\n2 = Parallel cut by target area","1");
+        const splitMode=prompt("Polygon cut mode:\\n1 = Cut along the drawn line\\n2 = Parallel cut by target area\\n3 = Rotate cut around the first drawn point to target area","1");
         if(splitMode===null)return;
-        if(splitMode.trim()==="2"){
+        if(splitMode.trim()==="2"||splitMode.trim()==="3"){
+          if(g.type!=="Polygon")throw new Error("Target-area cuts currently require a single Polygon.");
           const rawArea=prompt("Target area in square meters (m²):",String(Math.round(turf.area(source)/2)));
           if(rawArea===null)return;
           const targetArea=Number(rawArea);
-          const sideAnswer=prompt("Keep target area on which side of the drawn reference line? Type left or right","left");
+          const sideAnswer=prompt("Keep target area on which side of the cut? Type left or right","left");
           if(sideAnswer===null)return;
           const side=sideAnswer.trim().toLowerCase();
           if(!["left","right"].includes(side))throw new Error("Side must be left or right.");
-          const result=splitPolygonAtTargetArea(source,cutter,targetArea,side);
+          let result;
+          if(splitMode.trim()==="2")result=splitPolygonAtTargetArea(source,cutter,targetArea,side);
+          else{
+            const directionAnswer=prompt("Rotation direction: type clockwise or counterclockwise","clockwise");
+            if(directionAnswer===null)return;
+            const direction=directionAnswer.trim().toLowerCase();
+            if(!["clockwise","counterclockwise"].includes(direction))throw new Error("Direction must be clockwise or counterclockwise.");
+            result=splitPolygonByRotatingCut(source,cutter,targetArea,side,direction==="counterclockwise"?"ccw":"cw");
+          }
           parts=result.parts;
           status("Target-area cut: "+Math.round(result.actualArea).toLocaleString()+" m² (target "+Math.round(targetArea).toLocaleString()+" m²).");
         }else if(splitMode.trim()!=="1")throw new Error("Choose 1 for drawn-line cut or 2 for target-area parallel cut.");
