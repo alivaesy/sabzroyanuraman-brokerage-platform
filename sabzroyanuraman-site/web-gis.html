@@ -3955,11 +3955,19 @@ function layerToProjectItem(item){
   const features=[],styles=[];
   if(layer&&layer.eachLayer){
     layer.eachLayer(l=>{
-      try{
-        const f=l.toGeoJSON();
-        if(f&&f.features)f.features.forEach(x=>{features.push(x);styles.push(projectStyleOf(l))});
-        else if(f&&f.geometry){features.push(f);styles.push(projectStyleOf(l))}
-      }catch(e){}
+      // Never silently omit a feature from a project snapshot. A partial save
+      // can otherwise pass the IndexedDB read-after-write check as "complete".
+      let f;
+      try{f=l.toGeoJSON()}catch(e){throw new Error("Could not serialize feature in layer '"+item.name+"': "+(e?.message||e))}
+      const addFeature=x=>{
+        if(!x||x.type!=="Feature"||!x.geometry||typeof x.geometry.type!=="string"||!x.properties||typeof x.properties!=="object"||Array.isArray(x.properties)){
+          throw new Error("Incomplete feature or attributes in layer '"+item.name+"'; project was not saved.");
+        }
+        features.push(x);styles.push(projectStyleOf(l));
+      };
+      if(f&&Array.isArray(f.features))f.features.forEach(addFeature);
+      else if(f&&f.type==="Feature")addFeature(f);
+      else throw new Error("Unsupported feature data in layer '"+item.name+"'; project was not saved.");
     });
   }
   const wms=layer instanceof L.TileLayer && layer.options && layer.options.layers ? {
@@ -3993,7 +4001,14 @@ function serializeProject(){
     activeLayer: selectedLayer ? {source:"layer",name:namedLayers.find(x=>x.layer===selectedLayer)?.name||null} : (selectedOverlay ? {source:"layer",name:namedLayers.find(x=>x.layer===selectedOverlay)?.name||null} : {source:"drawn"}),
     gdbCatalog:typeof gdbCatalogToJSON==="function"?gdbCatalogToJSON():null
   };
-  drawn.eachLayer(l=>{try{const f=l.toGeoJSON();if(f&&f.geometry){project.drawn.push(f);project.drawnStyles.push(projectStyleOf(l))}}catch(e){}});
+  drawn.eachLayer(l=>{
+    let f;
+    try{f=l.toGeoJSON()}catch(e){throw new Error("Could not serialize a drawing: "+(e?.message||e))}
+    if(!f||f.type!=="Feature"||!f.geometry||typeof f.geometry.type!=="string"||!f.properties||typeof f.properties!=="object"||Array.isArray(f.properties)){
+      throw new Error("A drawing has incomplete geometry or attributes; project was not saved.");
+    }
+    project.drawn.push(f);project.drawnStyles.push(projectStyleOf(l));
+  });
   namedLayers.forEach(x=>project.layers.push(layerToProjectItem(x)));
   selectedFeatures.forEach(featureLayer=>{
     const drawnIndex=drawn.getLayers().indexOf(featureLayer);
