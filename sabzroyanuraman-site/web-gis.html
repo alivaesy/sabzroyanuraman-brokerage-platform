@@ -1198,6 +1198,20 @@ function startEditing(item=null){
     if(item.layer===drawn)sel.value="drawn";
     else if(idx>=0)sel.value=String(idx);
   }
+  // When editing starts after selecting a feature, use that feature's owning vector layer.
+  // This keeps selection and editing connected instead of silently targeting My Drawings.
+  if(!item&&selectedFeatures.size&&sel){
+    const records=selectedRecords();
+    const owners=[...new Set(records.map(r=>r.owner?.layer).filter(Boolean))];
+    if(owners.length>1){
+      status("Selected features belong to multiple layers. Select features from one layer before editing.");
+      return;
+    }
+    if(owners.length===1){
+      const owner=owners[0];
+      sel.value=owner===drawn?"drawn":String(namedLayers.findIndex(x=>x.layer===owner));
+    }
+  }
   const value=sel?.value||"drawn";
   const requestedTarget=value==="drawn"?drawn:(namedLayers[Number(value)]?.layer||null);
   if(!requestedTarget||!isVectorLayer(requestedTarget)){
@@ -2317,7 +2331,7 @@ document.getElementById("panMapBtn")?.addEventListener("click",()=>{
   document.getElementById("panMapBtn")?.classList.add("active");
   map.dragging.enable();status("Pan tool is active.");
 });
-$("selectFeaturesBtn").onclick=()=>{activeMapTool="select";document.querySelectorAll("#classicToolbars button").forEach(x=>x.classList.remove("active"));$("selectFeaturesBtn").classList.add("active");status("Select Features is active. Ctrl-click or Shift-click to add features.")};
+$("selectFeaturesBtn").onclick=()=>{stopActiveDraw(true);activeMapTool="select";map.dragging.enable();map.getContainer().style.cursor="";document.querySelectorAll("#classicToolbars button").forEach(x=>x.classList.remove("active"));$("selectFeaturesBtn").classList.add("active");status("Select Features is active. Click an existing feature to select it; Ctrl-click or Shift-click adds/removes features.")};
 $("selectRectangleBtn")?.addEventListener("click",selectByRectangle);
 $("selectPolygonBtn")?.addEventListener("click",selectByPolygon);
 $("identifyFeatureBtn").onclick=()=>{activeMapTool="identify";document.querySelectorAll("#classicToolbars button").forEach(x=>x.classList.remove("active"));$("identifyFeatureBtn").classList.add("active");status("Click a feature to identify it.")};
