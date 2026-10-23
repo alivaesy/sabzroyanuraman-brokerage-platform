@@ -416,6 +416,12 @@ body{background:#dfe5e8;color:#173b57}
 #gisNoticeStack{position:fixed;right:18px;bottom:44px;z-index:20000;display:flex;flex-direction:column;gap:8px;max-width:min(380px,calc(100vw - 36px));pointer-events:none}
 .gis-notice{pointer-events:auto;background:#fff;border:1px solid #b9c9d1;border-left:4px solid #146c43;color:#173b57;padding:11px 14px;box-shadow:0 5px 20px #18384a26;border-radius:4px;font-size:13px;line-height:1.5;display:flex;gap:12px;align-items:flex-start}
 .gis-notice button{border:0;background:transparent;color:#526b79;font-size:18px;line-height:1;cursor:pointer;padding:0}
+
+.gis-ask-overlay{position:fixed;inset:0;z-index:20001;background:#102b3d66;display:flex;align-items:center;justify-content:center;padding:16px;direction:ltr}
+.gis-ask-panel{width:min(440px,96vw);background:#f7f9fa;border:1px solid #8ea5b1;box-shadow:0 12px 36px #102b3d55;padding:16px;color:#173b57;border-radius:3px}
+.gis-ask-panel h3{margin:0 0 10px;font-size:15px;color:#07573e}.gis-ask-panel p{margin:0 0 12px;white-space:pre-wrap;font-size:13px;line-height:1.5}
+.gis-ask-panel input{width:100%;height:36px;padding:6px 9px;border:1px solid #9aadb7;border-radius:2px;background:#fff;color:#173b57}
+.gis-ask-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}.gis-ask-actions button{padding:7px 16px;border:1px solid #a6b6bf;border-radius:2px;cursor:pointer}.gis-ask-cancel{background:#fff;color:#173b57}.gis-ask-ok{background:#146c43;color:#fff;border-color:#146c43!important}
 </style>
 <style>
 /* ArcMap Editor task menu + KMZ support */
@@ -5923,41 +5929,41 @@ function searchFeature(){
   if(typeof renderAttributeEditor==="function")renderAttributeEditor();
   status(matches.length+" matching feature(s) selected.");
 }
-function addBookmark(){
-  const name=prompt("Bookmark name:","Current Extent");if(!name)return;
+async function addBookmark(){
+  const name=await gisAsk("Add Bookmark","Bookmark name:","Current Extent");if(!name)return;
   const b=map.getBounds();const bookmarks=JSON.parse(localStorage.getItem("sabzroyan-bookmarks")||"[]");bookmarks.push({name,bounds:b.toBBoxString(),zoom:map.getZoom()});localStorage.setItem("sabzroyan-bookmarks",JSON.stringify(bookmarks));status("Bookmark saved.");
 }
-function showBookmarks(){
+async function showBookmarks(){
   const bs=JSON.parse(localStorage.getItem("sabzroyan-bookmarks")||"[]");if(!bs.length){status("No bookmarks are available.");return;}
-  const n=prompt("Bookmark name:\n"+bs.map(x=>x.name).join("\n"),bs[0].name);const b=bs.find(x=>x.name===n);if(b){const a=b.bounds.split(",").map(Number);map.fitBounds([[a[1],a[0]],[a[3],a[2]]]);}
+  const n=await gisAsk("Go To Bookmark","Choose a bookmark name:\n"+bs.map(x=>x.name).join("\n"),bs[0].name);const b=bs.find(x=>x.name===n);if(b){const a=b.bounds.split(",").map(Number);map.fitBounds([[a[1],a[0]],[a[3],a[2]]]);}
 }
-function layerTransparency(){
-  const rs=getFeatureRecords();if(!rs.length)return;const v=Math.max(0,Math.min(1,Number(prompt("Transparency (0 to 1):","0.5"))));rs.forEach(r=>{if(r.layer.setStyle)r.layer.setStyle({opacity:v,fillOpacity:v});});status("Transparency updated.");
+async function layerTransparency(){
+  const rs=getFeatureRecords();if(!rs.length)return;const raw=await gisAsk("Layer Transparency","Enter transparency from 0 (transparent) to 1 (opaque):","0.5");if(raw===null)return;const v=Number(raw);if(!Number.isFinite(v)||v<0||v>1){status("Transparency must be between 0 and 1.");return}rs.forEach(r=>{if(r.layer.setStyle)r.layer.setStyle({opacity:v,fillOpacity:v});});status("Transparency updated.");
 }
-function styleLayer(){
+async function styleLayer(){
   const rs=getFeatureRecords().filter(r=>r.layer&&typeof r.layer.setStyle==="function");
   if(!rs.length){status("No stylable vector features are available.");return;}
-  const colInput=prompt("Outline and fill color (HEX, e.g. #146c43):","#146c43");
+  const colInput=await gisAsk("Layer Symbology","Outline and fill color (HEX, e.g. #146c43):","#146c43");
   if(colInput===null)return;
   const col=colInput.trim();
   if(!/^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(col)){status("Enter a valid 3-, 6-, or 8-digit HEX color.");return;}
-  const widthInput=prompt("Outline width (0.5–20 pixels):","2");
+  const widthInput=await gisAsk("Layer Symbology","Outline width (0.5–20 pixels):","2");
   if(widthInput===null)return;
   const w=Number(widthInput);
   if(!Number.isFinite(w)||w<0.5||w>20){status("Outline width must be between 0.5 and 20 pixels.");return;}
-  const opacityInput=prompt("Fill opacity (0–1):","0.2");
+  const opacityInput=await gisAsk("Layer Symbology","Fill opacity (0–1):","0.2");
   if(opacityInput===null)return;
   const opacity=Number(opacityInput);
   if(!Number.isFinite(opacity)||opacity<0||opacity>1){status("Fill opacity must be between 0 and 1.");return;}
   rs.forEach(r=>{try{r.layer.setStyle({color:col,weight:w,fillColor:col,fillOpacity:opacity});}catch(e){console.debug("Skipped unsupported feature style",e);}});
   status("Symbology applied to "+rs.length+" feature(s).");
 }
-function labelLayer(){
+async function labelLayer(){
   const rs=getFeatureRecords();
   if(!rs.length){status("No vector features are available for labeling.");return;}
   const fields=[...new Set(rs.flatMap(r=>Object.keys(r.feature.properties||{}).filter(k=>!isReservedAttributeField(k))))];
   if(!fields.length){status("Features have no attribute fields to use as labels.");return;}
-  const fieldInput=prompt("Label field (case-sensitive):\n"+fields.join(", "),fields.includes("name")?"name":fields[0]);
+  const fieldInput=await gisAsk("Label Features","Label field (case-sensitive):\n"+fields.join(", "),fields.includes("name")?"name":fields[0]);
   if(fieldInput===null)return;
   const field=fieldInput.trim();
   if(!fields.includes(field)){status("Unknown label field. Choose one of the listed fields.");return;}
@@ -6489,6 +6495,24 @@ function addMapDecoration(kind){
       identify:()=>document.getElementById("identifyFeatureBtn")?.click(),
       zoomOut:()=>map.zoomOut(),
       pan:()=>document.getElementById("panMapBtn")?.click(),
+      function gisAsk(title,message,initialValue=""){
+        return new Promise(resolve=>{
+          let root=document.getElementById("gisAskDialog");
+          if(root)root.remove();
+          root=document.createElement("div");root.id="gisAskDialog";root.className="gis-ask-overlay";
+          const panel=document.createElement("section");panel.className="gis-ask-panel";panel.setAttribute("role","dialog");panel.setAttribute("aria-modal","true");panel.setAttribute("aria-labelledby","gisAskTitle");
+          const heading=document.createElement("h3");heading.id="gisAskTitle";heading.textContent=title||"Tool settings";
+          const detail=document.createElement("p");detail.textContent=message||"";
+          const input=document.createElement("input");input.type="text";input.value=initialValue??"";input.setAttribute("aria-label",title||"Value");
+          const actions=document.createElement("div");actions.className="gis-ask-actions";
+          const cancel=document.createElement("button");cancel.type="button";cancel.className="gis-ask-cancel";cancel.textContent="Cancel";
+          const ok=document.createElement("button");ok.type="button";ok.className="gis-ask-ok";ok.textContent="OK";
+          let settled=false;const finish=value=>{if(settled)return;settled=true;root.remove();document.removeEventListener("keydown",onKey);resolve(value)};
+          const onKey=e=>{if(e.key==="Escape"){e.preventDefault();finish(null)}else if(e.key==="Enter"&&document.activeElement===input){e.preventDefault();finish(input.value)}};
+          cancel.onclick=()=>finish(null);ok.onclick=()=>finish(input.value);root.addEventListener("click",e=>{if(e.target===root)finish(null)});
+          actions.append(cancel,ok);panel.append(heading,detail,input,actions);root.appendChild(panel);document.body.appendChild(root);document.addEventListener("keydown",onKey);input.focus();input.select();
+        });
+      }
       function gisNotify(message){
         let stack=document.getElementById("gisNoticeStack");
         if(!stack){stack=document.createElement("div");stack.id="gisNoticeStack";stack.setAttribute("aria-live","polite");stack.setAttribute("aria-atomic","false");document.body.appendChild(stack);}
