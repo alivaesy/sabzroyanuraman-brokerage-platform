@@ -3343,7 +3343,7 @@ function evaluateAttributeFieldExpression(expression,properties){
  }
  // Arithmetic expressions only: no property access, statements, or arbitrary JS.
  if(!/^[\d\s.+\-*/()%<>=!&|?:,"'A-Za-z_]+$/.test(expr))throw new Error("Expression contains unsupported characters.");
- if(/[A-Za-z_$][\w$]*\s*\./.test(expr)||/\b(?:new|this|window|document|globalThis|function|return|import|constructor|prototype|eval)\b/i.test(expr))throw new Error("Only field references and arithmetic expressions are allowed.");
+ if(/[A-Za-z_$][\w$]*\s*\./.test(expr)||/\b(?:new|this|window|document|globalThis|function|return|import|constructor|prototype|eval)\b/i.test(expr)||/\b[A-Za-z_$][\w$]*\s*\(/.test(expr)||/\b(?!true\b|false\b|null\b)[A-Za-z_$][\w$]*\b/i.test(expr))throw new Error("Only field references, literals, arithmetic and supported functions are allowed.");
  let value;
  try{value=Function('"use strict";return ('+expr+');')()}catch(_){throw new Error("Invalid expression. Example: !POPULATION! / 100 or UPPER(!NAME!).");}
  if(value===undefined||typeof value==="function"||typeof value==="object"&&value!==null)throw new Error("Expression must return a single scalar value.");
@@ -4878,41 +4878,44 @@ document.addEventListener("keydown",event=>{if(event.key==="Escape"&&window._spl
 
 function splitPolygonWithCutter(feature,cutter){
   const g=feature?.geometry;
-  if(g?.type!=="Polygon"||!Array.isArray(g.coordinates)||g.coordinates.length!==1)
-    throw new Error("Polygon split currently requires one simple polygon without holes.");
+  if(g?.type!=="Polygon"||!Array.isArray(g.coordinates)||!g.coordinates.length)throw new Error("Split requires a valid Polygon with an outer ring.");
   const ring=g.coordinates[0];
   if(!Array.isArray(ring)||ring.length<4)throw new Error("The polygon boundary is invalid.");
-  if(typeof turf.lineIntersect!=="function"||typeof turf.lineSlice!=="function"||typeof turf.nearestPointOnLine!=="function")
-    throw new Error("Required Turf line operations are unavailable.");
+  if(typeof turf.lineIntersect!=="function"||typeof turf.lineSlice!=="function"||typeof turf.nearestPointOnLine!=="function"||typeof turf.intersect!=="function")throw new Error("Required Turf line and polygon intersection operations are unavailable.");
   const boundary=turf.lineString(ring),raw=turf.lineIntersect(boundary,cutter).features||[],hits=[];
   raw.forEach(f=>{const c=f.geometry?.coordinates;if(c&&!hits.some(p=>turf.distance(turf.point(p),turf.point(c),{units:"kilometers"})<1e-7))hits.push(c.slice(0,2));});
-  if(hits.length!==2)throw new Error("The cutting line must cross the polygon boundary at exactly two distinct points.");
+  if(hits.length!==2)throw new Error("The cutting line must cross the OUTER boundary at exactly two distinct points.");
   const expanded=[];
   for(let i=0;i<ring.length-1;i++){
     const a=ring[i],b=ring[i+1];expanded.push(a.slice());
     const seg=turf.lineString([a,b]),insert=[];
-    hits.forEach(c=>{try{
-      const near=turf.nearestPointOnLine(seg,turf.point(c),{units:"kilometers"}),loc=near.properties?.location;
-      if(near.properties?.dist<=0.002&&Number.isFinite(loc)){
-        const len=turf.length(seg,{units:"kilometers"});
-        // Endpoints are already added as ring vertices in the next iteration;
-        // insert only strict segment-interior intersections to avoid duplicate vertices.
-        if(loc>1e-9&&loc<len-1e-9)insert.push({c,loc});
-      }
-    }catch(_){}});
+    hits.forEach(c=>{try{const near=turf.nearestPointOnLine(seg,turf.point(c),{units:"kilometers"}),loc=near.properties?.location;if(near.properties?.dist<=0.002&&Number.isFinite(loc)){const len=turf.length(seg,{units:"kilometers"});if(loc>1e-9&&loc<len-1e-9)insert.push({c,loc});}}catch(_){}});
     insert.sort((x,y)=>x.loc-y.loc).forEach(x=>{if(!expanded.some(p=>turf.distance(turf.point(p),turf.point(x.c),{units:"kilometers"})<1e-7))expanded.push(x.c.slice());});
   }
   const indices=hits.map(c=>expanded.findIndex(p=>turf.distance(turf.point(p),turf.point(c),{units:"kilometers"})<1e-7));
   if(indices.some(i=>i<0)||indices[0]===indices[1])throw new Error("Could not locate both intersections on the polygon boundary.");
   const arc=(from,to)=>{const out=[expanded[from].slice()];let i=from,guard=0;while(i!==to&&guard++<=expanded.length){i=(i+1)%expanded.length;out.push(expanded[i].slice());}if(i!==to)throw new Error("Could not trace polygon boundary.");return out;};
-  const a=arc(indices[0],indices[1]),b=arc(indices[1],indices[0]);
+  const first=arc(indices[0],indices[1]),second=arc(indices[1],indices[0]);
   const cut=turf.lineSlice(turf.point(hits[0]),turf.point(hits[1]),cutter).geometry.coordinates;
   if(!cut||cut.length<2)throw new Error("Could not extract the cutting segment inside the polygon.");
   const close=coords=>{coords[coords.length-1]=coords[0].slice();return coords;};
-  const ringA=close(a.concat(cut.slice(1,-1).reverse(),[a[0].slice()]));
-  const ringB=close(b.concat(cut.slice(1,-1),[b[0].slice()]));
-  const parts=[ringA,ringB].map(coords=>({type:"Feature",properties:{...(feature.properties||{})},geometry:{type:"Polygon",coordinates:[coords]}}));
-  parts.forEach(part=>{if(!Number.isFinite(turf.area(part))||turf.area(part)<=0)throw new Error("The cut produced an empty polygon.");if(typeof turf.kinks==="function"&&(turf.kinks(part).features||[]).length)throw new Error("The cut produced a self-intersecting polygon; no changes were applied.");});
+  const rings=[close(first.concat(cut.slice(1,-1).reverse(),[first[0].slice()])),close(second.concat(cut.slice(1,-1),[second[0].slice()]))];
+  const candidates=rings.map(coords=>({type:"Feature",properties:{...(feature.properties||{})},geometry:{type:"Polygon",coordinates:[coords]}})),parts=[];
+  // Overlay each half with the original polygon to retain and clip all interior rings.
+  candidates.forEach(candidate=>{
+    let result;
+    try{result=turf.intersect(turf.featureCollection([candidate,feature]));}
+    catch(err){throw new Error("Could not preserve polygon holes during split: "+(err.message||"polygon intersection failed"));}
+    if(!result?.geometry)return;
+    if(!["Polygon","MultiPolygon"].includes(result.geometry.type))throw new Error("Polygon intersection returned an unsupported geometry.");
+    result.properties={...(feature.properties||{})};
+    if(!Number.isFinite(turf.area(result))||turf.area(result)<=0)throw new Error("The cut produced an empty polygon.");
+    if(typeof turf.kinks==="function"&&(turf.kinks(result).features||[]).length)throw new Error("The cut produced a self-intersecting polygon; no changes were applied.");
+    parts.push(result);
+  });
+  if(parts.length!==2)throw new Error("The cutter must divide the polygon into exactly two non-empty parts.");
+  const sourceArea=turf.area(feature),partsArea=parts.reduce((sum,part)=>sum+turf.area(part),0);
+  if(!Number.isFinite(sourceArea)||sourceArea<=0||Math.abs(partsArea-sourceArea)>Math.max(0.1,sourceArea*1e-6))throw new Error("Split validation failed: output areas do not match the original polygon.");
   return parts;
 }
 
@@ -4924,10 +4927,10 @@ function splitSelectedLines(){
   if(records.some(r=>(r.owner?.layer||drawn)!==editTarget)){status("Split requires selected features from the active edit layer.");return;}
   const lineMode=records.every(r=>["LineString","MultiLineString"].includes(r.feature?.geometry?.type));
   const polygonMode=records.length===1&&["Polygon","MultiPolygon"].includes(records[0].feature?.geometry?.type);
-  if(!lineMode&&!polygonMode){status("Split supports selected lines, or one Polygon/MultiPolygon without holes, in the active edit layer.");return;}
+  if(!lineMode&&!polygonMode){status("Split supports selected lines, or one Polygon/MultiPolygon including interior rings, in the active edit layer.");return;}
   if(typeof turf.lineSplit!=="function"){status("Split unavailable: Turf.js lineSplit is not loaded.");return;}
   stopActiveDraw(true);
-  status(polygonMode?"Draw a cutting line across the polygon; it must cross the boundary twice.":"Draw a cutting line across selected line feature(s); double-click to finish.");
+  status(polygonMode?"Draw a cutting line across the polygon; it must cross the outer boundary twice.":"Draw a cutting line across selected line feature(s); double-click to finish.");
   const handler=new L.Draw.Polyline(map,{shapeOptions:{color:"#c0392b",weight:2,dashArray:"5,4"}});window._splitDrawHandler=handler;
   const created=event=>{
     map.off(L.Draw.Event.CREATED,created);window._splitCreatedHandler=null;window._splitDrawHandler=null;
@@ -4940,8 +4943,8 @@ function splitSelectedLines(){
         let parts;
         if(g.type==="Polygon")parts=splitPolygonWithCutter(source,cutter);
         else{
-          if(!Array.isArray(g.coordinates)||g.coordinates.some(poly=>!Array.isArray(poly)||poly.length!==1))
-            throw new Error("MultiPolygon split currently requires components without holes.");
+          if(!Array.isArray(g.coordinates)||g.coordinates.some(poly=>!Array.isArray(poly)||!poly.length||!Array.isArray(poly[0])||poly[0].length<4))
+            throw new Error("MultiPolygon contains an invalid component or outer ring.");
           const output=[];let splitCount=0;
           g.coordinates.forEach(poly=>{
             const component={type:"Feature",properties:{...(source.properties||{})},geometry:{type:"Polygon",coordinates:poly}};
@@ -4991,7 +4994,7 @@ function splitSelectedLines(){
         });
       });
       selectedLayer=selectedRecords()[0]?.layer||null;selectedOverlay=null;applySelectionVisual();refreshAll();updateStandardActionButtons();
-      Promise.all([flushGeodatabaseEdits(),scheduleAutoSave()]).then(([synced,saved])=>status((polygonMode?"Split one polygon into two polygon features.":"Split "+results.length+" selected line feature(s) into "+results.reduce((n,x)=>n+x.parts.length,0)+" line parts.")+(synced&&saved?"":" Saving failed; retry Save Edits."))).catch(err=>status("Split applied in memory but saving failed: "+err.message));
+      Promise.all([flushGeodatabaseEdits(),scheduleAutoSave()]).then(([synced,saved])=>status((polygonMode?"Split polygon while preserving holes and interior rings.":"Split "+results.length+" selected line feature(s) into "+results.reduce((n,x)=>n+x.parts.length,0)+" line parts.")+(synced&&saved?"":" Saving failed; retry Save Edits."))).catch(err=>status("Split applied in memory but saving failed: "+err.message));
     }catch(err){status("Split failed: "+(err.message||"invalid cutting geometry"));}
     finally{if(event.layer&&map.hasLayer(event.layer))map.removeLayer(event.layer);}
   };
