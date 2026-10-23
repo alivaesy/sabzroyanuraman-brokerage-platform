@@ -7073,6 +7073,21 @@ window.addEventListener("beforeunload",event=>{
 .public-feedback-meta{display:flex;align-items:center;gap:8px;font-size:10px;color:#536875;margin-bottom:0;direction:rtl;text-align:right;min-width:0}.public-feedback-meta .public-feedback-text{flex:1;min-width:0;font-size:11px;line-height:1.6;color:#263f50;direction:rtl;text-align:right;overflow-wrap:anywhere}.public-feedback-meta time{flex:none;white-space:nowrap}
 .public-feedback-number{display:inline-block;flex:none;padding:1px 6px;border-radius:2px;background:var(--feedback-accent);color:#fff;font-weight:700;font-size:10px}
 @media(max-width:650px){.feedback-open-btn{margin-right:4px;padding:0 7px}#publicFeedbackModal{padding:7px}.feedback-content{padding:9px}}
+
+/* ArcMap-like editing palette: readable icons, visible labels, and clear tool states. */
+#editorToolbar{display:flex;align-items:center;flex-wrap:wrap;gap:4px;padding:5px 7px;background:#eef1f3;border-bottom:1px solid #9eabb2;min-height:42px;overflow:visible}
+#editorToolbar button.icon-tool[data-edit-only]{display:inline-flex!important;flex:0 0 76px;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:76px;min-width:76px;height:49px;padding:4px 3px;border:1px solid #b7c2c8;border-radius:3px;background:linear-gradient(#fff,#e8ecef);color:#243f50;white-space:normal;overflow:visible}
+#editorToolbar button.icon-tool[data-edit-only]::after{content:attr(title);display:block;max-width:100%;font:10px/1.1 Arial,sans-serif;text-align:center;white-space:normal;overflow-wrap:anywhere;color:#243f50}
+#editorToolbar button.icon-tool[data-edit-only] .arcmap-icon{display:block;width:22px;height:22px;flex:0 0 22px;stroke:#243f50;stroke-width:1.65;fill:none;stroke-linecap:round;stroke-linejoin:round}
+#editorToolbar button.icon-tool[data-edit-only]:hover:not(:disabled){background:#d9eaf5;border-color:#4b85a5;box-shadow:0 1px 2px #b9c7ce}
+#editorToolbar button.icon-tool[data-edit-only].active{background:#c5e0f1;border:1px solid #2675a6;box-shadow:inset 0 0 0 1px #fff}
+#editorToolbar:not(.editing-active) button.icon-tool[data-edit-only]{background:#f4f5f6;color:#526571;border-style:dashed}
+#editorToolbar:not(.editing-active) button.icon-tool[data-edit-only]::after{color:#526571}
+#editorToolbar:not(.editing-active) button.icon-tool[data-edit-only] .arcmap-icon{stroke:#526571}
+#editMenu button[data-tool][data-edit-only]{display:flex!important;min-height:34px;padding:6px 9px;gap:10px;font-size:12px}
+#editMenu button[data-tool][data-edit-only] .arcmap-icon{width:21px;height:21px;flex:0 0 21px;stroke:#243f50;stroke-width:1.6}
+@media(max-width:650px){#editorToolbar{flex-wrap:wrap;min-width:0}#editorToolbar button.icon-tool[data-edit-only]{flex-basis:70px;width:70px;min-width:70px;height:48px}}
+
 </style>
 <div id="publicFeedbackModal" role="dialog" aria-modal="true" aria-labelledby="publicFeedbackTitle">
  <section class="feedback-card">
