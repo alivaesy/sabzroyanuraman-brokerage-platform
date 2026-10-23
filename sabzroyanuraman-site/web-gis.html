@@ -5643,7 +5643,7 @@ function reshapeSelected(){
   status("Draw a polygon overlapping the selected polygon to reshape it. Drawing inside removes that area; drawing across/alongside merges the areas. Stop Editing to cancel.");
   const h=new L.Draw.Polygon(map,{shapeOptions:{color:"#e67e22",weight:2,dashArray:"4,4"}});
   window._reshapeDrawHandler=h;
-  const once=e=>{
+  const once=async e=>{
     map.off(L.Draw.Event.CREATED,once);
     window._reshapeCreatedHandler=null;
     window._reshapeDrawHandler=null;
