@@ -46,21 +46,24 @@ test('ArcToolbox renderer retains search and empty-state feedback', () => {
 });
 
 
+
 test('View menu actions are connected to registered mapActions handlers', () => {
-  const actionBlock = html.match(/const mapActions\\s*=\\s*\\{([\\s\\S]*?)\\n\\s{4}\\};/)?.[1];
+  const actionBlock = html.match(/const mapActions\s*=\s*\{([\s\S]*?)\n\s{4}\};/)?.[1];
   assert.ok(actionBlock, 'mapActions dispatcher was not found');
-  const handlers = new Set([...actionBlock.matchAll(/^\\s{6}([A-Za-z]\\w*)\\s*:/gm)].map(m => m[1]));
+  const handlers = new Set([...actionBlock.matchAll(/^\s{6}([A-Za-z]\w*)\s*:/gm)].map(m => m[1]));
 
   for (const menuId of ['mapMenu', 'viewMenu']) {
-    const menu = html.match(new RegExp('<div\\\\s+class=["\\\\']arc-dropdown["\\\\']\\\\s+id=["\\\\']' + menuId + '["\\\\']>([\\\\s\\\\S]*?)(?=\\\\n\\\\s*<div class=["\\\\']arc-dropdown|$)', 'i'))?.[1];
-    assert.ok(menu, menuId + ' was not found');
+    const menuStart = html.indexOf('<div class="arc-dropdown" id="' + menuId + '">');
+    assert.notEqual(menuStart, -1, menuId + ' was not found');
+    const nextMenu = html.indexOf('\n  <div class="arc-dropdown"', menuStart + 1);
+    const menu = html.slice(menuStart, nextMenu === -1 ? html.length : nextMenu);
     const actions = [...menu.matchAll(/data-action=["']([^"']+)["']/g)].map(m => m[1]);
     assert.ok(actions.length, menuId + ' contains no actions');
     const missing = actions.filter(action => !handlers.has(action));
     assert.deepEqual(missing, [], menuId + ' actions without handlers: ' + missing.join(', '));
   }
 
-  const tocHandler = actionBlock.match(/^\\s{6}showLayers\\s*:\\s*([^,]+(?:,\\n[\\s\\S]*?)?)(?=^\\s{6}[A-Za-z]\\w*\\s*:|$)/m)?.[1] || '';
+  const tocHandler = actionBlock.match(/^\s{6}showLayers\s*:[\s\S]*?(?=^\s{6}[A-Za-z]\w*\s*:|$)/m)?.[0] || '';
   assert.match(tocHandler, /renderLayerList/);
   assert.match(tocHandler, /focus/);
 });
