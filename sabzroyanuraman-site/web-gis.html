@@ -804,7 +804,7 @@ body{background:#dfe5e8;color:#173b57}
           <input id="bufferDistance" type="number" step="0.1" min="0" value="5" placeholder="Buffer distance (meters)" style="margin-top:6px">
           <div class="row">
             <button class="action" id="runGisOperation">Run Tool</button>
-            <button class="action secondary" id="clearGisSelection">Clear Selection</button>
+            <button class="action secondary" id="clearGisSelection">Clear Selection</button></div><button class="action secondary" id="geometrySelfTest" style="margin-top:5px;width:100%">Geometry Self-Test</button><div>
           </div>
           <div id="gisSelectionInfo" class="small">Input feature: —<br>Overlay feature: —</div>
         </div>
@@ -2623,7 +2623,21 @@ function resultLayerFromFeature(feature,name){
   geoJsonLayer(fc,name);
   return namedLayers[namedLayers.length-1].layer;
 }
-function runGisOperation(){
+async function runWholeLayerGisOperation(op){
+ const layers=allSelectableFeatureLayers();if(!layers.length){status('Add a vector layer first.');return true;}const options=layers.map((x,i)=>({value:String(i),label:x.name}));
+ const ir=await arcMapDialog.select({title:'Whole-Layer Geoprocessing',message:'Choose input layer; all features are processed and sources preserved.',label:'Input layer',value:'0',options});if(ir===null)return true;const input=layers[Number(ir)];if(!input)return true;
+ const records=vectorFeatures(input.layer).map(x=>x.feature).filter(f=>f&&f.geometry);const valid=f=>f&&f.geometry&&['Point','MultiPoint','LineString','MultiLineString','Polygon','MultiPolygon'].includes(f.geometry.type)&&vertexGeometryIsValid(f.geometry);if(!records.length||records.some(f=>!valid(f))){status('Input layer is empty or contains invalid/unsupported geometry.');return true;}let output=[],name=op;
+ try{if(op==='buffer'){const raw=await arcMapDialog.prompt({title:'Buffer — Whole Layer',message:'Distance in meters:',label:'Meters',value:$('bufferDistance').value||'5'});if(raw===null)return true;const d=Number(raw);if(!Number.isFinite(d)||d<=0){status('Distance must be greater than zero.');return true;}output=records.map(f=>{const g=turf.buffer(f,d,{units:'meters'});if(g)g.properties={...(f.properties||{}),_operation:'Buffer',buffer_meters:d};return g;}).filter(Boolean);name='Buffer '+d+' m';}
+ else if(op==='dissolve'){const fields=[...new Set(records.flatMap(f=>Object.keys(f.properties||{}).filter(k=>!isReservedAttributeField(k))))];const field=fields.length?await arcMapDialog.select({title:'Dissolve — Whole Layer',message:'Choose a field or dissolve all:',label:'Field',value:'(all)',options:[{value:'(all)',label:'(all features)'},...fields.map(f=>({value:f,label:f}))]}):'(all)';if(field===null)return true;const d=turf.dissolve({type:'FeatureCollection',features:records.map(f=>JSON.parse(JSON.stringify(f)))},field==='(all)'?{}:{propertyName:field});output=(d?.features||[]).map(f=>({...f,properties:{...(f.properties||{}),_operation:'Dissolve',_source_count:records.length}}));name='Dissolve '+input.name;}
+ else{const others=layers.filter((_,i)=>i!==Number(ir));if(!others.length){status(op+' needs a second layer.');return true;}const oraw=await arcMapDialog.select({title:op+' — Overlay Layer',message:'Choose the complete overlay layer.',label:'Overlay layer',value:'0',options:others.map((x,i)=>({value:String(i),label:x.name}))});if(oraw===null)return true;const overlay=others[Number(oraw)];const ovs=vectorFeatures(overlay.layer).map(x=>x.feature).filter(f=>f&&f.geometry);if(!overlay||!ovs.length||ovs.some(f=>!valid(f))){status('Overlay layer is empty or contains invalid geometry.');return true;}if(['clip','intersection','union'].includes(op)&&[...records,...ovs].some(f=>!['Polygon','MultiPolygon'].includes(f.geometry.type))){status(op+' whole-layer mode currently requires polygon layers.');return true;}
+ if(op==='clip'||op==='intersection'){for(const a of records)for(const b of ovs){const g=turf.intersect(turf.featureCollection([a,b]));if(g)output.push({...g,properties:{...(a.properties||{}),...(op==='intersection'?Object.fromEntries(Object.entries(b.properties||{}).map(([k,v])=>['overlay_'+k,v])):{}),_operation:op,_overlay_layer:overlay.name}});}name=(op==='clip'?'Clip ':'Intersect ')+input.name+' by '+overlay.name;}
+ else if(op==='union'){let g=null;for(const f of [...records,...ovs])g=g?turf.union(turf.featureCollection([g,f])):JSON.parse(JSON.stringify(f));if(g)output=[{...g,properties:{_operation:'Union',_input_layer:input.name,_overlay_layer:overlay.name,_source_count:records.length+ovs.length}}];name='Union '+input.name+' + '+overlay.name;}else return false;}
+ if(!output.length){status(name+' returned no output; no layer created.');return true;}if(output.some(f=>!valid(f))){status(name+' output failed geometry validation; no output added.');return true;}resultLayerFromFeature({type:'FeatureCollection',features:output},name);scheduleAutoSave();status(name+' created '+output.length+' output feature(s); source layers preserved.');
+ }catch(e){console.error(e);status('Whole-layer geoprocessing failed: '+(e.message||e));}return true;
+}
+async function runGeometryRegressionTests(){const checks=[];const test=(n,v)=>checks.push((v?'PASS':'FAIL')+' — '+n);try{const a=turf.polygon([[[0,0],[.01,0],[.01,.01],[0,.01],[0,0]]],{grp:'x'}),b=turf.polygon([[[.005,0],[.015,0],[.015,.01],[.005,.01],[.005,0]]],{grp:'x'});test('Intersect overlapping polygons',!!turf.intersect(turf.featureCollection([a,b])));test('Union overlapping polygons',!!turf.union(turf.featureCollection([a,b])));const d=turf.dissolve({type:'FeatureCollection',features:[a,b]},{propertyName:'grp'});test('Dissolve by field',!!d&&d.features.length===1);const buf=turf.buffer(turf.point([0,0]),100,{units:'meters'});test('Buffer 100 m',!!buf&&turf.area(buf)>25000&&turf.area(buf)<40000);const far=turf.polygon([[[1,1],[1.01,1],[1.01,1.01],[1,1.01],[1,1]]]);test('Empty intersection',turf.intersect(turf.featureCollection([a,far]))===null);if(typeof proj4==='function'){const p=projectCoords('EPSG:4326','EPSG:32638',[47.758255,33.629485]);test('WGS84 to UTM zone 38N',p.every(Number.isFinite)&&Math.abs(p[0]-755858)<150&&Math.abs(p[1]-3724488)<150);}else test('CRS transform library',false);}catch(e){test('Turf/CRS operations available',false);console.error(e);}const report=checks.join('\n');console.info('Synthetic geometry tests:\n'+report);status('Geometry self-test: '+checks.filter(x=>x.startsWith('PASS')).length+'/'+checks.length+' passed.');await arcMapDialog.alert({title:'Geometry Self-Test — Synthetic Data',message:report+'\n\nSynthetic checks do not replace tests on cadastral data or comparison with ArcMap.'});}
+async function runGisOperation(){
+ const scope=await arcMapDialog.select({title:'Geoprocessing Scope',message:'Run on selected features or complete layers?',label:'Scope',value:selectedLayer?'selected':'layers',options:[{value:'selected',label:'Selected feature(s)'},{value:'layers',label:'Entire layer(s)'}]});if(scope===null)return;if(scope==='layers'){await runWholeLayerGisOperation($('gisOperation').value);return;}
   const op=$("gisOperation").value;
   if(!selectedLayer){status("Select an input feature first.");return;}
   try{
@@ -3250,6 +3264,7 @@ $("deleteMultiSelected").onclick=async()=>{
 };
 $("clearMultiSelected").onclick=()=>{clearMultiSelection();selectedLayer=null;selectedOverlay=null;renderAttributeEditor();status("Multiple selection cleared.")};
 $("runGisOperation").onclick=runGisOperation;
+$("geometrySelfTest").onclick=runGeometryRegressionTests;
 $("clearGisSelection").onclick=()=>{
   selectedLayer=null;selectedOverlay=null;
   $("gisSelectionInfo").innerHTML="Input feature: —<br>Overlay feature: —";
