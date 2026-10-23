@@ -2473,52 +2473,81 @@ function featureLabel(layer){
   }catch(e){}
   return "Selected feature";
 }
+function handleFeatureSelectionClick(layer,ev){
+  if(!layer)return;
+  const originalEvent=ev?.originalEvent;
+  if(originalEvent){
+    if(originalEvent.__webgisSelectionHandled)return;
+    originalEvent.__webgisSelectionHandled=true;
+  }
+  if(activeMapTool==="identify"){
+    selectedOverlay=layer;
+    if(!layer.feature)layer.feature=asFeature(layer);
+    identifyTool();return;
+  }
+  if(activeMapTool==="hyperlink"){
+    const feature=layer.feature||asFeature(layer),props=feature?.properties||{};
+    const value=Object.entries(props).find(([key,val])=>/(url|link|website|href|hyperlink)/i.test(key)&&/^https?:/i.test(String(val||""))&&String(val||"").includes("://"));
+    if(!value){status("This feature has no HTTP or HTTPS link attribute.");return;}
+    window.open(value[1],"_blank","noopener,noreferrer");status("Feature link opened.");return;
+  }
+  if(activeMapTool==="htmlPopup"){
+    const feature=layer.feature||asFeature(layer),props=feature?.properties||{};
+    const rows=Object.entries(props).map(([key,val])=>"<tr><th>"+esc(key)+"</th><td>"+esc(val)+"</td></tr>").join("");
+    layer.bindPopup("<table class='identify-popup'>"+(rows||"<tr><td>No attributes</td></tr>")+"</table>").openPopup(ev?.latlng);
+    selectedOverlay=layer;status("Feature attributes opened.");return;
+  }
+  const multi=!!(originalEvent&&(originalEvent.ctrlKey||originalEvent.metaKey||originalEvent.shiftKey));
+  if(multi){
+    toggleMultiSelection(layer);
+    if(originalEvent.shiftKey&&!originalEvent.ctrlKey&&!originalEvent.metaKey){
+      selectedOverlay=layer;
+      const info=$("gisSelectionInfo");
+      if(info)info.innerHTML="Input feature: "+esc(selectedLayer?featureLabel(selectedLayer):"—")+"<br>Overlay feature: "+esc(featureLabel(layer));
+      status(selectedFeatures.size+" features selected; Shift-click a second feature for overlay operations.");
+    }else{
+      const info=$("gisSelectionInfo");
+      if(info)info.innerHTML="Input feature: "+esc(selectedLayer?featureLabel(selectedLayer):"—")+"<br>Overlay feature: "+esc(selectedOverlay?featureLabel(selectedOverlay):"—");
+      status(selectedFeatures.size+" features selected.");
+    }
+    applySelectionVisual();
+  }else{
+    clearMultiSelection();
+    setGisSelection(layer,false);
+    selectedFeatures.add(layer);
+    applySelectionVisual();
+    showUTM(layer);
+    calcMeasure(layer);
+    status("Feature selected. Ctrl-click or Shift-click to add features to the selection.");
+  }
+}
 function attachFeatureSelection(layer){
   if(!layer||!layer.on)return;
-  // Leaflet vector layers and marker layers must remain interactive for selection.
+  // Register click selection and force hit-testing for layers that were made non-interactive.
   if(typeof layer.options==="object")layer.options.interactive=true;
-  if(layer._path)layer._path.style.pointerEvents="auto";
-  if(layer._icon)layer._icon.style.pointerEvents="auto";
-  layer.on("click",ev=>{
-    if(activeMapTool==="identify"){
-      selectedOverlay=layer;
-      if(!layer.feature)layer.feature=asFeature(layer);
-      identifyTool();return;
-    }
-    if(activeMapTool==="hyperlink"){
-      const feature=layer.feature||asFeature(layer),props=feature?.properties||{};
-      const value=Object.entries(props).find(([key,val])=>/(url|link|website|href|hyperlink)/i.test(key)&&/^https?:/i.test(String(val||""))&&String(val||"").includes("://"));
-      if(!value){status("This feature has no HTTP or HTTPS link attribute.");return;}
-      window.open(value[1],"_blank","noopener,noreferrer");status("Feature link opened.");return;
-    }
-    if(activeMapTool==="htmlPopup"){
-      const feature=layer.feature||asFeature(layer),props=feature?.properties||{};
-      const rows=Object.entries(props).map(([key,val])=>"<tr><th>"+esc(key)+"</th><td>"+esc(val)+"</td></tr>").join("");
-      layer.bindPopup("<table class='identify-popup'>"+(rows||"<tr><td>No attributes</td></tr>")+"</table>").openPopup(ev.latlng);
-      selectedOverlay=layer;status("Feature attributes opened.");return;
-    }
-    const multi=!!(ev.originalEvent&&(ev.originalEvent.ctrlKey||ev.originalEvent.metaKey||ev.originalEvent.shiftKey));
-    if(multi){
-      toggleMultiSelection(layer);
-      if(ev.originalEvent.shiftKey&&!ev.originalEvent.ctrlKey&&!ev.originalEvent.metaKey){
-        selectedOverlay=layer;
-        const info=$("gisSelectionInfo");
-        if(info)info.innerHTML="Input feature: "+esc(selectedLayer?featureLabel(selectedLayer):"—")+"<br>Overlay feature: "+esc(featureLabel(layer));
-        status(selectedFeatures.size+" features selected; Shift-click a second feature for overlay operations.");
-      }else{
-        const info=$("gisSelectionInfo");
-        if(info)info.innerHTML="Input feature: "+esc(selectedLayer?featureLabel(selectedLayer):"—")+"<br>Overlay feature: "+esc(selectedOverlay?featureLabel(selectedOverlay):"—");
-        status(selectedFeatures.size+" features selected.");
+  const el=(typeof layer.getElement==="function"&&layer.getElement())||layer._path||layer._icon;
+  if(el)el.style.pointerEvents="auto";
+  layer.on("click",ev=>handleFeatureSelectionClick(layer,ev));
+}
+// Fallback for map clicks when Leaflet's layer-level click dispatch is missing.
+// It only handles clicks directly on a rendered feature and avoids double selection.
+if(!map._webgisSelectionFallback){
+  map._webgisSelectionFallback=true;
+  map.on("click",ev=>{
+    if(ev?.originalEvent?.__webgisSelectionHandled)return;
+    const target=ev?.originalEvent?.target;
+    if(!target||!target.closest)return;
+    const hit=target.closest(".leaflet-interactive,.leaflet-marker-icon");
+    if(!hit)return;
+    for(const entry of allSelectableFeatureLayers()){
+      for(const record of vectorFeatures(entry.layer)){
+        const layer=record.layer;
+        const el=(typeof layer.getElement==="function"&&layer.getElement())||layer._path||layer._icon;
+        if(el===hit||el?.contains?.(hit)){
+          handleFeatureSelectionClick(layer,ev);
+          return;
+        }
       }
-      applySelectionVisual();
-    }else{
-      clearMultiSelection();
-      setGisSelection(layer,false);
-      selectedFeatures.add(layer);
-      applySelectionVisual();
-      showUTM(layer);
-      calcMeasure(layer);
-      status("Feature selected. Ctrl-click or Shift-click to add features to the selection.");
     }
   });
 }
