@@ -3263,12 +3263,12 @@ $("applyMultiAttribute").onclick=()=>{
   renderAttributeEditor();window.__webGisGdbBridge?.save();scheduleAutoSave();
   status("Updated field "+key+" on "+staged.length+" feature(s).");
 };
-$("deleteMultiSelected").onclick=()=>{
+$("deleteMultiSelected").onclick=async()=>{
   if(blockForUnsavedTableEdits("deleting features"))return;
   if(!editSessionActive){status("Start Editing before deleting features.");return}
   const targets=[...selectedFeatures].filter(layer=>isLayerInEditTarget(layer));
   if(!targets.length){status("Select features from the active edit layer first.");return}
-  if(!confirm("Delete "+targets.length+" selected feature(s) from the active edit layer?"))return;
+  if(!await arcMapDialog.confirm({title:"Delete Selected Features",message:"Delete "+targets.length+" selected feature(s) from the active edit layer?",confirmText:"Delete",danger:true}))return;
   recordUndoState();
   targets.forEach(layer=>editTarget.removeLayer(layer));
   clearMultiSelection();selectedLayer=null;selectedOverlay=null;
@@ -3287,12 +3287,12 @@ $("addTableField").onclick=async()=>{
  if(hasUnsavedTableEdits()){status("Save Table Edits before adding a field; unsaved cell values have been preserved.");return}
  if(!editSessionActive||!isLayerInEditTarget(currentAttributeLayer())){status("Start Editing this layer before changing its table.");return}
  if(!$("attributeLayer").value){status("Select a feature layer.");return}
- const name=prompt("New field name (letters, numbers, underscore):");if(name===null||!name.trim())return;
+ const name=await arcMapDialog.prompt({title:"Add Field",message:"Enter a new field name (letters, numbers, underscore):",label:"Field name",value:"NEW_FIELD"});if(name===null||!name.trim())return;
  const key=name.trim(),items=currentAttributeItems(),layer=currentAttributeLayer();
  if(!/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(key)||isReservedAttributeField(key)){status("Use a field name starting with a letter, containing only letters, numbers or underscores (max 64 characters).");return}
  const schema=layer?._gdbMetadata?.fields||[],known=tableKeys(items);
  if(known.some(existing=>existing.toLowerCase()===key.toLowerCase())){status("A field with this name already exists (field names are case-insensitive).");return}
- const rawType=prompt("Field type: TEXT, INTEGER, REAL, or DATE","TEXT");if(rawType===null)return;
+ const rawType=await arcMapDialog.select({title:"Add Field",message:"Choose the field data type:",label:"Field type",value:"TEXT",options:[{value:"TEXT",label:"TEXT — Text"},{value:"INTEGER",label:"INTEGER — Whole number"},{value:"REAL",label:"REAL — Decimal number"},{value:"DATE",label:"DATE — Date"}]});if(rawType===null)return;
  const type=rawType.trim().toUpperCase();if(!["TEXT","INTEGER","REAL","DATE"].includes(type)){status("Choose TEXT, INTEGER, REAL, or DATE.");return}
  recordUndoState();
  if(!layer._gdbMetadata)layer._gdbMetadata={fields:[]};if(!Array.isArray(layer._gdbMetadata.fields))layer._gdbMetadata.fields=[];layer._gdbMetadata.fields.push({name:key,type});
@@ -3307,11 +3307,11 @@ $("deleteTableField").onclick=async()=>{
  if(!layer){status("Select a feature layer.");return}
  const fields=tableKeys(items).filter(key=>!isReservedAttributeField(key));
  if(!fields.length){status("There are no deletable attribute fields. Internal fields are protected.");return}
- const requested=prompt("Enter the field name to delete (case-insensitive):\n"+fields.join(", "),fields[0]);
+ const requested=await arcMapDialog.select({title:"Delete Field",message:"Select the field to permanently delete:",label:"Field",value:fields[0],options:fields.map(field=>({value:field,label:field}))});
  if(requested===null)return;
  const key=fields.find(field=>field.toLowerCase()===requested.trim().toLowerCase());
  if(!key){status("Field not found or protected. Choose one of: "+fields.join(", "));return}
- if(!confirm("Permanently remove field '"+key+"' from the feature class and "+items.length+" feature(s)?"))return;
+ if(!await arcMapDialog.confirm({title:"Delete Field",message:"Permanently remove field '"+key+"' from the feature class and "+items.length+" feature(s)?",confirmText:"Delete Field",danger:true}))return;
  recordUndoState();
  items.forEach(item=>{if(item.feature.properties)delete item.feature.properties[key];updateFeaturePopup(item.layer)});
  if(layer._gdbMetadata?.fields)layer._gdbMetadata.fields=layer._gdbMetadata.fields.filter(f=>(typeof f==="string"?f:f.name)!==key);
@@ -3533,11 +3533,11 @@ $("fillSelected").onclick=async()=>{
  if(!editSessionActive||!layer||layer!==editTarget||!isLayerInEditTarget(layer)){status("Start Editing this layer before calculating fields.");return}
  const items=currentAttributeItems(),inds=[...new Set(selectedTableIndexes())];
  if(!inds.length){status("Select one or more rows before calculating a field.");return}
- const keys=tableKeys(items),requested=prompt("Field to calculate:\n"+keys.join(", "));
+ const keys=tableKeys(items),requested=await arcMapDialog.select({title:"Calculate Field",message:"Choose the field to calculate:",label:"Field",value:keys[0]||"",options:keys.map(field=>({value:field,label:field}))});
  if(requested===null)return;
  const key=keys.find(k=>k.toLowerCase()===requested.trim().toLowerCase());
  if(!key){status("Choose an existing field from the list.");return}
- const raw=prompt("Value or expression for "+key+":\nConstants: 12, text, true, false\nField expressions: !FIELD! + 10, UPPER(!NAME!), ROUND(!AREA! / 100, 2), CONCAT(!FIRST!, !LAST!)",$("fillValue").value);
+ const raw=await arcMapDialog.prompt({title:"Calculate Field",message:"Enter a value or expression for "+key+". Examples: 12, text, !FIELD! + 10, UPPER(!NAME!), ROUND(!AREA! / 100, 2), CONCAT(!FIRST!, !LAST!)",label:"Value or expression",value:$("fillValue").value||""});
  if(raw===null)return;
  const targets=inds.map(i=>Number.isInteger(i)&&i>=0?items[i]:null);
  if(targets.some(x=>!x||!x.layer||!isLayerInEditTarget(x.layer))){status("Calculation cancelled: selected rows are stale or outside the active edit layer.");return}
@@ -3577,7 +3577,7 @@ $("fillSelected").onclick=async()=>{
  }catch(err){status("Field calculation cancelled; no records changed. "+err.message);return}
  const changed=staged.filter(({item,value})=>JSON.stringify((item.feature.properties||{})[key])!==JSON.stringify(value));
  if(!changed.length){status("The selected features already have these values.");return}
- if(!confirm("Calculate field '"+key+"' for "+changed.length+" selected feature(s)?"))return;
+ if(!await arcMapDialog.confirm({title:"Calculate Field",message:"Calculate field '"+key+"' for "+changed.length+" selected feature(s)?",confirmText:"Calculate"}))return;
  recordUndoState();
  changed.forEach(({item,value})=>{ensureFeatureProperties(item.layer)[key]=value;updateFeaturePopup(item.layer)});
  renderEditableTable();
@@ -3586,10 +3586,10 @@ $("fillSelected").onclick=async()=>{
 };
 $("measureSelected").onclick=()=>{if(selectedLayer)calcMeasure(selectedLayer);else status("Select a feature on the map first.");};
 $("basemap").onchange=e=>selectBasemap(e.target.value);
-$("clearDraw").onclick=()=>{
+$("clearDraw").onclick=async()=>{
   if(blockForUnsavedTableEdits("clearing drawings"))return;
   if(!drawn.getLayers().length){status("There are no features to clear.");return}
-  if(confirm("Delete all drawings?")){
+  if(await arcMapDialog.confirm({title:"Clear Drawings",message:"Delete all drawings?",confirmText:"Delete All",danger:true})){
     // Clear Drawings also cancels an unfinished sketch aimed at My Drawings;
     // otherwise its preview and click handler would survive the clear action.
     if(activeDrawHandler&&activeDrawPurpose==="draw"&&editTarget===drawn){
@@ -5083,29 +5083,29 @@ function selectByLasso(){
   finishShapeSelection(matches,records,mode,"by lasso");
  });
 }
-function selectByAttribute(){
+async function selectByAttribute(){
   const allRecords=getFeatureRecords();
   const vectorLayers=[{name:"My Drawings",layer:drawn},...namedLayers.filter(x=>isVectorLayer(x.layer)).map(x=>({name:x.name,layer:x.layer}))]
     .filter((x,i,arr)=>x.layer&&arr.findIndex(y=>y.layer===x.layer)===i);
   const current=currentAttributeLayer();
   const defaultIndex=Math.max(0,vectorLayers.findIndex(x=>x.layer===current));
   if(!vectorLayers.length||!allRecords.length){status("Select By Attributes requires at least one vector layer with features.");return}
-  const layerChoice=prompt("Choose target layer by exact name; selection will be limited to that layer:\n"+vectorLayers.map(x=>x.name).join("\n"),vectorLayers[defaultIndex].name);
+  const layerChoice=await arcMapDialog.select({title:"Select By Attributes",message:"Choose the target layer:",label:"Layer",value:vectorLayers[defaultIndex].name,options:vectorLayers.map(x=>({value:x.name,label:x.name}))});
   if(layerChoice===null)return;
   const target=vectorLayers.find(x=>x.name===layerChoice.trim());
   if(!target){status("Unknown layer name. Choose one of the listed vector layers.");return}
   const records=allRecords.filter(r=>(r.owner?.layer||drawn)===target.layer);
   const fields=[...new Set(records.flatMap(r=>Object.keys(r.feature.properties||{}).filter(k=>!isReservedAttributeField(k))))];
   if(!records.length||!fields.length){status("The chosen layer has no features with attribute fields.");return}
-  const field=prompt("Field Name (case-sensitive):\n"+fields.join(", "),fields[0]||"");
+  const field=await arcMapDialog.select({title:"Select By Attributes",message:"Choose an attribute field:",label:"Field",value:fields[0]||"",options:fields.map(name=>({value:name,label:name}))});
   if(field===null)return;
   if(!fields.includes(field)){status("Unknown field. Choose an existing field name from the list.");return}
   const operators=["=","!=","contains","starts","ends",">",">=","<","<=","is null","is not null"];
-  const opInput=prompt("Operator: "+operators.join(" | "),"=");
+  const opInput=await arcMapDialog.select({title:"Select By Attributes",message:"Choose the comparison operator:",label:"Operator",value:"=",options:operators.map(op=>({value:op,label:op}))});
   if(opInput===null)return;
   const op=opInput.trim().toLowerCase();
   if(!operators.includes(op)){status("Unsupported operator. Use one of: "+operators.join(", "));return}
-  const val=op==="is null"||op==="is not null"?"":prompt("Value to compare:", "");
+  const val=op==="is null"||op==="is not null"?"":await arcMapDialog.prompt({title:"Select By Attributes",message:"Enter the value to compare:",label:"Value",value:""});
   if(val===null)return;
   const needle=val.toLowerCase(),numericNeedle=val.trim()!==""?Number(val):NaN;
   const matches=r=>{
@@ -5128,7 +5128,7 @@ function selectByAttribute(){
     return op===">"?n>numericNeedle:op===">="?n>=numericNeedle:op==="<"?n<numericNeedle:n<=numericNeedle;
   };
   const matched=records.filter(matches);
-  const modeInput=prompt("Selection type:\n1 = New selection in this layer\n2 = Add to current selection\n3 = Remove from current selection\n4 = Select from current selection","1");
+  const modeInput=await arcMapDialog.select({title:"Select By Attributes",message:"Choose how to apply the selection:",label:"Selection mode",value:"1",options:[{value:"1",label:"New selection"},{value:"2",label:"Add to current selection"},{value:"3",label:"Remove from current selection"},{value:"4",label:"Select from current selection"}]});
   if(modeInput===null)return;
   const mode=modeInput.trim();
   if(!["1","2","3","4"].includes(mode)){status("Choose selection type 1, 2, 3, or 4.");return;}
