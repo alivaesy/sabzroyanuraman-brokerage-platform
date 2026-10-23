@@ -67,3 +67,25 @@ test('View menu actions are connected to registered mapActions handlers', () => 
   assert.match(tocHandler, /renderLayerList/);
   assert.match(tocHandler, /focus/);
 });
+
+
+test('Append maps source records to the target schema without changing Merge', () => {
+  const start = html.indexOf('function appendFeaturesToTarget(');
+  const end = html.indexOf('async function runWholeLayerGisOperation(', start);
+  assert.ok(start >= 0 && end > start, 'Append schema helper was not found');
+  const helper = html.slice(start, end);
+  const appendFeaturesToTarget = vm.runInNewContext(helper + '\nappendFeaturesToTarget');
+  const target = [
+    { type: 'Feature', properties: { ParcelID: 1, Owner: 'A' }, geometry: { type: 'Point', coordinates: [1, 2] } }
+  ];
+  const source = [
+    { type: 'Feature', properties: { parcelid: 2, Extra: 'discard', OWNER: 'B' }, geometry: { type: 'Point', coordinates: [3, 4] } }
+  ];
+  const output = appendFeaturesToTarget(target, source);
+  assert.equal(output.length, 2);
+  assert.deepEqual(JSON.parse(JSON.stringify(output[0].properties)), { ParcelID: 1, Owner: 'A' });
+  assert.deepEqual(JSON.parse(JSON.stringify(output[1].properties)), { ParcelID: 2, Owner: 'B' });
+  assert.equal(output[1].geometry.coordinates[0], 3);
+  assert.match(html, /if\(op==='merge'\)\{/);
+  assert.match(html, /output=appendFeaturesToTarget\(records,ovs\)/);
+});
