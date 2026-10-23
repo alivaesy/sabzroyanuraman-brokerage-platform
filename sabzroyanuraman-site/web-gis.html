@@ -4920,6 +4920,38 @@ function splitPolygonWithCutter(feature,cutter){
   return parts;
 }
 
+function splitPolygonAtTargetArea(feature,referenceLine,targetAreaM2,side){
+  const coords=referenceLine?.geometry?.coordinates||[];
+  if(coords.length<2)throw new Error("Draw a reference line with at least two vertices.");
+  const bbox=turf.bbox(feature),diag=Math.hypot(bbox[2]-bbox[0],bbox[3]-bbox[1]);
+  const totalArea=turf.area(feature);
+  if(!Number.isFinite(targetAreaM2)||targetAreaM2<=0||targetAreaM2>=totalArea)throw new Error("Target area must be greater than zero and smaller than the polygon area.");
+  const a=coords[0],b=coords[coords.length-1],dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy);
+  if(len<1e-10)throw new Error("The reference line is too short.");
+  const nx=-dy/len,ny=dx/len,mid=[(a[0]+b[0])/2,(a[1]+b[1])/2];
+  const span=Math.max(diag*2,0.0001),samples=100,candidates=[];
+  for(let i=0;i<=samples;i++){
+    const offset=-span+2*span*i/samples;
+    const center=[mid[0]+nx*offset,mid[1]+ny*offset],half=span*3;
+    const cutter=turf.lineString([[center[0]-dx/len*half,center[1]-dy/len*half],[center[0]+dx/len*half,center[1]+dy/len*half]]);
+    try{
+      const parts=splitPolygonWithCutter(feature,cutter);
+      const scored=parts.map(part=>{
+        const p=turf.centroid(part).geometry.coordinates;
+        const cross=dx*(p[1]-center[1])-dy*(p[0]-center[0]);
+        return {part,area:turf.area(part),isLeft:cross>=0};
+      });
+      const chosen=scored.find(x=>x.isLeft===(side!=="right"));
+      if(chosen)candidates.push({parts,area:chosen.area,diff:Math.abs(chosen.area-targetAreaM2)});
+    }catch(_){}
+  }
+  if(!candidates.length)throw new Error("No valid parallel cut found. Draw a reference line crossing the polygon and try again.");
+  candidates.sort((x,y)=>x.diff-y.diff);
+  const best=candidates[0];
+  if(best.diff>Math.max(1,totalArea*0.002))throw new Error("Could not reach the requested area accurately; try a different reference line.");
+  return {parts:best.parts,actualArea:best.area,targetArea:targetAreaM2};
+}
+
 function splitSelectedLines(){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("splitting features"))return;
   if(!editSessionActive||!editTarget){status("Start Editing before splitting features.");return;}
@@ -4942,7 +4974,21 @@ function splitSelectedLines(){
       if(polygonMode){
         const source=records[0].feature,g=source.geometry;
         let parts;
-        if(g.type==="Polygon")parts=splitPolygonWithCutter(source,cutter);
+        const splitMode=prompt("Polygon cut mode:\\n1 = Cut along the drawn line\\n2 = Parallel cut by target area","1");
+        if(splitMode===null)return;
+        if(splitMode.trim()==="2"){
+          const rawArea=prompt("Target area in square meters (m²):",String(Math.round(turf.area(source)/2)));
+          if(rawArea===null)return;
+          const targetArea=Number(rawArea);
+          const sideAnswer=prompt("Keep target area on which side of the drawn reference line? Type left or right","left");
+          if(sideAnswer===null)return;
+          const side=sideAnswer.trim().toLowerCase();
+          if(!["left","right"].includes(side))throw new Error("Side must be left or right.");
+          const result=splitPolygonAtTargetArea(source,cutter,targetArea,side);
+          parts=result.parts;
+          status("Target-area cut: "+Math.round(result.actualArea).toLocaleString()+" m² (target "+Math.round(targetArea).toLocaleString()+" m²).");
+        }else if(splitMode.trim()!=="1")throw new Error("Choose 1 for drawn-line cut or 2 for target-area parallel cut.");
+        else if(g.type==="Polygon")parts=splitPolygonWithCutter(source,cutter);
         else{
           if(!Array.isArray(g.coordinates)||g.coordinates.some(poly=>!Array.isArray(poly)||!poly.length||!Array.isArray(poly[0])||poly[0].length<4))
             throw new Error("MultiPolygon contains an invalid component or outer ring.");
