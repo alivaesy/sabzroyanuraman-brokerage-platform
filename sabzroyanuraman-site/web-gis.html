@@ -5641,11 +5641,22 @@ function reshapeSelected(){
       const fc={type:"FeatureCollection",features:[original,sketch]};
       const result=cut?turf.difference(fc):turf.union(fc);
       if(!result?.geometry||!["Polygon","MultiPolygon"].includes(result.geometry.type)){status("Reshape failed: no valid polygon result was produced.");return;}
+      if(!vertexGeometryIsValid(result.geometry)){status("Reshape rejected: the resulting polygon is invalid or self-intersecting; the original feature was preserved.");return;}
       if(JSON.stringify(original.geometry)===JSON.stringify(result.geometry)){status("Reshape made no geometry changes.");return;}
       recordUndoState();
-      r.feature.geometry=result.geometry;
-      rebuildVectorLayerGeometry([r]);refreshAll();window.__webGisGdbBridge?.save();scheduleAutoSave();
-      status(cut?"Selected polygon reshaped by removing the drawn interior area.":"Selected polygon reshaped by merging the drawn area.");
+      try{
+        r.feature.geometry=JSON.parse(JSON.stringify(result.geometry));
+        rebuildVectorLayerGeometry([r]);
+        const validation=validateAndSyncEditTarget();
+        if(!validation.ok)throw new Error(validation.message||"edit-target validation failed");
+        refreshAll();updateStandardActionButtons();
+        const [synced,saved]=await Promise.all([flushGeodatabaseEdits(),scheduleAutoSave()]);
+        status((cut?"Selected polygon reshaped by removing the drawn interior area.":"Selected polygon reshaped by merging the drawn area.")+(synced&&saved?" Changes saved.":" Changes are visible, but saving/synchronization failed; retry Save Edits."));
+      }catch(commitError){
+        r.feature.geometry=JSON.parse(JSON.stringify(original.geometry));
+        try{rebuildVectorLayerGeometry([r]);refreshAll();}catch(rollbackError){console.error("Reshape rollback failed",rollbackError);}
+        status("Reshape cancelled; original geometry restored where possible: "+(commitError.message||"validation or save preparation failed"));
+      }
     }catch(err){console.error("Reshape failed",err);status("Reshape failed: "+(err.message||"geometry operation error"));}
   };
   window._reshapeCreatedHandler=once;
