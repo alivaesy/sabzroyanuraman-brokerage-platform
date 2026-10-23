@@ -2686,8 +2686,11 @@ function asFeature(layer){
 function resultLayerFromFeature(feature,name){
   if(!feature)return null;
   const fc=feature.type==="FeatureCollection"?feature:{type:"FeatureCollection",features:[feature]};
+  if(!Array.isArray(fc.features)||!fc.features.length||fc.features.some(f=>!f?.geometry||!f.geometry.type)){
+    status(name+" cancelled: no valid output features were produced.");return null;
+  }
   geoJsonLayer(fc,name);
-  return namedLayers[namedLayers.length-1].layer;
+  return namedLayers[namedLayers.length-1]?.layer||null;
 }
 function appendFeaturesToTarget(targetFeatures,sourceFeatures){
  const clone=f=>JSON.parse(JSON.stringify(f));
@@ -2922,7 +2925,10 @@ async function runGisOperation(){
           status("Split requires line input and line overlay features.");return;
         }
         result=turf.lineSplit(f1,f2);
-        if(result&&result.features)result.features=result.features.map((f,i)=>({...f,properties:{...(f1.properties||{}),_operation:"Split",_part:i+1}}));
+        if(!result||!Array.isArray(result.features)||result.features.length<2){
+          status("Split produced fewer than two line parts. The overlay must cross or split the input line; no output was created.");return;
+        }
+        result.features=result.features.map((f,i)=>({...f,properties:{...(f1.properties||{}),_operation:"Split",_part:i+1}}));
         name="Split";
       }else if(op==="merge"){
         if(f1.geometry.type!==f2.geometry.type){

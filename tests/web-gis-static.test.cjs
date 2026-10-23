@@ -133,3 +133,11 @@ test('ArcMap keyboard shortcuts invoke existing Attribute Table, Editor, and Mea
   assert.match(html, /F7:document\.getElementById\("measureToolBtn"\)/);
   assert.match(html, /if\(typing\|\|event\.altKey\|\|event\.ctrlKey\|\|event\.metaKey\)return/);
 });
+
+
+test("Geoprocessing rejects unsplit lines and validates result geometry", () => {
+  assert.match(html, /Split produced fewer than two line parts/);
+  assert.match(html, /no valid output features were produced/);
+  assert.match(html, /output contains missing or unsupported geometry/);
+  assert.match(html, /produced structurally invalid geometry/);
+});
