@@ -1663,20 +1663,72 @@ async function deleteSelectedFeatures(){
   selectedFeatures.clear();selectedLayer=null;selectedOverlay=null;const editor=$("attributeEditor");if(editor)editor.style.display="none";applySelectionVisual();refreshAll();const synced=await flushGeodatabaseEdits();scheduleAutoSave();updateStandardActionButtons();status(records.length+" feature(s) deleted."+(synced?"":" Geodatabase sync failed; save edits again."));
 }
 async function openOnlineData(){
-  const value=await arcMapDialog.prompt({title:"Add Online Data",message:"Enter a public GeoJSON URL or ArcGIS Feature Service layer URL:",label:"Service URL",value:""});
+  const value=await arcMapDialog.prompt({title:"Add Online Data",message:"Enter a public GeoJSON URL, ArcGIS FeatureServer layer URL, or WFS/GeoServer endpoint. WFS supports GetCapabilities layer discovery and paged GetFeature requests when the server supports them.",label:"Service URL",value:""});
   if(!value)return;
   let url;try{url=new URL(value.trim());if(!/^https?:$/.test(url.protocol))throw new Error();}catch(_){status("Enter a valid HTTP or HTTPS data URL.");return;}
   if(location.protocol==="https:"&&url.protocol!=="https:"){status("Use an HTTPS data service on this secure page.");return;}
-  const isArc=url.pathname.includes("/FeatureServer/");
-  if(isArc&&!/\/query$/i.test(url.pathname))url.pathname=url.pathname.replace(/\/$/,"")+"/query";
-  if(isArc){url.searchParams.set("where","1=1");url.searchParams.set("outFields","*");url.searchParams.set("f","geojson");}
-  status("Loading online data...");
-  fetch(url.href).then(response=>{if(!response.ok)throw new Error("HTTP "+response.status);return response.json();}).then(data=>{
-    if(data?.type!=="FeatureCollection"||!Array.isArray(data.features))throw new Error("The service did not return GeoJSON. Use a public GeoJSON URL or ArcGIS FeatureServer layer.");
+  const isArc=/\/FeatureServer(?:\/|$)/i.test(url.pathname);
+  const isWfs=(url.searchParams.get("service")||"").toUpperCase()==="WFS"||/\/(?:wfs|ows)\/?$/i.test(url.pathname);
+  let layerName="",data={type:"FeatureCollection",features:[]},partial=false;
+  const requestJson=async requestUrl=>{
+    const response=await fetch(requestUrl,{headers:{Accept:"application/geo+json, application/json"}});
+    if(!response.ok)throw new Error("HTTP "+response.status);
+    const result=await response.json();
+    if(result?.type!=="FeatureCollection"||!Array.isArray(result.features)){
+      const serviceMessage=result?.message||result?.error?.message||result?.exception?.[0]?.text;
+      throw new Error(serviceMessage||"The service did not return a GeoJSON FeatureCollection. Check output format, layer name, and permissions.");
+    }
+    return result;
+  };
+  status("Connecting to online service...");
+  try{
+    if(isArc){
+      if(!/\/query$/i.test(url.pathname))url.pathname=url.pathname.replace(/\/$/,"")+"/query";
+      url.searchParams.set("where","1=1");url.searchParams.set("outFields","*");url.searchParams.set("f","geojson");
+      const pageSize=1000,maxFeatures=20000;
+      for(let offset=0;offset<maxFeatures;offset+=pageSize){
+        const pageUrl=new URL(url.href);pageUrl.searchParams.set("resultOffset",String(offset));pageUrl.searchParams.set("resultRecordCount",String(pageSize));
+        const page=await requestJson(pageUrl.href);data.features.push(...page.features);
+        if(page.exceededTransferLimit)partial=true;
+        if(page.features.length<pageSize&&!page.exceededTransferLimit)break;
+        if(offset+pageSize>=maxFeatures){partial=true;break;}
+      }
+      layerName=decodeURIComponent(url.pathname.split("/").filter(Boolean).slice(-2,-1)[0]||"ArcGIS Feature Layer");
+    }else if(isWfs){
+      const base=new URL(url.href);
+      layerName=base.searchParams.get("typeNames")||base.searchParams.get("typeName")||"";
+      const version=base.searchParams.get("version")||"2.0.0";
+      if(!layerName){
+        const capsUrl=new URL(base.href);capsUrl.searchParams.set("service","WFS");capsUrl.searchParams.set("version",version);capsUrl.searchParams.set("request","GetCapabilities");capsUrl.searchParams.delete("typeName");capsUrl.searchParams.delete("typeNames");
+        const capsResponse=await fetch(capsUrl.href,{headers:{Accept:"application/xml,text/xml"}});
+        if(!capsResponse.ok)throw new Error("WFS GetCapabilities failed: HTTP "+capsResponse.status);
+        const xmlText=await capsResponse.text(),xml=new DOMParser().parseFromString(xmlText,"application/xml");
+        if(xml.querySelector("parsererror"))throw new Error("The WFS server returned invalid capabilities XML.");
+        const available=[...xml.getElementsByTagNameNS("*","FeatureType")].map(node=>({name:node.getElementsByTagNameNS("*","Name")[0]?.textContent?.trim(),title:node.getElementsByTagNameNS("*","Title")[0]?.textContent?.trim()})).filter(item=>item.name);
+        if(!available.length)throw new Error("No WFS feature layers were found in GetCapabilities. Check the endpoint and access permissions.");
+        const promptText=available.slice(0,35).map(item=>item.name+(item.title&&item.title!==item.name?" — "+item.title:"")).join("\n");
+        layerName=await arcMapDialog.prompt({title:"Choose WFS Layer",message:"Available layers (enter the exact Name):\n"+promptText+(available.length>35?"\n… and "+(available.length-35)+" more":"") ,label:"Type name",value:available[0].name});
+        if(!layerName)return;
+        layerName=layerName.trim();
+        if(!available.some(item=>item.name===layerName)){status("Enter an exact layer Name from the WFS capabilities list.");return;}
+      }
+      const pageSize=500,maxFeatures=10000;
+      for(let offset=0;offset<maxFeatures;offset+=pageSize){
+        const pageUrl=new URL(base.href);pageUrl.searchParams.set("service","WFS");pageUrl.searchParams.set("version",version);pageUrl.searchParams.set("request","GetFeature");pageUrl.searchParams.delete("typeName");pageUrl.searchParams.set("typeNames",layerName);pageUrl.searchParams.set("outputFormat","application/json");pageUrl.searchParams.set("srsName",pageUrl.searchParams.get("srsName")||"EPSG:4326");pageUrl.searchParams.set(version.startsWith("2")?"count":"maxFeatures",String(pageSize));if(version.startsWith("2"))pageUrl.searchParams.set("startIndex",String(offset));
+        const page=await requestJson(pageUrl.href);data.features.push(...page.features);
+        if(page.features.length<pageSize)break;
+        if(offset+pageSize>=maxFeatures){partial=true;break;}
+        if(!version.startsWith("2")){partial=true;break;}
+      }
+    }else{
+      const result=await requestJson(url.href);data.features=result.features;layerName=decodeURIComponent(url.pathname.split("/").filter(Boolean).pop()||"Online Layer");
+    }
     if(!data.features.length){status("The online layer contains no features.");return;}
-    geoJsonLayer(data,decodeURIComponent(url.pathname.split("/").filter(Boolean).pop()||"Online Layer"));
-    status(data.features.length+" online feature(s) added.");
-  }).catch(err=>status("Online data could not be loaded: "+err.message+" (the server must allow cross-origin requests)."));
+    geoJsonLayer(data,layerName||"Online Layer");
+    status(data.features.length+" online feature(s) added."+(partial?" The service/page limit was reached; the layer may be incomplete.":""));
+  }catch(err){
+    status("Online data could not be loaded: "+err.message+" (check CORS, authentication, and service access).");
+  }
 }
 async function runMapCommandLine(){
   const command=await arcMapDialog.prompt({title:"Map Command",message:"Enter a command: help, zoom in, zoom out, full extent, identify, basemap <name>, go <x>,<y>",label:"Command",value:"help"});
@@ -4024,11 +4076,19 @@ function layerToProjectItem(item){
   const features=[],styles=[];
   if(layer&&layer.eachLayer){
     layer.eachLayer(l=>{
-      try{
-        const f=l.toGeoJSON();
-        if(f&&f.features)f.features.forEach(x=>{features.push(x);styles.push(projectStyleOf(l))});
-        else if(f&&f.geometry){features.push(f);styles.push(projectStyleOf(l))}
-      }catch(e){}
+      // Never silently omit a feature from a project snapshot. A partial save
+      // can otherwise pass the IndexedDB read-after-write check as "complete".
+      let f;
+      try{f=l.toGeoJSON()}catch(e){throw new Error("Could not serialize feature in layer '"+item.name+"': "+(e?.message||e))}
+      const addFeature=x=>{
+        if(!x||x.type!=="Feature"||!x.geometry||typeof x.geometry.type!=="string"||!x.properties||typeof x.properties!=="object"||Array.isArray(x.properties)){
+          throw new Error("Incomplete feature or attributes in layer '"+item.name+"'; project was not saved.");
+        }
+        features.push(x);styles.push(projectStyleOf(l));
+      };
+      if(f&&Array.isArray(f.features))f.features.forEach(addFeature);
+      else if(f&&f.type==="Feature")addFeature(f);
+      else throw new Error("Unsupported feature data in layer '"+item.name+"'; project was not saved.");
     });
   }
   const wms=layer instanceof L.TileLayer && layer.options && layer.options.layers ? {
@@ -4062,7 +4122,14 @@ function serializeProject(){
     activeLayer: selectedLayer ? {source:"layer",name:namedLayers.find(x=>x.layer===selectedLayer)?.name||null} : (selectedOverlay ? {source:"layer",name:namedLayers.find(x=>x.layer===selectedOverlay)?.name||null} : {source:"drawn"}),
     gdbCatalog:typeof gdbCatalogToJSON==="function"?gdbCatalogToJSON():null
   };
-  drawn.eachLayer(l=>{try{const f=l.toGeoJSON();if(f&&f.geometry){project.drawn.push(f);project.drawnStyles.push(projectStyleOf(l))}}catch(e){}});
+  drawn.eachLayer(l=>{
+    let f;
+    try{f=l.toGeoJSON()}catch(e){throw new Error("Could not serialize a drawing: "+(e?.message||e))}
+    if(!f||f.type!=="Feature"||!f.geometry||typeof f.geometry.type!=="string"||!f.properties||typeof f.properties!=="object"||Array.isArray(f.properties)){
+      throw new Error("A drawing has incomplete geometry or attributes; project was not saved.");
+    }
+    project.drawn.push(f);project.drawnStyles.push(projectStyleOf(l));
+  });
   namedLayers.forEach(x=>project.layers.push(layerToProjectItem(x)));
   selectedFeatures.forEach(featureLayer=>{
     const drawnIndex=drawn.getLayers().indexOf(featureLayer);
@@ -4175,6 +4242,10 @@ function restoreProject(project,fromHistory=false){
   }else if(activeRef?.source==="drawn"){selectedLayer=drawn;selectedOverlay=null;}
   $("projectName").value=project.name||"Untitled Project";
   renderLayerList();refreshAttributeLayers();
+  // Reapply selection after all restored layers have been registered. Merely
+  // restoring selectedFeatures does not recreate the ArcMap-like highlight,
+  // attribute-table checks, or selection action states.
+  applySelectionVisual();
   $("projectStatus").textContent= "Project restored: "+(project.savedAt?new Date(project.savedAt).toLocaleString("en-US"):"—");
   // Undo/Redo should restore the map state without unexpectedly ending an active edit session.
   if(historyEditState?.active){
@@ -4258,8 +4329,14 @@ function initProjectManager(){
 }
 function downloadProject(){
   if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before exporting the project; pending cell values are not included yet.");return}
-  const project=serializeProject();
-  download(JSON.stringify(project,null,2),"sabz-royan-project.json","application/json");
+  try{
+    const project=serializeProject();
+    download(JSON.stringify(project,null,2),"sabz-royan-project.json","application/json");
+    status("Project backup exported. Keep the JSON file outside this browser as a recovery copy.");
+  }catch(err){
+    console.error("Project export failed:",err);
+    status("Project export failed; no backup was downloaded: "+(err.message||"project serialization error"));
+  }
 }
 $("saveProject").onclick=saveProject;
 initProjectManager();
