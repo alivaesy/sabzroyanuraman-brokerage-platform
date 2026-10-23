@@ -3343,7 +3343,8 @@ function evaluateAttributeFieldExpression(expression,properties){
  }
  // Arithmetic expressions only: no property access, statements, or arbitrary JS.
  if(!/^[\d\s.+\-*/()%<>=!&|?:,"'A-Za-z_]+$/.test(expr))throw new Error("Expression contains unsupported characters.");
- if(/[A-Za-z_$][\w$]*\s*\./.test(expr)||/\b(?:new|this|window|document|globalThis|function|return|import|constructor|prototype|eval)\b/i.test(expr)||/\b[A-Za-z_$][\w$]*\s*\(/.test(expr)||/\b(?!true\b|false\b|null\b)[A-Za-z_$][\w$]*\b/i.test(expr))throw new Error("Only field references, literals, arithmetic and supported functions are allowed.");
+ const bareExpr=expr.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g,'""');
+ if(/[A-Za-z_$][\w$]*\s*\./.test(bareExpr)||/\b(?:new|this|window|document|globalThis|function|return|import|constructor|prototype|eval)\b/i.test(bareExpr)||/\b[A-Za-z_$][\w$]*\s*\(/.test(bareExpr)||/\b(?!true\b|false\b|null\b)[A-Za-z_$][\w$]*\b/i.test(bareExpr))throw new Error("Only field references, literals, arithmetic and supported functions are allowed.");
  let value;
  try{value=Function('"use strict";return ('+expr+');')()}catch(_){throw new Error("Invalid expression. Example: !POPULATION! / 100 or UPPER(!NAME!).");}
  if(value===undefined||typeof value==="function"||typeof value==="object"&&value!==null)throw new Error("Expression must return a single scalar value.");
