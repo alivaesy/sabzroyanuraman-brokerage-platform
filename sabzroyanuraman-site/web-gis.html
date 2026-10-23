@@ -4229,6 +4229,28 @@ function topologyLayerFromValue(value){
  const item=namedLayers[Number(value)];
  return item?.layer&&isVectorLayer(item.layer)?item.layer:drawn;
 }
+function repairTopologyGeometry(issue){
+ const layer=issue?.layer,feature=issue?.feature;
+ if(!layer||typeof layer.setLatLngs!=="function"||typeof layer.toGeoJSON!=="function"||!feature?.geometry)return false;
+ const g=feature.geometry,removeDuplicates=coords=>{if(!Array.isArray(coords))return coords;const out=[];coords.forEach(p=>{if(!out.length||!Array.isArray(p)||!Array.isArray(out[out.length-1])||p.length!==out[out.length-1].length||p.some((v,i)=>v!==out[out.length-1][i]))out.push(p)});return out;};
+ const closeRing=ring=>{const clean=removeDuplicates(ring);if(clean.length&&JSON.stringify(clean[0])!==JSON.stringify(clean[clean.length-1]))clean.push(clean[0].slice());return clean;};
+ let coords=g.coordinates,depth=0;
+ try{
+  if(g.type==="LineString"){coords=removeDuplicates(coords);depth=0;}
+  else if(g.type==="MultiLineString"){coords=coords.map(removeDuplicates);depth=1;}
+  else if(g.type==="Polygon"){coords=coords.map(closeRing);depth=1;}
+  else if(g.type==="MultiPolygon"){coords=coords.map(poly=>poly.map(closeRing));depth=2;}
+  else return false;
+  if(!coords||!coords.length)return false;
+  layer.setLatLngs(L.GeoJSON.coordsToLatLngs(coords,depth));
+  if(typeof layer.redraw==="function")layer.redraw();
+  const refreshed=layer.toGeoJSON();
+  if(!refreshed?.geometry)return false;
+  layer.feature=layer.feature||feature;layer.feature.geometry=refreshed.geometry;
+  if(layer.feature.properties&&refreshed.properties)layer.feature.properties=refreshed.properties;
+  return true;
+ }catch(_){return false;}
+}
 function openTopologyDialog(mode="options"){
  let root=document.getElementById("topologyDialog");
  if(!root){root=document.createElement("div");root.id="topologyDialog";root.innerHTML='<section class="topology-card" role="dialog" aria-modal="true"><header class="topology-head"><span id="topologyDialogTitle">Topology</span><button type="button" id="topologyDialogClose" aria-label="Close">×</button></header><div class="topology-body" id="topologyDialogBody"></div><footer class="topology-actions" id="topologyDialogActions"></footer></section>';document.body.appendChild(root);root.addEventListener("click",e=>{if(e.target===root)root.classList.remove("open")});root.querySelector("#topologyDialogClose").onclick=()=>root.classList.remove("open");}
@@ -4256,7 +4278,13 @@ function openTopologyDialog(mode="options"){
  }else{
   title.textContent="Topology Error Inspector";const issues=lastTopologyReport.issues||[];const summary=document.createElement("div");summary.className="topology-summary";summary.textContent=lastTopologyReport.checkedAt?"Layer: "+lastTopologyReport.layerName+" · "+issues.length+" issue(s) · validated "+lastTopologyReport.checkedAt+(lastTopologyReport.summary?" · "+lastTopologyReport.summary:""):"No validation report yet. Choose Validate Topology to run checks.";body.appendChild(summary);
   if(!issues.length){const note=document.createElement("div");note.className="topology-note";note.textContent=lastTopologyReport.checkedAt?"No issues found for the selected rule set.":"The error list appears here after validation.";body.appendChild(note)}
-  const list=document.createElement("div");list.className="topology-errors";issues.slice(0,500).forEach(issue=>{const row=document.createElement("div");row.className="topology-error";const id=document.createElement("span");id.textContent="Feature "+issue.id;const message=document.createElement("span");message.textContent=issue.issue;const zoom=document.createElement("button");zoom.type="button";zoom.textContent="Zoom";zoom.onclick=()=>{const rec=lastTopologyReport.records.find(r=>String(r.id)===String(issue.id)&&(!issue.layer||r.layer===issue.layer)),layer=issue.layer||rec?.layer,feature=issue.feature||rec?.feature;if(layer&&typeof layer.getBounds==="function"&&layer.getBounds().isValid())map.fitBounds(layer.getBounds().pad(.25));else if(layer&&typeof layer.getLatLng==="function")map.setView(layer.getLatLng(),Math.max(map.getZoom(),16));else if(feature?.geometry){try{const gj=L.geoJSON(feature),bounds=gj.getBounds();if(bounds.isValid())map.fitBounds(bounds.pad(.25));else status("Feature "+issue.id+" has no mappable extent.")}catch(_){status("Could not locate feature "+issue.id+" on the map.")}}else status("Could not locate feature "+issue.id+" on the map.")};row.append(id,message,zoom);list.appendChild(row)});body.appendChild(list);
+  const list=document.createElement("div");list.className="topology-errors";issues.slice(0,500).forEach(issue=>{const row=document.createElement("div");row.className="topology-error";const id=document.createElement("span");id.textContent="Feature "+issue.id;const message=document.createElement("span");message.textContent=issue.issue;const zoom=document.createElement("button");zoom.type="button";zoom.textContent="Zoom";zoom.onclick=()=>{const rec=lastTopologyReport.records.find(r=>String(r.id)===String(issue.id)&&(!issue.layer||r.layer===issue.layer)),layer=issue.layer||rec?.layer,feature=issue.feature||rec?.feature;if(layer&&typeof layer.getBounds==="function"&&layer.getBounds().isValid())map.fitBounds(layer.getBounds().pad(.25));else if(layer&&typeof layer.getLatLng==="function")map.setView(layer.getLatLng(),Math.max(map.getZoom(),16));else if(feature?.geometry){try{const gj=L.geoJSON(feature),bounds=gj.getBounds();if(bounds.isValid())map.fitBounds(bounds.pad(.25));else status("Feature "+issue.id+" has no mappable extent.")}catch(_){status("Could not locate feature "+issue.id+" on the map.")}}else status("Could not locate feature "+issue.id+" on the map.")};row.append(id,message,zoom);
+   if(/duplicate consecutive vertices|not closed|too few vertices|fewer than 2 vertices/i.test(issue.issue||"")){
+    const fix=document.createElement("button");fix.type="button";fix.textContent="Repair";fix.title="Remove consecutive duplicate vertices and close polygon rings where possible";
+    fix.onclick=()=>{if(!repairTopologyGeometry(issue)){status("Automatic repair is not safe or not supported for this geometry.");return;}status("Geometry repaired. Re-running topology validation.");checkEditTopology(true,topologyLayerFromValue(localStorage.getItem("sabzRoyWebGisTopologyTarget")||topologyLayerValue(editTarget)),topologyLayerFromValue(localStorage.getItem("sabzRoyWebGisTopologyBoundary")||topologyLayerValue(selectedLayer||drawn)));};
+    row.appendChild(fix);
+   }
+   list.appendChild(row)});body.appendChild(list);
   button("Close",()=>root.classList.remove("open"));button("Validate Again",()=>{root.classList.remove("open");checkEditTopology(true,topologyLayerFromValue(localStorage.getItem("sabzRoyWebGisTopologyTarget")||topologyLayerValue(editTarget)),topologyLayerFromValue(localStorage.getItem("sabzRoyWebGisTopologyBoundary")||topologyLayerValue(selectedLayer||drawn)))},true);
  }
 }
@@ -4328,9 +4356,11 @@ function checkEditTopology(openInspector=false,targetOverride=null,boundaryOverr
       else {const f=boundaryLayer.feature||(typeof boundaryLayer.toGeoJSON==="function"?boundaryLayer.toGeoJSON():null);if(f?.geometry&&["Polygon","MultiPolygon"].includes(f.geometry.type))boundaryFeatures=[f];}
     }
     let boundaryFeature=boundaryFeatures[0]||null;
-    if(boundaryFeatures.length>1&&typeof turf.union==="function"){
-      try{boundaryFeature=turf.union(turf.featureCollection(boundaryFeatures));}
-      catch(_){try{boundaryFeature=boundaryFeatures.slice(1).reduce((merged,f)=>turf.union(turf.featureCollection([merged,f])),boundaryFeatures[0]);}catch(__){boundaryFeature=null;}}
+    if(boundaryFeatures.length>1){
+      if(typeof turf.union==="function"){
+       try{boundaryFeature=turf.union(turf.featureCollection(boundaryFeatures));}
+       catch(_){try{boundaryFeature=boundaryFeatures.slice(1).reduce((merged,f)=>turf.union(turf.featureCollection([merged,f])),boundaryFeatures[0]);}catch(__){boundaryFeature=null;}}
+      }else boundaryFeature=null;
     }
     if(boundaryFeature)records.forEach((r,index)=>{try{const f=r.feature;if(!f?.geometry)return;let covered;if(typeof turf.booleanCoveredBy==="function")covered=turf.booleanCoveredBy(f,boundaryFeature);else if(typeof turf.booleanWithin==="function")covered=turf.booleanWithin(f,boundaryFeature)||!!turf.booleanContains?.(boundaryFeature,f);else covered=false;if(!covered)issues.push({id:f.id??f.properties?.OBJECTID??f.properties?.FID??(index+1),layer:r.layer,feature:f,issue:"Must Be Covered By: feature is not contained by the selected boundary polygon"})}catch(e){issues.push({id:r.feature?.id??r.feature?.properties?.OBJECTID??(index+1),issue:"Must Be Covered By check failed: "+(e.message||"invalid geometry")})}});else issues.push({id:"—",issue:"Must Be Covered By check skipped: select a polygon layer from another layer and ensure its geometries can be combined"});
   }
@@ -4389,9 +4419,11 @@ function checkEditTopology(openInspector=false,targetOverride=null,boundaryOverr
       else {const candidate=boundaryLayer.feature||(typeof boundaryLayer.toGeoJSON==="function"?boundaryLayer.toGeoJSON():null);if(candidate?.geometry&&["Polygon","MultiPolygon"].includes(candidate.geometry.type))boundaryFeatures=[candidate];else if(candidate?.type==="FeatureCollection")boundaryFeatures=(candidate.features||[]).filter(f=>f?.geometry&&["Polygon","MultiPolygon"].includes(f.geometry.type));}
     }
     let boundaryFeature=boundaryFeatures[0]||null;
-    if(boundaryFeatures.length>1&&typeof turf.union==="function"){
-      try{boundaryFeature=turf.union(turf.featureCollection(boundaryFeatures));}
-      catch(_){try{boundaryFeature=boundaryFeatures.slice(1).reduce((merged,f)=>turf.union(turf.featureCollection([merged,f])),boundaryFeatures[0]);}catch(__){boundaryFeature=null;}}
+    if(boundaryFeatures.length>1){
+      if(typeof turf.union==="function"){
+       try{boundaryFeature=turf.union(turf.featureCollection(boundaryFeatures));}
+       catch(_){try{boundaryFeature=boundaryFeatures.slice(1).reduce((merged,f)=>turf.union(turf.featureCollection([merged,f])),boundaryFeatures[0]);}catch(__){boundaryFeature=null;}}
+      }else boundaryFeature=null;
     }
     if(boundaryFeature?.geometry&&["Polygon","MultiPolygon"].includes(boundaryFeature.geometry.type)){
       const coverage=polygons.map(p=>p.r.feature).filter(f=>f?.geometry);
