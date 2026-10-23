@@ -6374,16 +6374,24 @@ async function runVectorAnalysis(mode){
   const askField=async(promptText,fields)=>await arcMapDialog.select({title:"Vector Analysis",message:promptText,label:"Field",value:fields[0]||"",options:fields.map(f=>({value:f,label:f}))});
   try{
     if(mode==="spatialJoin"){
-       if(!chosenRecords.length){status("Select target features in the map or attribute table before running Spatial Join.");return;}
-       const targetLayerSet=new Set(valid.map(r=>r.layer||r.owner?.layer).filter(Boolean));
+       let targets=chosenRecords;
+       if(!targets.length){
+         const layers=allSelectableFeatureLayers();if(layers.length<2){status("Spatial Join needs at least two vector layers.");return;}
+         const pick=await arcMapDialog.select({title:"Spatial Join — Target Layer",message:"Choose target layer; all its features will be processed.",label:"Target layer",value:"0",options:layers.map((x,i)=>({value:String(i),label:x.name}))});
+         if(pick===null)return;const targetOwner=layers[Number(pick)];if(!targetOwner)return;
+         targets=vectorFeatures(targetOwner.layer).map(v=>({feature:v.feature,layer:v.layer,owner:targetOwner}));
+       }
+       if(!targets.length||targets.some(r=>!r.feature?.geometry||!vertexGeometryIsValid(r.feature.geometry))){status("Target features are empty or contain invalid geometry.");return;}
+       const targetLayerSet=new Set(targets.map(r=>r.layer||r.owner?.layer).filter(Boolean));
        const joins=getFeatureRecords().filter(r=>r.feature?.geometry&&r.feature.geometry.type&&(!targetLayerSet.size||!targetLayerSet.has(r.layer||r.owner?.layer)));
+       if(!joins.length){status("Spatial Join requires a separate vector layer for join features.");return;}
        if(!joins.length){status("Spatial Join requires a separate vector layer for join features. Select target features, then join against another layer.");return;}
        const method=await arcMapDialog.select({title:"Spatial Join",message:"Choose the spatial relationship:",label:"Match rule",value:"intersects",options:[{value:"intersects",label:"Intersects"},{value:"within",label:"Target within join feature"},{value:"contains",label:"Target contains join feature"}]});
        if(method===null)return;
        if(!["intersects","within","contains"].includes(method)){status("Choose a supported spatial relationship.");return;}
        const joinFields=[...new Set(joins.flatMap(r=>Object.keys(r.feature.properties||{}).filter(k=>!isReservedAttributeField(k))))];
        const features=[];
-       valid.forEach((target,index)=>{
+       targets.forEach((target,index)=>{
          const matches=joins.filter(join=>{try{
            if(method==="intersects")return turf.booleanIntersects(target.feature,join.feature);
            if(method==="within")return typeof turf.booleanWithin==="function"&&turf.booleanWithin(target.feature,join.feature);
@@ -6404,7 +6412,7 @@ async function runVectorAnalysis(mode){
        });
        if(!features.length){status("Spatial Join produced no output.");return;}
        resultLayerFromFeature({type:"FeatureCollection",features},"Spatial Join");
-       status("Spatial Join created "+features.length+" output feature(s) from "+valid.length+" target(s), using "+joins.length+" join features. Source layers were preserved.");scheduleAutoSave();return;
+       status("Spatial Join created "+features.length+" output feature(s) from "+targets.length+" target(s), using "+joins.length+" join features. Source layers were preserved.");scheduleAutoSave();return;
      }
    if(mode==="dissolve"){
       const fields=[...new Set(valid.flatMap(r=>Object.keys(r.feature.properties||{}).filter(k=>!isReservedAttributeField(k))))];
