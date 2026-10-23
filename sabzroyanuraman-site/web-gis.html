@@ -5100,9 +5100,18 @@ function reshapeSelected(){
   h.enable();
 }
 function vertexGeometryIsValid(g){
+  const same=(a,b)=>Array.isArray(a)&&Array.isArray(b)&&a[0]===b[0]&&a[1]===b[1];
   const pos=p=>Array.isArray(p)&&p.length>=2&&Number.isFinite(Number(p[0]))&&Number.isFinite(Number(p[1]))&&Math.abs(Number(p[0]))<=180&&Math.abs(Number(p[1]))<=90;
-  const line=a=>Array.isArray(a)&&a.length>=2&&a.every(pos);
-  const ring=a=>Array.isArray(a)&&a.length>=4&&a.every(pos)&&a[0][0]===a[a.length-1][0]&&a[0][1]===a[a.length-1][1]&&new Set(a.slice(0,-1).map(p=>p[0]+","+p[1])).size>=3;
+  const noConsecutiveDuplicates=a=>a.every((p,i)=>i===0||!same(p,a[i-1]));
+  const line=a=>Array.isArray(a)&&a.length>=2&&a.every(pos)&&noConsecutiveDuplicates(a)&&new Set(a.map(p=>p[0]+","+p[1])).size>=2;
+  const ring=a=>{
+    if(!Array.isArray(a)||a.length<4||!a.every(pos)||!same(a[0],a[a.length-1])||!noConsecutiveDuplicates(a))return false;
+    const unique=new Set(a.slice(0,-1).map(p=>p[0]+","+p[1]));
+    if(unique.size<3)return false;
+    let twiceArea=0;
+    for(let i=0,j=a.length-2;i<a.length-1;j=i++)twiceArea+=Number(a[j][0])*Number(a[i][1])-Number(a[i][0])*Number(a[j][1]);
+    return Number.isFinite(twiceArea)&&Math.abs(twiceArea)>1e-12;
+  };
   if(!g||!g.type)return false;
   let valid=false;
   switch(g.type){
@@ -5115,7 +5124,10 @@ function vertexGeometryIsValid(g){
   }
   if(!valid)return false;
   if(window.turf&&typeof window.turf.kinks==="function"&&["Polygon","MultiPolygon"].includes(g.type)){
-    try{if(window.turf.kinks({type:"Feature",properties:{},geometry:g}).features.length)return false}catch(_){}
+    try{if(window.turf.kinks({type:"Feature",properties:{},geometry:g}).features.length)return false}catch(_){return false}
+  }
+  if(window.turf&&typeof window.turf.booleanValid==="function"){
+    try{if(!window.turf.booleanValid({type:"Feature",properties:{},geometry:g}))return false}catch(_){}
   }
   return true;
 }
