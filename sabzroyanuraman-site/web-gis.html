@@ -2639,7 +2639,26 @@ async function runWholeLayerGisOperation(op){
  try{if(op==='buffer'){const raw=await arcMapDialog.prompt({title:'Buffer — Whole Layer',message:'Distance in meters:',label:'Meters',value:$('bufferDistance').value||'5'});if(raw===null)return true;const d=Number(raw);if(!Number.isFinite(d)||d<=0){status('Distance must be greater than zero.');return true;}output=records.map(f=>{const g=turf.buffer(f,d,{units:'meters'});if(g)g.properties={...(f.properties||{}),_operation:'Buffer',buffer_meters:d};return g;}).filter(Boolean);name='Buffer '+d+' m';}
  else if(op==='dissolve'){const fields=[...new Set(records.flatMap(f=>Object.keys(f.properties||{}).filter(k=>!isReservedAttributeField(k))))];const field=fields.length?await arcMapDialog.select({title:'Dissolve — Whole Layer',message:'Choose a field or dissolve all:',label:'Field',value:'(all)',options:[{value:'(all)',label:'(all features)'},...fields.map(f=>({value:f,label:f}))]}):'(all)';if(field===null)return true;const d=turf.dissolve({type:'FeatureCollection',features:records.map(f=>JSON.parse(JSON.stringify(f)))},field==='(all)'?{}:{propertyName:field});output=(d?.features||[]).map(f=>({...f,properties:{...(f.properties||{}),_operation:'Dissolve',_source_count:records.length}}));name='Dissolve '+input.name;}
  else{const others=layers.filter((_,i)=>i!==Number(ir));if(!others.length){status(op+' needs a second layer.');return true;}const oraw=await arcMapDialog.select({title:op+' — Overlay Layer',message:'Choose the complete overlay layer.',label:'Overlay layer',value:'0',options:others.map((x,i)=>({value:String(i),label:x.name}))});if(oraw===null)return true;const overlay=others[Number(oraw)];const ovs=vectorFeatures(overlay.layer).map(x=>x.feature).filter(f=>f&&f.geometry);if(!overlay||!ovs.length||ovs.some(f=>!valid(f))){status('Overlay layer is empty or contains invalid geometry.');return true;}if(['clip','intersection','union'].includes(op)&&[...records,...ovs].some(f=>!['Polygon','MultiPolygon'].includes(f.geometry.type))){status(op+' whole-layer mode currently requires polygon layers.');return true;}
- if(op==='clip'){
+ if(op==='append'){
+   output=[...records.map(f=>({...JSON.parse(JSON.stringify(f)),properties:{...(f.properties||{}),_operation:'Append',_append_source:input.name}})),...ovs.map(f=>({...JSON.parse(JSON.stringify(f)),properties:{...(f.properties||{}),_operation:'Append',_append_source:overlay.name}}))];
+   name='Append '+input.name+' + '+overlay.name;
+ }else if(op==='identity'){
+   if([...records,...ovs].some(f=>!['Polygon','MultiPolygon'].includes(f.geometry.type))){status('Identity whole-layer mode currently requires polygon layers.');return true;}
+   let mask=null;for(const f of ovs)mask=mask?turf.union(turf.featureCollection([mask,f])):JSON.parse(JSON.stringify(f));
+   if(!mask)throw new Error('Could not build identity overlay mask.');
+   for(const a of records){
+     const outside=turf.difference(turf.featureCollection([a,mask]));
+     if(outside)output.push({...outside,properties:{...(a.properties||{}),_operation:'Identity',_identity_match:false}});
+     for(const b of ovs){
+       const inside=turf.intersect(turf.featureCollection([a,b]));
+       if(!inside)continue;
+       const props={...(a.properties||{}),_operation:'Identity',_identity_match:true,_overlay_layer:overlay.name};
+       Object.entries(b.properties||{}).forEach(([k,v])=>{let key='overlay_'+k,n=2;while(Object.prototype.hasOwnProperty.call(props,key))key='overlay_'+k+'_'+n++;props[key]=v;});
+       output.push({...inside,properties:props});
+     }
+   }
+   name='Identity '+input.name+' by '+overlay.name;
+ }else if(op==='clip'){
    // Merge overlay footprints first to avoid duplicate clipped pieces where overlays overlap.
    let mask=null;for(const f of ovs)mask=mask?turf.union(turf.featureCollection([mask,f])):JSON.parse(JSON.stringify(f));
    if(!mask)throw new Error('Could not build a valid overlay mask.');
