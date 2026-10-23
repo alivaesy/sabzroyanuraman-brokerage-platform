@@ -1565,6 +1565,7 @@ function recordMapExtent(){
   mapExtentHistory=mapExtentHistory.slice(0,mapExtentIndex+1);mapExtentHistory.push(entry);
   if(mapExtentHistory.length>80)mapExtentHistory.shift();
   mapExtentIndex=mapExtentHistory.length-1;updateExtentButtons();
+  if(!historyRestoring)scheduleAutoSave();
 }
 function moveExtentHistory(offset){
   const next=mapExtentIndex+offset;
@@ -3939,7 +3940,7 @@ function layerToProjectItem(item){
     transparent:layer.options.transparent!==false,
     version:layer.options.version||"1.3.0"
   }:null;
-  return {name:item.name,type:wms?"wms":"vector",features,wms,gdb:layer?._gdbMetadata||null,drawingSet:item.drawingSet||null,drawingType:item._webgisDrawingType||null,displayName:item.displayName||null};
+  return {name:item.name,type:wms?"wms":"vector",features,wms,visible:!!(layer&&map.hasLayer(layer)),opacity:Number.isFinite(Number(layer?.options?.opacity))?Number(layer.options.opacity):1,gdb:layer?._gdbMetadata||null,drawingSet:item.drawingSet||null,drawingType:item._webgisDrawingType||null,displayName:item.displayName||null};
 }
 function serializeProject(){
   const project={
@@ -4017,12 +4018,14 @@ function restoreProject(project,fromHistory=false){
     if(item.type==="wms"&&item.wms&&item.wms.url&&item.wms.layers){
       const l=L.tileLayer.wms(item.wms.url,{layers:item.wms.layers,format:item.wms.format||"image/png",transparent:item.wms.transparent!==false,version:item.wms.version||"1.3.0"});
       addNamedLayer(item.name||"WMS",l,false);
-      l.addTo(map);
+      if(Number.isFinite(Number(item.opacity)))l.setOpacity(Math.max(0,Math.min(1,Number(item.opacity))));
+      if(item.visible===false)map.removeLayer(l);else l.addTo(map);
     }else{
       const features=item.features||[];
       const layer=L.geoJSON({type:"FeatureCollection",features},{style:{color:"#2d78a5",weight:2,fillOpacity:.18},pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:5,color:"#2d78a5",fillOpacity:.8})});
       if(item.gdb)layer._gdbMetadata=item.gdb;
       addNamedLayer(item.name||"Layer",layer,false);
+      if(item.visible===false)map.removeLayer(layer);
       const restoredItem=namedLayers.find(x=>x.layer===layer);
       if(restoredItem){restoredItem.drawingSet=item.drawingSet||null;restoredItem._webgisDrawingType=item.drawingType||null;restoredItem.displayName=item.displayName||null;}
     }
