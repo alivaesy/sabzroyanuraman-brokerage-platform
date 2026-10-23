@@ -529,23 +529,26 @@ body{background:#dfe5e8;color:#173b57}
 <span class="toolbar-separator" aria-hidden="true"></span>
 <button type="button" class="icon-tool" data-action="clearDraw" title="Clear Drawings" aria-label="Clear Drawings"><svg class="arcmap-icon"><use href="#arc-icon-delete"></use></svg></button>
 <span class="toolbar-separator" aria-hidden="true"></span>
-<button type="button" class="icon-tool" data-tool="moveFeatures" title="Move Features" aria-label="Move Features" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-move-feature"></use></svg></button>
-<button type="button" class="icon-tool" data-tool="splitFeatures" title="Split Features" aria-label="Split Features" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-split"></use></svg></button>
-<button type="button" class="icon-tool" data-tool="mergeFeatures" title="Merge Selected Features" aria-label="Merge Selected Features" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-merge"></use></svg></button>
+<span class="edit-tool-separator" aria-hidden="true" title="Geometry operations"></span>
+<button type="button" class="icon-tool" data-tool="moveFeatures" title="Move Features — select features, then enter east/north offsets in meters" aria-label="Move Features" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-move-feature"></use></svg></button>
+<button type="button" class="icon-tool" data-tool="splitFeatures" title="Split Features — select a line or polygon, then draw the cutting line" aria-label="Split Features" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-split"></use></svg></button>
+<button type="button" class="icon-tool" data-tool="mergeFeatures" title="Merge Selected Features — select two or more compatible features" aria-label="Merge Selected Features" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-merge"></use></svg></button>
 <button type="button" class="icon-tool" data-tool="explodeFeatures" title="Explode Multipart Features" aria-label="Explode Multipart Features" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-explode"></use></svg></button>
-<button type="button" class="icon-tool" data-tool="rotateFeatures" title="Rotate Features" aria-label="Rotate Features" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-rotate-feature"></use></svg></button>
-<button type="button" class="icon-tool" data-tool="scaleFeatures" title="Scale Features" aria-label="Scale Features" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-scale-feature"></use></svg></button>
-<button type="button" class="icon-tool" data-tool="reshapeFeatures" title="Reshape" aria-label="Reshape" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-reshape"></use></svg></button>
+<button type="button" class="icon-tool" data-tool="rotateFeatures" title="Rotate Features — select features, then enter an angle in degrees" aria-label="Rotate Features" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-rotate-feature"></use></svg></button>
+<button type="button" class="icon-tool" data-tool="scaleFeatures" title="Scale Features — select features, then enter a scale factor" aria-label="Scale Features" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-scale-feature"></use></svg></button>
+<button type="button" class="icon-tool" data-tool="reshapeFeatures" title="Reshape — select a polygon, then sketch across the area to reshape" aria-label="Reshape" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-reshape"></use></svg></button>
 <button type="button" class="icon-tool" data-tool="modifyLasso" data-edit-only="true" title="Modify Lasso" aria-label="Modify Lasso"><svg class="arcmap-icon"><use href="#arc-icon-modify-lasso"></use></svg></button>
 <button type="button" class="icon-tool" data-tool="curveTool" data-edit-only="true" title="Curve" aria-label="Curve"><svg class="arcmap-icon"><use href="#arc-icon-curve"></use></svg></button>
-<button type="button" class="icon-tool" data-tool="vertexEdit" title="Edit Vertices" aria-label="Edit Vertices" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-vertex"></use></svg></button>
-<button type="button" class="icon-tool" data-tool="advancedSnap" title="Advanced Snapping" aria-label="Advanced Snapping" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-snap"></use></svg></button>
-<button type="button" class="icon-tool" data-tool="showVerticesTool" title="Show Vertices" aria-label="Show Vertices" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-show-vertices"></use></svg></button>
+<span class="edit-tool-separator" aria-hidden="true" title="Vertex editing"></span>
+<button type="button" class="icon-tool" data-tool="vertexEdit" title="Edit Vertices — select features in the active layer to move/add/delete vertices" aria-label="Edit Vertices" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-vertex"></use></svg></button>
+<button type="button" class="icon-tool" data-tool="advancedSnap" title="Advanced Snapping — configure target types and tolerance" aria-label="Advanced Snapping" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-snap"></use></svg></button>
+<button type="button" class="icon-tool" data-tool="showVerticesTool" title="Show Vertices — toggle vertex markers for selected features" aria-label="Show Vertices" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-show-vertices"></use></svg></button>
 <button type="button" class="icon-tool" data-tool="flipLineDirection" title="Flip Line Direction" aria-label="Flip Line Direction" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-flip"></use></svg></button>
 <button type="button" class="icon-tool" data-tool="featureTemplates" title="Feature Templates" aria-label="Feature Templates" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-template"></use></svg></button>
+<span class="edit-tool-separator" aria-hidden="true" title="Validation and snapping"></span>
 <button type="button" class="icon-tool" data-tool="topologyCheckTool" title="Check Topology" aria-label="Check Topology" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-topology"></use></svg></button>
 <button type="button" class="icon-tool" data-tool="repairSelectedGeometry" title="Repair Selected Geometry" aria-label="Repair Selected Geometry" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-reshape"></use></svg></button>
-<button type="button" class="icon-tool" data-tool="snapTool" title="Snap Points to Lines" aria-label="Snap Points to Lines" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-snap"></use></svg></button></div>
+<button type="button" class="icon-tool" data-tool="snapTool" title="Snap Points to Lines — select point features in the edit layer first" aria-label="Snap Points to Lines" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-snap"></use></svg></button></div>
 
 <div id="geodatabaseManagerDialog" aria-hidden="true"><div class="gdb-panel" role="dialog" aria-modal="true" aria-label="Geodatabase Manager"><div class="gdb-title">Catalog — Create Geodatabase / Feature Dataset / Feature Class <button type="button" id="gdbManagerClose">×</button></div><div class="gdb-body"><p class="gdb-note">Create a workspace structure and empty editable feature classes. To create a portable Esri File Geodatabase on disk, use Export Data → File Geodatabase (.gdb.zip) after adding features.</p><div class="gdb-grid"><label>Geodatabase name<input id="gdbWorkspaceName" value="MyGeodatabase"></label><label>Feature Dataset name<input id="gdbDatasetName" value="Dataset1"></label><label>Feature Class name<input id="gdbFeatureClassName" value="NewFeatureClass"></label><label>Geometry type<select id="gdbGeometryType"><option value="Point">Point</option><option value="LineString">Polyline</option><option value="Polygon">Polygon</option></select></label><label>Coordinate system<select id="gdbCrs"><option value="current">Current map CRS</option><option value="EPSG:4326">WGS 84 (EPSG:4326)</option></select></label></div><div class="gdb-actions"><button type="button" id="gdbCreateDataset">Create Dataset</button><button type="button" id="gdbCreateFeatureClass">Create Feature Class</button><button type="button" id="gdbExportNow">Export Geodatabase</button></div><div id="geodatabaseManagerList"></div><div id="gdbManagerStatus" class="gdb-note" role="status"></div></div></div></div>
 <div id="editorTaskMenu" role="menu" aria-label="Editor tasks">
@@ -7102,6 +7105,15 @@ window.addEventListener("beforeunload",event=>{
 #editMenu button[data-tool][data-edit-only] .arcmap-icon{width:16px;height:16px;flex:0 0 16px;stroke:#243f50;stroke-width:1.45}
 @media(max-width:650px){#editorToolbar{flex-wrap:wrap;min-width:0}#editorToolbar button.icon-tool[data-edit-only]{flex-basis:27px;width:27px;min-width:27px;height:25px}}
 
+
+
+/* Editing tools organized into ArcMap-like functional groups. */
+#editorToolbar .edit-tool-separator{display:inline-block;align-self:stretch;flex:0 0 1px;width:1px;min-height:22px;margin:2px 4px;background:linear-gradient(#c3cbd0,#8f9da5,#c3cbd0)}
+#editorToolbar button.icon-tool[data-edit-only]{flex-basis:29px;width:29px;min-width:29px;height:27px;margin:0;border-color:#c0c9ce;background:linear-gradient(#fff,#e6eaed)}
+#editorToolbar button.icon-tool[data-edit-only]:hover:not(:disabled){background:linear-gradient(#fff5d7,#f5dca1);border-color:#b58b38;box-shadow:0 1px 3px #c7cdd0}
+#editorToolbar button.icon-tool[data-edit-only]:focus-visible{outline:2px solid #287eae;outline-offset:1px}
+#editorToolbar button.icon-tool[data-edit-only] .arcmap-icon{width:17px;height:17px;flex-basis:17px}
+@media(max-width:650px){#editorToolbar .edit-tool-separator{height:22px;min-height:22px;align-self:center;margin:2px}#editorToolbar button.icon-tool[data-edit-only]{flex-basis:29px;width:29px;min-width:29px;height:27px}}
 
 /* Clear ArcMap-style interaction feedback and accessible tooltips for editing commands. */
 #editorToolbar button.icon-tool[data-edit-only]{position:relative;cursor:pointer;transition:background .12s,border-color .12s,box-shadow .12s}
