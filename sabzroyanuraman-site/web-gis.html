@@ -2430,13 +2430,16 @@ function updateMultiSelectionUI(){
   updateStandardActionButtons();
 }
 function clearMultiSelection(){
-  selectedFeatures.forEach(l=>{if(l&&l._path)L.DomUtil.removeClass(l._path,"multi-selected-feature")});
+  selectedFeatures.forEach(l=>{
+    const el=l&&((typeof l.getElement==="function"&&l.getElement())||l._path||l._icon);
+    if(el)L.DomUtil.removeClass(el,"multi-selected-feature");
+  });
   selectedFeatures.clear();
   selectedLayer=null;
   selectedOverlay=null;
   const editor=$("attributeEditor");
   if(editor)editor.style.display="none";
-  updateMultiSelectionUI();
+  applySelectionVisual();
 }
 function toggleMultiSelection(layer){
   const wasSelected=selectedFeatures.has(layer);
@@ -4631,8 +4634,9 @@ function syncVisibleAttributeTableSelection(){
 }
 function applySelectionVisual(){
   allSelectableFeatureLayers().forEach(x=>vectorFeatures(x.layer).forEach(v=>{
-    if(!v.layer||!v.layer.getElement)return;
-    const el=v.layer.getElement();
+    if(!v.layer)return;
+    // Leaflet SVG paths, canvas-backed layers and marker icons expose elements differently.
+    const el=(typeof v.layer.getElement==="function"&&v.layer.getElement())||v.layer._path||v.layer._icon;
     if(el)el.classList.toggle("multi-selected-feature",selectedFeatures.has(v.layer));
   }));
   syncVisibleAttributeTableSelection();
