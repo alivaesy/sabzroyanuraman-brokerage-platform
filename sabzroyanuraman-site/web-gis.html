@@ -2686,8 +2686,11 @@ function asFeature(layer){
 function resultLayerFromFeature(feature,name){
   if(!feature)return null;
   const fc=feature.type==="FeatureCollection"?feature:{type:"FeatureCollection",features:[feature]};
+  if(!Array.isArray(fc.features)||!fc.features.length||fc.features.some(f=>!f?.geometry||!f.geometry.type)){
+    status(name+" cancelled: no valid output features were produced.");return null;
+  }
   geoJsonLayer(fc,name);
-  return namedLayers[namedLayers.length-1].layer;
+  return namedLayers[namedLayers.length-1]?.layer||null;
 }
 function appendFeaturesToTarget(targetFeatures,sourceFeatures){
  const clone=f=>JSON.parse(JSON.stringify(f));
@@ -2922,7 +2925,10 @@ async function runGisOperation(){
           status("Split requires line input and line overlay features.");return;
         }
         result=turf.lineSplit(f1,f2);
-        if(result&&result.features)result.features=result.features.map((f,i)=>({...f,properties:{...(f1.properties||{}),_operation:"Split",_part:i+1}}));
+        if(!result||!Array.isArray(result.features)||result.features.length<2){
+          status("Split produced fewer than two line parts. The overlay must cross or split the input line; no output was created.");return;
+        }
+        result.features=result.features.map((f,i)=>({...f,properties:{...(f1.properties||{}),_operation:"Split",_part:i+1}}));
         name="Split";
       }else if(op==="merge"){
         if(f1.geometry.type!==f2.geometry.type){
@@ -2941,7 +2947,12 @@ async function runGisOperation(){
       if(!feature?.geometry||!["Point","MultiPoint","LineString","MultiLineString","Polygon","MultiPolygon"].includes(feature.geometry.type)){status(name+" output contains missing or unsupported geometry at feature "+(i+1)+"; output was not added.");return;}
       if(typeof vertexGeometryIsValid==="function"&&!vertexGeometryIsValid(feature.geometry)){status(name+" produced structurally invalid geometry at feature "+(i+1)+"; output was rejected and source features were preserved.");return;}
     }
-    resultLayerFromFeature(result,name);
+    const outputFeatures=result.type==="FeatureCollection"?result.features:[result];
+    if(!Array.isArray(outputFeatures)||!outputFeatures.length||outputFeatures.some(f=>!f?.geometry||!f.geometry.type)){
+      status(name+" returned an empty or invalid result; no output layer was created.");return;
+    }
+    const outputLayer=resultLayerFromFeature(result,name);
+    if(!outputLayer){status(name+" failed to create an output layer.");return;}
     status(name+" created and added to the Table Of Contents.");scheduleAutoSave();
   }catch(err){
     console.error(err);
