@@ -1659,46 +1659,69 @@ async function deleteSelectedFeatures(){
   selectedFeatures.clear();selectedLayer=null;selectedOverlay=null;const editor=$("attributeEditor");if(editor)editor.style.display="none";applySelectionVisual();refreshAll();const synced=await flushGeodatabaseEdits();scheduleAutoSave();updateStandardActionButtons();status(records.length+" feature(s) deleted."+(synced?"":" Geodatabase sync failed; save edits again."));
 }
 async function openOnlineData(){
-  const value=await arcMapDialog.prompt({title:"Add Online Data",message:"Enter a public GeoJSON URL, ArcGIS FeatureServer layer URL, or WFS/GeoServer endpoint. For WFS, include service=WFS and request=GetFeature; if no layer is specified, you will be asked for its qualified name (workspace:layer).",label:"Service URL",value:""});
+  const value=await arcMapDialog.prompt({title:"Add Online Data",message:"Enter a public GeoJSON URL, ArcGIS FeatureServer layer URL, or WFS/GeoServer endpoint. WFS supports GetCapabilities layer discovery and paged GetFeature requests when the server supports them.",label:"Service URL",value:""});
   if(!value)return;
   let url;try{url=new URL(value.trim());if(!/^https?:$/.test(url.protocol))throw new Error();}catch(_){status("Enter a valid HTTP or HTTPS data URL.");return;}
   if(location.protocol==="https:"&&url.protocol!=="https:"){status("Use an HTTPS data service on this secure page.");return;}
   const isArc=/\/FeatureServer(?:\/|$)/i.test(url.pathname);
   const isWfs=(url.searchParams.get("service")||"").toUpperCase()==="WFS"||/\/(?:wfs|ows)\/?$/i.test(url.pathname);
-  let layerName="";
-  if(isArc){
-    if(!/\/query$/i.test(url.pathname))url.pathname=url.pathname.replace(/\/$/,"")+"/query";
-    url.searchParams.set("where","1=1");url.searchParams.set("outFields","*");url.searchParams.set("f","geojson");
-  }else if(isWfs){
-    layerName=url.searchParams.get("typeNames")||url.searchParams.get("typeName")||"";
-    if(!layerName){
-      layerName=await arcMapDialog.prompt({title:"WFS Layer",message:"Enter the qualified WFS layer name, for example workspace:roads:",label:"Type name",value:""});
-      if(!layerName)return;
-      layerName=layerName.trim();
-      if(!layerName){status("A WFS layer name is required.");return;}
-    }
-    url.searchParams.set("service","WFS");
-    url.searchParams.set("version",url.searchParams.get("version")||"2.0.0");
-    url.searchParams.set("request","GetFeature");
-    url.searchParams.delete("typeName");
-    url.searchParams.set("typeNames",layerName);
-    url.searchParams.set("outputFormat","application/json");
-    if(!url.searchParams.has("srsName"))url.searchParams.set("srsName","EPSG:4326");
-  }
-  status("Loading online data...");
-  try{
-    const response=await fetch(url.href,{headers:{Accept:"application/geo+json, application/json"}});
+  let layerName="",data={type:"FeatureCollection",features:[]},partial=false;
+  const requestJson=async requestUrl=>{
+    const response=await fetch(requestUrl,{headers:{Accept:"application/geo+json, application/json"}});
     if(!response.ok)throw new Error("HTTP "+response.status);
-    const data=await response.json();
-    if(data?.type!=="FeatureCollection"||!Array.isArray(data.features)){
-      const serviceMessage=data?.message||data?.error?.message||data?.exception?.[0]?.text;
-      throw new Error(serviceMessage||"The service did not return a GeoJSON FeatureCollection. Check the WFS output format, layer name, and service permissions.");
+    const result=await response.json();
+    if(result?.type!=="FeatureCollection"||!Array.isArray(result.features)){
+      const serviceMessage=result?.message||result?.error?.message||result?.exception?.[0]?.text;
+      throw new Error(serviceMessage||"The service did not return a GeoJSON FeatureCollection. Check output format, layer name, and permissions.");
+    }
+    return result;
+  };
+  status("Connecting to online service...");
+  try{
+    if(isArc){
+      if(!/\/query$/i.test(url.pathname))url.pathname=url.pathname.replace(/\/$/,"")+"/query";
+      url.searchParams.set("where","1=1");url.searchParams.set("outFields","*");url.searchParams.set("f","geojson");
+      const pageSize=1000,maxFeatures=20000;
+      for(let offset=0;offset<maxFeatures;offset+=pageSize){
+        const pageUrl=new URL(url.href);pageUrl.searchParams.set("resultOffset",String(offset));pageUrl.searchParams.set("resultRecordCount",String(pageSize));
+        const page=await requestJson(pageUrl.href);data.features.push(...page.features);
+        if(page.exceededTransferLimit)partial=true;
+        if(page.features.length<pageSize&&!page.exceededTransferLimit)break;
+        if(offset+pageSize>=maxFeatures){partial=true;break;}
+      }
+      layerName=decodeURIComponent(url.pathname.split("/").filter(Boolean).slice(-2,-1)[0]||"ArcGIS Feature Layer");
+    }else if(isWfs){
+      const base=new URL(url.href);
+      layerName=base.searchParams.get("typeNames")||base.searchParams.get("typeName")||"";
+      const version=base.searchParams.get("version")||"2.0.0";
+      if(!layerName){
+        const capsUrl=new URL(base.href);capsUrl.searchParams.set("service","WFS");capsUrl.searchParams.set("version",version);capsUrl.searchParams.set("request","GetCapabilities");capsUrl.searchParams.delete("typeName");capsUrl.searchParams.delete("typeNames");
+        const capsResponse=await fetch(capsUrl.href,{headers:{Accept:"application/xml,text/xml"}});
+        if(!capsResponse.ok)throw new Error("WFS GetCapabilities failed: HTTP "+capsResponse.status);
+        const xmlText=await capsResponse.text(),xml=new DOMParser().parseFromString(xmlText,"application/xml");
+        if(xml.querySelector("parsererror"))throw new Error("The WFS server returned invalid capabilities XML.");
+        const available=[...xml.getElementsByTagNameNS("*","FeatureType")].map(node=>({name:node.getElementsByTagNameNS("*","Name")[0]?.textContent?.trim(),title:node.getElementsByTagNameNS("*","Title")[0]?.textContent?.trim()})).filter(item=>item.name);
+        if(!available.length)throw new Error("No WFS feature layers were found in GetCapabilities. Check the endpoint and access permissions.");
+        const promptText=available.slice(0,35).map(item=>item.name+(item.title&&item.title!==item.name?" — "+item.title:"")).join("\n");
+        layerName=await arcMapDialog.prompt({title:"Choose WFS Layer",message:"Available layers (enter the exact Name):\n"+promptText+(available.length>35?"\n… and "+(available.length-35)+" more":"") ,label:"Type name",value:available[0].name});
+        if(!layerName)return;
+        layerName=layerName.trim();
+        if(!available.some(item=>item.name===layerName)){status("Enter an exact layer Name from the WFS capabilities list.");return;}
+      }
+      const pageSize=500,maxFeatures=10000;
+      for(let offset=0;offset<maxFeatures;offset+=pageSize){
+        const pageUrl=new URL(base.href);pageUrl.searchParams.set("service","WFS");pageUrl.searchParams.set("version",version);pageUrl.searchParams.set("request","GetFeature");pageUrl.searchParams.delete("typeName");pageUrl.searchParams.set("typeNames",layerName);pageUrl.searchParams.set("outputFormat","application/json");pageUrl.searchParams.set("srsName",pageUrl.searchParams.get("srsName")||"EPSG:4326");pageUrl.searchParams.set(version.startsWith("2")?"count":"maxFeatures",String(pageSize));if(version.startsWith("2"))pageUrl.searchParams.set("startIndex",String(offset));
+        const page=await requestJson(pageUrl.href);data.features.push(...page.features);
+        if(page.features.length<pageSize)break;
+        if(offset+pageSize>=maxFeatures){partial=true;break;}
+        if(!version.startsWith("2")){partial=true;break;}
+      }
+    }else{
+      const result=await requestJson(url.href);data.features=result.features;layerName=decodeURIComponent(url.pathname.split("/").filter(Boolean).pop()||"Online Layer");
     }
     if(!data.features.length){status("The online layer contains no features.");return;}
-    const fallbackName=layerName||decodeURIComponent(url.pathname.split("/").filter(Boolean).pop()||"Online Layer");
-    geoJsonLayer(data,fallbackName);
-    const warning=data.exceededTransferLimit?" The service reports a transfer limit; not all features may have been returned.":data.numberMatched&&Number(data.numberReturned)<Number(data.numberMatched)?" The service returned only part of the matching dataset.":"";
-    status(data.features.length+" online feature(s) added."+warning);
+    geoJsonLayer(data,layerName||"Online Layer");
+    status(data.features.length+" online feature(s) added."+(partial?" The service/page limit was reached; the layer may be incomplete.":""));
   }catch(err){
     status("Online data could not be loaded: "+err.message+" (check CORS, authentication, and service access).");
   }
