@@ -2523,22 +2523,21 @@ function handleFeatureSelectionClick(layer,ev){
   const multi=!!(originalEvent&&(originalEvent.ctrlKey||originalEvent.metaKey||originalEvent.shiftKey));
   if(multi){
     toggleMultiSelection(layer);
+    // Shift-click designates an overlay only while that feature remains selected.
     if(originalEvent.shiftKey&&!originalEvent.ctrlKey&&!originalEvent.metaKey){
-      selectedOverlay=layer;
-      const info=$("gisSelectionInfo");
-      if(info)info.innerHTML="Input feature: "+esc(selectedLayer?featureLabel(selectedLayer):"—")+"<br>Overlay feature: "+esc(featureLabel(layer));
-      status(selectedFeatures.size+" features selected; Shift-click a second feature for overlay operations.");
+      selectedOverlay=selectedFeatures.has(layer)?layer:null;
+      if(!selectedLayer&&selectedOverlay)selectedLayer=[...selectedFeatures].find(item=>item!==selectedOverlay)||selectedOverlay;
+      synchronizeFeatureSelection({primary:selectedLayer,overlay:selectedOverlay,renderEditor:true});
+      status(selectedFeatures.size+" feature(s) selected; Shift-click a selected feature to designate the overlay.");
     }else{
-      const info=$("gisSelectionInfo");
-      if(info)info.innerHTML="Input feature: "+esc(selectedLayer?featureLabel(selectedLayer):"—")+"<br>Overlay feature: "+esc(selectedOverlay?featureLabel(selectedOverlay):"—");
-      status(selectedFeatures.size+" features selected.");
+      if(selectedOverlay&&!selectedFeatures.has(selectedOverlay))selectedOverlay=null;
+      synchronizeFeatureSelection({primary:selectedLayer,overlay:selectedOverlay,renderEditor:true});
+      status(selectedFeatures.size+" feature(s) selected.");
     }
-    applySelectionVisual();
   }else{
-    clearMultiSelection();
-    setGisSelection(layer,false);
+    selectedFeatures.clear();
     selectedFeatures.add(layer);
-    applySelectionVisual();
+    synchronizeFeatureSelection({primary:layer,renderEditor:true});
     showUTM(layer);
     calcMeasure(layer);
     status("Feature selected. Ctrl-click or Shift-click to add features to the selection.");
@@ -2546,11 +2545,14 @@ function handleFeatureSelectionClick(layer,ev){
 }
 function attachFeatureSelection(layer){
   if(!layer||!layer.on)return;
-  // Register click selection and force hit-testing for layers that were made non-interactive.
+  // Register exactly once; reloading or restyling a layer must not duplicate click events.
   if(typeof layer.options==="object")layer.options.interactive=true;
   const el=(typeof layer.getElement==="function"&&layer.getElement())||layer._path||layer._icon;
   if(el)el.style.pointerEvents="auto";
-  layer.on("click",ev=>handleFeatureSelectionClick(layer,ev));
+  if(!layer._webgisSelectionHandlerAttached){
+    layer._webgisSelectionHandlerAttached=true;
+    layer.on("click",ev=>handleFeatureSelectionClick(layer,ev));
+  }
 }
 // Fallback for map clicks when Leaflet's layer-level click dispatch is missing.
 // It only handles clicks directly on a rendered feature and avoids double selection.
