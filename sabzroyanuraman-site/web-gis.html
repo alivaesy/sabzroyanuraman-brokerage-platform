@@ -4347,6 +4347,7 @@ const GIS_TOOLS=[
  {id:"vectorSimplify",title:"Simplify Features",category:"Geoprocessing",keys:"simplify geometry tolerance reduce vertices"},
  {id:"vectorSummarize",title:"Summarize Within",category:"Geoprocessing",keys:"summarize within polygons count points sum mean statistics"},
  {id:"vectorGeometry",title:"Calculate Geometry Attributes",category:"Geoprocessing",keys:"geometry area perimeter length coordinates calculate geometry"},
+ {id:"vectorSinglepart",title:"Multipart To Singlepart",category:"Geoprocessing",keys:"multipart singlepart explode geometry parts"},
  {id:"chartStats",title:"Statistics",category:"Geoprocessing",keys:"chart statistics"},
  {id:"nearestMatchTool",title:"Find Nearest Features",category:"Network QA",keys:"nearest"},
  {id:"transferAttributesTool",title:"Transfer Attributes",category:"Network QA",keys:"attributes"},
@@ -5759,31 +5760,54 @@ function runVectorAnalysis(mode){
       status("Simplified "+features.length+" feature(s); tolerance is an approximate degree conversion. Original features were preserved.");scheduleAutoSave();return;
     }
     if(mode==="geometry"){
-      const features=valid.map((r,i)=>{
+      const features=valid.map((r)=>{
         const f=JSON.parse(JSON.stringify(r.feature)),g=f.geometry;
         let length=null,area=null;
-        try{length=turf.length(f,{units:"kilometers"});}catch(_){}
+        try{if(["LineString","MultiLineString","Polygon","MultiPolygon"].includes(g.type))length=turf.length(f,{units:"kilometers"});}catch(_){}
         try{if(["Polygon","MultiPolygon"].includes(g.type))area=turf.area(f)/10000;}catch(_){}
         const props={...(f.properties||{}),_geom_length_km:length,_geom_area_ha:area,_geom_type:g.type,_geom_vertex_count:countGeometryVertices(g)};
         return {...f,properties:props};
       });
       resultLayerFromFeature({type:"FeatureCollection",features},"Geometry Attributes");
-      status("Calculated length (km), polygon area (ha), geometry type and vertex count for "+features.length+" feature(s). Source attributes were preserved.");scheduleAutoSave();return;
+      status("Calculated length (km), area (ha), geometry type and vertex count for "+features.length+" feature(s). Source attributes were preserved.");scheduleAutoSave();return;
+    }
+    if(mode==="singlepart"){
+      const features=[];
+      valid.forEach((r,sourceIndex)=>{
+        const f=JSON.parse(JSON.stringify(r.feature)),g=f.geometry;
+        const parts=g.type==="MultiPoint"?"Point":g.type==="MultiLineString"?"LineString":g.type==="MultiPolygon"?"Polygon":null;
+        if(!parts){features.push({...f,properties:{...(f.properties||{}),_analysis:"Multipart To Singlepart",_part:1,_source_index:sourceIndex+1}});return;}
+        (g.coordinates||[]).forEach((coordinates,partIndex)=>features.push({
+          type:"Feature",id:f.id,geometry:{type:parts,coordinates},
+          properties:{...(f.properties||{}),_analysis:"Multipart To Singlepart",_part:partIndex+1,_source_index:sourceIndex+1}
+        }));
+      });
+      if(!features.length){status("No output parts were produced.");return;}
+      resultLayerFromFeature({type:"FeatureCollection",features},"Singlepart Features");
+      status("Multipart To Singlepart created "+features.length+" feature(s) from "+valid.length+" inputs; source data was preserved.");scheduleAutoSave();return;
     }
     if(mode==="summarize"){
       const polygonInputs=valid.filter(r=>["Polygon","MultiPolygon"].includes(r.feature.geometry.type));
       if(!polygonInputs.length){status("Summarize Within needs selected input polygons. Select polygon features and retry.");return;}
-      const all=getFeatureRecords().filter(r=>!valid.some(v=>v.layer===r.layer)&&r.feature?.geometry);
-      if(!all.length){status("Add point or other features to summarize within the input polygons.");return;}
+      const all=getFeatureRecords().filter(r=>r.feature?.geometry&&!valid.some(v=>v.layer===r.layer));
+      if(!all.length){status("Add a separate layer containing features to summarize within the input polygons.");return;}
       const choice=prompt("Summarize which features?\\n1 = Points (count and numeric summaries)\\n2 = All geometries that intersect each polygon","1");if(choice===null)return;
       if(!["1","2"].includes(choice)){status("Choose 1 or 2.");return;}
       const numericFields=[...new Set(all.flatMap(r=>Object.keys(r.feature.properties||{})))].filter(k=>all.some(r=>Number.isFinite(Number(r.feature.properties?.[k]))&&String(r.feature.properties?.[k]??"").trim()!==""));
       let field=null;
       if(numericFields.length){field=askField("Numeric field for sum/mean (blank = count only):",["(count only)",...numericFields]);if(field===null)return;if(field==="(count only)"||field==="")field=null;else if(!numericFields.includes(field)){status("Choose a valid numeric summary field.");return;}}
       const summaries=polygonInputs.map((r,i)=>{
-        const matches=all.filter(x=>(choice==="2"||["Point","MultiPoint"].includes(x.feature.geometry.type))&&(()=>{try{return turf.booleanIntersects(r.feature,x.feature)}catch(_){return false}})());
-        const inside=matches.filter(x=>{try{return turf.booleanPointInPolygon(x.feature.geometry.type==="Point"?x.feature:turf.centroid(x.feature),r.feature)}catch(_){return false}});
-        const vals=field?inside.map(x=>Number(x.feature.properties?.[field])).filter(Number.isFinite):[];
+        const inside=all.filter(x=>{
+          if(choice==="1"&&!["Point","MultiPoint"].includes(x.feature.geometry.type))return false;
+          try{
+            if(["Point","MultiPoint"].includes(x.feature.geometry.type)){
+              const points=x.feature.geometry.type==="Point"?[x.feature]:x.feature.geometry.coordinates.map(c=>turf.point(c));
+              return points.some(p=>turf.booleanPointInPolygon(p,r.feature));
+            }
+            return choice==="2"&&turf.booleanIntersects(r.feature,x.feature);
+          }catch(_){return false}
+        });
+        const vals=field?inside.map(x=>{const value=x.feature.properties?.[field];return value===null||value===""||value===undefined?NaN:Number(value)}).filter(Number.isFinite):[];
         const p={...(r.feature.properties||{}),_analysis:"Summarize Within",_summary_count:inside.length};
         if(field){p["_sum_"+field]=vals.reduce((a,b)=>a+b,0);p["_mean_"+field]=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;}
         return {...JSON.parse(JSON.stringify(r.feature)),properties:p};
@@ -5860,6 +5884,7 @@ function runGisTool(tool){
  if(tool.id==="vectorSimplify"){runVectorAnalysis("simplify");return;}
  if(tool.id==="vectorSummarize"){runVectorAnalysis("summarize");return;}
  if(tool.id==="vectorGeometry"){runVectorAnalysis("geometry");return;}
+ if(tool.id==="vectorSinglepart"){runVectorAnalysis("singlepart");return;}
  if(tool.id==="chartStats"){chartStats();return;}
  
  if(tool.id==="selectRectangle"){selectByRectangle();return;}
