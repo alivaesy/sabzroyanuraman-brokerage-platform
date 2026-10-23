@@ -2416,9 +2416,13 @@ function saveAttributes(){
   if($("attributeLayer").value!=="")$("openTable").click();
 }
 function updateMultiSelectionUI(){
+  // Clear stale highlights, then style the actual Leaflet element for every selected
+  // geometry. Markers use _icon/getElement(), while lines and polygons use _path.
   document.querySelectorAll(".multi-selected-feature").forEach(el=>el.classList.remove("multi-selected-feature"));
   selectedFeatures.forEach(l=>{
-    if(l&&l._path)L.DomUtil.addClass(l._path,"multi-selected-feature");
+    if(!l)return;
+    const el=(typeof l.getElement==="function"&&l.getElement())||l._path||l._icon;
+    if(el)L.DomUtil.addClass(el,"multi-selected-feature");
   });
   const box=$("multiFeatureEditor"),info=$("multiSelectionInfo");
   if(info)info.textContent=selectedFeatures.size+" Feature Selection selected";
@@ -2471,6 +2475,10 @@ function featureLabel(layer){
 }
 function attachFeatureSelection(layer){
   if(!layer||!layer.on)return;
+  // Leaflet vector layers and marker layers must remain interactive for selection.
+  if(typeof layer.options==="object")layer.options.interactive=true;
+  if(layer._path)layer._path.style.pointerEvents="auto";
+  if(layer._icon)layer._icon.style.pointerEvents="auto";
   layer.on("click",ev=>{
     if(activeMapTool==="identify"){
       selectedOverlay=layer;
