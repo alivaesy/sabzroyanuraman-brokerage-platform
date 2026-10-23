@@ -779,6 +779,8 @@ body{background:#dfe5e8;color:#173b57}
     <div class="accordion-section" data-accordion="analysis">
       <button type="button" class="accordion-head"><span>Geoprocessing</span><span class="accordion-arrow">▾</span></button>
       <div class="accordion-body">
+        <button type="button" class="action" id="openModelBuilderFromGeoprocessing" onclick="openModelBuilder()" title="Build and run a multi-step geoprocessing workflow" style="width:100%;margin:0 0 9px;text-align:center;font-weight:700">▦ ModelBuilder — Build Workflow</button>
+        <div class="small" style="margin:0 0 8px">Chain multiple geoprocessing tools into one reusable model.</div>
         <div class="compact-block">
           <input id="gisToolSearch" placeholder="Search ArcToolbox..." autocomplete="off">
           <div id="gisToolResults" style="margin-top:7px"></div>
@@ -809,7 +811,6 @@ body{background:#dfe5e8;color:#173b57}
             <button type="button" class="action secondary" id="runDissolveDirect" onclick="runVectorAnalysis('dissolve')" title="Dissolve selected features or the available vector layer">Dissolve</button>
             <button type="button" class="action secondary" id="runSpatialJoinDirect" onclick="runVectorAnalysis('spatialJoin')" title="Join attributes using a spatial relationship">Spatial Join</button>
           </div>
-          <button type="button" class="action" id="openModelBuilderFromGeoprocessing" onclick="openModelBuilder()" title="Build and run a multi-step geoprocessing workflow" style="width:100%;margin-top:7px;text-align:center;font-weight:700">▦ Open ModelBuilder</button>
           <button type="button" class="action secondary" id="geometrySelfTest" style="margin-top:5px;width:100%">Geometry Self-Test</button>
           <div id="gisSelectionInfo" class="small">Input feature: —<br>Overlay feature: —</div>
         </div>
