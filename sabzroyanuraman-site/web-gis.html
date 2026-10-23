@@ -6871,7 +6871,7 @@ async function transferAttributesTool(){
   status("Attribute transfer complete: "+updates.length+" target feature(s) updated.");
 }
 
-function networkQaTool(){
+async function networkQaTool(){
   const items=getAllVectorItems();
   const pointItems=items.filter(x=>vectorFeatures(x.layer).some(v=>["Point","MultiPoint"].includes(v.feature.geometry?.type)));
   const lineItems=items.filter(x=>vectorFeatures(x.layer).some(v=>["LineString","MultiLineString"].includes(v.feature.geometry?.type)));
