@@ -409,6 +409,8 @@ body{background:#dfe5e8;color:#173b57}
 .attribute-schema-toolbar{position:relative;display:flex;align-items:center;gap:8px;min-height:30px;padding:3px 7px;background:#edf2f5;border-bottom:1px solid #ccd9df;overflow:visible;}
 #attributeTableSummary{margin-left:auto;color:#526775;font-size:10px;white-space:nowrap;}
 #attributeTableWindowToolbar .table-count{width:auto;margin-left:auto;}
+
+#topologyDialog{position:fixed;inset:0;z-index:9000;background:#102b3c77;display:none;align-items:center;justify-content:center;padding:14px;direction:ltr}#topologyDialog.open{display:flex}#topologyDialog .topology-card{width:min(680px,96vw);max-height:90vh;overflow:auto;background:#f7f8f9;border:1px solid #7f9099;box-shadow:0 12px 38px #0005;color:#243e50}#topologyDialog .topology-head{display:flex;align-items:center;gap:10px;padding:9px 12px;background:#e1e7ea;border-bottom:1px solid #aab6bc;font-size:13px;font-weight:700}#topologyDialog .topology-head span{flex:1}#topologyDialog .topology-head button{border:1px solid #aab6bc;background:#f8fafb;width:26px;height:24px;cursor:pointer}#topologyDialog .topology-body{padding:12px}#topologyDialog .topology-rule-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:8px 0 12px}#topologyDialog .topology-rule{display:flex;gap:8px;align-items:flex-start;padding:8px;background:#fff;border:1px solid #c4cfd4;font-size:11px}#topologyDialog .topology-rule input{width:15px;height:15px;flex:0 0 15px;margin:1px 0}#topologyDialog .topology-note{font-size:10px;line-height:1.5;color:#536c79;background:#edf2f4;border:1px solid #d0d9de;padding:8px;margin:8px 0}#topologyDialog .topology-actions{display:flex;justify-content:flex-end;gap:6px;padding:9px 12px;border-top:1px solid #c4cfd4;background:#edf1f3}#topologyDialog .topology-actions button{border:1px solid #a9b6bd;background:linear-gradient(#fff,#e1e7ea);padding:6px 13px;cursor:pointer;font-size:11px}#topologyDialog .topology-actions .primary{background:linear-gradient(#f8e7b5,#e7c96d);border-color:#b89c55;font-weight:700}#topologyDialog .topology-summary{font-size:11px;margin-bottom:8px;padding:8px;background:#fff;border:1px solid #c4cfd4}#topologyDialog .topology-errors{max-height:52vh;overflow:auto;border:1px solid #bdc9ce;background:#fff}#topologyDialog .topology-error{display:grid;grid-template-columns:65px 1fr auto;gap:8px;align-items:center;padding:7px 8px;border-bottom:1px solid #e0e6e9;font-size:10px}#topologyDialog .topology-error:nth-child(even){background:#f1f5f6}#topologyDialog .topology-error button{border:1px solid #b4c0c6;background:#fff;padding:4px 7px;cursor:pointer}@media(max-width:560px){#topologyDialog .topology-rule-grid{grid-template-columns:1fr}#topologyDialog .topology-error{grid-template-columns:1fr auto}}
 </style>
 <style>
 /* ArcMap Editor task menu + KMZ support */
@@ -465,6 +467,7 @@ body{background:#dfe5e8;color:#173b57}
     <button class="arc-menu-btn" data-menu="insertMenu">Insert</button>
     <button class="arc-menu-btn" data-menu="selectionMenu">Selection</button>
     <button class="arc-menu-btn" data-menu="analysisMenu">Geoprocessing</button>
+<button class="arc-menu-btn" data-menu="topologyMenu">Topology</button>
     <button class="arc-menu-btn" data-menu="layerMenu">Customize</button>
     <button class="arc-menu-btn" data-menu="windowsMenu">Windows</button>
     <button class="arc-menu-btn" data-menu="helpMenu">Help</button>
@@ -658,6 +661,12 @@ body{background:#dfe5e8;color:#173b57}
     <button data-tool="topologyCheckTool" title="Check Topology" data-edit-only="true"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-check"></use></svg><span>Check Topology</span></button>
     <button data-tool="snapTool" title="Snap Points to Lines" data-edit-only="true"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-snap"></use></svg><span>Snap Points to Lines</span></button>
     <div class="arc-sep"></div><button data-action="editorOptions"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-toolbox"></use></svg><span>Editing Options...</span></button>
+  </div>
+  <div class="arc-dropdown" id="topologyMenu">
+    <div class="arc-menu-title">Topology</div>
+    <button type="button" data-action="topologyOptions">⚙ Topology Options…</button>
+    <button type="button" data-action="topologyValidate">✓ Validate Topology</button>
+    <button type="button" data-action="topologyInspector">▤ Error Inspector</button>
   </div>
   <div class="arc-dropdown" id="analysisMenu">
     <div class="arc-menu-title">Geoprocessing</div>
@@ -4127,15 +4136,27 @@ async function exportRealGDB(){
   }
 }
 
-function checkEditTopology(){
+let lastTopologyReport={issues:[],records:[],layerName:"",checkedAt:null};
+function openTopologyDialog(mode="options"){
+ let root=document.getElementById("topologyDialog");
+ if(!root){root=document.createElement("div");root.id="topologyDialog";root.innerHTML='<section class="topology-card" role="dialog" aria-modal="true"><header class="topology-head"><span id="topologyDialogTitle">Topology</span><button type="button" id="topologyDialogClose" aria-label="Close">×</button></header><div class="topology-body" id="topologyDialogBody"></div><footer class="topology-actions" id="topologyDialogActions"></footer></section>';document.body.appendChild(root);root.addEventListener("click",e=>{if(e.target===root)root.classList.remove("open")});root.querySelector("#topologyDialogClose").onclick=()=>root.classList.remove("open");}
+ const body=root.querySelector("#topologyDialogBody"),actions=root.querySelector("#topologyDialogActions"),title=root.querySelector("#topologyDialogTitle");body.innerHTML="";actions.innerHTML="";root.classList.add("open");
+ const button=(label,fn,primary=false)=>{const b=document.createElement("button");b.type="button";b.textContent=label;if(primary)b.className="primary";b.onclick=fn;actions.appendChild(b);};
+ if(mode==="options"){
+  title.textContent="Topology Options";let current="all",threshold="1";try{current=localStorage.getItem("sabzRoyanWebGisTopologyRules")||"all";threshold=localStorage.getItem("sabzRoyanWebGisTopologyGapThreshold")||"1"}catch(_){}
+  body.innerHTML='<div>Choose the rule set used by <b>Validate Topology</b>. Checks run against the active edit layer.</div><div class="topology-rule-grid"><label class="topology-rule"><input type="radio" name="topologyRule" value="all"><span><b>All available checks</b><br>Geometry validity, duplicate vertices, self-intersections, polygon overlaps and coverage gaps.</span></label><label class="topology-rule"><input type="radio" name="topologyRule" value="geometry"><span><b>Geometry validity</b><br>Missing/invalid geometry, unclosed rings and duplicate consecutive vertices.</span></label><label class="topology-rule"><input type="radio" name="topologyRule" value="self"><span><b>Must Not Self-Intersect</b><br>Find polygon self-intersections.</span></label><label class="topology-rule"><input type="radio" name="topologyRule" value="overlap"><span><b>Must Not Overlap</b><br>Find overlapping or duplicate polygons.</span></label><label class="topology-rule"><input type="radio" name="topologyRule" value="gaps"><span><b>Must Not Have Gaps</b><br>Requires a selected boundary polygon from another layer.</span></label></div><div class="topology-note">ArcMap rules such as Must Not Have Dangles and Must Be Covered By are not yet implemented; this tool will not report them as passed.</div><label style="display:flex;align-items:center;gap:8px;font-size:11px">Report gaps larger than (m²)<input id="topologyGapThreshold" type="number" min="0" step="0.1" value="1" style="width:100px;height:26px"></label>';
+  (body.querySelector('input[name="topologyRule"][value="'+current+'"]')||body.querySelector('input[value="all"]')).checked=true;body.querySelector("#topologyGapThreshold").value=threshold;
+  button("Cancel",()=>root.classList.remove("open"));button("Validate",()=>{const chosen=body.querySelector('input[name="topologyRule"]:checked')?.value||"all",raw=Number(body.querySelector("#topologyGapThreshold").value);if(!Number.isFinite(raw)||raw<0){status("Enter a valid non-negative gap threshold.");return;}try{localStorage.setItem("sabzRoyanWebGisTopologyRules",chosen);localStorage.setItem("sabzRoyanWebGisTopologyGapThreshold",String(raw))}catch(_){}root.classList.remove("open");checkEditTopology(true)},true);
+ }else{
+  title.textContent="Topology Error Inspector";const issues=lastTopologyReport.issues||[];const summary=document.createElement("div");summary.className="topology-summary";summary.textContent=lastTopologyReport.checkedAt?"Layer: "+lastTopologyReport.layerName+" · "+issues.length+" error(s) · validated "+lastTopologyReport.checkedAt:"No validation report yet. Choose Validate Topology to run checks.";body.appendChild(summary);
+  if(!issues.length){const note=document.createElement("div");note.className="topology-note";note.textContent=lastTopologyReport.checkedAt?"No issues found for the selected rule set.":"The error list appears here after validation.";body.appendChild(note)}
+  const list=document.createElement("div");list.className="topology-errors";issues.slice(0,500).forEach(issue=>{const row=document.createElement("div");row.className="topology-error";const id=document.createElement("span");id.textContent="Feature "+issue.id;const message=document.createElement("span");message.textContent=issue.issue;const zoom=document.createElement("button");zoom.type="button";zoom.textContent="Zoom";zoom.onclick=()=>{const rec=lastTopologyReport.records.find(r=>String(r.id)===String(issue.id)),layer=rec?.layer;if(layer&&typeof layer.getBounds==="function"&&layer.getBounds().isValid())map.fitBounds(layer.getBounds().pad(.25));else if(layer&&typeof layer.getLatLng==="function")map.setView(layer.getLatLng(),Math.max(map.getZoom(),16));else status("Could not locate feature "+issue.id+" on the map.")};row.append(id,message,zoom);list.appendChild(row)});body.appendChild(list);
+  button("Close",()=>root.classList.remove("open"));button("Validate Again",()=>{root.classList.remove("open");checkEditTopology(true)},true);
+ }
+}
+function checkEditTopology(openInspector=false){
   if(!editSessionActive||!editTarget){status("Start Editing and choose an editable layer before checking topology.");return;}
-  const settingsKey="sabzRoyanWebGisTopologyRules";let rules="all";
-  try{rules=localStorage.getItem(settingsKey)||"all"}catch(_){}
-  const ruleChoice=prompt("Topology rules to run:\n1 = All checks\n2 = Geometry validity / duplicate vertices\n3 = Self-intersections\n4 = Polygon overlaps / duplicates\n5 = Coverage gaps (requires selected boundary polygon outside edit layer)",""+({"all":"1","geometry":"2","self":"3","overlap":"4","gaps":"5"}[rules]||"1"));
-  if(ruleChoice===null)return;
-  const ruleMap={"1":"all","2":"geometry","3":"self","4":"overlap","5":"gaps"};
-  if(!ruleMap[ruleChoice.trim()]){status("Choose a topology rule set from 1 to 5.");return;}
-  rules=ruleMap[ruleChoice.trim()];try{localStorage.setItem(settingsKey,rules)}catch(_){}
+  const settingsKey="sabzRoyanWebGisTopologyRules";let rules="all";try{rules=localStorage.getItem(settingsKey)||"all"}catch(_){}if(!["all","geometry","self","overlap","gaps"].includes(rules))rules="all";
   const records=vectorFeatures(editTarget),issues=[];
   const same=(a,b)=>Array.isArray(a)&&Array.isArray(b)&&a.length>=2&&b.length>=2&&Math.abs(a[0]-b[0])<1e-12&&Math.abs(a[1]-b[1])<1e-12;
   records.forEach((r,index)=>{
@@ -4237,7 +4258,7 @@ function checkEditTopology(){
         const gapFeature=turf.difference(turf.featureCollection([boundaryFeature,merged]));
         const gapArea=gapFeature?.geometry?Number(turf.area(gapFeature))||0:0;
         gapSummary="Gap check against selected boundary: "+(gapArea>1?"possible uncovered area "+gapArea.toFixed(2)+" m²":"no material uncovered area detected")+" (1 m² reporting threshold).";
-        if(gapArea>1)issues.push({id:boundaryFeature.id??boundaryFeature.properties?.OBJECTID??"boundary",issue:"Coverage gap inside selected boundary ("+gapArea.toFixed(2)+" m²)"});
+        let gapThreshold=1;try{gapThreshold=Math.max(0,Number(localStorage.getItem("sabzRoyanWebGisTopologyGapThreshold")||1))}catch(_){}if(gapArea>gapThreshold)issues.push({id:boundaryFeature.id??boundaryFeature.properties?.OBJECTID??"boundary",issue:"Coverage gap inside selected boundary ("+gapArea.toFixed(2)+" m²)"});
         gapChecked=true;
       }else gapSummary="Gap check unavailable: Turf union/difference is unavailable.";
     }
@@ -4254,7 +4275,8 @@ function checkEditTopology(){
   const filteredIssues=issues.filter(ruleMatches),gapRelevant=rules==="all"||rules==="gaps";
   const output=$("professionalToolOutput");
   if(output)output.textContent="Topology Check — Rule set: "+rules+" | Layer features: "+records.length+" | Issues: "+filteredIssues.length+"\\n"+(gapRelevant?gapSummary:"Coverage-gap check not requested.")+"\\n"+(filteredIssues.length?filteredIssues.slice(0,100).map(x=>"Feature "+x.id+": "+x.issue).join("\\n"):"No issues found for the selected rule set.")+(filteredIssues.length>100?"\\n... "+(filteredIssues.length-100)+" more issue(s) omitted.":"");
-  status(filteredIssues.length?"Topology check found "+filteredIssues.length+" issue(s); see Tool Output.":(!gapRelevant?"Selected topology checks passed for "+records.length+" feature(s).":!gapChecked?"Selected topology checks passed for "+records.length+" feature(s); "+gapSummary:"Topology check passed for "+records.length+" feature(s); "+gapSummary));
+  status(filteredIssues.length?"Topology check found "+filteredIssues.length+" issue(s); open Topology → Error Inspector.":(!gapRelevant?"Selected topology checks passed for "+records.length+" feature(s).":!gapChecked?"Selected topology checks passed for "+records.length+" feature(s); "+gapSummary:"Topology check passed for "+records.length+" feature(s); "+gapSummary));
+  lastTopologyReport={issues:filteredIssues,records:records.map((r,index)=>({id:r.feature?.id??r.feature?.properties?.OBJECTID??r.feature?.properties?.FID??(index+1),layer:r.layer||r.leafletLayer||r.owner?.layer,feature:r.feature})),layerName:editTarget?.options?.name||editTarget?.feature?.properties?.name||"active edit layer",checkedAt:new Date().toLocaleString()};if(openInspector)openTopologyDialog("inspector");
 }
 
 function modifyLasso(){
@@ -6192,6 +6214,9 @@ function addMapDecoration(kind){
       },
       showToolbox:()=>{openGisDock("analysis");document.getElementById("gisToolSearch")?.focus()},
       editorOptions:()=>openGisDock("edit"),
+      topologyOptions:()=>openTopologyDialog("options"),
+      topologyValidate:()=>checkEditTopology(true),
+      topologyInspector:()=>openTopologyDialog("inspector"),
       toggleEditorToolbar:()=>document.getElementById("editorToolbar")?.classList.toggle("show"),
       openToolSearch:()=>{const d=document.getElementById("searchDock");d?.classList.add("open");document.getElementById("topToolSearch")?.focus()},
       zoomIn:()=>map.zoomIn(),
