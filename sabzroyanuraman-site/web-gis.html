@@ -52,6 +52,7 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
 
 
 .gis-tool-item{display:flex;align-items:center;gap:7px;width:100%;text-align:right;border:1px solid #d9e4e9;background:#fff;color:#173b57;border-radius:7px;padding:7px 8px;margin:4px 0;cursor:pointer;font-size:10px}
+#gisToolResults{max-height:360px;overflow-y:auto;overscroll-behavior:contain;padding:0 3px 0 0}
 .gis-tool-item:hover{background:#eef7f3;border-color:#9db5c1}
 .gis-tool-cat{font-size:9px;color:#146c43;margin:8px 2px 3px;font-weight:700}
 .gis-tool-empty{font-size:10px;color:#7b8f9b;padding:8px 2px}
@@ -4872,6 +4873,8 @@ const GIS_TOOLS=[
  {id:"vectorSimplify",title:"Simplify Features",category:"Geoprocessing",keys:"simplify geometry tolerance reduce vertices"},
  {id:"vectorSummarize",title:"Summarize Within",category:"Geoprocessing",keys:"summarize within polygons count points sum mean statistics"},
  {id:"chartStats",title:"Statistics",category:"Geoprocessing",keys:"chart statistics"},
+ {id:"spatialFilter",title:"Spatial Filter",category:"Geoprocessing",keys:"spatial filter query by geometry intersects within contains"},
+ {id:"geometrySelfTest",title:"Geometry Self-Test",category:"Geoprocessing",keys:"geometry validation regression test"},
  {id:"nearestMatchTool",title:"Find Nearest Features",category:"Network QA",keys:"nearest"},
  {id:"transferAttributesTool",title:"Transfer Attributes",category:"Network QA",keys:"attributes"},
  {id:"networkQaTool",title:"Network Connectivity Check",category:"Network QA",keys:"network connectivity"}
@@ -6678,6 +6681,7 @@ function runGisTool(tool){
  else el.focus();
 }
 $("gisToolSearch").oninput=e=>renderGisToolbox(e.target.value);
+renderGisToolbox(); // Show the complete registered ArcToolbox catalog immediately; search narrows it.
 
 async function addMapDecoration(kind){
   window._mapDecorations=window._mapDecorations||{};
