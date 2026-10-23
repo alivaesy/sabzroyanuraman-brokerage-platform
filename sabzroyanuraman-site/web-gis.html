@@ -786,7 +786,8 @@ body{background:#dfe5e8;color:#173b57}
         </div>
         <div class="compact-block">
           <label class="compact-label">Geoprocessing</label>
-          <div class="small">Click to set the first feature; Shift-click to set the second.</div>
+          <div class="small">Click to set the first feature; Shift-click to set the second. Operations run on selected features, not whole layers.</div>
+          <div class="small" id="gisCrsNotice">GeoJSON longitude/latitude is used internally; Buffer distance is in meters. Source layers remain unchanged.</div>
           <select id="gisOperation" style="margin-top:6px">
             <option value="buffer">Buffer</option>
             <option value="clip">Clip</option>
@@ -2627,6 +2628,8 @@ function runGisOperation(){
   try{
     const f1=asFeature(selectedLayer);
     if(!f1||!f1.geometry){status("The input feature geometry is invalid.");return;}
+    if(typeof vertexGeometryIsValid==="function"&&!vertexGeometryIsValid(f1.geometry)){status("Input geometry failed structural validation. Review it before processing.");return;}
+    if(!["Point","MultiPoint","LineString","MultiLineString","Polygon","MultiPolygon"].includes(f1.geometry.type)){status("Unsupported input geometry type: "+f1.geometry.type);return;}
     let result=null,name="Geoprocessing";
     if(op==="buffer"){
       const d=Number($("bufferDistance").value);
@@ -2650,6 +2653,8 @@ function runGisOperation(){
       if(!selectedOverlay){status("Shift-click to select the overlay feature.");return;}
       const f2=asFeature(selectedOverlay);
       if(!f2||!f2.geometry){status("The overlay feature geometry is invalid.");return;}
+      if(typeof vertexGeometryIsValid==="function"&&!vertexGeometryIsValid(f2.geometry)){status("Overlay geometry failed structural validation. Review it before processing.");return;}
+      if(!["Point","MultiPoint","LineString","MultiLineString","Polygon","MultiPolygon"].includes(f2.geometry.type)){status("Unsupported overlay geometry type: "+f2.geometry.type);return;}
       if(op==="clip"||op==="intersection"||op==="erase"||op==="union"){
         const polygonal=g=>g&&["Polygon","MultiPolygon"].includes(g.type);
         if((op==="erase"||op==="union")&&(!polygonal(f1.geometry)||!polygonal(f2.geometry))){
@@ -2736,6 +2741,13 @@ function runGisOperation(){
       }else{status("Unknown geoprocessing operation.");return;}
     }
     if(!result){status(name+" returned no geometry. The features may not overlap or may not be compatible.");return;}
+    const outputFeatures=result.type==="FeatureCollection"?result.features:[result];
+    if(!outputFeatures.length){status(name+" returned an empty FeatureCollection; no output layer was created.");return;}
+    for(let i=0;i<outputFeatures.length;i++){
+      const feature=outputFeatures[i];
+      if(!feature?.geometry||!["Point","MultiPoint","LineString","MultiLineString","Polygon","MultiPolygon"].includes(feature.geometry.type)){status(name+" output contains missing or unsupported geometry at feature "+(i+1)+"; output was not added.");return;}
+      if(typeof vertexGeometryIsValid==="function"&&!vertexGeometryIsValid(feature.geometry)){status(name+" produced structurally invalid geometry at feature "+(i+1)+"; output was rejected and source features were preserved.");return;}
+    }
     resultLayerFromFeature(result,name);
     status(name+" created and added to the Table Of Contents.");scheduleAutoSave();
   }catch(err){
@@ -4733,6 +4745,7 @@ const GIS_TOOLS=[
  {id:"showBookmarks",title:"Bookmarks",category:"Bookmarks",keys:"extent"},
 
  {id:"vectorDissolve",title:"Dissolve",category:"Geoprocessing",keys:"dissolve aggregate remove boundaries by attribute"},
+ {id:"vectorSpatialJoin",title:"Spatial Join",category:"Geoprocessing",keys:"spatial join transfer attributes intersects within nearest features"},
  {id:"vectorSimplify",title:"Simplify Features",category:"Geoprocessing",keys:"simplify geometry tolerance reduce vertices"},
  {id:"vectorSummarize",title:"Summarize Within",category:"Geoprocessing",keys:"summarize within polygons count points sum mean statistics"},
  {id:"vectorGeometry",title:"Calculate Geometry Attributes",category:"Geoprocessing",keys:"geometry area perimeter length coordinates calculate geometry"},
@@ -6462,6 +6475,7 @@ function runGisTool(tool){
  if(tool.id==="snapTool"){snapTool();return;}
  if(tool.id==="attachmentsTool"){attachmentsTool();return;}
  if(tool.id==="vectorDissolve"){runVectorAnalysis("dissolve");return;}
+ if(tool.id==="vectorSpatialJoin"){runVectorAnalysis("spatialJoin");return;}
  if(tool.id==="vectorSimplify"){runVectorAnalysis("simplify");return;}
  if(tool.id==="vectorSummarize"){runVectorAnalysis("summarize");return;}
  if(tool.id==="vectorGeometry"){runVectorAnalysis("geometry");return;}
