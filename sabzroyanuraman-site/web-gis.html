@@ -1640,8 +1640,8 @@ async function deleteSelectedFeatures(){
   records.forEach(r=>r.owner.layer.removeLayer(r.layer));
   selectedFeatures.clear();selectedLayer=null;selectedOverlay=null;const editor=$("attributeEditor");if(editor)editor.style.display="none";applySelectionVisual();refreshAll();const synced=await flushGeodatabaseEdits();scheduleAutoSave();updateStandardActionButtons();status(records.length+" feature(s) deleted."+(synced?"":" Geodatabase sync failed; save edits again."));
 }
-function openOnlineData(){
-  const value=prompt("Enter a public GeoJSON URL or ArcGIS Feature Service layer URL:");
+async function openOnlineData(){
+  const value=await arcMapDialog.prompt({title:"Add Online Data",message:"Enter a public GeoJSON URL or ArcGIS Feature Service layer URL:",label:"Service URL",value:""});
   if(!value)return;
   let url;try{url=new URL(value.trim());if(!/^https?:$/.test(url.protocol))throw new Error();}catch(_){status("Enter a valid HTTP or HTTPS data URL.");return;}
   if(location.protocol==="https:"&&url.protocol!=="https:"){status("Use an HTTPS data service on this secure page.");return;}
@@ -1656,8 +1656,8 @@ function openOnlineData(){
     status(data.features.length+" online feature(s) added.");
   }).catch(err=>status("Online data could not be loaded: "+err.message+" (the server must allow cross-origin requests)."));
 }
-function runMapCommandLine(){
-  const command=prompt("Map command (help, zoom in, zoom out, full extent, identify, basemap <name>, go <x>,<y>):","help");
+async function runMapCommandLine(){
+  const command=await arcMapDialog.prompt({title:"Map Command",message:"Enter a command: help, zoom in, zoom out, full extent, identify, basemap <name>, go <x>,<y>",label:"Command",value:"help"});
   if(command===null)return;
   const parts=command.trim().split(/\s+/),verb=parts.shift()?.toLowerCase();
   if(verb==="help"){status("Commands: zoom in | zoom out | full extent | identify | basemap <osm|topo|sat|esriStreet|esriTopo|esriGray|nasaWms> | go <x>,<y>");return;}
@@ -1684,8 +1684,8 @@ function startHtmlPopupTool(){
   document.querySelectorAll("#classicToolbars button.icon-tool").forEach(b=>b.classList.remove("active"));
   $("htmlPopupBtn").classList.add("active");status("Click a feature to open its attribute pop-up.");
 }
-function startMeasureTool(){
-  stopActiveDraw(true);const shapeType=prompt("Measure type: distance or area","distance");
+async function startMeasureTool(){
+  stopActiveDraw(true);const shapeType=await arcMapDialog.select({title:"Measure",message:"Choose the measurement type:",label:"Measurement",value:"distance",options:[{value:"distance",label:"Distance"},{value:"area",label:"Area"}]});
   if(!shapeType)return;
   const isArea=/^a/i.test(shapeType);
   startSelectionShape(isArea?"Polygon":"Polyline",{allowIntersection:false,shapeOptions:{color:"#d17b00",weight:3,dashArray:"6,4"}},shape=>{
@@ -1696,9 +1696,9 @@ function startMeasureTool(){
   });
 }
 async function findRoute(){
-  const c=map.getCenter(),from=prompt("Start coordinate, longitude,latitude:",c.lng.toFixed(5)+","+c.lat.toFixed(5));
+  const c=map.getCenter(),from=await arcMapDialog.prompt({title:"Find Route",message:"Enter the start coordinate as longitude,latitude:",label:"Start coordinate",value:c.lng.toFixed(5)+","+c.lat.toFixed(5)});
   if(!from)return;
-  const to=prompt("Destination coordinate, longitude,latitude:","");
+  const to=await arcMapDialog.prompt({title:"Find Route",message:"Enter the destination coordinate as longitude,latitude:",label:"Destination coordinate",value:""});
   if(!to)return;
   const parsePair=text=>text.split(/[ ,;]+/).map(Number).slice(0,2);
   const a=parsePair(from),b=parsePair(to);
@@ -4902,23 +4902,23 @@ function selectByPolygon(){
   finishShapeSelection(matches,records,mode,"by polygon");
  });
 }
-function selectByLocation(){
+async function selectByLocation(){
   const items=[{name:"My Drawings",layer:drawn},...namedLayers]
     .filter((x,i,arr)=>x.layer&&isVectorLayer(x.layer)&&vectorFeatures(x.layer).length&&arr.findIndex(y=>y.layer===x.layer)===i);
   if(items.length<2){status("Load at least two vector layers (including My Drawings when it contains features) before spatial selection.");return;}
-  const rel=prompt("Spatial relationship:\n1 = Intersects\n2 = Within (source inside target)\n3 = Contains (source contains target)\n4 = Touches\n5 = Overlaps\n6 = Crosses\n7 = Disjoint (does not intersect any target)","1");
+  const rel=await arcMapDialog.select({title:"Select By Location",message:"Choose the spatial relationship:",label:"Relationship",value:"intersects",options:[{value:"intersects",label:"Intersects"},{value:"within",label:"Within"},{value:"contains",label:"Contains"},{value:"touches",label:"Touches"},{value:"overlaps",label:"Overlaps"},{value:"crosses",label:"Crosses"},{value:"disjoint",label:"Disjoint"}]});
   if(rel===null)return;
-  const relation={"1":"intersects","2":"within","3":"contains","4":"touches","5":"overlaps","6":"crosses","7":"disjoint"}[rel.trim()];
+  const relation=rel;
   if(!relation){status("Choose a spatial relationship from 1 through 7.");return;}
   const menu=items.map((x,i)=>(i+1)+". "+x.name+" ("+vectorFeatures(x.layer).length+" features)").join("\n");
-  const a=prompt("Source layer number:\n"+menu,"1");
+  const a=await arcMapDialog.select({title:"Select By Location",message:"Choose the source layer:",label:"Source layer",value:items[0].name,options:items.map(x=>({value:x.name,label:x.name+" ("+vectorFeatures(x.layer).length+" features)"}))});
   if(a===null)return;
-  const b=prompt("Target layer number:\n"+menu,"2");
+  const b=await arcMapDialog.select({title:"Select By Location",message:"Choose the target layer:",label:"Target layer",value:items[1].name,options:items.slice(1).concat(items.slice(0,1)).map(x=>({value:x.name,label:x.name+" ("+vectorFeatures(x.layer).length+" features)"}))});
   if(b===null)return;
-  const ai=Number(a)-1,bi=Number(b)-1;
+  const ai=items.findIndex(x=>x.name===a),bi=items.findIndex(x=>x.name===b);
   if(!Number.isInteger(ai)||!Number.isInteger(bi)||!items[ai]||!items[bi]){status("Invalid layer number.");return;}
   if(ai===bi){status("Choose different source and target layers.");return;}
-  const modeInput=prompt("Selection type:\n1 = New selection\n2 = Add to current selection\n3 = Remove from current selection\n4 = Select from current selection","1");
+  const modeInput=await arcMapDialog.select({title:"Select By Location",message:"Choose how to apply the selection:",label:"Selection mode",value:"1",options:[{value:"1",label:"New selection"},{value:"2",label:"Add to current selection"},{value:"3",label:"Remove from current selection"},{value:"4",label:"Select from current selection"}]});
   if(modeInput===null)return;
   const mode=modeInput.trim();
   if(!["1","2","3","4"].includes(mode)){status("Choose selection type 1, 2, 3, or 4.");return;}
