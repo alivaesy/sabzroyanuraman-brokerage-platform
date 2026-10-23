@@ -52,7 +52,7 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
 
 
 .gis-tool-item{display:flex;align-items:center;gap:7px;width:100%;text-align:right;border:1px solid #d9e4e9;background:#fff;color:#173b57;border-radius:7px;padding:7px 8px;margin:4px 0;cursor:pointer;font-size:10px}
-#gisToolResults{max-height:360px;overflow-y:auto;overscroll-behavior:contain;padding:0 3px 0 0}
+#gisToolResults{max-height:min(52vh,520px);min-height:180px;overflow-y:auto;overscroll-behavior:contain;padding:0 3px 0 0}
 .gis-tool-item:hover{background:#eef7f3;border-color:#9db5c1}
 .gis-tool-cat{font-size:9px;color:#146c43;margin:8px 2px 3px;font-weight:700}\n.gis-tool-summary{position:sticky;top:0;z-index:2;background:#f2f7f8;color:#264b5c;border:1px solid #d9e4e9;border-radius:5px;padding:5px 7px;margin:2px 0 6px;font-size:10px;font-weight:700}\n.gis-tool-group{display:block;min-width:0}
 .gis-tool-empty{font-size:10px;color:#7b8f9b;padding:8px 2px}
@@ -792,16 +792,18 @@ body{background:#dfe5e8;color:#173b57}
           <div class="small">Run on selected features or choose complete input/overlay layers. Buffer distance is in meters; source layers are preserved.</div>
           <div class="small" id="gisCrsNotice">GeoJSON longitude/latitude is used internally; Buffer distance is in meters. Source layers remain unchanged.</div>
           <select id="gisOperation" style="margin-top:6px">
-            <option value="buffer">Buffer</option>
-            <option value="clip">Clip</option>
-            <option value="intersection">Intersect</option>
-            <option value="split">Split</option>
-            <option value="merge">Merge</option>
-            <option value="erase">Erase</option>
-            <option value="union">Union</option>
-            <option value="centroid">Feature To Point (Centroid)</option>
-            <option value="convexHull">Minimum Bounding Geometry (Convex Hull)</option>
-            <option value="boundingBox">Minimum Bounding Geometry (Envelope)</option>
+            <optgroup label="Overlay and extraction">
+              <option value="buffer">Buffer</option><option value="clip">Clip</option><option value="intersection">Intersect</option><option value="erase">Erase</option><option value="identity">Identity</option><option value="union">Union</option>
+            </optgroup>
+            <optgroup label="Data management">
+              <option value="merge">Merge</option><option value="append">Append</option><option value="split">Split</option><option value="vectorSinglepart">Multipart To Singlepart</option><option value="vectorDissolve">Dissolve</option>
+            </optgroup>
+            <optgroup label="Geometry">
+              <option value="centroid">Feature To Point (Centroid)</option><option value="convexHull">Minimum Bounding Geometry (Convex Hull)</option><option value="boundingBox">Minimum Bounding Geometry (Envelope)</option><option value="vectorSimplify">Simplify Features</option><option value="repairSelectedGeometry">Repair Geometry</option><option value="vectorGeometry">Calculate Geometry Attributes</option>
+            </optgroup>
+            <optgroup label="Analysis">
+              <option value="vectorSpatialJoin">Spatial Join</option><option value="vectorSummarize">Summarize Within</option><option value="chartStats">Statistics</option><option value="spatialFilter">Spatial Filter</option><option value="geometrySelfTest">Geometry Self-Test</option><option value="modelBuilder">ModelBuilder</option>
+            </optgroup>
           </select>
           <input id="bufferDistance" type="number" step="0.1" min="0" value="5" placeholder="Buffer distance (meters)" style="margin-top:6px">
           <div class="row">
@@ -3347,7 +3349,14 @@ $("deleteMultiSelected").onclick=async()=>{
   status(targets.length+" feature(s) deleted from the active edit layer.");
 };
 $("clearMultiSelected").onclick=()=>{clearMultiSelection();selectedLayer=null;selectedOverlay=null;renderAttributeEditor();status("Multiple selection cleared.")};
-$("runGisOperation").onclick=runGisOperation;
+$("runGisOperation").onclick=()=>{
+  const selected=$("gisOperation")?.value||"buffer";
+  const core=new Set(["buffer","clip","intersection","merge","union","erase","identity","append","split","centroid","convexHull","boundingBox"]);
+  if(core.has(selected)){runGisOperation();return;}
+  const tool=(typeof GIS_TOOLS!=="undefined"?GIS_TOOLS:[]).find(t=>t.id===selected);
+  if(tool){runGisTool(tool);return;}
+  status("This geoprocessing command is not registered: "+selected);
+};
 $("geometrySelfTest").onclick=runGeometryRegressionTests;
 $("clearGisSelection").onclick=()=>{
   selectedLayer=null;selectedOverlay=null;
