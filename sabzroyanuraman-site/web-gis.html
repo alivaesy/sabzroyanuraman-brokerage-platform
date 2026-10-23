@@ -4144,7 +4144,7 @@ function openTopologyDialog(mode="options"){
  const button=(label,fn,primary=false)=>{const b=document.createElement("button");b.type="button";b.textContent=label;if(primary)b.className="primary";b.onclick=fn;actions.appendChild(b);};
  if(mode==="options"){
   title.textContent="Topology Options";let current="all",threshold="1";try{current=localStorage.getItem("sabzRoyanWebGisTopologyRules")||"all";threshold=localStorage.getItem("sabzRoyanWebGisTopologyGapThreshold")||"1"}catch(_){}
-  body.innerHTML='<div>Choose the rule set used by <b>Validate Topology</b>. Checks run against the active edit layer.</div><div class="topology-rule-grid"><label class="topology-rule"><input type="radio" name="topologyRule" value="all"><span><b>All available checks</b><br>Geometry validity, duplicate vertices, self-intersections, polygon overlaps and coverage gaps.</span></label><label class="topology-rule"><input type="radio" name="topologyRule" value="geometry"><span><b>Geometry validity</b><br>Missing/invalid geometry, unclosed rings and duplicate consecutive vertices.</span></label><label class="topology-rule"><input type="radio" name="topologyRule" value="self"><span><b>Must Not Self-Intersect</b><br>Find polygon self-intersections.</span></label><label class="topology-rule"><input type="radio" name="topologyRule" value="overlap"><span><b>Must Not Overlap</b><br>Find overlapping or duplicate polygons.</span></label><label class="topology-rule"><input type="radio" name="topologyRule" value="gaps"><span><b>Must Not Have Gaps</b><br>Requires a selected boundary polygon from another layer.</span></label><label class="topology-rule"><input type="radio" name="topologyRule" value="dangles"><span><b>Must Not Have Dangles</b><br>Find line endpoints not connected to another line.</span></label><label class="topology-rule"><input type="radio" name="topologyRule" value="covered"><span><b>Must Be Covered By</b><br>Checks features against a selected polygon from another layer.</span></label></div><div class="topology-note">Must Not Have Dangles uses a 0.25 m endpoint tolerance. Must Be Covered By requires selecting a polygon in another layer.</div><label style="display:flex;align-items:center;gap:8px;font-size:11px">Report gaps larger than (m²)<input id="topologyGapThreshold" type="number" min="0" step="0.1" value="1" style="width:100px;height:26px"></label>';
+  body.innerHTML='<div>Choose the rule set used by <b>Validate Topology</b>. Checks run against the active edit layer.</div><div class="topology-rule-grid"><label class="topology-rule"><input type="radio" name="topologyRule" value="all"><span><b>All available checks</b><br>Geometry validity, self-intersections, overlaps, gaps, line dangles and covered-by checks.</span></label><label class="topology-rule"><input type="radio" name="topologyRule" value="geometry"><span><b>Geometry validity</b><br>Missing/invalid geometry, unclosed rings and duplicate consecutive vertices.</span></label><label class="topology-rule"><input type="radio" name="topologyRule" value="self"><span><b>Must Not Self-Intersect</b><br>Find polygon self-intersections.</span></label><label class="topology-rule"><input type="radio" name="topologyRule" value="overlap"><span><b>Must Not Overlap</b><br>Find overlapping or duplicate polygons.</span></label><label class="topology-rule"><input type="radio" name="topologyRule" value="gaps"><span><b>Must Not Have Gaps</b><br>Requires a selected boundary polygon from another layer.</span></label><label class="topology-rule"><input type="radio" name="topologyRule" value="dangles"><span><b>Must Not Have Dangles</b><br>Find line endpoints not connected to another line.</span></label><label class="topology-rule"><input type="radio" name="topologyRule" value="covered"><span><b>Must Be Covered By</b><br>Checks features against a selected polygon from another layer.</span></label></div><div class="topology-note">Must Not Have Dangles uses a 0.25 m endpoint tolerance. Must Be Covered By requires selecting a polygon in another layer.</div><label style="display:flex;align-items:center;gap:8px;font-size:11px">Report gaps larger than (m²)<input id="topologyGapThreshold" type="number" min="0" step="0.1" value="1" style="width:100px;height:26px"></label>';
   (body.querySelector('input[name="topologyRule"][value="'+current+'"]')||body.querySelector('input[value="all"]')).checked=true;body.querySelector("#topologyGapThreshold").value=threshold;
   button("Cancel",()=>root.classList.remove("open"));button("Validate",()=>{const chosen=body.querySelector('input[name="topologyRule"]:checked')?.value||"all",raw=Number(body.querySelector("#topologyGapThreshold").value);if(!Number.isFinite(raw)||raw<0){status("Enter a valid non-negative gap threshold.");return;}try{localStorage.setItem("sabzRoyanWebGisTopologyRules",chosen);localStorage.setItem("sabzRoyanWebGisTopologyGapThreshold",String(raw))}catch(_){}root.classList.remove("open");checkEditTopology(true)},true);
  }else{
@@ -4163,13 +4163,14 @@ function checkEditTopology(openInspector=false){
     const f=r.feature||r.layer?.feature||{},g=f.geometry;
     const id=f.id??f.properties?.OBJECTID??f.properties?.FID??(index+1);
     if(!g){issues.push({id,issue:"Missing geometry"});return;}
-    if(typeof vertexGeometryIsValid==="function"&&!vertexGeometryIsValid(g)){
+    if((rules==="all"||rules==="geometry")&&typeof vertexGeometryIsValid==="function"&&!vertexGeometryIsValid(g)){
       issues.push({id,issue:"Invalid geometry: check coordinate ranges, duplicate vertices, ring closure, distinct vertices, and polygon area"});
     }
     const checkLine=(coords,label)=>{
       if(!Array.isArray(coords)||coords.length<2){issues.push({id,issue:label+": fewer than 2 vertices"});return;}
       for(let i=1;i<coords.length;i++)if(same(coords[i-1],coords[i]))issues.push({id,issue:label+": duplicate consecutive vertices at "+i});
     };
+    if(rules==="all"||rules==="geometry"){
     if(g.type==="LineString")checkLine(g.coordinates,"Line");
     else if(g.type==="MultiLineString")g.coordinates.forEach((line,i)=>checkLine(line,"Line part "+(i+1)));
     if(g.type==="Polygon"){
@@ -4183,14 +4184,15 @@ function checkEditTopology(openInspector=false){
         checkLine(ring,"Polygon "+(p+1)+" ring "+(i+1));
       }));
     }
-    if(["Polygon","MultiPolygon"].includes(g.type)){
+    }
+    if((rules==="all"||rules==="self"||rules==="geometry")&&["Polygon","MultiPolygon"].includes(g.type)){
       try{
-        if(typeof turf.kinks==="function"){
+        if((rules==="all"||rules==="self")&&typeof turf.kinks==="function"){
           const k=turf.kinks(f).features||[];
           if(k.length)issues.push({id,issue:"Self-intersecting polygon ("+k.length+" intersection(s))"});
         }
-        const area=turf.area(f);
-        if(!Number.isFinite(area)||area<=0)issues.push({id,issue:"Polygon has zero or invalid area"});
+        if(rules==="all"||rules==="geometry"){const area=turf.area(f);
+        if(!Number.isFinite(area)||area<=0)issues.push({id,issue:"Polygon has zero or invalid area"});}
       }catch(e){issues.push({id,issue:"Topology check failed: "+(e.message||"unknown error")});}
     }
   });
@@ -4200,8 +4202,14 @@ function checkEditTopology(openInspector=false){
     lines.forEach((item,index)=>item.parts.forEach((coords,part)=>{if(!Array.isArray(coords)||coords.length<2)return;[coords[0],coords[coords.length-1]].forEach((endpoint,side)=>{let connected=false;const point=turf.point(endpoint);for(let j=0;j<lines.length&&!connected;j++){if(j===index)continue;try{const d=typeof turf.pointToLineDistance==="function"?Number(turf.pointToLineDistance(point,lines[j].f,{units:"meters"})):Infinity;if(Number.isFinite(d)&&d<=tolerance)connected=true}catch(_){}}if(!connected)issues.push({id:item.r.feature?.id??item.r.feature?.properties?.OBJECTID??item.r.feature?.properties?.FID??(index+1),issue:"Dangle: "+(side===0?"start":"end")+" endpoint of line part "+(part+1)+" is not connected to another line"})})}));
   }
   if(rules==="all"||rules==="covered"){
-    const boundaryLayer=selectedLayer,boundaryFeature=boundaryLayer&&!isLayerInEditTarget(boundaryLayer)?(boundaryLayer.feature||boundaryLayer.toGeoJSON?.()):null;
-    if(boundaryFeature?.geometry&&["Polygon","MultiPolygon"].includes(boundaryFeature.geometry.type))records.forEach((r,index)=>{try{const f=r.feature;if(!f?.geometry)return;const covered=typeof turf.booleanCoveredBy==="function"?turf.booleanCoveredBy(f,boundaryFeature):typeof turf.booleanWithin==="function"?turf.booleanWithin(f,boundaryFeature):false;if(!covered)issues.push({id:f.id??f.properties?.OBJECTID??f.properties?.FID??(index+1),issue:"Must Be Covered By: feature is not contained by the selected boundary polygon"})}catch(e){issues.push({id:r.feature?.id??r.feature?.properties?.OBJECTID??(index+1),issue:"Must Be Covered By check failed: "+(e.message||"invalid geometry")})}});else issues.push({id:"—",issue:"Must Be Covered By check skipped: select a polygon from another layer first"});
+    const boundaryLayer=selectedLayer;
+    let boundaryFeatures=[];
+    if(boundaryLayer&&!isLayerInEditTarget(boundaryLayer)){
+      if(typeof boundaryLayer.eachLayer==="function")boundaryFeatures=vectorFeatures(boundaryLayer).map(x=>x.feature).filter(f=>f?.geometry&&["Polygon","MultiPolygon"].includes(f.geometry.type));
+      else {const f=boundaryLayer.feature||(typeof boundaryLayer.toGeoJSON==="function"?boundaryLayer.toGeoJSON():null);if(f?.geometry&&["Polygon","MultiPolygon"].includes(f.geometry.type))boundaryFeatures=[f];}
+    }
+    const boundaryFeature=boundaryFeatures[0];
+    if(boundaryFeature)records.forEach((r,index)=>{try{const f=r.feature;if(!f?.geometry)return;let covered;if(typeof turf.booleanCoveredBy==="function")covered=turf.booleanCoveredBy(f,boundaryFeature);else if(typeof turf.booleanWithin==="function")covered=turf.booleanWithin(f,boundaryFeature)||!!turf.booleanContains?.(boundaryFeature,f);else covered=false;if(!covered)issues.push({id:f.id??f.properties?.OBJECTID??f.properties?.FID??(index+1),issue:"Must Be Covered By: feature is not contained by the selected boundary polygon"})}catch(e){issues.push({id:r.feature?.id??r.feature?.properties?.OBJECTID??(index+1),issue:"Must Be Covered By check failed: "+(e.message||"invalid geometry")})}});else issues.push({id:"—",issue:"Must Be Covered By check skipped: select a polygon feature from another layer first"});
   }
   if(rules==="all"||rules==="overlap"){
   // Pairwise polygon checks catch partial overlaps between parcel-like
