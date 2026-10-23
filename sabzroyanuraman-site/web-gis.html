@@ -2167,9 +2167,12 @@ function renderLayerList(){
     el.appendChild(row);
   };
   const drawingSets=[...new Set(namedLayers.filter(x=>x.drawingSet).map(x=>x.drawingSet))];
-  if(drawn.getLayers().length)addRow({name:"Legacy drawings",layer:drawn,isDrawn:true},"Legacy drawings",false);
+  if(vectorFeatures(drawn).length)addRow({name:"Legacy drawings",layer:drawn,isDrawn:true},"Legacy drawings",false);
   drawingSets.forEach(name=>{
-    const children=namedLayers.filter(x=>x.drawingSet===name);groups.set(name,children);
+    // Hide empty drawing groups and geometry children, like ArcMap's TOC.
+    const children=namedLayers.filter(x=>x.drawingSet===name&&vectorFeatures(x.layer).length>0);
+    if(!children.length)return;
+    groups.set(name,children);
     addRow({name,isGroup:true},name,false);
     children.forEach(x=>addRow(x,x.displayName||x._webgisDrawingType||x.name,true));
   });
