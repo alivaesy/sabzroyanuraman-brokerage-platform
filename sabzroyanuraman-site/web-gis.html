@@ -2695,7 +2695,7 @@ function showAttributeTableWindow(){
  win.classList.add("open");
  const label=$("attributeLayer")?.selectedOptions?.[0]?.textContent||"Attribute Table";
  win.querySelector("#attributeTableWindowTitle").textContent="Table — "+label;
- win.querySelector("#attributeTableWindowLayer").textContent=label;
+ win.querySelector("#attributeTableWindowLayer").textContent="";
 }
 function updateAttributeTableWindowInfo(){
  if(!attributeTableWindow)return;
