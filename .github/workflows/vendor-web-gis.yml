@@ -51,7 +51,12 @@ jobs:
           cp -a "$N/leaflet/dist/." "$DEST/leaflet/"
           cp -a "$N/leaflet-draw/dist/." "$DEST/leaflet-draw/"
           cp -a "$N/shp-write/." "$DEST/shp-write/"
-          cp -a "$N/dxf-writer/dist/." "$DEST/dxf-writer/"
+          if [[ -d "$N/dxf-writer/dist" ]]; then
+            cp -a "$N/dxf-writer/dist/." "$DEST/dxf-writer/"
+          else
+            # Some published versions ship source/package files without a dist directory.
+            cp -a "$N/dxf-writer/." "$DEST/dxf-writer/"
+          fi
           cp -a "$N/shpjs/dist/." "$DEST/shpjs/"
           cp -a "$N/proj4/dist/." "$DEST/proj4/"
           cp -a "$N/@turf/turf/dist/." "$DEST/turf/"
@@ -90,7 +95,10 @@ jobs:
           test -s "$DEST/leaflet-draw/leaflet.draw.js"
           test -s "$DEST/leaflet-draw/leaflet.draw.css"
           test -s "$DEST/shp-write/shpwrite.js"
-          test -s "$DEST/dxf-writer/dxf-writer.js"
+          test -s "$DEST/dxf-writer/package.json"
+          if [[ -d "$N/dxf-writer/dist" ]]; then
+            test -n "$(find "$DEST/dxf-writer" -maxdepth 1 -type f -name '*.js' -print -quit)"
+          fi
           test -s "$DEST/shpjs/shp.js"
           test -s "$DEST/proj4/proj4.js"
           test -s "$DEST/turf/turf.min.js"
