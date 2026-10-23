@@ -135,8 +135,9 @@ test('ArcMap keyboard shortcuts invoke existing Attribute Table, Editor, and Mea
 });
 
 
-test("Geoprocessing validates split and output feature results", () => {
+test("Geoprocessing rejects unsplit lines and validates result geometry", () => {
   assert.match(html, /Split produced fewer than two line parts/);
   assert.match(html, /no valid output features were produced/);
-  assert.match(html, /returned an empty or invalid result/);
+  assert.match(html, /output contains missing or unsupported geometry/);
+  assert.match(html, /produced structurally invalid geometry/);
 });
