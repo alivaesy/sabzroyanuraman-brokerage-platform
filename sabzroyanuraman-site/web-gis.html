@@ -5455,7 +5455,7 @@ async function scaleSelected(){
   }catch(e){status("Scale cancelled: "+(e.message||"geometry transform failed"));return;}
   commitGeometryOperation(updates,"Scale").then(ok=>{if(ok)status(updates.length+" feature(s) scaled by ×"+factor+" and saved.");});
 }
-async async function commitGeometryOperation(updates,label){
+async function commitGeometryOperation(updates,label){
   if(!editSessionActive||!editTarget){status("Start Editing before "+label+".");return false;}
   if(!Array.isArray(updates)||!updates.length)return false;
   // ArcMap-style edit target isolation: never mutate a selected feature from another layer.
