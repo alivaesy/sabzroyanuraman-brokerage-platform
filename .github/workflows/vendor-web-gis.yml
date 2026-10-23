@@ -59,7 +59,16 @@ jobs:
           fi
           cp -a "$N/shpjs/dist/." "$DEST/shpjs/"
           cp -a "$N/proj4/dist/." "$DEST/proj4/"
-          cp -a "$N/@turf/turf/dist/." "$DEST/turf/"
+          cp -a "$N/@turf/turf/." "$DEST/turf/"
+          # @turf/turf v7 ships module entry points, not necessarily turf.min.js.
+          TURF_ENTRY="$(node -e "const p=require(process.argv[1]); console.log(p.module || p.main || 'dist/esm/index.js')" "$N/@turf/turf/package.json")"
+          if [[ -f "$N/@turf/turf/$TURF_ENTRY" ]]; then
+            "$N/.bin/esbuild" "$N/@turf/turf/$TURF_ENTRY" --bundle --format=iife --global-name=turf --platform=browser --outfile="$DEST/turf/turf.bundle.js"
+          else
+            echo "::error::Cannot locate @turf/turf entry point: $TURF_ENTRY"
+            cat "$N/@turf/turf/package.json"
+            exit 1
+          fi
           cp -a "$N/jszip/dist/." "$DEST/jszip/"
           cp -a "$N/gdal3.js/dist/package/." "$DEST/gdal3.js/"
           cp -a "$N/dwgdxf/." "$DEST/dwgdxf/"
@@ -110,7 +119,7 @@ jobs:
           fi
           require_file "$DEST/shpjs/shp.js"
           require_file "$DEST/proj4/proj4.js"
-          require_file "$DEST/turf/turf.min.js"
+          require_file "$DEST/turf/turf.bundle.js"
           require_file "$DEST/jszip/jszip.min.js"
           require_file "$DEST/gdal3.js/gdal3.js"
           find "$DEST" -type f -printf '%s %p\\n' | sort -n > "$RUNNER_TEMP/web-gis-file-sizes.txt"
