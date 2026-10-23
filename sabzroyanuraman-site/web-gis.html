@@ -1577,10 +1577,10 @@ async function flushGeodatabaseEdits(){
     return false;
   }
 }
-function clearWorkspace(){
+async function clearWorkspace(){
   if(blockForUnsavedTableEdits("clearing the workspace"))return;
   const count=drawn.getLayers().length+namedLayers.length;
-  if(count&&!confirm("Create a new blank map and remove the current layers?"))return;
+  if(count&&!await arcMapDialog.confirm({title:"New Map",message:"Create a new blank map and remove the current layers?",confirmText:"New Map",danger:true}))return;
   recordUndoState();stopActiveDraw(true);drawn.clearLayers();
   namedLayers.slice().forEach(item=>{map.removeLayer(item.layer);layerControl.removeLayer(item.layer)});
   namedLayers.length=0;selectedFeatures.clear();selectedLayer=null;selectedOverlay=null;updateMultiSelectionUI();
@@ -1635,7 +1635,7 @@ async function deleteSelectedFeatures(){
   if(blockForUnsavedTableEdits("deleting features"))return;
   if(!editSessionActive||!editTarget){status("Start Editing before deleting features.");return;}
   const records=editableSelectedRecords(false);if(!records.length)return;
-  if(!confirm("Delete "+records.length+" selected feature(s)?"))return;
+  if(!await arcMapDialog.confirm({title:"Delete Selected Features",message:"Delete "+records.length+" selected feature(s)?",confirmText:"Delete",danger:true}))return;
   recordUndoState();
   records.forEach(r=>r.owner.layer.removeLayer(r.layer));
   selectedFeatures.clear();selectedLayer=null;selectedOverlay=null;const editor=$("attributeEditor");if(editor)editor.style.display="none";applySelectionVisual();refreshAll();const synced=await flushGeodatabaseEdits();scheduleAutoSave();updateStandardActionButtons();status(records.length+" feature(s) deleted."+(synced?"":" Geodatabase sync failed; save edits again."));
@@ -3406,7 +3406,7 @@ $("deleteSelectedRows").onclick=async()=>{
    try{return typeof layer.hasLayer==="function"&&layer.hasLayer(featureLayer)}catch(_){return false}
  };
  if(!targets.every(belongsToTarget)){status("Deletion cancelled: a selected row does not belong to the active edit layer.");return}
- if(!confirm(targets.length+" feature(s) will be deleted from the active edit layer. Continue?"))return;
+ if(!await arcMapDialog.confirm({title:"Delete Table Rows",message:targets.length+" feature(s) will be deleted from the active edit layer. Continue?",confirmText:"Delete Rows",danger:true}))return;
  recordUndoState();
  targets.forEach(featureLayer=>{layer.removeLayer(featureLayer);selectedFeatures.delete(featureLayer)});
  if(targets.includes(selectedLayer))selectedLayer=null;
@@ -3715,7 +3715,7 @@ $("gdbInput").onchange=async e=>{
 };
 
 async function importDXFFile(file){
-  const enteredCrs=prompt("Enter the CAD drawing's source CRS. You may enter EPSG:32638 or 32638. CAD files often do not store a reliable CRS; use the default only if the drawing really uses "+currentCRS+".",currentCRS);
+  const enteredCrs=await arcMapDialog.prompt({title:"Import CAD Drawing",message:"Enter the CAD drawing source CRS. CAD files often do not store a reliable CRS; use the default only if the drawing really uses "+currentCRS+".",label:"Source CRS (EPSG)",value:currentCRS});
   if(enteredCrs===null)return;
   const crsInput=enteredCrs.trim().toUpperCase().replace(/^EPSG\s*:\s*/,"");
   const sourceCRS="EPSG:"+crsInput;
@@ -4054,7 +4054,7 @@ async function loadProject(){
     let choice=projects.find(p=>p.id===currentProjectId);
     if(!choice){
       const names=projects.map((p,i)=>(i+1)+". "+(p.name||"Untitled Project")+" — "+new Date(p.updatedAt||p.savedAt).toLocaleString("en-US")).join("\n");
-      const answer=prompt("Enter the project number to open:\n"+names,"1");
+      const answer=await arcMapDialog.select({title:"Open Project",message:"Choose the project to open:",label:"Project",value:"1",options:projects.map((p,i)=>({value:String(i+1),label:(p.name||"Untitled Project")+" — "+new Date(p.updatedAt||p.savedAt).toLocaleString("en-US")}))});
       const n=Number(answer);
       if(!n||!projects[n-1])return;
       choice=projects[n-1];
@@ -4982,14 +4982,14 @@ function featureDistanceMeters(a,b){
   });
   return best;
 }
-function selectWithinDistance(){
-  const raw=prompt("Maximum distance from selected reference feature(s), in meters:","5");
+async function selectWithinDistance(){
+  const raw=await arcMapDialog.prompt({title:"Select By Distance",message:"Maximum distance from selected reference feature(s), in meters:",label:"Distance (meters)",value:"5"});
   if(raw===null)return;
   const meters=Number(raw);
   if(!Number.isFinite(meters)||meters<0){status("Enter a valid non-negative distance.");return}
   const refs=selectedRecords().filter(r=>r.feature?.geometry);
   if(!refs.length){status("Select one or more reference features first.");return}
-  const modeInput=prompt("Selection mode:\n1 = New selection\n2 = Add to current selection\n3 = Remove from current selection\n4 = Select from current selection","1");
+  const modeInput=await arcMapDialog.select({title:"Select By Distance",message:"Choose how to apply the selection:",label:"Selection mode",value:"1",options:[{value:"1",label:"New selection"},{value:"2",label:"Add to current selection"},{value:"3",label:"Remove from current selection"},{value:"4",label:"Select from current selection"}]});
   if(modeInput===null)return;
   const mode=modeInput.trim();
   if(!["1","2","3","4"].includes(mode)){status("Choose selection mode 1, 2, 3, or 4.");return}
@@ -5828,16 +5828,16 @@ function editVertices(){
     status("Vertex editing failed: "+e.message);
   }
 }
-function spatialFilter(){
+async function spatialFilter(){
   const rs=getFeatureRecords();
-  const typeInput=prompt("Spatial relationship: intersects / within / contains / touches / overlaps / crosses","intersects");
+  const typeInput=await arcMapDialog.select({title:"Spatial Filter",message:"Choose the spatial relationship:",label:"Relationship",value:"intersects",options:[{value:"intersects",label:"Intersects"},{value:"within",label:"Within"},{value:"contains",label:"Contains"},{value:"touches",label:"Touches"},{value:"overlaps",label:"Overlaps"},{value:"crosses",label:"Crosses"}]});
   if(typeInput===null)return;
   const type=typeInput.trim().toLowerCase();
   const relationships={intersects:"booleanIntersects",within:"booleanWithin",contains:"booleanContains",touches:"booleanTouches",overlaps:"booleanOverlap",crosses:"booleanCrosses"};
   if(!Object.prototype.hasOwnProperty.call(relationships,type)){status("Unsupported spatial relationship. Choose intersects, within, contains, touches, overlaps, or crosses.");return;}
   const refs=selectedRecords().filter(r=>r.feature?.geometry);
   if(!refs.length){status("Select one or more reference features first.");return;}
-  const modeInput=prompt("Selection mode:\n1 = New selection\n2 = Add to current selection\n3 = Remove from current selection\n4 = Select from current selection","1");
+  const modeInput=await arcMapDialog.select({title:"Spatial Filter",message:"Choose how to apply the selection:",label:"Selection mode",value:"1",options:[{value:"1",label:"New selection"},{value:"2",label:"Add to current selection"},{value:"3",label:"Remove from current selection"},{value:"4",label:"Select from current selection"}]});
   if(modeInput===null)return;
   const mode=modeInput.trim();
   if(!["1","2","3","4"].includes(mode)){status("Choose selection mode 1, 2, 3, or 4.");return;}
@@ -5866,11 +5866,11 @@ function spatialFilter(){
   applySelectionVisual();
   status(selectedFeatures.size+" features selected by spatial filter ("+({1:"new",2:"added",3:"removed",4:"current selection filtered"}[mode])+").");
 }
-function joinWizard(){
+async function joinWizard(){
   if(namedLayers.length<2){status("At least two named data layers are required.");return}
   const list=namedLayers.map((x,i)=>(i+1)+". "+x.name).join("\n");
-  const siRaw=prompt("Source layer number (fields will be copied from this layer):\n"+list,"1");if(siRaw===null)return;
-  const tiRaw=prompt("Target layer number (matching records will be updated):\n"+list,"2");if(tiRaw===null)return;
+  const siRaw=await arcMapDialog.select({title:"Join Field",message:"Choose the source layer (fields copied from this layer):",label:"Source layer",value:"1",options:namedLayers.map((x,i)=>({value:String(i+1),label:x.name}))});if(siRaw===null)return;
+  const tiRaw=await arcMapDialog.select({title:"Join Field",message:"Choose the target layer (matching records updated here):",label:"Target layer",value:namedLayers.length>1?"2":"1",options:namedLayers.map((x,i)=>({value:String(i+1),label:x.name}))});if(tiRaw===null)return;
   const si=Number(siRaw)-1,ti=Number(tiRaw)-1;
   if(!Number.isInteger(si)||!Number.isInteger(ti)||si===ti||!namedLayers[si]||!namedLayers[ti]){status("Choose two different valid layers.");return}
   const source=namedLayers[si],target=namedLayers[ti];
@@ -5881,9 +5881,9 @@ function joinWizard(){
   const sourceRows=getFeatureRecords().filter(r=>r.owner?.layer===source.layer),targetRows=getFeatureRecords().filter(r=>r.owner?.layer===target.layer);
   if(!sourceRows.length||!targetRows.length){status("Both selected layers must contain features.");return}
   const sourceFields=[...new Set(sourceRows.flatMap(r=>Object.keys(r.feature.properties||{})))],targetFields=[...new Set(targetRows.flatMap(r=>Object.keys(r.feature.properties||{})) )];
-  const sf=prompt("Join key field in "+source.name+":",sourceFields[0]||"");if(sf===null||!sourceFields.includes(sf)){status("Choose an existing source key field.");return}
-  const tf=prompt("Join key field in "+target.name+":",targetFields.includes(sf)?sf:(targetFields[0]||""));if(tf===null||!targetFields.includes(tf)){status("Choose an existing target key field.");return}
-  const prefix=prompt("Prefix for copied fields:","join_");if(prefix===null)return;
+  const sf=await arcMapDialog.select({title:"Join Field",message:"Choose the source join key field in "+source.name+":",label:"Source key field",value:sourceFields[0]||"",options:sourceFields.map(f=>({value:f,label:f}))});if(sf===null||!sourceFields.includes(sf)){status("Choose an existing source key field.");return}
+  const tf=await arcMapDialog.select({title:"Join Field",message:"Choose the matching key field in "+target.name+":",label:"Target key field",value:targetFields.includes(sf)?sf:(targetFields[0]||""),options:targetFields.map(f=>({value:f,label:f}))});if(tf===null||!targetFields.includes(tf)){status("Choose an existing target key field.");return}
+  const prefix=await arcMapDialog.prompt({title:"Join Field",message:"Prefix for copied fields:",label:"Field prefix",value:"join_"});if(prefix===null)return;
   const index=new Map();
   sourceRows.forEach(r=>{const v=r.feature.properties?.[sf];if(v!==undefined&&v!==null){const k=String(v);if(!index.has(k))index.set(k,r.feature.properties||{});}});
   const updates=[];
@@ -5898,9 +5898,9 @@ function joinWizard(){
   updates.forEach(x=>{x.r.feature.properties=x.r.feature.properties||{};Object.assign(x.r.feature.properties,x.values);});
   refreshAll();status("Attributes joined to "+updates.length+" target feature(s).");
 }
-function reprojectLayer(){
+async function reprojectLayer(){
   const rs=selectedRecords();if(!rs.length){status("Select one or more features first.");return}
-  const epsg=prompt("Target CRS EPSG code:","32638");if(!/^\d+$/.test(epsg||""))return;
+  const epsg=await arcMapDialog.prompt({title:"Project Features",message:"Enter the target CRS EPSG code:",label:"Target EPSG",value:"32638"});if(!/^\d+$/.test(epsg||""))return;
   if(typeof proj4!=="function"){status("Projection library is unavailable.");return}
   const target="EPSG:"+epsg;
   try{
@@ -5951,9 +5951,9 @@ function csvImport(){
       const counts=new Map(),headers=rawHeaders.map(h=>{const n=(counts.get(h)||0)+1;counts.set(h,n);return n===1?h:h+"_"+n;});
       const latGuess=headers.findIndex(x=>/^(lat|latitude|y)$/i.test(x));
       const lngGuess=headers.findIndex(x=>/^(lon|lng|long|longitude|x)$/i.test(x));
-      const latName=prompt("Latitude field:",headers[latGuess]||"");
+      const latName=await arcMapDialog.select({title:"Import XY Data",message:"Choose the latitude field:",label:"Latitude field",value:headers[latGuess]||headers[0],options:headers.map(h=>({value:h,label:h}))});
       if(latName===null)return;
-      const lngName=prompt("Longitude field:",headers[lngGuess]||"");
+      const lngName=await arcMapDialog.select({title:"Import XY Data",message:"Choose the longitude field:",label:"Longitude field",value:headers[lngGuess]||headers[1]||headers[0],options:headers.map(h=>({value:h,label:h}))});
       if(lngName===null)return;
       const lat=headers.findIndex(x=>x.toLowerCase()===latName.trim().toLowerCase());
       const lng=headers.findIndex(x=>x.toLowerCase()===lngName.trim().toLowerCase());
@@ -5985,8 +5985,8 @@ function excelImport(){
     addNamedLayer(file.name.replace(/\.[^.]+$/,""),layer,true);status("Spreadsheet imported.");
   }catch(e){status("Spreadsheet import failed: "+e.message+" Try saving it as CSV.");}};input.click();
 }
-function searchFeature(){
-  const q=prompt("Search feature ID or attribute value (partial, case-insensitive):","");if(q===null)return;
+async function searchFeature(){
+  const q=await arcMapDialog.prompt({title:"Find Features",message:"Search feature ID or attribute value (partial, case-insensitive):",label:"Search",value:""});if(q===null)return;
   const query=q.trim().toLocaleLowerCase();
   if(!query){status("Enter a search value.");return}
   const records=getFeatureRecords();
@@ -6060,14 +6060,14 @@ async function labelLayer(){
   });
   status("Labels enabled for "+count+" feature(s) using field '"+field+"'.");
 }
-function groupLayers(){
+async function groupLayers(){
   if(!namedLayers.length){status("Add at least one data layer first.");return}
   const names=namedLayers.map((x,i)=>(i+1)+". "+x.name).join("\n");
-  const raw=prompt("Enter layer numbers to group, separated by commas:\n"+names,"1,2");if(raw===null)return;
+  const raw=await arcMapDialog.select({title:"Group Layers",message:"Choose the layers to group (select a comma-separated list is not supported here; choose a layer to start):",label:"First layer",value:"1",options:namedLayers.map((x,i)=>({value:String(i+1),label:x.name}))});if(raw===null)return;
   const indices=[...new Set(raw.split(",").map(x=>Number(x.trim())-1).filter(i=>Number.isInteger(i)&&i>=0&&i<namedLayers.length))];
   if(indices.length<2){status("Choose at least two valid layers.");return}
   const items=indices.map(i=>namedLayers[i]),group=L.featureGroup(items.map(x=>x.layer));
-  const name=prompt("Group name:","Layer Group");if(!name)return;
+  const name=await arcMapDialog.prompt({title:"Group Layers",message:"Enter the new group name:",label:"Group name",value:"Layer Group"});if(!name)return;
   namedLayers.push({name,layer:group});layerControl.addOverlay(group,name);renderLayerList();refreshAttributeLayers();status("Layer group created.");
 }
 function redrawEditorGrid(){
@@ -6092,8 +6092,8 @@ function gridToggle(){
   map.on("moveend zoomend",redrawEditorGrid);redrawEditorGrid();
   status("Editor grid enabled; it follows map pan and zoom.");
 }
-function constraintTool(){
-  const raw=prompt("Vertex snap tolerance in meters (0 disables snapping):",String(window._drawingConstraintMeters||10));
+async function constraintTool(){
+  const raw=await arcMapDialog.prompt({title:"Snapping Options",message:"Vertex snap tolerance in meters (0 disables snapping):",label:"Tolerance (meters)",value:String(window._drawingConstraintMeters||10)});
   if(raw===null)return;
   if(raw.trim()===""){status("Enter a tolerance in meters, or 0 to disable snapping.");return;}
   const d=Number(raw);
