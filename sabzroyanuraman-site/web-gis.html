@@ -4921,7 +4921,8 @@ function splitSelectedLines(){
       }
       // Build replacement layers before removing source features so construction errors cannot erase the originals.
       results.forEach(({r,parts})=>{parts.forEach(part=>{
-        part.properties={...(r.feature.properties||{})};
+        part.properties={...(part.properties||r.feature.properties||{})};
+        prepareDerivedFeature(part,r.owner.layer);
         const group=L.geoJSON(part,{style:r.layer.options||{},pointToLayer:(f,ll)=>r.layer instanceof L.CircleMarker?L.circleMarker(ll,r.layer.options||{}):L.marker(ll,r.layer.options||{}),onEachFeature:(f,l)=>bindFeature(l,f)});
         part._preparedLayers=group.getLayers();
         if(!part._preparedLayers.length)throw new Error("Could not build a split output feature.");
@@ -6148,7 +6149,8 @@ function prepareDerivedFeature(feature,owner){
   const records=owner?vectorFeatures(owner):[];
   if(Object.prototype.hasOwnProperty.call(feature.properties,"FeatureID")){
     const max=records.reduce((n,r)=>Math.max(n,Number(r.feature?.properties?.FeatureID)||0),0);
-    feature.properties.FeatureID=max+1;
+    window._derivedFeatureSequence=Math.max(Number(window._derivedFeatureSequence)||0,max)+1;
+    feature.properties.FeatureID=window._derivedFeatureSequence;
   }
   ensureFeatureId(feature);
   return feature;
