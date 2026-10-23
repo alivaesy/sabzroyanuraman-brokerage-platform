@@ -4867,8 +4867,8 @@ function splitSelectedLines(){
   const records=editableSelectedRecords(false);if(!records.length)return;
   if(records.some(r=>(r.owner?.layer||drawn)!==editTarget)){status("Split requires selected features from the active edit layer.");return;}
   const lineMode=records.every(r=>["LineString","MultiLineString"].includes(r.feature?.geometry?.type));
-  const polygonMode=records.length===1&&records[0].feature?.geometry?.type==="Polygon";
-  if(!lineMode&&!polygonMode){status("Split supports selected lines, or one simple polygon without holes, in the active edit layer.");return;}
+  const polygonMode=records.length===1&&["Polygon","MultiPolygon"].includes(records[0].feature?.geometry?.type);
+  if(!lineMode&&!polygonMode){status("Split supports selected lines, or one Polygon/MultiPolygon without holes, in the active edit layer.");return;}
   if(typeof turf.lineSplit!=="function"){status("Split unavailable: Turf.js lineSplit is not loaded.");return;}
   stopActiveDraw(true);
   status(polygonMode?"Draw a cutting line across the polygon; it must cross the boundary twice.":"Draw a cutting line across selected line feature(s); double-click to finish.");
@@ -4879,8 +4879,30 @@ function splitSelectedLines(){
       const cutter=event.layer.toGeoJSON();
       if(cutter.geometry?.type!=="LineString"||cutter.geometry.coordinates.length<2)throw new Error("Draw a line with at least two vertices.");
       const results=[];
-      if(polygonMode)results.push({r:records[0],parts:splitPolygonWithCutter(records[0].feature,cutter)});
-      else records.forEach(r=>{
+      if(polygonMode){
+        const source=records[0].feature,g=source.geometry;
+        let parts;
+        if(g.type==="Polygon")parts=splitPolygonWithCutter(source,cutter);
+        else{
+          if(!Array.isArray(g.coordinates)||g.coordinates.some(poly=>!Array.isArray(poly)||poly.length!==1))
+            throw new Error("MultiPolygon split currently requires components without holes.");
+          const output=[];let splitCount=0;
+          g.coordinates.forEach(poly=>{
+            const component={type:"Feature",properties:{...(source.properties||{})},geometry:{type:"Polygon",coordinates:poly}};
+            try{
+              const pieces=splitPolygonWithCutter(component,cutter);
+              output.push(...pieces);splitCount++;
+            }catch(err){
+              if(/must cross the polygon boundary at exactly two distinct points/.test(err.message))
+                output.push(component);
+              else throw err;
+            }
+          });
+          if(!splitCount)throw new Error("The cutting line did not split any MultiPolygon component.");
+          parts=output;
+        }
+        results.push({r:records[0],parts});
+      }else records.forEach(r=>{
         const geometry=r.feature.geometry,sourceLines=geometry.type==="LineString"?[geometry.coordinates]:geometry.coordinates,allParts=[];let wasSplit=false;
         sourceLines.forEach(coordinates=>{
           if(!Array.isArray(coordinates)||coordinates.length<2)return;
