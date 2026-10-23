@@ -4939,8 +4939,25 @@ function getFeatureRecords(){
   return allSelectableFeatureLayers().flatMap(x=>vectorFeatures(x.layer).map(v=>({owner:x,layer:v.layer,feature:v.feature})));
 }
 function selectedRecords(){
-  const records=getFeatureRecords(),byLayer=new Map(records.map(r=>[r.layer,r]));
+  // Resolve selected Leaflet children against the current owning layer registry.
+  // Keep the actual child-layer object as the identity shared by map, table and editor.
+  const records=getFeatureRecords(),byLayer=new Map();
+  records.forEach(record=>{
+    if(record?.layer&&!byLayer.has(record.layer))byLayer.set(record.layer,record);
+  });
   return [...selectedFeatures].map(layer=>byLayer.get(layer)).filter(Boolean);
+}
+function synchronizeFeatureSelection({primary=null,overlay=null,renderEditor=true}={}){
+  const records=getFeatureRecords();
+  const selected=records.filter(record=>selectedFeatures.has(record.layer));
+  selectedLayer=primary&&selectedFeatures.has(primary)?primary:(selected[0]?.layer||null);
+  selectedOverlay=overlay&&selectedFeatures.has(overlay)?overlay:null;
+  applySelectionVisual();
+  if(renderEditor&&selectedLayer)renderAttributeEditor();
+  else if(!selectedLayer){const editor=$("attributeEditor");if(editor)editor.style.display="none";}
+  const info=$("gisSelectionInfo");
+  if(info)info.innerHTML="Input feature: "+esc(selectedLayer?featureLabel(selectedLayer):"—")+"<br>Overlay feature: "+esc(selectedOverlay?featureLabel(selectedOverlay):"—");
+  return selected;
 }
 function zoomToSelection(){
   const bounds=L.latLngBounds([]);
