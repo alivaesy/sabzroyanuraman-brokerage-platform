@@ -5100,7 +5100,7 @@ async function selectByAttribute(){
   };
   const matched=records.filter(matches);
   const targetLayers=new Set(records.map(r=>r.layer));
-  if(mode==="1")targetLayers.forEach(layer=>selectedFeatures.delete(layer));
+  if(mode==="1")selectedFeatures.clear();
   if(mode==="4"){
     const currentSelection=new Set(selectedFeatures);
     targetLayers.forEach(layer=>selectedFeatures.delete(layer));
