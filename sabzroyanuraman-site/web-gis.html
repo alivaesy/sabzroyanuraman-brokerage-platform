@@ -5109,13 +5109,26 @@ function splitSelectedLines(){
   };
   window._splitCreatedHandler=created;map.once(L.Draw.Event.CREATED,created);handler.enable();
 }
-function moveSelected(){
+function showEditToolOptions(title,fields){
+  return new Promise(resolve=>{
+    const toolbar=$("editorToolbar");if(!toolbar){resolve(null);return;}
+    document.getElementById("editToolOptionsPanel")?.remove();
+    const panel=document.createElement("form");panel.id="editToolOptionsPanel";panel.className="edit-tool-options-panel";panel.setAttribute("aria-label",title);
+    const heading=document.createElement("strong");heading.textContent=title;panel.appendChild(heading);
+    const inputs=[];
+    fields.forEach((field,i)=>{const label=document.createElement("label");label.textContent=field.label;const input=document.createElement("input");input.type="number";input.step=field.step||"any";input.value=String(field.value??"");input.setAttribute("aria-label",field.label);label.appendChild(input);panel.appendChild(label);inputs.push(input);});
+    const actions=document.createElement("div");actions.className="edit-tool-options-actions";const apply=document.createElement("button");apply.type="submit";apply.textContent="Apply";const cancel=document.createElement("button");cancel.type="button";cancel.textContent="Cancel";actions.append(apply,cancel);panel.appendChild(actions);
+    toolbar.insertAdjacentElement("afterend",panel);
+    const finish=value=>{panel.remove();resolve(value);};
+    panel.addEventListener("submit",e=>{e.preventDefault();const values=inputs.map(input=>input.value.trim()===""?NaN:Number(input.value));if(values.some(v=>!Number.isFinite(v))){inputs.find(input=>input.value.trim()===""||!Number.isFinite(Number(input.value)))?.focus();return;}finish(values);});
+    cancel.addEventListener("click",()=>finish(null));panel.addEventListener("keydown",e=>{if(e.key==="Escape"){e.preventDefault();finish(null);}});inputs[0]?.focus();
+  });
+}
+async function moveSelected(){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("moving selected features"))return;
   const rs=editableSelectedRecords(false);if(!rs.length)return;
-  const rawDx=prompt("Move East X (meters; positive = east):","0");if(rawDx===null)return;
-  const dx=Number(rawDx);if(!Number.isFinite(dx)) {status("Enter a valid east offset.");return;}
-  const rawDy=prompt("Move North Y (meters; positive = north):","0");if(rawDy===null)return;
-  const dy=Number(rawDy);if(!Number.isFinite(dy)){status("Enter a valid north offset.");return;}
+  const offsets=await showEditToolOptions("Move Features — offsets in meters",[{label:"East X (positive = east)",value:0},{label:"North Y (positive = north)",value:0}]);if(!offsets)return;
+  const [dx,dy]=offsets;
   if(dx===0&&dy===0){status("No movement specified.");return;}
   const distance=Math.hypot(dx,dy),bearing=(Math.atan2(dx,dy)*180/Math.PI+360)%360;
   const updates=[];
@@ -5126,11 +5139,11 @@ function moveSelected(){
   });}catch(e){status("Move cancelled: "+(e.message||"geometry transform failed"));return;}
   commitGeometryOperation(updates,"Move").then(ok=>{if(ok)status(updates.length+" feature(s) moved "+distance.toFixed(2)+" m and saved.");});
 }
-function rotateSelected(){
+async function rotateSelected(){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("rotating selected features"))return;
   const rs=editableSelectedRecords(false);if(!rs.length)return;
-  const raw=prompt("Rotation angle in degrees (positive = counterclockwise):","90");if(raw===null)return;
-  const deg=Number(raw);if(!Number.isFinite(deg)){status("Enter a valid rotation angle.");return;}
+  const values=await showEditToolOptions("Rotate Features",[{label:"Angle in degrees (positive = counterclockwise)",value:90}]);if(!values)return;
+  const [deg]=values;
   if(deg===0){status("Rotation angle is zero.");return;}
   const updates=[];
   try{
@@ -5147,12 +5160,12 @@ function rotateSelected(){
   }catch(e){status("Rotation cancelled: "+(e.message||"geometry transform failed"));return;}
   commitGeometryOperation(updates,"Rotate").then(ok=>{if(ok)status(updates.length+" feature(s) rotated by "+deg+"° and saved.");});
 }
-function scaleSelected(){
+async function scaleSelected(){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("scaling selected features"))return;
   const rs=editableSelectedRecords(false);if(!rs.length)return;
-  const raw=prompt("Scale factor (greater than 0; 1 = unchanged):","1.1");if(raw===null)return;
-  const factor=Number(raw);
-  if(!Number.isFinite(factor)||factor<=0){status("Scale cancelled: enter a number greater than zero.");return;}
+  const values=await showEditToolOptions("Scale Features",[{label:"Scale factor (greater than 0; 1 = unchanged)",value:1.1}]);if(!values)return;
+  const [factor]=values;
+  if(factor<=0){status("Scale cancelled: enter a number greater than zero.");return;}
   if(factor===1){status("Scale factor is 1; geometry unchanged.");return;}
   const updates=[];
   try{
@@ -7108,6 +7121,15 @@ window.addEventListener("beforeunload",event=>{
 
 
 /* Editing tools organized into ArcMap-like functional groups. */
+#editToolOptionsPanel{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;padding:7px 9px;background:#fff8e5;border:1px solid #c9a85d;border-top:0;box-shadow:0 2px 5px #00000012;font-size:11px;direction:ltr}
+#editToolOptionsPanel strong{align-self:center;color:#5c4719;margin-right:4px}
+#editToolOptionsPanel label{display:flex;flex-direction:column;gap:3px;color:#394e59;font-size:10px}
+#editToolOptionsPanel input{width:150px;max-width:34vw;box-sizing:border-box;height:25px;border:1px solid #aebbc2;border-radius:2px;padding:3px 5px;background:#fff;color:#243f50}
+#editToolOptionsPanel input:focus{outline:2px solid #4d91b7;border-color:#4d91b7}
+#editToolOptionsPanel .edit-tool-options-actions{display:flex;gap:4px}
+#editToolOptionsPanel button{height:25px;padding:2px 10px;border:1px solid #aab6bc;border-radius:2px;background:linear-gradient(#fff,#e5eaed);cursor:pointer}
+#editToolOptionsPanel button[type=submit]{background:linear-gradient(#f8e7b4,#e9c96e);border-color:#b99b4e;font-weight:700}
+
 #editorToolbar .edit-tool-separator{display:inline-block;align-self:stretch;flex:0 0 1px;width:1px;min-height:22px;margin:2px 4px;background:linear-gradient(#c3cbd0,#8f9da5,#c3cbd0)}
 #editorToolbar button.icon-tool[data-edit-only]{flex-basis:29px;width:29px;min-width:29px;height:27px;margin:0;border-color:#c0c9ce;background:linear-gradient(#fff,#e6eaed)}
 #editorToolbar button.icon-tool[data-edit-only]:hover:not(:disabled){background:linear-gradient(#fff5d7,#f5dca1);border-color:#b58b38;box-shadow:0 1px 3px #c7cdd0}
