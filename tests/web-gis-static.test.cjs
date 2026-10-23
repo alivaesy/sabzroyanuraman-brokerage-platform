@@ -108,3 +108,12 @@ test('Merge preserves separate geometries instead of dissolving polygon features
   assert.equal(output[1].properties._merge_source, 'overlay');
   assert.match(html, /result=\{type:"FeatureCollection",features:mergeFeaturesPreservingGeometry\(f1,f2\)\}/);
 });
+
+
+test('Whole-layer Clip supports point and line inputs with polygon overlays', () => {
+  assert.match(html, /function clipFeatureToPolygon\(feature,mask\)/);
+  assert.match(html, /op==='clip'&&ovs\.some\(f=>!\['Polygon','MultiPolygon'\]/);
+  assert.match(html, /clipFeatureToPolygon\(a,mask\)/);
+  assert.match(html, /g\.type==="MultiPoint"/);
+  assert.match(html, /g\.type!=="LineString"&&g\.type!=="MultiLineString"/);
+});
