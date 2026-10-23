@@ -4861,8 +4861,8 @@ function featureCenterLatLng(layer){
   }catch(e){}
   return null;
 }
-function shapeSelectionMode(){
- const raw=prompt("Selection type:\n1 = New selection\n2 = Add to current selection\n3 = Remove from current selection\n4 = Select from current selection","1");
+async function shapeSelectionMode(){
+ const raw=await arcMapDialog.select({title:"Select Features",message:"Choose how to apply the selection:",label:"Selection mode",value:"1",options:[{value:"1",label:"New selection"},{value:"2",label:"Add to current selection"},{value:"3",label:"Remove from current selection"},{value:"4",label:"Select from current selection"}]});
  if(raw===null)return null;
  const mode=raw.trim();
  if(!["1","2","3","4"].includes(mode)){status("Choose selection mode 1, 2, 3, or 4.");return null;}
@@ -4882,8 +4882,8 @@ function finishShapeSelection(matches,records,mode,label){
  applySelectionVisual();if(selectedLayer)renderAttributeEditor();
  status(selectedFeatures.size+" features selected"+(label?" "+label:"")+".");
 }
-function selectByRectangle(){
- const mode=shapeSelectionMode();if(mode===null)return;
+async function selectByRectangle(){
+ const mode=await shapeSelectionMode();if(mode===null)return;
  status("Drag a rectangle to select features.");
  startSelectionShape("Rectangle",{shapeOptions:{color:"#1683c4",weight:2,dashArray:"5,4"}},shape=>{
   const polygon=shape.toGeoJSON(),items=allSelectableFeatureLayers();
@@ -4892,8 +4892,8 @@ function selectByRectangle(){
   finishShapeSelection(matches,records,mode,"by rectangle");
  });
 }
-function selectByPolygon(){
- const mode=shapeSelectionMode();if(mode===null)return;
+async function selectByPolygon(){
+ const mode=await shapeSelectionMode();if(mode===null)return;
  status("Draw a polygon to select features.");
  startSelectionShape("Polygon",{allowIntersection:false,shapeOptions:{color:"#1683c4",weight:2,dashArray:"5,4"}},shape=>{
   const polygon=shape.toGeoJSON(),items=allSelectableFeatureLayers();
@@ -5074,8 +5074,8 @@ function invertSelection(){
   if(!selectedLayer){const editor=$("attributeEditor");if(editor)editor.style.display="none";}
   applySelectionVisual();if(selectedLayer)renderAttributeEditor(); status(selectedFeatures.size+" features selected.");
 }
-function selectByLasso(){
- const mode=shapeSelectionMode();if(mode===null)return;
+async function selectByLasso(){
+ const mode=await shapeSelectionMode();if(mode===null)return;
  status("Draw a freehand selection polygon.");
  startSelectionShape("Polygon",{allowIntersection:false,shapeOptions:{color:"#8e44ad",weight:2,dashArray:"5,4"}},shape=>{
   const polygon=shape.toGeoJSON(),records=getFeatureRecords(),matches=new Set();
@@ -5170,7 +5170,7 @@ function editableSelectedRecords(recordHistory=true){
   else if(recordHistory)recordUndoState();
   return rs;
 }
-function explodeSelectedFeatures(){
+async function explodeSelectedFeatures(){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("exploding multipart features"))return;
   if(!editSessionActive||!editTarget){status("Start Editing the target layer before exploding multipart features.");return;}
   const records=editableSelectedRecords(false);
@@ -5179,7 +5179,7 @@ function explodeSelectedFeatures(){
   const multipart=records.filter(r=>["MultiPoint","MultiLineString","MultiPolygon"].includes(r.feature?.geometry?.type));
   if(multipart.length!==records.length){status("Explode requires only multipart features in the selection; deselect single-part features and try again.");return;}
   if(!multipart.length){status("Select at least one MultiPoint, MultiLineString, or MultiPolygon feature.");return;}
-  if(!confirm("Explode "+multipart.length+" selected multipart feature(s) into individual features?"))return;
+  if(!await arcMapDialog.confirm({title:"Explode Multipart Features",message:"Explode "+multipart.length+" selected multipart feature(s) into individual features?",confirmText:"Explode"}))return;
   const replacements=[];
   try{
     multipart.forEach(r=>{
@@ -5202,7 +5202,7 @@ function explodeSelectedFeatures(){
   applySelectionVisual();refreshAll();updateStandardActionButtons();scheduleAutoSave();
   status("Exploded "+replacements.length+" multipart feature(s) into "+replacements.reduce((n,x)=>n+x.parts.length,0)+" feature(s).");
 }
-function mergeSelectedFeatures(){
+async function mergeSelectedFeatures(){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("merging features"))return;
   if(!editSessionActive||!editTarget){status("Start Editing before merging features.");return;}
   const records=editableSelectedRecords(false);
@@ -5211,7 +5211,7 @@ function mergeSelectedFeatures(){
   if(!records.every(r=>r.owner.layer===editTarget&&r.feature?.geometry?.type===type)){status("Merge requires selected features of the same geometry type in one edit layer.");return;}
   if(!["Polygon","MultiPolygon","LineString","MultiLineString"].includes(type)){status("Merge supports line and polygon features; point merging is not supported yet.");return;}
   const props={...records[0].feature.properties};
-  if(!confirm("Merge "+records.length+" selected features? Attributes will be taken from the first selected feature."))return;
+  if(!await arcMapDialog.confirm({title:"Merge Features",message:"Merge "+records.length+" selected features? Attributes will be taken from the first selected feature.",confirmText:"Merge"}))return;
   let merged;
   try{
     if(type==="Polygon"||type==="MultiPolygon"){
@@ -6234,7 +6234,7 @@ async function repairSelectedGeometry(){
     });
   }catch(err){status("Geometry repair cancelled without changing features: "+(err.message||"unsupported geometry"));return;}
   if(!updates.length){status("No automatic repairs were needed for "+unchanged+" selected feature(s).");return;}
-  if(!confirm("Apply safe automatic repairs to "+updates.length+" selected feature(s)? This removes consecutive duplicate vertices and closes polygon rings; other topology errors are not guessed."))return;
+  if(!await arcMapDialog.confirm({title:"Repair Geometry",message:"Apply safe automatic repairs to "+updates.length+" selected feature(s)? This removes consecutive duplicate vertices and closes polygon rings; other topology errors are not guessed.",confirmText:"Repair"}))return;
   const ok=await commitGeometryOperation(updates,"Geometry repair");
   if(ok)status("Repaired "+updates.length+" selected feature(s); "+unchanged+" already needed no changes.");
 }
@@ -6247,7 +6247,7 @@ async function flipLineDirection(){
   if(records.some(r=>!["LineString","MultiLineString"].includes(r.feature?.geometry?.type))){
     status("Flip Line Direction accepts only selected LineString or MultiLineString features.");return;
   }
-  if(!confirm("Reverse the vertex order of "+records.length+" selected line feature(s)?"))return;
+  if(!await arcMapDialog.confirm({title:"Reverse Line Direction",message:"Reverse the vertex order of "+records.length+" selected line feature(s)?",confirmText:"Reverse"}))return;
   const changes=[];
   try{
     records.forEach(r=>{
