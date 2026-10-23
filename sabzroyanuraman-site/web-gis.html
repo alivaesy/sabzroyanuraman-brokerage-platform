@@ -4211,11 +4211,13 @@ function checkEditTopology(openInspector=false){
     const boundaryFeature=boundaryFeatures[0];
     if(boundaryFeature)records.forEach((r,index)=>{try{const f=r.feature;if(!f?.geometry)return;let covered;if(typeof turf.booleanCoveredBy==="function")covered=turf.booleanCoveredBy(f,boundaryFeature);else if(typeof turf.booleanWithin==="function")covered=turf.booleanWithin(f,boundaryFeature)||!!turf.booleanContains?.(boundaryFeature,f);else covered=false;if(!covered)issues.push({id:f.id??f.properties?.OBJECTID??f.properties?.FID??(index+1),issue:"Must Be Covered By: feature is not contained by the selected boundary polygon"})}catch(e){issues.push({id:r.feature?.id??r.feature?.properties?.OBJECTID??(index+1),issue:"Must Be Covered By check failed: "+(e.message||"invalid geometry")})}});else issues.push({id:"—",issue:"Must Be Covered By check skipped: select a polygon feature from another layer first"});
   }
+  // Shared polygon inventory is used by both overlap and coverage-gap checks.
+  // Keep it outside the overlap-only branch so the Gaps rule works by itself.
+  const polygons=records.map((r,index)=>({r,index,g:r.feature?.geometry,id:r.feature?.id??r.feature?.properties?.OBJECTID??r.feature?.properties?.FID??(index+1)}))
+    .filter(x=>x.g&&["Polygon","MultiPolygon"].includes(x.g.type));
   if(rules==="all"||rules==="overlap"){
   // Pairwise polygon checks catch partial overlaps between parcel-like
   // features while allowing polygons that merely share a boundary.
-  const polygons=records.map((r,index)=>({r,index,g:r.feature?.geometry,id:r.feature?.id??r.feature?.properties?.OBJECTID??r.feature?.properties?.FID??(index+1)}))
-    .filter(x=>x.g&&["Polygon","MultiPolygon"].includes(x.g.type));
   // Sweep by bounding-box minimum X to avoid an unconditional O(n²)
   // geometry comparison on large cadastral/agricultural layers.
   const indexed=[];
