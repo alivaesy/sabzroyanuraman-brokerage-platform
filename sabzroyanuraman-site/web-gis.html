@@ -4166,7 +4166,7 @@ function checkEditTopology(){
   }else gapSummary="Coverage-gap check not requested.";
   const ruleMatches=issue=>{
     const t=String(issue.issue||"").toLowerCase();
-    if(rules==="geometry")return /missing geometry|fewer than|not closed|too few vertices|duplicate consecutive|zero or invalid area|topology check failed/.test(t);
+    if(rules==="geometry")return /missing geometry|invalid geometry|fewer than|not closed|too few vertices|duplicate consecutive|zero or invalid area|topology check failed/.test(t);
     if(rules==="self")return /self-intersect|kink/.test(t);
     if(rules==="overlap")return /overlap|duplicate polygon/.test(t);
     if(rules==="gaps")return /coverage gap/.test(t);
