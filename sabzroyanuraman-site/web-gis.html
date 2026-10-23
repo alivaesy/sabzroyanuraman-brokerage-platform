@@ -2416,13 +2416,33 @@ function saveAttributes(){
   if($("attributeLayer").value!=="")$("openTable").click();
 }
 function updateMultiSelectionUI(){
-  // Clear stale highlights, then style the actual Leaflet element for every selected
-  // geometry. Markers use _icon/getElement(), while lines and polygons use _path.
-  document.querySelectorAll(".multi-selected-feature").forEach(el=>el.classList.remove("multi-selected-feature"));
-  selectedFeatures.forEach(l=>{
-    if(!l)return;
-    const el=(typeof l.getElement==="function"&&l.getElement())||l._path||l._icon;
-    if(el)L.DomUtil.addClass(el,"multi-selected-feature");
+  // Apply a real Leaflet style as well as a CSS class: this works even when SVG
+  // class styling is overridden by a renderer or a feature has no usable DOM node.
+  allSelectableFeatureLayers().forEach(entry=>vectorFeatures(entry.layer).forEach(record=>{
+    const layer=record.layer;if(!layer)return;
+    const selected=selectedFeatures.has(layer);
+    if(typeof layer.setStyle==="function"){
+      if(selected){
+        if(!layer._webgisPreSelectionStyle){
+          const o=layer.options||{};
+          layer._webgisPreSelectionStyle={};
+          ["color","weight","opacity","fillColor","fillOpacity","dashArray","lineCap","lineJoin"].forEach(k=>{
+            if(Object.prototype.hasOwnProperty.call(o,k))layer._webgisPreSelectionStyle[k]=o[k];
+          });
+        }
+        layer.setStyle({color:"#ff8c00",weight:5,opacity:1,fillColor:"#ffd54f",fillOpacity:.72});
+      }else if(layer._webgisPreSelectionStyle){
+        layer.setStyle(layer._webgisPreSelectionStyle);
+        delete layer._webgisPreSelectionStyle;
+      }
+    }
+    const el=(typeof layer.getElement==="function"&&layer.getElement())||layer._path||layer._icon;
+    if(el)el.classList.toggle("multi-selected-feature",selected);
+  }));
+  // Marker icons may not be returned by vectorFeatures in some layer types.
+  document.querySelectorAll(".multi-selected-feature").forEach(el=>{
+    const owner=selectedFeatures.has(el._leaflet_layer)?el._leaflet_layer:null;
+    if(!owner&&!el.classList.contains("leaflet-marker-icon"))el.classList.remove("multi-selected-feature");
   });
   const box=$("multiFeatureEditor"),info=$("multiSelectionInfo");
   if(info)info.textContent=selectedFeatures.size+" Feature Selection selected";
