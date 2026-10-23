@@ -5189,6 +5189,11 @@ function editVertices(){
   if(selected.some(r=>(r.owner?.layer||drawn)!==owner)){status("Vertex editing requires selected features from one layer at a time.");return}
   const selectedLayers=selected.map(r=>r.layer).filter(layer=>layer&&owner.hasLayer(layer)&&typeof layer.toGeoJSON==="function");
   if(!selectedLayers.length){status("The selected features are no longer available in the active layer.");return}
+  const invalidStart=selectedLayers.filter(layer=>!vertexGeometryIsValid(layer.toGeoJSON()?.geometry));
+  if(invalidStart.length){
+    status("Edit Vertices cannot start: "+invalidStart.length+" selected feature(s) already have invalid geometry. Repair or remove those features first.");
+    return;
+  }
   try{
     stopVertexEditing();
     const editableGroup=L.featureGroup(selectedLayers);
