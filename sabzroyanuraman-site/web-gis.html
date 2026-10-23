@@ -4201,7 +4201,7 @@ function checkEditTopology(openInspector=false){
   }
   if(rules==="all"||rules==="covered"){
     const boundaryLayer=selectedLayer,boundaryFeature=boundaryLayer&&!isLayerInEditTarget(boundaryLayer)?(boundaryLayer.feature||boundaryLayer.toGeoJSON?.()):null;
-    if(boundaryFeature?.geometry&&["Polygon","MultiPolygon"].includes(boundaryFeature.geometry.type))records.forEach((r,index)=>{try{const f=r.feature;if(!f?.geometry)return;const covered=typeof turf.booleanCoveredBy==="function"?turf.booleanCoveredBy(f,boundaryFeature):typeof turf.booleanWithin==="function"?turf.booleanWithin(f,boundaryFeature):false;if(!covered)issues.push({id:f.id??f.properties?.OBJECTID??f.properties?.FID??(index+1),issue:"Must Be Covered By: feature is not contained by the selected boundary polygon"})}catch(e){issues.push({id:r.feature?.id??r.feature?.properties?.OBJECTID??(index+1),issue:"Must Be Covered By check failed: "+(e.message||"invalid geometry")})}});
+    if(boundaryFeature?.geometry&&["Polygon","MultiPolygon"].includes(boundaryFeature.geometry.type))records.forEach((r,index)=>{try{const f=r.feature;if(!f?.geometry)return;const covered=typeof turf.booleanCoveredBy==="function"?turf.booleanCoveredBy(f,boundaryFeature):typeof turf.booleanWithin==="function"?turf.booleanWithin(f,boundaryFeature):false;if(!covered)issues.push({id:f.id??f.properties?.OBJECTID??f.properties?.FID??(index+1),issue:"Must Be Covered By: feature is not contained by the selected boundary polygon"})}catch(e){issues.push({id:r.feature?.id??r.feature?.properties?.OBJECTID??(index+1),issue:"Must Be Covered By check failed: "+(e.message||"invalid geometry")})}});else issues.push({id:"—",issue:"Must Be Covered By check skipped: select a polygon from another layer first"});
   }
   if(rules==="all"||rules==="overlap"){
   // Pairwise polygon checks catch partial overlaps between parcel-like
@@ -4266,7 +4266,7 @@ function checkEditTopology(openInspector=false){
         if(!merged)throw new Error("polygon coverage could not be unioned");
         const gapFeature=turf.difference(turf.featureCollection([boundaryFeature,merged]));
         const gapArea=gapFeature?.geometry?Number(turf.area(gapFeature))||0:0;
-        gapSummary="Gap check against selected boundary: "+(gapArea>1?"possible uncovered area "+gapArea.toFixed(2)+" m²":"no material uncovered area detected")+" (1 m² reporting threshold).";
+        gapSummary="Gap check against selected boundary: "+(gapArea>1?"possible uncovered area "+gapArea.toFixed(2)+" m²":"no material uncovered area detected")+" (configured reporting threshold).";
         let gapThreshold=1;try{gapThreshold=Math.max(0,Number(localStorage.getItem("sabzRoyanWebGisTopologyGapThreshold")||1))}catch(_){}if(gapArea>gapThreshold)issues.push({id:boundaryFeature.id??boundaryFeature.properties?.OBJECTID??"boundary",issue:"Coverage gap inside selected boundary ("+gapArea.toFixed(2)+" m²)"});
         gapChecked=true;
       }else gapSummary="Gap check unavailable: Turf union/difference is unavailable.";
