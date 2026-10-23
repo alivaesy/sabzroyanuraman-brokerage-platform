@@ -89,3 +89,22 @@ test('Append maps source records to the target schema without changing Merge', (
   assert.match(html, /if\(op==='merge'\)\{/);
   assert.match(html, /output=appendFeaturesToTarget\(records,ovs\)/);
 });
+
+
+test('Merge preserves separate geometries instead of dissolving polygon features', () => {
+  const start = html.indexOf('function mergeFeaturesPreservingGeometry(');
+  const end = html.indexOf('async function runGisOperation(', start);
+  assert.ok(start >= 0 && end > start, 'Merge helper was not found');
+  const mergeFeaturesPreservingGeometry = vm.runInNewContext(html.slice(start, end) + '\\nmergeFeaturesPreservingGeometry');
+  const a = { type: 'Feature', properties: { ID: 1 }, geometry: { type: 'Polygon', coordinates: [[[0,0],[1,0],[1,1],[0,1],[0,0]]] } };
+  const b = { type: 'Feature', properties: { ID: 2 }, geometry: { type: 'Polygon', coordinates: [[[1,0],[2,0],[2,1],[1,1],[1,0]]] } };
+  const output = mergeFeaturesPreservingGeometry(a, b);
+  assert.equal(output.length, 2);
+  assert.deepEqual(JSON.parse(JSON.stringify(output[0].geometry)), a.geometry);
+  assert.deepEqual(JSON.parse(JSON.stringify(output[1].geometry)), b.geometry);
+  assert.equal(output[0].properties.ID, 1);
+  assert.equal(output[1].properties.ID, 2);
+  assert.equal(output[0].properties._merge_source, 'input');
+  assert.equal(output[1].properties._merge_source, 'overlay');
+  assert.match(html, /result=\{type:"FeatureCollection",features:mergeFeaturesPreservingGeometry\(f1,f2\)\}/);
+});
