@@ -4063,6 +4063,9 @@ function checkEditTopology(){
     const f=r.feature||r.layer?.feature||{},g=f.geometry;
     const id=f.id??f.properties?.OBJECTID??f.properties?.FID??(index+1);
     if(!g){issues.push({id,issue:"Missing geometry"});return;}
+    if(typeof vertexGeometryIsValid==="function"&&!vertexGeometryIsValid(g)){
+      issues.push({id,issue:"Invalid geometry: check coordinate ranges, duplicate vertices, ring closure, distinct vertices, and polygon area"});
+    }
     const checkLine=(coords,label)=>{
       if(!Array.isArray(coords)||coords.length<2){issues.push({id,issue:label+": fewer than 2 vertices"});return;}
       for(let i=1;i<coords.length;i++)if(same(coords[i-1],coords[i]))issues.push({id,issue:label+": duplicate consecutive vertices at "+i});
@@ -4110,7 +4113,7 @@ function checkEditTopology(){
     }
   }
   candidates.forEach(([a,b])=>{try{
-    let overlapArea=0,intersection=null;
+    let overlapArea=0,intersection=null,overlaps=false;
     // Turf 7 accepts a FeatureCollection; retain a legacy fallback for
     // deployments where the intersection helper still uses two arguments.
     if(typeof turf.intersect==="function"){
@@ -4118,10 +4121,11 @@ function checkEditTopology(){
       catch(_){intersection=turf.intersect(a.r.feature,b.r.feature);}
     }
     if(intersection&&intersection.geometry)overlapArea=Number(turf.area(intersection))||0;
-    else if(typeof turf.booleanOverlap==="function"&&turf.booleanOverlap(a.r.feature,b.r.feature))overlapArea=0.01;
-    if(overlapArea>0.01){
+    if(overlapArea>0.01)overlaps=true;
+    else if(typeof turf.booleanOverlap==="function")overlaps=turf.booleanOverlap(a.r.feature,b.r.feature);
+    if(overlaps){
       const duplicate=typeof turf.booleanEqual==="function"&&turf.booleanEqual(a.r.feature,b.r.feature);
-      issues.push({id:a.id,issue:(duplicate?"Duplicate polygon geometry matches feature ":"Polygon overlaps feature ")+b.id+" ("+(duplicate?"same geometry":"overlap area "+overlapArea.toFixed(2)+" m²")+")"});
+      issues.push({id:a.id,issue:(duplicate?"Duplicate polygon geometry matches feature ":"Polygon overlaps feature ")+b.id+" ("+(duplicate?"same geometry":overlapArea>0.01?"overlap area "+overlapArea.toFixed(2)+" m²":"overlapping polygon interiors")+")"});
     }
   }catch(e){/* Invalid geometries are reported by the per-feature checks. */}});
   }
