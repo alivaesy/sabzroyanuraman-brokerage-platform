@@ -4338,9 +4338,9 @@ function checkEditTopology(openInspector=false,targetOverride=null,boundaryOverr
   }
   // Optional gap check: use a separately selected polygon as the coverage
   // boundary. Without an explicit boundary, gaps cannot be inferred reliably.
+  let gapSummary="Coverage-gap check not requested.",gapChecked=false;
   if(hasRule("gaps")){
-  let gapSummary="Gap check skipped: select a polygon boundary from another layer to test coverage.";
-  let gapChecked=false;
+  gapSummary="Gap check skipped: select a polygon boundary from another layer to test coverage.";
   try{
     const boundaryLayer=boundaryOverride||selectedLayer;
     let boundaryFeatures=[];
