@@ -440,6 +440,11 @@ body{background:#dfe5e8;color:#173b57}
 #geodatabaseManagerList .gdb-row{display:flex;justify-content:space-between;gap:8px;padding:6px 8px;border-bottom:1px solid #e2e6e8}
 </style>
 <style>
+/* ArcMap-style synchronized selection feedback */
+.leaflet-interactive.multi-selected-feature{stroke:#ff8c00!important;stroke-width:4!important;stroke-opacity:1!important;fill:#ffd54f!important;fill-opacity:.72!important;filter:drop-shadow(0 0 4px rgba(255,140,0,.95))!important}
+.leaflet-marker-icon.multi-selected-feature{filter:drop-shadow(0 0 5px #ff9800) brightness(1.18)!important;outline:2px solid #ff8c00!important;outline-offset:1px}
+#attributeTableWrap .arc-attribute-grid tbody tr.attribute-row-selected td{background:#d4e8f7!important;box-shadow:inset 0 1px #8bb9d8,inset 0 -1px #8bb9d8}
+#attributeTableWrap .arc-attribute-grid tbody tr.attribute-row-selected:hover td{background:#c5e0f3!important}
 /* Attribute table column resizing and selected-row feedback */
 #attributeTableWrap .arc-attribute-grid th[data-sort-key]{resize:horizontal;overflow:auto;min-width:90px;max-width:480px}
 #attributeTableWrap .arc-attribute-grid tbody tr:has(.row-check:checked) td{background:#d4e8f7!important}
