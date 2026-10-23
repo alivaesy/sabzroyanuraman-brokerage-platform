@@ -89,22 +89,31 @@ jobs:
           GDAL3.js runtime resources are kept together because its WASM/worker files
           must remain available beside the JavaScript entry point.
           EOF
-          # Verify required files/resources before committing.
-          test -s "$DEST/leaflet/leaflet.js"
-          test -s "$DEST/leaflet/leaflet.css"
-          test -s "$DEST/leaflet-draw/leaflet.draw.js"
-          test -s "$DEST/leaflet-draw/leaflet.draw.css"
-          test -s "$DEST/shp-write/shpwrite.js"
-          test -s "$DEST/dxf-writer/package.json"
+          # Diagnose and verify expected browser/runtime entry files before committing.
+          require_file() {
+            local file="$1"
+            if [[ ! -s "$file" ]]; then
+              echo "::error::Required vendored file missing: $file"
+              echo "Available files in its package directory:"
+              find "$(dirname "$file")" -maxdepth 3 -type f -print | head -80 || true
+              return 1
+            fi
+          }
+          require_file "$DEST/leaflet/leaflet.js"
+          require_file "$DEST/leaflet/leaflet.css"
+          require_file "$DEST/leaflet-draw/leaflet.draw.js"
+          require_file "$DEST/leaflet-draw/leaflet.draw.css"
+          require_file "$DEST/shp-write/shpwrite.js"
+          require_file "$DEST/dxf-writer/package.json"
           if [[ -d "$N/dxf-writer/dist" ]]; then
             test -n "$(find "$DEST/dxf-writer" -maxdepth 1 -type f -name '*.js' -print -quit)"
           fi
-          test -s "$DEST/shpjs/shp.js"
-          test -s "$DEST/proj4/proj4.js"
-          test -s "$DEST/turf/turf.min.js"
-          test -s "$DEST/jszip/jszip.min.js"
-          test -s "$DEST/gdal3.js/gdal3.js"
-          find "$DEST" -type f -printf '%s %p\n' | sort -n > "$RUNNER_TEMP/web-gis-file-sizes.txt"
+          require_file "$DEST/shpjs/shp.js"
+          require_file "$DEST/proj4/proj4.js"
+          require_file "$DEST/turf/turf.min.js"
+          require_file "$DEST/jszip/jszip.min.js"
+          require_file "$DEST/gdal3.js/gdal3.js"
+          find "$DEST" -type f -printf '%s %p\\n' | sort -n > "$RUNNER_TEMP/web-gis-file-sizes.txt"
           cat "$RUNNER_TEMP/web-gis-file-sizes.txt"
           du -sh "$DEST"
       - name: Commit downloaded assets
