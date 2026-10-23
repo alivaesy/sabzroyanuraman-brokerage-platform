@@ -6329,11 +6329,11 @@ async function runVectorAnalysis(mode){
   const valid=records.filter(r=>r.feature&&r.feature.geometry);
   if(valid.length!==records.length){status("Some input records have no valid geometry; analysis stopped.");return;}
   const fc={type:"FeatureCollection",features:valid.map(r=>JSON.parse(JSON.stringify(r.feature)))};
-  const askField=(promptText,fields)=>{const answer=prompt(promptText+"\n"+fields.map((f,i)=>(i+1)+". "+f).join("\n"),fields[0]||"");if(answer===null)return null;const v=answer.trim();return /^\\d+$/.test(v)?fields[Number(v)-1]:v;};
+  const askField=async(promptText,fields)=>await arcMapDialog.select({title:"Vector Analysis",message:promptText,label:"Field",value:fields[0]||"",options:fields.map(f=>({value:f,label:f}))});
   try{
     if(mode==="dissolve"){
       const fields=[...new Set(valid.flatMap(r=>Object.keys(r.feature.properties||{}).filter(k=>!isReservedAttributeField(k))))];
-      const field=fields.length?askField("Dissolve field (blank = dissolve all features):",["(all)",...fields]):"(all)";
+      const field=fields.length?await askField("Choose the dissolve field, or dissolve all features:",["(all)",...fields]):"(all)";
       if(field===null)return;
       const propertyName=field==="(all)"||field===""?null:field;
       if(propertyName&&!fields.includes(propertyName)){status("Choose an existing dissolve field.");return;}
@@ -6954,11 +6954,11 @@ function advancedSnap(){
   if(choice===null)return;
   const modes={"1":"endpoints","2":"vertices","3":"segments","4":"midpoints","5":"all"};
   if(choice.trim()==="6"){
-    const raw=prompt("Snapping tolerance in meters:",String(settings.tolerance));if(raw===null)return;
+    const raw=await arcMapDialog.prompt({title:"Advanced Snapping",message:"Snapping tolerance in meters:",label:"Tolerance (meters)",value:String(settings.tolerance)});if(raw===null)return;
     const tolerance=Number(raw);if(!Number.isFinite(tolerance)||tolerance<=0){status("Snapping tolerance must be greater than zero.");return;}settings.tolerance=tolerance;
   }else{
     if(!modes[choice.trim()]){status("Choose snapping mode 1 to 6.");return;}settings.mode=modes[choice.trim()];
-    const raw=prompt("Snapping tolerance in meters:",String(settings.tolerance));if(raw===null)return;
+    const raw=await arcMapDialog.prompt({title:"Advanced Snapping",message:"Snapping tolerance in meters:",label:"Tolerance (meters)",value:String(settings.tolerance)});if(raw===null)return;
     const tolerance=Number(raw);if(!Number.isFinite(tolerance)||tolerance<=0){status("Snapping tolerance must be greater than zero.");return;}settings.tolerance=tolerance;
   }
   try{localStorage.setItem(key,JSON.stringify(settings))}catch(_){}
