@@ -3886,11 +3886,29 @@ function openProjectDB(){
 async function putProject(project){
   const db=await openProjectDB();
   return new Promise((resolve,reject)=>{
-    const tx=db.transaction(PROJECT_STORE,"readwrite");
-    tx.objectStore(PROJECT_STORE).put(project);
-    tx.oncomplete=()=>{db.close();resolve(project)};
-    tx.onerror=()=>{const err=tx.error||new Error("IndexedDB write failed");db.close();reject(err)};
-    tx.onabort=()=>{const err=tx.error||new Error("IndexedDB write was aborted");db.close();reject(err)};
+    let verified=false,stored=null;
+    const tx=db.transaction(PROJECT_STORE,"readwrite"),store=tx.objectStore(PROJECT_STORE);
+    const put=store.put(project);
+    put.onerror=()=>{try{tx.abort()}catch(_){}};
+    put.onsuccess=()=>{
+      const check=store.get(project.id);
+      check.onsuccess=()=>{
+        stored=check.result||null;
+        // Read-after-write verification prevents reporting a save that did not persist
+        // the complete structured project snapshot.
+        verified=!!stored&&stored.id===project.id&&
+          JSON.stringify(stored)===JSON.stringify(project);
+        if(!verified)try{tx.abort()}catch(_){}
+      };
+      check.onerror=()=>{try{tx.abort()}catch(_){}};
+    };
+    tx.oncomplete=()=>{
+      db.close();
+      if(verified)resolve(stored);
+      else reject(new Error("Saved project verification failed; the stored snapshot did not match."));
+    };
+    tx.onerror=()=>{const err=tx.error||new Error("IndexedDB write or verification failed");db.close();reject(err)};
+    tx.onabort=()=>{const err=tx.error||new Error("IndexedDB write or verification was aborted");db.close();reject(err)};
   });
 }
 async function listProjects(){
@@ -3962,6 +3980,9 @@ function serializeProject(){
     name:$("projectName").value.trim()||"Untitled Project",
     center:[map.getCenter().lat,map.getCenter().lng],
     zoom:map.getZoom(),
+    // Persist the actual visible geographic extent as well as center/zoom.
+    // This lets restores recover the map view when the browser viewport differs.
+    bounds:(()=>{const b=map.getBounds();return {south:b.getSouth(),west:b.getWest(),north:b.getNorth(),east:b.getEast()}})(),
     basemap:$("basemap").value,
     basemapWms:customWmsConfig?{...customWmsConfig}:null,
     drawn:[],
@@ -4013,8 +4034,16 @@ function restoreProject(project,fromHistory=false){
       status("Project integrity check failed; the current map was left unchanged.");return false;
     }
   }
-  if(project.center!==undefined&&!finitePair(project.center)){status("Project map extent is invalid; the current map was left unchanged.");return false}
+  if(project.center!==undefined&&!finitePair(project.center)){status("Project map center is invalid; the current map was left unchanged.");return false}
   if(project.zoom!==undefined&&(!Number.isFinite(Number(project.zoom))||Number(project.zoom)<0||Number(project.zoom)>24)){status("Project zoom is invalid; the current map was left unchanged.");return false}
+  if(project.bounds!==undefined){
+    const b=project.bounds;
+    if(!b||![b.south,b.west,b.north,b.east].every(v=>Number.isFinite(Number(v)))||
+      Number(b.south)<-90||Number(b.north)>90||Number(b.south)>=Number(b.north)||
+      Number(b.west)<-540||Number(b.east)>540||Number(b.west)>=Number(b.east)){
+      status("Project map extent is invalid; the current map was left unchanged.");return false;
+    }
+  }
   if(!fromHistory&&typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before opening or importing a project; unsaved cell values have been preserved.");return false}
   if(!fromHistory&&!historyRestoring)recordUndoState();
   const previousHistoryRestoring=historyRestoring;historyRestoring=true;
@@ -4029,7 +4058,10 @@ function restoreProject(project,fromHistory=false){
   namedLayers.slice().forEach(x=>{map.removeLayer(x.layer);layerControl.removeLayer(x.layer)});
   namedLayers.length=0;
   const center=Array.isArray(project.center)?project.center:[34.5,46.5];
-  map.setView(center,Number(project.zoom)||8);
+  if(project.bounds){
+    const b=project.bounds;
+    map.fitBounds([[Number(b.south),Number(b.west)],[Number(b.north),Number(b.east)]],{animate:false});
+  }else map.setView(center,Number(project.zoom)||8);
   customWmsConfig=project.basemapWms||null;
   if(project.basemap==="customWms"&&customWmsConfig)selectBasemap("customWms",false);
   else if(project.basemap&&base[project.basemap])selectBasemap(project.basemap,false);
