@@ -470,10 +470,18 @@ body{background:#dfe5e8;color:#173b57}
 #arcMapToolDialog.open{display:flex}
 #arcMapToolDialog .arc-tool-card{width:min(430px,96vw);background:#f4f6f7;border:1px solid #7f8d95;box-shadow:0 7px 24px #0004;color:#263f50;font:12px Arial,sans-serif}
 #arcMapToolDialog .arc-tool-title{padding:9px 12px;background:linear-gradient(#edf1f3,#dfe5e8);border-bottom:1px solid #aab5bb;font-weight:700;font-size:13px}
-#arcMapToolDialog .arc-tool-body{padding:13px;line-height:1.6}
-#arcMapToolDialog .arc-tool-body p{margin:0 0 10px}
-#arcMapToolDialog .arc-tool-body label{display:block;font-size:11px;font-weight:700;margin-bottom:4px}
-#arcMapToolDialog .arc-tool-body input,#arcMapToolDialog .arc-tool-body select{width:100%;height:30px;border:1px solid #9eabb2;border-radius:2px;padding:4px 7px;background:#fff;color:#263f50;font:12px Arial,sans-serif}
+#arcMapToolDialog .arc-tool-body{padding:10px 12px;line-height:1.45}
+#arcMapToolDialog .arc-tool-body p{margin:0 0 8px}
+#arcMapToolDialog .arc-tool-body label{display:block;font-size:11px;font-weight:400;margin-bottom:3px;color:#283d49}
+#arcMapToolDialog .arc-tool-body input,#arcMapToolDialog .arc-tool-body select{width:100%;height:25px;border:1px solid #9eabb2;border-radius:1px;padding:3px 6px;background:#fff;color:#263f50;font:11px Arial,sans-serif}
+#arcMapToolDialog .arc-tool-form{display:grid;grid-template-columns:112px minmax(0,1fr);gap:7px 9px;align-items:center}
+#arcMapToolDialog .arc-tool-form label{margin:0}
+#arcMapToolDialog .arc-tool-form .arc-tool-field{min-width:0}
+#arcMapToolDialog .arc-tool-card{width:min(470px,96vw);border-radius:1px}
+#arcMapToolDialog .arc-tool-title{padding:6px 9px;font-size:12px}
+#arcMapToolDialog .arc-tool-actions{padding:6px 9px}
+#arcMapToolDialog .arc-tool-actions button{min-width:68px;padding:4px 10px;border-radius:1px}
+@media(max-width:420px){#arcMapToolDialog .arc-tool-form{grid-template-columns:90px minmax(0,1fr)}}
 #arcMapToolDialog .arc-tool-actions{display:flex;justify-content:flex-end;gap:6px;padding:9px 12px;border-top:1px solid #d0d8dc;background:#e9edef}
 #arcMapToolDialog .arc-tool-actions button{min-width:76px;padding:6px 12px;border:1px solid #9eabb2;background:linear-gradient(#fff,#e3e8eb);color:#263f50;font-size:11px;cursor:pointer}
 #arcMapToolDialog .arc-tool-actions button.primary{background:linear-gradient(#fdfdfd,#d7e7ef);border-color:#668da2;font-weight:700}
@@ -5039,33 +5047,37 @@ async function selectByAttribute(){
   const allRecords=getFeatureRecords();
   const vectorLayers=[{name:"My Drawings",layer:drawn},...namedLayers.filter(x=>isVectorLayer(x.layer)).map(x=>({name:x.name,layer:x.layer}))]
     .filter((x,i,arr)=>x.layer&&arr.findIndex(y=>y.layer===x.layer)===i);
+  if(!vectorLayers.length||!allRecords.length){status("Select By Attributes requires at least one vector layer with features.");return;}
+  const layerFields={};
+  vectorLayers.forEach(target=>{
+    const records=allRecords.filter(r=>(r.owner?.layer||drawn)===target.layer);
+    const schemaFields=(target.layer?._gdbMetadata?.fields||[]).map(f=>typeof f==="string"?f:f?.name).filter(Boolean);
+    layerFields[target.name]=[...new Set([...schemaFields,...records.flatMap(r=>Object.keys(r.feature.properties||{}))].filter(k=>!isReservedAttributeField(k)))].map(name=>({value:name,label:name}));
+  });
+  const usableLayers=vectorLayers.filter(x=>layerFields[x.name].length);
+  if(!usableLayers.length){status("The available vector layers have no attribute fields.");return;}
   const current=currentAttributeLayer();
-  const defaultIndex=Math.max(0,vectorLayers.findIndex(x=>x.layer===current));
-  if(!vectorLayers.length||!allRecords.length){status("Select By Attributes requires at least one vector layer with features.");return}
-  const layerChoice=await arcMapDialog.select({title:"Select By Attributes",message:"Choose the target layer:",label:"Layer",value:vectorLayers[defaultIndex].name,options:vectorLayers.map(x=>({value:x.name,label:x.name}))});
-  if(layerChoice===null)return;
-  const target=vectorLayers.find(x=>x.name===layerChoice.trim());
-  if(!target){status("Unknown layer name. Choose one of the listed vector layers.");return}
-  const records=allRecords.filter(r=>(r.owner?.layer||drawn)===target.layer);
-  // Include the feature-class schema as well as fields present in row properties,
-  // so fields whose values are currently null still appear like ArcMap fields.
-  const schemaFields=(target.layer?._gdbMetadata?.fields||[]).map(f=>typeof f==="string"?f:f?.name).filter(Boolean);
-  const fields=[...new Set([...schemaFields,...records.flatMap(r=>Object.keys(r.feature.properties||{}))].filter(k=>!isReservedAttributeField(k)))];
-  if(!records.length||!fields.length){status("The chosen layer has no features with attribute fields.");return}
-  const field=await arcMapDialog.select({title:"Select By Attributes",message:"Choose an attribute field:",label:"Field",value:fields[0]||"",options:fields.map(name=>({value:name,label:name}))});
-  if(field===null)return;
-  if(!fields.includes(field)){status("Unknown field. Choose an existing field name from the list.");return}
+  const defaultLayer=usableLayers.find(x=>x.layer===current)?.name||usableLayers[0].name;
   const operators=["=","!=","contains","starts","ends",">",">=","<","<=","is null","is not null"];
-  const opInput=await arcMapDialog.select({title:"Select By Attributes",message:"Choose the comparison operator:",label:"Operator",value:"=",options:operators.map(op=>({value:op,label:op}))});
-  if(opInput===null)return;
-  const op=opInput.trim().toLowerCase();
-  if(!operators.includes(op)){status("Unsupported operator. Use one of: "+operators.join(", "));return}
-  const val=op==="is null"||op==="is not null"?"":await arcMapDialog.prompt({title:"Select By Attributes",message:"Enter the value to compare:",label:"Value",value:""});
-  if(val===null)return;
-  if(["contains","starts","ends"].includes(op)&&val.trim()===""){
-    status("Enter a non-empty value for the text comparison.");
-    return;
-  }
+  const result=await arcMapDialog.form({
+    title:"Select By Attributes",
+    message:"Select the layer, query condition and selection method.",
+    fields:[
+      {name:"layer",label:"Layer",options:usableLayers.map(x=>({value:x.name,label:x.name})),value:defaultLayer},
+      {name:"field",label:"Field",options:layerFields[defaultLayer]},
+      {name:"operator",label:"Operator",options:operators.map(op=>({value:op,label:op})),value:"="},
+      {name:"value",label:"Value",type:"text",value:""},
+      {name:"mode",label:"Selection type",options:[{value:"1",label:"New selection"},{value:"2",label:"Add to current selection"},{value:"3",label:"Remove from current selection"},{value:"4",label:"Select from current selection"}],value:"1"}
+    ],
+    optionMaps:{field:{dependsOn:"layer",values:layerFields}}
+  });
+  if(result===null)return;
+  const {layer:layerName,field,operator:op,value:val,mode}=result;
+  const target=usableLayers.find(x=>x.name===layerName);
+  if(!target||!layerFields[layerName].some(x=>x.value===field)){status("Choose a valid layer and field.");return;}
+  if(!["1","2","3","4"].includes(mode)){status("Choose a valid selection type.");return;}
+  if(["contains","starts","ends"].includes(op)&&val.trim()===""){status("Enter a non-empty value for the text comparison.");return;}
+  const records=allRecords.filter(r=>(r.owner?.layer||drawn)===target.layer);
   const needle=val.toLowerCase(),numericNeedle=val.trim()!==""?Number(val):NaN;
   const matches=r=>{
     const raw=r.feature.properties?.[field];
@@ -5087,15 +5099,12 @@ async function selectByAttribute(){
     return op===">"?n>numericNeedle:op===">="?n>=numericNeedle:op==="<"?n<numericNeedle:n<=numericNeedle;
   };
   const matched=records.filter(matches);
-  const modeInput=await arcMapDialog.select({title:"Select By Attributes",message:"Choose how to apply the selection:",label:"Selection mode",value:"1",options:[{value:"1",label:"New selection"},{value:"2",label:"Add to current selection"},{value:"3",label:"Remove from current selection"},{value:"4",label:"Select from current selection"}]});
-  if(modeInput===null)return;
-  const mode=modeInput.trim();
-  if(!["1","2","3","4"].includes(mode)){status("Choose selection type 1, 2, 3, or 4.");return;}
-  if(mode==="1")records.forEach(r=>selectedFeatures.delete(r.layer));
+  const targetLayers=new Set(records.map(r=>r.layer));
+  if(mode==="1")selectedFeatures.clear();
   if(mode==="4"){
-    const current=new Set(selectedFeatures);
-    records.forEach(r=>selectedFeatures.delete(r.layer));
-    matched.forEach(r=>{if(current.has(r.layer))selectedFeatures.add(r.layer);});
+    const currentSelection=new Set(selectedFeatures);
+    targetLayers.forEach(layer=>selectedFeatures.delete(layer));
+    matched.forEach(r=>{if(currentSelection.has(r.layer))selectedFeatures.add(r.layer);});
   }else if(mode==="3")matched.forEach(r=>selectedFeatures.delete(r.layer));
   else matched.forEach(r=>selectedFeatures.add(r.layer));
   const first=allRecords.find(r=>selectedFeatures.has(r.layer));
@@ -7606,46 +7615,68 @@ window.addEventListener("beforeunload",event=>{
 <div id="arcMapToolDialog" aria-hidden="true">
  <section class="arc-tool-card" role="dialog" aria-modal="true" aria-labelledby="arcToolDialogTitle">
   <header class="arc-tool-title" id="arcToolDialogTitle">Tool</header>
-  <div class="arc-tool-body"><p id="arcToolDialogMessage"></p><label id="arcToolDialogLabel" for="arcToolDialogInput">Value</label><div id="arcToolDialogControl"></div></div>
+  <div class="arc-tool-body"><p id="arcToolDialogMessage"></p><div id="arcToolDialogControl"></div></div>
   <footer class="arc-tool-actions"><button type="button" id="arcToolDialogCancel">Cancel</button><button type="button" id="arcToolDialogOk" class="primary">OK</button></footer>
  </section>
 </div>
 <script>
-/* Promise-based internal dialogs for ArcMap-style tools. */
+/* Promise-based ArcMap-style dialogs; form() keeps related options in one window. */
 const arcMapDialog=(()=>{
  let active=null;
  const root=()=>document.getElementById("arcMapToolDialog");
  const close=value=>{if(!active)return;const a=active;active=null;root().classList.remove("open");root().setAttribute("aria-hidden","true");document.removeEventListener("keydown",a.keydown,true);a.resolve(value);if(a.previous?.isConnected)a.previous.focus();};
- function show({title="Tool",message="",label="Value",value="",options=null,confirm=false,confirmText="OK",danger=false}={}){
+ function show({title="Tool",message="",label="Value",value="",options=null,confirm=false,confirmText="OK",danger=false,fields=null,optionMaps=null}={}){
   const el=root();if(!el)return Promise.resolve(null);
   if(active)close(null);
   document.getElementById("arcToolDialogTitle").textContent=title;
   document.getElementById("arcToolDialogMessage").textContent=message;
-  const lab=document.getElementById("arcToolDialogLabel"),host=document.getElementById("arcToolDialogControl");
-  host.replaceChildren();lab.textContent=label;lab.hidden=confirm;
-  let input=null;
-  if(!confirm){
-   input=document.createElement(options?"select":"input");
-   input.id="arcToolDialogInput";
+  const host=document.getElementById("arcToolDialogControl");host.replaceChildren();
+  const controls={};let input=null;
+  const makeControl=(field,initial)=>{
+   const wrap=document.createElement("div");wrap.className="arc-tool-field";
+   const control=document.createElement(field.options||field.type==="select"?"select":"input");
+   control.name=field.name;control.id="arcToolField_"+field.name;
+   if(control.tagName==="SELECT"){
+    (field.options||[]).forEach(item=>{const opt=document.createElement("option");opt.value=String(item.value);opt.textContent=item.label;control.append(opt)});
+    control.value=String(initial??field.options?.[0]?.value??"");
+   }else{control.type=field.type==="number"?"number":"text";control.value=String(initial??"");control.autocomplete="off";}
+   if(field.required)control.required=true;
+   wrap.append(control);controls[field.name]=control;return {wrap,control};
+  };
+  if(fields){
+   host.className="arc-tool-form";
+   fields.forEach(field=>{
+    const lab=document.createElement("label");lab.htmlFor="arcToolField_"+field.name;lab.textContent=field.label;host.append(lab);
+    const {wrap}=makeControl(field,field.value);host.append(wrap);
+   });
+   Object.entries(optionMaps||{}).forEach(([targetName,map])=>{
+    const target=controls[targetName],dependency=controls[map.dependsOn];if(!target||!dependency)return;
+    const refresh=()=>{const choices=map.values[dependency.value]||[];const old=target.value;target.replaceChildren();choices.forEach(item=>{const opt=document.createElement("option");opt.value=String(item.value);opt.textContent=item.label;target.append(opt)});target.value=choices.some(x=>String(x.value)===old)?old:String(choices[0]?.value??"");};
+    dependency.addEventListener("change",refresh);refresh();
+   });
+   input=controls[fields[0]?.name]||null;
+  }else if(!confirm){
+   host.className="";
+   const lab=document.createElement("label");lab.htmlFor="arcToolDialogInput";lab.textContent=label;host.append(lab);
+   input=document.createElement(options?"select":"input");input.id="arcToolDialogInput";
    if(options){options.forEach(item=>{const opt=document.createElement("option");opt.value=item.value;opt.textContent=item.label;input.append(opt)});input.value=String(value??"");}
    else{input.type="text";input.value=String(value??"");input.autocomplete="off";}
-   host.append(input);lab.htmlFor=input.id;
-  }else{host.hidden=true;}
+   host.append(input);
+  }else{host.className="";host.hidden=true;}
   const ok=document.getElementById("arcToolDialogOk"),cancel=document.getElementById("arcToolDialogCancel");
   ok.textContent=confirmText;ok.className=danger?"danger":"primary";ok.hidden=false;cancel.hidden=false;host.hidden=false;
   return new Promise(resolve=>{
    const previous=document.activeElement;
-   const finish=accepted=>close(accepted?(confirm?true:input.value):null);
+   const finish=accepted=>{if(!accepted){close(null);return;}if(confirm){close(true);return;}if(fields){const result={};for(const [name,control] of Object.entries(controls)){if(control.required&&!control.value){control.focus();return;}result[name]=control.value;}close(result);}else close(input.value);};
    const keydown=e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();finish(false)}else if(e.key==="Enter"&&!confirm){e.preventDefault();finish(true)}};
    active={resolve,previous,keydown};document.addEventListener("keydown",keydown,true);
    ok.onclick=()=>finish(true);cancel.onclick=()=>finish(false);
    el.onclick=e=>{if(e.target===el)finish(false)};
    el.classList.add("open");el.setAttribute("aria-hidden","false");
-   requestAnimationFrame(()=>{if(input)input.focus();else ok.focus();if(input?.select)input.select()});
+   requestAnimationFrame(()=>{if(input)input.focus();else ok.focus()});
   });
  }
- return {prompt:opts=>show(opts),select:opts=>show({...opts,options:opts.options||[]}),confirm:opts=>show({...opts,confirm:true})};
-})();
-</script>
+ return {prompt:opts=>show(opts),select:opts=>show({...opts,options:opts.options||[]}),confirm:opts=>show({...opts,confirm:true}),form:opts=>show(opts)};
+})();</script>
 </body>
 </html>
