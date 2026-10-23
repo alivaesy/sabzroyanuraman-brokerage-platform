@@ -117,3 +117,11 @@ test('Whole-layer Clip supports point and line inputs with polygon overlays', ()
   assert.match(html, /g\.type==="MultiPoint"/);
   assert.match(html, /g\.type!=="LineString"&&g\.type!=="MultiLineString"/);
 });
+
+test('ArcMap toolbar uses SVG editing icons and an X/Y coordinate glyph', () => {
+  assert.match(html, /#editorToolbar #startEditingBtn \.arcmap-icon\{stroke:#4f8056\}/);
+  assert.match(html, /#editorToolbar #saveEditsBtn \.arcmap-icon\{stroke:#286d9b\}/);
+  assert.match(html, /#editorToolbar #stopEditingBtn \.arcmap-icon\{stroke:#b15a48\}/);
+  assert.match(html, /<symbol id="arc-icon-goxy"[^>]*>[\s\S]*?M2 13\.5V3\.2/);
+  assert.match(html, /title="Go To XY \(X\/Y coordinates\)" aria-label="Go To XY \(X\/Y coordinates\)"/);
+});
