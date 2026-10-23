@@ -5382,7 +5382,7 @@ async function splitSelectedLines(){
   stopActiveDraw(true);
   status(polygonMode?"Draw a cutting line across the polygon; it must cross the outer boundary twice.":"Draw a cutting line across selected line feature(s); double-click to finish.");
   const handler=new L.Draw.Polyline(map,{shapeOptions:{color:"#c0392b",weight:2,dashArray:"5,4"}});window._splitDrawHandler=handler;
-  const created=event=>{
+  const created=async event=>{
     map.off(L.Draw.Event.CREATED,created);window._splitCreatedHandler=null;window._splitDrawHandler=null;
     try{
       const cutter=event.layer.toGeoJSON();
@@ -6145,7 +6145,7 @@ async function attachmentsTool(){
   };
   picker.click();
 }
-function chartStats(){
+async function chartStats(){
   const all=getFeatureRecords();
   const rs=selectedFeatures.size?all.filter(r=>selectedFeatures.has(r.layer)):all;
   if(!rs.length){status("Load features or select features before calculating statistics.");return;}
@@ -6323,7 +6323,7 @@ function featureTemplates(){
   }
   status("Choose 1, 2, 3, or 4.");
 }
-function runVectorAnalysis(mode){
+async function runVectorAnalysis(mode){
   const records=selectedRecords().length?selectedRecords():getFeatureRecords();
   if(!records.length){status("Load vector features or select features before running this analysis.");return;}
   const valid=records.filter(r=>r.feature&&r.feature.geometry);
@@ -6503,7 +6503,7 @@ function runGisTool(tool){
 }
 $("gisToolSearch").oninput=e=>renderGisToolbox(e.target.value);
 
-function addMapDecoration(kind){
+async function addMapDecoration(kind){
   window._mapDecorations=window._mapDecorations||{};
   const controls=window._mapDecorations;
   if(kind==="title"){
@@ -6817,9 +6817,9 @@ function nearestMatchTool(){
   const items=getAllVectorItems();
   if(items.length<2){status("Add at least two vector layers first.");return;}
   const list=items.map((x,i)=>(i+1)+". "+x.name).join("\n");
-  const si=Number(prompt("Source layer (nearest features will be searched here):\n"+list,"1"))-1;
+  const si=Number(await arcMapDialog.select({title:"Nearest Feature",message:"Choose the source layer to search:",label:"Source layer",value:"0",options:items.map((x,i)=>({value:String(i),label:x.name}))}));
   if(!Number.isInteger(si)||!items[si])return;
-  const ti=Number(prompt("Target layer (attributes will be written here):\n"+list,items.length>1?(si===0?"2":"1"):""))-1;
+  const ti=Number(await arcMapDialog.select({title:"Nearest Feature",message:"Choose the target layer to update:",label:"Target layer",value:String(items.length>1?(si===0?1:0):0),options:items.map((x,i)=>({value:String(i),label:x.name}))}));
   if(!Number.isInteger(ti)||!items[ti]||si===ti){status("Choose two different valid layers.");return;}
   const source=items[si],target=items[ti];
   if(!editSessionActive||editTarget!==target.layer){
@@ -6829,7 +6829,7 @@ function nearestMatchTool(){
   const src=vectorFeatures(source.layer).filter(v=>v.feature?.geometry);
   const dst=vectorFeatures(target.layer).filter(v=>v.feature?.geometry);
   if(!src.length||!dst.length){status("Both layers must contain valid features.");return;}
-  const maxRaw=prompt("Maximum search distance in meters (0 = unlimited):","1000");
+  const maxRaw=await arcMapDialog.prompt({title:"Nearest Feature",message:"Maximum search distance in meters (0 = unlimited):",label:"Maximum distance",value:"1000"});
   if(maxRaw===null)return;
   const maxDistance=Number(maxRaw);
   if(!Number.isFinite(maxDistance)||maxDistance<0){status("Enter a valid non-negative distance.");return;}
@@ -6866,11 +6866,11 @@ function transferAttributesTool(){
   const layers=getAllVectorItems();
   if(layers.length<2){status("At least two vector layers are required.");return;}
   const list=layers.map((x,i)=>(i+1)+". "+x.name).join("\n");
-  const si=Number(prompt("Source layer (attributes copied from):\n"+list,"1"))-1;
+  const si=Number(await arcMapDialog.select({title:"Transfer Attributes",message:"Choose the source layer:",label:"Source layer",value:"0",options:layers.map((x,i)=>({value:String(i),label:x.name}))}));
   if(!Number.isInteger(si)||!layers[si])return;
-  const ti=Number(prompt("Target layer (attributes copied to):\n"+list,si===0?"2":"1"))-1;
+  const ti=Number(await arcMapDialog.select({title:"Transfer Attributes",message:"Choose the target layer:",label:"Target layer",value:String(si===0?1:0),options:layers.map((x,i)=>({value:String(i),label:x.name}))}));
   if(!Number.isInteger(ti)||!layers[ti]||si===ti){status("Choose two different valid layers.");return;}
-  const distanceRaw=prompt("Maximum distance in meters for matching features:","50");
+  const distanceRaw=await arcMapDialog.prompt({title:"Transfer Attributes",message:"Maximum distance in meters for matching features:",label:"Maximum distance",value:"50"});
   if(distanceRaw===null)return;
   const maxDistance=Number(distanceRaw);
   if(!Number.isFinite(maxDistance)||maxDistance<0){status("Enter a valid non-negative distance.");return;}
@@ -6886,7 +6886,7 @@ function transferAttributesTool(){
   const protectedFields=new Set(["id","fid","objectid","object_id","globalid","global_id","shape","shape_length","shape_area","source_distance_m"]);
   const fields=[...new Set(src.flatMap(v=>Object.keys(v.feature.properties||{}).filter(k=>!k.startsWith("_")&&!protectedFields.has(k.toLowerCase()))))];
   if(!fields.length){status("The source layer has no transferable attribute fields.");return;}
-  const fieldRaw=prompt("Fields to copy (comma-separated), or leave blank for all:\n"+fields.join(", "), "");
+  const fieldRaw=await arcMapDialog.prompt({title:"Transfer Attributes",message:"Fields to copy (comma-separated), or leave blank for all:\n"+fields.join(", "),label:"Fields to copy",value:""});
   if(fieldRaw===null)return;
   const chosen=fieldRaw.trim()?fieldRaw.split(",").map(x=>x.trim()).filter(x=>fields.includes(x)):fields;
   if(!chosen.length){status("No valid source fields were selected.");return;}
@@ -6921,7 +6921,7 @@ function networkQaTool(){
   const pointItems=items.filter(x=>vectorFeatures(x.layer).some(v=>["Point","MultiPoint"].includes(v.feature.geometry?.type)));
   const lineItems=items.filter(x=>vectorFeatures(x.layer).some(v=>["LineString","MultiLineString"].includes(v.feature.geometry?.type)));
   if(!pointItems.length||!lineItems.length){status("Add a point layer and a line layer before running the network check.");return;}
-  const raw=prompt("Maximum distance from a line endpoint to a point (meters):","0.6");if(raw===null)return;
+  const raw=await arcMapDialog.prompt({title:"Network QA",message:"Maximum distance from a line endpoint to a point (meters):",label:"Tolerance (meters)",value:"0.6"});if(raw===null)return;
   const tolerance=Number(raw);
   if(!Number.isFinite(tolerance)||tolerance<0){status("Enter a valid non-negative tolerance.");return;}
   const points=[];
@@ -6950,7 +6950,7 @@ function networkQaTool(){
 function advancedSnap(){
   const key="sabzRoyanWebGisSnapSettings";let settings={mode:"all",tolerance:5};
   try{settings={...settings,...JSON.parse(localStorage.getItem(key)||"{}")}}catch(_){}
-  const choice=prompt("Advanced snapping targets:\n1 = Endpoints only\n2 = All line vertices\n3 = Line segments (edges)\n4 = Segment midpoints\n5 = Vertices + edges + midpoints\n6 = Set tolerance only",""+({"endpoints":"1","vertices":"2","segments":"3","midpoints":"4","all":"5"}[settings.mode]||"5"));
+  const choice=await arcMapDialog.select({title:"Advanced Snapping",message:"Choose snapping targets:",label:"Snap target",value:({"endpoints":"1","vertices":"2","segments":"3","midpoints":"4","all":"5"}[settings.mode]||"5"),options:[{value:"1",label:"Endpoints only"},{value:"2",label:"All line vertices"},{value:"3",label:"Line segments (edges)"},{value:"4",label:"Segment midpoints"},{value:"5",label:"Vertices + edges + midpoints"},{value:"6",label:"Set tolerance only"}]});
   if(choice===null)return;
   const modes={"1":"endpoints","2":"vertices","3":"segments","4":"midpoints","5":"all"};
   if(choice.trim()==="6"){
@@ -6974,7 +6974,7 @@ function snapTool(snapMode="segments",configuredTolerance=null){
   let tolerance=Number(configuredTolerance);
   if(!Number.isFinite(tolerance)||tolerance<=0){
     let settings={tolerance:5};try{settings={...settings,...JSON.parse(localStorage.getItem("sabzRoyanWebGisSnapSettings")||"{}")}}catch(_){}
-    const raw=prompt("Snap tolerance in meters:",String(settings.tolerance));if(raw===null)return;
+    const raw=await arcMapDialog.prompt({title:"Snap Points to Lines",message:"Snap tolerance in meters:",label:"Tolerance (meters)",value:String(settings.tolerance)});if(raw===null)return;
     tolerance=Number(raw);if(!Number.isFinite(tolerance)||tolerance<=0){status("Snap tolerance must be greater than zero.");return;}
     settings.tolerance=tolerance;try{localStorage.setItem("sabzRoyanWebGisSnapSettings",JSON.stringify(settings))}catch(_){}
   }
