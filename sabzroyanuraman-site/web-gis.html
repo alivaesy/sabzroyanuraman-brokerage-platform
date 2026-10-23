@@ -4121,6 +4121,10 @@ function restoreProject(project,fromHistory=false){
   }else if(activeRef?.source==="drawn"){selectedLayer=drawn;selectedOverlay=null;}
   $("projectName").value=project.name||"Untitled Project";
   renderLayerList();refreshAttributeLayers();
+  // Reapply selection after all restored layers have been registered. Merely
+  // restoring selectedFeatures does not recreate the ArcMap-like highlight,
+  // attribute-table checks, or selection action states.
+  applySelectionVisual();
   $("projectStatus").textContent= "Project restored: "+(project.savedAt?new Date(project.savedAt).toLocaleString("en-US"):"—");
   // Undo/Redo should restore the map state without unexpectedly ending an active edit session.
   if(historyEditState?.active){
