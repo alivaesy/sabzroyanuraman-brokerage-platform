@@ -6101,7 +6101,7 @@ async function constraintTool(){
   window._drawingConstraintMeters=d===0?null:d;
   status(d?"Drawing vertex snapping enabled within "+d+" m.":"Drawing vertex snapping disabled.");
 }
-function attachmentsTool(){
+async function attachmentsTool(){
   const records=editableSelectedRecords(false);
   if(!records.length)return;
   const r=records[0];
@@ -6110,7 +6110,7 @@ function attachmentsTool(){
   const existing=current();
   if(existing.length){
     const menu=existing.map((f,i)=>(i+1)+". "+String(f.name||"Unnamed file")+" ("+Math.max(1,Math.round((Number(f.size)||0)/1024))+" KB)").join("\n");
-    const answer=prompt("Attachments on selected feature:\n"+menu+"\n\nEnter a file number to download it, A to add files, or R followed by a number to remove (example: R1).","A");
+    const answer=await arcMapDialog.prompt({title:"Feature Attachments",message:"Attachments on selected feature:\n"+menu+"\n\nEnter a file number to download it, A to add files, or R followed by a number to remove (example: R1).",label:"Action",value:"A"});
     if(answer===null)return;
     const choice=answer.trim();
     if(choice.toLowerCase()==="a"){}
@@ -6118,7 +6118,7 @@ function attachmentsTool(){
       const index=Number(choice.slice(1).trim())-1;
       if(!current()[index]){status("Invalid attachment number.");return;}
       const file=current()[index];
-      if(!confirm("Remove attachment '"+String(file.name||"Unnamed file")+"'?"))return;
+      if(!await arcMapDialog.confirm({title:"Remove Attachment",message:"Remove attachment "+String(file.name||"Unnamed file")+"?",confirmText:"Remove",danger:true}))return;
       recordUndoState();r.feature.properties._attachments=current().filter((_,i)=>i!==index);
       refreshAll();scheduleAutoSave();status("Attachment removed from the selected feature.");return;
     }else if(choice!==""&&Number.isInteger(Number(choice))&&Number(choice)>0){
@@ -6155,7 +6155,7 @@ function chartStats(){
     return v!==null&&v!==undefined&&typeof v!=="boolean"&&String(v).trim()!==""&&Number.isFinite(typeof v==="number"?v:Number(v));
   }));
   if(!numericFields.length){status("No numeric attribute fields were found in the current feature set.");return;}
-  const field=numericFields.length===1?numericFields[0]:prompt("Numeric field for statistics:\n"+numericFields.map((name,i)=>(i+1)+". "+name).join("\n"),"1");
+  const field=numericFields.length===1?numericFields[0]:await arcMapDialog.select({title:"Statistics",message:"Choose the numeric field for statistics:",label:"Numeric field",value:numericFields[0],options:numericFields.map(name=>({value:name,label:name}))});
   if(field===null)return;
   const chosen=typeof field==="number"?String(field):String(field).trim();
   const fieldName=/^\d+$/.test(chosen)?numericFields[Number(chosen)-1]:chosen;
@@ -6277,23 +6277,23 @@ async function flipLineDirection(){
 function featureTemplates(){
   const key="sabzRoyanWebGisFeatureTemplates";let templates=[];
   try{templates=JSON.parse(localStorage.getItem(key)||"[]");if(!Array.isArray(templates))templates=[]}catch(_){templates=[]}
-  const action=prompt("Feature Templates\n1 = Save template from one selected feature\n2 = Apply a saved template to selected features\n3 = List templates\n4 = Delete a template","1");
+  const action=await arcMapDialog.select({title:"Feature Templates",message:"Choose a template operation:",label:"Operation",value:"1",options:[{value:"1",label:"Save template from selected feature"},{value:"2",label:"Apply template to selected features"},{value:"3",label:"List templates"},{value:"4",label:"Delete template"}]});
   if(action===null)return;
   if(action.trim()==="3"){status(templates.length?"Templates: "+templates.map((t,i)=>(i+1)+". "+t.name+" ("+t.geometryType+")").join(" | "):"No feature templates saved yet.");return}
   if(action.trim()==="4"){
     if(!templates.length){status("No templates to delete.");return}
-    const n=Number(prompt("Template number to delete:\n"+templates.map((t,i)=>(i+1)+". "+t.name).join("\n"),"1"));
+    const n=Number(await arcMapDialog.select({title:"Delete Feature Template",message:"Choose the template to delete:",label:"Template",value:"1",options:templates.map((t,i)=>({value:String(i+1),label:t.name}))}));
     if(!Number.isInteger(n)||n<1||n>templates.length){status("Invalid template number.");return}
     templates.splice(n-1,1);try{localStorage.setItem(key,JSON.stringify(templates));status("Template deleted.");}catch(err){status("Could not update browser template storage: "+err.message)}return;
   }
   if(action.trim()==="1"){
     const records=selectedRecords();
     if(records.length!==1){status("Select exactly one feature to create a template.");return}
-    const r=records[0],name=prompt("Template name:",r.feature?.properties?.name||r.feature?.geometry?.type+" template");
+    const r=records[0],name=await arcMapDialog.prompt({title:"Save Feature Template",message:"Enter a name for this template:",label:"Template name",value:r.feature?.properties?.name||r.feature?.geometry?.type+" template"});
     if(name===null||!name.trim())return;
     const item={name:name.trim(),geometryType:r.feature?.geometry?.type||"Unknown",properties:JSON.parse(JSON.stringify(r.feature?.properties||{})),createdAt:new Date().toISOString()};
     const old=templates.findIndex(t=>t.name.toLowerCase()===item.name.toLowerCase());
-    if(old>=0&&!confirm("A template with this name exists. Replace it?"))return;
+    if(old>=0&&!await arcMapDialog.confirm({title:"Replace Feature Template",message:"A template with this name exists. Replace it?",confirmText:"Replace",danger:true}))return;
     if(old>=0)templates[old]=item;else templates.push(item);
     try{localStorage.setItem(key,JSON.stringify(templates));status("Template saved: "+item.name+". It can now be applied to selected features.");}
     catch(err){status("Could not save template in browser storage: "+err.message)}
@@ -6301,7 +6301,7 @@ function featureTemplates(){
   }
   if(action.trim()==="2"){
     if(!templates.length){status("Save a feature template first.");return}
-    const choice=Number(prompt("Choose template number:\n"+templates.map((t,i)=>(i+1)+". "+t.name+" — "+t.geometryType).join("\n"),"1"));
+    const choice=Number(await arcMapDialog.select({title:"Apply Feature Template",message:"Choose a template to apply:",label:"Template",value:"1",options:templates.map((t,i)=>({value:String(i+1),label:t.name+" — "+t.geometryType}))}));
     if(!Number.isInteger(choice)||choice<1||choice>templates.length){status("Invalid template number.");return}
     if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("applying a feature template"))return;
     if(!editSessionActive||!editTarget){status("Start Editing the target layer before applying a feature template.");return}
@@ -6309,7 +6309,7 @@ function featureTemplates(){
     if(!records.length){status("Select target features from the active edit layer before applying a template.");return}
     const template=templates[choice-1],compatible=records.filter(r=>r.feature?.geometry?.type===template.geometryType);
     if(!compatible.length){status("No selected features in the active edit layer match template geometry type "+template.geometryType+".");return}
-    if(!confirm("Apply template attributes to "+compatible.length+" selected feature(s)? Existing fields with matching names will be overwritten."))return;
+    if(!await arcMapDialog.confirm({title:"Apply Feature Template",message:"Apply template attributes to "+compatible.length+" selected feature(s)? Existing fields with matching names will be overwritten.",confirmText:"Apply"}))return;
     recordUndoState();
     const reserved=key=>typeof isReservedAttributeField==="function"&&isReservedAttributeField(key);
     compatible.forEach(r=>{
@@ -6345,7 +6345,7 @@ function runVectorAnalysis(mode){
       status("Dissolve created "+result.features.length+" output feature(s) from "+valid.length+" inputs.");scheduleAutoSave();return;
     }
     if(mode==="simplify"){
-      const raw=prompt("Simplification tolerance in meters (approximate; larger values remove more vertices):","2");if(raw===null)return;
+      const raw=await arcMapDialog.prompt({title:"Simplify Geometry",message:"Simplification tolerance in meters (approximate; larger values remove more vertices):",label:"Tolerance (meters)",value:"2"});if(raw===null)return;
       const meters=Number(raw);if(!Number.isFinite(meters)||meters<=0){status("Tolerance must be greater than zero.");return;}
       const tolerance=meters/111320;
       const features=valid.map((r,i)=>{
@@ -6390,7 +6390,7 @@ function runVectorAnalysis(mode){
       if(!polygonInputs.length){status("Summarize Within needs selected input polygons. Select polygon features and retry.");return;}
       const all=getFeatureRecords().filter(r=>r.feature?.geometry&&!valid.some(v=>v.layer===r.layer));
       if(!all.length){status("Add a separate layer containing features to summarize within the input polygons.");return;}
-      const choice=prompt("Summarize which features?\n1 = Points (count and numeric summaries)\n2 = All geometries that intersect each polygon","1");if(choice===null)return;
+      const choice=await arcMapDialog.select({title:"Summarize Within",message:"Choose the features to summarize:",label:"Summary mode",value:"1",options:[{value:"1",label:"Points — count and numeric summaries"},{value:"2",label:"All geometries intersecting each polygon"}]});if(choice===null)return;
       if(!["1","2"].includes(choice)){status("Choose 1 or 2.");return;}
       const numericFields=[...new Set(all.flatMap(r=>Object.keys(r.feature.properties||{})))].filter(k=>all.some(r=>Number.isFinite(Number(r.feature.properties?.[k]))&&String(r.feature.properties?.[k]??"").trim()!==""));
       let field=null;
@@ -6507,7 +6507,7 @@ function addMapDecoration(kind){
   window._mapDecorations=window._mapDecorations||{};
   const controls=window._mapDecorations;
   if(kind==="title"){
-    const value=prompt("Map title:","Map Title");if(value===null)return;
+    const value=await arcMapDialog.prompt({title:"Map Layout",message:"Enter the map title:",label:"Map title",value:"Map Title"});if(value===null)return;
     controls.title?.remove();controls.title=L.control({position:"topleft"});
     controls.title.onAdd=()=>{const d=L.DomUtil.create("div","map-insert-title");d.textContent=value;return d};controls.title.addTo(map);
   }else if(kind==="legend"){
