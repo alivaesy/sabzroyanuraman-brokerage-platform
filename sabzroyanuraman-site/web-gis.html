@@ -6393,13 +6393,23 @@ function openModelBuilder(){
   if(!modal){
     modal=document.createElement("div");modal.id="gisModelBuilder";
     modal.style.cssText="position:fixed;inset:0;z-index:12000;background:rgba(12,24,36,.58);display:flex;align-items:center;justify-content:center;padding:12px;font:13px Arial,sans-serif";
-    modal.innerHTML='<section style="background:#fff;color:#17212b;width:min(900px,98vw);max-height:92vh;overflow:auto;border:1px solid #8294a7;border-radius:5px;box-shadow:0 12px 40px #0005"><header style="display:flex;align-items:center;justify-content:space-between;background:#e9eff5;padding:10px 14px;border-bottom:1px solid #c5d0dc"><strong style="font-size:16px">ModelBuilder — Geoprocessing Workflow</strong><button type="button" data-mb-close style="font-size:18px">✕</button></header><div style="padding:14px"><div style="display:grid;grid-template-columns:minmax(160px,1fr) minmax(160px,1fr);gap:10px"><label>Input feature layer<select data-mb-source style="display:block;width:100%;padding:7px;margin-top:4px"></select></label><label>Output layer name<input data-mb-name value="Model_Output" style="display:block;width:100%;padding:7px;margin-top:4px;box-sizing:border-box"></label></div><p style="color:#536273;margin:10px 0">Steps run in order; each step receives the previous step’s output. Overlay operations use the selected overlay layer.</p><div data-mb-steps></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"><button type="button" data-mb-add>Add Step</button><button type="button" data-mb-run style="background:#176b42;color:white;border:0;padding:8px 14px">Run Model</button><button type="button" data-mb-clear>Clear Steps</button></div><div data-mb-status role="status" style="padding:8px;background:#f2f5f8;border:1px solid #d8e0e8;white-space:pre-wrap">Build a workflow, then run it.</div></div></section>';
+    modal.innerHTML='<section style="background:#fff;color:#17212b;width:min(900px,98vw);max-height:92vh;overflow:auto;border:1px solid #8294a7;border-radius:5px;box-shadow:0 12px 40px #0005"><header style="display:flex;align-items:center;justify-content:space-between;background:#e9eff5;padding:10px 14px;border-bottom:1px solid #c5d0dc"><strong style="font-size:16px">ModelBuilder — Geoprocessing Workflow</strong><button type="button" data-mb-close style="font-size:18px">✕</button></header><div style="padding:14px"><div style="display:grid;grid-template-columns:minmax(160px,1fr) minmax(160px,1fr);gap:10px"><label>Input feature layer<select data-mb-source style="display:block;width:100%;padding:7px;margin-top:4px"></select></label><label>Output layer name<input data-mb-name value="Model_Output" style="display:block;width:100%;padding:7px;margin-top:4px;box-sizing:border-box"></label></div><p style="color:#536273;margin:10px 0">Steps run in order; each step receives the previous step’s output. Overlay operations use the selected overlay layer.</p><div data-mb-steps></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"><button type="button" data-mb-add>Add Step</button><button type="button" data-mb-run style="background:#176b42;color:white;border:0;padding:8px 14px">Run Model</button><button type="button" data-mb-save>Export Model</button><button type="button" data-mb-load>Import Model</button><input type="file" data-mb-file accept=".json,application/json" style="display:none"><button type="button" data-mb-clear>Clear Steps</button></div><div data-mb-status role="status" style="padding:8px;background:#f2f5f8;border:1px solid #d8e0e8;white-space:pre-wrap">Build a workflow, then run it.</div></div></section>';
     document.body.appendChild(modal);
     modal.addEventListener("click",e=>{if(e.target===modal||e.target.closest("[data-mb-close]"))modal.style.display="none";});
     modal.querySelector("[data-mb-add]").onclick=()=>addModelBuilderStep(modal);
     modal.querySelector("[data-mb-clear]").onclick=()=>{modal.querySelector("[data-mb-steps]").replaceChildren();addModelBuilderStep(modal);};
     modal.querySelector("[data-mb-run]").onclick=()=>runModelBuilder(modal);
-    modal.addEventListener("click",e=>{const b=e.target.closest("[data-mb-remove]");if(b){b.closest("[data-mb-step]").remove();}});
+    modal.querySelector("[data-mb-save]").onclick=()=>exportModelBuilder(modal);
+    modal.querySelector("[data-mb-load]").onclick=()=>modal.querySelector("[data-mb-file]").click();
+    modal.querySelector("[data-mb-file]").onchange=event=>importModelBuilder(modal,event.target.files?.[0]);
+    modal.addEventListener("click",e=>{
+      const b=e.target.closest("[data-mb-remove],[data-mb-up],[data-mb-down]");if(!b)return;
+      const row=b.closest("[data-mb-step]"),host=row?.parentElement;if(!row||!host)return;
+      if(b.hasAttribute("data-mb-up")&&row.previousElementSibling)host.insertBefore(row,row.previousElementSibling);
+      if(b.hasAttribute("data-mb-down")&&row.nextElementSibling)host.insertBefore(row.nextElementSibling,row);
+      if(b.hasAttribute("data-mb-remove"))row.remove();
+      refreshModelBuilderStepNumbers(host);
+    });
   }
   const source=modal.querySelector("[data-mb-source]"),old=source.value;
   source.replaceChildren();
@@ -6408,19 +6418,70 @@ function openModelBuilder(){
   if(!modal.querySelector("[data-mb-step]"))addModelBuilderStep(modal);
   modal.style.display="flex";
 }
+function refreshModelBuilderStepNumbers(host){
+  [...host.children].forEach((el,i)=>{const n=el.querySelector("strong");if(n)n.textContent=String(i+1);});
+}
+function modelBuilderDefinition(modal){
+  const source=modal.querySelector("[data-mb-source]");
+  const items=getAllVectorItems();
+  return {format:"sabzroyan-model",version:1,name:modal.querySelector("[data-mb-name]").value||"Model_Output",
+    sourceName:items[Number(source.value)]?.name||"",
+    steps:[...modal.querySelectorAll("[data-mb-step]")].map(row=>({
+      op:row.querySelector("[data-mb-op]").value,
+      parameter:row.querySelector("[data-mb-param]").value,
+      overlayName:items[Number(row.querySelector("[data-mb-overlay]").value)]?.name||""
+    }))};
+}
+function exportModelBuilder(modal){
+  const model=modelBuilderDefinition(modal),blob=new Blob([JSON.stringify(model,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=url;a.download=(model.name.replace(/[^a-z0-9_-]+/gi,"_")||"model")+".json";
+  document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+  modal.querySelector("[data-mb-status]").textContent="Model definition exported as JSON.";
+}
+function importModelBuilder(modal,file){
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const model=JSON.parse(String(reader.result||""));
+      if(model.format!=="sabzroyan-model"||model.version!==1||!Array.isArray(model.steps)||model.steps.length>100)throw new Error("Unsupported model file or invalid step list.");
+      const items=getAllVectorItems(),sourceIndex=items.findIndex(x=>x.name===model.sourceName);
+      if(sourceIndex<0)throw new Error("The model's input layer is not currently available: "+model.sourceName);
+      const source=modal.querySelector("[data-mb-source]");source.value=String(sourceIndex);
+      modal.querySelector("[data-mb-name]").value=String(model.name||"Model_Output").slice(0,80);
+      const host=modal.querySelector("[data-mb-steps]");host.replaceChildren();
+      const allowed=new Set(["buffer","centroid","convexHull","boundingBox","simplify","dissolve","singlepart","clip","intersection","erase","union"]);
+      model.steps.forEach(step=>{
+        if(!allowed.has(step.op))throw new Error("Unknown model operation: "+step.op);
+        addModelBuilderStep(modal,step.op);
+        const row=host.lastElementChild;row.querySelector("[data-mb-param]").value=String(step.parameter??"50");
+        const overlayIndex=items.findIndex(x=>x.name===step.overlayName);
+        if(overlayIndex>=0)row.querySelector("[data-mb-overlay]").value=String(overlayIndex);
+      });
+      refreshModelBuilderStepNumbers(host);
+      modal.querySelector("[data-mb-status]").textContent="Model imported. Verify layer references and parameters, then run.";
+    }catch(err){modal.querySelector("[data-mb-status]").textContent="Import failed: "+err.message;}
+    modal.querySelector("[data-mb-file]").value="";
+  };
+  reader.readAsText(file);
+}
 function addModelBuilderStep(modal,op="buffer"){
   const host=modal.querySelector("[data-mb-steps]"),row=document.createElement("div");
   row.dataset.mbStep="1";row.style.cssText="display:grid;grid-template-columns:38px minmax(150px,1fr) minmax(110px,.7fr) minmax(150px,1fr) 34px;gap:7px;align-items:center;padding:8px 0;border-bottom:1px solid #dce3ea";
   const number=document.createElement("strong");number.textContent=String(host.children.length+1);
   const operation=document.createElement("select");operation.dataset.mbOp="1";operation.style.cssText="width:100%;padding:7px";
-  [["buffer","Buffer (meters)"],["centroid","Centroid"],["convexHull","Convex Hull (all features)"],["boundingBox","Envelope (all features)"],["simplify","Simplify"],["clip","Clip"],["intersection","Intersect"],["erase","Erase"],["union","Union"]].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;operation.appendChild(o);});operation.value=op;
+  [["buffer","Buffer (meters)"],["centroid","Centroid"],["convexHull","Convex Hull (all features)"],["boundingBox","Envelope (all features)"],["simplify","Simplify"],["dissolve","Dissolve (all)"],["singlepart","Multipart To Singlepart"],["clip","Clip"],["intersection","Intersect"],["erase","Erase"],["union","Union"]].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;operation.appendChild(o);});operation.value=op;
   const param=document.createElement("input");param.dataset.mbParam="1";param.type="number";param.min="0";param.step="any";param.value="50";param.title="Buffer distance in meters or simplification tolerance in coordinate units";param.style.cssText="width:100%;padding:7px;box-sizing:border-box";
   const overlay=document.createElement("select");overlay.dataset.mbOverlay="1";overlay.style.cssText="width:100%;padding:7px";
   const refreshOverlay=()=>{overlay.replaceChildren();const none=document.createElement("option");none.value="";none.textContent="Overlay layer (if needed)";overlay.appendChild(none);getAllVectorItems().forEach((item,i)=>{const o=document.createElement("option");o.value=String(i);o.textContent=item.name;overlay.appendChild(o);});overlay.style.visibility=["clip","intersection","erase","union"].includes(operation.value)?"visible":"hidden";param.style.visibility=["buffer","simplify"].includes(operation.value)?"visible":"hidden";};
   operation.onchange=refreshOverlay;refreshOverlay();
+  const controls=document.createElement("div");controls.style.cssText="display:flex;gap:3px";
+  const up=document.createElement("button");up.type="button";up.dataset.mbUp="1";up.textContent="↑";up.title="Move step up";
+  const down=document.createElement("button");down.type="button";down.dataset.mbDown="1";down.textContent="↓";down.title="Move step down";
   const remove=document.createElement("button");remove.type="button";remove.dataset.mbRemove="1";remove.textContent="−";remove.title="Remove step";
-  row.append(number,operation,param,overlay,remove);host.appendChild(row);
-  [...host.children].forEach((el,i)=>{const n=el.querySelector("strong");if(n)n.textContent=String(i+1);});
+  controls.append(up,down,remove);row.append(number,operation,param,overlay,controls);host.appendChild(row);
+  refreshModelBuilderStepNumbers(host);
 }
 function modelBuilderLayerFeatures(index){
   const items=getAllVectorItems(),item=items[Number(index)];
@@ -6451,6 +6512,15 @@ function runModelBuilder(modal){
       }else if(op==="simplify"){
         if(!Number.isFinite(raw)||raw<=0)throw new Error("Step "+(si+1)+": simplify tolerance must be greater than zero.");
         current.forEach(f=>{if(["LineString","MultiLineString","Polygon","MultiPolygon"].includes(f.geometry?.type)){const out=turf.simplify(f,{tolerance:raw,highQuality:true,mutate:false});if(out){out.properties={...(f.properties||{}),_model_step:si+1,_model_operation:"Simplify"};next.push(out);}}else next.push(f);});
+      }else if(op==="dissolve"){
+        const out=turf.dissolve(turf.featureCollection(current));
+        if(out?.features?.length)next=out.features.map(f=>({...f,properties:{...(f.properties||{}),_model_step:si+1,_model_operation:"Dissolve",_source_count:current.length}}));
+      }else if(op==="singlepart"){
+        current.forEach((f,sourceIndex)=>{
+          const g=f.geometry,partType={MultiPoint:"Point",MultiLineString:"LineString",MultiPolygon:"Polygon"}[g?.type];
+          if(!partType){next.push({...f,properties:{...(f.properties||{}),_model_step:si+1,_model_operation:"Multipart To Singlepart",_part:1}});return;}
+          (g.coordinates||[]).forEach((coordinates,partIndex)=>next.push({type:"Feature",geometry:{type:partType,coordinates},properties:{...(f.properties||{}),_model_step:si+1,_model_operation:"Multipart To Singlepart",_part:partIndex+1,_source_index:sourceIndex+1}}));
+        });
       }else{
         if(!overlayIndex)throw new Error("Step "+(si+1)+": choose an overlay layer.");
         const overlays=modelBuilderLayerFeatures(overlayIndex);
