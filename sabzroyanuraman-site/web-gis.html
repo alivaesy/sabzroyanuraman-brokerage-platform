@@ -4246,14 +4246,30 @@ function repairTopologyGeometry(issue){
   else if(g.type==="Polygon"){coords=coords.map(closeRing);depth=1;}
   else if(g.type==="MultiPolygon"){coords=coords.map(poly=>poly.map(closeRing));depth=2;}
   else return false;
-  if(!coords||!coords.length)return false;
-  layer.setLatLngs(L.GeoJSON.coordsToLatLngs(coords,depth));
-  if(typeof layer.redraw==="function")layer.redraw();
-  const refreshed=layer.toGeoJSON();
-  if(!refreshed?.geometry)return false;
-  layer.feature=layer.feature||feature;layer.feature.geometry=refreshed.geometry;
-  if(layer.feature.properties&&refreshed.properties)layer.feature.properties=refreshed.properties;
-  return true;
+  if(!Array.isArray(coords)||!coords.length)return false;
+  const hasBadLine=line=>!Array.isArray(line)||line.length<2||line.some((p,i)=>!Array.isArray(p)||p.length<2||!p.slice(0,2).every(Number.isFinite)||(i>0&&p.length===line[i-1].length&&p.every((v,j)=>v===line[i-1][j])));
+  const lines=g.type==="LineString"?[coords]:g.type==="MultiLineString"?coords:g.type==="Polygon"?coords:g.type==="MultiPolygon"?coords.flat():[];
+  if(lines.some(hasBadLine))return false;
+  if(["Polygon","MultiPolygon"].includes(g.type)&&lines.some(ring=>ring.length<4||JSON.stringify(ring[0])!==JSON.stringify(ring[ring.length-1])))return false;
+  const latlngs=L.GeoJSON.coordsToLatLngs(coords,depth);
+  const oldLatLngs=typeof layer.getLatLngs==="function"?layer.getLatLngs():null;
+  // Create an undo checkpoint before changing geometry so repair remains reversible.
+  recordUndoState();
+  try{
+   layer.setLatLngs(latlngs);
+   if(typeof layer.redraw==="function")layer.redraw();
+   const refreshed=layer.toGeoJSON();
+   if(!refreshed?.geometry)throw new Error("repaired geometry could not be serialized");
+   layer.feature=layer.feature||feature;
+   layer.feature.geometry=refreshed.geometry;
+   if(refreshed.properties)layer.feature.properties=refreshed.properties;
+   feature.geometry=refreshed.geometry;
+   refreshAll();
+   return true;
+  }catch(e){
+   if(oldLatLngs)try{layer.setLatLngs(oldLatLngs);if(typeof layer.redraw==="function")layer.redraw()}catch(_){}
+   return false;
+  }
  }catch(_){return false;}
 }
 function openTopologyDialog(mode="options"){
