@@ -4863,26 +4863,31 @@ async function selectByPolygon(){
 }
 async function selectByLocation(){
   const items=[{name:"My Drawings",layer:drawn},...namedLayers]
-    .filter((x,i,arr)=>x.layer&&isVectorLayer(x.layer)&&vectorFeatures(x.layer).length&&arr.findIndex(y=>y.layer===x.layer)===i);
+    .filter((x,i,arr)=>x.layer&&isVectorLayer(x.layer)&&vectorFeatures(x.layer).length&&arr.findIndex(y=>y.layer===x.layer)===i)
+    .map((x,index)=>({...x,key:String(index)}));
   if(items.length<2){status("Load at least two vector layers (including My Drawings when it contains features) before spatial selection.");return;}
   const relationships=[{value:"intersects",label:"Intersects"},{value:"within",label:"Within"},{value:"contains",label:"Contains"},{value:"touches",label:"Touches"},{value:"overlaps",label:"Overlaps"},{value:"crosses",label:"Crosses"},{value:"disjoint",label:"Disjoint"}];
-  const layerOptions=items.map(x=>({value:x.name,label:x.name+" ("+vectorFeatures(x.layer).length+" features)"}));
+  const layerOptions=items.map(x=>({value:x.key,label:x.name+" ("+vectorFeatures(x.layer).length+" features)"}));
   const result=await arcMapDialog.form({
     title:"Select By Location",
     message:"Choose the spatial relationship, source and target layers, and selection method.",
     fields:[
       {name:"relationship",label:"Relationship",options:relationships,value:"intersects"},
-      {name:"source",label:"Source layer",options:layerOptions,value:items[0].name},
-      {name:"target",label:"Target layer",options:layerOptions,value:items[1].name},
+      {name:"source",label:"Source layer",options:layerOptions,value:items[0].key},
+      {name:"target",label:"Target layer",options:layerOptions,value:items[1].key},
       {name:"mode",label:"Selection type",options:[{value:"1",label:"New selection"},{value:"2",label:"Add to current selection"},{value:"3",label:"Remove from current selection"},{value:"4",label:"Select from current selection"}],value:"1"}
     ]
   });
   if(result===null)return;
   const {relationship:relation,source:a,target:b,mode}=result;
-  const ai=items.findIndex(x=>x.name===a),bi=items.findIndex(x=>x.name===b);
+  const ai=items.findIndex(x=>x.key===a),bi=items.findIndex(x=>x.key===b);
   if(!items[ai]||!items[bi]||ai===bi){status("Choose different, valid source and target layers.");return;}
-  if(!["1","2","3","4"].includes(mode)){status("Choose a valid selection type.");return;}
-  const source=vectorFeatures(items[ai].layer),target=vectorFeatures(items[bi].layer).map(v=>v.feature).filter(Boolean);
+  if(!relationships.some(x=>x.value===relation)||!["1","2","3","4"].includes(mode)){status("Choose a valid spatial relationship and selection type.");return;}
+  const source=vectorFeatures(items[ai].layer),target=vectorFeatures(items[bi].layer).map(v=>v.feature).filter(f=>f?.geometry);
+  if(!target.length){status("The target layer has no readable geometries.");return;}
+  const relationFunctions={intersects:"booleanIntersects",within:"booleanWithin",contains:"booleanContains",touches:"booleanTouches",overlaps:"booleanOverlap",crosses:"booleanCrosses"};
+  if(relation!=="disjoint"&&typeof turf[relationFunctions[relation]]!=="function"){status("Spatial selection unavailable: Turf does not provide the "+relation+" relationship.");return;}
+  if(typeof turf.booleanIntersects!=="function"){status("Spatial selection unavailable: Turf booleanIntersects is missing.");return;}
   const matches=[];
   source.forEach(v=>{
     if(!v.feature?.geometry)return;
@@ -4891,14 +4896,11 @@ async function selectByLocation(){
       try{
         if(relation==="disjoint"){
           if(turf.booleanIntersects(v.feature,f)){ok=false;break;}
-        }else if(relation==="within")ok=turf.booleanWithin(v.feature,f);
-        else if(relation==="contains")ok=turf.booleanContains(v.feature,f);
-        else if(relation==="touches")ok=turf.booleanTouches(v.feature,f);
-        else if(relation==="overlaps")ok=turf.booleanOverlap(v.feature,f);
-        else if(relation==="crosses")ok=turf.booleanCrosses(v.feature,f);
-        else ok=turf.booleanIntersects(v.feature,f);
+        }else{
+          ok=turf[relationFunctions[relation]](v.feature,f);
+          if(ok)break;
+        }
       }catch(e){ok=false;}
-      if(ok&&relation!=="disjoint")break;
     }
     if(ok)matches.push(v.layer);
   });
