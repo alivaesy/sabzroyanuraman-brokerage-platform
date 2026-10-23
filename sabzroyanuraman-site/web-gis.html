@@ -6878,7 +6878,7 @@ async function addMapDecoration(kind){
       downloadProject:()=>document.getElementById("downloadProject")?.click(),
       fitDraw:()=>document.getElementById("fitDraw")?.click(),
       clearDraw:()=>document.getElementById("clearDraw")?.click(),
-      showLayers:()=>status("Table Of Contents is docked on the left."),
+      showLayers:()=>{const panel=document.getElementById("panel"),layers=document.getElementById("layers");if(panel)panel.scrollIntoView({block:"nearest"});if(layers){layers.tabIndex=-1;layers.focus({preventScroll:true});}renderLayerList();status("Table Of Contents focused.");},
       wms:()=>{openGisDock("display");document.getElementById("wmsUrl")?.focus()},
       configureWmsBasemap:()=>{openGisDock("display");document.getElementById("wmsUrl")?.focus();status("Enter a WMS URL and layer name, then choose Use WMS as Basemap.")},
       buffer:()=>{document.getElementById("gisOperation").value="buffer";document.getElementById("runGisOperation").click()},
