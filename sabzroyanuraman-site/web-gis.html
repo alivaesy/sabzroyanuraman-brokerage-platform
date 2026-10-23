@@ -4763,6 +4763,21 @@ function drawCurveFeature(){
    GIS TOOLBOX — GIS available Search
    ========================= */
 const GIS_TOOLS=[
+ {id:"runGisOperation",op:"buffer",title:"Buffer",category:"Geoprocessing",keys:"buffer"},
+ {id:"runGisOperation",op:"clip",title:"Clip",category:"Geoprocessing",keys:"clip"},
+ {id:"runGisOperation",op:"intersection",title:"Intersect",category:"Geoprocessing",keys:"intersection"},
+ {id:"runGisOperation",op:"merge",title:"Merge",category:"Geoprocessing",keys:"merge"},
+ {id:"runGisOperation",op:"union",title:"Union",category:"Geoprocessing",keys:"union dissolve polygons"},
+ {id:"vectorDissolve",title:"Dissolve",category:"Geoprocessing",keys:"dissolve aggregate remove boundaries by attribute"},
+ {id:"runGisOperation",op:"erase",title:"Erase",category:"Geoprocessing",keys:"erase difference polygon"},
+ {id:"runGisOperation",op:"identity",title:"Identity",category:"Geoprocessing",keys:"identity overlay attributes"},
+ {id:"vectorSpatialJoin",title:"Spatial Join",category:"Geoprocessing",keys:"spatial join transfer attributes intersects within nearest features"},
+ {id:"runGisOperation",op:"append",title:"Append",category:"Geoprocessing",keys:"append add features to target layer"},
+ {id:"vectorSinglepart",title:"Multipart To Singlepart",category:"Geoprocessing",keys:"multipart singlepart explode geometry parts"},
+ {id:"vectorGeometry",title:"Calculate Geometry Attributes",category:"Geoprocessing",keys:"geometry area perimeter length coordinates calculate geometry"},
+ {id:"repairSelectedGeometry",title:"Repair Geometry",category:"Geoprocessing",keys:"repair geometry fix invalid geometry"},
+ {id:"runGisOperation",op:"centroid",title:"Feature To Point (Centroid)",category:"Geoprocessing",keys:"feature to point centroid polygon"},
+ {id:"modelBuilder",title:"ModelBuilder",category:"Geoprocessing",keys:"workflow model chain automate geoprocessing"},
  {id:"selectFeatures",title:"Select Features",category:"Tools",keys:"select feature"},
  {id:"importData",title:"Add Data",category:"File",keys:"import layer geojson kml shapefile csv geodatabase"},
  {id:"exportData",title:"Export Data",category:"File",keys:"export geojson kml gpx shapefile geodatabase dxf"},
@@ -4787,17 +4802,9 @@ const GIS_TOOLS=[
  {id:"stopEditing",title:"Stop Editing",category:"Editor",keys:"stop session"},
  {id:"measureDistanceTool",title:"Measure Length",category:"Tools",keys:"distance length"},
  {id:"measureAreaTool",title:"Measure Area",category:"Tools",keys:"area"},
- {id:"runGisOperation",op:"buffer",title:"Buffer",category:"Geoprocessing",keys:"buffer"},
- {id:"runGisOperation",op:"clip",title:"Clip",category:"Geoprocessing",keys:"clip"},
- {id:"runGisOperation",op:"intersection",title:"Intersect",category:"Geoprocessing",keys:"intersection"},
  {id:"runGisOperation",op:"split",title:"Split",category:"Geoprocessing",keys:"split line"},
- {id:"runGisOperation",op:"merge",title:"Merge",category:"Geoprocessing",keys:"merge"},
- {id:"runGisOperation",op:"erase",title:"Erase",category:"Geoprocessing",keys:"erase difference polygon"},
- {id:"runGisOperation",op:"union",title:"Union",category:"Geoprocessing",keys:"union dissolve polygons"},
- {id:"runGisOperation",op:"centroid",title:"Feature To Point (Centroid)",category:"Geoprocessing",keys:"centroid point from polygon"},
  {id:"runGisOperation",op:"convexHull",title:"Minimum Bounding Geometry (Convex Hull)",category:"Geoprocessing",keys:"convex hull"},
  {id:"runGisOperation",op:"boundingBox",title:"Minimum Bounding Geometry (Envelope)",category:"Geoprocessing",keys:"envelope bounding box"},
- {id:"modelBuilder",title:"ModelBuilder",category:"Geoprocessing",keys:"workflow model chain automate geoprocessing"},
  {id:"topologyCheckTool",title:"Check Topology",category:"Editor",keys:"topology geometry self intersection duplicate vertices polygon validity"},
  {id:"repairSelectedGeometry",title:"Repair Selected Geometry",category:"Editor",keys:"repair geometry remove duplicate vertices close polygon rings fix invalid line polygon"},
  {id:"snapTool",title:"Snapping",category:"Editor",keys:"snap"},
@@ -4830,18 +4837,12 @@ const GIS_TOOLS=[
  {id:"searchFeature",title:"Find",category:"Tools",keys:"search feature"},
  {id:"addBookmark",title:"Create Bookmark",category:"Bookmarks",keys:"bookmark"},
  {id:"showBookmarks",title:"Bookmarks",category:"Bookmarks",keys:"extent"},
-
- {id:"vectorDissolve",title:"Dissolve",category:"Geoprocessing",keys:"dissolve aggregate remove boundaries by attribute"},
- {id:"vectorSpatialJoin",title:"Spatial Join",category:"Geoprocessing",keys:"spatial join transfer attributes intersects within nearest features"},
  {id:"vectorSimplify",title:"Simplify Features",category:"Geoprocessing",keys:"simplify geometry tolerance reduce vertices"},
  {id:"vectorSummarize",title:"Summarize Within",category:"Geoprocessing",keys:"summarize within polygons count points sum mean statistics"},
- {id:"vectorGeometry",title:"Calculate Geometry Attributes",category:"Geoprocessing",keys:"geometry area perimeter length coordinates calculate geometry"},
- {id:"vectorSinglepart",title:"Multipart To Singlepart",category:"Geoprocessing",keys:"multipart singlepart explode geometry parts"},
  {id:"chartStats",title:"Statistics",category:"Geoprocessing",keys:"chart statistics"},
  {id:"nearestMatchTool",title:"Find Nearest Features",category:"Network QA",keys:"nearest"},
  {id:"transferAttributesTool",title:"Transfer Attributes",category:"Network QA",keys:"attributes"},
- {id:"networkQaTool",title:"Network Connectivity Check",category:"Network QA",keys:"network connectivity"},
-
+ {id:"networkQaTool",title:"Network Connectivity Check",category:"Network QA",keys:"network connectivity"}
 ];
 function renderGisToolbox(query=""){
  const box=$("gisToolResults"); if(!box)return;
