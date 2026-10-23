@@ -4416,7 +4416,7 @@ function checkEditTopology(openInspector=false,targetOverride=null,boundaryOverr
     let boundaryFeatures=[];
     if(boundaryLayer&&!isLayerInEditTarget(boundaryLayer)){
       if(typeof boundaryLayer.eachLayer==="function")boundaryFeatures=vectorFeatures(boundaryLayer).map(x=>x.feature).filter(f=>f?.geometry&&["Polygon","MultiPolygon"].includes(f.geometry.type));
-      else {const f=boundaryLayer.feature||(typeof boundaryLayer.toGeoJSON==="function"?boundaryLayer.toGeoJSON():null);if(f?.geometry&&["Polygon","MultiPolygon"].includes(f.geometry.type))boundaryFeatures=[f];}
+      else {const f=boundaryLayer.feature||(typeof boundaryLayer.toGeoJSON==="function"?boundaryLayer.toGeoJSON():null);if(f?.geometry&&["Polygon","MultiPolygon"].includes(f.geometry.type))boundaryFeatures=[f];else if(f?.type==="FeatureCollection")boundaryFeatures=(f.features||[]).filter(x=>x?.geometry&&["Polygon","MultiPolygon"].includes(x.geometry.type));}
     }
     let boundaryFeature=boundaryFeatures[0]||null;
     if(boundaryFeatures.length>1){
@@ -4509,8 +4509,9 @@ function checkEditTopology(openInspector=false,targetOverride=null,boundaryOverr
         if(!merged)throw new Error("polygon coverage could not be unioned");
         const gapFeature=turf.difference(turf.featureCollection([boundaryFeature,merged]));
         const gapArea=gapFeature?.geometry?Number(turf.area(gapFeature))||0:0;
-        gapSummary="Gap check against selected boundary: "+(gapArea>1?"possible uncovered area "+gapArea.toFixed(2)+" m²":"no material uncovered area detected")+" (configured reporting threshold).";
-        let gapThreshold=1;try{const savedThreshold=localStorage.getItem("sabzRoyanWebGisTopologyGapThreshold");if(savedThreshold!==null&&savedThreshold.trim()!=="")gapThreshold=Math.max(0,Number(savedThreshold));}catch(_){}if(gapArea>gapThreshold)issues.push({id:boundaryFeature.id??boundaryFeature.properties?.OBJECTID??"boundary",layer:boundaryLayer,feature:boundaryFeature,issue:"Coverage gap inside selected boundary ("+gapArea.toFixed(2)+" m²)"});
+        let gapThreshold=1;try{const savedThreshold=localStorage.getItem("sabzRoyWebGisTopologyGapThreshold");if(savedThreshold!==null&&savedThreshold.trim()!==""){const parsedThreshold=Number(savedThreshold);if(Number.isFinite(parsedThreshold)&&parsedThreshold>=0)gapThreshold=parsedThreshold;}}catch(_){}
+        gapSummary="Gap check against selected boundary: "+(gapArea>gapThreshold?"possible uncovered area "+gapArea.toFixed(2)+" m²":"no uncovered area above "+gapThreshold.toFixed(2)+" m² detected")+" (configured reporting threshold).";
+        if(gapArea>gapThreshold)issues.push({id:boundaryFeature.id??boundaryFeature.properties?.OBJECTID??"boundary",layer:boundaryLayer,feature:boundaryFeature,issue:"Coverage gap inside selected boundary ("+gapArea.toFixed(2)+" m²)"});
         gapChecked=true;
       }else gapSummary="Gap check unavailable: Turf union/difference is unavailable.";
     }
