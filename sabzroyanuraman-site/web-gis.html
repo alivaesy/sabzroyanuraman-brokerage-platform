@@ -5369,7 +5369,7 @@ function splitPolygonByRotatingCut(feature,referenceLine,targetAreaM2,side,direc
   return {parts:best.parts,actualArea:best.area,targetArea:targetAreaM2};
 }
 
-function splitSelectedLines(){
+async function splitSelectedLines(){
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("splitting features"))return;
   if(!editSessionActive||!editTarget){status("Start Editing before splitting features.");return;}
   stopSplitDraw();
@@ -5391,21 +5391,21 @@ function splitSelectedLines(){
       if(polygonMode){
         const source=records[0].feature,g=source.geometry;
         let parts;
-        const splitMode=prompt("Polygon cut mode:\n1 = Cut along the drawn line\n2 = Parallel cut by target area\n3 = Rotate cut around the first drawn point to target area","1");
+        const splitMode=await arcMapDialog.select({title:"Split Polygon",message:"Choose the cutting method:",label:"Cut method",value:"1",options:[{value:"1",label:"Cut along the drawn line"},{value:"2",label:"Parallel cut by target area"},{value:"3",label:"Rotate cut to target area"}]});
         if(splitMode===null)return;
         if(splitMode.trim()==="2"||splitMode.trim()==="3"){
           if(g.type!=="Polygon")throw new Error("Target-area cuts currently require a single Polygon.");
-          const rawArea=prompt("Target area in square meters (m²):",String(Math.round(turf.area(source)/2)));
+          const rawArea=await arcMapDialog.prompt({title:"Split Polygon",message:"Target area in square meters (m²):",label:"Target area",value:String(Math.round(turf.area(source)/2))});
           if(rawArea===null)return;
           const targetArea=Number(rawArea);
-          const sideAnswer=prompt("Keep target area on which side of the cut? Type left or right","left");
+          const sideAnswer=await arcMapDialog.select({title:"Split Polygon",message:"Keep the target area on which side of the cut?",label:"Side",value:"left",options:[{value:"left",label:"Left"},{value:"right",label:"Right"}]});
           if(sideAnswer===null)return;
           const side=sideAnswer.trim().toLowerCase();
           if(!["left","right"].includes(side))throw new Error("Side must be left or right.");
           let result;
           if(splitMode.trim()==="2")result=splitPolygonAtTargetArea(source,cutter,targetArea,side);
           else{
-            const directionAnswer=prompt("Rotation direction: type clockwise or counterclockwise","clockwise");
+            const directionAnswer=await arcMapDialog.select({title:"Split Polygon",message:"Choose the rotation direction:",label:"Direction",value:"clockwise",options:[{value:"clockwise",label:"Clockwise"},{value:"counterclockwise",label:"Counterclockwise"}]});
             if(directionAnswer===null)return;
             const direction=directionAnswer.trim().toLowerCase();
             if(!["clockwise","counterclockwise"].includes(direction))throw new Error("Direction must be clockwise or counterclockwise.");
@@ -6063,7 +6063,7 @@ async function labelLayer(){
 async function groupLayers(){
   if(!namedLayers.length){status("Add at least one data layer first.");return}
   const names=namedLayers.map((x,i)=>(i+1)+". "+x.name).join("\n");
-  const raw=await arcMapDialog.select({title:"Group Layers",message:"Choose the layers to group (select a comma-separated list is not supported here; choose a layer to start):",label:"First layer",value:"1",options:namedLayers.map((x,i)=>({value:String(i+1),label:x.name}))});if(raw===null)return;
+  const raw=await arcMapDialog.prompt({title:"Group Layers",message:"Enter layer numbers to group, separated by commas:\n"+names,label:"Layer numbers",value:"1,2"});if(raw===null)return;
   const indices=[...new Set(raw.split(",").map(x=>Number(x.trim())-1).filter(i=>Number.isInteger(i)&&i>=0&&i<namedLayers.length))];
   if(indices.length<2){status("Choose at least two valid layers.");return}
   const items=indices.map(i=>namedLayers[i]),group=L.featureGroup(items.map(x=>x.layer));
