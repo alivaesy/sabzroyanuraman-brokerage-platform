@@ -125,3 +125,11 @@ test('ArcMap toolbar uses SVG editing icons and an X/Y coordinate glyph', () => 
   assert.match(html, /<symbol id="arc-icon-goxy"[^>]*>[\s\S]*?M2 13\.5V3\.2/);
   assert.match(html, /title="Go To XY \(X\/Y coordinates\)" aria-label="Go To XY \(X\/Y coordinates\)"/);
 });
+
+test('ArcMap keyboard shortcuts invoke existing Attribute Table, Editor, and Measure actions', () => {
+  assert.match(html, /__arcMapShortcutHandlerInstalled/);
+  assert.match(html, /F6:document\.getElementById\("openTable"\)/);
+  assert.match(html, /F2:document\.getElementById\("startEditingBtn"\)/);
+  assert.match(html, /F7:document\.getElementById\("measureToolBtn"\)/);
+  assert.match(html, /if\(typing\|\|event\.altKey\|\|event\.ctrlKey\|\|event\.metaKey\)return/);
+});
