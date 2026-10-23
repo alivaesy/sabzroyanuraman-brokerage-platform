@@ -4233,8 +4233,12 @@ function checkEditTopology(openInspector=false){
       if(typeof boundaryLayer.eachLayer==="function")boundaryFeatures=vectorFeatures(boundaryLayer).map(x=>x.feature).filter(f=>f?.geometry&&["Polygon","MultiPolygon"].includes(f.geometry.type));
       else {const f=boundaryLayer.feature||(typeof boundaryLayer.toGeoJSON==="function"?boundaryLayer.toGeoJSON():null);if(f?.geometry&&["Polygon","MultiPolygon"].includes(f.geometry.type))boundaryFeatures=[f];}
     }
-    const boundaryFeature=boundaryFeatures[0];
-    if(boundaryFeature)records.forEach((r,index)=>{try{const f=r.feature;if(!f?.geometry)return;let covered;if(typeof turf.booleanCoveredBy==="function")covered=turf.booleanCoveredBy(f,boundaryFeature);else if(typeof turf.booleanWithin==="function")covered=turf.booleanWithin(f,boundaryFeature)||!!turf.booleanContains?.(boundaryFeature,f);else covered=false;if(!covered)issues.push({id:f.id??f.properties?.OBJECTID??f.properties?.FID??(index+1),issue:"Must Be Covered By: feature is not contained by the selected boundary polygon"})}catch(e){issues.push({id:r.feature?.id??r.feature?.properties?.OBJECTID??(index+1),issue:"Must Be Covered By check failed: "+(e.message||"invalid geometry")})}});else issues.push({id:"—",issue:"Must Be Covered By check skipped: select a polygon feature from another layer first"});
+    let boundaryFeature=boundaryFeatures[0]||null;
+    if(boundaryFeatures.length>1&&typeof turf.union==="function"){
+      try{boundaryFeature=turf.union(turf.featureCollection(boundaryFeatures));}
+      catch(_){try{boundaryFeature=boundaryFeatures.slice(1).reduce((merged,f)=>turf.union(turf.featureCollection([merged,f])),boundaryFeatures[0]);}catch(__){boundaryFeature=null;}}
+    }
+    if(boundaryFeature)records.forEach((r,index)=>{try{const f=r.feature;if(!f?.geometry)return;let covered;if(typeof turf.booleanCoveredBy==="function")covered=turf.booleanCoveredBy(f,boundaryFeature);else if(typeof turf.booleanWithin==="function")covered=turf.booleanWithin(f,boundaryFeature)||!!turf.booleanContains?.(boundaryFeature,f);else covered=false;if(!covered)issues.push({id:f.id??f.properties?.OBJECTID??f.properties?.FID??(index+1),issue:"Must Be Covered By: feature is not contained by the selected boundary polygon"})}catch(e){issues.push({id:r.feature?.id??r.feature?.properties?.OBJECTID??(index+1),issue:"Must Be Covered By check failed: "+(e.message||"invalid geometry")})}});else issues.push({id:"—",issue:"Must Be Covered By check skipped: select a polygon layer from another layer and ensure its geometries can be combined"});
   }
   // Shared polygon inventory is used by both overlap and coverage-gap checks.
   // Keep it outside the overlap-only branch so the Gaps rule works by itself.
@@ -4280,7 +4284,16 @@ function checkEditTopology(openInspector=false){
   let gapChecked=false;
   try{
     const boundaryLayer=selectedLayer;
-    const boundaryFeature=boundaryLayer&&!isLayerInEditTarget(boundaryLayer)?(boundaryLayer.feature||boundaryLayer.toGeoJSON?.()):null;
+    let boundaryFeatures=[];
+    if(boundaryLayer&&!isLayerInEditTarget(boundaryLayer)){
+      if(typeof boundaryLayer.eachLayer==="function")boundaryFeatures=vectorFeatures(boundaryLayer).map(x=>x.feature).filter(f=>f?.geometry&&["Polygon","MultiPolygon"].includes(f.geometry.type));
+      else {const candidate=boundaryLayer.feature||(typeof boundaryLayer.toGeoJSON==="function"?boundaryLayer.toGeoJSON():null);if(candidate?.geometry&&["Polygon","MultiPolygon"].includes(candidate.geometry.type))boundaryFeatures=[candidate];else if(candidate?.type==="FeatureCollection")boundaryFeatures=(candidate.features||[]).filter(f=>f?.geometry&&["Polygon","MultiPolygon"].includes(f.geometry.type));}
+    }
+    let boundaryFeature=boundaryFeatures[0]||null;
+    if(boundaryFeatures.length>1&&typeof turf.union==="function"){
+      try{boundaryFeature=turf.union(turf.featureCollection(boundaryFeatures));}
+      catch(_){try{boundaryFeature=boundaryFeatures.slice(1).reduce((merged,f)=>turf.union(turf.featureCollection([merged,f])),boundaryFeatures[0]);}catch(__){boundaryFeature=null;}}
+    }
     if(boundaryFeature?.geometry&&["Polygon","MultiPolygon"].includes(boundaryFeature.geometry.type)){
       const coverage=polygons.map(p=>p.r.feature).filter(f=>f?.geometry);
       if(!coverage.length){
