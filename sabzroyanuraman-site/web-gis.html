@@ -4383,13 +4383,14 @@ function checkEditTopology(openInspector=false,targetOverride=null,boundaryOverr
   if(hasRule("gaps")&&!gapChecked){issues.push({id:"—",issue:"Topology validation incomplete: "+gapSummary});}
   const ruleMatches=issue=>{
     const t=String(issue.issue||"").toLowerCase();
-    if(rules.includes("geometry")&&!rules.includes("all"))return /missing geometry|invalid geometry|fewer than|not closed|too few vertices|duplicate consecutive|zero or invalid area|topology check failed/.test(t);
-    if(rules.includes("self")&&!rules.includes("all"))return /self-intersect|kink/.test(t);
-    if(rules.includes("overlap")&&!rules.includes("all"))return /overlap|duplicate polygon/.test(t);
-    if(rules.includes("gaps")&&!rules.includes("all"))return /coverage gap|validation incomplete|gap check/.test(t);
-    if(rules.includes("dangles")&&!rules.includes("all"))return /dangle/.test(t);
-    if(rules.includes("covered")&&!rules.includes("all"))return /must be covered by/.test(t);
-    return true;
+    if(rules.includes("all"))return true;
+    if(/validation incomplete|check skipped|check unavailable|could not be completed|check failed/.test(t))return true;
+    return (rules.includes("geometry")&&/missing geometry|invalid geometry|fewer than|not closed|too few vertices|duplicate consecutive|zero or invalid area|topology check failed/.test(t))
+      ||(rules.includes("self")&&/self-intersect|kink/.test(t))
+      ||(rules.includes("overlap")&&/overlap|duplicate polygon/.test(t))
+      ||(rules.includes("gaps")&&/coverage gap|gap check/.test(t))
+      ||(rules.includes("dangles")&&/dangle/.test(t))
+      ||(rules.includes("covered")&&/must be covered by/.test(t));
   };
   const filteredIssues=issues.filter(ruleMatches),gapRelevant=hasRule("gaps");
   filteredIssues.forEach(issue=>{if(issue.layer||issue.feature)return;const rec=records.find((r,index)=>String(r.feature?.id??r.feature?.properties?.OBJECTID??r.feature?.properties?.FID??(index+1))===String(issue.id));if(rec){issue.layer=rec.layer;issue.feature=rec.feature;}});
