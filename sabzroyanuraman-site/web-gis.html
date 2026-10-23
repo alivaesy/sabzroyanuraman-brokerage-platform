@@ -4866,22 +4866,23 @@ async function selectByLocation(){
   const items=[{name:"My Drawings",layer:drawn},...namedLayers]
     .filter((x,i,arr)=>x.layer&&isVectorLayer(x.layer)&&vectorFeatures(x.layer).length&&arr.findIndex(y=>y.layer===x.layer)===i);
   if(items.length<2){status("Load at least two vector layers (including My Drawings when it contains features) before spatial selection.");return;}
-  const rel=await arcMapDialog.select({title:"Select By Location",message:"Choose the spatial relationship:",label:"Relationship",value:"intersects",options:[{value:"intersects",label:"Intersects"},{value:"within",label:"Within"},{value:"contains",label:"Contains"},{value:"touches",label:"Touches"},{value:"overlaps",label:"Overlaps"},{value:"crosses",label:"Crosses"},{value:"disjoint",label:"Disjoint"}]});
-  if(rel===null)return;
-  const relation=rel;
-  if(!relation){status("Choose a spatial relationship from 1 through 7.");return;}
-  const menu=items.map((x,i)=>(i+1)+". "+x.name+" ("+vectorFeatures(x.layer).length+" features)").join("\n");
-  const a=await arcMapDialog.select({title:"Select By Location",message:"Choose the source layer:",label:"Source layer",value:items[0].name,options:items.map(x=>({value:x.name,label:x.name+" ("+vectorFeatures(x.layer).length+" features)"}))});
-  if(a===null)return;
-  const b=await arcMapDialog.select({title:"Select By Location",message:"Choose the target layer:",label:"Target layer",value:items[1].name,options:items.slice(1).concat(items.slice(0,1)).map(x=>({value:x.name,label:x.name+" ("+vectorFeatures(x.layer).length+" features)"}))});
-  if(b===null)return;
+  const relationships=[{value:"intersects",label:"Intersects"},{value:"within",label:"Within"},{value:"contains",label:"Contains"},{value:"touches",label:"Touches"},{value:"overlaps",label:"Overlaps"},{value:"crosses",label:"Crosses"},{value:"disjoint",label:"Disjoint"}];
+  const layerOptions=items.map(x=>({value:x.name,label:x.name+" ("+vectorFeatures(x.layer).length+" features)"}));
+  const result=await arcMapDialog.form({
+    title:"Select By Location",
+    message:"Choose the spatial relationship, source and target layers, and selection method.",
+    fields:[
+      {name:"relationship",label:"Relationship",options:relationships,value:"intersects"},
+      {name:"source",label:"Source layer",options:layerOptions,value:items[0].name},
+      {name:"target",label:"Target layer",options:layerOptions,value:items[1].name},
+      {name:"mode",label:"Selection type",options:[{value:"1",label:"New selection"},{value:"2",label:"Add to current selection"},{value:"3",label:"Remove from current selection"},{value:"4",label:"Select from current selection"}],value:"1"}
+    ]
+  });
+  if(result===null)return;
+  const {relationship:relation,source:a,target:b,mode}=result;
   const ai=items.findIndex(x=>x.name===a),bi=items.findIndex(x=>x.name===b);
-  if(!Number.isInteger(ai)||!Number.isInteger(bi)||!items[ai]||!items[bi]){status("Invalid layer number.");return;}
-  if(ai===bi){status("Choose different source and target layers.");return;}
-  const modeInput=await arcMapDialog.select({title:"Select By Location",message:"Choose how to apply the selection:",label:"Selection mode",value:"1",options:[{value:"1",label:"New selection"},{value:"2",label:"Add to current selection"},{value:"3",label:"Remove from current selection"},{value:"4",label:"Select from current selection"}]});
-  if(modeInput===null)return;
-  const mode=modeInput.trim();
-  if(!["1","2","3","4"].includes(mode)){status("Choose selection type 1, 2, 3, or 4.");return;}
+  if(!items[ai]||!items[bi]||ai===bi){status("Choose different, valid source and target layers.");return;}
+  if(!["1","2","3","4"].includes(mode)){status("Choose a valid selection type.");return;}
   const source=vectorFeatures(items[ai].layer),target=vectorFeatures(items[bi].layer).map(v=>v.feature).filter(Boolean);
   const matches=[];
   source.forEach(v=>{
