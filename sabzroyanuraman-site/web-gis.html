@@ -5517,12 +5517,21 @@ function rebuildVectorLayerGeometry(rs){
       }
       if(!replacement)return;
       replacement.feature=r.feature;
-      owner.removeLayer(old);owner.addLayer(replacement);
+      if(!owner||typeof owner.hasLayer!=="function"||!owner.hasLayer(old))throw new Error("The original feature is no longer in its owning layer.");
+      owner.removeLayer(old);
+      owner.addLayer(replacement);
+      attachFeatureSelection(replacement);
       selectedFeatures.delete(old);
       if(wasSelected)selectedFeatures.add(replacement);
       if(wasActive)selectedLayer=replacement;
       if(wasOverlay)selectedOverlay=replacement;
-    }catch(err){console.error("Could not rebuild feature geometry",err)}
+      // Keep the operation record pointed at the live Leaflet child. This is
+      // essential for subsequent validation and rollback after a failed save.
+      r.layer=replacement;
+    }catch(err){
+      console.error("Could not rebuild feature geometry",err);
+      throw err;
+    }
   });
   applySelectionVisual();renderLayerList();refreshAttributeLayers();scheduleAutoSave();
 }
