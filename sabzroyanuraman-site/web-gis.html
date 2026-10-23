@@ -780,7 +780,6 @@ body{background:#dfe5e8;color:#173b57}
       <button type="button" class="accordion-head"><span>Geoprocessing</span><span class="accordion-arrow">▾</span></button>
       <div class="accordion-body">
         <div class="compact-block">
-          <button type="button" class="action" id="openModelBuilderFromGeoprocessing" onclick="openModelBuilder()" style="width:100%;margin-bottom:8px;text-align:center;font-weight:700">▦ ModelBuilder — Build Workflow</button>
           <input id="gisToolSearch" placeholder="Search ArcToolbox..." autocomplete="off">
           <div id="gisToolResults" style="margin-top:7px"></div>
           <div id="professionalToolOutput" class="small" style="margin-top:7px">Search by tool name or keyword.</div>
@@ -804,8 +803,10 @@ body{background:#dfe5e8;color:#173b57}
           <input id="bufferDistance" type="number" step="0.1" min="0" value="5" placeholder="Buffer distance (meters)" style="margin-top:6px">
           <div class="row">
             <button class="action" id="runGisOperation">Run Tool</button>
-            <button class="action secondary" id="clearGisSelection">Clear Selection</button></div><button class="action secondary" id="geometrySelfTest" style="margin-top:5px;width:100%">Geometry Self-Test</button><div>
+            <button class="action secondary" id="clearGisSelection">Clear Selection</button>
           </div>
+          <button type="button" class="action" id="openModelBuilderFromGeoprocessing" onclick="openModelBuilder()" title="Build and run a multi-step geoprocessing workflow" style="width:100%;margin-top:7px;text-align:center;font-weight:700">▦ Open ModelBuilder</button>
+          <button type="button" class="action secondary" id="geometrySelfTest" style="margin-top:5px;width:100%">Geometry Self-Test</button>
           <div id="gisSelectionInfo" class="small">Input feature: —<br>Overlay feature: —</div>
         </div>
         <div class="compact-block">
