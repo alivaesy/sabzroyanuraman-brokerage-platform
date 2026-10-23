@@ -1,0 +1,23 @@
+{
+  "environment": {
+    "GIS_PG_DSN": "pgsql:host=127.0.0.1;port=5432;dbname=gis",
+    "GIS_PG_USER": "least_privilege_api_user",
+    "GIS_PG_PASSWORD": "SET_ONLY_IN_SERVER_ENVIRONMENT",
+    "GIS_API_TOKEN": "GENERATE_A_LONG_RANDOM_SECRET_AND_STORE_SERVER_SIDE",
+    "GIS_ALLOWED_ORIGINS": "https://YOUR_REAL_DOMAIN",
+    "GIS_AUDIT_ACTOR": "authenticated-user-id"
+  },
+  "GIS_LAYERS_JSON": {
+    "roads": {
+      "title": "Roads",
+      "schema": "public",
+      "table": "roads",
+      "id_column": "id",
+      "geometry_column": "geom",
+      "srid": 32638,
+      "geometry_type": "MULTILINESTRING",
+      "properties": ["name", "road_type", "status", "updated_at"],
+      "editable": false
+    }
+  }
+}
