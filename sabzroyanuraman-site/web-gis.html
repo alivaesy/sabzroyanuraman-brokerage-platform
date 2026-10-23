@@ -2700,6 +2700,31 @@ function appendFeaturesToTarget(targetFeatures,sourceFeatures){
   })
  ];
 }
+function clipFeatureToPolygon(feature,mask){
+ const g=feature&&feature.geometry;if(!g)return [];
+ const clone=f=>JSON.parse(JSON.stringify(f));
+ if(g.type==="Point")return turf.booleanPointInPolygon(turf.point(g.coordinates),mask)?[clone(feature)]:[];
+ if(g.type==="MultiPoint"){
+  const coordinates=g.coordinates.filter(c=>turf.booleanPointInPolygon(turf.point(c),mask));
+  return coordinates.length?[{...clone(feature),geometry:{type:"MultiPoint",coordinates}}]:[];
+ }
+ if(g.type==="Polygon"||g.type==="MultiPolygon"){
+  const clipped=turf.intersect(turf.featureCollection([feature,mask]));return clipped?[clipped]:[];
+ }
+ if(g.type!=="LineString"&&g.type!=="MultiLineString")return [];
+ const boundary=turf.polygonToLine(mask),lines=g.type==="LineString"?[g.coordinates]:g.coordinates,output=[];
+ for(const coordinates of lines){
+  const line=turf.lineString(coordinates,feature.properties||{});let parts=[];
+  try{parts=(turf.lineSplit(line,boundary)?.features||[]).filter(part=>{
+   try{return turf.booleanPointInPolygon(turf.along(part,turf.length(part,{units:"kilometers"})/2,{units:"kilometers"}),mask);}catch(_){return false;}
+  });}catch(_){}
+  if(!parts.length){
+   try{if(turf.booleanPointInPolygon(turf.along(line,turf.length(line,{units:"kilometers"})/2,{units:"kilometers"}),mask))parts=[line];}catch(_){}
+  }
+  output.push(...parts);
+ }
+ return output;
+}
 async function runWholeLayerGisOperation(op){
  const layers=allSelectableFeatureLayers();if(!layers.length){status('Add a vector layer first.');return true;}const options=layers.map((x,i)=>({value:String(i),label:x.name}));
  const ir=await arcMapDialog.select({title:'Whole-Layer Geoprocessing',message:'Choose input layer; all features are processed and sources preserved.',label:'Input layer',value:'0',options});if(ir===null)return true;const input=layers[Number(ir)];if(!input)return true;
@@ -2716,7 +2741,7 @@ async function runWholeLayerGisOperation(op){
    if(box)output=[{...box,properties:{_operation:'Bounding Box',_source_layer:input.name,min_x:bounds[0],min_y:bounds[1],max_x:bounds[2],max_y:bounds[3]}}];
    name='Bounding Box '+input.name;
  }else if(op==='dissolve'){const fields=[...new Set(records.flatMap(f=>Object.keys(f.properties||{}).filter(k=>!isReservedAttributeField(k))))];const field=fields.length?await arcMapDialog.select({title:'Dissolve — Whole Layer',message:'Choose a field or dissolve all:',label:'Field',value:'(all)',options:[{value:'(all)',label:'(all features)'},...fields.map(f=>({value:f,label:f}))]}):'(all)';if(field===null)return true;const d=turf.dissolve({type:'FeatureCollection',features:records.map(f=>JSON.parse(JSON.stringify(f)))},field==='(all)'?{}:{propertyName:field});output=(d?.features||[]).map(f=>({...f,properties:{...(f.properties||{}),_operation:'Dissolve',_source_count:records.length}}));name='Dissolve '+input.name;}
- else{const others=layers.filter((_,i)=>i!==Number(ir));if(!others.length){status(op+' needs a second layer.');return true;}const oraw=await arcMapDialog.select({title:op+' — Overlay Layer',message:'Choose the complete overlay layer.',label:'Overlay layer',value:'0',options:others.map((x,i)=>({value:String(i),label:x.name}))});if(oraw===null)return true;const overlay=others[Number(oraw)];const ovs=vectorFeatures(overlay.layer).map(x=>x.feature).filter(f=>f&&f.geometry);if(!overlay||!ovs.length||ovs.some(f=>!valid(f))){status('Overlay layer is empty or contains invalid geometry.');return true;}if(['clip','intersection','union'].includes(op)&&[...records,...ovs].some(f=>!['Polygon','MultiPolygon'].includes(f.geometry.type))){status(op+' whole-layer mode currently requires polygon layers.');return true;}
+ else{const others=layers.filter((_,i)=>i!==Number(ir));if(!others.length){status(op+' needs a second layer.');return true;}const oraw=await arcMapDialog.select({title:op+' — Overlay Layer',message:'Choose the complete overlay layer.',label:'Overlay layer',value:'0',options:others.map((x,i)=>({value:String(i),label:x.name}))});if(oraw===null)return true;const overlay=others[Number(oraw)];const ovs=vectorFeatures(overlay.layer).map(x=>x.feature).filter(f=>f&&f.geometry);if(!overlay||!ovs.length||ovs.some(f=>!valid(f))){status('Overlay layer is empty or contains invalid geometry.');return true;}if(['intersection','union'].includes(op)&&[...records,...ovs].some(f=>!['Polygon','MultiPolygon'].includes(f.geometry.type))){status(op+' whole-layer mode currently requires polygon layers.');return true;}if(op==='clip'&&ovs.some(f=>!['Polygon','MultiPolygon'].includes(f.geometry.type))){status('Clip overlay must contain only polygon or multipolygon features.');return true;}
  if(op==='append'){
    // Append treats the first layer as the target: preserve its schema and map
    // source attributes by case-insensitive field name; source-only fields are ignored.
@@ -2757,10 +2782,10 @@ async function runWholeLayerGisOperation(op){
    }
    name='Identity '+input.name+' by '+overlay.name;
  }else if(op==='clip'){
-   // Merge overlay footprints first to avoid duplicate clipped pieces where overlays overlap.
+   // Dissolve overlay footprints so overlapping clip polygons do not duplicate output.
    let mask=null;for(const f of ovs)mask=mask?turf.union(turf.featureCollection([mask,f])):JSON.parse(JSON.stringify(f));
    if(!mask)throw new Error('Could not build a valid overlay mask.');
-   for(const a of records){const g=turf.intersect(turf.featureCollection([a,mask]));if(g)output.push({...g,properties:{...(a.properties||{}),_operation:'Clip',_overlay_layer:overlay.name}});}
+   for(const a of records)for(const g of clipFeatureToPolygon(a,mask))output.push({...g,properties:{...(a.properties||{}),_operation:'Clip',_overlay_layer:overlay.name}});
    name='Clip '+input.name+' by '+overlay.name;
  }else if(op==='intersection'){
    for(const a of records)for(const b of ovs){const g=turf.intersect(turf.featureCollection([a,b]));if(g)output.push({...g,properties:{...(a.properties||{}),...Object.fromEntries(Object.entries(b.properties||{}).map(([k,v])=>['overlay_'+k,v])),_operation:'Intersect',_overlay_layer:overlay.name}});}
