@@ -54,7 +54,7 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
 .gis-tool-item{display:flex;align-items:center;gap:7px;width:100%;text-align:right;border:1px solid #d9e4e9;background:#fff;color:#173b57;border-radius:7px;padding:7px 8px;margin:4px 0;cursor:pointer;font-size:10px}
 #gisToolResults{max-height:360px;overflow-y:auto;overscroll-behavior:contain;padding:0 3px 0 0}
 .gis-tool-item:hover{background:#eef7f3;border-color:#9db5c1}
-.gis-tool-cat{font-size:9px;color:#146c43;margin:8px 2px 3px;font-weight:700}
+.gis-tool-cat{font-size:9px;color:#146c43;margin:8px 2px 3px;font-weight:700}\n.gis-tool-summary{position:sticky;top:0;z-index:2;background:#f2f7f8;color:#264b5c;border:1px solid #d9e4e9;border-radius:5px;padding:5px 7px;margin:2px 0 6px;font-size:10px;font-weight:700}\n.gis-tool-group{display:block;min-width:0}
 .gis-tool-empty{font-size:10px;color:#7b8f9b;padding:8px 2px}
 /* ArcMap Editor tools stay hidden until an edit session is started. */
 #editorToolbar:not(.editing-active) [data-edit-only],
@@ -2696,12 +2696,23 @@ async function runGisOperation(){
       if(!f2||!f2.geometry){status("The overlay feature geometry is invalid.");return;}
       if(typeof vertexGeometryIsValid==="function"&&!vertexGeometryIsValid(f2.geometry)){status("Overlay geometry failed structural validation. Review it before processing.");return;}
       if(!["Point","MultiPoint","LineString","MultiLineString","Polygon","MultiPolygon"].includes(f2.geometry.type)){status("Unsupported overlay geometry type: "+f2.geometry.type);return;}
-      if(op==="clip"||op==="intersection"||op==="erase"||op==="union"){
+      if(op==="clip"||op==="intersection"||op==="erase"||op==="union"||op==="identity"||op==="append"){
         const polygonal=g=>g&&["Polygon","MultiPolygon"].includes(g.type);
         if((op==="erase"||op==="union")&&(!polygonal(f1.geometry)||!polygonal(f2.geometry))){
           status(op==="erase"?"Erase requires polygon or multipolygon input and overlay features.":"Union requires polygon or multipolygon input and overlay features.");return;
         }
-        if(op==="erase"){
+        if(op==="append"){
+          result={type:"FeatureCollection",features:[f1,f2].map((f,i)=>({...JSON.parse(JSON.stringify(f)),properties:{...(f.properties||{}),_operation:"Append",_append_source:i===0?"input":"overlay"}}))};
+          name="Append";
+        }else if(op==="identity"){
+          if(!polygonal(f1.geometry)||!polygonal(f2.geometry)){status("Identity currently requires polygon or multipolygon input and overlay features.");return;}
+          const inside=turf.intersect(turf.featureCollection([f1,f2]));
+          const outside=turf.difference(turf.featureCollection([f1,f2]));
+          const features=[];
+          if(outside)features.push({...outside,properties:{...(f1.properties||{}),_operation:"Identity",_identity_match:false}});
+          if(inside){const props={...(f1.properties||{}),_operation:"Identity",_identity_match:true};Object.entries(f2.properties||{}).forEach(([k,v])=>{let key="overlay_"+k;let n=2;while(Object.prototype.hasOwnProperty.call(props,key))key="overlay_"+k+"_"+n++;props[key]=v;});features.push({...inside,properties:props});}
+          result={type:"FeatureCollection",features};name="Identity";
+        }else if(op==="erase"){
           result=turf.difference(turf.featureCollection([f1,f2]));
           if(result)result.properties={...(f1.properties||{}),_operation:"Erase"};
           name="Erase";
@@ -4881,20 +4892,33 @@ const GIS_TOOLS=[
 ];
 function renderGisToolbox(query=""){
  const box=$("gisToolResults"); if(!box)return;
- const q=query.trim().toLowerCase();
- const matches=GIS_TOOLS.filter(t=>(t.title+" "+t.category+" "+t.keys).toLowerCase().includes(q));
- if(!matches.length){box.innerHTML='<div class="gis-tool-empty">No matching tools found.</div>';return;}
- const groups={};
- matches.forEach(t=>(groups[t.category]??=[]).push(t));
- box.innerHTML="";
- Object.keys(groups).forEach(cat=>{
-   const h=document.createElement("div");h.className="gis-tool-cat";h.textContent=cat;box.appendChild(h);
-   groups[cat].forEach(t=>{
+ const q=String(query??"").trim().toLocaleLowerCase();
+ const tools=Array.isArray(GIS_TOOLS)?GIS_TOOLS:[];
+ const matches=tools.filter(t=>t&&String(t.title||"").concat(" ",String(t.category||"")," ",String(t.keys||"")).toLocaleLowerCase().includes(q));
+ box.replaceChildren();
+ const summary=document.createElement("div");
+ summary.className="gis-tool-summary";
+ summary.setAttribute("role","status");
+ summary.textContent=q?matches.length+" of "+tools.length+" tools":tools.length+" registered tools";
+ box.appendChild(summary);
+ if(!matches.length){
+   const empty=document.createElement("div");empty.className="gis-tool-empty";empty.textContent="No matching tools found. Clear the search to see the full ArcToolbox catalog.";box.appendChild(empty);return;
+ }
+ const groups=new Map();
+ matches.forEach(t=>{const cat=t.category||"Other";if(!groups.has(cat))groups.set(cat,[]);groups.get(cat).push(t);});
+ const fragment=document.createDocumentFragment();
+ groups.forEach((items,cat)=>{
+   const section=document.createElement("section");section.className="gis-tool-group";
+   const h=document.createElement("div");h.className="gis-tool-cat";h.textContent=cat+" ("+items.length+")";section.appendChild(h);
+   items.forEach(t=>{
      const b=document.createElement("button");b.type="button";b.className="gis-tool-item";b.textContent=t.title;
-     b.onclick=()=>runGisTool(t);
-     box.appendChild(b);
+     b.dataset.toolId=t.id;b.dataset.toolOp=t.op||"";
+     b.addEventListener("click",()=>runGisTool(t));
+     section.appendChild(b);
    });
+   fragment.appendChild(section);
  });
+ box.appendChild(fragment);
 }
 
 function allSelectableFeatureLayers(){
@@ -6600,7 +6624,7 @@ function countGeometryVertices(g){
   const walk=c=>Array.isArray(c)?(typeof c[0]==="number"?1:c.reduce((n,x)=>n+walk(x),0)):0;
   return walk(g.coordinates);
 }
-function runGisTool(tool){
+function runGisTool(tool){\n if(!tool||typeof tool!=="object"){status("Invalid toolbox command.");return;}\n if(tool.id==="geometrySelfTest"){runGeometryRegressionTests();return;}
  if(tool.id==="modelBuilder"){openModelBuilder();return;}
  if(tool.id==="selectFeatures"){$("selectFeaturesBtn").click();return;}
   if(tool.id==="importData"){openDataFormatDialog("import");return;}
