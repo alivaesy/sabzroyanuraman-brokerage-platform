@@ -7106,6 +7106,13 @@ window.addEventListener("beforeunload",event=>{
 #editorToolbar button.icon-tool[data-edit-only][title="Advanced Snapping"] .arcmap-icon{stroke:#126b9d;stroke-width:1.9}
 #editorToolbar button.icon-tool[data-edit-only][title="Snap Points to Lines"] .arcmap-icon{stroke:#8a5a17;stroke-width:1.9}
 
+
+/* Match editing toolbar icon size to the other ArcMap-style toolbars. */
+#editorToolbar button.icon-tool[data-edit-only] .arcmap-icon{width:16px;height:16px;flex:0 0 16px;stroke-width:1.45}
+#editorToolbar button.icon-tool[data-edit-only][title="Advanced Snapping"] .arcmap-icon,
+#editorToolbar button.icon-tool[data-edit-only][title="Snap Points to Lines"] .arcmap-icon{stroke-width:1.5}
+#editMenu button[data-tool][data-edit-only] .arcmap-icon{width:16px;height:16px;flex:0 0 16px}
+
 </style>
 <div id="publicFeedbackModal" role="dialog" aria-modal="true" aria-labelledby="publicFeedbackTitle">
  <section class="feedback-card">
