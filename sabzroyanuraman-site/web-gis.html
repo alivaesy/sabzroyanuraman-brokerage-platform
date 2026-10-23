@@ -4282,7 +4282,7 @@ function checkEditTopology(openInspector=false,targetOverride=null,boundaryOverr
   });
   if(hasRule("dangles")){
     const lineRecords=records.filter(r=>["LineString","MultiLineString"].includes(r.feature?.geometry?.type));let tolerance=.25;try{tolerance=Math.max(0,Number(localStorage.getItem("sabzRoyWebGisDangleTolerance")||.25))}catch(_){}
-    const lineParts=lineRecords.flatMap((r,ri)=>{const g=r.feature.geometry,parts=g.type==="LineString"?[g.coordinates]:g.coordinates;return parts.map((coordinates,part)=>({r,ri,part,coordinates})).filter(x=>Array.isArray(x.coordinates)&&x.coordinates.length>=2)});
+    const lineParts=typeof turf.pointToLineDistance==="function"?lineRecords.flatMap((r,ri)=>{const g=r.feature.geometry,parts=g.type==="LineString"?[g.coordinates]:g.coordinates;return parts.map((coordinates,part)=>({r,ri,part,coordinates})).filter(x=>Array.isArray(x.coordinates)&&x.coordinates.length>=2)}):[];if(typeof turf.pointToLineDistance!=="function")issues.push({id:"—",issue:"Topology validation incomplete: Turf pointToLineDistance is unavailable; dangle rule was not run."});
     lineParts.forEach((item,index)=>{if(same(item.coordinates[0],item.coordinates[item.coordinates.length-1]))return;[item.coordinates[0],item.coordinates[item.coordinates.length-1]].forEach((endpoint,side)=>{let connected=false;const point=turf.point(endpoint);for(let j=0;j<lineParts.length&&!connected;j++){if(j===index)continue;try{const line=turf.lineString(lineParts[j].coordinates),d=typeof turf.pointToLineDistance==="function"?Number(turf.pointToLineDistance(point,line,{units:"meters"})):Infinity;if(Number.isFinite(d)&&d<=tolerance)connected=true}catch(_){}}if(!connected)issues.push({id:item.r.feature?.id??item.r.feature?.properties?.OBJECTID??item.r.feature?.properties?.FID??(item.ri+1),issue:"Dangle: "+(side===0?"start":"end")+" endpoint of line part "+(item.part+1)+" is not connected to another line"})});});
   }
   if(hasRule("covered")){
@@ -4334,7 +4334,7 @@ function checkEditTopology(openInspector=false,targetOverride=null,boundaryOverr
       const duplicate=typeof turf.booleanEqual==="function"&&turf.booleanEqual(a.r.feature,b.r.feature);
       issues.push({id:a.id,issue:(duplicate?"Duplicate polygon geometry matches feature ":"Polygon overlaps feature ")+b.id+" ("+(duplicate?"same geometry":overlapArea>0.01?"overlap area "+overlapArea.toFixed(2)+" m²":"overlapping polygon interiors")+")"});
     }
-  }catch(e){/* Invalid geometries are reported by the per-feature checks. */}});
+  }catch(e){issues.push({id:a.id,issue:"Topology validation incomplete: overlap test failed against feature "+b.id+" ("+(e.message||"geometry operation failed")+")"});}});
   }
   // Optional gap check: use a separately selected polygon as the coverage
   // boundary. Without an explicit boundary, gaps cannot be inferred reliably.
