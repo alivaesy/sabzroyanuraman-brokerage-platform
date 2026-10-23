@@ -117,3 +117,11 @@ test('Whole-layer Clip supports point and line inputs with polygon overlays', ()
   assert.match(html, /g\.type==="MultiPoint"/);
   assert.match(html, /g\.type!=="LineString"&&g\.type!=="MultiLineString"/);
 });
+
+test('ArcMap keyboard shortcuts invoke existing Attribute Table, Editor, and Measure actions', () => {
+  assert.match(html, /__arcMapShortcutHandlerInstalled/);
+  assert.match(html, /F6:document\.getElementById\("openTable"\)/);
+  assert.match(html, /F2:document\.getElementById\("startEditingBtn"\)/);
+  assert.match(html, /F7:document\.getElementById\("measureToolBtn"\)/);
+  assert.match(html, /if\(typing\|\|event\.altKey\|\|event\.ctrlKey\|\|event\.metaKey\)return/);
+});
