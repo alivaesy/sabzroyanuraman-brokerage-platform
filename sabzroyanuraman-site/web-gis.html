@@ -2947,12 +2947,7 @@ async function runGisOperation(){
       if(!feature?.geometry||!["Point","MultiPoint","LineString","MultiLineString","Polygon","MultiPolygon"].includes(feature.geometry.type)){status(name+" output contains missing or unsupported geometry at feature "+(i+1)+"; output was not added.");return;}
       if(typeof vertexGeometryIsValid==="function"&&!vertexGeometryIsValid(feature.geometry)){status(name+" produced structurally invalid geometry at feature "+(i+1)+"; output was rejected and source features were preserved.");return;}
     }
-    const validatedOutputFeatures=result.type==="FeatureCollection"?result.features:[result];
-    if(!Array.isArray(validatedOutputFeatures)||!validatedOutputFeatures.length||validatedOutputFeatures.some(f=>!f?.geometry||!f.geometry.type)){
-      status(name+" returned an empty or invalid result; no output layer was created.");return;
-    }
-    const outputLayer=resultLayerFromFeature(result,name);
-    if(!outputLayer){status(name+" failed to create an output layer.");return;}
+    resultLayerFromFeature(result,name);
     status(name+" created and added to the Table Of Contents.");scheduleAutoSave();
   }catch(err){
     console.error(err);
