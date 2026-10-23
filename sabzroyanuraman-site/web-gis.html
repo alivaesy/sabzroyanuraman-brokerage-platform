@@ -8089,5 +8089,28 @@ const arcMapDialog=(()=>{
  }
  return {prompt:opts=>show(opts),select:opts=>show({...opts,options:opts.options||[]}),confirm:opts=>show({...opts,confirm:true}),form:opts=>show(opts)};
 })();</script>
+
+<script>
+/* ArcMap-style keyboard shortcuts, routed through existing toolbar actions. */
+(function(){
+  if(window.__arcMapShortcutHandlerInstalled)return;
+  window.__arcMapShortcutHandlerInstalled=true;
+  document.addEventListener("keydown",function(event){
+    const target=event.target;
+    const typing=target&&(target.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+    if(typing||event.altKey||event.ctrlKey||event.metaKey)return;
+    const shortcuts={
+      F6:document.getElementById("openTable"),
+      F2:document.getElementById("startEditingBtn"),
+      F7:document.getElementById("measureToolBtn")
+    };
+    const button=shortcuts[event.key];
+    if(!button||button.disabled)return;
+    event.preventDefault();
+    button.click();
+  });
+})();
+</script>
+
 </body>
 </html>
