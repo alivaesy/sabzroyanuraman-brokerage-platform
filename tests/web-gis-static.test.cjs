@@ -95,7 +95,7 @@ test('Merge preserves separate geometries instead of dissolving polygon features
   const start = html.indexOf('function mergeFeaturesPreservingGeometry(');
   const end = html.indexOf('async function runGisOperation(', start);
   assert.ok(start >= 0 && end > start, 'Merge helper was not found');
-  const mergeFeaturesPreservingGeometry = vm.runInNewContext(html.slice(start, end) + '\\nmergeFeaturesPreservingGeometry');
+  const mergeFeaturesPreservingGeometry = vm.runInNewContext(html.slice(start, end) + '\nmergeFeaturesPreservingGeometry');
   const a = { type: 'Feature', properties: { ID: 1 }, geometry: { type: 'Polygon', coordinates: [[[0,0],[1,0],[1,1],[0,1],[0,0]]] } };
   const b = { type: 'Feature', properties: { ID: 2 }, geometry: { type: 'Polygon', coordinates: [[[1,0],[2,0],[2,1],[1,1],[1,0]]] } };
   const output = mergeFeaturesPreservingGeometry(a, b);
