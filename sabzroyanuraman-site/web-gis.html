@@ -3889,7 +3889,8 @@ async function putProject(project){
     const tx=db.transaction(PROJECT_STORE,"readwrite");
     tx.objectStore(PROJECT_STORE).put(project);
     tx.oncomplete=()=>{db.close();resolve(project)};
-    tx.onerror=()=>{db.close();reject(tx.error)};
+    tx.onerror=()=>{const err=tx.error||new Error("IndexedDB write failed");db.close();reject(err)};
+    tx.onabort=()=>{const err=tx.error||new Error("IndexedDB write was aborted");db.close();reject(err)};
   });
 }
 async function listProjects(){
@@ -3967,6 +3968,7 @@ function serializeProject(){
     drawnStyles:[],
     layers:[],
     selected:[],
+    activeLayer: selectedLayer ? {source:"layer",name:namedLayers.find(x=>x.layer===selectedLayer)?.name||null} : (selectedOverlay ? {source:"layer",name:namedLayers.find(x=>x.layer===selectedOverlay)?.name||null} : {source:"drawn"}),
     gdbCatalog:typeof gdbCatalogToJSON==="function"?gdbCatalogToJSON():null
   };
   drawn.eachLayer(l=>{try{const f=l.toGeoJSON();if(f&&f.geometry){project.drawn.push(f);project.drawnStyles.push(projectStyleOf(l))}}catch(e){}});
@@ -4062,6 +4064,13 @@ function restoreProject(project,fromHistory=false){
     else if(ref?.source==="layer"){const item=namedLayers.find(x=>x.name===ref.name);featureLayer=item?vectorFeatures(item.layer)[Number(ref.index)]?.layer:null}
     if(featureLayer)selectedFeatures.add(featureLayer);
   });
+  // Restore the active layer separately from selected features (ArcMap-style TOC selection).
+  // Older project files do not contain activeLayer, so keep the normal default for those.
+  const activeRef=project.activeLayer;
+  if(activeRef?.source==="layer"&&activeRef.name){
+    const activeItem=namedLayers.find(x=>x.name===activeRef.name);
+    if(activeItem){selectedLayer=activeItem.layer;selectedOverlay=activeItem.layer;}
+  }else if(activeRef?.source==="drawn"){selectedLayer=drawn;selectedOverlay=null;}
   $("projectName").value=project.name||"Untitled Project";
   renderLayerList();refreshAttributeLayers();
   $("projectStatus").textContent= "Project restored: "+(project.savedAt?new Date(project.savedAt).toLocaleString("en-US"):"—");
