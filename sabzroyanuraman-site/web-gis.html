@@ -2779,6 +2779,12 @@ async function runWholeLayerGisOperation(op){
  }catch(e){console.error(e);status('Whole-layer geoprocessing failed: '+(e.message||e));}return true;
 }
 async function runGeometryRegressionTests(){const checks=[];const test=(n,v)=>checks.push((v?'PASS':'FAIL')+' — '+n);try{const a=turf.polygon([[[0,0],[.01,0],[.01,.01],[0,.01],[0,0]]],{grp:'x'}),b=turf.polygon([[[.005,0],[.015,0],[.015,.01],[.005,.01],[.005,0]]],{grp:'x'});test('Intersect overlapping polygons',!!turf.intersect(turf.featureCollection([a,b])));test('Union overlapping polygons',!!turf.union(turf.featureCollection([a,b])));const d=turf.dissolve({type:'FeatureCollection',features:[a,b]},{propertyName:'grp'});test('Dissolve by field',!!d&&d.features.length===1);const buf=turf.buffer(turf.point([0,0]),100,{units:'meters'});test('Buffer 100 m',!!buf&&turf.area(buf)>25000&&turf.area(buf)<40000);const far=turf.polygon([[[1,1],[1.01,1],[1.01,1.01],[1,1.01],[1,1]]]);test('Empty intersection',turf.intersect(turf.featureCollection([a,far]))===null);if(typeof proj4==='function'){const p=projectCoords('EPSG:4326','EPSG:32638',[47.758255,33.629485]);test('WGS84 to UTM zone 38N',p.every(Number.isFinite)&&Math.abs(p[0]-755858)<150&&Math.abs(p[1]-3724488)<150);}else test('CRS transform library',false);}catch(e){test('Turf/CRS operations available',false);console.error(e);}const report=checks.join('\n');console.info('Synthetic geometry tests:\n'+report);status('Geometry self-test: '+checks.filter(x=>x.startsWith('PASS')).length+'/'+checks.length+' passed.');await arcMapDialog.alert({title:'Geometry Self-Test — Synthetic Data',message:report+'\n\nSynthetic checks do not replace tests on cadastral data or comparison with ArcMap.'});}
+function mergeFeaturesPreservingGeometry(inputFeature,overlayFeature){
+ return [inputFeature,overlayFeature].map((feature,index)=>({
+  ...JSON.parse(JSON.stringify(feature)),
+  properties:{...(feature.properties||{}),_operation:"Merge",_merge_source:index===0?"input":"overlay"}
+ }));
+}
 async function runGisOperation(){
  const scope=await arcMapDialog.select({title:'Geoprocessing Scope',message:'Run on selected features or complete layers?',label:'Scope',value:selectedLayer?'selected':'layers',options:[{value:'selected',label:'Selected feature(s)'},{value:'layers',label:'Entire layer(s)'}]});if(scope===null)return;if(scope==='layers'){await runWholeLayerGisOperation($('gisOperation').value);return;}
   const op=$("gisOperation").value;
@@ -2893,19 +2899,11 @@ async function runGisOperation(){
         if(result&&result.features)result.features=result.features.map((f,i)=>({...f,properties:{...(f1.properties||{}),_operation:"Split",_part:i+1}}));
         name="Split";
       }else if(op==="merge"){
-        const polygonal=g=>g&&["Polygon","MultiPolygon"].includes(g.type);
-        if(polygonal(f1.geometry)&&polygonal(f2.geometry)){
-          result=turf.union(turf.featureCollection([f1,f2]));
-        }else if(f1.geometry.type===f2.geometry.type){
-          result=turf.combine(turf.featureCollection([f1,f2]));
-          if(result&&result.features&&result.features.length===1){
-            result=result.features[0];
-            result.properties={...(f1.properties||{}),_operation:"Merge",_source_count:2};
-          }
-        }else{
-          status("Merge supports two polygonal features (union) or two features of the same geometry type. Mixed geometry types cannot be merged.");return;
+        if(f1.geometry.type!==f2.geometry.type){
+          status("Merge requires input features of the same geometry type. Mixed geometry types cannot be merged into this output.");return;
         }
-        if(result&&result.properties)result.properties={...(f1.properties||{}),...result.properties,_operation:"Merge"};
+        // ArcMap Merge combines records; it must not dissolve polygon boundaries.
+        result={type:"FeatureCollection",features:mergeFeaturesPreservingGeometry(f1,f2)};
         name="Merge";
       }else{status("Unknown geoprocessing operation.");return;}
     }
