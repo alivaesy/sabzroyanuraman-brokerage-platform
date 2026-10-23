@@ -74,7 +74,7 @@ test('Append maps source records to the target schema without changing Merge', (
   const end = html.indexOf('async function runWholeLayerGisOperation(', start);
   assert.ok(start >= 0 && end > start, 'Append schema helper was not found');
   const helper = html.slice(start, end);
-  const appendFeaturesToTarget = vm.runInNewContext(helper + '\\nappendFeaturesToTarget');
+  const appendFeaturesToTarget = vm.runInNewContext(helper + '\nappendFeaturesToTarget');
   const target = [
     { type: 'Feature', properties: { ParcelID: 1, Owner: 'A' }, geometry: { type: 'Point', coordinates: [1, 2] } }
   ];
