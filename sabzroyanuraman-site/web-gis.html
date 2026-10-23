@@ -805,6 +805,10 @@ body{background:#dfe5e8;color:#173b57}
             <button class="action" id="runGisOperation">Run Tool</button>
             <button class="action secondary" id="clearGisSelection">Clear Selection</button>
           </div>
+          <div class="row" style="margin-top:7px">
+            <button type="button" class="action secondary" id="runDissolveDirect" onclick="runVectorAnalysis('dissolve')" title="Dissolve selected features or the available vector layer">Dissolve</button>
+            <button type="button" class="action secondary" id="runSpatialJoinDirect" onclick="runVectorAnalysis('spatialJoin')" title="Join attributes using a spatial relationship">Spatial Join</button>
+          </div>
           <button type="button" class="action" id="openModelBuilderFromGeoprocessing" onclick="openModelBuilder()" title="Build and run a multi-step geoprocessing workflow" style="width:100%;margin-top:7px;text-align:center;font-weight:700">▦ Open ModelBuilder</button>
           <button type="button" class="action secondary" id="geometrySelfTest" style="margin-top:5px;width:100%">Geometry Self-Test</button>
           <div id="gisSelectionInfo" class="small">Input feature: —<br>Overlay feature: —</div>
@@ -5958,7 +5962,7 @@ async function reprojectLayer(){
       if(!g.coordinates)return g;
       return {...g,coordinates:transformCoords(g.coordinates)};
     };
-    const features=rs.map(r=>{const f=JSON.parse(JSON.stringify(r.feature));f.geometry=transformGeometry(f.geometry);return f});
+    const features=rs.map((r,index)=>{const f=JSON.parse(JSON.stringify(r.feature));f.geometry=transformGeometry(f.geometry);const finite=c=>Array.isArray(c)&&((typeof c[0]==="number")?c.every(Number.isFinite):c.every(finite));const coords=g=>g?.type==="GeometryCollection"?(g.geometries||[]).every(coords):!g?.coordinates||finite(g.coordinates);if(!coords(f.geometry))throw new Error("Projection generated non-finite coordinates for feature "+(index+1)+". Export cancelled.");return f});
     const data={type:"FeatureCollection",features,crs:{type:"name",properties:{name:target}}};
     const blob=new Blob([JSON.stringify(data)],{type:"application/geo+json"}),a=document.createElement("a");
     a.href=URL.createObjectURL(blob);a.download="reprojected-"+epsg+".geojson";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
@@ -6384,9 +6388,14 @@ async function runVectorAnalysis(mode){
        }
        if(!targets.length||targets.some(r=>!r.feature?.geometry||!vertexGeometryIsValid(r.feature.geometry))){status("Target features are empty or contain invalid geometry.");return;}
        const targetLayerSet=new Set(targets.map(r=>r.layer||r.owner?.layer).filter(Boolean));
-       const joins=getFeatureRecords().filter(r=>r.feature?.geometry&&r.feature.geometry.type&&(!targetLayerSet.size||!targetLayerSet.has(r.layer||r.owner?.layer)));
-       if(!joins.length){status("Spatial Join requires a separate vector layer for join features.");return;}
-       if(!joins.length){status("Spatial Join requires a separate vector layer for join features. Select target features, then join against another layer.");return;}
+       const layers=allSelectableFeatureLayers();
+       const joinOptions=layers.filter(x=>!targetLayerSet.has(x.layer));
+       if(!joinOptions.length){status("Spatial Join requires a separate vector layer for join features.");return;}
+       const joinPick=await arcMapDialog.select({title:"Spatial Join — Join Layer",message:"Choose the layer whose attributes will be attached to targets.",label:"Join layer",value:"0",options:joinOptions.map((x,i)=>({value:String(i),label:x.name}))});
+       if(joinPick===null)return;
+       const joinOwner=joinOptions[Number(joinPick)];if(!joinOwner){status("Choose a valid join layer.");return;}
+       const joins=vectorFeatures(joinOwner.layer).map(v=>({feature:v.feature,layer:v.layer,owner:joinOwner})).filter(r=>r.feature?.geometry&&vertexGeometryIsValid(r.feature.geometry));
+       if(!joins.length){status("The selected join layer is empty or has invalid geometries.");return;}
        const method=await arcMapDialog.select({title:"Spatial Join",message:"Choose the spatial relationship:",label:"Match rule",value:"intersects",options:[{value:"intersects",label:"Intersects"},{value:"within",label:"Target within join feature"},{value:"contains",label:"Target contains join feature"}]});
        if(method===null)return;
        if(!["intersects","within","contains"].includes(method)){status("Choose a supported spatial relationship.");return;}
