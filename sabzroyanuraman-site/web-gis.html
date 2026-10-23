@@ -2231,7 +2231,7 @@ function renderLayerList(){
     row.style.paddingLeft=indent?"28px":"6px";
     if(x.layer&&selectedOverlay===x.layer)row.classList.add("layer-active");
     const cb=document.createElement("input");cb.type="checkbox";cb.checked=x.layer?map.hasLayer(x.layer):true;cb.title="Toggle Visibility";
-    cb.onchange=()=>{if(x.layer){if(cb.checked)map.addLayer(x.layer);else map.removeLayer(x.layer)}else{(groups.get(x.name)||[]).forEach(item=>{if(cb.checked)map.addLayer(item.layer);else map.removeLayer(item.layer)});renderLayerList()}};
+    cb.onchange=()=>{if(x.layer){if(cb.checked)map.addLayer(x.layer);else map.removeLayer(x.layer)}else{(groups.get(x.name)||[]).forEach(item=>{if(cb.checked)map.addLayer(item.layer);else map.removeLayer(item.layer)});renderLayerList()}scheduleAutoSave()};
     const icon=document.createElement("span");icon.className="layer-icon";icon.textContent=x.isGroup?"▰":(x.isDrawn?"✏":"▦");
     const nm=document.createElement("span");nm.className="layer-name";nm.textContent=label;
     if(x.layer&&x.layer.getBounds)nm.ondblclick=()=>{const b=x.layer.getBounds();if(b&&b.isValid())map.fitBounds(b,{padding:[25,25],maxZoom:18})};
@@ -2252,6 +2252,7 @@ function renderLayerList(){
 // drawingLayerForType() creates the matching Point/Line/Polygon child on demand.
 activeDrawingSetName="My Drawings";
 renderLayerList();
+map.on("moveend",()=>scheduleAutoSave());
 openProjectDB().then(()=>listProjects()).then(ps=>{
   if(ps.length)$("projectStatus").textContent=ps.length+" local projects available in this browser.";
 }).catch(()=>{});
@@ -3922,15 +3923,22 @@ function scheduleAutoSave(){
   return autoSavePromise;
 }
 
+function projectStyleOf(layer){
+  const o=layer?.options||{},style={};
+  ["color","weight","opacity","fillColor","fillOpacity","radius","dashArray","lineCap","lineJoin","stroke","fill"].forEach(k=>{
+    const v=o[k];if(v!==undefined&&v!==null&&["string","number","boolean"].includes(typeof v))style[k]=v;
+  });
+  return style;
+}
 function layerToProjectItem(item){
   const layer=item.layer;
-  const features=[];
+  const features=[],styles=[];
   if(layer&&layer.eachLayer){
     layer.eachLayer(l=>{
       try{
         const f=l.toGeoJSON();
-        if(f&&f.features)features.push(...f.features);
-        else if(f&&f.geometry)features.push(f);
+        if(f&&f.features)f.features.forEach(x=>{features.push(x);styles.push(projectStyleOf(l))});
+        else if(f&&f.geometry){features.push(f);styles.push(projectStyleOf(l))}
       }catch(e){}
     });
   }
@@ -3941,11 +3949,11 @@ function layerToProjectItem(item){
     transparent:layer.options.transparent!==false,
     version:layer.options.version||"1.3.0"
   }:null;
-  return {name:item.name,type:wms?"wms":"vector",features,wms,visible:!!(layer&&map.hasLayer(layer)),opacity:Number.isFinite(Number(layer?.options?.opacity))?Number(layer.options.opacity):1,gdb:layer?._gdbMetadata||null,drawingSet:item.drawingSet||null,drawingType:item._webgisDrawingType||null,displayName:item.displayName||null};
+  return {name:item.name,type:wms?"wms":"vector",features,styles,wms,visible:!!(layer&&map.hasLayer(layer)),opacity:Number.isFinite(Number(layer?.options?.opacity))?Number(layer.options.opacity):1,gdb:layer?._gdbMetadata||null,drawingSet:item.drawingSet||null,drawingType:item._webgisDrawingType||null,displayName:item.displayName||null};
 }
 function serializeProject(){
   const project={
-    version:2,
+    version:3,
     app:"Sabz Royan Web GIS",
     description:window.currentProjectDescription||"",
     crs:currentCRS,
@@ -3956,11 +3964,19 @@ function serializeProject(){
     basemap:$("basemap").value,
     basemapWms:customWmsConfig?{...customWmsConfig}:null,
     drawn:[],
+    drawnStyles:[],
     layers:[],
+    selected:[],
     gdbCatalog:typeof gdbCatalogToJSON==="function"?gdbCatalogToJSON():null
   };
-  drawn.eachLayer(l=>{try{const f=l.toGeoJSON();if(f&&f.geometry)project.drawn.push(f)}catch(e){}});
+  drawn.eachLayer(l=>{try{const f=l.toGeoJSON();if(f&&f.geometry){project.drawn.push(f);project.drawnStyles.push(projectStyleOf(l))}}catch(e){}});
   namedLayers.forEach(x=>project.layers.push(layerToProjectItem(x)));
+  selectedFeatures.forEach(featureLayer=>{
+    const drawnIndex=drawn.getLayers().indexOf(featureLayer);
+    if(drawnIndex>=0){project.selected.push({source:"drawn",index:drawnIndex});return}
+    for(const item of namedLayers){const i=vectorFeatures(item.layer).findIndex(x=>x.layer===featureLayer);if(i>=0){project.selected.push({source:"layer",name:item.name,index:i});break}}
+  });
+  project.integrity={drawnCount:project.drawn.length,layerCount:project.layers.length,featureCount:project.drawn.length+project.layers.reduce((n,x)=>n+x.features.length,0)};
   return project;
 }
 function projectFeatureLayer(features,name){
@@ -3980,13 +3996,20 @@ function projectFeatureLayer(features,name){
 }
 function restoreProject(project,fromHistory=false){
   const historyEditState=fromHistory&&editSessionActive?{active:true,isDrawnTarget:editTarget===drawn,targetName:namedLayers.find(item=>item.layer===editTarget)?.name||null}:null;
-  if(!project||![1,2].includes(project.version)){status("This project file version is not supported.");return false}
+  if(!project||![1,2,3].includes(project.version)){status("This project file version is not supported.");return false}
   // Preflight the complete project envelope before clearing any live map layers.
   // This keeps malformed history/import data from leaving a half-restored map.
   const finitePair=value=>Array.isArray(value)&&value.length>=2&&Number.isFinite(Number(value[0]))&&Number.isFinite(Number(value[1]));
   const validFeatureList=value=>Array.isArray(value)&&value.every(feature=>feature&&feature.type==="Feature"&&(!feature.geometry||typeof feature.geometry.type==="string")&&(!feature.properties||typeof feature.properties==="object"));
   if((project.drawn!==undefined&&!validFeatureList(project.drawn))||(project.layers!==undefined&&(!Array.isArray(project.layers)||!project.layers.every(item=>item&&typeof item==="object"&&(!item.features||validFeatureList(item.features)))))){
     status("Project data is malformed; the current map was left unchanged.");return false;
+  }
+  if(project.integrity){
+    const actualDrawn=(project.drawn||[]).length,actualLayers=(project.layers||[]).length;
+    const actualFeatures=actualDrawn+(project.layers||[]).reduce((n,item)=>n+(item.features||[]).length,0);
+    if(project.integrity.drawnCount!==actualDrawn||project.integrity.layerCount!==actualLayers||project.integrity.featureCount!==actualFeatures){
+      status("Project integrity check failed; the current map was left unchanged.");return false;
+    }
   }
   if(project.center!==undefined&&!finitePair(project.center)){status("Project map extent is invalid; the current map was left unchanged.");return false}
   if(project.zoom!==undefined&&(!Number.isFinite(Number(project.zoom))||Number(project.zoom)<0||Number(project.zoom)>24)){status("Project zoom is invalid; the current map was left unchanged.");return false}
@@ -4008,10 +4031,11 @@ function restoreProject(project,fromHistory=false){
   customWmsConfig=project.basemapWms||null;
   if(project.basemap==="customWms"&&customWmsConfig)selectBasemap("customWms",false);
   else if(project.basemap&&base[project.basemap])selectBasemap(project.basemap,false);
-  (project.drawn||[]).forEach(f=>{
+  (project.drawn||[]).forEach((f,index)=>{
+    const savedStyle=project.drawnStyles?.[index]||{};
     const l=L.geoJSON(f,{
-      style:{color:"#146c43",weight:3,fillOpacity:.16},
-      pointToLayer:(ft,ll)=>{const radius=Number(ft.properties?._radius_m);return Number.isFinite(radius)&&radius>0?L.circle(ll,{radius,color:"#146c43",weight:3,fillColor:"#4b9b71",fillOpacity:.16}):L.circleMarker(ll,{radius:6,color:"#146c43",fillColor:"#fff",fillOpacity:.9,weight:2})}
+      style:{color:"#146c43",weight:3,fillOpacity:.16,...savedStyle},
+      pointToLayer:(ft,ll)=>{const radius=Number(ft.properties?._radius_m);return Number.isFinite(radius)&&radius>0?L.circle(ll,{radius,color:"#146c43",weight:3,fillColor:"#4b9b71",fillOpacity:.16,...savedStyle}):L.circleMarker(ll,{radius:6,color:"#146c43",fillColor:"#fff",fillOpacity:.9,weight:2,...savedStyle})}
     });
     l.eachLayer(x=>{drawn.addLayer(x);attachFeatureSelection(x)});
   });
@@ -4023,7 +4047,7 @@ function restoreProject(project,fromHistory=false){
       if(item.visible===false)map.removeLayer(l);else l.addTo(map);
     }else{
       const features=item.features||[];
-      const layer=L.geoJSON({type:"FeatureCollection",features},{style:{color:"#2d78a5",weight:2,fillOpacity:.18},pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:5,color:"#2d78a5",fillOpacity:.8})});
+      const layer=L.geoJSON({type:"FeatureCollection",features},{style:(feature)=>{const i=features.indexOf(feature);return {color:"#2d78a5",weight:2,fillOpacity:.18,...(item.styles?.[i]||{})}},pointToLayer:(feature,ll)=>{const i=features.indexOf(feature);return L.circleMarker(ll,{radius:5,color:"#2d78a5",fillOpacity:.8,...(item.styles?.[i]||{})})}});
       if(item.gdb)layer._gdbMetadata=item.gdb;
       addNamedLayer(item.name||"Layer",layer,false);
       if(item.visible===false)map.removeLayer(layer);
@@ -4032,6 +4056,12 @@ function restoreProject(project,fromHistory=false){
     }
   });
   if(typeof restoreGdbCatalogFromJSON==="function")restoreGdbCatalogFromJSON(project.gdbCatalog||null);
+  (project.selected||[]).forEach(ref=>{
+    let featureLayer=null;
+    if(ref?.source==="drawn")featureLayer=drawn.getLayers()[Number(ref.index)];
+    else if(ref?.source==="layer"){const item=namedLayers.find(x=>x.name===ref.name);featureLayer=item?vectorFeatures(item.layer)[Number(ref.index)]?.layer:null}
+    if(featureLayer)selectedFeatures.add(featureLayer);
+  });
   $("projectName").value=project.name||"Untitled Project";
   renderLayerList();refreshAttributeLayers();
   $("projectStatus").textContent= "Project restored: "+(project.savedAt?new Date(project.savedAt).toLocaleString("en-US"):"—");
@@ -4126,7 +4156,13 @@ $("loadProject").onclick=loadProject;
 $("downloadProject").onclick=downloadProject;
 $("projectFile").onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
-  try{restoreProject(JSON.parse(await f.text()))}catch(err){status("Invalid project file: "+err.message)}
+  try{
+    const imported=JSON.parse(await f.text());
+    if(restoreProject(imported)){
+      currentProjectId=crypto.randomUUID?crypto.randomUUID():"p-"+Date.now()+"-"+Math.random().toString(36).slice(2);
+      status("Project imported. Save Project to keep this copy separately in this browser.");
+    }
+  }catch(err){status("Invalid project file: "+err.message)}
   e.target.value="";
 };
 function collectGeoJSON(sourceLayer=exportSourceLayer){
