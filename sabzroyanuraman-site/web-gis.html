@@ -2637,11 +2637,39 @@ async function runWholeLayerGisOperation(op){
  const ir=await arcMapDialog.select({title:'Whole-Layer Geoprocessing',message:'Choose input layer; all features are processed and sources preserved.',label:'Input layer',value:'0',options});if(ir===null)return true;const input=layers[Number(ir)];if(!input)return true;
  const records=vectorFeatures(input.layer).map(x=>x.feature).filter(f=>f&&f.geometry);const valid=f=>f&&f.geometry&&['Point','MultiPoint','LineString','MultiLineString','Polygon','MultiPolygon'].includes(f.geometry.type)&&vertexGeometryIsValid(f.geometry);if(!records.length||records.some(f=>!valid(f))){status('Input layer is empty or contains invalid/unsupported geometry.');return true;}let output=[],name=op;
  try{if(op==='buffer'){const raw=await arcMapDialog.prompt({title:'Buffer — Whole Layer',message:'Distance in meters:',label:'Meters',value:$('bufferDistance').value||'5'});if(raw===null)return true;const d=Number(raw);if(!Number.isFinite(d)||d<=0){status('Distance must be greater than zero.');return true;}output=records.map(f=>{const g=turf.buffer(f,d,{units:'meters'});if(g)g.properties={...(f.properties||{}),_operation:'Buffer',buffer_meters:d};return g;}).filter(Boolean);name='Buffer '+d+' m';}
- else if(op==='dissolve'){const fields=[...new Set(records.flatMap(f=>Object.keys(f.properties||{}).filter(k=>!isReservedAttributeField(k))))];const field=fields.length?await arcMapDialog.select({title:'Dissolve — Whole Layer',message:'Choose a field or dissolve all:',label:'Field',value:'(all)',options:[{value:'(all)',label:'(all features)'},...fields.map(f=>({value:f,label:f}))]}):'(all)';if(field===null)return true;const d=turf.dissolve({type:'FeatureCollection',features:records.map(f=>JSON.parse(JSON.stringify(f)))},field==='(all)'?{}:{propertyName:field});output=(d?.features||[]).map(f=>({...f,properties:{...(f.properties||{}),_operation:'Dissolve',_source_count:records.length}}));name='Dissolve '+input.name;}
+ else if(op==='centroid'){
+   output=records.map(f=>{const g=turf.centroid(f);return {...g,properties:{...(f.properties||{}),_operation:'Centroid'}};});name='Centroids '+input.name;
+ }else if(op==='convexHull'){
+   const hull=turf.convex({type:'FeatureCollection',features:records});
+   if(hull)output=[{...hull,properties:{_operation:'Convex Hull',_source_layer:input.name,_source_count:records.length}}];
+   name='Convex Hull '+input.name;
+ }else if(op==='boundingBox'){
+   const bounds=turf.bbox({type:'FeatureCollection',features:records}),box=turf.bboxPolygon(bounds);
+   if(box)output=[{...box,properties:{_operation:'Bounding Box',_source_layer:input.name,min_x:bounds[0],min_y:bounds[1],max_x:bounds[2],max_y:bounds[3]}}];
+   name='Bounding Box '+input.name;
+ }else if(op==='dissolve'){const fields=[...new Set(records.flatMap(f=>Object.keys(f.properties||{}).filter(k=>!isReservedAttributeField(k))))];const field=fields.length?await arcMapDialog.select({title:'Dissolve — Whole Layer',message:'Choose a field or dissolve all:',label:'Field',value:'(all)',options:[{value:'(all)',label:'(all features)'},...fields.map(f=>({value:f,label:f}))]}):'(all)';if(field===null)return true;const d=turf.dissolve({type:'FeatureCollection',features:records.map(f=>JSON.parse(JSON.stringify(f)))},field==='(all)'?{}:{propertyName:field});output=(d?.features||[]).map(f=>({...f,properties:{...(f.properties||{}),_operation:'Dissolve',_source_count:records.length}}));name='Dissolve '+input.name;}
  else{const others=layers.filter((_,i)=>i!==Number(ir));if(!others.length){status(op+' needs a second layer.');return true;}const oraw=await arcMapDialog.select({title:op+' — Overlay Layer',message:'Choose the complete overlay layer.',label:'Overlay layer',value:'0',options:others.map((x,i)=>({value:String(i),label:x.name}))});if(oraw===null)return true;const overlay=others[Number(oraw)];const ovs=vectorFeatures(overlay.layer).map(x=>x.feature).filter(f=>f&&f.geometry);if(!overlay||!ovs.length||ovs.some(f=>!valid(f))){status('Overlay layer is empty or contains invalid geometry.');return true;}if(['clip','intersection','union'].includes(op)&&[...records,...ovs].some(f=>!['Polygon','MultiPolygon'].includes(f.geometry.type))){status(op+' whole-layer mode currently requires polygon layers.');return true;}
  if(op==='append'){
    output=[...records.map(f=>({...JSON.parse(JSON.stringify(f)),properties:{...(f.properties||{}),_operation:'Append',_append_source:input.name}})),...ovs.map(f=>({...JSON.parse(JSON.stringify(f)),properties:{...(f.properties||{}),_operation:'Append',_append_source:overlay.name}}))];
    name='Append '+input.name+' + '+overlay.name;
+ }else if(op==='merge'){
+   output=[...records.map(f=>({...JSON.parse(JSON.stringify(f)),properties:{...(f.properties||{}),_operation:'Merge',_merge_source:input.name}})),...ovs.map(f=>({...JSON.parse(JSON.stringify(f)),properties:{...(f.properties||{}),_operation:'Merge',_merge_source:overlay.name}}))];
+   name='Merge '+input.name+' + '+overlay.name;
+ }else if(op==='erase'){
+   if([...records,...ovs].some(f=>!['Polygon','MultiPolygon'].includes(f.geometry.type))){status('Erase whole-layer mode currently requires polygon layers.');return true;}
+   let mask=null;for(const f of ovs)mask=mask?turf.union(turf.featureCollection([mask,f])):JSON.parse(JSON.stringify(f));
+   if(!mask)throw new Error('Could not build erase overlay mask.');
+   for(const f of records){const diff=turf.difference(turf.featureCollection([f,mask]));if(diff)output.push({...diff,properties:{...(f.properties||{}),_operation:'Erase',_overlay_layer:overlay.name}});}
+   name='Erase '+input.name+' by '+overlay.name;
+ }else if(op==='split'){
+   const lineTypes=['LineString','MultiLineString'];
+   if([...records,...ovs].some(f=>!lineTypes.includes(f.geometry.type))){status('Split whole-layer mode requires line input and overlay layers.');return true;}
+   for(const f of records){
+     let parts=[JSON.parse(JSON.stringify(f))];
+     for(const cutter of ovs){parts=parts.flatMap(part=>{try{const split=turf.lineSplit(part,cutter);return split?.features?.length?split.features: [part];}catch(_){return [part];}});}
+     parts.forEach((part,i)=>output.push({...part,properties:{...(f.properties||{}),_operation:'Split',_part:i+1,_overlay_layer:overlay.name}}));
+   }
+   name='Split '+input.name+' by '+overlay.name;
  }else if(op==='identity'){
    if([...records,...ovs].some(f=>!['Polygon','MultiPolygon'].includes(f.geometry.type))){status('Identity whole-layer mode currently requires polygon layers.');return true;}
    let mask=null;for(const f of ovs)mask=mask?turf.union(turf.featureCollection([mask,f])):JSON.parse(JSON.stringify(f));
