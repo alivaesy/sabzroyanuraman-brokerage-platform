@@ -4288,7 +4288,7 @@ function runTopologyGeometrySelfTests(){
   if(typeof turf==="undefined"||typeof turf.polygon!=="function"||typeof turf.area!=="function"){const msg="Topology self-test unavailable: Turf helpers are not loaded.";const out=$("professionalToolOutput");if(out)out.textContent=msg;status(msg);return results;}
   const poly=c=>turf.polygon([c]),a=poly([[0,0],[2,0],[2,2],[0,2],[0,0]]),overlap=poly([[1,1],[3,1],[3,3],[1,3],[1,1]]),edge=poly([[2,0],[4,0],[4,2],[2,2],[2,0]]);
   const boundary=poly([[0,0],[4,0],[4,4],[0,4],[0,0]]),left=poly([[0,0],[2,0],[2,4],[0,4],[0,0]]),rightGap=poly([[2.2,0],[4,0],[4,4],[2.2,4],[2.2,0]]),rightFull=poly([[2,0],[4,0],[4,4],[2,4],[2,0]]);
-  const line=turf.lineString([[0,0],[1,0]]),nearLine=turf.lineString([[1.00001,0],[2,0]]),isolated=turf.lineString([[10,10],[11,10]]),outside=poly([[5,5],[6,5],[6,6],[5,6],[5,5]]);
+  const line=turf.lineString([[0,0],[1,0]]),nearLine=turf.lineString([[1.000001,0],[2,0]]),isolated=turf.lineString([[10,10],[11,10]]),outside=poly([[5,5],[6,5],[6,6],[5,6],[5,5]]);
   const intersect=(x,y)=>{try{return turf.intersect(turf.featureCollection([x,y]));}catch(_){return turf.intersect(x,y);}};
   test("Overlapping polygons detected",()=>{if(typeof turf.intersect!=="function")throw Error("Turf intersect unavailable");const i=intersect(a,overlap);return !!i?.geometry&&Number(turf.area(i))>0.01;});
   test("Shared boundary is not overlap",()=>{if(typeof turf.intersect!=="function")throw Error("Turf intersect unavailable");const i=intersect(a,edge);return !i?.geometry||Number(turf.area(i))<=0.01;});
