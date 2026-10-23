@@ -4204,8 +4204,14 @@ function initProjectManager(){
 }
 function downloadProject(){
   if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before exporting the project; pending cell values are not included yet.");return}
-  const project=serializeProject();
-  download(JSON.stringify(project,null,2),"sabz-royan-project.json","application/json");
+  try{
+    const project=serializeProject();
+    download(JSON.stringify(project,null,2),"sabz-royan-project.json","application/json");
+    status("Project backup exported. Keep the JSON file outside this browser as a recovery copy.");
+  }catch(err){
+    console.error("Project export failed:",err);
+    status("Project export failed; no backup was downloaded: "+(err.message||"project serialization error"));
+  }
 }
 $("saveProject").onclick=saveProject;
 initProjectManager();
