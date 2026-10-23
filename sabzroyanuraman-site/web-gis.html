@@ -6319,7 +6319,8 @@ async function featureTemplates(){
   status("Choose 1, 2, 3, or 4.");
 }
 async function runVectorAnalysis(mode){
-  const records=selectedRecords().length?selectedRecords():getFeatureRecords();
+  const chosenRecords=selectedRecords();
+  const records=chosenRecords.length?chosenRecords:getFeatureRecords();
   if(!records.length){status("Load vector features or select features before running this analysis.");return;}
   const valid=records.filter(r=>r.feature&&r.feature.geometry);
   if(valid.length!==records.length){status("Some input records have no valid geometry; analysis stopped.");return;}
@@ -6327,6 +6328,7 @@ async function runVectorAnalysis(mode){
   const askField=async(promptText,fields)=>await arcMapDialog.select({title:"Vector Analysis",message:promptText,label:"Field",value:fields[0]||"",options:fields.map(f=>({value:f,label:f}))});
   try{
     if(mode==="spatialJoin"){
+       if(!chosenRecords.length){status("Select target features in the map or attribute table before running Spatial Join.");return;}
        const targetLayerSet=new Set(valid.map(r=>r.layer||r.owner?.layer).filter(Boolean));
        const joins=getFeatureRecords().filter(r=>r.feature?.geometry&&r.feature.geometry.type&&(!targetLayerSet.size||!targetLayerSet.has(r.layer||r.owner?.layer)));
        if(!joins.length){status("Spatial Join requires a separate vector layer for join features. Select target features, then join against another layer.");return;}
@@ -6351,7 +6353,7 @@ async function runVectorAnalysis(mode){
              while(Object.prototype.hasOwnProperty.call(props,outKey))outKey="join_"+key+"_"+suffix++;
              props[outKey]=value;
            });
-           features.push({...JSON.parse(JSON.stringify(base)),properties:props,_spatial_join_match:matchIndex+1});
+           features.push({...JSON.parse(JSON.stringify(base)),properties:{...props,_spatial_join_match:matchIndex+1}});
          });
        });
        if(!features.length){status("Spatial Join produced no output.");return;}
