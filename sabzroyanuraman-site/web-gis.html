@@ -6489,13 +6489,7 @@ function addMapDecoration(kind){
       topologyValidate:()=>{let target=topologyLayerValue(editTarget),boundary=topologyLayerValue(selectedLayer||selectedOverlay||drawn);try{target=localStorage.getItem("sabzRoyWebGisTopologyTarget")||target;boundary=localStorage.getItem("sabzRoyWebGisTopologyBoundary")||boundary}catch(_){}checkEditTopology(true,topologyLayerFromValue(target),topologyLayerFromValue(boundary))},
       topologyInspector:()=>openTopologyDialog("inspector"),
       toggleEditorToolbar:()=>document.getElementById("editorToolbar")?.classList.toggle("show"),
-      openToolSearch:()=>{const d=document.getElementById("searchDock");d?.classList.add("open");document.getElementById("topToolSearch")?.focus()},
-      zoomIn:()=>map.zoomIn(),
-      goToXY:()=>goToXY(),
-      identify:()=>document.getElementById("identifyFeatureBtn")?.click(),
-      zoomOut:()=>map.zoomOut(),
-      pan:()=>document.getElementById("panMapBtn")?.click(),
-      function gisAsk(title,message,initialValue=""){
+      openToolSearch:()=>{      function gisAsk(title,message,initialValue=""){
         return new Promise(resolve=>{
           let root=document.getElementById("gisAskDialog");
           if(root)root.remove();
@@ -6522,6 +6516,13 @@ function addMapDecoration(kind){
         item.append(text,close);stack.appendChild(item);while(stack.children.length>4)stack.firstElementChild.remove();
         window.setTimeout(()=>{if(item.isConnected)item.remove();},5500);
       }
+
+const d=document.getElementById("searchDock");d?.classList.add("open");document.getElementById("topToolSearch")?.focus()},
+      zoomIn:()=>map.zoomIn(),
+      goToXY:()=>goToXY(),
+      identify:()=>document.getElementById("identifyFeatureBtn")?.click(),
+      zoomOut:()=>map.zoomOut(),
+      pan:()=>document.getElementById("panMapBtn")?.click(),
       about:()=>gisNotify("ArcMap-style Web GIS workspace"),
       shortcuts:()=>gisNotify("Drawing: Enter or double-click finishes a line or polygon; Backspace/Delete removes the last sketch vertex; Escape cancels the active tool. Selection: Ctrl-click or Shift-click adds/removes features. Editing: use Undo/Redo in the Edit menu to reverse/restore recorded map edits."),
       importData:()=>openDataFormatDialog("import"),
