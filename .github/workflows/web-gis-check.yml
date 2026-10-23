@@ -1,0 +1,23 @@
+name: Web GIS checks
+
+on:
+  pull_request:
+    paths:
+      - "sabzroyanuraman-site/web-gis.html"
+      - "tests/web-gis-static.test.cjs"
+      - ".github/workflows/web-gis-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validate Web GIS source and toolbox registration
+        run: node --test tests/web-gis-static.test.cjs

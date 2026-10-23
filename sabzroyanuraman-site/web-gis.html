@@ -52,9 +52,11 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
 
 
 .gis-tool-item{display:flex;align-items:center;gap:7px;width:100%;text-align:right;border:1px solid #d9e4e9;background:#fff;color:#173b57;border-radius:7px;padding:7px 8px;margin:4px 0;cursor:pointer;font-size:10px}
-#gisToolResults{max-height:360px;overflow-y:auto;overscroll-behavior:contain;padding:0 3px 0 0}
+#gisToolResults{max-height:min(52vh,520px);min-height:180px;overflow-y:auto;overscroll-behavior:contain;padding:0 3px 0 0}
 .gis-tool-item:hover{background:#eef7f3;border-color:#9db5c1}
 .gis-tool-cat{font-size:9px;color:#146c43;margin:8px 2px 3px;font-weight:700}
+.gis-tool-summary{position:sticky;top:0;z-index:2;background:#f2f7f8;color:#264b5c;border:1px solid #d9e4e9;border-radius:5px;padding:5px 7px;margin:2px 0 6px;font-size:10px;font-weight:700}
+.gis-tool-group{display:block;min-width:0}
 .gis-tool-empty{font-size:10px;color:#7b8f9b;padding:8px 2px}
 /* ArcMap Editor tools stay hidden until an edit session is started. */
 #editorToolbar:not(.editing-active) [data-edit-only],
@@ -792,16 +794,18 @@ body{background:#dfe5e8;color:#173b57}
           <div class="small">Run on selected features or choose complete input/overlay layers. Buffer distance is in meters; source layers are preserved.</div>
           <div class="small" id="gisCrsNotice">GeoJSON longitude/latitude is used internally; Buffer distance is in meters. Source layers remain unchanged.</div>
           <select id="gisOperation" style="margin-top:6px">
-            <option value="buffer">Buffer</option>
-            <option value="clip">Clip</option>
-            <option value="intersection">Intersect</option>
-            <option value="split">Split</option>
-            <option value="merge">Merge</option>
-            <option value="erase">Erase</option>
-            <option value="union">Union</option>
-            <option value="centroid">Feature To Point (Centroid)</option>
-            <option value="convexHull">Minimum Bounding Geometry (Convex Hull)</option>
-            <option value="boundingBox">Minimum Bounding Geometry (Envelope)</option>
+            <optgroup label="Overlay and extraction">
+              <option value="buffer">Buffer</option><option value="clip">Clip</option><option value="intersection">Intersect</option><option value="erase">Erase</option><option value="identity">Identity</option><option value="union">Union</option>
+            </optgroup>
+            <optgroup label="Data management">
+              <option value="merge">Merge</option><option value="append">Append</option><option value="split">Split</option><option value="vectorSinglepart">Multipart To Singlepart</option><option value="vectorDissolve">Dissolve</option>
+            </optgroup>
+            <optgroup label="Geometry">
+              <option value="centroid">Feature To Point (Centroid)</option><option value="convexHull">Minimum Bounding Geometry (Convex Hull)</option><option value="boundingBox">Minimum Bounding Geometry (Envelope)</option><option value="vectorSimplify">Simplify Features</option><option value="repairSelectedGeometry">Repair Geometry</option><option value="vectorGeometry">Calculate Geometry Attributes</option>
+            </optgroup>
+            <optgroup label="Analysis">
+              <option value="vectorSpatialJoin">Spatial Join</option><option value="vectorSummarize">Summarize Within</option><option value="chartStats">Statistics</option><option value="spatialFilter">Spatial Filter</option><option value="geometrySelfTest">Geometry Self-Test</option><option value="modelBuilder">ModelBuilder</option>
+            </optgroup>
           </select>
           <input id="bufferDistance" type="number" step="0.1" min="0" value="5" placeholder="Buffer distance (meters)" style="margin-top:6px">
           <div class="row">
@@ -2689,9 +2693,56 @@ async function runWholeLayerGisOperation(op){
  const ir=await arcMapDialog.select({title:'Whole-Layer Geoprocessing',message:'Choose input layer; all features are processed and sources preserved.',label:'Input layer',value:'0',options});if(ir===null)return true;const input=layers[Number(ir)];if(!input)return true;
  const records=vectorFeatures(input.layer).map(x=>x.feature).filter(f=>f&&f.geometry);const valid=f=>f&&f.geometry&&['Point','MultiPoint','LineString','MultiLineString','Polygon','MultiPolygon'].includes(f.geometry.type)&&vertexGeometryIsValid(f.geometry);if(!records.length||records.some(f=>!valid(f))){status('Input layer is empty or contains invalid/unsupported geometry.');return true;}let output=[],name=op;
  try{if(op==='buffer'){const raw=await arcMapDialog.prompt({title:'Buffer — Whole Layer',message:'Distance in meters:',label:'Meters',value:$('bufferDistance').value||'5'});if(raw===null)return true;const d=Number(raw);if(!Number.isFinite(d)||d<=0){status('Distance must be greater than zero.');return true;}output=records.map(f=>{const g=turf.buffer(f,d,{units:'meters'});if(g)g.properties={...(f.properties||{}),_operation:'Buffer',buffer_meters:d};return g;}).filter(Boolean);name='Buffer '+d+' m';}
- else if(op==='dissolve'){const fields=[...new Set(records.flatMap(f=>Object.keys(f.properties||{}).filter(k=>!isReservedAttributeField(k))))];const field=fields.length?await arcMapDialog.select({title:'Dissolve — Whole Layer',message:'Choose a field or dissolve all:',label:'Field',value:'(all)',options:[{value:'(all)',label:'(all features)'},...fields.map(f=>({value:f,label:f}))]}):'(all)';if(field===null)return true;const d=turf.dissolve({type:'FeatureCollection',features:records.map(f=>JSON.parse(JSON.stringify(f)))},field==='(all)'?{}:{propertyName:field});output=(d?.features||[]).map(f=>({...f,properties:{...(f.properties||{}),_operation:'Dissolve',_source_count:records.length}}));name='Dissolve '+input.name;}
+ else if(op==='centroid'){
+   output=records.map(f=>{const g=turf.centroid(f);return {...g,properties:{...(f.properties||{}),_operation:'Centroid'}};});name='Centroids '+input.name;
+ }else if(op==='convexHull'){
+   const hull=turf.convex({type:'FeatureCollection',features:records});
+   if(hull)output=[{...hull,properties:{_operation:'Convex Hull',_source_layer:input.name,_source_count:records.length}}];
+   name='Convex Hull '+input.name;
+ }else if(op==='boundingBox'){
+   const bounds=turf.bbox({type:'FeatureCollection',features:records}),box=turf.bboxPolygon(bounds);
+   if(box)output=[{...box,properties:{_operation:'Bounding Box',_source_layer:input.name,min_x:bounds[0],min_y:bounds[1],max_x:bounds[2],max_y:bounds[3]}}];
+   name='Bounding Box '+input.name;
+ }else if(op==='dissolve'){const fields=[...new Set(records.flatMap(f=>Object.keys(f.properties||{}).filter(k=>!isReservedAttributeField(k))))];const field=fields.length?await arcMapDialog.select({title:'Dissolve — Whole Layer',message:'Choose a field or dissolve all:',label:'Field',value:'(all)',options:[{value:'(all)',label:'(all features)'},...fields.map(f=>({value:f,label:f}))]}):'(all)';if(field===null)return true;const d=turf.dissolve({type:'FeatureCollection',features:records.map(f=>JSON.parse(JSON.stringify(f)))},field==='(all)'?{}:{propertyName:field});output=(d?.features||[]).map(f=>({...f,properties:{...(f.properties||{}),_operation:'Dissolve',_source_count:records.length}}));name='Dissolve '+input.name;}
  else{const others=layers.filter((_,i)=>i!==Number(ir));if(!others.length){status(op+' needs a second layer.');return true;}const oraw=await arcMapDialog.select({title:op+' — Overlay Layer',message:'Choose the complete overlay layer.',label:'Overlay layer',value:'0',options:others.map((x,i)=>({value:String(i),label:x.name}))});if(oraw===null)return true;const overlay=others[Number(oraw)];const ovs=vectorFeatures(overlay.layer).map(x=>x.feature).filter(f=>f&&f.geometry);if(!overlay||!ovs.length||ovs.some(f=>!valid(f))){status('Overlay layer is empty or contains invalid geometry.');return true;}if(['clip','intersection','union'].includes(op)&&[...records,...ovs].some(f=>!['Polygon','MultiPolygon'].includes(f.geometry.type))){status(op+' whole-layer mode currently requires polygon layers.');return true;}
- if(op==='clip'){
+ if(op==='append'){
+   output=[...records.map(f=>({...JSON.parse(JSON.stringify(f)),properties:{...(f.properties||{}),_operation:'Append',_append_source:input.name}})),...ovs.map(f=>({...JSON.parse(JSON.stringify(f)),properties:{...(f.properties||{}),_operation:'Append',_append_source:overlay.name}}))];
+   name='Append '+input.name+' + '+overlay.name;
+ }else if(op==='merge'){
+   output=[...records.map(f=>({...JSON.parse(JSON.stringify(f)),properties:{...(f.properties||{}),_operation:'Merge',_merge_source:input.name}})),...ovs.map(f=>({...JSON.parse(JSON.stringify(f)),properties:{...(f.properties||{}),_operation:'Merge',_merge_source:overlay.name}}))];
+   name='Merge '+input.name+' + '+overlay.name;
+ }else if(op==='erase'){
+   if([...records,...ovs].some(f=>!['Polygon','MultiPolygon'].includes(f.geometry.type))){status('Erase whole-layer mode currently requires polygon layers.');return true;}
+   let mask=null;for(const f of ovs)mask=mask?turf.union(turf.featureCollection([mask,f])):JSON.parse(JSON.stringify(f));
+   if(!mask)throw new Error('Could not build erase overlay mask.');
+   for(const f of records){const diff=turf.difference(turf.featureCollection([f,mask]));if(diff)output.push({...diff,properties:{...(f.properties||{}),_operation:'Erase',_overlay_layer:overlay.name}});}
+   name='Erase '+input.name+' by '+overlay.name;
+ }else if(op==='split'){
+   const lineTypes=['LineString','MultiLineString'];
+   if([...records,...ovs].some(f=>!lineTypes.includes(f.geometry.type))){status('Split whole-layer mode requires line input and overlay layers.');return true;}
+   for(const f of records){
+     let parts=[JSON.parse(JSON.stringify(f))];
+     for(const cutter of ovs){parts=parts.flatMap(part=>{try{const split=turf.lineSplit(part,cutter);return split?.features?.length?split.features: [part];}catch(_){return [part];}});}
+     parts.forEach((part,i)=>output.push({...part,properties:{...(f.properties||{}),_operation:'Split',_part:i+1,_overlay_layer:overlay.name}}));
+   }
+   name='Split '+input.name+' by '+overlay.name;
+ }else if(op==='identity'){
+   if([...records,...ovs].some(f=>!['Polygon','MultiPolygon'].includes(f.geometry.type))){status('Identity whole-layer mode currently requires polygon layers.');return true;}
+   let mask=null;for(const f of ovs)mask=mask?turf.union(turf.featureCollection([mask,f])):JSON.parse(JSON.stringify(f));
+   if(!mask)throw new Error('Could not build identity overlay mask.');
+   for(const a of records){
+     const outside=turf.difference(turf.featureCollection([a,mask]));
+     if(outside)output.push({...outside,properties:{...(a.properties||{}),_operation:'Identity',_identity_match:false}});
+     for(const b of ovs){
+       const inside=turf.intersect(turf.featureCollection([a,b]));
+       if(!inside)continue;
+       const props={...(a.properties||{}),_operation:'Identity',_identity_match:true,_overlay_layer:overlay.name};
+       Object.entries(b.properties||{}).forEach(([k,v])=>{let key='overlay_'+k,n=2;while(Object.prototype.hasOwnProperty.call(props,key))key='overlay_'+k+'_'+n++;props[key]=v;});
+       output.push({...inside,properties:props});
+     }
+   }
+   name='Identity '+input.name+' by '+overlay.name;
+ }else if(op==='clip'){
    // Merge overlay footprints first to avoid duplicate clipped pieces where overlays overlap.
    let mask=null;for(const f of ovs)mask=mask?turf.union(turf.featureCollection([mask,f])):JSON.parse(JSON.stringify(f));
    if(!mask)throw new Error('Could not build a valid overlay mask.');
@@ -2748,12 +2799,23 @@ async function runGisOperation(){
       if(!f2||!f2.geometry){status("The overlay feature geometry is invalid.");return;}
       if(typeof vertexGeometryIsValid==="function"&&!vertexGeometryIsValid(f2.geometry)){status("Overlay geometry failed structural validation. Review it before processing.");return;}
       if(!["Point","MultiPoint","LineString","MultiLineString","Polygon","MultiPolygon"].includes(f2.geometry.type)){status("Unsupported overlay geometry type: "+f2.geometry.type);return;}
-      if(op==="clip"||op==="intersection"||op==="erase"||op==="union"){
+      if(op==="clip"||op==="intersection"||op==="erase"||op==="union"||op==="identity"||op==="append"){
         const polygonal=g=>g&&["Polygon","MultiPolygon"].includes(g.type);
         if((op==="erase"||op==="union")&&(!polygonal(f1.geometry)||!polygonal(f2.geometry))){
           status(op==="erase"?"Erase requires polygon or multipolygon input and overlay features.":"Union requires polygon or multipolygon input and overlay features.");return;
         }
-        if(op==="erase"){
+        if(op==="append"){
+          result={type:"FeatureCollection",features:[f1,f2].map((f,i)=>({...JSON.parse(JSON.stringify(f)),properties:{...(f.properties||{}),_operation:"Append",_append_source:i===0?"input":"overlay"}}))};
+          name="Append";
+        }else if(op==="identity"){
+          if(!polygonal(f1.geometry)||!polygonal(f2.geometry)){status("Identity currently requires polygon or multipolygon input and overlay features.");return;}
+          const inside=turf.intersect(turf.featureCollection([f1,f2]));
+          const outside=turf.difference(turf.featureCollection([f1,f2]));
+          const features=[];
+          if(outside)features.push({...outside,properties:{...(f1.properties||{}),_operation:"Identity",_identity_match:false}});
+          if(inside){const props={...(f1.properties||{}),_operation:"Identity",_identity_match:true};Object.entries(f2.properties||{}).forEach(([k,v])=>{let key="overlay_"+k;let n=2;while(Object.prototype.hasOwnProperty.call(props,key))key="overlay_"+k+"_"+n++;props[key]=v;});features.push({...inside,properties:props});}
+          result={type:"FeatureCollection",features};name="Identity";
+        }else if(op==="erase"){
           result=turf.difference(turf.featureCollection([f1,f2]));
           if(result)result.properties={...(f1.properties||{}),_operation:"Erase"};
           name="Erase";
@@ -3341,7 +3403,14 @@ $("deleteMultiSelected").onclick=async()=>{
   status(targets.length+" feature(s) deleted from the active edit layer.");
 };
 $("clearMultiSelected").onclick=()=>{clearMultiSelection();selectedLayer=null;selectedOverlay=null;renderAttributeEditor();status("Multiple selection cleared.")};
-$("runGisOperation").onclick=runGisOperation;
+$("runGisOperation").onclick=()=>{
+  const selected=$("gisOperation")?.value||"buffer";
+  const core=new Set(["buffer","clip","intersection","merge","union","erase","identity","append","split","centroid","convexHull","boundingBox"]);
+  if(core.has(selected)){runGisOperation();return;}
+  const tool=(typeof GIS_TOOLS!=="undefined"?GIS_TOOLS:[]).find(t=>t.id===selected);
+  if(tool){runGisTool(tool);return;}
+  status("This geoprocessing command is not registered: "+selected);
+};
 $("geometrySelfTest").onclick=runGeometryRegressionTests;
 $("clearGisSelection").onclick=()=>{
   selectedLayer=null;selectedOverlay=null;
@@ -4958,20 +5027,33 @@ const GIS_TOOLS=[
 ];
 function renderGisToolbox(query=""){
  const box=$("gisToolResults"); if(!box)return;
- const q=query.trim().toLowerCase();
- const matches=GIS_TOOLS.filter(t=>(t.title+" "+t.category+" "+t.keys).toLowerCase().includes(q));
- if(!matches.length){box.innerHTML='<div class="gis-tool-empty">No matching tools found.</div>';return;}
- const groups={};
- matches.forEach(t=>(groups[t.category]??=[]).push(t));
- box.innerHTML="";
- Object.keys(groups).forEach(cat=>{
-   const h=document.createElement("div");h.className="gis-tool-cat";h.textContent=cat;box.appendChild(h);
-   groups[cat].forEach(t=>{
+ const q=String(query??"").trim().toLocaleLowerCase();
+ const tools=Array.isArray(GIS_TOOLS)?GIS_TOOLS:[];
+ const matches=tools.filter(t=>t&&String(t.title||"").concat(" ",String(t.category||"")," ",String(t.keys||"")).toLocaleLowerCase().includes(q));
+ box.replaceChildren();
+ const summary=document.createElement("div");
+ summary.className="gis-tool-summary";
+ summary.setAttribute("role","status");
+ summary.textContent=q?matches.length+" of "+tools.length+" tools":tools.length+" registered tools";
+ box.appendChild(summary);
+ if(!matches.length){
+   const empty=document.createElement("div");empty.className="gis-tool-empty";empty.textContent="No matching tools found. Clear the search to see the full ArcToolbox catalog.";box.appendChild(empty);return;
+ }
+ const groups=new Map();
+ matches.forEach(t=>{const cat=t.category||"Other";if(!groups.has(cat))groups.set(cat,[]);groups.get(cat).push(t);});
+ const fragment=document.createDocumentFragment();
+ groups.forEach((items,cat)=>{
+   const section=document.createElement("section");section.className="gis-tool-group";
+   const h=document.createElement("div");h.className="gis-tool-cat";h.textContent=cat+" ("+items.length+")";section.appendChild(h);
+   items.forEach(t=>{
      const b=document.createElement("button");b.type="button";b.className="gis-tool-item";b.textContent=t.title;
-     b.onclick=()=>runGisTool(t);
-     box.appendChild(b);
+     b.dataset.toolId=t.id;b.dataset.toolOp=t.op||"";
+     b.addEventListener("click",()=>runGisTool(t));
+     section.appendChild(b);
    });
+   fragment.appendChild(section);
  });
+ box.appendChild(fragment);
 }
 
 function allSelectableFeatureLayers(){
@@ -6678,6 +6760,8 @@ function countGeometryVertices(g){
   return walk(g.coordinates);
 }
 function runGisTool(tool){
+ if(!tool||typeof tool!=="object"){status("Invalid toolbox command.");return;}
+ if(tool.id==="geometrySelfTest"){runGeometryRegressionTests();return;}
  if(tool.id==="modelBuilder"){openModelBuilder();return;}
  if(tool.id==="selectFeatures"){$("selectFeaturesBtn").click();return;}
   if(tool.id==="importData"){openDataFormatDialog("import");return;}
@@ -6871,7 +6955,7 @@ async function addMapDecoration(kind){
       downloadProject:()=>document.getElementById("downloadProject")?.click(),
       fitDraw:()=>document.getElementById("fitDraw")?.click(),
       clearDraw:()=>document.getElementById("clearDraw")?.click(),
-      showLayers:()=>status("Table Of Contents is docked on the left."),
+      showLayers:()=>{const panel=document.getElementById("panel"),layers=document.getElementById("layers");if(panel)panel.scrollIntoView({block:"nearest"});if(layers){layers.tabIndex=-1;layers.focus({preventScroll:true});}renderLayerList();status("Table Of Contents focused.");},
       wms:()=>{openGisDock("display");document.getElementById("wmsUrl")?.focus()},
       configureWmsBasemap:()=>{openGisDock("display");document.getElementById("wmsUrl")?.focus();status("Enter a WMS URL and layer name, then choose Use WMS as Basemap.")},
       buffer:()=>{document.getElementById("gisOperation").value="buffer";document.getElementById("runGisOperation").click()},
