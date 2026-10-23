@@ -44,3 +44,23 @@ test('ArcToolbox renderer retains search and empty-state feedback', () => {
   assert.match(html, /registered tools/);
   assert.match(html, /gis-tool-group/);
 });
+
+
+test('View menu actions are connected to registered mapActions handlers', () => {
+  const actionBlock = html.match(/const mapActions\\s*=\\s*\\{([\\s\\S]*?)\\n\\s{4}\\};/)?.[1];
+  assert.ok(actionBlock, 'mapActions dispatcher was not found');
+  const handlers = new Set([...actionBlock.matchAll(/^\\s{6}([A-Za-z]\\w*)\\s*:/gm)].map(m => m[1]));
+
+  for (const menuId of ['mapMenu', 'viewMenu']) {
+    const menu = html.match(new RegExp('<div\\\\s+class=["\\\\']arc-dropdown["\\\\']\\\\s+id=["\\\\']' + menuId + '["\\\\']>([\\\\s\\\\S]*?)(?=\\\\n\\\\s*<div class=["\\\\']arc-dropdown|$)', 'i'))?.[1];
+    assert.ok(menu, menuId + ' was not found');
+    const actions = [...menu.matchAll(/data-action=["']([^"']+)["']/g)].map(m => m[1]);
+    assert.ok(actions.length, menuId + ' contains no actions');
+    const missing = actions.filter(action => !handlers.has(action));
+    assert.deepEqual(missing, [], menuId + ' actions without handlers: ' + missing.join(', '));
+  }
+
+  const tocHandler = actionBlock.match(/^\\s{6}showLayers\\s*:\\s*([^,]+(?:,\\n[\\s\\S]*?)?)(?=^\\s{6}[A-Za-z]\\w*\\s*:|$)/m)?.[1] || '';
+  assert.match(tocHandler, /renderLayerList/);
+  assert.match(tocHandler, /focus/);
+});
