@@ -2492,19 +2492,22 @@ function attachFeatureSelection(layer){
     const multi=!!(ev.originalEvent&&(ev.originalEvent.ctrlKey||ev.originalEvent.metaKey||ev.originalEvent.shiftKey));
     if(multi){
       toggleMultiSelection(layer);
-      syncVisibleAttributeTableSelection();
       if(ev.originalEvent.shiftKey&&!ev.originalEvent.ctrlKey&&!ev.originalEvent.metaKey){
         selectedOverlay=layer;
+        const info=$("gisSelectionInfo");
+        if(info)info.innerHTML="Input feature: "+esc(selectedLayer?featureLabel(selectedLayer):"—")+"<br>Overlay feature: "+esc(featureLabel(layer));
         status(selectedFeatures.size+" features selected; Shift-click a second feature for overlay operations.");
       }else{
+        const info=$("gisSelectionInfo");
+        if(info)info.innerHTML="Input feature: "+esc(selectedLayer?featureLabel(selectedLayer):"—")+"<br>Overlay feature: "+esc(selectedOverlay?featureLabel(selectedOverlay):"—");
         status(selectedFeatures.size+" features selected.");
       }
+      applySelectionVisual();
     }else{
       clearMultiSelection();
       setGisSelection(layer,false);
       selectedFeatures.add(layer);
-      syncVisibleAttributeTableSelection();
-      updateMultiSelectionUI();
+      applySelectionVisual();
       showUTM(layer);
       calcMeasure(layer);
       status("Feature selected. Ctrl-click or Shift-click to add features to the selection.");
