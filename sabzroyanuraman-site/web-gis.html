@@ -6653,7 +6653,7 @@ function importModelBuilder(modal,file){
       const source=modal.querySelector("[data-mb-source]");source.value=String(sourceIndex);
       modal.querySelector("[data-mb-name]").value=String(model.name||"Model_Output").slice(0,80);
       const host=modal.querySelector("[data-mb-steps]");host.replaceChildren();
-      const allowed=new Set(["buffer","centroid","convexHull","boundingBox","simplify","dissolve","singlepart","clip","intersection","erase","union"]);
+      const allowed=new Set(["buffer","centroid","pointOnFeature","convexHull","boundingBox","simplify","cleanCoords","areaLength","dissolve","singlepart","clip","intersection","erase","union"]);
       model.steps.forEach(step=>{
         if(!allowed.has(step.op))throw new Error("Unknown model operation: "+step.op);
         addModelBuilderStep(modal,step.op);
@@ -6673,10 +6673,10 @@ function addModelBuilderStep(modal,op="buffer"){
   row.dataset.mbStep="1";row.style.cssText="display:grid;grid-template-columns:38px minmax(150px,1fr) minmax(110px,.7fr) minmax(150px,1fr) 34px;gap:7px;align-items:center;padding:8px 0;border-bottom:1px solid #dce3ea";
   const number=document.createElement("strong");number.textContent=String(host.children.length+1);
   const operation=document.createElement("select");operation.dataset.mbOp="1";operation.style.cssText="width:100%;padding:7px";
-  [["buffer","Buffer (meters)"],["centroid","Centroid"],["convexHull","Convex Hull (all features)"],["boundingBox","Envelope (all features)"],["simplify","Simplify"],["dissolve","Dissolve (all)"],["singlepart","Multipart To Singlepart"],["clip","Clip"],["intersection","Intersect"],["erase","Erase"],["union","Union"]].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;operation.appendChild(o);});operation.value=op;
+  [["buffer","Buffer (meters)"],["centroid","Centroid"],["pointOnFeature","Feature To Point"],["convexHull","Convex Hull (all features)"],["boundingBox","Envelope (all features)"],["simplify","Simplify"],["cleanCoords","Clean Coordinates"],["areaLength","Calculate Area / Length"],["dissolve","Dissolve (all)"],["singlepart","Multipart To Singlepart"],["clip","Clip"],["intersection","Intersect"],["erase","Erase"],["union","Union"]].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;operation.appendChild(o);});operation.value=op;
   const param=document.createElement("input");param.dataset.mbParam="1";param.type="number";param.min="0";param.step="any";param.value="50";param.title="Buffer distance in meters or simplification tolerance in coordinate units";param.style.cssText="width:100%;padding:7px;box-sizing:border-box";
   const overlay=document.createElement("select");overlay.dataset.mbOverlay="1";overlay.style.cssText="width:100%;padding:7px";
-  const refreshOverlay=()=>{overlay.replaceChildren();const none=document.createElement("option");none.value="";none.textContent="Overlay layer (if needed)";overlay.appendChild(none);getAllVectorItems().forEach((item,i)=>{const o=document.createElement("option");o.value=String(i);o.textContent=item.name;overlay.appendChild(o);});overlay.style.visibility=["clip","intersection","erase","union"].includes(operation.value)?"visible":"hidden";param.style.visibility=["buffer","simplify"].includes(operation.value)?"visible":"hidden";};
+  const refreshOverlay=()=>{overlay.replaceChildren();const none=document.createElement("option");none.value="";none.textContent="Overlay layer (if needed)";overlay.appendChild(none);getAllVectorItems().forEach((item,i)=>{const o=document.createElement("option");o.value=String(i);o.textContent=item.name;overlay.appendChild(o);});overlay.style.visibility=["clip","intersection","erase","union"].includes(operation.value)?"visible":"hidden";param.style.visibility=["buffer","simplify"].includes(operation.value)?"visible":"hidden";param.placeholder=operation.value==="buffer"?"Distance (m)":operation.value==="simplify"?"Tolerance":"—";param.title=operation.value==="buffer"?"Buffer distance in meters":operation.value==="simplify"?"Simplification tolerance in coordinate units":"No parameter required";};
   operation.onchange=refreshOverlay;refreshOverlay();
   const controls=document.createElement("div");controls.style.cssText="display:flex;gap:3px";
   const up=document.createElement("button");up.type="button";up.dataset.mbUp="1";up.textContent="↑";up.title="Move step up";
@@ -6698,7 +6698,9 @@ function runModelBuilder(modal){
     let current=modelBuilderLayerFeatures(modal.querySelector("[data-mb-source]").value);
     const steps=[...modal.querySelectorAll("[data-mb-step]")];
     if(!steps.length)throw new Error("Add at least one processing step.");
+    const stepLog=[];
     for(let si=0;si<steps.length;si++){
+      const inputCount=current.length;
       const row=steps[si],op=row.querySelector("[data-mb-op]").value,raw=Number(row.querySelector("[data-mb-param]").value);
       const overlayIndex=row.querySelector("[data-mb-overlay]").value;
       let next=[];
@@ -6707,6 +6709,12 @@ function runModelBuilder(modal){
         current.forEach(f=>{const out=turf.buffer(f,raw,{units:"meters"});if(out){out.properties={...(f.properties||{}),_model_step:si+1,_model_operation:"Buffer",_buffer_m:raw};next.push(out);}});
       }else if(op==="centroid"){
         current.forEach(f=>{const out=turf.centroid(f,{properties:{...(f.properties||{}),_model_step:si+1,_model_operation:"Centroid"}});if(out)next.push(out);});
+      }else if(op==="pointOnFeature"){
+        current.forEach(f=>{const out=turf.pointOnFeature(f);if(out){out.properties={...(f.properties||{}),_model_step:si+1,_model_operation:"Feature To Point"};next.push(out);}});
+      }else if(op==="cleanCoords"){
+        current.forEach(f=>{const out=turf.cleanCoords(f);if(out){out.properties={...(f.properties||{}),_model_step:si+1,_model_operation:"Clean Coordinates"};next.push(out);}});
+      }else if(op==="areaLength"){
+        current.forEach(f=>{const out=JSON.parse(JSON.stringify(f));const g=out.geometry?.type||"";out.properties={...(out.properties||{}),_model_step:si+1,_model_operation:"Calculate Area / Length"};if(/Polygon/.test(g))out.properties._area_m2=turf.area(out);if(/LineString/.test(g))out.properties._length_km=turf.length(out,{units:"kilometers"});next.push(out);});
       }else if(op==="convexHull"||op==="boundingBox"){
         const fc=turf.featureCollection(current);
         if(op==="convexHull"){const out=turf.convex(fc);if(out){out.properties={_model_step:si+1,_model_operation:"Convex Hull",_source_count:current.length};next=[out];}}
@@ -6727,25 +6735,33 @@ function runModelBuilder(modal){
         if(!overlayIndex)throw new Error("Step "+(si+1)+": choose an overlay layer.");
         const overlays=modelBuilderLayerFeatures(overlayIndex);
         if(!current.every(f=>["Polygon","MultiPolygon"].includes(f.geometry?.type))||!overlays.every(f=>["Polygon","MultiPolygon"].includes(f.geometry?.type)))throw new Error("Step "+(si+1)+": overlay operations currently require polygon or multipolygon features in both layers.");
+        const mergePolygons=list=>list.reduce((acc,f)=>{if(!acc)return f;return turf.union(turf.featureCollection([acc,f]));},null);
         if(op==="union"){
-          let merged=current.concat(overlays).reduce((acc,f)=>{if(!acc)return f;return turf.union(turf.featureCollection([acc,f]));},null);
+          const merged=mergePolygons(current.concat(overlays));
           if(merged){merged.properties={_model_step:si+1,_model_operation:"Union",_source_count:current.length+overlays.length};next=[merged];}
+        }else if(op==="clip"||op==="erase"){
+          const mask=mergePolygons(overlays);
+          if(!mask)throw new Error("Step "+(si+1)+": overlay layer could not be combined.");
+          current.forEach(f=>{
+            const out=op==="clip"?turf.intersect(turf.featureCollection([f,mask])):turf.difference(turf.featureCollection([f,mask]));
+            if(out){out.properties={...(f.properties||{}),_model_step:si+1,_model_operation:op==="clip"?"Clip":"Erase"};next.push(out);}
+          });
         }else{
           current.forEach(f=>overlays.forEach(o=>{
-            let out=null;
-            if(op==="clip"||op==="intersection")out=turf.intersect(turf.featureCollection([f,o]));
-            else if(op==="erase")out=turf.difference(turf.featureCollection([f,o]));
-            if(out){out.properties={...(f.properties||{}),_model_step:si+1,_model_operation:op==="intersection"?"Intersect":op[0].toUpperCase()+op.slice(1)};next.push(out);}
+            const out=turf.intersect(turf.featureCollection([f,o]));
+            if(out){out.properties={...(f.properties||{}),_model_step:si+1,_model_operation:"Intersect"};next.push(out);}
           }));
         }
       }
       current=next.filter(f=>f&&f.geometry);
       if(!current.length)throw new Error("Step "+(si+1)+" ("+op+") returned no features; model stopped without creating an output layer.");
       if(current.length>20000)throw new Error("Step "+(si+1)+" produced more than 20,000 features; model stopped for safety.");
+      stepLog.push("Step "+(si+1)+" · "+op+": "+inputCount+" → "+current.length+" features");
+      say("Running model…\\n"+stepLog.join("\\n"));
     }
     const name=(modal.querySelector("[data-mb-name]").value||"Model_Output").trim().replace(/[<>]/g,"").slice(0,80)||"Model_Output";
     geoJsonLayer({type:"FeatureCollection",features:current},name);
-    say("Model completed successfully. Output: "+name+"\nSteps: "+steps.length+" · Features: "+current.length);
+    say("Model completed successfully. Output: "+name+"\n"+stepLog.join("\\n")+"\\nFinal features: "+current.length);
   }catch(err){say("Model failed: "+(err.message||String(err)));status("ModelBuilder: "+(err.message||String(err)));}
 }
 
