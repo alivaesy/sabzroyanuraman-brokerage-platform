@@ -6326,7 +6326,39 @@ async function runVectorAnalysis(mode){
   const fc={type:"FeatureCollection",features:valid.map(r=>JSON.parse(JSON.stringify(r.feature)))};
   const askField=async(promptText,fields)=>await arcMapDialog.select({title:"Vector Analysis",message:promptText,label:"Field",value:fields[0]||"",options:fields.map(f=>({value:f,label:f}))});
   try{
-    if(mode==="dissolve"){
+    if(mode==="spatialJoin"){
+       const targetLayerSet=new Set(valid.map(r=>r.layer||r.owner?.layer).filter(Boolean));
+       const joins=getFeatureRecords().filter(r=>r.feature?.geometry&&r.feature.geometry.type&&(!targetLayerSet.size||!targetLayerSet.has(r.layer||r.owner?.layer)));
+       if(!joins.length){status("Spatial Join requires a separate vector layer for join features. Select target features, then join against another layer.");return;}
+       const method=await arcMapDialog.select({title:"Spatial Join",message:"Choose the spatial relationship:",label:"Match rule",value:"intersects",options:[{value:"intersects",label:"Intersects"},{value:"within",label:"Target within join feature"},{value:"contains",label:"Target contains join feature"}]});
+       if(method===null)return;
+       if(!["intersects","within","contains"].includes(method)){status("Choose a supported spatial relationship.");return;}
+       const joinFields=[...new Set(joins.flatMap(r=>Object.keys(r.feature.properties||{}).filter(k=>!isReservedAttributeField(k))))];
+       const features=[];
+       valid.forEach((target,index)=>{
+         const matches=joins.filter(join=>{try{
+           if(method==="intersects")return turf.booleanIntersects(target.feature,join.feature);
+           if(method==="within")return typeof turf.booleanWithin==="function"&&turf.booleanWithin(target.feature,join.feature);
+           return typeof turf.booleanContains==="function"&&turf.booleanContains(target.feature,join.feature);
+         }catch(_){return false}});
+         const base=JSON.parse(JSON.stringify(target.feature));
+         if(!matches.length){features.push({...base,properties:{...(base.properties||{}),_spatial_join_count:0,_spatial_join_rule:method}});return;}
+         matches.forEach((match,matchIndex)=>{
+           const props={...(base.properties||{}),_spatial_join_count:matches.length,_spatial_join_rule:method};
+           Object.entries(match.feature.properties||{}).forEach(([key,value])=>{
+             if(isReservedAttributeField(key))return;
+             let outKey="join_"+key;let suffix=2;
+             while(Object.prototype.hasOwnProperty.call(props,outKey))outKey="join_"+key+"_"+suffix++;
+             props[outKey]=value;
+           });
+           features.push({...JSON.parse(JSON.stringify(base)),properties:props,_spatial_join_match:matchIndex+1});
+         });
+       });
+       if(!features.length){status("Spatial Join produced no output.");return;}
+       resultLayerFromFeature({type:"FeatureCollection",features},"Spatial Join");
+       status("Spatial Join created "+features.length+" output feature(s) from "+valid.length+" target(s), using "+joins.length+" join features. Source layers were preserved.");scheduleAutoSave();return;
+     }
+   if(mode==="dissolve"){
       const fields=[...new Set(valid.flatMap(r=>Object.keys(r.feature.properties||{}).filter(k=>!isReservedAttributeField(k))))];
       const field=fields.length?await askField("Choose the dissolve field, or dissolve all features:",["(all)",...fields]):"(all)";
       if(field===null)return;
