@@ -6447,6 +6447,34 @@ function addMapDecoration(kind){
   status("Map layout element inserted.");
 }
 // ArcMap-like top menus
+      function gisAsk(title,message,initialValue=""){
+        return new Promise(resolve=>{
+          let root=document.getElementById("gisAskDialog");
+          if(root)root.remove();
+          root=document.createElement("div");root.id="gisAskDialog";root.className="gis-ask-overlay";
+          const panel=document.createElement("section");panel.className="gis-ask-panel";panel.setAttribute("role","dialog");panel.setAttribute("aria-modal","true");panel.setAttribute("aria-labelledby","gisAskTitle");
+          const heading=document.createElement("h3");heading.id="gisAskTitle";heading.textContent=title||"Tool settings";
+          const detail=document.createElement("p");detail.textContent=message||"";
+          const input=document.createElement("input");input.type="text";input.value=initialValue??"";input.setAttribute("aria-label",title||"Value");
+          const actions=document.createElement("div");actions.className="gis-ask-actions";
+          const cancel=document.createElement("button");cancel.type="button";cancel.className="gis-ask-cancel";cancel.textContent="Cancel";
+          const ok=document.createElement("button");ok.type="button";ok.className="gis-ask-ok";ok.textContent="OK";
+          let settled=false;const finish=value=>{if(settled)return;settled=true;root.remove();document.removeEventListener("keydown",onKey);resolve(value)};
+          const onKey=e=>{if(e.key==="Escape"){e.preventDefault();finish(null)}else if(e.key==="Enter"&&document.activeElement===input){e.preventDefault();finish(input.value)}};
+          cancel.onclick=()=>finish(null);ok.onclick=()=>finish(input.value);root.addEventListener("click",e=>{if(e.target===root)finish(null)});
+          actions.append(cancel,ok);panel.append(heading,detail,input,actions);root.appendChild(panel);document.body.appendChild(root);document.addEventListener("keydown",onKey);input.focus();input.select();
+        });
+      }
+      function gisNotify(message){
+        let stack=document.getElementById("gisNoticeStack");
+        if(!stack){stack=document.createElement("div");stack.id="gisNoticeStack";stack.setAttribute("aria-live","polite");stack.setAttribute("aria-atomic","false");document.body.appendChild(stack);}
+        const item=document.createElement("div");item.className="gis-notice";
+        const text=document.createElement("div");text.textContent=String(message??"");text.style.flex="1";
+        const close=document.createElement("button");close.type="button";close.setAttribute("aria-label","Dismiss");close.textContent="×";close.onclick=()=>item.remove();
+        item.append(text,close);stack.appendChild(item);while(stack.children.length>4)stack.firstElementChild.remove();
+        window.setTimeout(()=>{if(item.isConnected)item.remove();},5500);
+      }
+
 (function(){
   const menus=[...document.querySelectorAll(".arc-menu-btn")];
   const drops=[...document.querySelectorAll(".arc-dropdown")];
@@ -6489,35 +6517,8 @@ function addMapDecoration(kind){
       topologyValidate:()=>{let target=topologyLayerValue(editTarget),boundary=topologyLayerValue(selectedLayer||selectedOverlay||drawn);try{target=localStorage.getItem("sabzRoyWebGisTopologyTarget")||target;boundary=localStorage.getItem("sabzRoyWebGisTopologyBoundary")||boundary}catch(_){}checkEditTopology(true,topologyLayerFromValue(target),topologyLayerFromValue(boundary))},
       topologyInspector:()=>openTopologyDialog("inspector"),
       toggleEditorToolbar:()=>document.getElementById("editorToolbar")?.classList.toggle("show"),
-      openToolSearch:()=>{      function gisAsk(title,message,initialValue=""){
-        return new Promise(resolve=>{
-          let root=document.getElementById("gisAskDialog");
-          if(root)root.remove();
-          root=document.createElement("div");root.id="gisAskDialog";root.className="gis-ask-overlay";
-          const panel=document.createElement("section");panel.className="gis-ask-panel";panel.setAttribute("role","dialog");panel.setAttribute("aria-modal","true");panel.setAttribute("aria-labelledby","gisAskTitle");
-          const heading=document.createElement("h3");heading.id="gisAskTitle";heading.textContent=title||"Tool settings";
-          const detail=document.createElement("p");detail.textContent=message||"";
-          const input=document.createElement("input");input.type="text";input.value=initialValue??"";input.setAttribute("aria-label",title||"Value");
-          const actions=document.createElement("div");actions.className="gis-ask-actions";
-          const cancel=document.createElement("button");cancel.type="button";cancel.className="gis-ask-cancel";cancel.textContent="Cancel";
-          const ok=document.createElement("button");ok.type="button";ok.className="gis-ask-ok";ok.textContent="OK";
-          let settled=false;const finish=value=>{if(settled)return;settled=true;root.remove();document.removeEventListener("keydown",onKey);resolve(value)};
-          const onKey=e=>{if(e.key==="Escape"){e.preventDefault();finish(null)}else if(e.key==="Enter"&&document.activeElement===input){e.preventDefault();finish(input.value)}};
-          cancel.onclick=()=>finish(null);ok.onclick=()=>finish(input.value);root.addEventListener("click",e=>{if(e.target===root)finish(null)});
-          actions.append(cancel,ok);panel.append(heading,detail,input,actions);root.appendChild(panel);document.body.appendChild(root);document.addEventListener("keydown",onKey);input.focus();input.select();
-        });
-      }
-      function gisNotify(message){
-        let stack=document.getElementById("gisNoticeStack");
-        if(!stack){stack=document.createElement("div");stack.id="gisNoticeStack";stack.setAttribute("aria-live","polite");stack.setAttribute("aria-atomic","false");document.body.appendChild(stack);}
-        const item=document.createElement("div");item.className="gis-notice";
-        const text=document.createElement("div");text.textContent=String(message??"");text.style.flex="1";
-        const close=document.createElement("button");close.type="button";close.setAttribute("aria-label","Dismiss");close.textContent="×";close.onclick=()=>item.remove();
-        item.append(text,close);stack.appendChild(item);while(stack.children.length>4)stack.firstElementChild.remove();
-        window.setTimeout(()=>{if(item.isConnected)item.remove();},5500);
-      }
-
-const d=document.getElementById("searchDock");d?.classList.add("open");document.getElementById("topToolSearch")?.focus()},
+      openToolSearch:()=>{document.getElementById("searchDock")?.classList.add("open");document.getElementById("topToolSearch")?.focus()},
+      const d=document.getElementById("searchDock");d?.classList.add("open");document.getElementById("topToolSearch")?.focus()},
       zoomIn:()=>map.zoomIn(),
       goToXY:()=>goToXY(),
       identify:()=>document.getElementById("identifyFeatureBtn")?.click(),
