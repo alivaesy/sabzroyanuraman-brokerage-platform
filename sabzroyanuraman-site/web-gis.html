@@ -4741,7 +4741,7 @@ function explodeSelectedFeatures(){
   try{
     multipart.forEach(r=>{
       const g=r.feature.geometry,types={MultiPoint:"Point",MultiLineString:"LineString",MultiPolygon:"Polygon"};
-      const parts=g.coordinates.map(coordinates=>({type:"Feature",properties:{...(r.feature.properties||{})},geometry:{type:types[g.type],coordinates:JSON.parse(JSON.stringify(coordinates))}}));
+      const parts=g.coordinates.map(coordinates=>prepareDerivedFeature({type:"Feature",properties:{...(r.feature.properties||{})},geometry:{type:types[g.type],coordinates:JSON.parse(JSON.stringify(coordinates))}},r.owner.layer));
       if(!parts.length)throw new Error("A selected multipart feature has no parts.");
       replacements.push({r,parts});
     });
@@ -4803,6 +4803,7 @@ function mergeSelectedFeatures(){
       merged={type:"Feature",properties:props,geometry:chains.length===1?{type:"LineString",coordinates:chains[0]}:{type:"MultiLineString",coordinates:chains}};
     }
     merged.properties={...props};
+    prepareDerivedFeature(merged,editTarget);
     if(!merged.geometry||!vertexGeometryIsValid(merged.geometry))throw new Error("The merged geometry failed validity checks.");
   }catch(err){status("Merge cancelled: "+(err.message||"geometry operation failed"));return;}
   recordUndoState();
@@ -4901,6 +4902,7 @@ function splitSelectedLines(){
           if(!splitCount)throw new Error("The cutting line did not split any MultiPolygon component.");
           parts=output;
         }
+        parts.forEach(part=>prepareDerivedFeature(part,records[0].owner.layer));
         results.push({r:records[0],parts});
       }else records.forEach(r=>{
         const geometry=r.feature.geometry,sourceLines=geometry.type==="LineString"?[geometry.coordinates]:geometry.coordinates,allParts=[];let wasSplit=false;
@@ -4911,7 +4913,7 @@ function splitSelectedLines(){
           if(parts.length>1)wasSplit=true;
           if(parts.length)allParts.push(...parts);else allParts.push(source);
         });
-        if(wasSplit&&allParts.length>1)results.push({r,parts:allParts});
+        if(wasSplit&&allParts.length>1){allParts.forEach(part=>prepareDerivedFeature(part,r.owner.layer));results.push({r,parts:allParts});}
       });
       if(!results.length){status("No selected feature was split. The cutting line must cross the feature away from its endpoints.");return;}
       if(results.some(item=>!item.parts.length||item.parts.some(part=>!part.geometry||!vertexGeometryIsValid(part.geometry)))){
@@ -6139,6 +6141,17 @@ function ensureFeatureId(f){
   f.properties=f.properties||{};
   if(!f.properties._webgis_id) f.properties._webgis_id=(crypto.randomUUID?crypto.randomUUID():"fid-"+Date.now()+"-"+Math.random().toString(36).slice(2));
   return f.properties._webgis_id;
+}
+function prepareDerivedFeature(feature,owner){
+  feature.properties={...(feature.properties||{})};
+  delete feature.properties._webgis_id;
+  const records=owner?vectorFeatures(owner):[];
+  if(Object.prototype.hasOwnProperty.call(feature.properties,"FeatureID")){
+    const max=records.reduce((n,r)=>Math.max(n,Number(r.feature?.properties?.FeatureID)||0),0);
+    feature.properties.FeatureID=max+1;
+  }
+  ensureFeatureId(feature);
+  return feature;
 }
 function refreshAll(){
   renderLayerList();
