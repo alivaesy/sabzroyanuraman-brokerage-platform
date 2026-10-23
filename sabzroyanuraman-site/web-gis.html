@@ -7082,26 +7082,25 @@ window.addEventListener("beforeunload",event=>{
 .public-feedback-number{display:inline-block;flex:none;padding:1px 6px;border-radius:2px;background:var(--feedback-accent);color:#fff;font-weight:700;font-size:10px}
 @media(max-width:650px){.feedback-open-btn{margin-right:4px;padding:0 7px}#publicFeedbackModal{padding:7px}.feedback-content{padding:9px}}
 
-/* ArcMap-like editing palette: readable icons, visible labels, and clear tool states. */
-#editorToolbar{display:flex;align-items:center;flex-wrap:wrap;gap:4px;padding:5px 7px;background:#eef1f3;border-bottom:1px solid #9eabb2;min-height:42px;overflow:visible}
-#editorToolbar button.icon-tool[data-edit-only]{display:inline-flex!important;flex:0 0 76px;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:76px;min-width:76px;height:49px;padding:4px 3px;border:1px solid #b7c2c8;border-radius:3px;background:linear-gradient(#fff,#e8ecef);color:#243f50;white-space:normal;overflow:visible}
-#editorToolbar button.icon-tool[data-edit-only]::after{content:attr(title);display:block;max-width:100%;font:10px/1.1 Arial,sans-serif;text-align:center;white-space:normal;overflow-wrap:anywhere;color:#243f50}
-#editorToolbar button.icon-tool[data-edit-only] .arcmap-icon{display:block;width:22px;height:22px;flex:0 0 22px;stroke:#243f50;stroke-width:1.65;fill:none;stroke-linecap:round;stroke-linejoin:round}
+/* Compact ArcMap-style editing tools: icon-only buttons with native hover titles. */
+#editorToolbar{display:flex;align-items:center;flex-wrap:wrap;gap:2px;padding:4px 6px;background:#eef1f3;border-bottom:1px solid #9eabb2;min-height:32px;overflow:visible}
+#editorToolbar button.icon-tool[data-edit-only]{display:inline-flex!important;flex:0 0 27px;align-items:center;justify-content:center;width:27px;min-width:27px;height:25px;padding:1px 3px;border:1px solid #b7c2c8;border-radius:2px;background:linear-gradient(#fff,#e8ecef);color:#243f50;white-space:nowrap;overflow:visible}
+#editorToolbar button.icon-tool[data-edit-only]::after{content:none!important;display:none!important}
+#editorToolbar button.icon-tool[data-edit-only] .arcmap-icon{display:block;width:16px;height:16px;flex:0 0 16px;stroke:#243f50;stroke-width:1.45;fill:none;stroke-linecap:round;stroke-linejoin:round}
 #editorToolbar button.icon-tool[data-edit-only]:hover:not(:disabled){background:#d9eaf5;border-color:#4b85a5;box-shadow:0 1px 2px #b9c7ce}
 #editorToolbar button.icon-tool[data-edit-only].active{background:#c5e0f1;border:1px solid #2675a6;box-shadow:inset 0 0 0 1px #fff}
 #editorToolbar:not(.editing-active) button.icon-tool[data-edit-only]{background:#f4f5f6;color:#526571;border-style:dashed}
-#editorToolbar:not(.editing-active) button.icon-tool[data-edit-only]::after{color:#526571}
 #editorToolbar:not(.editing-active) button.icon-tool[data-edit-only] .arcmap-icon{stroke:#526571}
 #editMenu button[data-tool][data-edit-only]{display:flex!important;min-height:34px;padding:6px 9px;gap:10px;font-size:12px}
-#editMenu button[data-tool][data-edit-only] .arcmap-icon{width:21px;height:21px;flex:0 0 21px;stroke:#243f50;stroke-width:1.6}
-@media(max-width:650px){#editorToolbar{flex-wrap:wrap;min-width:0}#editorToolbar button.icon-tool[data-edit-only]{flex-basis:70px;width:70px;min-width:70px;height:48px}}
+#editMenu button[data-tool][data-edit-only] .arcmap-icon{width:16px;height:16px;flex:0 0 16px;stroke:#243f50;stroke-width:1.45}
+@media(max-width:650px){#editorToolbar{flex-wrap:wrap;min-width:0}#editorToolbar button.icon-tool[data-edit-only]{flex-basis:27px;width:27px;min-width:27px;height:25px}}
 
 
 /* Clear ArcMap-style interaction feedback and accessible tooltips for editing commands. */
 #editorToolbar button.icon-tool[data-edit-only]{position:relative;cursor:pointer;transition:background .12s,border-color .12s,box-shadow .12s}
 #editorToolbar button.icon-tool[data-edit-only]:focus-visible{outline:2px solid #1676ad;outline-offset:1px;z-index:2}
 #editorToolbar button.icon-tool[data-edit-only]:active:not(:disabled){background:#b9d8eb;box-shadow:inset 0 1px 3px #8aa9bb}
-#editorToolbar button.icon-tool[data-edit-only]::after{min-height:22px;align-content:center}
+#editorToolbar button.icon-tool[data-edit-only]::after{content:none!important;display:none!important}
 #editorToolbar .toolbar-separator{height:43px;margin:0 2px;border-left:1px solid #aab6bc}
 #editorToolbar button.icon-tool[data-edit-only][title="Advanced Snapping"] .arcmap-icon{stroke:#126b9d;stroke-width:1.9}
 #editorToolbar button.icon-tool[data-edit-only][title="Snap Points to Lines"] .arcmap-icon{stroke:#8a5a17;stroke-width:1.9}
