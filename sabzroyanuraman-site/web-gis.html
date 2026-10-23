@@ -4304,7 +4304,7 @@ function runTopologyGeometrySelfTests(){
   test("Isolated endpoint is a dangle",()=>{if(typeof turf.pointToLineDistance!=="function")throw Error("Turf pointToLineDistance unavailable");const d=Number(turf.pointToLineDistance(turf.point(isolated.geometry.coordinates[0]),line,{units:"meters"}));return Number.isFinite(d)&&d>0.25;});
   test("Outside feature fails boundary coverage",()=>{if(typeof turf.booleanCoveredBy==="function")return !turf.booleanCoveredBy(outside,boundary);if(typeof turf.booleanWithin==="function")return !turf.booleanWithin(outside,boundary);throw Error("Turf coverage predicate unavailable");});
   const passed=results.filter(x=>x.pass).length,failed=results.length-passed;
-  const report="Topology Geometry Self-Test\\nPassed: "+passed+"/"+results.length+" | Failed: "+failed+"\\n"+results.map((x,i)=>(x.pass?"PASS":"FAIL")+" "+(i+1)+". "+x.name+" — "+x.detail).join("\\n");
+  const report="Topology Geometry Self-Test\nPassed: "+passed+"/"+results.length+" | Failed: "+failed+"\n"+results.map((x,i)=>(x.pass?"PASS":"FAIL")+" "+(i+1)+". "+x.name+" — "+x.detail).join("\n");
   const out=$("professionalToolOutput");if(out)out.textContent=report;status(failed?"Topology self-test: "+failed+" of "+results.length+" failed.":"Topology self-test: all "+passed+" geometry tests passed.");return results;
 }
 function checkEditTopology(openInspector=false,targetOverride=null,boundaryOverride=null){
@@ -4378,8 +4378,8 @@ function checkEditTopology(openInspector=false,targetOverride=null,boundaryOverr
     if(!refs.length)issues.push({id:"—",issue:"Topology validation incomplete: Must Not Overlap With requires a readable polygon reference layer distinct from the target layer."});
     else if(typeof turf.intersect!=="function")issues.push({id:"—",issue:"Topology validation incomplete: Turf intersect is unavailable; cross-layer overlap was not checked."});
     else {
-      const refBoxes=refs.map((feature,index)=>{try{return {feature,index,box:turf.bbox(feature)}}catch(_){return null}}).filter(x=>x&&x.box.every(Number.isFinite));
-      targets.forEach(t=>{let box;try{box=turf.bbox(t.feature)}catch(_){return}
+      const refBoxes=refs.map((feature,index)=>{try{const box=turf.bbox(feature);if(!box.every(Number.isFinite))throw new Error("non-finite bounding box");return {feature,index,box}}catch(e){issues.push({id:feature.id??feature.properties?.OBJECTID??feature.properties?.FID??(index+1),feature,issue:"Topology validation incomplete: reference polygon bounding box failed ("+(e.message||"invalid geometry")+")"});return null}}).filter(Boolean);
+      targets.forEach(t=>{let box;try{box=turf.bbox(t.feature);if(!box.every(Number.isFinite))throw new Error("non-finite bounding box")}catch(e){issues.push({id:t.id,layer:t.layer,feature:t.feature,issue:"Topology validation incomplete: target polygon bounding box failed ("+(e.message||"invalid geometry")+")"});return}
         refBoxes.filter(r=>r.box[0]<=box[2]&&r.box[2]>=box[0]&&r.box[1]<=box[3]&&r.box[3]>=box[1]).forEach(ref=>{try{
           let intersection;try{intersection=turf.intersect(turf.featureCollection([t.feature,ref.feature]))}catch(_){intersection=turf.intersect(t.feature,ref.feature)}
           const area=intersection?.geometry?Number(turf.area(intersection))||0:0;
@@ -4415,7 +4415,7 @@ function checkEditTopology(openInspector=false,targetOverride=null,boundaryOverr
   // Sweep by bounding-box minimum X to avoid an unconditional O(n²)
   // geometry comparison on large cadastral/agricultural layers.
   const indexed=[];
-  polygons.forEach(p=>{try{const box=turf.bbox(p.r.feature);if(box.every(Number.isFinite))indexed.push({...p,box});}catch(e){}});
+  polygons.forEach(p=>{try{const box=turf.bbox(p.r.feature);if(!box.every(Number.isFinite))throw new Error("non-finite bounding box");indexed.push({...p,box});}catch(e){issues.push({id:p.id,layer:p.r.layer,feature:p.r.feature,issue:"Topology validation incomplete: overlap bounding box failed ("+(e.message||"invalid geometry")+")"});}});
   indexed.sort((a,b)=>a.box[0]-b.box[0]);
   const candidates=[];
   for(let i=0;i<indexed.length;i++){
@@ -4510,7 +4510,7 @@ function checkEditTopology(openInspector=false,targetOverride=null,boundaryOverr
   filteredIssues.forEach(issue=>{if(issue.layer||issue.feature)return;const rec=records.find((r,index)=>String(r.feature?.id??r.feature?.properties?.OBJECTID??r.feature?.properties?.FID??(index+1))===String(issue.id));if(rec){issue.layer=rec.layer;issue.feature=rec.feature;}});
   const output=$("professionalToolOutput");
   const checksRequested=(hasRule("geometry")?1:0)+(hasRule("self")?1:0)+(hasRule("overlap")?1:0)+(hasRule("crossOverlap")?1:0)+(hasRule("gaps")?1:0)+(hasRule("dangles")?1:0)+(hasRule("covered")?1:0);
-  if(output)output.textContent="Topology Validation Report\\nRules: "+rules.join(", ")+" | Target features: "+records.length+" | Findings/warnings: "+filteredIssues.length+"\\nChecks requested: "+checksRequested+"\\n"+(gapRelevant?gapSummary:"Coverage-gap check not requested.")+"\\n"+(filteredIssues.length?filteredIssues.slice(0,100).map(x=>"Feature "+x.id+": "+x.issue).join("\\n"):"No issues found for the selected rule set.")+(filteredIssues.length>100?"\\n... "+(filteredIssues.length-100)+" more issue(s) omitted.":"");
+  if(output)output.textContent="Topology Validation Report\nRules: "+rules.join(", ")+" | Target features: "+records.length+" | Findings/warnings: "+filteredIssues.length+"\nChecks requested: "+checksRequested+"\n"+(gapRelevant?gapSummary:"Coverage-gap check not requested.")+"\n"+(filteredIssues.length?filteredIssues.slice(0,100).map(x=>"Feature "+x.id+": "+x.issue).join("\n"):"No issues found for the selected rule set.")+(filteredIssues.length>100?"\n... "+(filteredIssues.length-100)+" more issue(s) omitted.":"");
   const incomplete=filteredIssues.some(x=>/validation incomplete|check skipped|check unavailable|could not be completed|check failed/i.test(x.issue||""));
   status(incomplete?"Topology validation INCOMPLETE — "+filteredIssues.length+" issue/warning(s); do not treat as passed. Open Error Inspector.":filteredIssues.length?"Topology check found "+filteredIssues.length+" issue(s); open Topology → Error Inspector.":(!gapRelevant?"Selected topology checks passed for "+records.length+" feature(s).":!gapChecked?"Topology validation INCOMPLETE — "+gapSummary:"Topology check passed for "+records.length+" feature(s); "+gapSummary));
   lastTopologyReport={issues:filteredIssues,summary:gapRelevant?gapSummary:"",records:records.map((r,index)=>({id:r.feature?.id??r.feature?.properties?.OBJECTID??r.feature?.properties?.FID??(index+1),layer:r.layer||r.leafletLayer||r.owner?.layer,feature:r.feature})),layerName:namedLayers.find(x=>x.layer===topologyTarget)?.name||(topologyTarget===drawn?"My Drawings":topologyTarget?.options?.name||topologyTarget?.feature?.properties?.name||"selected layer"),checkedAt:new Date().toLocaleString()};if(openInspector)openTopologyDialog("inspector");
@@ -5287,7 +5287,7 @@ function splitSelectedLines(){
       if(polygonMode){
         const source=records[0].feature,g=source.geometry;
         let parts;
-        const splitMode=prompt("Polygon cut mode:\\n1 = Cut along the drawn line\\n2 = Parallel cut by target area\\n3 = Rotate cut around the first drawn point to target area","1");
+        const splitMode=prompt("Polygon cut mode:\n1 = Cut along the drawn line\n2 = Parallel cut by target area\n3 = Rotate cut around the first drawn point to target area","1");
         if(splitMode===null)return;
         if(splitMode.trim()==="2"||splitMode.trim()==="3"){
           if(g.type!=="Polygon")throw new Error("Target-area cuts currently require a single Polygon.");
@@ -5930,7 +5930,7 @@ function labelLayer(){
   if(!rs.length){status("No vector features are available for labeling.");return;}
   const fields=[...new Set(rs.flatMap(r=>Object.keys(r.feature.properties||{}).filter(k=>!isReservedAttributeField(k))))];
   if(!fields.length){status("Features have no attribute fields to use as labels.");return;}
-  const fieldInput=prompt("Label field (case-sensitive):\\n"+fields.join(", "),fields.includes("name")?"name":fields[0]);
+  const fieldInput=prompt("Label field (case-sensitive):\n"+fields.join(", "),fields.includes("name")?"name":fields[0]);
   if(fieldInput===null)return;
   const field=fieldInput.trim();
   if(!fields.includes(field)){status("Unknown label field. Choose one of the listed fields.");return;}
@@ -6216,7 +6216,7 @@ function runVectorAnalysis(mode){
   const valid=records.filter(r=>r.feature&&r.feature.geometry);
   if(valid.length!==records.length){status("Some input records have no valid geometry; analysis stopped.");return;}
   const fc={type:"FeatureCollection",features:valid.map(r=>JSON.parse(JSON.stringify(r.feature)))};
-  const askField=(promptText,fields)=>{const answer=prompt(promptText+"\\n"+fields.map((f,i)=>(i+1)+". "+f).join("\\n"),fields[0]||"");if(answer===null)return null;const v=answer.trim();return /^\\d+$/.test(v)?fields[Number(v)-1]:v;};
+  const askField=(promptText,fields)=>{const answer=prompt(promptText+"\n"+fields.map((f,i)=>(i+1)+". "+f).join("\n"),fields[0]||"");if(answer===null)return null;const v=answer.trim();return /^\\d+$/.test(v)?fields[Number(v)-1]:v;};
   try{
     if(mode==="dissolve"){
       const fields=[...new Set(valid.flatMap(r=>Object.keys(r.feature.properties||{}).filter(k=>!isReservedAttributeField(k))))];
@@ -6277,7 +6277,7 @@ function runVectorAnalysis(mode){
       if(!polygonInputs.length){status("Summarize Within needs selected input polygons. Select polygon features and retry.");return;}
       const all=getFeatureRecords().filter(r=>r.feature?.geometry&&!valid.some(v=>v.layer===r.layer));
       if(!all.length){status("Add a separate layer containing features to summarize within the input polygons.");return;}
-      const choice=prompt("Summarize which features?\\n1 = Points (count and numeric summaries)\\n2 = All geometries that intersect each polygon","1");if(choice===null)return;
+      const choice=prompt("Summarize which features?\n1 = Points (count and numeric summaries)\n2 = All geometries that intersect each polygon","1");if(choice===null)return;
       if(!["1","2"].includes(choice)){status("Choose 1 or 2.");return;}
       const numericFields=[...new Set(all.flatMap(r=>Object.keys(r.feature.properties||{})))].filter(k=>all.some(r=>Number.isFinite(Number(r.feature.properties?.[k]))&&String(r.feature.properties?.[k]??"").trim()!==""));
       let field=null;
@@ -7076,12 +7076,12 @@ function runModelBuilder(modal){
       if(current.length>20000)throw new Error("Step "+(si+1)+" produced more than 20,000 features; model stopped for safety.");
       stepLog.push("Step "+(si+1)+" · "+op+": "+inputCount+" → "+current.length+" features");
       if(modal.querySelector("[data-mb-intermediates]").checked)intermediate.push({name:((modal.querySelector("[data-mb-name]").value||"Model_Output").trim().replace(/[<>]/g,"").slice(0,65)||"Model_Output")+"_Step_"+String(si+1).padStart(2,"0"),features:JSON.parse(JSON.stringify(current))});
-      say("Running model…\\n"+stepLog.join("\\n"));
+      say("Running model…\n"+stepLog.join("\n"));
     }
     const name=(modal.querySelector("[data-mb-name]").value||"Model_Output").trim().replace(/[<>]/g,"").slice(0,80)||"Model_Output";
     const outputNames=[...(modal.querySelector("[data-mb-intermediates]").checked?intermediate.map(x=>x.name):[]),name];outputNames.forEach(outputName=>{for(let i=namedLayers.length-1;i>=0;i--){if(namedLayers[i].name===outputName){const existing=namedLayers[i];if(map.hasLayer(existing.layer))map.removeLayer(existing.layer);try{layerControl.removeLayer(existing.layer);}catch(_){}namedLayers.splice(i,1);}}});if(modal.querySelector("[data-mb-intermediates]").checked)intermediate.forEach(layer=>geoJsonLayer({type:"FeatureCollection",features:layer.features},layer.name));
     geoJsonLayer({type:"FeatureCollection",features:current},name);
-    say("Model completed successfully. Output: "+name+"\n"+stepLog.join("\\n")+"\\nFinal features: "+current.length+(intermediate.length?"\\nIntermediate layers saved: "+intermediate.length:""));
+    say("Model completed successfully. Output: "+name+"\n"+stepLog.join("\n")+"\nFinal features: "+current.length+(intermediate.length?"\nIntermediate layers saved: "+intermediate.length:""));
   }catch(err){say("Model failed: "+(err.message||String(err)));status("ModelBuilder: "+(err.message||String(err)));}
 }
 
