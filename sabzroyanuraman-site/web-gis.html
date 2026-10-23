@@ -5912,7 +5912,18 @@ async function joinWizard(){
   refreshAll();status("Attributes joined to "+updates.length+" target feature(s).");
 }
 async function reprojectLayer(){
-  const rs=selectedRecords();if(!rs.length){status("Select one or more features first.");return}
+  const layers=allSelectableFeatureLayers();
+  const scope=await arcMapDialog.select({title:"Project Features",message:"Export selected features or an entire feature layer to the target CRS.",label:"Input scope",value:selectedRecords().length?"selected":"layer",options:[{value:"selected",label:"Selected feature(s)"},{value:"layer",label:"Entire feature layer"}]});
+  if(scope===null)return;
+  let rs=selectedRecords();
+  if(scope==="layer"){
+    if(!layers.length){status("Add a vector layer before projecting.");return;}
+    const layerIndex=await arcMapDialog.select({title:"Project Features",message:"Choose the entire input layer.",label:"Input layer",value:"0",options:layers.map((x,i)=>({value:String(i),label:x.name}))});
+    if(layerIndex===null)return;
+    const chosen=layers[Number(layerIndex)];if(!chosen){status("Choose a valid input layer.");return;}
+    rs=vectorFeatures(chosen.layer).map(v=>({feature:v.feature,layer:v.layer,owner:chosen}));
+  }
+  if(!rs.length){status("No features are available in the chosen projection scope.");return;}
   const epsg=await arcMapDialog.prompt({title:"Project Features",message:"Enter the target CRS EPSG code:",label:"Target EPSG",value:"32638"});if(!/^\d+$/.test(epsg||""))return;
   if(typeof proj4!=="function"){status("Projection library is unavailable.");return}
   const target="EPSG:"+epsg;
