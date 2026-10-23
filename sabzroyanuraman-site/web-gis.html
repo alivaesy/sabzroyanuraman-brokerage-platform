@@ -2688,6 +2688,18 @@ function resultLayerFromFeature(feature,name){
   geoJsonLayer(fc,name);
   return namedLayers[namedLayers.length-1].layer;
 }
+function appendFeaturesToTarget(targetFeatures,sourceFeatures){
+ const clone=f=>JSON.parse(JSON.stringify(f));
+ const targetFields=[...new Map(targetFeatures.flatMap(f=>Object.keys(f.properties||{})).map(k=>[k.toLowerCase(),k])).values()];
+ return [
+  ...targetFeatures.map(clone),
+  ...sourceFeatures.map(feature=>{
+   const copy=clone(feature),sourceProps=copy.properties||{},sourceByName=new Map(Object.entries(sourceProps).map(([k,v])=>[k.toLowerCase(),v]));
+   copy.properties=Object.fromEntries(targetFields.map(field=>[field,sourceByName.has(field.toLowerCase())?sourceByName.get(field.toLowerCase()):null]));
+   return copy;
+  })
+ ];
+}
 async function runWholeLayerGisOperation(op){
  const layers=allSelectableFeatureLayers();if(!layers.length){status('Add a vector layer first.');return true;}const options=layers.map((x,i)=>({value:String(i),label:x.name}));
  const ir=await arcMapDialog.select({title:'Whole-Layer Geoprocessing',message:'Choose input layer; all features are processed and sources preserved.',label:'Input layer',value:'0',options});if(ir===null)return true;const input=layers[Number(ir)];if(!input)return true;
@@ -2706,8 +2718,10 @@ async function runWholeLayerGisOperation(op){
  }else if(op==='dissolve'){const fields=[...new Set(records.flatMap(f=>Object.keys(f.properties||{}).filter(k=>!isReservedAttributeField(k))))];const field=fields.length?await arcMapDialog.select({title:'Dissolve — Whole Layer',message:'Choose a field or dissolve all:',label:'Field',value:'(all)',options:[{value:'(all)',label:'(all features)'},...fields.map(f=>({value:f,label:f}))]}):'(all)';if(field===null)return true;const d=turf.dissolve({type:'FeatureCollection',features:records.map(f=>JSON.parse(JSON.stringify(f)))},field==='(all)'?{}:{propertyName:field});output=(d?.features||[]).map(f=>({...f,properties:{...(f.properties||{}),_operation:'Dissolve',_source_count:records.length}}));name='Dissolve '+input.name;}
  else{const others=layers.filter((_,i)=>i!==Number(ir));if(!others.length){status(op+' needs a second layer.');return true;}const oraw=await arcMapDialog.select({title:op+' — Overlay Layer',message:'Choose the complete overlay layer.',label:'Overlay layer',value:'0',options:others.map((x,i)=>({value:String(i),label:x.name}))});if(oraw===null)return true;const overlay=others[Number(oraw)];const ovs=vectorFeatures(overlay.layer).map(x=>x.feature).filter(f=>f&&f.geometry);if(!overlay||!ovs.length||ovs.some(f=>!valid(f))){status('Overlay layer is empty or contains invalid geometry.');return true;}if(['clip','intersection','union'].includes(op)&&[...records,...ovs].some(f=>!['Polygon','MultiPolygon'].includes(f.geometry.type))){status(op+' whole-layer mode currently requires polygon layers.');return true;}
  if(op==='append'){
-   output=[...records.map(f=>({...JSON.parse(JSON.stringify(f)),properties:{...(f.properties||{}),_operation:'Append',_append_source:input.name}})),...ovs.map(f=>({...JSON.parse(JSON.stringify(f)),properties:{...(f.properties||{}),_operation:'Append',_append_source:overlay.name}}))];
-   name='Append '+input.name+' + '+overlay.name;
+   // Append treats the first layer as the target: preserve its schema and map
+   // source attributes by case-insensitive field name; source-only fields are ignored.
+   output=appendFeaturesToTarget(records,ovs);
+   name='Append into '+input.name+' from '+overlay.name;
  }else if(op==='merge'){
    output=[...records.map(f=>({...JSON.parse(JSON.stringify(f)),properties:{...(f.properties||{}),_operation:'Merge',_merge_source:input.name}})),...ovs.map(f=>({...JSON.parse(JSON.stringify(f)),properties:{...(f.properties||{}),_operation:'Merge',_merge_source:overlay.name}}))];
    name='Merge '+input.name+' + '+overlay.name;
@@ -2805,8 +2819,8 @@ async function runGisOperation(){
           status(op==="erase"?"Erase requires polygon or multipolygon input and overlay features.":"Union requires polygon or multipolygon input and overlay features.");return;
         }
         if(op==="append"){
-          result={type:"FeatureCollection",features:[f1,f2].map((f,i)=>({...JSON.parse(JSON.stringify(f)),properties:{...(f.properties||{}),_operation:"Append",_append_source:i===0?"input":"overlay"}}))};
-          name="Append";
+          result={type:"FeatureCollection",features:appendFeaturesToTarget([f1],[f2])};
+          name="Append into input";
         }else if(op==="identity"){
           if(!polygonal(f1.geometry)||!polygonal(f2.geometry)){status("Identity currently requires polygon or multipolygon input and overlay features.");return;}
           const inside=turf.intersect(turf.featureCollection([f1,f2]));
