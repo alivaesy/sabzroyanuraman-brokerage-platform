@@ -4287,7 +4287,12 @@ function checkEditTopology(openInspector=false,targetOverride=null,boundaryOverr
   if(hasRule("dangles")){
     const lineRecords=records.filter(r=>["LineString","MultiLineString"].includes(r.feature?.geometry?.type));let tolerance=.25;try{tolerance=Math.max(0,Number(localStorage.getItem("sabzRoyWebGisDangleTolerance")||.25))}catch(_){}
     const lineParts=typeof turf.pointToLineDistance==="function"?lineRecords.flatMap((r,ri)=>{const g=r.feature.geometry,parts=g.type==="LineString"?[g.coordinates]:g.coordinates;return parts.map((coordinates,part)=>({r,ri,part,coordinates})).filter(x=>Array.isArray(x.coordinates)&&x.coordinates.length>=2)}):[];if(typeof turf.pointToLineDistance!=="function")issues.push({id:"—",issue:"Topology validation incomplete: Turf pointToLineDistance is unavailable; dangle rule was not run."});
-    lineParts.forEach((item,index)=>{if(same(item.coordinates[0],item.coordinates[item.coordinates.length-1]))return;[item.coordinates[0],item.coordinates[item.coordinates.length-1]].forEach((endpoint,side)=>{let connected=false;const point=turf.point(endpoint);for(let j=0;j<lineParts.length&&!connected;j++){if(j===index)continue;try{const line=turf.lineString(lineParts[j].coordinates),d=typeof turf.pointToLineDistance==="function"?Number(turf.pointToLineDistance(point,line,{units:"meters"})):Infinity;if(Number.isFinite(d)&&d<=tolerance)connected=true}catch(_){}}if(!connected)issues.push({id:item.r.feature?.id??item.r.feature?.properties?.OBJECTID??item.r.feature?.properties?.FID??(item.ri+1),issue:"Dangle: "+(side===0?"start":"end")+" endpoint of line part "+(item.part+1)+" is not connected to another line"})});});
+    lineParts.forEach((item,index)=>{if(same(item.coordinates[0],item.coordinates[item.coordinates.length-1]))return;[item.coordinates[0],item.coordinates[item.coordinates.length-1]].forEach((endpoint,side)=>{let connected=false;const point=turf.point(endpoint);
+      // RustGIS-style dangle handling: ignore the adjacent segment, but accept a
+      // genuine return to a non-adjacent segment of the same line part.
+      const ownRest=side===0?item.coordinates.slice(2):item.coordinates.slice(0,-2);
+      if(ownRest.length>=2){try{const ownDistance=Number(turf.pointToLineDistance(point,turf.lineString(ownRest),{units:"meters"}));if(Number.isFinite(ownDistance)&&ownDistance<=tolerance)connected=true}catch(_){}}
+      for(let j=0;j<lineParts.length&&!connected;j++){if(j===index)continue;try{const line=turf.lineString(lineParts[j].coordinates),d=typeof turf.pointToLineDistance==="function"?Number(turf.pointToLineDistance(point,line,{units:"meters"})):Infinity;if(Number.isFinite(d)&&d<=tolerance)connected=true}catch(_){}}if(!connected)issues.push({id:item.r.feature?.id??item.r.feature?.properties?.OBJECTID??item.r.feature?.properties?.FID??(item.ri+1),issue:"Dangle: "+(side===0?"start":"end")+" endpoint of line part "+(item.part+1)+" is not connected to another line"})});});
   }
   if(hasRule("covered")){
     const boundaryLayer=boundaryOverride||selectedLayer;
@@ -4331,9 +4336,13 @@ function checkEditTopology(openInspector=false,targetOverride=null,boundaryOverr
       try{intersection=turf.intersect(turf.featureCollection([a.r.feature,b.r.feature]));}
       catch(_){intersection=turf.intersect(a.r.feature,b.r.feature);}
     }
+    if(typeof turf.intersect!=="function"){
+      issues.push({id:a.id,layer:a.r.layer,feature:a.r.feature,issue:"Topology validation incomplete: exact polygon intersection is unavailable; overlap was not certified for feature "+b.id+"."});
+      return;
+    }
     if(intersection&&intersection.geometry)overlapArea=Number(turf.area(intersection))||0;
+    // Intersection area, unlike booleanOverlap alone, also catches full containment.
     if(overlapArea>0.01)overlaps=true;
-    else if(typeof turf.booleanOverlap==="function")overlaps=turf.booleanOverlap(a.r.feature,b.r.feature);
     if(overlaps){
       const duplicate=typeof turf.booleanEqual==="function"&&turf.booleanEqual(a.r.feature,b.r.feature);
       issues.push({id:a.id,layer:a.r.layer,feature:a.r.feature,issue:(duplicate?"Duplicate polygon geometry matches feature ":"Polygon overlaps feature ")+b.id+" ("+(duplicate?"same geometry":overlapArea>0.01?"overlap area "+overlapArea.toFixed(2)+" m²":"overlapping polygon interiors")+")"});
@@ -4399,7 +4408,8 @@ function checkEditTopology(openInspector=false,targetOverride=null,boundaryOverr
   const filteredIssues=issues.filter(ruleMatches),gapRelevant=hasRule("gaps");
   filteredIssues.forEach(issue=>{if(issue.layer||issue.feature)return;const rec=records.find((r,index)=>String(r.feature?.id??r.feature?.properties?.OBJECTID??r.feature?.properties?.FID??(index+1))===String(issue.id));if(rec){issue.layer=rec.layer;issue.feature=rec.feature;}});
   const output=$("professionalToolOutput");
-  if(output)output.textContent="Topology Check — Rules: "+rules.join(", ")+" | Layer features: "+records.length+" | Issues: "+filteredIssues.length+"\\n"+(gapRelevant?gapSummary:"Coverage-gap check not requested.")+"\\n"+(filteredIssues.length?filteredIssues.slice(0,100).map(x=>"Feature "+x.id+": "+x.issue).join("\\n"):"No issues found for the selected rule set.")+(filteredIssues.length>100?"\\n... "+(filteredIssues.length-100)+" more issue(s) omitted.":"");
+  const checksRequested=(hasRule("geometry")?1:0)+(hasRule("self")?1:0)+(hasRule("overlap")?1:0)+(hasRule("gaps")?1:0)+(hasRule("dangles")?1:0)+(hasRule("covered")?1:0);
+  if(output)output.textContent="Topology Validation Report\\nRules: "+rules.join(", ")+" | Target features: "+records.length+" | Findings/warnings: "+filteredIssues.length+"\\nChecks requested: "+checksRequested+"\\n"+(gapRelevant?gapSummary:"Coverage-gap check not requested.")+"\\n"+(filteredIssues.length?filteredIssues.slice(0,100).map(x=>"Feature "+x.id+": "+x.issue).join("\\n"):"No issues found for the selected rule set.")+(filteredIssues.length>100?"\\n... "+(filteredIssues.length-100)+" more issue(s) omitted.":"");
   const incomplete=filteredIssues.some(x=>/validation incomplete|check skipped|check unavailable|could not be completed|check failed/i.test(x.issue||""));
   status(incomplete?"Topology validation INCOMPLETE — "+filteredIssues.length+" issue/warning(s); do not treat as passed. Open Error Inspector.":filteredIssues.length?"Topology check found "+filteredIssues.length+" issue(s); open Topology → Error Inspector.":(!gapRelevant?"Selected topology checks passed for "+records.length+" feature(s).":!gapChecked?"Topology validation INCOMPLETE — "+gapSummary:"Topology check passed for "+records.length+" feature(s); "+gapSummary));
   lastTopologyReport={issues:filteredIssues,summary:gapRelevant?gapSummary:"",records:records.map((r,index)=>({id:r.feature?.id??r.feature?.properties?.OBJECTID??r.feature?.properties?.FID??(index+1),layer:r.layer||r.leafletLayer||r.owner?.layer,feature:r.feature})),layerName:namedLayers.find(x=>x.layer===topologyTarget)?.name||(topologyTarget===drawn?"My Drawings":topologyTarget?.options?.name||topologyTarget?.feature?.properties?.name||"selected layer"),checkedAt:new Date().toLocaleString()};if(openInspector)openTopologyDialog("inspector");
