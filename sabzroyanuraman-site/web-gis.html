@@ -2968,12 +2968,8 @@ function renderEditableTable(){
    if(ch.checked)selectedFeatures.add(item.layer);
    else selectedFeatures.delete(item.layer);
   });
-  const firstSelected=getFeatureRecords().find(item=>selectedFeatures.has(item.layer));
-  selectedLayer=firstSelected?.layer||null;
-  selectedOverlay=null;
-  applySelectionVisual();
+  synchronizeFeatureSelection({renderEditor:false});
   syncCheckAll();
-  updateMultiSelectionUI();
  };
  if(all)all.onchange=()=>{rowChecks.forEach(ch=>ch.checked=all.checked);syncMapSelection()};
  rowChecks.forEach(ch=>ch.onchange=syncMapSelection);
@@ -3016,9 +3012,7 @@ $("attributeTableWrap").addEventListener("click",event=>{
    selectedFeatures.clear();selectedFeatures.add(item.layer);
  }
  attributeLastClickedIndex=Number(row.dataset.index);
- const first=getFeatureRecords().find(record=>selectedFeatures.has(record.layer));
- selectedLayer=first?.layer||null;selectedOverlay=null;
- applySelectionVisual();syncVisibleAttributeTableSelection();updateMultiSelectionUI();
+ synchronizeFeatureSelection({renderEditor:false});
  if(selectedLayer)showUTM(selectedLayer);
  status(selectedFeatures.size+" feature(s) selected from the Attribute Table.");
 });
@@ -3052,10 +3046,8 @@ $("attributeTableWrap").addEventListener("keydown",event=>{
   selectedFeatures.clear();selectedFeatures.add(targetItem.layer);
   attributeLastClickedIndex=targetIndex;
  }
- const first=getFeatureRecords().find(record=>selectedFeatures.has(record.layer));
- selectedLayer=first?.layer||null;selectedOverlay=null;
+ synchronizeFeatureSelection({renderEditor:false});
  target.focus({preventScroll:true});target.scrollIntoView({block:"nearest"});
- applySelectionVisual();syncVisibleAttributeTableSelection();updateMultiSelectionUI();
  if(selectedLayer)showUTM(selectedLayer);
  status(selectedFeatures.size+" feature(s) selected from the Attribute Table.");
 });
