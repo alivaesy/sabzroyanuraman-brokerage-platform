@@ -5543,6 +5543,7 @@ async function commitGeometryOperation(updates,label){
       status(label+" cancelled: the resulting geometry is invalid.");return false;
     }
   }
+  const undoBefore=undoStack.slice(),redoBefore=redoStack.slice();
   recordUndoState();
   try{
     updates.forEach(({r,geometry})=>{r.feature.geometry=JSON.parse(JSON.stringify(geometry));});
@@ -5555,6 +5556,7 @@ async function commitGeometryOperation(updates,label){
     return synced&&saved;
   }catch(err){
     originals.forEach(({r,geometry})=>{r.feature.geometry=geometry;});
+    undoStack=undoBefore;redoStack=redoBefore;updateUndoButtons();
     try{rebuildVectorLayerGeometry(originals.map(x=>x.r));refreshAll();}catch(rollbackError){console.error("Geometry rollback failed",rollbackError);}
     status(label+" cancelled and previous geometry restored where possible: "+(err.message||"validation failed"));
     return false;
