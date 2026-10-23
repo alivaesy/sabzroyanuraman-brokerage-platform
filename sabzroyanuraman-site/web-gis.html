@@ -6712,13 +6712,14 @@ function modelBuilderLayerFeatures(index){
   if(!features.length)throw new Error("The input layer contains no usable features.");
   return features;
 }
+function validateModelBuilder(modal,show=true){const say=m=>{modal.querySelector("[data-mb-status]").textContent=m;};try{const items=getAllVectorItems(),sourceIndex=Number(modal.querySelector("[data-mb-source]").value);if(!items[sourceIndex])throw new Error("Choose a valid input feature layer.");const source=modelBuilderLayerFeatures(sourceIndex),steps=[...modal.querySelectorAll("[data-mb-step]")];if(!steps.length)throw new Error("Add at least one processing step.");if(!String(modal.querySelector("[data-mb-name]").value||"").trim())throw new Error("Enter an output layer name.");const fields=new Set(source.flatMap(f=>Object.keys(f.properties||{}))),issues=[];steps.forEach((row,i)=>{const op=row.querySelector("[data-mb-op]").value,raw=Number(row.querySelector("[data-mb-param]").value),field=row.querySelector("[data-mb-field]").value,overlay=row.querySelector("[data-mb-overlay]").value;if(["buffer","simplify"].includes(op)&&(!Number.isFinite(raw)||raw<=0))issues.push("Step "+(i+1)+": parameter must be greater than zero.");if(["dissolveField","selectByAttribute"].includes(op)&&(!field||!fields.has(field)))issues.push("Step "+(i+1)+": choose an available attribute field.");if(op==="selectByAttribute"&&!["isEmpty","isNotEmpty"].includes(row.querySelector("[data-mb-where-op]").value)&&row.querySelector("[data-mb-where-value]").value==="")issues.push("Step "+(i+1)+": enter a comparison value.");if(["clip","intersection","erase","union"].includes(op)){const oi=Number(overlay);if(overlay===""||!items[oi])issues.push("Step "+(i+1)+": choose a valid overlay layer.");else if(oi===sourceIndex)issues.push("Step "+(i+1)+": input and overlay layers must be different.");}});if(issues.length)throw new Error(issues.join(String.fromCharCode(10)));if(show)say("Validation passed ✓"+String.fromCharCode(10)+"Input: "+items[sourceIndex].name+" ("+source.length+" features)"+String.fromCharCode(10)+"Steps: "+steps.length+" — no parameter or layer-reference errors.");return {valid:true,source,sourceIndex,items,steps};}catch(err){if(show)say("Validation failed:"+String.fromCharCode(10)+(err.message||String(err)));return {valid:false,error:err};}}
 function runModelBuilder(modal){
   const say=message=>{modal.querySelector("[data-mb-status]").textContent=message;};
   try{
-    let current=modelBuilderLayerFeatures(modal.querySelector("[data-mb-source]").value);
-    const steps=[...modal.querySelectorAll("[data-mb-step]")];
-    if(!steps.length)throw new Error("Add at least one processing step.");
-    const stepLog=[];
+    const validation=validateModelBuilder(modal,false);if(!validation.valid)throw validation.error;
+    let current=validation.source;
+    const steps=validation.steps;
+    const stepLog=[],intermediate=[];
     for(let si=0;si<steps.length;si++){
       const inputCount=current.length;
       const row=steps[si],op=row.querySelector("[data-mb-op]").value,raw=Number(row.querySelector("[data-mb-param]").value);
@@ -6742,9 +6743,12 @@ function runModelBuilder(modal){
       }else if(op==="simplify"){
         if(!Number.isFinite(raw)||raw<=0)throw new Error("Step "+(si+1)+": simplify tolerance must be greater than zero.");
         current.forEach(f=>{if(["LineString","MultiLineString","Polygon","MultiPolygon"].includes(f.geometry?.type)){const out=turf.simplify(f,{tolerance:raw,highQuality:true,mutate:false});if(out){out.properties={...(f.properties||{}),_model_step:si+1,_model_operation:"Simplify"};next.push(out);}}else next.push(f);});
-      }else if(op==="dissolve"){
-        const out=turf.dissolve(turf.featureCollection(current));
-        if(out?.features?.length)next=out.features.map(f=>({...f,properties:{...(f.properties||{}),_model_step:si+1,_model_operation:"Dissolve",_source_count:current.length}}));
+      }else if(op==="dissolve"||op==="dissolveField"){
+        if(op==="dissolve"){const out=turf.dissolve(turf.featureCollection(current));if(out?.features?.length)next=out.features.map(f=>({...f,properties:{...(f.properties||{}),_model_step:si+1,_model_operation:"Dissolve",_source_count:current.length}}));}
+        else{const field=row.querySelector("[data-mb-field]").value,groups=new Map();current.forEach(f=>{if(!["Polygon","MultiPolygon"].includes(f.geometry?.type))throw new Error("Step "+(si+1)+": Dissolve by Field requires polygon features.");const value=f.properties?.[field],key=JSON.stringify(value===undefined?null:value);if(!groups.has(key))groups.set(key,{value:value===undefined?null:value,features:[]});groups.get(key).features.push(f);});for(const group of groups.values()){const merged=group.features.reduce((acc,f)=>acc?(turf.union(turf.featureCollection([acc,f]))||acc):f,null);if(merged){merged.properties={...(merged.properties||{}),[field]:group.value,_model_step:si+1,_model_operation:"Dissolve by Field",_dissolve_field:field,_source_count:group.features.length};next.push(merged);}}}
+      }else if(op==="selectByAttribute"){
+        const field=row.querySelector("[data-mb-field]").value,cmp=row.querySelector("[data-mb-where-op]").value,rawValue=row.querySelector("[data-mb-where-value]").value;
+        const compare=v=>{if(cmp==="isEmpty")return v===null||v===undefined||String(v).trim()==="";if(cmp==="isNotEmpty")return v!==null&&v!==undefined&&String(v).trim()!=="";if(cmp==="contains")return String(v??"").toLowerCase().includes(rawValue.toLowerCase());if(cmp==="equals")return String(v??"")===rawValue;if(cmp==="notEquals")return String(v??"")!==rawValue;const a=Number(v),b=Number(rawValue);if(!Number.isFinite(a)||!Number.isFinite(b))return false;if(cmp==="greater")return a>b;if(cmp==="greaterEqual")return a>=b;if(cmp==="less")return a<b;if(cmp==="lessEqual")return a<=b;return false;};next=current.filter(f=>compare(f.properties?.[field])).map(f=>({...f,properties:{...(f.properties||{}),_model_step:si+1,_model_operation:"Select By Attributes"}}));
       }else if(op==="singlepart"){
         current.forEach((f,sourceIndex)=>{
           const g=f.geometry,partType={MultiPoint:"Point",MultiLineString:"LineString",MultiPolygon:"Polygon"}[g?.type];
@@ -6777,11 +6781,13 @@ function runModelBuilder(modal){
       if(!current.length)throw new Error("Step "+(si+1)+" ("+op+") returned no features; model stopped without creating an output layer.");
       if(current.length>20000)throw new Error("Step "+(si+1)+" produced more than 20,000 features; model stopped for safety.");
       stepLog.push("Step "+(si+1)+" · "+op+": "+inputCount+" → "+current.length+" features");
+      if(modal.querySelector("[data-mb-intermediates]").checked)intermediate.push({name:((modal.querySelector("[data-mb-name]").value||"Model_Output").trim().replace(/[<>]/g,"").slice(0,65)||"Model_Output")+"_Step_"+String(si+1).padStart(2,"0"),features:JSON.parse(JSON.stringify(current))});
       say("Running model…\\n"+stepLog.join("\\n"));
     }
     const name=(modal.querySelector("[data-mb-name]").value||"Model_Output").trim().replace(/[<>]/g,"").slice(0,80)||"Model_Output";
+    if(modal.querySelector("[data-mb-intermediates]").checked)intermediate.forEach(layer=>geoJsonLayer({type:"FeatureCollection",features:layer.features},layer.name));
     geoJsonLayer({type:"FeatureCollection",features:current},name);
-    say("Model completed successfully. Output: "+name+"\n"+stepLog.join("\\n")+"\\nFinal features: "+current.length);
+    say("Model completed successfully. Output: "+name+"\n"+stepLog.join("\\n")+"\\nFinal features: "+current.length+(intermediate.length?"\\nIntermediate layers saved: "+intermediate.length:""));
   }catch(err){say("Model failed: "+(err.message||String(err)));status("ModelBuilder: "+(err.message||String(err)));}
 }
 
