@@ -1659,20 +1659,49 @@ async function deleteSelectedFeatures(){
   selectedFeatures.clear();selectedLayer=null;selectedOverlay=null;const editor=$("attributeEditor");if(editor)editor.style.display="none";applySelectionVisual();refreshAll();const synced=await flushGeodatabaseEdits();scheduleAutoSave();updateStandardActionButtons();status(records.length+" feature(s) deleted."+(synced?"":" Geodatabase sync failed; save edits again."));
 }
 async function openOnlineData(){
-  const value=await arcMapDialog.prompt({title:"Add Online Data",message:"Enter a public GeoJSON URL or ArcGIS Feature Service layer URL:",label:"Service URL",value:""});
+  const value=await arcMapDialog.prompt({title:"Add Online Data",message:"Enter a public GeoJSON URL, ArcGIS FeatureServer layer URL, or WFS/GeoServer endpoint. For WFS, include service=WFS and request=GetFeature; if no layer is specified, you will be asked for its qualified name (workspace:layer).",label:"Service URL",value:""});
   if(!value)return;
   let url;try{url=new URL(value.trim());if(!/^https?:$/.test(url.protocol))throw new Error();}catch(_){status("Enter a valid HTTP or HTTPS data URL.");return;}
   if(location.protocol==="https:"&&url.protocol!=="https:"){status("Use an HTTPS data service on this secure page.");return;}
-  const isArc=url.pathname.includes("/FeatureServer/");
-  if(isArc&&!/\/query$/i.test(url.pathname))url.pathname=url.pathname.replace(/\/$/,"")+"/query";
-  if(isArc){url.searchParams.set("where","1=1");url.searchParams.set("outFields","*");url.searchParams.set("f","geojson");}
+  const isArc=/\/FeatureServer(?:\/|$)/i.test(url.pathname);
+  const isWfs=(url.searchParams.get("service")||"").toUpperCase()==="WFS"||/\/(?:wfs|ows)\/?$/i.test(url.pathname);
+  let layerName="";
+  if(isArc){
+    if(!/\/query$/i.test(url.pathname))url.pathname=url.pathname.replace(/\/$/,"")+"/query";
+    url.searchParams.set("where","1=1");url.searchParams.set("outFields","*");url.searchParams.set("f","geojson");
+  }else if(isWfs){
+    layerName=url.searchParams.get("typeNames")||url.searchParams.get("typeName")||"";
+    if(!layerName){
+      layerName=await arcMapDialog.prompt({title:"WFS Layer",message:"Enter the qualified WFS layer name, for example workspace:roads:",label:"Type name",value:""});
+      if(!layerName)return;
+      layerName=layerName.trim();
+      if(!layerName){status("A WFS layer name is required.");return;}
+    }
+    url.searchParams.set("service","WFS");
+    url.searchParams.set("version",url.searchParams.get("version")||"2.0.0");
+    url.searchParams.set("request","GetFeature");
+    url.searchParams.delete("typeName");
+    url.searchParams.set("typeNames",layerName);
+    url.searchParams.set("outputFormat","application/json");
+    if(!url.searchParams.has("srsName"))url.searchParams.set("srsName","EPSG:4326");
+  }
   status("Loading online data...");
-  fetch(url.href).then(response=>{if(!response.ok)throw new Error("HTTP "+response.status);return response.json();}).then(data=>{
-    if(data?.type!=="FeatureCollection"||!Array.isArray(data.features))throw new Error("The service did not return GeoJSON. Use a public GeoJSON URL or ArcGIS FeatureServer layer.");
+  try{
+    const response=await fetch(url.href,{headers:{Accept:"application/geo+json, application/json"}});
+    if(!response.ok)throw new Error("HTTP "+response.status);
+    const data=await response.json();
+    if(data?.type!=="FeatureCollection"||!Array.isArray(data.features)){
+      const serviceMessage=data?.message||data?.error?.message||data?.exception?.[0]?.text;
+      throw new Error(serviceMessage||"The service did not return a GeoJSON FeatureCollection. Check the WFS output format, layer name, and service permissions.");
+    }
     if(!data.features.length){status("The online layer contains no features.");return;}
-    geoJsonLayer(data,decodeURIComponent(url.pathname.split("/").filter(Boolean).pop()||"Online Layer"));
-    status(data.features.length+" online feature(s) added.");
-  }).catch(err=>status("Online data could not be loaded: "+err.message+" (the server must allow cross-origin requests)."));
+    const fallbackName=layerName||decodeURIComponent(url.pathname.split("/").filter(Boolean).pop()||"Online Layer");
+    geoJsonLayer(data,fallbackName);
+    const warning=data.exceededTransferLimit?" The service reports a transfer limit; not all features may have been returned.":data.numberMatched&&Number(data.numberReturned)<Number(data.numberMatched)?" The service returned only part of the matching dataset.":"";
+    status(data.features.length+" online feature(s) added."+warning);
+  }catch(err){
+    status("Online data could not be loaded: "+err.message+" (check CORS, authentication, and service access).");
+  }
 }
 async function runMapCommandLine(){
   const command=await arcMapDialog.prompt({title:"Map Command",message:"Enter a command: help, zoom in, zoom out, full extent, identify, basemap <name>, go <x>,<y>",label:"Command",value:"help"});
