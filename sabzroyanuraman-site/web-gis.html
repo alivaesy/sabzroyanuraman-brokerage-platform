@@ -710,11 +710,13 @@ body{background:#dfe5e8;color:#173b57}
   </div>
   <div class="arc-dropdown" id="analysisMenu">
     <div class="arc-menu-title">Geoprocessing</div>
-    <button data-action="buffer">Buffer</button><button data-action="clip">Clip</button>
-    <button data-action="intersection">Intersect</button><button data-action="merge">Merge</button>
-    <div class="arc-sep"></div><button data-action="showToolbox">Search Tools...</button>
-    <button data-tool="measureDistanceTool">Measure Length</button><button data-tool="measureAreaTool">Measure Area</button>
-    <button data-tool="chartStats">Statistics</button><button data-tool="networkQaTool">Network Connectivity Check</button>
+    <div id="analysisToolItems" role="group" aria-label="Geoprocessing tools"></div>
+    <div class="arc-sep"></div>
+    <button type="button" data-action="showToolbox">Search Tools...</button>
+    <button type="button" data-tool="measureDistanceTool">Measure Length</button>
+    <button type="button" data-tool="measureAreaTool">Measure Area</button>
+    <button type="button" data-tool="chartStats">Statistics</button>
+    <button type="button" data-tool="networkQaTool">Network Connectivity Check</button>
   </div>
   <div class="arc-dropdown" id="layerMenu">
     <div class="arc-menu-title">Customize</div>
@@ -5134,6 +5136,23 @@ const GIS_TOOLS=[
  {id:"transferAttributesTool",title:"Transfer Attributes",category:"Network QA",keys:"attributes"},
  {id:"networkQaTool",title:"Network Connectivity Check",category:"Network QA",keys:"network connectivity"}
 ];
+function renderGeoprocessingMenu(){
+ const host=$("analysisToolItems");
+ if(!host)return;
+ const tools=GIS_TOOLS.filter(tool=>tool&&tool.category==="Geoprocessing");
+ host.replaceChildren();
+ tools.forEach(tool=>{
+   const button=document.createElement("button");
+   button.type="button";
+   button.dataset.tool=tool.id;
+   if(tool.op)button.dataset.op=tool.op;
+   button.title=tool.title;
+   button.textContent=tool.title;
+   if(tool.id==="modelBuilder")button.style.fontWeight="700";
+   host.appendChild(button);
+ });
+}
+renderGeoprocessingMenu();
 function renderGisToolbox(query=""){
  const box=$("gisToolResults"); if(!box)return;
  const q=String(query??"").trim().toLocaleLowerCase();
@@ -7012,7 +7031,7 @@ async function addMapDecoration(kind){
   document.querySelectorAll(".arc-dropdown button").forEach(button=>{button.type="button";});
   function closeMenus(){drops.forEach(x=>x.classList.remove("show"));menus.forEach(x=>x.classList.remove("active"))}
   document.querySelectorAll(".arc-dropdown button[data-tool], .editor-toolbar button[data-tool]").forEach(b=>b.onclick=()=>{
-    const t=(typeof GIS_TOOLS!=="undefined")?GIS_TOOLS.find(x=>x.id===b.dataset.tool):null;
+    const t=(typeof GIS_TOOLS!=="undefined")?GIS_TOOLS.find(x=>x.id===b.dataset.tool&&(!b.dataset.op||x.op===b.dataset.op)):null;
     if(t)runGisTool(t); closeMenus();
   });
   document.querySelectorAll(".arc-dropdown button[data-base]").forEach(b=>b.onclick=()=>{
