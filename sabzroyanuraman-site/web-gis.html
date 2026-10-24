@@ -1231,11 +1231,15 @@ function updateEditorToolbar(){
 }
 function refreshEditorTargets(){
   const sel=$("editTargetLayer");if(!sel)return;
-  const old=sel.value;sel.innerHTML="";
+  // Preserve the actual layer object, not its numeric position. Removing or
+  // reordering a layer changes indexes and otherwise silently retargets Editor.
+  const previousTarget=sel.value==="drawn"?drawn:(namedLayers[Number(sel.value)]?.layer||editTarget||drawn);
+  sel.innerHTML="";
   const add=(value,label)=>{const o=document.createElement("option");o.value=value;o.textContent=label;sel.appendChild(o)};
   add("drawn","My Drawings");
   namedLayers.forEach((item,i)=>{if(isVectorLayer(item.layer))add(String(i),displayLayerName(item.name,i))});
-  if([...sel.options].some(o=>o.value===old))sel.value=old;
+  const targetIndex=namedLayers.findIndex(item=>item.layer===previousTarget&&isVectorLayer(item.layer));
+  sel.value=previousTarget===drawn||targetIndex<0?"drawn":String(targetIndex);
   editTarget=sel.value==="drawn"?drawn:(namedLayers[Number(sel.value)]?.layer||drawn);
 }
 function startEditing(item=null){
