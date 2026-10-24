@@ -2347,7 +2347,7 @@ const addRow=(x,label,indent)=>{
     const cb=document.createElement("input");cb.type="checkbox";cb.checked=x.layer?map.hasLayer(x.layer):true;cb.title="Toggle Visibility";
     cb.onchange=()=>{if(x.layer){if(cb.checked)map.addLayer(x.layer);else map.removeLayer(x.layer)}else{(groups.get(x.name)||[]).forEach(item=>{if(cb.checked)map.addLayer(item.layer);else map.removeLayer(item.layer)});renderLayerList()}scheduleAutoSave()};
     const icon=document.createElement("span");icon.className="layer-icon";icon.textContent=x.isGroup?"▰":(x.isDrawn?"✏":"▦");
-    const nm=document.createElement("span");nm.className="layer-name";nm.textContent=label;
+    const nm=document.createElement("span");nm.className="layer-name";nm.textContent=label;const layerOwner=namedLayers.find(item=>item.layer===x.layer);if(layerOwner?._definitionQuery){nm.title="Definition Query: "+layerOwner._definitionQuery.field+" "+layerOwner._definitionQuery.operator+" "+layerOwner._definitionQuery.value;const badge=document.createElement("span");badge.className="small";badge.textContent="  [Q]";badge.title=nm.title;row.append(cb,icon,nm,badge);}else row.append(cb,icon,nm);
     if(x.layer&&x.layer.getBounds)nm.ondblclick=()=>{const b=x.layer.getBounds();if(b&&b.isValid())map.fitBounds(b,{padding:[25,25],maxZoom:18})};
     row.append(cb,icon,nm);
     if(x.layer){row.onclick=()=>{selectedOverlay=x.layer;selectedLayer=null;const idx=namedLayers.findIndex(item=>item.layer===x.layer);if(idx>=0){$("editTargetLayer").value=String(idx);editTarget=x.layer}renderLayerList()};row.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();selectedOverlay=x.layer;renderLayerList();showLayerContextMenu(x,e.clientX,e.clientY)}}
@@ -3216,7 +3216,7 @@ function applyDefinitionQuery(owner){
   }
   const base=layer._definitionQueryOriginalStyle;
   if(typeof layer.setStyle==="function"){
-   layer.setStyle(visible?{color:base.color,weight:base.weight,opacity:base.opacity,fillColor:base.fillColor,fillOpacity:base.fillOpacity}:{opacity:0,fillOpacity:0});
+   layer.setStyle(visible?Object.fromEntries(Object.entries(base).filter(([key,value])=>value!==undefined&&key!=="radius")):{opacity:0,fillOpacity:0});
   }else if(typeof layer.setOpacity==="function"){
    layer.setOpacity(visible?(base.opacity??1):0);
   }
