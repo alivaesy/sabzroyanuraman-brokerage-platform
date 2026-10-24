@@ -428,6 +428,22 @@ body{background:#dfe5e8;color:#173b57}
 .gis-ask-panel h3{margin:0 0 10px;font-size:15px;color:#07573e}.gis-ask-panel p{margin:0 0 12px;white-space:pre-wrap;font-size:13px;line-height:1.5}
 .gis-ask-panel input{width:100%;height:36px;padding:6px 9px;border:1px solid #9aadb7;border-radius:2px;background:#fff;color:#173b57}
 .gis-ask-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}.gis-ask-actions button{padding:7px 16px;border:1px solid #a6b6bf;border-radius:2px;cursor:pointer}.gis-ask-cancel{background:#fff;color:#173b57}.gis-ask-ok{background:#146c43;color:#fff;border-color:#146c43!important}
+/* ArcMap-style usability polish: consistent focus, active states and narrow-screen layout. */
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{
+ outline:2px solid #2678a8!important;outline-offset:1px
+}
+.arc-menu-btn:active,.panel-toolbar button:active,.gis-tool-item:active{background:#cbdfea}
+.gis-tool-item:focus-visible{outline:2px solid #2678a8;outline-offset:1px}
+.status{max-width:min(560px,calc(100vw - 330px));white-space:normal;line-height:1.45;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+@media(max-width:650px){
+ .arcmap-topbar{gap:2px;padding:0 4px}
+ .arc-menu-btn{padding:0 7px;font-size:11px}
+ .arc-search{width:min(38vw,220px)}
+ .panel{max-width:88vw;min-width:260px}
+ .status{left:8px;bottom:8px;max-width:calc(100vw - 16px)}
+ .webgis-draw-control{max-width:calc(100vw - 24px);flex-wrap:wrap}
+ .webgis-draw-control button{min-width:62px}
+}
 </style>
 <style>
 /* ArcMap Editor task menu + KMZ support */
@@ -1124,12 +1140,15 @@ const basemapTileErrors=Object.create(null);
 Object.entries(base).forEach(([key,layer])=>{
   layer.on("tileerror",()=>{
     basemapTileErrors[key]=(basemapTileErrors[key]||0)+1;
-    if(key==="osm"&&basemapTileErrors[key]>=3&&currentBase===layer&&map.hasLayer(layer)){
-      selectBasemap("esriStreet",false);
-      status("OpenStreetMap is not responding; switched to Esri Street Map automatically.");
-      return;
+    if(basemapTileErrors[key]>=3&&currentBase===layer&&map.hasLayer(layer)&&key!=="esriStreet"){
+      const fallback=base.esriStreet;
+      if(fallback&&currentBase!==fallback){
+        selectBasemap("esriStreet",false);
+        status("Basemap "+key+" failed repeatedly; switched to Esri Street Map. Check network access if tiles remain blank.");
+        return;
+      }
     }
-    if(key!=="osm"||basemapTileErrors[key]===1)status("Basemap failed to load: "+key+". Check your connection.");
+    if(basemapTileErrors[key]===1)status("Basemap tile failed to load: "+key+". Check network access or the tile service.");
   });
 });
 base.osm.addTo(map);
