@@ -3521,7 +3521,7 @@ $("layerContextMenu").querySelectorAll("button[data-action]").forEach(btn=>btn.o
   else if(action==="zoom"&&item.layer.getBounds&&item.layer.getBounds().isValid())map.fitBounds(item.layer.getBounds(),{padding:[25,25],maxZoom:18});
    else if(action==="start-editing")startEditing(item);
   else if(action==="properties")openLayerProperties(item);
-  else if(action==="definition-query")await openDefinitionQuery(item);
+  else if(action==="definition-query")openDefinitionQuery(item);
   else if(action==="labels")runGisTool({id:"labelLayer",title:"Label Features"});
   else if(action==="transparency")runGisTool({id:"layerTransparency",title:"Layer Transparency"});
   else if(action==="show"){map.addLayer(item.layer);renderLayerList();scheduleAutoSave();}
