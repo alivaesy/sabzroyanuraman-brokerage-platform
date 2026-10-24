@@ -995,6 +995,8 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 </div>
 <div id="layerContextMenu" class="arc-context-menu">
   <button type="button" data-action="table">Open Attribute Table</button>
+  <button type="button" data-action="definition-query">Definition Query...</button>
+  <button type="button" data-action="clear-definition-query">Clear Definition Query</button>
   <button type="button" data-action="export">Export Data...</button>
   <button type="button" data-action="start-editing">Start Editing</button>
   <button type="button" data-action="zoom">Zoom To Layer</button>
@@ -2408,9 +2410,8 @@ const addRow=(x,label,indent)=>{
     const icon=document.createElement("span");icon.className="layer-icon";icon.textContent=x.isGroup?"▰":(x.isDrawn?"✏":"▦");
     const nm=document.createElement("span");nm.className="layer-name";nm.textContent=label;
     const layerOwner=x.layer?namedLayers.find(item=>item.layer===x.layer):null;
-    if(layerOwner?._definitionQuery){nm.title="Definition Query: "+layerOwner._definitionQuery.field+" "+layerOwner._definitionQuery.operator+" "+layerOwner._definitionQuery.value;const badge=document.createElement("span");badge.className="small";badge.textContent=" [Q]";badge.title=nm.title;row.append(cb,icon,nm,badge);}else row.append(cb,icon,nm);
+    if(layerOwner?._definitionQuery){nm.title="Definition Query: "+layerOwner._definitionQuery.field+" "+layerOwner._definitionQuery.operator+(layerOwner._definitionQuery.value===""?"":" "+layerOwner._definitionQuery.value);const badge=document.createElement("span");badge.className="small";badge.textContent=" [Q]";badge.title=nm.title;row.append(cb,icon,nm,badge);}else row.append(cb,icon,nm);
     if(x.layer&&x.layer.getBounds)nm.ondblclick=()=>{const b=x.layer.getBounds();if(b&&b.isValid())map.fitBounds(b,{padding:[25,25],maxZoom:18})};
-    row.append(cb,icon,nm);
     if(x.layer){row.onclick=()=>{selectedOverlay=x.layer;selectedLayer=null;const idx=namedLayers.findIndex(item=>item.layer===x.layer);if(idx>=0){$("editTargetLayer").value=String(idx);editTarget=x.layer}renderLayerList()};row.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();selectedOverlay=x.layer;renderLayerList();showLayerContextMenu(x,e.clientX,e.clientY)}}
     el.appendChild(row);
   };
@@ -3606,6 +3607,8 @@ $("layerContextMenu").querySelectorAll("button[data-action]").forEach(btn=>btn.o
   const item=contextLayerItem;if(!item){hideLayerContextMenu();return;}
   const action=btn.dataset.action;
   if(action==="table")openLayerAttributeTable(item);
+  else if(action==="definition-query")openDefinitionQuery(item);
+  else if(action==="clear-definition-query")clearDefinitionQuery(item);
   else if(action==="export")openDataFormatDialog("export",item.layer);
   else if(action==="zoom"&&item.layer.getBounds&&item.layer.getBounds().isValid())map.fitBounds(item.layer.getBounds(),{padding:[25,25],maxZoom:18});
    else if(action==="start-editing")startEditing(item);
@@ -6701,6 +6704,63 @@ function definitionQueryMatches(query,properties){
   case "<=":return Number.isFinite(Number(raw))&&Number(raw)<=n;
   default:return false;
  }
+}
+function definitionQueryLayerOwner(item){
+  return item?.layer?namedLayers.find(x=>x.layer===item.layer)||null:null;
+}
+function applyDefinitionQuery(owner){
+  if(!owner?.layer||!isVectorLayer(owner.layer))throw new Error("Definition Query requires a vector feature layer.");
+  const query=owner._definitionQuery||null;
+  const children=[];
+  owner.layer.eachLayer(child=>children.push(child));
+  owner._definitionQueryHidden=owner._definitionQueryHidden||new Set();
+  children.forEach(child=>{
+    const feature=child.feature||child.toGeoJSON?.();
+    const matches=!query||definitionQueryMatches(query,feature?.properties||{});
+    if(matches){
+      owner._definitionQueryHidden.delete(child);
+      if(map.hasLayer(owner.layer)&&!map.hasLayer(child))map.addLayer(child);
+    }else{
+      owner._definitionQueryHidden.add(child);
+      if(map.hasLayer(child))map.removeLayer(child);
+    }
+  });
+  renderLayerList();
+  refreshAttributeLayers();
+  scheduleAutoSave();
+}
+async function openDefinitionQuery(item){
+  const owner=definitionQueryLayerOwner(item);
+  if(!owner){status("Definition Query is available for named vector layers. Add or select an imported feature layer.");return;}
+  const features=vectorFeatures(owner.layer);
+  const fields=[...new Set(features.flatMap(x=>Object.keys(x.feature.properties||{})))];
+  if(!fields.length){status("This layer has no attribute fields to query.");return;}
+  const existing=owner._definitionQuery||{};
+  const field=await arcMapDialog.prompt({title:"Definition Query — Field",message:"Available fields: "+fields.join(", "),label:"Field name",value:existing.field||fields[0]});
+  if(field===null)return;
+  const cleanField=String(field).trim();
+  if(!fields.includes(cleanField)){status("Unknown field: "+cleanField+". Choose a field listed in the prompt.");return;}
+  const operators=["=","!=","contains","starts","ends",">",">=","<","<=","is null","is not null"];
+  const operator=await arcMapDialog.prompt({title:"Definition Query — Operator",message:"Operators: "+operators.join(", "),label:"Operator",value:existing.operator||"="});
+  if(operator===null)return;
+  const cleanOperator=String(operator).trim().toLocaleLowerCase();
+  if(!operators.includes(cleanOperator)){status("Unsupported query operator. Choose one of the listed operators.");return;}
+  let value="";
+  if(cleanOperator!=="is null"&&cleanOperator!=="is not null"){
+    const result=await arcMapDialog.prompt({title:"Definition Query — Value",message:"Enter the comparison value for "+cleanField+". Numeric comparisons require numeric values.",label:"Value",value:existing.value??""});
+    if(result===null)return;
+    value=String(result);
+  }
+  owner._definitionQuery={field:cleanField,operator:cleanOperator,value};
+  try{applyDefinitionQuery(owner);status("Definition Query applied to "+owner.name+".");}
+  catch(error){owner._definitionQuery=existing.field?existing:null;status("Definition Query failed: "+(error.message||error));}
+}
+function clearDefinitionQuery(item){
+  const owner=definitionQueryLayerOwner(item);
+  if(!owner){status("No named vector layer is selected.");return;}
+  owner._definitionQuery=null;
+  try{applyDefinitionQuery(owner);status("Definition Query cleared for "+owner.name+".");}
+  catch(error){status("Could not clear Definition Query: "+(error.message||error));}
 }
 function layerLabelClass(owner){
   if(!owner)return "gis-feature-label";
