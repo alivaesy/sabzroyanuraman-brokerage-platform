@@ -1,0 +1,36 @@
+name: GIS PHP lint
+
+on:
+  pull_request:
+    paths:
+      - 'sabzroyanuraman-site/api/gis/**/*.php'
+      - '.github/workflows/gis-php-lint.yml'
+  push:
+    branches:
+      - master
+      - feat/gis-org-auth-schema
+    paths:
+      - 'sabzroyanuraman-site/api/gis/**/*.php'
+      - '.github/workflows/gis-php-lint.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  php-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: none
+      - name: Lint GIS PHP files
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            php -l "$file"
+          done < <(find sabzroyanuraman-site/api/gis -type f -name '*.php' -print0)
