@@ -2813,6 +2813,55 @@ function appendFeaturesToTarget(targetFeatures,sourceFeatures){
   })
  ];
 }
+function buildPartitionedUnion(records,ovs,inputName,overlayName){
+ const clone=f=>JSON.parse(JSON.stringify(f));
+ const difference=(a,b)=>turf.difference(turf.featureCollection([a,b]));
+ const intersection=(a,b)=>turf.intersect(turf.featureCollection([a,b]));
+ const overlayProps=(base,ov)=>{
+  const props={...(base.properties||{}),_operation:'Union',_input_layer:inputName,_overlay_layer:overlayName,_union_match:true};
+  for(const [k,v] of Object.entries(ov.properties||{})){
+   let key=k;
+   if(Object.prototype.hasOwnProperty.call(props,key)){key='overlay_'+k;let n=2;while(Object.prototype.hasOwnProperty.call(props,key))key='overlay_'+k+'_'+n++;}
+   props[key]=v;
+  }
+  return props;
+ };
+ let inputMask=null;
+ for(const f of records)inputMask=inputMask?turf.union(turf.featureCollection([inputMask,f])):clone(f);
+ let overlayMask=null;
+ for(const f of ovs)overlayMask=overlayMask?turf.union(turf.featureCollection([overlayMask,f])):clone(f);
+ if(!inputMask||!overlayMask)throw new Error('Could not build Union input/overlay masks.');
+ const output=[];
+ for(const source of records){
+  let parts=[clone(source)];
+  for(const ov of ovs){
+   const next=[];
+   for(const part of parts){
+    const inside=intersection(part,ov),outside=difference(part,ov);
+    if(outside)next.push({...outside,properties:{...(part.properties||{}),_operation:'Union',_input_layer:inputName,_overlay_layer:overlayName,_union_match:false}});
+    if(inside)next.push({...inside,properties:overlayProps(part,ov)});
+   }
+   parts=next;
+   if(!parts.length)break;
+  }
+  output.push(...parts);
+ }
+ const inputKeys=[...new Set(records.flatMap(f=>Object.keys(f.properties||{})))];
+ for(const ov of ovs){
+  const outside=difference(ov,inputMask);
+  if(outside){
+   const props={_operation:'Union',_input_layer:inputName,_overlay_layer:overlayName,_union_match:false,_union_source:'overlay-only'};
+   inputKeys.forEach(k=>props[k]=null);
+   for(const [k,v] of Object.entries(ov.properties||{})){
+    let key=k;
+    if(Object.prototype.hasOwnProperty.call(props,key)){key='overlay_'+k;let n=2;while(Object.prototype.hasOwnProperty.call(props,key))key='overlay_'+k+'_'+n++;}
+    props[key]=v;
+   }
+   output.push({...outside,properties:props});
+  }
+ }
+ return output;
+}
 function clipFeatureToPolygon(feature,mask){
  const g=feature&&feature.geometry;if(!g)return [];
  const clone=f=>JSON.parse(JSON.stringify(f));
@@ -2912,41 +2961,7 @@ async function runWholeLayerGisOperation(op){
    name='Intersect '+input.name+' with '+overlay.name;
  }else if(op==='union'){
    if([...records,...ovs].some(f=>!['Polygon','MultiPolygon'].includes(f.geometry.type))){status('Union follows polygon overlay semantics and requires polygon input and overlay layers.');return true;}
-   const clone=f=>JSON.parse(JSON.stringify(f));
-   const mergeOverlayAttrs=(base,overlayFeature,index)=>{
-     const props={...(base.properties||{}),_operation:'Union',_input_layer:input.name,_overlay_layer:overlay.name,_union_match:true};
-     for(const [k,v] of Object.entries(overlayFeature.properties||{})){
-       let key=k;
-       if(Object.prototype.hasOwnProperty.call(props,key)){key='overlay_'+k;let n=2;while(Object.prototype.hasOwnProperty.call(props,key))key='overlay_'+k+'_'+n++;}
-       props[key]=v;
-     }
-     return props;
-   };
-   const difference=(a,b)=>turf.difference(turf.featureCollection([a,b]));
-   const intersection=(a,b)=>turf.intersect(turf.featureCollection([a,b]));
-   let inputMask=null;for(const f of records)inputMask=inputMask?turf.union(turf.featureCollection([inputMask,f])):clone(f);
-   let overlayMask=null;for(const f of ovs)overlayMask=overlayMask?turf.union(turf.featureCollection([overlayMask,f])):clone(f);
-   if(!inputMask||!overlayMask)throw new Error('Could not build Union input/overlay masks.');
-   // Split each input feature against every overlay feature, preserving the attributes on each partition.
-   for(const source of records){
-     let parts=[clone(source)];
-     for(const ov of ovs){
-       const next=[];
-       for(const part of parts){
-         const inside=intersection(part,ov),outside=difference(part,ov);
-         if(outside)next.push({...outside,properties:{...(part.properties||{}),_operation:'Union',_union_match:!!(part.properties||{})._union_match}});
-         if(inside)next.push({...inside,properties:mergeOverlayAttrs(part,ov)});
-       }
-       parts=next;
-       if(!parts.length)break;
-     }
-     output.push(...parts);
-   }
-   // Add overlay-only areas (overlay footprint outside the complete input footprint).
-   for(const ov of ovs){
-     const outside=difference(ov,inputMask);
-     if(outside)output.push({...outside,properties:{...(ov.properties||{}),_operation:'Union',_input_layer:input.name,_overlay_layer:overlay.name,_union_match:false,_union_source:'overlay-only'}});
-   }
+   output=buildPartitionedUnion(records,ovs,input.name,overlay.name);
    name='Union '+input.name+' + '+overlay.name;
 
  }else return false;}
@@ -2957,7 +2972,7 @@ async function runWholeLayerGisOperation(op){
  resultLayerFromFeature({type:'FeatureCollection',features:output},name);scheduleAutoSave();status(name+' created '+output.length+' output feature(s); source layers preserved. '+(op==='union'?'Note: this is a dissolved geometric union, not ArcGIS Union partitioning.':''));
  }catch(e){console.error(e);status('Whole-layer geoprocessing failed: '+(e.message||e));}return true;
 }
-async function runGeometryRegressionTests(){const checks=[];const test=(n,v)=>checks.push((v?'PASS':'FAIL')+' — '+n);try{const a=turf.polygon([[[0,0],[.01,0],[.01,.01],[0,.01],[0,0]]],{grp:'x'}),b=turf.polygon([[[.005,0],[.015,0],[.015,.01],[.005,.01],[.005,0]]],{grp:'x'});test('Intersect overlapping polygons',!!turf.intersect(turf.featureCollection([a,b])));test('Geometric union returns geometry',!!turf.union(turf.featureCollection([a,b])));const onlyA=turf.difference(turf.featureCollection([a,b])),overlap=turf.intersect(turf.featureCollection([a,b])),onlyB=turf.difference(turf.featureCollection([b,a]));const areaA=turf.area(a),areaB=turf.area(b),areaOnlyA=onlyA?turf.area(onlyA):0,areaOverlap=overlap?turf.area(overlap):0,areaOnlyB=onlyB?turf.area(onlyB):0;test('Union partition input-only area',!!onlyA&&Math.abs(areaOnlyA+areaOverlap-areaA)<Math.max(1,areaA*1e-6));test('Union partition overlay-only area',!!onlyB&&Math.abs(areaOnlyB+areaOverlap-areaB)<Math.max(1,areaB*1e-6));test('Union partition contains all three regions',!!onlyA&&!!overlap&&!!onlyB);const inside=turf.booleanPointInPolygon(turf.point([.002,.002]),a),outside=turf.booleanPointInPolygon(turf.point([.5,.5]),a);test('Point-in-polygon inside/outside',inside&&!outside);const d=turf.dissolve({type:'FeatureCollection',features:[a,b]},{propertyName:'grp'});test('Dissolve by field',!!d&&d.features.length===1);const buf=turf.buffer(turf.point([0,0]),100,{units:'meters'});test('Buffer 100 m',!!buf&&turf.area(buf)>25000&&turf.area(buf)<40000);const far=turf.polygon([[[1,1],[1.01,1],[1.01,1.01],[1,1.01],[1,1]]]);test('Empty intersection',turf.intersect(turf.featureCollection([a,far]))===null);if(typeof proj4==='function'){const p=projectCoords('EPSG:4326','EPSG:32638',[47.758255,33.629485]);test('WGS84 to UTM zone 38N',p.every(Number.isFinite)&&Math.abs(p[0]-755858)<150&&Math.abs(p[1]-3724488)<150);}else test('CRS transform library',false);}catch(e){test('Turf/CRS operations available',false);console.error(e);}const report=checks.join('\n');console.info('Synthetic geometry tests:\n'+report);status('Geometry self-test: '+checks.filter(x=>x.startsWith('PASS')).length+'/'+checks.length+' passed.');await arcMapDialog.alert({title:'Geometry Self-Test — Synthetic Data',message:report+'\n\nSynthetic checks do not replace tests on cadastral data or comparison with ArcMap.'});}
+async function runGeometryRegressionTests(){const checks=[];const test=(n,v)=>checks.push((v?'PASS':'FAIL')+' — '+n);try{const a=turf.polygon([[[0,0],[.01,0],[.01,.01],[0,.01],[0,0]]],{grp:'x'}),b=turf.polygon([[[.005,0],[.015,0],[.015,.01],[.005,.01],[.005,0]]],{grp:'x'});test('Intersect overlapping polygons',!!turf.intersect(turf.featureCollection([a,b])));test('Geometric union returns geometry',!!turf.union(turf.featureCollection([a,b])));const onlyA=turf.difference(turf.featureCollection([a,b])),overlap=turf.intersect(turf.featureCollection([a,b])),onlyB=turf.difference(turf.featureCollection([b,a]));const areaA=turf.area(a),areaB=turf.area(b),areaOnlyA=onlyA?turf.area(onlyA):0,areaOverlap=overlap?turf.area(overlap):0,areaOnlyB=onlyB?turf.area(onlyB):0;test('Union partition input-only area',!!onlyA&&Math.abs(areaOnlyA+areaOverlap-areaA)<Math.max(1,areaA*1e-6));test('Union partition overlay-only area',!!onlyB&&Math.abs(areaOnlyB+areaOverlap-areaB)<Math.max(1,areaB*1e-6));test('Union partition contains all three regions',!!onlyA&&!!overlap&&!!onlyB);const partitioned=buildPartitionedUnion([a],[{...b,properties:{grp:'overlay',zone:38}}],'Input','Overlay');test('Union tool returns three partitions',partitioned.length===3);test('Union intersection preserves both attribute sets',partitioned.some(f=>f.properties&&f.properties._union_match===true&&f.properties.grp==='x'&&f.properties.overlay_grp==='overlay'&&f.properties.zone===38));test('Union outside partitions are marked unmatched',partitioned.filter(f=>f.properties&&f.properties._union_match===false).length===2);const inside=turf.booleanPointInPolygon(turf.point([.002,.002]),a),outside=turf.booleanPointInPolygon(turf.point([.5,.5]),a);test('Point-in-polygon inside/outside',inside&&!outside);const d=turf.dissolve({type:'FeatureCollection',features:[a,b]},{propertyName:'grp'});test('Dissolve by field',!!d&&d.features.length===1);const buf=turf.buffer(turf.point([0,0]),100,{units:'meters'});test('Buffer 100 m',!!buf&&turf.area(buf)>25000&&turf.area(buf)<40000);const far=turf.polygon([[[1,1],[1.01,1],[1.01,1.01],[1,1.01],[1,1]]]);test('Empty intersection',turf.intersect(turf.featureCollection([a,far]))===null);if(typeof proj4==='function'){const p=projectCoords('EPSG:4326','EPSG:32638',[47.758255,33.629485]);test('WGS84 to UTM zone 38N',p.every(Number.isFinite)&&Math.abs(p[0]-755858)<150&&Math.abs(p[1]-3724488)<150);}else test('CRS transform library',false);}catch(e){test('Turf/CRS operations available',false);console.error(e);}const report=checks.join('\n');console.info('Synthetic geometry tests:\n'+report);status('Geometry self-test: '+checks.filter(x=>x.startsWith('PASS')).length+'/'+checks.length+' passed.');await arcMapDialog.alert({title:'Geometry Self-Test — Synthetic Data',message:report+'\n\nSynthetic checks do not replace tests on cadastral data or comparison with ArcMap.'});}
 function mergeFeaturesPreservingGeometry(inputFeature,overlayFeature){
  return [inputFeature,overlayFeature].map((feature,index)=>({
   ...JSON.parse(JSON.stringify(feature)),
