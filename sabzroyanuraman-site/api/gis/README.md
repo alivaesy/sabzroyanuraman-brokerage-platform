@@ -1,16 +1,10 @@
 # Web GIS PostGIS API
 
-## Read-only health endpoint
+## 1. Private database configuration
 
-`health.php` checks that PHP can connect to PostGIS. It does not expose database names, versions, or connection errors, and accepts only GET requests.
-
-### Server configuration (never commit credentials)
-
-Create this file **outside** `public_html` and outside the Git repository:
+Create this file **outside** `public_html` and outside Git:
 
 `/home/sabzroyanuraman/private/gis-db.php`
-
-Contents:
 
 ```php
 <?php
@@ -20,30 +14,59 @@ return [
     'database' => 'sabzroyan_gis',
     'username' => 'sabzroyan_app',
     'password' => 'PUT_THE_DATABASE_PASSWORD_HERE',
+    // Only explicitly listed tables/columns can be exposed by the read API.
+    'layers' => [
+        // Add real table/column names after inspecting your database:
+        // [
+        //     'id' => 'parcels',
+        //     'title' => 'Parcels',
+        //     'table' => 'parcels',
+        //     'geometry_column' => 'geom',
+        //     'properties' => [
+        //         'id' => 'id',
+        //         'name' => 'name',
+        //     ],
+        // ],
+    ],
 ];
 ```
 
-Replace the placeholder directly in the server terminal/editor; never commit the file or paste the password into chat. Set directory/file permissions so the site's PHP process can read the file, but other users cannot (normally directory `750`, file `640`, adjusted to the actual cPanel account/group).
+Replace the password placeholder directly in the server terminal/editor; never commit this file or paste the password into chat. Do not add a layer until its real table name, geometry column and property columns have been verified. Directory/file permissions must allow the cPanel PHP process to read the file while denying other users (normally directory `750`, file `640`, adjusted to the actual account/group).
 
-Upload `api/gis/health.php` to:
+## 2. Deploy endpoints
 
-`/home/sabzroyanuraman/public_html/api/gis/health.php`
+Upload these files from this repository to the matching paths on the server:
 
-Then request:
+- `api/gis/health.php` → `/home/sabzroyanuraman/public_html/api/gis/health.php`
+- `api/gis/layers.php` → `/home/sabzroyanuraman/public_html/api/gis/layers.php`
+- `api/gis/features.php` → `/home/sabzroyanuraman/public_html/api/gis/features.php`
+
+Health test:
 
 `https://sabzroyanuraman.com/api/gis/health.php`
 
-Expected success response:
+Expected response:
 
 ```json
 {"ok":true,"service":"gis-api"}
 ```
 
-A `503` means the private config is missing/unreadable or the database connection failed. Details are intentionally kept in the server PHP error log.
+Layer catalog:
 
-## Security boundary
+`https://sabzroyanuraman.com/api/gis/layers.php`
+
+It returns only layers explicitly configured in the private file. Until a real layer is added, an empty list is expected.
+
+GeoJSON example (bbox is WGS84 longitude,latitude order):
+
+`/api/gis/features.php?layer=parcels&bbox=46,32,48,34&limit=500`
+
+The API requires a bbox and caps responses at 1,000 features. Configure only data intended to be readable by users of the public map.
+
+## Security boundaries
 
 - Keep PostgreSQL bound to localhost; do not open port 5432 publicly.
-- Do not put credentials in `public_html`, HTML/JavaScript, or Git.
-- This endpoint is only a connectivity check. It is not a layer query or editing API.
+- Never place credentials in `public_html`, HTML/JavaScript, or Git.
+- These endpoints are read-only. No arbitrary SQL or edits are accepted.
 - Keep existing ticket, feedback, and tracking endpoints untouched.
+- A successful health check does not prove the layer endpoints are deployed or that a table is configured.
