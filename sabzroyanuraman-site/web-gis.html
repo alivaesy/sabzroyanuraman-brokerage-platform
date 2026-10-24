@@ -3212,7 +3212,7 @@ function applyDefinitionQuery(owner){
   const layer=item.layer,visible=definitionQueryMatches(query,item.feature.properties||{});
   if(!layer._definitionQueryOriginalStyle){
    const opts=layer.options||{};
-   layer._definitionQueryOriginalStyle={color:opts.color,weight:opts.weight,opacity:opts.opacity,fillColor:opts.fillColor,fillOpacity:opts.fillOpacity,radius:opts.radius};
+   layer._definitionQueryOriginalStyle={color:opts.color??"#3388ff",weight:opts.weight??3,opacity:opts.opacity??1,fillColor:opts.fillColor??opts.color??"#3388ff",fillOpacity:opts.fillOpacity??0.2,radius:opts.radius};
   }
   const base=layer._definitionQueryOriginalStyle;
   if(typeof layer.setStyle==="function"){
