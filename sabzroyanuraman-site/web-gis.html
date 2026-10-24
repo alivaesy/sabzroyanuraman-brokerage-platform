@@ -179,6 +179,7 @@ body{background:#dfe5e8;color:#173b57}
 .data-dialog-card label{display:block;margin-bottom:5px;font-size:11px;font-weight:700}
 .data-dialog-card select{border-radius:2px;border-color:#aab5bb}
 .data-dialog-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:14px}
+.layer-properties-card{width:min(540px,96vw);max-height:88vh;overflow:auto;padding:0;background:#f4f6f7}.layer-properties-titlebar{display:flex;align-items:center;justify-content:space-between;padding:12px 15px;background:linear-gradient(#f9fafb,#e1e5e8);border-bottom:1px solid #aeb8be}.layer-properties-titlebar h2{margin:0;font-size:15px}.layer-properties-titlebar button{border:1px solid #aab5bb;background:#fff;width:25px;height:24px;cursor:pointer}.layer-properties-tabs{display:flex;border-bottom:1px solid #aeb8be;background:#e6e9eb;padding:0 12px}.layer-properties-tabs button{padding:8px 13px;border:0;border-right:1px solid #d0d6da;background:transparent;font-size:11px;cursor:pointer}.layer-properties-tabs button.active{background:#fff;box-shadow:inset 0 -2px #347ca5;font-weight:700}.layer-properties-card form{padding:14px 16px}.lp-pane label{display:block;font-size:11px;font-weight:700;margin:8px 0}.lp-pane input:not([type=checkbox]):not([type=color]):not([type=range]),.lp-pane select{display:block;width:100%;margin-top:4px;box-sizing:border-box}.lp-pane input[type=color]{display:block;width:100%;height:30px;margin-top:4px}.lp-pane input[type=checkbox]{vertical-align:middle;margin-right:6px}.lp-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px 14px}.lp-grid label{margin:4px 0}.lp-grid input[type=range]{display:block;width:100%}.lp-preview{display:flex;align-items:center;gap:10px;border:1px solid #c3cbd0;background:#fff;padding:10px;margin-top:10px;font-size:11px}.lp-preview #lpSymbolPreview{display:inline-block;width:42px;height:22px;border:2px solid #146c43;background:rgba(86,168,120,.2)}.layer-properties-card .data-dialog-actions{padding-top:10px;border-top:1px solid #d2d8dc}
 
 /* Keep the coordinate/status strip visible without a surrounding coordinate box. */
 
@@ -989,6 +990,18 @@ body{background:#dfe5e8;color:#173b57}
   <button type="button" data-action="transparency">Transparency...</button>
   <div class="arc-context-sep"></div>
   <button type="button" data-action="remove">Remove Layer</button>
+</div>
+<div id="layerPropertiesDialog" class="data-dialog" aria-hidden="true">
+  <section class="data-dialog-card layer-properties-card" role="dialog" aria-modal="true" aria-labelledby="layerPropertiesTitle">
+    <div class="layer-properties-titlebar"><h2 id="layerPropertiesTitle">Layer Properties</h2><button type="button" id="layerPropertiesClose" aria-label="Close">×</button></div>
+    <div class="layer-properties-tabs" role="tablist"><button type="button" class="active" data-lp-tab="general" role="tab" aria-selected="true">General</button><button type="button" data-lp-tab="symbology" role="tab" aria-selected="false">Symbology</button><button type="button" data-lp-tab="labels" role="tab" aria-selected="false">Labels</button></div>
+    <form id="layerPropertiesForm">
+      <div class="lp-pane" data-lp-pane="general"><label for="lpLayerName">Layer name</label><input id="lpLayerName" maxlength="180"><p class="small">Changes the display name in the Table Of Contents.</p><label><input type="checkbox" id="lpLayerVisible"> Layer is visible</label></div>
+      <div class="lp-pane" data-lp-pane="symbology" hidden><div class="lp-grid"><label>Outline color<input id="lpOutlineColor" type="color" value="#146c43"></label><label>Fill color<input id="lpFillColor" type="color" value="#56a878"></label><label>Outline width (px)<input id="lpLineWidth" type="number" min="0" max="20" step=".5" value="2"></label><label>Point size (px)<input id="lpPointSize" type="number" min="1" max="40" step="1" value="7"></label><label>Layer opacity<input id="lpOpacity" type="range" min="0" max="1" step=".05" value="1"><span id="lpOpacityValue">100%</span></label><label>Fill opacity<input id="lpFillOpacity" type="range" min="0" max="1" step=".05" value=".2"><span id="lpFillOpacityValue">20%</span></label></div><div class="lp-preview"><span id="lpSymbolPreview"></span><span>Symbol preview</span></div></div>
+      <div class="lp-pane" data-lp-pane="labels" hidden><label><input id="lpLabelsEnabled" type="checkbox"> Label features</label><label for="lpLabelField">Label field</label><select id="lpLabelField"></select><label for="lpLabelSize">Text size (px)</label><input id="lpLabelSize" type="number" min="8" max="32" value="12"><label for="lpLabelColor">Text color</label><input id="lpLabelColor" type="color" value="#202020"></div>
+      <div class="data-dialog-actions"><button type="button" class="top-btn" id="layerPropertiesCancel">Cancel</button><button type="submit" class="action">Apply</button><button type="submit" class="action" id="layerPropertiesOk">OK</button></div>
+    </form>
+  </section>
 </div>
 <div id="dataCommandDialog" class="data-dialog" aria-hidden="true">
   <section class="data-dialog-card" role="dialog" aria-modal="true" aria-labelledby="dataDialogTitle">
@@ -3419,7 +3432,7 @@ $("layerContextMenu").querySelectorAll("button[data-action]").forEach(btn=>btn.o
   else if(action==="export")openDataFormatDialog("export",item.layer);
   else if(action==="zoom"&&item.layer.getBounds&&item.layer.getBounds().isValid())map.fitBounds(item.layer.getBounds(),{padding:[25,25],maxZoom:18});
    else if(action==="start-editing")startEditing(item);
-  else if(action==="properties")runGisTool({id:"styleLayer",title:"Layer Properties"});
+  else if(action==="properties")openLayerProperties(item);
   else if(action==="labels")runGisTool({id:"labelLayer",title:"Label Features"});
   else if(action==="transparency")runGisTool({id:"layerTransparency",title:"Layer Transparency"});
   else if(action==="show")map.addLayer(item.layer);
@@ -6463,24 +6476,99 @@ async function showBookmarks(){
 async function layerTransparency(){
   const rs=getFeatureRecords();if(!rs.length)return;const raw=await gisAsk("Layer Transparency","Enter transparency from 0 (transparent) to 1 (opaque):","0.5");if(raw===null)return;const v=Number(raw);if(!Number.isFinite(v)||v<0||v>1){status("Transparency must be between 0 and 1.");return}rs.forEach(r=>{if(r.layer.setStyle)r.layer.setStyle({opacity:v,fillOpacity:v});});status("Transparency updated.");
 }
-async function styleLayer(){
-  const rs=getFeatureRecords().filter(r=>r.layer&&typeof r.layer.setStyle==="function");
-  if(!rs.length){status("No stylable vector features are available.");return;}
-  const colInput=await gisAsk("Layer Symbology","Outline and fill color (HEX, e.g. #146c43):","#146c43");
-  if(colInput===null)return;
-  const col=colInput.trim();
-  if(!/^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(col)){status("Enter a valid 3-, 6-, or 8-digit HEX color.");return;}
-  const widthInput=await gisAsk("Layer Symbology","Outline width (0.5–20 pixels):","2");
-  if(widthInput===null)return;
-  const w=Number(widthInput);
-  if(!Number.isFinite(w)||w<0.5||w>20){status("Outline width must be between 0.5 and 20 pixels.");return;}
-  const opacityInput=await gisAsk("Layer Symbology","Fill opacity (0–1):","0.2");
-  if(opacityInput===null)return;
-  const opacity=Number(opacityInput);
-  if(!Number.isFinite(opacity)||opacity<0||opacity>1){status("Fill opacity must be between 0 and 1.");return;}
-  rs.forEach(r=>{try{r.layer.setStyle({color:col,weight:w,fillColor:col,fillOpacity:opacity});}catch(e){console.debug("Skipped unsupported feature style",e);}});
-  status("Symbology applied to "+rs.length+" feature(s).");
+let layerPropertiesTarget=null;
+function layerPropertiesRecords(target){
+  const records=getFeatureRecords();
+  if(!target)return records;
+  const ownerMatches=records.filter(r=>r.owner?.layer===target||r.owner===target||r.layer===target);
+  if(ownerMatches.length)return ownerMatches;
+  if(typeof target.eachLayer==="function"){
+    const children=new Set();target.eachLayer(child=>children.add(child));
+    const nested=records.filter(r=>children.has(r.layer)||children.has(r.owner?.layer));
+    if(nested.length)return nested;
+  }
+  return [];
 }
+function closeLayerProperties(){
+  const d=$("layerPropertiesDialog");if(d){d.classList.remove("show");d.setAttribute("aria-hidden","true");}
+  layerPropertiesTarget=null;
+}
+function updateLayerSymbolPreview(){
+  const preview=$("lpSymbolPreview");if(!preview)return;
+  preview.style.borderColor=$("lpOutlineColor").value;preview.style.backgroundColor=$("lpFillColor").value;
+  preview.style.borderWidth=Math.min(8,Number($("lpLineWidth").value)||0)+"px";
+  preview.style.opacity=$("lpOpacity").value;
+  $("lpOpacityValue").textContent=Math.round(Number($("lpOpacity").value)*100)+"%";
+  $("lpFillOpacityValue").textContent=Math.round(Number($("lpFillOpacity").value)*100)+"%";
+  preview.style.backgroundColor=$("lpFillColor").value;
+  preview.style.setProperty("--lp-fill-opacity",$("lpFillOpacity").value);
+  preview.style.backgroundImage="linear-gradient(rgba(255,255,255,"+(1-Number($("lpFillOpacity").value))+"),rgba(255,255,255,"+(1-Number($("lpFillOpacity").value))+"))";
+}
+function openLayerProperties(item=null){
+  const target=item?.layer||(selectedOverlay?getFeatureRecords().find(r=>r.layer===selectedOverlay)?.owner?.layer:null);
+  if(!target){status("Select a layer in the Table Of Contents first.");return;}
+  layerPropertiesTarget={item,target};
+  const owner=namedLayers.find(x=>x.layer===target)||item;
+  const records=layerPropertiesRecords(target);
+  $("lpLayerName").value=owner?.name||item?.name||"Layer";
+  $("lpLayerVisible").checked=map.hasLayer(target);
+  const first=records[0]?.layer;
+  const st=first?.options||target.options||{};
+  $("lpOutlineColor").value=/^#[0-9a-f]{6}$/i.test(st.color||"")?st.color:"#146c43";
+  $("lpFillColor").value=/^#[0-9a-f]{6}$/i.test(st.fillColor||"")?st.fillColor:"#56a878";
+  $("lpLineWidth").value=Number.isFinite(Number(st.weight))?Number(st.weight):2;
+  $("lpPointSize").value=Number.isFinite(Number(st.radius))?Number(st.radius):7;
+  $("lpOpacity").value=Number.isFinite(Number(st.opacity))?Number(st.opacity):1;
+  $("lpFillOpacity").value=Number.isFinite(Number(st.fillOpacity))?Number(st.fillOpacity):.2;
+  const fields=[...new Set(records.flatMap(r=>Object.keys(r.feature.properties||{}).filter(k=>!isReservedAttributeField(k))))];
+  const fieldSelect=$("lpLabelField");fieldSelect.innerHTML="";
+  fields.forEach(field=>{const o=document.createElement("option");o.value=field;o.textContent=field;fieldSelect.appendChild(o)});
+  fieldSelect.value=fields.includes(owner?._labelField) ? owner._labelField : (fields.includes("name")?"name":fields[0]||"");
+  $("lpLabelsEnabled").checked=!!owner?._labelsEnabled;
+  $("lpLabelSize").value=owner?._labelSize||12;$("lpLabelColor").value=owner?._labelColor||"#202020";
+  document.querySelectorAll("[data-lp-tab]").forEach((b,i)=>{b.classList.toggle("active",i===0);b.setAttribute("aria-selected",i===0?"true":"false")});
+  document.querySelectorAll("[data-lp-pane]").forEach((p,i)=>p.hidden=i!==0);
+  updateLayerSymbolPreview();
+  const d=$("layerPropertiesDialog");d.classList.add("show");d.setAttribute("aria-hidden","false");
+}
+document.querySelectorAll("[data-lp-tab]").forEach(button=>button.addEventListener("click",()=>{
+  const key=button.dataset.lpTab;
+  document.querySelectorAll("[data-lp-tab]").forEach(b=>{const active=b===button;b.classList.toggle("active",active);b.setAttribute("aria-selected",active?"true":"false")});
+  document.querySelectorAll("[data-lp-pane]").forEach(p=>p.hidden=p.dataset.lpPane!==key);
+}));
+["lpOutlineColor","lpFillColor","lpLineWidth","lpOpacity","lpFillOpacity"].forEach(id=>$(id).addEventListener("input",updateLayerSymbolPreview));
+$("layerPropertiesClose").onclick=$("layerPropertiesCancel").onclick=closeLayerProperties;
+$("layerPropertiesDialog").addEventListener("click",e=>{if(e.target===$("layerPropertiesDialog"))closeLayerProperties()});
+$("layerPropertiesForm").addEventListener("submit",e=>{
+  e.preventDefault();if(!layerPropertiesTarget)return;
+  const {item,target}=layerPropertiesTarget,owner=namedLayers.find(x=>x.layer===target)||item;
+  const records=layerPropertiesRecords(target);
+  if(!owner&&!records.length){status("Could not resolve the selected layer.");return;}
+  const name=$("lpLayerName").value.trim();if(!name){status("Layer name cannot be empty.");return;}
+  const width=Number($("lpLineWidth").value),radius=Number($("lpPointSize").value),opacity=Number($("lpOpacity").value),fillOpacity=Number($("lpFillOpacity").value);
+  if(!Number.isFinite(width)||width<0||width>20||!Number.isFinite(radius)||radius<1||radius>40){status("Check the symbol width and point size.");return;}
+  if(owner){owner.name=name;owner._labelsEnabled=$("lpLabelsEnabled").checked;owner._labelField=$("lpLabelField").value;owner._labelSize=Number($("lpLabelSize").value)||12;owner._labelColor=$("lpLabelColor").value;}
+  const visible=$("lpLayerVisible").checked;
+  if(visible&&!map.hasLayer(target))map.addLayer(target);else if(!visible&&map.hasLayer(target))map.removeLayer(target);
+  const style={color:$("lpOutlineColor").value,fillColor:$("lpFillColor").value,weight:width,opacity,fillOpacity,radius};
+  let styled=0;
+  records.forEach(r=>{
+    try{
+      if(typeof r.layer.setStyle==="function"){r.layer.setStyle(style);styled++;}
+      if(typeof r.layer.setRadius==="function")r.layer.setRadius(radius);
+      if(owner?._labelsEnabled&&owner._labelField&&typeof r.layer.bindTooltip==="function"){
+        const v=r.feature.properties?.[owner._labelField];r.layer.unbindTooltip();
+        if(v!==null&&v!==undefined&&String(v).trim()!=="")r.layer.bindTooltip(String(typeof v==="object"?JSON.stringify(v):v),{permanent:true,direction:"center",className:"gis-feature-label",interactive:false});
+      }else if(typeof r.layer.unbindTooltip==="function")r.layer.unbindTooltip();
+    }catch(err){console.debug("Layer Properties style skipped",err);}
+  });
+  if(typeof target.setStyle==="function"){try{target.setStyle(style);styled=Math.max(1,styled)}catch(_){}}
+  if(owner&&owner.layerControl&&owner.layerControl.removeLayer){}
+  renderLayerList();scheduleAutoSave();
+  status("Layer Properties applied to "+(owner?.name||name)+" ("+styled+" feature symbol(s)).");
+  if(e.submitter?.id==="layerPropertiesOk")closeLayerProperties();
+});
+async function styleLayer(){openLayerProperties(contextLayerItem);}
 async function labelLayer(){
   const rs=getFeatureRecords();
   if(!rs.length){status("No vector features are available for labeling.");return;}
