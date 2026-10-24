@@ -3435,8 +3435,8 @@ $("layerContextMenu").querySelectorAll("button[data-action]").forEach(btn=>btn.o
   else if(action==="properties")openLayerProperties(item);
   else if(action==="labels")runGisTool({id:"labelLayer",title:"Label Features"});
   else if(action==="transparency")runGisTool({id:"layerTransparency",title:"Layer Transparency"});
-  else if(action==="show")map.addLayer(item.layer);
-  else if(action==="hide")map.removeLayer(item.layer);
+  else if(action==="show"){map.addLayer(item.layer);renderLayerList();scheduleAutoSave();}
+   else if(action==="hide"){map.removeLayer(item.layer);renderLayerList();scheduleAutoSave();}
   else if(action==="remove"&&item.layer!==drawn){
     if(blockForUnsavedTableEdits("removing a layer"))return;
     // Keep the edit target stable: removing any named layer can shift the numeric
@@ -6474,7 +6474,7 @@ async function showBookmarks(){
   const n=await gisAsk("Go To Bookmark","Choose a bookmark name:\n"+bs.map(x=>x.name).join("\n"),bs[0].name);const b=bs.find(x=>x.name===n);if(b){const a=b.bounds.split(",").map(Number);map.fitBounds([[a[1],a[0]],[a[3],a[2]]]);}
 }
 async function layerTransparency(){
-  const rs=getFeatureRecords();if(!rs.length)return;const raw=await gisAsk("Layer Transparency","Enter transparency from 0 (transparent) to 1 (opaque):","0.5");if(raw===null)return;const v=Number(raw);if(!Number.isFinite(v)||v<0||v>1){status("Transparency must be between 0 and 1.");return}rs.forEach(r=>{if(r.layer.setStyle)r.layer.setStyle({opacity:v,fillOpacity:v});});status("Transparency updated.");
+  const target=contextLayerItem?.layer||null;const rs=target?layerPropertiesRecords(target):getFeatureRecords();if(!rs.length){status("No vector features are available for transparency.");return;}const raw=await arcMapDialog.prompt({title:"Layer Transparency",message:"Enter opacity from 0 (transparent) to 1 (opaque):",label:"Opacity",value:"0.5"});if(raw===null)return;const v=Number(raw);if(!Number.isFinite(v)||v<0||v>1){status("Opacity must be between 0 and 1.");return}rs.forEach(r=>{if(r.layer.setStyle)r.layer.setStyle({opacity:v,fillOpacity:v});});const owner=target?(namedLayers.find(x=>x.layer===target)||contextLayerItem):null;if(owner)owner._layerOpacity=v;status("Transparency updated for "+(owner?.name||rs.length+" feature(s)")+".");
 }
 let layerPropertiesTarget=null;
 function layerPropertiesRecords(target){
@@ -6570,7 +6570,7 @@ $("layerPropertiesForm").addEventListener("submit",e=>{
 });
 async function styleLayer(){openLayerProperties(contextLayerItem);}
 async function labelLayer(){
-  const rs=getFeatureRecords();
+  const target=contextLayerItem?.layer||null;const rs=target?layerPropertiesRecords(target):getFeatureRecords();
   if(!rs.length){status("No vector features are available for labeling.");return;}
   const fields=[...new Set(rs.flatMap(r=>Object.keys(r.feature.properties||{}).filter(k=>!isReservedAttributeField(k))))];
   if(!fields.length){status("Features have no attribute fields to use as labels.");return;}
@@ -6589,6 +6589,7 @@ async function labelLayer(){
       }
     }catch(e){console.debug("Could not label feature",e);}
   });
+  const owner=target?(namedLayers.find(x=>x.layer===target)||contextLayerItem):null;if(owner){owner._labelsEnabled=true;owner._labelField=field;owner._labelSize=12;owner._labelColor="#202020";}
   status("Labels enabled for "+count+" feature(s) using field '"+field+"'.");
 }
 async function groupLayers(){
