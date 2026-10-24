@@ -195,7 +195,7 @@ body{background:#dfe5e8;color:#173b57}
 #topToolResults{top:25px;direction:ltr}
 #topToolResults .top-tool-item{text-align:left}
 #arcMenus{top:49px}
-.arc-dropdown{border-radius:0;box-shadow:2px 3px 8px rgba(0,0,0,.2);min-width:210px}
+.arc-dropdown{border-radius:0;box-shadow:2px 3px 8px rgba(0,0,0,.2);min-width:210px;max-height:calc(100vh - 52px);overflow-y:auto;overscroll-behavior:contain;box-sizing:border-box}
 .arc-dropdown button{height:25px;padding:3px 18px;font-size:11px;border-radius:0}
 .arc-dropdown .arc-menu-title{font-size:10px;padding:4px 9px}
 .arc-dropdown .arc-sep{margin:2px 0}
@@ -505,6 +505,7 @@ body{background:#dfe5e8;color:#173b57}
     <button class="arc-menu-btn" data-menu="viewMenu">Bookmarks</button>
     <button class="arc-menu-btn" data-menu="insertMenu">Insert</button>
     <button class="arc-menu-btn" data-menu="selectionMenu">Selection</button>
+    <button class="arc-menu-btn" data-menu="editMenu">Editor</button>
     <button class="arc-menu-btn" data-menu="analysisMenu">Geoprocessing</button>
 <button class="arc-menu-btn" data-menu="topologyMenu">Topology</button>
     <button class="arc-menu-btn" data-menu="layerMenu">Customize</button>
@@ -1073,6 +1074,8 @@ body{background:#dfe5e8;color:#173b57}
 <script>
 (function(){
 "use strict";
+// Initialize autosave state before any startup map events can call scheduleAutoSave().
+let autoSaveTimer=null,autoSavePromise=null,autoSaveResolve=null,autoSaveGeneration=0;
 const map=L.map("map",{preferCanvas:true}).setView([34.5,46.5],10);
 // Leaflet must recalculate its viewport after dock panels, toolbars, and responsive
 // layouts change size; otherwise tiles and interaction coordinates can drift.
@@ -4101,7 +4104,6 @@ $("setWmsBasemap").onclick=activateWmsBasemap;
 const PROJECT_DB_NAME="sabzroyan-webgis";
 const PROJECT_DB_VERSION=1;
 const PROJECT_STORE="projects";
-let autoSaveTimer=null,autoSavePromise=null,autoSaveResolve=null,autoSaveGeneration=0;
 let currentProjectId=null;
 function openProjectDB(){
   return new Promise((resolve,reject)=>{
