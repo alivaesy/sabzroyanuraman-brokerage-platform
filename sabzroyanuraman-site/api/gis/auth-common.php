@@ -18,8 +18,8 @@ function gis_auth_method(array $allowed):void{$m=strtoupper((string)($_SERVER['R
 function gis_auth_cookie(string $name,string $value,int $expires):void{setcookie($name,$value,['expires'=>$expires,'path'=>'/api/gis/','secure'=>(!empty($_SERVER['HTTPS'])&&strtolower((string)$_SERVER['HTTPS'])!=='off'),'httponly'=>$name==='gis_session','samesite'=>'Strict']);}
 function gis_auth_csrf_check():void{
  $origin=(string)($_SERVER['HTTP_ORIGIN']??'');$host=strtolower((string)($_SERVER['HTTP_HOST']??''));
- if($origin!==''){$p=parse_url($origin);$oh=strtolower((string)($p['host']??''));$os=strtolower((string)($p['scheme']??''));$https=(!empty($_SERVER['HTTPS'])&&strtolower((string)$_SERVER['HTTPS'])!=='off');
- if($oh!==preg_replace('/:\\d+$/','',$host)||($https&&$os!=='https'))gis_auth_json(403,['ok'=>false,'error'=>'origin_rejected']);}
+ if($origin!==''){$p=parse_url($origin);$hp=parse_url('http://'.$host);$oh=strtolower((string)($p['host']??''));$hh=strtolower((string)($hp['host']??''));$os=strtolower((string)($p['scheme']??''));$https=(!empty($_SERVER['HTTPS'])&&strtolower((string)$_SERVER['HTTPS'])!=='off');$expectedScheme=$https?'https':'http';
+ if(!is_array($p)||!in_array($os,['http','https'],true)||$oh===''||$oh!==$hh||$os!==$expectedScheme||isset($p['user'])||isset($p['pass']))gis_auth_json(403,['ok'=>false,'error'=>'origin_rejected']);}
  $c=(string)($_COOKIE['gis_csrf']??'');$h=(string)($_SERVER['HTTP_X_CSRF_TOKEN']??'');
  if($c===''||$h===''||!hash_equals($c,$h))gis_auth_json(403,['ok'=>false,'error'=>'csrf_failed']);
 }
