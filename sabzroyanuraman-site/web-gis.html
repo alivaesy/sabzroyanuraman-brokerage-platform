@@ -6675,6 +6675,27 @@ function updateLayerSymbolPreview(){
   preview.style.setProperty("--lp-fill-opacity",$("lpFillOpacity").value);
   preview.style.backgroundImage="linear-gradient(rgba(255,255,255,"+(1-Number($("lpFillOpacity").value))+"),rgba(255,255,255,"+(1-Number($("lpFillOpacity").value))+"))";
 }
+/* ArcMap parity follow-up: reversible definition query helpers */
+function definitionQueryMatches(query,properties){
+ if(!query)return true;
+ const raw=properties?.[query.field],value=String(query.value??""),needle=value.toLocaleLowerCase();
+ if(query.operator==="is null")return raw===null||raw===undefined||raw==="";
+ if(query.operator==="is not null")return raw!==null&&raw!==undefined&&raw!=="";
+ if(raw===null||raw===undefined)return false;
+ const text=String(typeof raw==="object"?JSON.stringify(raw):raw),actual=text.toLocaleLowerCase(),n=Number(value),numeric=typeof raw==="number"&&Number.isFinite(n);
+ switch(query.operator){
+  case "=":return numeric?raw===n:actual===needle;
+  case "!=":return numeric?raw!==n:actual!==needle;
+  case "contains":return actual.includes(needle);
+  case "starts":return actual.startsWith(needle);
+  case "ends":return actual.endsWith(needle);
+  case ">":return Number.isFinite(Number(raw))&&Number(raw)>n;
+  case ">=":return Number.isFinite(Number(raw))&&Number(raw)>=n;
+  case "<":return Number.isFinite(Number(raw))&&Number(raw)<n;
+  case "<=":return Number.isFinite(Number(raw))&&Number(raw)<=n;
+  default:return false;
+ }
+}
 function layerLabelClass(owner){
   if(!owner)return "gis-feature-label";
   if(!owner._labelClass)owner._labelClass="gis-feature-label-"+Math.random().toString(36).slice(2,10);
