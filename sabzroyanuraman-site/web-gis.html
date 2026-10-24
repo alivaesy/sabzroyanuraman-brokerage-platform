@@ -2406,7 +2406,7 @@ const addRow=(x,label,indent)=>{
     row.style.paddingLeft=indent?"28px":"6px";
     if(x.layer&&selectedOverlay===x.layer)row.classList.add("layer-active");
     const cb=document.createElement("input");cb.type="checkbox";cb.checked=x.layer?map.hasLayer(x.layer):true;cb.title="Toggle Visibility";
-    cb.onchange=()=>{if(x.layer){if(cb.checked)map.addLayer(x.layer);else map.removeLayer(x.layer)}else{(groups.get(x.name)||[]).forEach(item=>{if(cb.checked)map.addLayer(item.layer);else map.removeLayer(item.layer)});renderLayerList()}scheduleAutoSave()};
+    cb.onchange=()=>{if(x.layer){if(cb.checked)map.addLayer(x.layer);else map.removeLayer(x.layer);const owner=namedLayers.find(item=>item.layer===x.layer);if(owner?._definitionQuery)applyDefinitionQuery(owner)}else{(groups.get(x.name)||[]).forEach(item=>{if(cb.checked)map.addLayer(item.layer);else map.removeLayer(item.layer)});renderLayerList()}scheduleAutoSave()};
     const icon=document.createElement("span");icon.className="layer-icon";icon.textContent=x.isGroup?"▰":(x.isDrawn?"✏":"▦");
     const nm=document.createElement("span");nm.className="layer-name";nm.textContent=label;
     const layerOwner=x.layer?namedLayers.find(item=>item.layer===x.layer):null;
@@ -3615,7 +3615,7 @@ $("layerContextMenu").querySelectorAll("button[data-action]").forEach(btn=>btn.o
   else if(action==="properties")openLayerProperties(item);
   else if(action==="labels")runGisTool({id:"labelLayer",title:"Label Features"});
   else if(action==="transparency")runGisTool({id:"layerTransparency",title:"Layer Transparency"});
-  else if(action==="show"){map.addLayer(item.layer);renderLayerList();scheduleAutoSave();}
+  else if(action==="show"){map.addLayer(item.layer);const owner=definitionQueryLayerOwner(item);if(owner?._definitionQuery)applyDefinitionQuery(owner);renderLayerList();scheduleAutoSave();}
    else if(action==="hide"){map.removeLayer(item.layer);renderLayerList();scheduleAutoSave();}
   else if(action==="remove"&&item.layer!==drawn){
     if(blockForUnsavedTableEdits("removing a layer"))return;
