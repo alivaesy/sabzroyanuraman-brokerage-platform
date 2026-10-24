@@ -1138,9 +1138,12 @@ const base={
 };
 const basemapTileErrors=Object.create(null);
 Object.entries(base).forEach(([key,layer])=>{
+  // Count consecutive failures only; a successful tile proves the service is responding.
+  layer.on("tileload",()=>{basemapTileErrors[key]=0;});
   layer.on("tileerror",()=>{
+    if(currentBase!==layer||!map.hasLayer(layer))return;
     basemapTileErrors[key]=(basemapTileErrors[key]||0)+1;
-    if(basemapTileErrors[key]>=3&&currentBase===layer&&map.hasLayer(layer)&&key!=="esriStreet"){
+    if(basemapTileErrors[key]>=3&&key!=="esriStreet"){
       const fallback=base.esriStreet;
       if(fallback&&currentBase!==fallback){
         selectBasemap("esriStreet",false);
@@ -1149,6 +1152,7 @@ Object.entries(base).forEach(([key,layer])=>{
       }
     }
     if(basemapTileErrors[key]===1)status("Basemap tile failed to load: "+key+". Check network access or the tile service.");
+    if(key==="esriStreet"&&basemapTileErrors[key]===3)status("Esri Street Map tiles are also failing. Check network access, browser extensions, or tile-service availability.");
   });
 });
 base.osm.addTo(map);
@@ -1170,6 +1174,8 @@ function selectBasemap(key,notify=true){
   }
   const next=key==="customWms"?base.customWms:base[key];
   if(!next){status("Basemap is unavailable: "+key);return false;}
+  // A new selection starts a fresh failure streak; stale errors from an old request must not trigger fallback.
+  basemapTileErrors[key]=0;
   if(currentBase&&map.hasLayer(currentBase))map.removeLayer(currentBase);
   currentBase=next;currentBase.addTo(map);$("basemap").value=key;
   const labels={osm:"OpenStreetMap",topo:"OpenTopoMap",sat:"Esri World Imagery",esriStreet:"Esri World Street Map",esriTopo:"Esri World Topographic Map",esriGray:"Esri Light Gray Canvas",nasaWms:"NASA Blue Marble (WMS)",customWms:customWmsConfig?.name||"Custom WMS Basemap"};
