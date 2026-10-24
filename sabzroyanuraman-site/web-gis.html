@@ -1422,7 +1422,7 @@ async function saveEdits(){
     // older autosave cannot overwrite this edit-session snapshot.
     const projectSaved=await scheduleAutoSave();
     if(!projectSaved)throw new Error("Project autosave failed; retry Save Edits before leaving.");
-    status("Edits saved to this browser's local project storage.");
+    status("Edits saved and verified in this browser's local project storage (IndexedDB). This does not publish edits back to WFS/GeoServer or PostGIS.");
     return true;
   }catch(err){
     console.error("Could not save edit session:",err);
@@ -1705,7 +1705,7 @@ async function openOnlineData(){
     const body=await response.text();
     let result;
     try{result=JSON.parse(body);}catch(_){
-      const xmlMessage=body.match(/<(?:[^:>]+:)?(?:ExceptionText|ServiceException)\\b[^>]*>([\\s\\S]*?)<\\/(?:[^:>]+:)?(?:ExceptionText|ServiceException)>/i)?.[1]?.replace(/<[^>]+>/g," ").trim();
+      const xmlMessage=body.match(/<(?:[^:>]+:)?(?:ExceptionText|ServiceException)\b[^>]*>([\s\S]*?)<\/(?:[^:>]+:)?(?:ExceptionText|ServiceException)>/i)?.[1]?.replace(/<[^>]+>/g," ").trim();
       throw new Error(xmlMessage||("The service returned a non-JSON response"+(contentType?" ("+contentType+")":"")+". Check WFS outputFormat, endpoint, and permissions."));
     }
     if(result?.type!=="FeatureCollection"||!Array.isArray(result.features)){
@@ -1717,8 +1717,8 @@ async function openOnlineData(){
   status("Connecting to online service...");
   try{
     if(isArc){
-      const serviceRoot=url.pathname.replace(/\\/query$/i,"").replace(/\\/\\d+$/,"").replace(/\\/$/,"");
-      const layerMatch=url.pathname.match(/\\/(\\d+)(?:\\/query)?$/i);
+      const serviceRoot=url.pathname.replace(/\/query$/i,"").replace(/\/\d+$/,"").replace(/\/$/,"");
+      const layerMatch=url.pathname.match(/\/(\d+)(?:\/query)?$/i);
       if(!layerMatch){
         const metaUrl=new URL(url.href);metaUrl.pathname=serviceRoot;metaUrl.searchParams.set("f","json");
         const metaResponse=await fetch(metaUrl.href,{headers:{Accept:"application/json"}});
@@ -1731,7 +1731,7 @@ async function openOnlineData(){
         url.pathname=serviceRoot+"/"+encodeURIComponent(selected)+"/query";
         layerName=meta.layers.find(layer=>String(layer.id)===String(selected))?.name||("Feature layer "+selected);
       }else{
-        if(!/\\/query$/i.test(url.pathname))url.pathname=url.pathname.replace(/\\/$/,"")+"/query";
+        if(!/\/query$/i.test(url.pathname))url.pathname=url.pathname.replace(/\/$/,"")+"/query";
         layerName="ArcGIS Feature Layer "+layerMatch[1];
       }
       url.searchParams.set("where","1=1");url.searchParams.set("outFields","*");url.searchParams.set("f","geojson");
@@ -1754,6 +1754,8 @@ async function openOnlineData(){
         if(!capsResponse.ok)throw new Error("WFS GetCapabilities failed: HTTP "+capsResponse.status);
         const xmlText=await capsResponse.text(),xml=new DOMParser().parseFromString(xmlText,"application/xml");
         if(xml.querySelector("parsererror"))throw new Error("The WFS server returned invalid capabilities XML.");
+        const exceptionText=xml.getElementsByTagNameNS("*","ExceptionText")[0]?.textContent||xml.getElementsByTagNameNS("*","ServiceException")[0]?.textContent;
+        if(exceptionText)throw new Error("WFS GetCapabilities: "+exceptionText.trim());
         const available=[...xml.getElementsByTagNameNS("*","FeatureType")].map(node=>({name:node.getElementsByTagNameNS("*","Name")[0]?.textContent?.trim(),title:node.getElementsByTagNameNS("*","Title")[0]?.textContent?.trim()})).filter(item=>item.name);
         if(!available.length)throw new Error("No WFS feature layers were found in GetCapabilities. Check the endpoint and access permissions.");
         const promptText=available.slice(0,35).map(item=>item.name+(item.title&&item.title!==item.name?" — "+item.title:"")).join("\n");
