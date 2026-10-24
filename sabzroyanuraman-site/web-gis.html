@@ -1803,8 +1803,13 @@ async function openOnlineData(){
     }else{
       const result=await requestJson(url.href);data.features=result.features;layerName=decodeURIComponent(url.pathname.split("/").filter(Boolean).pop()||"Online Layer");
     }
-    if(!data.features.length){status("The online layer contains no features.");return;}
-    geoJsonLayer(data,layerName||"Online Layer");
+    const resolvedLayerName=layerName||"Online Layer";
+    if(!data.features.length){
+      geoJsonLayer(data,resolvedLayerName);
+      status("Layer added: "+resolvedLayerName+". It currently contains 0 features; the layer is ready for later data loading.");
+      return;
+    }
+    geoJsonLayer(data,resolvedLayerName);
     status(data.features.length+" online feature(s) added."+(partial?" The service/page limit was reached; the layer may be incomplete.":""));
   }catch(err){
     status("Online data could not be loaded: "+err.message+" (check CORS, authentication, and service access).");
