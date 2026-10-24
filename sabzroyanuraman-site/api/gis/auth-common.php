@@ -31,8 +31,8 @@ function gis_auth_current_user(bool $requireSubscription=false):array{
  $u['id']=(int)$u['id'];$u['is_platform_admin']=(bool)$u['is_platform_admin'];return $u;
 }
 function gis_auth_require_org_subscription(PDO $pdo,array $user,int $org):void{
- $q=$pdo->prepare("SELECT 1 FROM public.gis_subscriptions s WHERE s.status='active' AND (s.starts_at IS NULL OR s.starts_at<=now()) AND (s.expires_at IS NULL OR s.expires_at>now()) AND (s.user_id=:uid OR s.organization_id=:org) LIMIT 1");
- $q->execute(['uid'=>(int)$user['id'],'org'=>$org]);
+ $q=$pdo->prepare("SELECT 1 FROM public.gis_subscriptions s WHERE s.organization_id=:org AND s.status='active' AND (s.starts_at IS NULL OR s.starts_at<=now()) AND (s.expires_at IS NULL OR s.expires_at>now()) LIMIT 1");
+ $q->execute(['org'=>$org]);
  if(!$q->fetchColumn())gis_auth_json(403,['ok'=>false,'error'=>'active_subscription_required_for_organization']);
 }
 function gis_auth_require_org(PDO $pdo,array $user,int $org,string $minRole='viewer'):array{
