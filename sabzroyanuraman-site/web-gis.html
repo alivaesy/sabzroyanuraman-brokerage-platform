@@ -1732,7 +1732,7 @@ async function openOnlineData(){
       const featuresUrl=new URL("features.php",apiBase);
       featuresUrl.searchParams.set("layer",selected);
       featuresUrl.searchParams.set("bbox",[bounds.getWest(),bounds.getSouth(),bounds.getEast(),bounds.getNorth()].join(","));
-      featuresUrl.searchParams.set("limit","2000");
+      featuresUrl.searchParams.set("limit","1000");
       const result=await requestJson(featuresUrl.href);
       data=result;layerName=catalog.layers.find(layer=>String(layer.id)===selected)?.title||selected;
     }else if(isArc){
