@@ -1203,6 +1203,7 @@ function stopActiveDraw(cancel=true){
   if(typeof stopSplitDraw==="function")stopSplitDraw();
   const wasDrawing=activeMapTool==="draw";
   const handler=activeDrawHandler;
+  const purpose=activeDrawPurpose;
   activeDrawHandler=null;
   activeDrawPurpose=null;
   if(activeDrawCreatedHandler){
@@ -1214,6 +1215,8 @@ function stopActiveDraw(cancel=true){
   activeDrawButton=null;
   try{map.doubleClickZoom.enable()}catch(_){}
   if(wasDrawing){activeMapTool="select";try{map.dragging.enable()}catch(_){} map.getContainer().style.cursor="";}
+  else if(purpose==="selection"){try{map.getContainer().style.cursor=""}catch(_){}}
+  if(cancel&&purpose==="draw")status("Sketch cancelled; no feature was added.");
   updateEditorToolbar();
 }
 function updateEditorToolbar(){
@@ -3396,9 +3399,20 @@ $("layerContextMenu").querySelectorAll("button[data-action]").forEach(btn=>btn.o
     // Keep the edit target stable: removing any named layer can shift the numeric
     // layer indexes used by the Editor and Attribute Table selectors.
     if(editSessionActive){status("Stop the edit session before removing a layer; this keeps the active edit target and table selection stable.");return;}
+    const idx=namedLayers.findIndex(x=>x.layer===item.layer);
+    if(idx<0){status("The selected layer no longer exists.");return;}
+    recordUndoState();
+    const removedFeatures=new Set([item.layer]);
+    if(item.layer.eachLayer)item.layer.eachLayer(child=>removedFeatures.add(child));
+    removedFeatures.forEach(layer=>{
+      selectedFeatures.delete(layer);
+      if(selectedLayer===layer)selectedLayer=null;
+      if(selectedOverlay===layer)selectedOverlay=null;
+    });
     map.removeLayer(item.layer);layerControl.removeLayer(item.layer);
-    const idx=namedLayers.findIndex(x=>x.layer===item.layer);if(idx>=0)namedLayers.splice(idx,1);refreshEditorTargets();
-    refreshAttributeLayers();renderLayerList();status("Layer "+displayLayerName(item.name,namedLayers.length)+" removed.");
+    namedLayers.splice(idx,1);refreshEditorTargets();
+    refreshAttributeLayers();renderLayerList();scheduleAutoSave();
+    status("Layer "+displayLayerName(item.name,namedLayers.length)+" removed; Undo can restore it.");
   }
   renderLayerList();hideLayerContextMenu();
 });
@@ -5501,14 +5515,14 @@ function newLayerFromSelection(){
   const rs=selectedRecords(); if(!rs.length){status("Select at least one feature first.");return;}
   const fc={type:"FeatureCollection",features:rs.map(r=>JSON.parse(JSON.stringify(r.feature)))};
   const layer=L.geoJSON(fc,{onEachFeature:(f,l)=>bindFeature(l,f)});
-  layer.addTo(map); namedLayers.push({name:"Selection_"+new Date().toISOString().slice(0,19).replace(/[:T]/g,"-"),layer,source:"selection"});
-  renderLayerList(); refreshAttributeLayers(); scheduleAutoSave(); status("Layer created from selected features.");
+  const name="Selection_"+new Date().toISOString().slice(0,19).replace(/[:T]/g,"-");
+  addNamedLayer(name,layer,false);
+  scheduleAutoSave(); status("Layer created from selected features.");
 }
 function cloneSelectedFeatures(){
   const rs=editableSelectedRecords(false);if(!rs.length)return;
   const clones=rs.map(r=>JSON.parse(JSON.stringify(r.feature)));
   const layer=L.geoJSON({type:"FeatureCollection",features:clones},{onEachFeature:(f,l)=>bindFeature(l,f)});
-  recordUndoState();
   addNamedLayer("Clone_"+new Date().toISOString().replace(/[:.]/g,"-"),layer,true);
   refreshEditorTargets();refreshAttributeLayers();scheduleAutoSave();
   status(clones.length+" feature(s) cloned into a new vector layer.");
