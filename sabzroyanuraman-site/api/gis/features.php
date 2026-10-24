@@ -121,7 +121,7 @@ try {
         $jsonProperties . ' AS properties FROM public.' . $table . ' t WHERE t.' . $geom .
         ' && ST_Transform(ST_MakeEnvelope(:min_lon, :min_lat, :max_lon, :max_lat, 4326), ' . (int)$srid . ')' .
         ' AND ST_Intersects(t.' . $geom .
-        ', ST_Transform(ST_MakeEnvelope(:intersect_min_lon, :intersect_min_lat, :intersect_max_lon, :intersect_max_lat, 4326), ' . (int)$srid . ')' .
+        ', ST_Transform(ST_MakeEnvelope(:intersect_min_lon, :intersect_min_lat, :intersect_max_lon, :intersect_max_lat, 4326), ' . (int)$srid . '))' .
         ' LIMIT ' . (int)$limit;
 
     $stmt = $pdo->prepare($sql);
