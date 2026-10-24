@@ -1717,8 +1717,8 @@ async function openOnlineData(){
   status("Connecting to online service...");
   try{
     if(isArc){
-      const serviceRoot=url.pathname.replace(/\\/query$/i,"").replace(/\\/\\d+$/,"").replace(/\\/$/,"");
-      const layerMatch=url.pathname.match(/\\/(\\d+)(?:\\/query)?$/i);
+      const serviceRoot=url.pathname.replace(/\/query$/i,"").replace(/\/\d+$/,"").replace(/\/$/,"");
+      const layerMatch=url.pathname.match(/\/(\d+)(?:\/query)?$/i);
       if(!layerMatch){
         const metaUrl=new URL(url.href);metaUrl.pathname=serviceRoot;metaUrl.searchParams.set("f","json");
         const metaResponse=await fetch(metaUrl.href,{headers:{Accept:"application/json"}});
@@ -1731,7 +1731,7 @@ async function openOnlineData(){
         url.pathname=serviceRoot+"/"+encodeURIComponent(selected)+"/query";
         layerName=meta.layers.find(layer=>String(layer.id)===String(selected))?.name||("Feature layer "+selected);
       }else{
-        if(!/\\/query$/i.test(url.pathname))url.pathname=url.pathname.replace(/\\/$/,"")+"/query";
+        if(!/\/query$/i.test(url.pathname))url.pathname=url.pathname.replace(/\/$/,"")+"/query";
         layerName="ArcGIS Feature Layer "+layerMatch[1];
       }
       url.searchParams.set("where","1=1");url.searchParams.set("outFields","*");url.searchParams.set("f","geojson");
