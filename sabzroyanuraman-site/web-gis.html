@@ -3336,7 +3336,10 @@ function currentAttributeLayer(){
 }
 function currentAttributeItems(){
  const layer=currentAttributeLayer();
- return layer?vectorFeatures(layer):[];
+ if(!layer)return [];
+ const items=vectorFeatures(layer);
+ const owner=namedLayers.find(x=>x.layer===layer);
+ return owner?._definitionQuery?items.filter(x=>definitionQueryMatches(owner._definitionQuery,x.feature.properties||{})):items;
 }
 function isReservedAttributeField(key){return typeof key!=="string"||key.startsWith("_")||key.toLowerCase()==="geometry"}
 function tableKeys(items){
