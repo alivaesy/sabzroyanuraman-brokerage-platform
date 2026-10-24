@@ -14,6 +14,5 @@ CREATE INDEX IF NOT EXISTS webgis_features_geom_gix
     ON public.webgis_features USING GIST (geom);
 
 GRANT SELECT ON TABLE public.webgis_features TO sabzroyan_app;
-GRANT USAGE, SELECT ON SEQUENCE public.webgis_features_id_seq TO sabzroyan_app;
 
 COMMIT;
