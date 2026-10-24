@@ -1764,7 +1764,9 @@ async function openOnlineData(){
         layerName=layerName.trim();
         if(!available.some(item=>item.name===layerName)){status("Enter an exact layer Name from the WFS capabilities list.");return;}
       }
-      const pageSize=500,maxFeatures=10000;
+      const limitChoice=await arcMapDialog.select({title:"WFS Feature Load Limit",message:"Choose a maximum number of features to fetch. For large services, use a smaller limit or a server-side filter; WFS 1.x servers may not support paging.",label:"Maximum features",value:"2000",options:[{value:"500",label:"500 features (fast preview)"},{value:"2000",label:"2,000 features (recommended)"},{value:"5000",label:"5,000 features"},{value:"10000",label:"10,000 features (may be slow)"}]});
+      if(limitChoice===null)return;
+      const pageSize=500,maxFeatures=Math.max(500,Math.min(10000,Number(limitChoice)||2000));
       for(let offset=0;offset<maxFeatures;offset+=pageSize){
         const pageUrl=new URL(base.href);pageUrl.searchParams.set("service","WFS");pageUrl.searchParams.set("version",version);pageUrl.searchParams.set("request","GetFeature");pageUrl.searchParams.delete("typeName");pageUrl.searchParams.delete("typeNames");pageUrl.searchParams.set(version.startsWith("2")?"typeNames":"typeName",layerName);pageUrl.searchParams.set("outputFormat","application/json");pageUrl.searchParams.set("srsName",pageUrl.searchParams.get("srsName")||"EPSG:4326");pageUrl.searchParams.set(version.startsWith("2")?"count":"maxFeatures",String(pageSize));if(version.startsWith("2"))pageUrl.searchParams.set("startIndex",String(offset));
         const page=await requestJson(pageUrl.href);data.features.push(...page.features);
