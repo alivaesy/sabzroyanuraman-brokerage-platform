@@ -986,7 +986,6 @@ body{background:#dfe5e8;color:#173b57}
   <button type="button" data-action="hide">Hide Layer</button>
   <div class="arc-context-sep"></div>
   <button type="button" data-action="properties">Properties...</button>
-  <button type="button" data-action="definition-query">Definition Query...</button>
   <button type="button" data-action="labels">Label Features</button>
   <button type="button" data-action="transparency">Transparency...</button>
   <div class="arc-context-sep"></div>
@@ -2347,7 +2346,7 @@ const addRow=(x,label,indent)=>{
     const cb=document.createElement("input");cb.type="checkbox";cb.checked=x.layer?map.hasLayer(x.layer):true;cb.title="Toggle Visibility";
     cb.onchange=()=>{if(x.layer){if(cb.checked)map.addLayer(x.layer);else map.removeLayer(x.layer)}else{(groups.get(x.name)||[]).forEach(item=>{if(cb.checked)map.addLayer(item.layer);else map.removeLayer(item.layer)});renderLayerList()}scheduleAutoSave()};
     const icon=document.createElement("span");icon.className="layer-icon";icon.textContent=x.isGroup?"▰":(x.isDrawn?"✏":"▦");
-    const nm=document.createElement("span");nm.className="layer-name";nm.textContent=label;const layerOwner=namedLayers.find(item=>item.layer===x.layer);if(layerOwner?._definitionQuery){nm.title="Definition Query: "+layerOwner._definitionQuery.field+" "+layerOwner._definitionQuery.operator+" "+layerOwner._definitionQuery.value;const badge=document.createElement("span");badge.className="small";badge.textContent="  [Q]";badge.title=nm.title;row.append(cb,icon,nm,badge);}else row.append(cb,icon,nm);
+    const nm=document.createElement("span");nm.className="layer-name";nm.textContent=label;row.append(cb,icon,nm);
     if(x.layer&&x.layer.getBounds)nm.ondblclick=()=>{const b=x.layer.getBounds();if(b&&b.isValid())map.fitBounds(b,{padding:[25,25],maxZoom:18})};
     row.append(cb,icon,nm);
     if(x.layer){row.onclick=()=>{selectedOverlay=x.layer;selectedLayer=null;const idx=namedLayers.findIndex(item=>item.layer===x.layer);if(idx>=0){$("editTargetLayer").value=String(idx);editTarget=x.layer}renderLayerList()};row.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();selectedOverlay=x.layer;renderLayerList();showLayerContextMenu(x,e.clientX,e.clientY)}}
@@ -3181,78 +3180,7 @@ function currentAttributeLayer(){
 }
 function currentAttributeItems(){
  const layer=currentAttributeLayer();
- if(!layer)return [];
- const items=vectorFeatures(layer),owner=namedLayers.find(x=>x.layer===layer);
- return owner?items.filter(x=>definitionQueryMatches(owner._definitionQuery,x.feature.properties||{})):items;
-}
-function definitionQueryMatches(query,properties){
- if(!query)return true;
- const raw=properties?.[query.field],value=String(query.value??""),needle=value.toLocaleLowerCase();
- if(query.operator==="is null")return raw===null||raw===undefined||raw==="";
- if(query.operator==="is not null")return raw!==null&&raw!==undefined&&raw!=="";
- if(raw===null||raw===undefined)return false;
- const text=String(typeof raw==="object"?JSON.stringify(raw):raw),a=text.toLocaleLowerCase(),n=Number(value),numeric=typeof raw==="number"&&Number.isFinite(n);
- switch(query.operator){
-  case "=":return numeric?raw===n:a===needle;
-  case "!=":return numeric?raw!==n:a!==needle;
-  case ">":return numeric?raw>n:Number.isFinite(Number(raw))&&Number(raw)>n;
-  case ">=":return numeric?raw>=n:Number.isFinite(Number(raw))&&Number(raw)>=n;
-  case "<":return numeric?raw<n:Number.isFinite(Number(raw))&&Number(raw)<n;
-  case "<=":return numeric?raw<=n:Number.isFinite(Number(raw))&&Number(raw)<=n;
-  case "contains":return a.includes(needle);
-  case "starts":return a.startsWith(needle);
-  case "ends":return a.endsWith(needle);
-  default:return true;
- }
-}
-function applyDefinitionQuery(owner){
- if(!owner?.layer)return;
- const query=owner._definitionQuery||null;
- vectorFeatures(owner.layer).forEach(item=>{
-  const layer=item.layer,visible=definitionQueryMatches(query,item.feature.properties||{});
-  if(!layer._definitionQueryOriginalStyle){
-   const opts=layer.options||{};
-   layer._definitionQueryOriginalStyle={color:opts.color??"#3388ff",weight:opts.weight??3,opacity:opts.opacity??1,fillColor:opts.fillColor??opts.color??"#3388ff",fillOpacity:opts.fillOpacity??0.2,radius:opts.radius};
-  }
-  const base=layer._definitionQueryOriginalStyle;
-  if(typeof layer.setStyle==="function"){
-   layer.setStyle(visible?Object.fromEntries(Object.entries(base).filter(([key,value])=>value!==undefined&&key!=="radius")):{opacity:0,fillOpacity:0});
-  }else if(typeof layer.setOpacity==="function"){
-   layer.setOpacity(visible?(base.opacity??1):0);
-  }
- });
- if(typeof owner.layer.setStyle==="function")owner.layer.setStyle({});
-}
-async function openDefinitionQuery(item){
- const owner=namedLayers.find(x=>x.layer===item?.layer);
- if(!owner||!isVectorLayer(owner.layer)){status("Definition Query is available for vector layers only.");return;}
- const records=vectorFeatures(owner.layer);
- const fields=[...new Set([...((owner.layer._gdbMetadata?.fields||[]).map(f=>typeof f==="string"?f:f?.name)),...records.flatMap(r=>Object.keys(r.feature.properties||{}))].filter(k=>k&&!isReservedAttributeField(k)))];
- if(!fields.length){status("The selected layer has no attribute fields.");return;}
- const current=owner._definitionQuery||{};
- const result=await arcMapDialog.form({
-  title:"Definition Query",
-  message:"Show only features matching this condition. Clear the field to remove the query.",
-  fields:[
-   {name:"field",label:"Field (blank clears query)",options:[{value:"",label:"— Clear definition query —"},...fields.map(f=>({value:f,label:f}))],value:current.field||""},
-   {name:"operator",label:"Operator",options:["=","!=","contains","starts","ends",">",">=","<","<=","is null","is not null"].map(v=>({value:v,label:v})),value:current.operator||"="},
-   {name:"value",label:"Value",type:"text",value:current.value??""}
-  ]
- });
- if(result===null)return;
- if(!result.field){delete owner._definitionQuery;applyDefinitionQuery(owner);renderLayerList();refreshAttributeLayers();if(currentAttributeLayer()===owner.layer)renderEditableTable();scheduleAutoSave();status("Definition Query cleared for "+owner.name+".");return;}
- if(!fields.includes(result.field)){status("Choose a valid field.");return;}
- if(!["is null","is not null"].includes(result.operator)&&String(result.value??"").trim()===""){status("Enter a value for the definition query.");return;}
- owner._definitionQuery={field:result.field,operator:result.operator,value:String(result.value??"")};
- applyDefinitionQuery(owner);renderLayerList();refreshAttributeLayers();if(currentAttributeLayer()===owner.layer)renderEditableTable();scheduleAutoSave();
- const count=records.filter(r=>definitionQueryMatches(owner._definitionQuery,r.feature.properties||{})).length;
- status("Definition Query applied: "+count+" of "+records.length+" features visible in "+owner.name+".");
-}
-function isReservedAttributeField(key){return typeof key!=="string"||key.startsWith("_")||key.toLowerCase()==="geometry"}
-function tableKeys(items){
- // Include declared schema fields even when a feature class contains zero rows.
- const layer=currentAttributeLayer(),schema=layer?._gdbMetadata?.fields||[];
- return [...new Set([...schema.map(f=>typeof f==="string"?f:f.name),...items.flatMap(x=>Object.keys(x.feature.properties||{}).filter(k=>!isReservedAttributeField(k)))].filter(k=>k&&!isReservedAttributeField(k)))];
+ return layer?vectorFeatures(layer):[];
 }
 let attributeSort={key:null,direction:1};
 function renderEditableTable(){
@@ -3521,7 +3449,6 @@ $("layerContextMenu").querySelectorAll("button[data-action]").forEach(btn=>btn.o
   else if(action==="zoom"&&item.layer.getBounds&&item.layer.getBounds().isValid())map.fitBounds(item.layer.getBounds(),{padding:[25,25],maxZoom:18});
    else if(action==="start-editing")startEditing(item);
   else if(action==="properties")openLayerProperties(item);
-  else if(action==="definition-query")openDefinitionQuery(item);
   else if(action==="labels")runGisTool({id:"labelLayer",title:"Label Features"});
   else if(action==="transparency")runGisTool({id:"layerTransparency",title:"Layer Transparency"});
   else if(action==="show"){map.addLayer(item.layer);renderLayerList();scheduleAutoSave();}
