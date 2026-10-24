@@ -1695,6 +1695,7 @@ async function openOnlineData(){
   if(!value)return;
   let url;try{url=new URL(value.trim());if(!/^https?:$/.test(url.protocol))throw new Error();}catch(_){status("Enter a valid HTTP or HTTPS data URL.");return;}
   if(location.protocol==="https:"&&url.protocol!=="https:"){status("Use an HTTPS data service on this secure page.");return;}
+  const isSabzApi=/\/api\/gis\/(?:features|layers)\.php$/i.test(url.pathname);
   const isArc=/\/FeatureServer(?:\/|$)/i.test(url.pathname);
   const isWfs=(url.searchParams.get("service")||"").toUpperCase()==="WFS"||/\/(?:wfs|ows)\/?$/i.test(url.pathname);
   let layerName="",data={type:"FeatureCollection",features:[]},partial=false;
@@ -1716,7 +1717,25 @@ async function openOnlineData(){
   };
   status("Connecting to online service...");
   try{
-    if(isArc){
+    if(isSabzApi){
+      const apiBase=new URL(url.href);
+      apiBase.pathname=apiBase.pathname.replace(/(?:features|layers)\.php$/i,"");
+      apiBase.search="";apiBase.hash="";
+      const layersResponse=await fetch(new URL("layers.php",apiBase).href,{headers:{Accept:"application/json"}});
+      if(!layersResponse.ok)throw new Error("Sabz Royan GIS layer catalog failed: HTTP "+layersResponse.status);
+      const catalog=await layersResponse.json();
+      if(catalog?.ok!==true||!Array.isArray(catalog.layers)||!catalog.layers.length)throw new Error(catalog?.error||"The GIS API returned no available layers.");
+      const choices=catalog.layers.map(layer=>({value:String(layer.id),label:String(layer.title||layer.id)+" ("+layer.id+")"}));
+      const selected=await arcMapDialog.select({title:"Add Sabz Royan GIS Layer",message:"Choose a layer from the site's PostGIS-backed GIS API. Features are loaded for the current map extent.",label:"GIS layer",value:choices[0].value,options:choices});
+      if(selected===null)return;
+      const bounds=map.getBounds();
+      const featuresUrl=new URL("features.php",apiBase);
+      featuresUrl.searchParams.set("layer",selected);
+      featuresUrl.searchParams.set("bbox",[bounds.getWest(),bounds.getSouth(),bounds.getEast(),bounds.getNorth()].join(","));
+      featuresUrl.searchParams.set("limit","2000");
+      const result=await requestJson(featuresUrl.href);
+      data=result;layerName=catalog.layers.find(layer=>String(layer.id)===selected)?.title||selected;
+    }else if(isArc){
       const serviceRoot=url.pathname.replace(/\/query$/i,"").replace(/\/\d+$/,"").replace(/\/$/,"");
       const layerMatch=url.pathname.match(/\/(\d+)(?:\/query)?$/i);
       if(!layerMatch){
