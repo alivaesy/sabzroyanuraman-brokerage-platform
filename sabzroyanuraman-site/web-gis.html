@@ -2869,13 +2869,25 @@ async function runGisOperation(){
           if(result)result.properties={...(f1.properties||{}),_operation:"Erase"};
           name="Erase";
         }else if(op==="union"){
-          result=turf.union(turf.featureCollection([f1,f2]));
-          if(result){
-            const props={_operation:"Union"};
-            Object.entries(f1.properties||{}).forEach(([k,v])=>props["input_"+k]=v);
-            Object.entries(f2.properties||{}).forEach(([k,v])=>{let key="overlay_"+k;if(Object.prototype.hasOwnProperty.call(props,key))key+="_2";props[key]=v;});
-            result.properties=props;
-          }
+          // ArcMap Union preserves the input-only, overlap, and overlay-only
+          // partitions. turf.union() dissolves them into one geometry and loses
+          // the feature-level topology and attribute provenance.
+          const inputProps=f1.properties||{},overlayProps=f2.properties||{};
+          const inputKeys=Object.keys(inputProps),overlayKeys=Object.keys(overlayProps);
+          const makeUnionProperties=(inputValues,overlayValues,part)=>{
+            const props={_operation:"Union",_union_part:part};
+            inputKeys.forEach(k=>{props["input_"+k]=inputValues?k in inputValues?inputValues[k]:null:null;});
+            overlayKeys.forEach(k=>{let key="overlay_"+k;while(Object.prototype.hasOwnProperty.call(props,key))key+="_2";props[key]=overlayValues&&k in overlayValues?overlayValues[k]:null;});
+            return props;
+          };
+          const features=[];
+          const inputOnly=turf.difference(turf.featureCollection([f1,f2]));
+          const overlap=turf.intersect(turf.featureCollection([f1,f2]));
+          const overlayOnly=turf.difference(turf.featureCollection([f2,f1]));
+          if(inputOnly)features.push({...inputOnly,properties:makeUnionProperties(inputProps,null,"input-only")});
+          if(overlap)features.push({...overlap,properties:makeUnionProperties(inputProps,overlayProps,"overlap")});
+          if(overlayOnly)features.push({...overlayOnly,properties:makeUnionProperties(null,overlayProps,"overlay-only")});
+          result={type:"FeatureCollection",features};
           name="Union";
         }else if(op==="clip"||op==="intersection"){
         if(op==="clip"){
