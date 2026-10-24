@@ -7006,6 +7006,8 @@ async function addMapDecoration(kind){
 (function(){
   const menus=[...document.querySelectorAll(".arc-menu-btn")];
   const drops=[...document.querySelectorAll(".arc-dropdown")];
+  /* Menu commands must never submit an enclosing form or reload the GIS page. */
+  document.querySelectorAll(".arc-dropdown button").forEach(button=>{button.type="button";});
   function closeMenus(){drops.forEach(x=>x.classList.remove("show"));menus.forEach(x=>x.classList.remove("active"))}
   document.querySelectorAll(".arc-dropdown button[data-tool], .editor-toolbar button[data-tool]").forEach(b=>b.onclick=()=>{
     const t=(typeof GIS_TOOLS!=="undefined")?GIS_TOOLS.find(x=>x.id===b.dataset.tool):null;
@@ -7082,7 +7084,13 @@ async function addMapDecoration(kind){
       insertScaleBar:()=>addMapDecoration("scale"),
       insertDataFrame:()=>addMapDecoration("frame")
     };
-    if(mapActions[a])mapActions[a](); closeMenus();
+    try{
+      if(mapActions[a])mapActions[a]();
+      else status("This menu command is not wired yet: "+a);
+    }catch(err){
+      console.error("WebGIS menu command failed:",a,err);
+      status("Menu command \""+a+"\" failed: "+(err&&err.message?err.message:"unknown error"));
+    }finally{closeMenus();}
   });
   const si=document.getElementById("topToolSearch"), out=document.getElementById("topToolResults");
   function search(q){
