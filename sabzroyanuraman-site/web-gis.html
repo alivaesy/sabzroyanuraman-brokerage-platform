@@ -3402,8 +3402,13 @@ $("layerContextMenu").querySelectorAll("button[data-action]").forEach(btn=>btn.o
     const idx=namedLayers.findIndex(x=>x.layer===item.layer);
     if(idx<0){status("The selected layer no longer exists.");return;}
     recordUndoState();
-    const removedFeatures=new Set([item.layer]);
-    if(item.layer.eachLayer)item.layer.eachLayer(child=>removedFeatures.add(child));
+    const removedFeatures=new Set();
+    const collectRemovedLayers=layer=>{
+      if(!layer||removedFeatures.has(layer))return;
+      removedFeatures.add(layer);
+      if(layer.eachLayer)layer.eachLayer(collectRemovedLayers);
+    };
+    collectRemovedLayers(item.layer);
     removedFeatures.forEach(layer=>{
       selectedFeatures.delete(layer);
       if(selectedLayer===layer)selectedLayer=null;
