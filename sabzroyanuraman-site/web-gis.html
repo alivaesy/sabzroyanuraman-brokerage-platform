@@ -3247,14 +3247,16 @@ function renderEditableTable(){
   const summary=$("attributeTableSummary");
   if(summary)summary.textContent=keys.length+" field(s) · "+items.length+" record(s) · "+selectedFeatures.size+" selected";
  };
- const syncMapSelection=()=>{
+ const syncMapSelection=event=>{
   rowChecks.forEach(ch=>{
    const row=ch.closest("tr"),item=items[Number(row?.dataset.index)];
    if(!item)return;
    if(ch.checked)selectedFeatures.add(item.layer);
    else selectedFeatures.delete(item.layer);
   });
-  synchronizeFeatureSelection({renderEditor:false});
+  const changedRow=event?.target?.closest("tr[data-index]");
+  const changedItem=changedRow?items[Number(changedRow.dataset.index)]:null;
+  synchronizeFeatureSelection({primary:changedItem&&selectedFeatures.has(changedItem.layer)?changedItem.layer:null,renderEditor:false});
   syncCheckAll();
  };
  if(all)all.onchange=()=>{rowChecks.forEach(ch=>ch.checked=all.checked);syncMapSelection()};
@@ -3298,7 +3300,7 @@ $("attributeTableWrap").addEventListener("click",event=>{
    selectedFeatures.clear();selectedFeatures.add(item.layer);
  }
  attributeLastClickedIndex=Number(row.dataset.index);
- synchronizeFeatureSelection({renderEditor:false});
+ synchronizeFeatureSelection({primary:selectedFeatures.has(item.layer)?item.layer:null,renderEditor:false});
  if(selectedLayer)showUTM(selectedLayer);
  status(selectedFeatures.size+" feature(s) selected from the Attribute Table.");
 });
@@ -3332,7 +3334,7 @@ $("attributeTableWrap").addEventListener("keydown",event=>{
   selectedFeatures.clear();selectedFeatures.add(targetItem.layer);
   attributeLastClickedIndex=targetIndex;
  }
- synchronizeFeatureSelection({renderEditor:false});
+ synchronizeFeatureSelection({primary:selectedFeatures.has(targetItem.layer)?targetItem.layer:null,renderEditor:false});
  target.focus({preventScroll:true});target.scrollIntoView({block:"nearest"});
  if(selectedLayer)showUTM(selectedLayer);
  status(selectedFeatures.size+" feature(s) selected from the Attribute Table.");
