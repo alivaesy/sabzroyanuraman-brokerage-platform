@@ -2300,22 +2300,7 @@ function displayLayerName(name,index){return /[\u0600-\u06FF]/.test(String(name|
 function renderLayerList(){
   const el=$("layers");if(!el)return;el.innerHTML="";
   const groups=new Map();
-
-  if(tocViewMode==="selection"&&!selectedOverlay){el.innerHTML='<div class="small" style="padding:10px;color:#667781">Select a layer to show it here.</div>';return;}
-
-  if(tocViewMode==="source"){
-
-    const sorted=[...namedLayers].sort((a,b)=>String(a.sourceName||a.source||a.name||"").localeCompare(String(b.sourceName||b.source||b.name||""),undefined,{numeric:true,sensitivity:"base"}));
-
-    sorted.forEach((x,i)=>addRow(x,(x.sourceName||x.source)?String(x.sourceName||x.source)+" — "+x.name:x.name||("Layer "+(i+1)),false));
-
-    if(drawn.getLayers().length)addRow({name:"Legacy drawings",layer:drawn,isDrawn:true},"Legacy drawings",false);
-
-    return;
-
-  }
-
-  const addRow=(x,label,indent)=>{
+const addRow=(x,label,indent)=>{
 
     if(tocViewMode==="visibility"&&x.layer&&!map.hasLayer(x.layer))return;
 
@@ -2332,7 +2317,24 @@ function renderLayerList(){
     if(x.layer){row.onclick=()=>{selectedOverlay=x.layer;selectedLayer=null;const idx=namedLayers.findIndex(item=>item.layer===x.layer);if(idx>=0){$("editTargetLayer").value=String(idx);editTarget=x.layer}renderLayerList()};row.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();selectedOverlay=x.layer;renderLayerList();showLayerContextMenu(x,e.clientX,e.clientY)}}
     el.appendChild(row);
   };
-  const drawingSets=[...new Set(namedLayers.filter(x=>x.drawingSet).map(x=>x.drawingSet))];
+  
+
+  if(tocViewMode==="selection"&&!selectedOverlay){el.innerHTML='<div class="small" style="padding:10px;color:#667781">Select a layer to show it here.</div>';return;}
+
+  if(tocViewMode==="source"){
+
+    const sorted=[...namedLayers].sort((a,b)=>String(a.sourceName||a.source||a.name||"").localeCompare(String(b.sourceName||b.source||b.name||""),undefined,{numeric:true,sensitivity:"base"}));
+
+    sorted.forEach((x,i)=>addRow(x,(x.sourceName||x.source)?String(x.sourceName||x.source)+" — "+x.name:x.name||("Layer "+(i+1)),false));
+
+    if(drawn.getLayers().length)addRow({name:"Legacy drawings",layer:drawn,isDrawn:true},"Legacy drawings",false);
+
+    return;
+
+  }
+
+  
+   const drawingSets=[...new Set(namedLayers.filter(x=>x.drawingSet).map(x=>x.drawingSet))];
   if(drawn.getLayers().length)addRow({name:"Legacy drawings",layer:drawn,isDrawn:true},"Legacy drawings",false);
   drawingSets.forEach(name=>{
     const children=namedLayers.filter(x=>x.drawingSet===name);groups.set(name,children);
