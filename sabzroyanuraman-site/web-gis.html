@@ -2911,10 +2911,44 @@ async function runWholeLayerGisOperation(op){
    }
    name='Intersect '+input.name+' with '+overlay.name;
  }else if(op==='union'){
-   // Turf union is a dissolved geometric union, not ArcGIS Union's partitioned attribute overlay.
-   let g=null;for(const f of [...records,...ovs])g=g?turf.union(turf.featureCollection([g,f])):JSON.parse(JSON.stringify(f));
-   if(g)output=[{...g,properties:{_operation:'Geometric Union (dissolved)',_input_layer:input.name,_overlay_layer:overlay.name,_source_count:records.length+ovs.length,_note:'Dissolved geometric union; not ArcGIS partitioned Union'}}];
-   name='Geometric Union '+input.name+' + '+overlay.name;
+   if([...records,...ovs].some(f=>!['Polygon','MultiPolygon'].includes(f.geometry.type))){status('Union follows polygon overlay semantics and requires polygon input and overlay layers.');return true;}
+   const clone=f=>JSON.parse(JSON.stringify(f));
+   const mergeOverlayAttrs=(base,overlayFeature,index)=>{
+     const props={...(base.properties||{}),_operation:'Union',_input_layer:input.name,_overlay_layer:overlay.name,_union_match:true};
+     for(const [k,v] of Object.entries(overlayFeature.properties||{})){
+       let key=k;
+       if(Object.prototype.hasOwnProperty.call(props,key)){key='overlay_'+k;let n=2;while(Object.prototype.hasOwnProperty.call(props,key))key='overlay_'+k+'_'+n++;}
+       props[key]=v;
+     }
+     return props;
+   };
+   const difference=(a,b)=>turf.difference(turf.featureCollection([a,b]));
+   const intersection=(a,b)=>turf.intersect(turf.featureCollection([a,b]));
+   let inputMask=null;for(const f of records)inputMask=inputMask?turf.union(turf.featureCollection([inputMask,f])):clone(f);
+   let overlayMask=null;for(const f of ovs)overlayMask=overlayMask?turf.union(turf.featureCollection([overlayMask,f])):clone(f);
+   if(!inputMask||!overlayMask)throw new Error('Could not build Union input/overlay masks.');
+   // Split each input feature against every overlay feature, preserving the attributes on each partition.
+   for(const source of records){
+     let parts=[clone(source)];
+     for(const ov of ovs){
+       const next=[];
+       for(const part of parts){
+         const inside=intersection(part,ov),outside=difference(part,ov);
+         if(outside)next.push({...outside,properties:{...(part.properties||{}),_operation:'Union',_union_match:!!(part.properties||{})._union_match}});
+         if(inside)next.push({...inside,properties:mergeOverlayAttrs(part,ov)});
+       }
+       parts=next;
+       if(!parts.length)break;
+     }
+     output.push(...parts);
+   }
+   // Add overlay-only areas (overlay footprint outside the complete input footprint).
+   for(const ov of ovs){
+     const outside=difference(ov,inputMask);
+     if(outside)output.push({...outside,properties:{...(ov.properties||{}),_operation:'Union',_input_layer:input.name,_overlay_layer:overlay.name,_union_match:false,_union_source:'overlay-only'}});
+   }
+   name='Union '+input.name+' + '+overlay.name;
+
  }else return false;}
  if(!output.length){status(name+' returned no output; no layer created.');return true;}
  const finiteCoords=c=>Array.isArray(c)&&((typeof c[0]==='number')?c.every(Number.isFinite):c.every(finiteCoords));
