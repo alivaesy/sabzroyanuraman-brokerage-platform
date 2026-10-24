@@ -30,6 +30,11 @@ function gis_auth_current_user(bool $requireSubscription=false):array{
  if($requireSubscription){$q=$pdo->prepare("SELECT 1 FROM public.gis_subscriptions s WHERE s.status='active' AND (s.starts_at IS NULL OR s.starts_at<=now()) AND (s.expires_at IS NULL OR s.expires_at>now()) AND (s.user_id=:uid OR s.organization_id IN (SELECT m.organization_id FROM public.gis_organization_members m JOIN public.gis_organizations o ON o.id=m.organization_id WHERE m.user_id=:uid2 AND m.status='active' AND o.status='active')) LIMIT 1");$q->execute(['uid'=>(int)$u['id'],'uid2'=>(int)$u['id']]);if(!$q->fetchColumn())gis_auth_json(403,['ok'=>false,'error'=>'active_subscription_required']);}
  $u['id']=(int)$u['id'];$u['is_platform_admin']=(bool)$u['is_platform_admin'];return $u;
 }
+function gis_auth_require_org_subscription(PDO $pdo,array $user,int $org):void{
+ $q=$pdo->prepare("SELECT 1 FROM public.gis_subscriptions s WHERE s.status='active' AND (s.starts_at IS NULL OR s.starts_at<=now()) AND (s.expires_at IS NULL OR s.expires_at>now()) AND (s.user_id=:uid OR s.organization_id=:org) LIMIT 1");
+ $q->execute(['uid'=>(int)$user['id'],'org'=>$org]);
+ if(!$q->fetchColumn())gis_auth_json(403,['ok'=>false,'error'=>'active_subscription_required_for_organization']);
+}
 function gis_auth_require_org(PDO $pdo,array $user,int $org,string $minRole='viewer'):array{
  $rank=['viewer'=>1,'member'=>1,'editor'=>2,'admin'=>3,'owner'=>4];$q=$pdo->prepare("SELECT m.role,m.status,o.status AS organization_status FROM public.gis_organization_members m JOIN public.gis_organizations o ON o.id=m.organization_id WHERE m.organization_id=:org AND m.user_id=:uid LIMIT 1");$q->execute(['org'=>$org,'uid'=>(int)$user['id']]);$m=$q->fetch();
  if(!$m||$m['status']!=='active'||$m['organization_status']!=='active'||!isset($rank[$m['role']])||$rank[$m['role']]<($rank[$minRole]??99))gis_auth_json(403,['ok'=>false,'error'=>'organization_access_denied']);return $m;
