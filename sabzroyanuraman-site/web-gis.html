@@ -52,7 +52,7 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
 
 
 .gis-tool-item{display:flex;align-items:center;gap:7px;width:100%;text-align:right;border:1px solid #d9e4e9;background:#fff;color:#173b57;border-radius:7px;padding:7px 8px;margin:4px 0;cursor:pointer;font-size:10px}
-#gisToolResults{max-height:none;min-height:0;overflow:visible;overscroll-behavior:auto;padding:0 3px 0 0}
+#gisToolResults{max-height:calc(100vh - 365px);min-height:140px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding:0 5px 6px 0;scrollbar-gutter:stable;scrollbar-width:thin}#gisToolResults::-webkit-scrollbar{width:10px}#gisToolResults::-webkit-scrollbar-thumb{background:#9aaeb8;border:2px solid #f1f5f6;border-radius:8px}#gisToolResults::-webkit-scrollbar-track{background:#e5ecef}
 .gis-tool-item:hover{background:#eef7f3;border-color:#9db5c1}
 .gis-tool-cat{font-size:9px;color:#146c43;margin:8px 2px 3px;font-weight:700}
 .gis-tool-summary{position:sticky;top:0;z-index:2;background:#f2f7f8;color:#264b5c;border:1px solid #d9e4e9;border-radius:5px;padding:5px 7px;margin:2px 0 6px;font-size:10px;font-weight:700}
