@@ -3470,7 +3470,7 @@ $("applyMultiAttribute").onclick=()=>{
     targets.forEach(layer=>{
       const props=layer.feature?.properties||{},old=props[key];let value=raw;
       const valueType=old===null||old===undefined||old===""?fieldType:(typeof old==="object"?"object":typeof old);
-      if(valueType==="number"){
+      if(raw.trim()===""&&["boolean","object","array"].includes(valueType)){value=null;}else if(valueType==="number"){
         if(raw.trim()==="")value=null;
         else if(Number.isFinite(Number(raw)))value=Number(raw);
         else throw new Error("Field '"+key+"' requires a valid number.");
