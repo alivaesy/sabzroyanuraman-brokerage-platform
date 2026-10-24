@@ -2858,11 +2858,20 @@ async function runGisOperation(){
           name="Append into input";
         }else if(op==="identity"){
           if(!polygonal(f1.geometry)||!polygonal(f2.geometry)){status("Identity currently requires polygon or multipolygon input and overlay features.");return;}
+          // Identity retains the entire input geometry, splitting it at overlay
+          // boundaries and attaching overlay attributes only to intersecting parts.
+          const inputProps=f1.properties||{},overlayProps=f2.properties||{};
+          const inputKeys=Object.keys(inputProps),overlayKeys=Object.keys(overlayProps);
+          const makeIdentityProperties=(matched)=>{
+            const props={...inputProps,_operation:"Identity",_identity_match:matched};
+            overlayKeys.forEach(k=>{let key="overlay_"+k,n=2;while(Object.prototype.hasOwnProperty.call(props,key))key="overlay_"+k+"_"+n++;props[key]=matched?overlayProps[k]:null;});
+            return props;
+          };
           const inside=turf.intersect(turf.featureCollection([f1,f2]));
           const outside=turf.difference(turf.featureCollection([f1,f2]));
           const features=[];
-          if(outside)features.push({...outside,properties:{...(f1.properties||{}),_operation:"Identity",_identity_match:false}});
-          if(inside){const props={...(f1.properties||{}),_operation:"Identity",_identity_match:true};Object.entries(f2.properties||{}).forEach(([k,v])=>{let key="overlay_"+k;let n=2;while(Object.prototype.hasOwnProperty.call(props,key))key="overlay_"+k+"_"+n++;props[key]=v;});features.push({...inside,properties:props});}
+          if(outside)features.push({...outside,properties:makeIdentityProperties(false)});
+          if(inside)features.push({...inside,properties:makeIdentityProperties(true)});
           result={type:"FeatureCollection",features};name="Identity";
         }else if(op==="erase"){
           result=turf.difference(turf.featureCollection([f1,f2]));
@@ -2923,9 +2932,17 @@ async function runGisOperation(){
           }
           result=turf.intersect(turf.featureCollection([f1,f2]));
           if(result){
-            const props={_operation:"Intersect"};
-            Object.entries(f1.properties||{}).forEach(([k,v])=>props["input_"+k]=v);
-            Object.entries(f2.properties||{}).forEach(([k,v])=>{let key="overlay_"+k;if(Object.prototype.hasOwnProperty.call(props,key))key+="_2";props[key]=v;});
+            const props={_operation:"Intersect",_input_geometry:f1.geometry.type,_overlay_geometry:f2.geometry.type};
+            const used=new Set(Object.keys(props));
+            const addSide=(prefix,source)=>{
+              Object.entries(source||{}).forEach(([k,v])=>{
+                let key=prefix+k,base=key,n=2;
+                while(used.has(key))key=base+"_"+n++;
+                used.add(key);props[key]=v;
+              });
+            };
+            addSide("input_",f1.properties);
+            addSide("overlay_",f2.properties);
             result.properties=props;
           }
         }
