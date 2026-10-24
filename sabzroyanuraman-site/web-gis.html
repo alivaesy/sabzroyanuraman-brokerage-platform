@@ -2780,7 +2780,7 @@ async function runWholeLayerGisOperation(op){
        const inside=turf.intersect(turf.featureCollection([a,b]));
        if(!inside)continue;
        const props={...(a.properties||{}),_operation:'Identity',_identity_match:true,_overlay_layer:overlay.name};
-       Object.entries(b.properties||{}).forEach(([k,v])=>{let key='overlay_'+k,n=2;while(Object.prototype.hasOwnProperty.call(props,key))key='overlay_'+k+'_'+n++;props[key]=v;});
+       Object.keys(ovs.reduce((all,x)=>Object.assign(all,x.properties||{}),{})).forEach(k=>{let key='overlay_'+k,n=2;while(Object.prototype.hasOwnProperty.call(props,key))key='overlay_'+k+'_'+n++;props[key]=Object.prototype.hasOwnProperty.call(b.properties||{},k)?b.properties[k]:null;});
        output.push({...inside,properties:props});
      }
    }
@@ -2792,7 +2792,14 @@ async function runWholeLayerGisOperation(op){
    for(const a of records)for(const g of clipFeatureToPolygon(a,mask))output.push({...g,properties:{...(a.properties||{}),_operation:'Clip',_overlay_layer:overlay.name}});
    name='Clip '+input.name+' by '+overlay.name;
  }else if(op==='intersection'){
-   for(const a of records)for(const b of ovs){const g=turf.intersect(turf.featureCollection([a,b]));if(g)output.push({...g,properties:{...(a.properties||{}),...Object.fromEntries(Object.entries(b.properties||{}).map(([k,v])=>['overlay_'+k,v])),_operation:'Intersect',_overlay_layer:overlay.name}});}
+   const overlayKeys=[...new Set(ovs.flatMap(f=>Object.keys(f.properties||{})))];
+   for(const a of records)for(const b of ovs){
+     const g=turf.intersect(turf.featureCollection([a,b]));if(!g)continue;
+     const props={...(a.properties||{}),_operation:'Intersect',_input_layer:input.name,_overlay_layer:overlay.name};
+     const used=new Set(Object.keys(props));
+     overlayKeys.forEach(k=>{let key='overlay_'+k,base=key,n=2;while(used.has(key))key=base+'_'+n++;used.add(key);props[key]=Object.prototype.hasOwnProperty.call(b.properties||{},k)?b.properties[k]:null;});
+     output.push({...g,properties:props});
+   }
    name='Intersect '+input.name+' with '+overlay.name;
  }else if(op==='union'){
    // Turf union is a dissolved geometric union, not ArcGIS Union's partitioned attribute overlay.
