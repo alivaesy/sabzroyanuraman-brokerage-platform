@@ -3594,7 +3594,7 @@ $("saveTableEdits").onclick=async()=>{
     if(raw===inp.dataset.original)return;
     let value=raw;
     const valueType=oldValue===null||oldValue===undefined||oldValue===""?fieldTypes[key]:(typeof oldValue==="object"?"object":typeof oldValue);
-    if(raw.trim()===""&&(valueType==="number"||valueType==="boolean"||valueType==="object")){
+    if(raw.trim()===""&&(valueType==="number"||valueType==="boolean"||valueType==="object"||valueType==="array")){
      // A blank cell in a typed field means null, not an invalid boolean/JSON value.
      value=null;
     }else if(valueType==="number"){
