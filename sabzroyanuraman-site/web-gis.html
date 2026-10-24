@@ -2784,7 +2784,7 @@ async function runWholeLayerGisOperation(op){
        const inside=turf.intersect(turf.featureCollection([a,b]));
        if(!inside)continue;
        const props={...(a.properties||{}),_operation:'Identity',_identity_match:true,_overlay_layer:overlay.name};
-       Object.entries(b.properties||{}).forEach(([k,v])=>{let key='overlay_'+k,n=2;while(Object.prototype.hasOwnProperty.call(props,key))key='overlay_'+k+'_'+n++;props[key]=v;});
+       Object.keys(ovs.reduce((all,x)=>Object.assign(all,x.properties||{}),{})).forEach(k=>{let key='overlay_'+k,n=2;while(Object.prototype.hasOwnProperty.call(props,key))key='overlay_'+k+'_'+n++;props[key]=Object.prototype.hasOwnProperty.call(b.properties||{},k)?b.properties[k]:null;});
        output.push({...inside,properties:props});
      }
    }
@@ -2796,7 +2796,14 @@ async function runWholeLayerGisOperation(op){
    for(const a of records)for(const g of clipFeatureToPolygon(a,mask))output.push({...g,properties:{...(a.properties||{}),_operation:'Clip',_overlay_layer:overlay.name}});
    name='Clip '+input.name+' by '+overlay.name;
  }else if(op==='intersection'){
-   for(const a of records)for(const b of ovs){const g=turf.intersect(turf.featureCollection([a,b]));if(g)output.push({...g,properties:{...(a.properties||{}),...Object.fromEntries(Object.entries(b.properties||{}).map(([k,v])=>['overlay_'+k,v])),_operation:'Intersect',_overlay_layer:overlay.name}});}
+   const overlayKeys=[...new Set(ovs.flatMap(f=>Object.keys(f.properties||{})))];
+   for(const a of records)for(const b of ovs){
+     const g=turf.intersect(turf.featureCollection([a,b]));if(!g)continue;
+     const props={...(a.properties||{}),_operation:'Intersect',_input_layer:input.name,_overlay_layer:overlay.name};
+     const used=new Set(Object.keys(props));
+     overlayKeys.forEach(k=>{let key='overlay_'+k,base=key,n=2;while(used.has(key))key=base+'_'+n++;used.add(key);props[key]=Object.prototype.hasOwnProperty.call(b.properties||{},k)?b.properties[k]:null;});
+     output.push({...g,properties:props});
+   }
    name='Intersect '+input.name+' with '+overlay.name;
  }else if(op==='union'){
    // Turf union is a dissolved geometric union, not ArcGIS Union's partitioned attribute overlay.
@@ -2862,24 +2869,45 @@ async function runGisOperation(){
           name="Append into input";
         }else if(op==="identity"){
           if(!polygonal(f1.geometry)||!polygonal(f2.geometry)){status("Identity currently requires polygon or multipolygon input and overlay features.");return;}
+          // Identity retains the entire input geometry, splitting it at overlay
+          // boundaries and attaching overlay attributes only to intersecting parts.
+          const inputProps=f1.properties||{},overlayProps=f2.properties||{};
+          const inputKeys=Object.keys(inputProps),overlayKeys=Object.keys(overlayProps);
+          const makeIdentityProperties=(matched)=>{
+            const props={...inputProps,_operation:"Identity",_identity_match:matched};
+            overlayKeys.forEach(k=>{let key="overlay_"+k,n=2;while(Object.prototype.hasOwnProperty.call(props,key))key="overlay_"+k+"_"+n++;props[key]=matched?overlayProps[k]:null;});
+            return props;
+          };
           const inside=turf.intersect(turf.featureCollection([f1,f2]));
           const outside=turf.difference(turf.featureCollection([f1,f2]));
           const features=[];
-          if(outside)features.push({...outside,properties:{...(f1.properties||{}),_operation:"Identity",_identity_match:false}});
-          if(inside){const props={...(f1.properties||{}),_operation:"Identity",_identity_match:true};Object.entries(f2.properties||{}).forEach(([k,v])=>{let key="overlay_"+k;let n=2;while(Object.prototype.hasOwnProperty.call(props,key))key="overlay_"+k+"_"+n++;props[key]=v;});features.push({...inside,properties:props});}
+          if(outside)features.push({...outside,properties:makeIdentityProperties(false)});
+          if(inside)features.push({...inside,properties:makeIdentityProperties(true)});
           result={type:"FeatureCollection",features};name="Identity";
         }else if(op==="erase"){
           result=turf.difference(turf.featureCollection([f1,f2]));
           if(result)result.properties={...(f1.properties||{}),_operation:"Erase"};
           name="Erase";
         }else if(op==="union"){
-          result=turf.union(turf.featureCollection([f1,f2]));
-          if(result){
-            const props={_operation:"Union"};
-            Object.entries(f1.properties||{}).forEach(([k,v])=>props["input_"+k]=v);
-            Object.entries(f2.properties||{}).forEach(([k,v])=>{let key="overlay_"+k;if(Object.prototype.hasOwnProperty.call(props,key))key+="_2";props[key]=v;});
-            result.properties=props;
-          }
+          // ArcMap Union preserves the input-only, overlap, and overlay-only
+          // partitions. turf.union() dissolves them into one geometry and loses
+          // the feature-level topology and attribute provenance.
+          const inputProps=f1.properties||{},overlayProps=f2.properties||{};
+          const inputKeys=Object.keys(inputProps),overlayKeys=Object.keys(overlayProps);
+          const makeUnionProperties=(inputValues,overlayValues,part)=>{
+            const props={_operation:"Union",_union_part:part};
+            inputKeys.forEach(k=>{props["input_"+k]=inputValues?k in inputValues?inputValues[k]:null:null;});
+            overlayKeys.forEach(k=>{let key="overlay_"+k;while(Object.prototype.hasOwnProperty.call(props,key))key+="_2";props[key]=overlayValues&&k in overlayValues?overlayValues[k]:null;});
+            return props;
+          };
+          const features=[];
+          const inputOnly=turf.difference(turf.featureCollection([f1,f2]));
+          const overlap=turf.intersect(turf.featureCollection([f1,f2]));
+          const overlayOnly=turf.difference(turf.featureCollection([f2,f1]));
+          if(inputOnly)features.push({...inputOnly,properties:makeUnionProperties(inputProps,null,"input-only")});
+          if(overlap)features.push({...overlap,properties:makeUnionProperties(inputProps,overlayProps,"overlap")});
+          if(overlayOnly)features.push({...overlayOnly,properties:makeUnionProperties(null,overlayProps,"overlay-only")});
+          result={type:"FeatureCollection",features};
           name="Union";
         }else if(op==="clip"||op==="intersection"){
         if(op==="clip"){
@@ -2915,9 +2943,17 @@ async function runGisOperation(){
           }
           result=turf.intersect(turf.featureCollection([f1,f2]));
           if(result){
-            const props={_operation:"Intersect"};
-            Object.entries(f1.properties||{}).forEach(([k,v])=>props["input_"+k]=v);
-            Object.entries(f2.properties||{}).forEach(([k,v])=>{let key="overlay_"+k;if(Object.prototype.hasOwnProperty.call(props,key))key+="_2";props[key]=v;});
+            const props={_operation:"Intersect",_input_geometry:f1.geometry.type,_overlay_geometry:f2.geometry.type};
+            const used=new Set(Object.keys(props));
+            const addSide=(prefix,source)=>{
+              Object.entries(source||{}).forEach(([k,v])=>{
+                let key=prefix+k,base=key,n=2;
+                while(used.has(key))key=base+"_"+n++;
+                used.add(key);props[key]=v;
+              });
+            };
+            addSide("input_",f1.properties);
+            addSide("overlay_",f2.properties);
             result.properties=props;
           }
         }
