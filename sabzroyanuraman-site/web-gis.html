@@ -6504,6 +6504,17 @@ function updateLayerSymbolPreview(){
   preview.style.setProperty("--lp-fill-opacity",$("lpFillOpacity").value);
   preview.style.backgroundImage="linear-gradient(rgba(255,255,255,"+(1-Number($("lpFillOpacity").value))+"),rgba(255,255,255,"+(1-Number($("lpFillOpacity").value))+"))";
 }
+function layerLabelClass(owner){
+  if(!owner)return "gis-feature-label";
+  if(!owner._labelClass)owner._labelClass="gis-feature-label-"+Math.random().toString(36).slice(2,10);
+  const id=owner._labelClass.replace(/[^a-z0-9_-]/gi,"");
+  const color=/^#[0-9a-f]{6}$/i.test(owner._labelColor||"")?owner._labelColor:"#202020";
+  const size=Math.max(8,Math.min(32,Number(owner._labelSize)||12));
+  let style=document.getElementById(id+"-style");
+  if(!style){style=document.createElement("style");style.id=id+"-style";document.head.appendChild(style);}
+  style.textContent="."+id+"{color:"+color+"!important;font-size:"+size+"px!important;font-weight:500;background:rgba(255,255,255,.86);border:1px solid #9aa8af;border-radius:2px;padding:1px 3px;box-shadow:none}";
+  return id;
+}
 function openLayerProperties(item=null){
   const target=item?.layer||(selectedOverlay?getFeatureRecords().find(r=>r.layer===selectedOverlay)?.owner?.layer:null);
   if(!target){status("Select a layer in the Table Of Contents first.");return;}
@@ -6549,7 +6560,7 @@ $("layerPropertiesForm").addEventListener("submit",e=>{
   const name=$("lpLayerName").value.trim();if(!name){status("Layer name cannot be empty.");return;}
   const width=Number($("lpLineWidth").value),radius=Number($("lpPointSize").value),opacity=Number($("lpOpacity").value),fillOpacity=Number($("lpFillOpacity").value);
   if(!Number.isFinite(width)||width<0||width>20||!Number.isFinite(radius)||radius<1||radius>40){status("Check the symbol width and point size.");return;}
-  if(owner){owner.name=name;owner._labelsEnabled=$("lpLabelsEnabled").checked;owner._labelField=$("lpLabelField").value;owner._labelSize=Number($("lpLabelSize").value)||12;owner._labelColor=$("lpLabelColor").value;}
+  if(owner){owner.name=name;owner._labelsEnabled=$("lpLabelsEnabled").checked;owner._labelField=$("lpLabelField").value;owner._labelSize=Math.max(8,Math.min(32,Number($("lpLabelSize").value)||12));owner._labelColor=$("lpLabelColor").value;layerLabelClass(owner);}
   const visible=$("lpLayerVisible").checked;
   if(visible&&!map.hasLayer(target))map.addLayer(target);else if(!visible&&map.hasLayer(target))map.removeLayer(target);
   const style={color:$("lpOutlineColor").value,fillColor:$("lpFillColor").value,weight:width,opacity,fillOpacity,radius};
@@ -6560,7 +6571,7 @@ $("layerPropertiesForm").addEventListener("submit",e=>{
       if(typeof r.layer.setRadius==="function")r.layer.setRadius(radius);
       if(owner?._labelsEnabled&&owner._labelField&&typeof r.layer.bindTooltip==="function"){
         const v=r.feature.properties?.[owner._labelField];r.layer.unbindTooltip();
-        if(v!==null&&v!==undefined&&String(v).trim()!=="")r.layer.bindTooltip(String(typeof v==="object"?JSON.stringify(v):v),{permanent:true,direction:"center",className:"gis-feature-label",interactive:false});
+        if(v!==null&&v!==undefined&&String(v).trim()!=="")r.layer.bindTooltip(String(typeof v==="object"?JSON.stringify(v):v),{permanent:true,direction:"center",className:layerLabelClass(owner),interactive:false});
       }else if(typeof r.layer.unbindTooltip==="function")r.layer.unbindTooltip();
     }catch(err){console.debug("Layer Properties style skipped",err);}
   });
