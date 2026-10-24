@@ -141,3 +141,7 @@ test("Geoprocessing rejects unsplit lines and validates result geometry", () => 
   assert.match(html, /output contains missing or unsupported geometry/);
   assert.match(html, /produced structurally invalid geometry/);
 });
+
+test('Bulk attribute editing converts blank typed boolean, object, and array values to null', () => {
+  assert.match(html, /raw\.trim\(\)===""&&\["boolean","object","array"\]\.includes\(valueType\)/);
+});
