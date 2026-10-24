@@ -1701,9 +1701,15 @@ async function openOnlineData(){
   const requestJson=async requestUrl=>{
     const response=await fetch(requestUrl,{headers:{Accept:"application/geo+json, application/json"}});
     if(!response.ok)throw new Error("HTTP "+response.status);
-    const result=await response.json();
+    const contentType=(response.headers.get("content-type")||"").toLowerCase();
+    const body=await response.text();
+    let result;
+    try{result=JSON.parse(body);}catch(_){
+      const xmlMessage=body.match(/<(?:[^:>]+:)?(?:ExceptionText|ServiceException)\\b[^>]*>([\\s\\S]*?)<\\/(?:[^:>]+:)?(?:ExceptionText|ServiceException)>/i)?.[1]?.replace(/<[^>]+>/g," ").trim();
+      throw new Error(xmlMessage||("The service returned a non-JSON response"+(contentType?" ("+contentType+")":"")+". Check WFS outputFormat, endpoint, and permissions."));
+    }
     if(result?.type!=="FeatureCollection"||!Array.isArray(result.features)){
-      const serviceMessage=result?.message||result?.error?.message||result?.exception?.[0]?.text;
+      const serviceMessage=result?.message||result?.error?.message||result?.error?.details?.join?.("; ")||result?.exception?.[0]?.text;
       throw new Error(serviceMessage||"The service did not return a GeoJSON FeatureCollection. Check output format, layer name, and permissions.");
     }
     return result;
@@ -1711,7 +1717,23 @@ async function openOnlineData(){
   status("Connecting to online service...");
   try{
     if(isArc){
-      if(!/\/query$/i.test(url.pathname))url.pathname=url.pathname.replace(/\/$/,"")+"/query";
+      const serviceRoot=url.pathname.replace(/\\/query$/i,"").replace(/\\/\\d+$/,"").replace(/\\/$/,"");
+      const layerMatch=url.pathname.match(/\\/(\\d+)(?:\\/query)?$/i);
+      if(!layerMatch){
+        const metaUrl=new URL(url.href);metaUrl.pathname=serviceRoot;metaUrl.searchParams.set("f","json");
+        const metaResponse=await fetch(metaUrl.href,{headers:{Accept:"application/json"}});
+        if(!metaResponse.ok)throw new Error("ArcGIS FeatureServer metadata failed: HTTP "+metaResponse.status);
+        const meta=await metaResponse.json();
+        if(!Array.isArray(meta.layers)||!meta.layers.length)throw new Error(meta.error?.message||"No accessible FeatureServer layers were found.");
+        const choices=meta.layers.map(layer=>({value:String(layer.id),label:layer.name+" (ID "+layer.id+")"}));
+        const selected=await arcMapDialog.select({title:"Choose Feature Service Layer",message:"Available ArcGIS FeatureServer layers:",label:"Feature layer",value:choices[0].value,options:choices});
+        if(selected===null)return;
+        url.pathname=serviceRoot+"/"+encodeURIComponent(selected)+"/query";
+        layerName=meta.layers.find(layer=>String(layer.id)===String(selected))?.name||("Feature layer "+selected);
+      }else{
+        if(!/\\/query$/i.test(url.pathname))url.pathname=url.pathname.replace(/\\/$/,"")+"/query";
+        layerName="ArcGIS Feature Layer "+layerMatch[1];
+      }
       url.searchParams.set("where","1=1");url.searchParams.set("outFields","*");url.searchParams.set("f","geojson");
       const pageSize=1000,maxFeatures=20000;
       for(let offset=0;offset<maxFeatures;offset+=pageSize){
@@ -1742,7 +1764,7 @@ async function openOnlineData(){
       }
       const pageSize=500,maxFeatures=10000;
       for(let offset=0;offset<maxFeatures;offset+=pageSize){
-        const pageUrl=new URL(base.href);pageUrl.searchParams.set("service","WFS");pageUrl.searchParams.set("version",version);pageUrl.searchParams.set("request","GetFeature");pageUrl.searchParams.delete("typeName");pageUrl.searchParams.set("typeNames",layerName);pageUrl.searchParams.set("outputFormat","application/json");pageUrl.searchParams.set("srsName",pageUrl.searchParams.get("srsName")||"EPSG:4326");pageUrl.searchParams.set(version.startsWith("2")?"count":"maxFeatures",String(pageSize));if(version.startsWith("2"))pageUrl.searchParams.set("startIndex",String(offset));
+        const pageUrl=new URL(base.href);pageUrl.searchParams.set("service","WFS");pageUrl.searchParams.set("version",version);pageUrl.searchParams.set("request","GetFeature");pageUrl.searchParams.delete("typeName");pageUrl.searchParams.delete("typeNames");pageUrl.searchParams.set(version.startsWith("2")?"typeNames":"typeName",layerName);pageUrl.searchParams.set("outputFormat","application/json");pageUrl.searchParams.set("srsName",pageUrl.searchParams.get("srsName")||"EPSG:4326");pageUrl.searchParams.set(version.startsWith("2")?"count":"maxFeatures",String(pageSize));if(version.startsWith("2"))pageUrl.searchParams.set("startIndex",String(offset));
         const page=await requestJson(pageUrl.href);data.features.push(...page.features);
         if(page.features.length<pageSize)break;
         if(offset+pageSize>=maxFeatures){partial=true;break;}
@@ -2325,6 +2347,8 @@ const addRow=(x,label,indent)=>{
     cb.onchange=()=>{if(x.layer){if(cb.checked)map.addLayer(x.layer);else map.removeLayer(x.layer)}else{(groups.get(x.name)||[]).forEach(item=>{if(cb.checked)map.addLayer(item.layer);else map.removeLayer(item.layer)});renderLayerList()}scheduleAutoSave()};
     const icon=document.createElement("span");icon.className="layer-icon";icon.textContent=x.isGroup?"▰":(x.isDrawn?"✏":"▦");
     const nm=document.createElement("span");nm.className="layer-name";nm.textContent=label;
+    const layerOwner=x.layer?namedLayers.find(item=>item.layer===x.layer):null;
+    if(layerOwner?._definitionQuery){nm.title="Definition Query: "+layerOwner._definitionQuery.field+" "+layerOwner._definitionQuery.operator+" "+layerOwner._definitionQuery.value;const badge=document.createElement("span");badge.className="small";badge.textContent=" [Q]";badge.title=nm.title;row.append(cb,icon,nm,badge);}else row.append(cb,icon,nm);
     if(x.layer&&x.layer.getBounds)nm.ondblclick=()=>{const b=x.layer.getBounds();if(b&&b.isValid())map.fitBounds(b,{padding:[25,25],maxZoom:18})};
     row.append(cb,icon,nm);
     if(x.layer){row.onclick=()=>{selectedOverlay=x.layer;selectedLayer=null;const idx=namedLayers.findIndex(item=>item.layer===x.layer);if(idx>=0){$("editTargetLayer").value=String(idx);editTarget=x.layer}renderLayerList()};row.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();selectedOverlay=x.layer;renderLayerList();showLayerContextMenu(x,e.clientX,e.clientY)}}
