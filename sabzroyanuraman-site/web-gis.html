@@ -986,6 +986,7 @@ body{background:#dfe5e8;color:#173b57}
   <button type="button" data-action="hide">Hide Layer</button>
   <div class="arc-context-sep"></div>
   <button type="button" data-action="properties">Properties...</button>
+  <button type="button" data-action="definition-query">Definition Query...</button>
   <button type="button" data-action="labels">Label Features</button>
   <button type="button" data-action="transparency">Transparency...</button>
   <div class="arc-context-sep"></div>
@@ -3180,7 +3181,72 @@ function currentAttributeLayer(){
 }
 function currentAttributeItems(){
  const layer=currentAttributeLayer();
- return layer?vectorFeatures(layer):[];
+ if(!layer)return [];
+ const items=vectorFeatures(layer),owner=namedLayers.find(x=>x.layer===layer);
+ return owner?items.filter(x=>definitionQueryMatches(owner._definitionQuery,x.feature.properties||{})):items;
+}
+function definitionQueryMatches(query,properties){
+ if(!query)return true;
+ const raw=properties?.[query.field],value=String(query.value??""),needle=value.toLocaleLowerCase();
+ if(query.operator==="is null")return raw===null||raw===undefined||raw==="";
+ if(query.operator==="is not null")return raw!==null&&raw!==undefined&&raw!=="";
+ if(raw===null||raw===undefined)return false;
+ const text=String(typeof raw==="object"?JSON.stringify(raw):raw),a=text.toLocaleLowerCase(),n=Number(value),numeric=typeof raw==="number"&&Number.isFinite(n);
+ switch(query.operator){
+  case "=":return numeric?raw===n:a===needle;
+  case "!=":return numeric?raw!==n:a!==needle;
+  case ">":return numeric?raw>n:Number.isFinite(Number(raw))&&Number(raw)>n;
+  case ">=":return numeric?raw>=n:Number.isFinite(Number(raw))&&Number(raw)>=n;
+  case "<":return numeric?raw<n:Number.isFinite(Number(raw))&&Number(raw)<n;
+  case "<=":return numeric?raw<=n:Number.isFinite(Number(raw))&&Number(raw)<=n;
+  case "contains":return a.includes(needle);
+  case "starts":return a.startsWith(needle);
+  case "ends":return a.endsWith(needle);
+  default:return true;
+ }
+}
+function applyDefinitionQuery(owner){
+ if(!owner?.layer)return;
+ const query=owner._definitionQuery||null;
+ vectorFeatures(owner.layer).forEach(item=>{
+  const layer=item.layer,visible=definitionQueryMatches(query,item.feature.properties||{});
+  if(!layer._definitionQueryOriginalStyle){
+   const opts=layer.options||{};
+   layer._definitionQueryOriginalStyle={color:opts.color,weight:opts.weight,opacity:opts.opacity,fillColor:opts.fillColor,fillOpacity:opts.fillOpacity,radius:opts.radius};
+  }
+  const base=layer._definitionQueryOriginalStyle;
+  if(typeof layer.setStyle==="function"){
+   layer.setStyle(visible?{color:base.color,weight:base.weight,opacity:base.opacity,fillColor:base.fillColor,fillOpacity:base.fillOpacity}:{opacity:0,fillOpacity:0});
+  }else if(typeof layer.setOpacity==="function"){
+   layer.setOpacity(visible?(base.opacity??1):0);
+  }
+ });
+ if(typeof owner.layer.setStyle==="function")owner.layer.setStyle({});
+}
+async function openDefinitionQuery(item){
+ const owner=namedLayers.find(x=>x.layer===item?.layer);
+ if(!owner||!isVectorLayer(owner.layer)){status("Definition Query is available for vector layers only.");return;}
+ const records=vectorFeatures(owner.layer);
+ const fields=[...new Set([...((owner.layer._gdbMetadata?.fields||[]).map(f=>typeof f==="string"?f:f?.name)),...records.flatMap(r=>Object.keys(r.feature.properties||{}))].filter(k=>k&&!isReservedAttributeField(k)))];
+ if(!fields.length){status("The selected layer has no attribute fields.");return;}
+ const current=owner._definitionQuery||{};
+ const result=await arcMapDialog.form({
+  title:"Definition Query",
+  message:"Show only features matching this condition. Clear the field to remove the query.",
+  fields:[
+   {name:"field",label:"Field (blank clears query)",options:[{value:"",label:"— Clear definition query —"},...fields.map(f=>({value:f,label:f}))],value:current.field||""},
+   {name:"operator",label:"Operator",options:["=","!=","contains","starts","ends",">",">=","<","<=","is null","is not null"].map(v=>({value:v,label:v})),value:current.operator||"="},
+   {name:"value",label:"Value",type:"text",value:current.value??""}
+  ]
+ });
+ if(result===null)return;
+ if(!result.field){delete owner._definitionQuery;applyDefinitionQuery(owner);renderLayerList();refreshAttributeLayers();if(currentAttributeLayer()===owner.layer)renderEditableTable();scheduleAutoSave();status("Definition Query cleared for "+owner.name+".");return;}
+ if(!fields.includes(result.field)){status("Choose a valid field.");return;}
+ if(!["is null","is not null"].includes(result.operator)&&String(result.value??"").trim()===""){status("Enter a value for the definition query.");return;}
+ owner._definitionQuery={field:result.field,operator:result.operator,value:String(result.value??"")};
+ applyDefinitionQuery(owner);renderLayerList();refreshAttributeLayers();if(currentAttributeLayer()===owner.layer)renderEditableTable();scheduleAutoSave();
+ const count=records.filter(r=>definitionQueryMatches(owner._definitionQuery,r.feature.properties||{})).length;
+ status("Definition Query applied: "+count+" of "+records.length+" features visible in "+owner.name+".");
 }
 function isReservedAttributeField(key){return typeof key!=="string"||key.startsWith("_")||key.toLowerCase()==="geometry"}
 function tableKeys(items){
@@ -3455,6 +3521,7 @@ $("layerContextMenu").querySelectorAll("button[data-action]").forEach(btn=>btn.o
   else if(action==="zoom"&&item.layer.getBounds&&item.layer.getBounds().isValid())map.fitBounds(item.layer.getBounds(),{padding:[25,25],maxZoom:18});
    else if(action==="start-editing")startEditing(item);
   else if(action==="properties")openLayerProperties(item);
+  else if(action==="definition-query")await openDefinitionQuery(item);
   else if(action==="labels")runGisTool({id:"labelLayer",title:"Label Features"});
   else if(action==="transparency")runGisTool({id:"layerTransparency",title:"Layer Transparency"});
   else if(action==="show"){map.addLayer(item.layer);renderLayerList();scheduleAutoSave();}
