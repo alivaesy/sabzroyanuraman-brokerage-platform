@@ -1582,7 +1582,7 @@ document.addEventListener("keydown",e=>{
   if(e.key==="F6"&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!["input","textarea","select"].includes(tag)&&!e.target?.isContentEditable){
     e.preventDefault();
     const target=selectedLayer&&isVectorLayer(selectedLayer)?selectedLayer:(selectedOverlay&&isVectorLayer(selectedOverlay)?selectedOverlay:(currentAttributeLayer()||null));
-    const item=target===drawn?{name:"My Drawings",layer:drawn}:namedLayers.find(x=>x.layer===target);
+    const item=target===drawn||drawn.hasLayer?.(target)?{name:"My Drawings",layer:drawn}:namedLayers.find(x=>x.layer===target||(x.layer&&vectorFeatures(x.layer).some(v=>v.layer===target)))||(currentAttributeLayer()?{name:namedLayers.find(x=>x.layer===currentAttributeLayer())?.name||"Active Layer",layer:currentAttributeLayer()}:null);
     if(item)openLayerAttributeTable(item,"vertical");else status("Select a vector layer in the Table of Contents before opening its attribute table.");
     return;
   }
