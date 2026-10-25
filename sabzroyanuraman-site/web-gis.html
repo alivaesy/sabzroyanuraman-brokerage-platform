@@ -1746,7 +1746,7 @@ async function remoteGisLogin(){
   await remoteGisGetCsrf();
   const username=await arcMapDialog.prompt({title:"GIS Online Login",message:"Enter your Sabz Royan account username.",label:"Username",value:""});
   if(!username)return false;
-  const password=await arcMapDialog.prompt({title:"GIS Online Login",message:"Enter your password. It is sent only to the same-origin GIS API.",label:"Password",value:""});
+  const password=await arcMapDialog.prompt({title:"GIS Online Login",message:"Enter your password. It is sent only to the same-origin GIS API.",label:"Password",value:"",inputType:"password"});
   if(password===null||password==="")return false;
   await remoteGisRequest("auth.php?action=login",{method:"POST",body:JSON.stringify({username:username.trim(),password})});
   const me=await remoteGisRequest("auth.php?action=me");
