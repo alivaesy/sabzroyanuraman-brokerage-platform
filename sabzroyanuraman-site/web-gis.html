@@ -1784,7 +1784,7 @@ async function gisEnsureAccount(){
     return await gisLogin();
   }
   if(!gisCloud.organizationId||!gisCloud.organizations.some(o=>String(o.id)===String(gisCloud.organizationId))){
-    const org=await arcMapDialog.select({title:"Choose GIS organization",message:"Signed in as "+(gisCloud.user.display_name||gisCloud.user.username)+". Select the organization for cloud projects.",label:"Organization",value:String(gisCloud.organizations[0].id),options:gisCloud.organizations.map(o=>({value:String(o.id),label:o.name+(o.subscribed?"":" (subscription inactive)"))}))});
+    const org=await arcMapDialog.select({title:"Choose GIS organization",message:"Signed in as "+(gisCloud.user.display_name||gisCloud.user.username)+". Select the organization for cloud projects.",label:"Organization",value:String(gisCloud.organizations[0].id),options:gisCloud.organizations.map(o=>({value:String(o.id),label:o.name+(o.subscribed?"":" (subscription inactive)")}))});
     if(!org)return false;
     gisCloud.organizationId=String(org);
     gisCloud.projectId=null;gisCloud.projectName=null;
