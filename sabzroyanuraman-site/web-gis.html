@@ -73,6 +73,9 @@ body{background:#dfe5e8;color:#173b57}
 .arc-menu{display:flex;align-items:stretch;height:100%;gap:0;direction:ltr}
 .arc-menu-btn{border:0;background:transparent;padding:0 12px;color:#263f50;font-size:12px;cursor:pointer}
 .arc-menu-btn:hover,.arc-menu-btn.active{background:#d9e7f0}
+.toolbar-menu-btn{height:23px;padding:0 7px;border:1px solid #aeb7bc;background:linear-gradient(#fff,#e8ebed);font-size:10px;white-space:nowrap}
+.classic-toolbar .toolbar-menu-btn{flex:0 0 auto}
+.classic-toolbar .toolbar-menu-btn.active{background:#d5e5ef;border-color:#8ba7b7}
 .arc-search{position:relative;width:270px;margin-right:auto;direction:ltr}
 .arc-search input{height:30px;margin-top:9px;border:1px solid #9eabb2;border-radius:3px;padding:0 9px 0 26px;font-size:11px}
 .arc-search>span{position:absolute;left:8px;top:16px;z-index:2;font-size:11px}
@@ -355,7 +358,7 @@ body{background:#dfe5e8;color:#173b57}
 #standardToolbar .icon-tool:hover:not(:disabled),#toolsToolbar .icon-tool:hover:not(:disabled){border-color:#91a8b4;background:linear-gradient(#f9fcfd,#dce8ee)}
 #standardToolbar .icon-tool:disabled,#toolsToolbar .icon-tool:disabled{opacity:.62}
 #standardToolbar .toolbar-separator,#toolsToolbar .toolbar-separator{height:20px;border-left:1px solid #aab3b8;margin:0 3px}
-#mapScale{width:106px;min-width:106px;height:22px;padding:0 3px;border:1px solid #aab5bb;border-radius:1px;background:#fff;font:10px Arial,sans-serif}
+#mapScale{width:106px;min-width:106px;height:22px;box-sizing:border-box;padding:0 4px;border:1px solid #aab5bb;border-radius:1px;background:#fff;font:10px Arial,sans-serif}
 #selectFeaturesBtn{position:relative}
 #selectFeaturesBtn:after{content:"▾";position:absolute;right:-1px;bottom:0;font:7px Arial,sans-serif;color:#465f6e;background:#e4e8ea}
 #editorToolbar{display:none}
@@ -537,9 +540,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
     <button class="arc-menu-btn" data-menu="viewMenu">Bookmarks</button>
     <button class="arc-menu-btn" data-menu="insertMenu">Insert</button>
     <button class="arc-menu-btn" data-menu="selectionMenu">Selection</button>
-    <button class="arc-menu-btn" data-menu="editMenu">Editor</button>
     <button class="arc-menu-btn" data-menu="analysisMenu">Geoprocessing</button>
-<button class="arc-menu-btn" data-menu="topologyMenu">Topology</button>
     <button class="arc-menu-btn" data-menu="layerMenu">Customize</button>
     <button class="arc-menu-btn" data-menu="windowsMenu">Windows</button>
     <button class="arc-menu-btn" data-menu="helpMenu">Help</button>
@@ -561,7 +562,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 <span class="toolbar-separator" aria-hidden="true"></span>
 <button type="button" class="icon-tool" id="addDataIcon" title="Add Data" aria-label="Add Data" data-action="importData"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-adddata"></use></svg></button>
 <button type="button" class="icon-tool" id="addOnlineDataBtn" title="Add Data from ArcGIS Online" aria-label="Add Data from ArcGIS Online"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-webdata"></use></svg></button>
-<select id="mapScale" title="Map Scale" aria-label="Map Scale"><option value="6">1:1,000,000</option><option value="8">1:250,000</option><option value="10" selected>1:100,000</option><option value="12">1:25,000</option><option value="14">1:10,000</option><option value="16">1:2,500</option></select>
+<input id="mapScale" type="text" inputmode="numeric" list="mapScaleOptions" value="1:100,000" title="Map Scale (type a scale such as 1:5000 and press Enter)" aria-label="Map Scale"><datalist id="mapScaleOptions"><option value="1:1,000,000"></option><option value="1:500,000"></option><option value="1:250,000"></option><option value="1:100,000"></option><option value="1:50,000"></option><option value="1:25,000"></option><option value="1:10,000"></option><option value="1:5,000"></option><option value="1:2,500"></option><option value="1:1,000"></option><option value="1:500"></option></datalist>
 <span class="toolbar-separator" aria-hidden="true"></span>
 <button type="button" class="icon-tool" id="editorToolbarToggleBtn" title="Editor Toolbar" aria-label="Editor Toolbar" data-action="toggleEditorToolbar"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-editor"></use></svg></button>
 <button type="button" class="icon-tool" id="toolboxToggleBtn" title="ArcToolbox" aria-label="ArcToolbox" data-action="showToolbox"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-toolbox"></use></svg></button>
@@ -589,7 +590,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 <button type="button" class="icon-tool" id="goToXYBtn" title="Go To XY (X/Y coordinates)" aria-label="Go To XY (X/Y coordinates)"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-goxy"></use></svg></button>
 <button type="button" class="icon-tool" id="timeSliderBtn" title="Open Time Slider Window" aria-label="Open Time Slider Window"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-time"></use></svg></button>
 <button type="button" class="icon-tool" id="createViewerBtn" title="Create Viewer Window" aria-label="Create Viewer Window"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-viewer"></use></svg></button></div>
-<div class="classic-toolbar editor-toolbar show" id="editorToolbar" role="toolbar" aria-label="Editor"><select id="editTargetLayer" title="Target layer" aria-label="Target layer"><option value="drawn">My Drawings</option></select>
+<div class="classic-toolbar editor-toolbar show" id="editorToolbar" role="toolbar" aria-label="Editor"><button type="button" class="arc-menu-btn toolbar-menu-btn" data-menu="editMenu" aria-haspopup="true" aria-expanded="false">Editor ▾</button><button type="button" class="arc-menu-btn toolbar-menu-btn" data-menu="topologyMenu" aria-haspopup="true" aria-expanded="false">Topology ▾</button><span class="toolbar-separator" aria-hidden="true"></span><select id="editTargetLayer" title="Target layer" aria-label="Target layer"><option value="drawn">My Drawings</option></select>
 <button type="button" class="action secondary" id="newDrawingSetBtn" title="Create another drawing set">New Drawing</button>
 <button type="button" class="icon-tool" id="startEditingBtn" title="Start Editing" aria-label="Start Editing"><svg class="arcmap-icon"><use href="#arc-icon-editor"></use></svg></button>
 <button type="button" class="icon-tool" id="saveEditsBtn" disabled title="Save Edits" aria-label="Save Edits"><svg class="arcmap-icon"><use href="#arc-icon-save"></use></svg></button>
@@ -659,11 +660,16 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
     <button data-action="addOnlineData">Add Data from ArcGIS Online...</button>
     <button data-action="wms">Add WMS Layer...</button>
     <button data-action="exportData">Export Data...</button>
+    <div class="arc-sep"></div>
+    <button type="button" data-action="printMap">Print Map...</button>
     <div class="arc-sep"></div><button type="button" data-action="geodatabaseManager">Create / Manage Geodatabase...</button>
   </div>
   <div class="arc-dropdown" id="projectMenu">
     <div class="arc-menu-title">Edit</div>
-    <button data-action="undo">Undo</button><button data-action="redo">Redo</button><div class="arc-sep"></div>
+    <button data-action="undo">Undo</button><button data-action="redo">Redo</button>
+    <div class="arc-sep"></div>
+    <button type="button" data-action="cut">Cut</button><button type="button" data-action="copy">Copy</button><button type="button" data-action="paste">Paste</button><button type="button" data-action="deleteSelected">Delete</button>
+    <div class="arc-sep"></div>
     <button data-action="toggleEditorToolbar">Editor Toolbar</button>
     <button data-action="startEditing">Start Editing</button><button data-action="saveEdits">Save Edits</button><button data-action="stopEditing">Stop Editing</button>
     <div class="arc-sep"></div><div class="arc-menu-title">Create Features</div>
@@ -681,6 +687,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
     <button data-action="findRoute">Find Route...</button><button data-action="timeSlider">Time Slider</button>
     <button data-action="createViewer">Create Viewer Window</button>
     <button data-action="showLayers">Table Of Contents</button>
+    <button type="button" data-tool="layoutViewTool">Layout View / Data View</button>
     <button data-action="configureWmsBasemap">Configure Custom WMS Basemap...</button>
     <div class="arc-sep"></div><div class="arc-menu-title">Basemap</div>
     <button data-base="osm">OpenStreetMap</button><button data-base="topo">OpenTopoMap</button>
@@ -1125,7 +1132,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 "use strict";
 // Initialize autosave state before any startup map events can call scheduleAutoSave().
 let autoSaveTimer=null,autoSavePromise=null,autoSaveResolve=null,autoSaveGeneration=0;
-const map=L.map("map",{preferCanvas:true}).setView([34.5,46.5],10);
+const map=L.map("map",{preferCanvas:true,zoomSnap:0.25,zoomDelta:1}).setView([34.5,46.5],10);
 // Leaflet must recalculate its viewport after dock panels, toolbars, and responsive
 // layouts change size; otherwise tiles and interaction coordinates can drift.
 let mapResizeFrame=0;
@@ -2452,7 +2459,7 @@ document.addEventListener("keydown",e=>{
   const tag=(e.target&&e.target.tagName||"").toLowerCase();
   if(["input","textarea","select"].includes(tag)||e.target?.isContentEditable)return;
   if(e.key==="Escape"){e.preventDefault();stopActiveDraw(true);status("Active tool cancelled.")}
-  else if((e.key==="Backspace"||e.key==="Delete")&&activeDrawPurpose==="draw"&&typeof activeDrawHandler.removeLastVertex==="function"){e.preventDefault();activeDrawHandler.removeLastVertex()}
+  else if(e.key==="Delete"&&activeDrawPurpose==="draw"&&typeof activeDrawHandler.removeLastVertex==="function"){e.preventDefault();activeDrawHandler.removeLastVertex()}
   else if(e.key==="Enter"&&typeof activeDrawHandler.completeShape==="function"){e.preventDefault();try{activeDrawHandler.completeShape()}catch(err){console.warn("Could not finish shape",err)}}
 });
 const drawControl=L.Control.extend({
@@ -2739,8 +2746,21 @@ document.addEventListener("keydown",e=>{const tag=(e.target&&e.target.tagName||"
 document.getElementById("zoomInBtn")?.addEventListener("click",()=>map.zoomIn());
 document.getElementById("zoomOutBtn")?.addEventListener("click",()=>map.zoomOut());
 document.getElementById("searchTab")?.addEventListener("click",()=>{const d=document.getElementById("searchDock");d?.classList.toggle("open");if(d?.classList.contains("open"))document.getElementById("topToolSearch")?.focus()});
-document.getElementById("mapScale")?.addEventListener("change",e=>map.setZoom(Number(e.target.value)));
-map.on("zoomend",()=>{const scale=document.getElementById("mapScale");if(scale){const levels=[6,8,10,12,14,16];scale.value=String(levels.reduce((a,b)=>Math.abs(b-map.getZoom())<Math.abs(a-map.getZoom())?b:a,levels[0]))}});
+const mapScaleInput=document.getElementById("mapScale");
+const formatMapScale=n=>"1:"+Math.max(1,Math.round(n)).toLocaleString("en-US");
+function currentMapScaleDenominator(){return 156543.03392804097*Math.cos(map.getCenter().lat*Math.PI/180)/Math.pow(2,map.getZoom())*96/0.0254}
+function refreshMapScale(){if(mapScaleInput&&document.activeElement!==mapScaleInput)mapScaleInput.value=formatMapScale(currentMapScaleDenominator())}
+mapScaleInput?.addEventListener("keydown",event=>{
+  event.stopPropagation();if(event.key!=="Enter")return;event.preventDefault();
+  const raw=mapScaleInput.value.trim().replace(/\s/g,"").replace(/,/g,""),match=raw.match(/^(?:1:)?([0-9]+(?:\.[0-9]+)?)$/);
+  if(!match||Number(match[1])<=0){refreshMapScale();return}
+  const denominator=Number(match[1]),numerator=156543.03392804097*Math.cos(map.getCenter().lat*Math.PI/180)*96/0.0254;
+  const zoom=Math.log2(numerator/denominator),minZoom=Number.isFinite(map.getMinZoom())?map.getMinZoom():0,maxZoom=Number.isFinite(map.getMaxZoom())?map.getMaxZoom():19;
+  const previousSnap=map.options.zoomSnap;map.options.zoomSnap=0;
+  try{map.setZoom(Math.max(minZoom,Math.min(maxZoom,zoom)))}finally{map.options.zoomSnap=previousSnap}
+  mapScaleInput.blur();refreshMapScale();
+});
+map.on("zoomend moveend",refreshMapScale);refreshMapScale();
 map.on("moveend",recordMapExtent);
 recordMapExtent();updateExtentButtons();updateUndoButtons();updateStandardActionButtons();
 document.getElementById("panMapBtn")?.addEventListener("click",()=>{
@@ -7682,6 +7702,10 @@ async function addMapDecoration(kind){
       startEditing:()=>startEditing(),
       newMap:()=>clearWorkspace(),
       printMap:()=>window.print(),
+      cut:()=>$("cutBtn")?.click(),
+      copy:()=>$("copyBtn")?.click(),
+      paste:()=>$("pasteBtn")?.click(),
+      deleteSelected:()=>$("deleteBtn")?.click(),
       undo:()=>undoMapEdit(),
       redo:()=>redoMapEdit(),
       addOnlineData:()=>openOnlineData(),
@@ -8427,6 +8451,7 @@ function runModelBuilder(modal){
       if(shouldOpen){
         const maxLeft=Math.max(0,window.innerWidth-240);
         panel.style.left=Math.max(0,Math.min(button.getBoundingClientRect().left,maxLeft))+"px";
+        if(button.closest(".classic-toolbar")){const root=document.getElementById("arcMenus");if(root)panel.style.top=Math.max(0,button.getBoundingClientRect().bottom-root.getBoundingClientRect().top)+"px"}else panel.style.top="0px";
         panel.classList.add("show");
         button.classList.add("active");
         button.setAttribute("aria-expanded","true");
