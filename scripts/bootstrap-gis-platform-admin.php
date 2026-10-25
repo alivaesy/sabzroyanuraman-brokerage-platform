@@ -44,7 +44,7 @@ function readSecret(string $prompt): string
     }
     fwrite(STDOUT, $prompt);
     try {
-        $line = fgets(STDIN);
+        $line = fgets($tty);
         if ($line === false) {
             throw new RuntimeException('Unable to read terminal input.');
         }
