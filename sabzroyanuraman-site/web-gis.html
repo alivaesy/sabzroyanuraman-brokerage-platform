@@ -7383,18 +7383,18 @@ function openLayoutView(){
   if(panel){closeLayoutView();return;}
   const mapElement=$("map"),originalParent=mapElement?.parentNode,originalNext=mapElement?.nextSibling;
   panel=document.createElement("section");panel.id="webgisLayoutView";panel.setAttribute("role","dialog");panel.setAttribute("aria-label","Map Layout View");
-  panel.innerHTML='<div class="webgis-layout-toolbar"><strong>Layout View</strong><span>Print-ready map composition</span><button type="button" data-layout-action="title">Add Title</button><button type="button" data-layout-action="legend">Add Legend</button><button type="button" data-layout-action="north">North Arrow</button><button type="button" data-layout-action="scale">Scale Bar</button><button type="button" data-layout-action="print">Print / Export PDF</button><button type="button" data-layout-action="close">Close Layout</button></div><div class="webgis-layout-sheet"><header id="webgisLayoutTitle">'+String($("projectName").value||"Map").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))+'</header><div class="webgis-layout-map-slot" id="webgisLayoutMapSlot"></div><footer id="webgisLayoutFooter"></footer></div>';
+  panel.innerHTML='<div class="webgis-layout-toolbar"><strong>Layout View</strong><span>Print-ready map composition</span><button type="button" data-layout-action="title">Add Title</button><button type="button" data-layout-action="legend">Add Legend</button><button type="button" data-layout-action="north">North Arrow</button><button type="button" data-layout-action="scale">Scale Bar</button><button type="button" data-layout-action="print">Print / Export PDF</button><button type="button" data-layout-action="close">Close Layout</button></div><div class="webgis-layout-sheet"><header id="webgisLayoutTitle">'+String($("projectName").value||"Map").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))+'</header><div class="webgis-layout-map-slot" id="webgisLayoutMapSlot"></div><div id="webgisLayoutLegend" class="webgis-layout-legend" hidden></div><div id="webgisLayoutNorth" class="webgis-layout-north" hidden aria-label="North arrow">N ↑</div><div id="webgisLayoutScale" class="webgis-layout-scale" hidden></div><footer id="webgisLayoutFooter"></footer></div>';
   document.body.appendChild(panel);document.body.classList.add("layout-view-active");
   if(mapElement){panel._mapRestore={mapElement,originalParent,originalNext,oldStyle:mapElement.getAttribute("style")};mapElement.style.width="100%";mapElement.style.height="65vh";mapElement.style.minHeight="420px";$("webgisLayoutMapSlot").appendChild(mapElement);requestAnimationFrame(()=>{try{map.invalidateSize({pan:false})}catch(_){}});}
   panel.addEventListener("click",async e=>{const b=e.target.closest("[data-layout-action]");if(!b)return;const a=b.dataset.layoutAction;
     if(a==="close"){closeLayoutView();return;}
     if(a==="print"){window.print();return;}
     if(a==="title"){const v=await arcMapDialog.prompt({title:"Layout Title",message:"Enter the map title:",label:"Title",value:$("projectName").value||"Map"});if(v!==null)$("webgisLayoutTitle").textContent=v;}
-    if(a==="legend")$("webgisLayoutFooter").textContent="Legend: "+namedLayers.map(x=>x.name).join(" · ");
-    if(a==="north")$("webgisLayoutFooter").textContent+="  |  North ↑";
-    if(a==="scale")$("webgisLayoutFooter").textContent+="  |  Scale: "+map.getZoom();
+    if(a==="legend"){const legend=$("webgisLayoutLegend");legend.replaceChildren();namedLayers.filter(x=>x.visible!==false).forEach(layer=>{const row=document.createElement("div");row.className="webgis-layout-legend-item";const swatch=document.createElement("span");swatch.className="webgis-layout-legend-swatch";swatch.style.background=layer.color||layer.style?.color||"#4b8065";const label=document.createElement("span");label.textContent=layer.name||"Layer";row.append(swatch,label);legend.append(row);});legend.hidden=false;if(!legend.childElementCount)legend.textContent="No visible layers";}
+    if(a==="north")$("webgisLayoutNorth").hidden=false;
+    if(a==="scale"){const p1=map.containerPointToLatLng([30,map.getSize().y-30]),p2=map.containerPointToLatLng([130,map.getSize().y-30]);const metres=map.distance(p1,p2);const nice=metres>=1000?(Math.round(metres/1000*10)/10)+" km":Math.round(metres)+" m";const scale=$("webgisLayoutScale");scale.textContent="Scale bar: "+nice;scale.style.width="100px";scale.hidden=false;}
   });
-  status("Layout View opened with the live map. Add elements, then print or export to PDF.");
+  status("Layout View opened with live map, legend, north arrow, scale bar and print/PDF.");
 }
 function closeLayoutView(){
   const panel=document.getElementById("webgisLayoutView");if(!panel)return;
