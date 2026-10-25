@@ -1769,7 +1769,7 @@ async function gisLogin(){
 }
 async function gisEnsureAccount(){
   try{await gisRefreshSession();return true}catch(e){if(!String(e.message).includes("sign in"))throw e;}
-  const yes=await arcMapDialog.confirm({title:"Sabz Royan GIS account",message:"Sign in to manage projects stored on the Sabz Royan server. Public online services can still be added without signing in."});
+  const yes=await arcMapDialog.confirm({title:"GIS account",message:"Sign in to manage projects stored on the Sabz Royan server. Public online services can still be added without signing in."});
   if(!yes)return false;
   return await gisLogin();
 }
@@ -1816,7 +1816,7 @@ async function gisOpenProject(id){
 async function openGisCloudManager(){
   try{
     if(!await gisEnsureAccount())return;
-    const action=await arcMapDialog.select({title:"Sabz Royan GIS Account",message:"Signed in as "+(gisCloud.user.display_name||gisCloud.user.username)+". Choose a cloud action.",label:"Action",value:"projects",options:[{value:"projects",label:"Manage / open cloud projects"},{value:"new",label:"Create cloud project from current map"},{value:"logout",label:"Sign out"}]});
+    const action=await arcMapDialog.select({title:"GIS account",message:"Signed in as "+(gisCloud.user.display_name||gisCloud.user.username)+". Choose a cloud action.",label:"Action",value:"projects",options:[{value:"projects",label:"Manage / open cloud projects"},{value:"new",label:"Create cloud project from current map"},{value:"logout",label:"Sign out"}]});
     if(action==="logout"){await gisApi("auth.php?action=logout",{method:"DELETE",body:{}});gisCloud.user=null;gisCloud.organizations=[];gisCloud.organizationId=null;gisCloud.projectId=null;gisCloud.csrf=null;status("Signed out of Sabz Royan GIS. Local browser projects remain available.");return;}
     if(action==="new"){const name=await arcMapDialog.prompt({title:"New Cloud Project",message:"Save the current map and drawings to the server.",label:"Project name",value:$("projectName").value||"Untitled Project"});if(!name)return;const p=serializeProject();p.name=name.trim();p.description=window.currentProjectDescription||"";const saved=await gisSaveProject(p);$("projectName").value=p.name;$("projectStatus").textContent="Cloud project saved ("+saved.feature_count+" features).";status("Project and "+saved.feature_count+" features saved to the server database.");return;}
     const projects=await gisListProjects();
@@ -1827,7 +1827,7 @@ async function openGisCloudManager(){
 }
 
 async function openOnlineData(){
-  const mode=await arcMapDialog.select({title:"Add Online Data",message:"Connect a public GIS service or open your Sabz Royan GIS account.",label:"Source",value:"service",options:[{value:"service",label:"Public GeoJSON / ArcGIS FeatureServer / WFS"},{value:"account",label:"Sabz Royan GIS account & cloud projects"}]});
+  const mode=await arcMapDialog.select({title:"Add Online Data",message:"Connect a public GIS service or open your GIS account.",label:"Source",value:"service",options:[{value:"service",label:"Public GeoJSON / ArcGIS FeatureServer / WFS"},{value:"account",label:"GIS account & cloud projects"}]});
   if(mode==="account"){await openGisCloudManager();return;}
   const value=await arcMapDialog.prompt({title:"Add Online Data",message:"Enter a public GeoJSON URL, ArcGIS FeatureServer layer URL, or WFS/GeoServer endpoint. WFS supports GetCapabilities layer discovery and paged GetFeature requests when the server supports them.",label:"Service URL",value:""});
   if(!value)return;
@@ -4724,7 +4724,7 @@ async function saveProject(){
       status("Project saved in browser and Sabz Royan server database.");
     }else{
       $("projectStatus").textContent="Project saved locally: "+new Date().toLocaleString("en-US");
-      status("Project saved in this browser. To save to the server, use Add Online Data → Sabz Royan GIS account.");
+      status("Project saved in this browser. To save to the server, use Add Online Data → GIS account.");
     }
   }catch(e){status("Project save failed: "+e.message)}
 }
@@ -4752,7 +4752,7 @@ async function renderProjectManagerList(){
   try{
     const cloud=!!gisCloud.user&&!!gisCloud.organizationId;
     const ps=cloud?await gisListProjects():await listProjects();
-    if(!ps.length){el.innerHTML="<div class='small'>"+(cloud?"No cloud projects in this organization yet.":"No local projects. Use Add Online Data → Sabz Royan GIS account for server projects.")+"</div>";return}
+    if(!ps.length){el.innerHTML="<div class='small'>"+(cloud?"No cloud projects in this organization yet.":"No local projects. Use Add Online Data → GIS account for server projects.")+"</div>";return}
     el.innerHTML="";
     ps.forEach(p=>{
       const row=document.createElement("div");row.className="pm-item";
