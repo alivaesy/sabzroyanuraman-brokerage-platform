@@ -4759,7 +4759,7 @@ async function renderProjectManagerList(){
       const info=document.createElement("div");info.className="pm-item-info";
       info.innerHTML="<div class='pm-item-name'>"+esc(p.name||"Untitled Project")+"</div><div class='pm-item-meta'>"+(cloud?"Server project":"Local browser project")+" — "+new Date(p.updatedAt||p.updated_at||p.savedAt||Date.now()).toLocaleString("en-US")+"</div>";
       const b=document.createElement("button");b.className="action secondary";b.textContent="Open Project";
-      b.onclick=async()=>{if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before opening another project; pending cell values have been preserved.");return}if(cloud){await gisOpenProject(p.id);}else{if(!restoreProject(p))return;currentProjectId=p.id;$("projectName").value=p.name||"Untitled Project";window.currentProjectDescription=p.description||"";}closeProjectManager();};
+      b.onclick=async()=>{if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before opening another project; pending cell values have been preserved.");return}if(cloud){await gisOpenProject(p.id);}else{if(!restoreProject(p))return;currentProjectId=p.id;gisCloud.projectId=null;gisCloud.projectName=null;$("projectName").value=p.name||"Untitled Project";window.currentProjectDescription=p.description||"";}closeProjectManager();};
       row.append(info,b);el.appendChild(row);
     });
   }catch(e){el.innerHTML="<div class='small'>Could not load projects: "+esc(e.message||"request failed")+"</div>"}
@@ -4773,6 +4773,7 @@ async function createNewProject(){
   namedLayers.slice().forEach(x=>{map.removeLayer(x.layer);layerControl.removeLayer(x.layer)});
   namedLayers.length=0;
   currentProjectId=crypto.randomUUID?crypto.randomUUID():("p-"+Date.now());
+  gisCloud.projectId=null;gisCloud.projectName=null;
   $("projectName").value=name;
   setCRS(crs);
   renderLayerList();refreshAttributeLayers();
