@@ -19,6 +19,23 @@ Source of truth: `master`
 - Never put database credentials in browser code. PostGIS access must go through secured server-side APIs.
 - Preserve existing data, layer state, symbology, and project behavior when extending tools.
 
+## GIS online login accounts and provisioning (verified 2026-10-25)
+- Account/organization database: PostgreSQL database `gis_staging` (this is the GIS auth/account database; do not confuse it with the separate PostGIS data database).
+- Core tables: `gis_users`, `gis_organizations`, `gis_organization_members`, `gis_subscriptions`; related auth/session/login-attempt/project/feature/audit tables also exist.
+- Schema migration: `sabzroyanuraman-site/api/gis/sql/002_accounts_orgs_projects.sql`.
+- Private database configuration (never expose contents): `/home/sabzroyanuraman/private/gis-auth-db.php` and admin provisioning connection `/home/sabzroyanuraman/private/gis-admin-db.php`.
+- Provisioning script in repository: `scripts/provision-gis-test-organizations.php`.
+- Installed server copy: `/home/sabzroyanuraman/private/provision-gis-test-organizations.php`.
+- Run on the server via CLI only: `php /home/sabzroyanuraman/private/provision-gis-test-organizations.php`. It prompts for passwords with terminal echo disabled; never pass passwords as command-line arguments or store them in chat.
+- The script is idempotent and only provisions/reconciles these two predefined test organizations/accounts; it is **not a generic create-any-organization script**. It preserves existing account passwords and IDs, and refuses to reset inactive/conflicting records.
+- Last verified account inventory (2026-10-25): 2 active owner accounts / organizations:
+  - username `kadaster_sabtasnad` → organization `kadaster_Sabtasnad` (reported IDs: user 3, organization 4).
+  - username `test_gis` → organization `test` (reported IDs: user 4, organization 5).
+  - Active subscriptions were reported through 2036-10-25.
+- These are the last known counts, not a live count. To answer “how many accounts are there now?”, query `gis_users` and memberships in the live `gis_staging` database; do not infer current count from this note.
+- Creating a **third/new organization** requires a separate, parameterized CLI provisioning script (organization name/slug, username, securely prompted password, owner membership, subscription, and audit record). Do not repurpose the fixed two-account script without reviewing its transaction, conflict checks, and permissions.
+- Never put credentials or password hashes in this document, Git, browser JavaScript, or public webroot.
+
 ## GIS development priorities
 1. Stabilize existing tools and basemap behavior before adding more features.
 2. Audit every visible tool end-to-end; identify menu items that are wired incorrectly, incomplete, or nonfunctional.
