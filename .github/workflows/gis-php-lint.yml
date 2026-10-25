@@ -54,6 +54,7 @@ jobs:
           grep -q "hash_equals(\$c,\$h)" "$auth"
           grep -Fq 'in_array(' "$auth"
           grep -Fq "'is_platform_admin'" "$auth"
+          grep -Fq "'secure'=>true" "$auth"
           grep -q "gis_auth_csrf_check();" "$login"
           grep -q "platform_admin_required" "$admin"
           grep -q "organization_id=:o" "$projects"
