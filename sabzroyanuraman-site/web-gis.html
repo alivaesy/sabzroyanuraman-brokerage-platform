@@ -1731,105 +1731,84 @@ async function deleteSelectedFeatures(){
   records.forEach(r=>r.owner.layer.removeLayer(r.layer));
   selectedFeatures.clear();selectedLayer=null;selectedOverlay=null;const editor=$("attributeEditor");if(editor)editor.style.display="none";applySelectionVisual();refreshAll();const synced=await flushGeodatabaseEdits();scheduleAutoSave();updateStandardActionButtons();status(records.length+" feature(s) deleted."+(synced?"":" Geodatabase sync failed; save edits again."));
 }
-
-// Sabz Royan server-backed GIS account and project workspace.
-const GIS_API_BASE=new URL("api/gis/",document.baseURI).href;
-const gisCloud={csrf:null,user:null,organizations:[],organizationId:null,projectId:null,projectName:null};
-async function gisApi(path,options={}){
-  const method=(options.method||"GET").toUpperCase(),headers={Accept:"application/json",...(options.headers||{})};
-  if(options.body!==undefined){headers["Content-Type"]="application/json";}
-  if(!["GET","HEAD"].includes(method)){
-    if(!gisCloud.csrf){const cr=await fetch(GIS_API_BASE+"auth.php?action=csrf",{credentials:"same-origin",cache:"no-store"});const cj=await cr.json();if(!cr.ok||!cj.csrf_token)throw new Error("Could not obtain security token");gisCloud.csrf=cj.csrf_token;}
-    headers["X-CSRF-Token"]=gisCloud.csrf;
-  }
-  const res=await fetch(GIS_API_BASE+path,{method,credentials:"same-origin",cache:"no-store",headers,body:options.body===undefined?undefined:JSON.stringify(options.body)});
-  let data={};try{data=await res.json()}catch(_){}
-  if(!res.ok)throw new Error(({401:"Please sign in to your GIS account.",403:"Your account has no access to this organization or project.",413:"Project is too large for the server API.",429:"Too many login attempts. Try again later."})[res.status]||data.error||("GIS API HTTP "+res.status));
-  return data;
+let remoteGisUser=null,remoteGisOrganization=null,remoteGisCsrf=null,remoteGisProjectId=null;
+async function remoteGisRequest(path,options={}){
+  const response=await fetch(new URL(path,location.origin+"/api/gis/"),{credentials:"same-origin",cache:"no-store",...options,headers:{Accept:"application/json",...(options.body?{"Content-Type":"application/json"}:{}),...(remoteGisCsrf?{"X-CSRF-Token":remoteGisCsrf}:{}),...(options.headers||{})}});
+  let body={};try{body=await response.json()}catch(_){}
+  if(!response.ok||body.ok===false)throw new Error(body.error||("HTTP "+response.status));
+  return body;
 }
-async function gisRefreshSession(){
-  const data=await gisApi("auth.php?action=me");
-  gisCloud.user=data.user;gisCloud.organizations=data.organizations||[];
-  if(gisCloud.organizationId&&!gisCloud.organizations.some(o=>String(o.id)===String(gisCloud.organizationId)))gisCloud.organizationId=null;
-  return data;
+async function remoteGisGetCsrf(){
+  const r=await fetch("/api/gis/auth.php?action=csrf",{credentials:"same-origin",cache:"no-store",headers:{Accept:"application/json"}});
+  const b=await r.json();if(!r.ok||!b.csrf_token)throw new Error(b.error||"csrf_unavailable");remoteGisCsrf=b.csrf_token;return b;
 }
-async function gisLogin(){
-  const username=await arcMapDialog.prompt({title:"Sabz Royan GIS — Sign in",message:"Enter your GIS account username.",label:"Username",value:""});
+async function remoteGisLogin(){
+  await remoteGisGetCsrf();
+  const username=await arcMapDialog.prompt({title:"GIS Online Login",message:"Enter your Sabz Royan account username.",label:"Username",value:""});
   if(!username)return false;
-  const password=await arcMapDialog.prompt({title:"Sabz Royan GIS — Sign in",message:"Password is sent only to the same-origin HTTPS API.",label:"Password",value:"",inputType:"password"});
+  const password=await arcMapDialog.prompt({title:"GIS Online Login",message:"Enter your password. It is sent only to the same-origin GIS API.",label:"Password",value:""});
   if(password===null||password==="")return false;
-  gisCloud.csrf=null;
-  await gisApi("auth.php?action=login",{method:"POST",body:{username:username.trim(),password}});
-  await gisRefreshSession();
-  if(!gisCloud.organizations.length)throw new Error("Login succeeded, but this account has no active organization membership.");
-  const org=await arcMapDialog.select({title:"Choose Organization",message:"Select the organization for cloud projects.",label:"Organization",value:String(gisCloud.organizations[0].id),options:gisCloud.organizations.map(o=>({value:String(o.id),label:o.name+(o.subscribed?"":" (subscription inactive)")}))});
-  if(!org)return true;
-  gisCloud.organizationId=String(org);
+  await remoteGisRequest("auth.php?action=login",{method:"POST",body:JSON.stringify({username:username.trim(),password})});
+  const me=await remoteGisRequest("auth.php?action=me");
+  remoteGisUser=me.user;const orgs=(me.organizations||[]).filter(o=>o.subscribed===true||o.subscribed===1||o.subscribed==="1"||o.subscribed==="t");
+  if(!orgs.length)throw new Error("no_active_organization_subscription");
+  const choice=await arcMapDialog.select({title:"Choose Organization",message:"Select the organization where this project should be stored.",label:"Organization",value:String(orgs[0].id),options:orgs.map(o=>({value:String(o.id),label:o.name+" — "+o.role}))});
+  if(!choice)return false;remoteGisOrganization=orgs.find(o=>String(o.id)===String(choice));
+  status("Signed in as "+(remoteGisUser.display_name||remoteGisUser.username)+" · "+remoteGisOrganization.name);
   return true;
 }
-async function gisEnsureAccount(){
-  try{await gisRefreshSession();return true}catch(e){if(!String(e.message).includes("sign in"))throw e;}
-  const yes=await arcMapDialog.confirm({title:"GIS account",message:"Sign in to manage projects stored on the Sabz Royan server. Public online services can still be added without signing in."});
-  if(!yes)return false;
-  return await gisLogin();
-}
-function gisProjectFeatures(project){
-  const features=[];
-  const add=(feature,layerName)=>{if(feature&&feature.type==="Feature"&&feature.geometry)features.push({geometry:feature.geometry,properties:feature.properties&&typeof feature.properties==="object"?feature.properties:{},layer_name:layerName||"default"});};
-  (project.drawn||[]).forEach(f=>add(f,"My Drawings"));
-  (project.layers||[]).forEach(layer=>(layer.features||[]).forEach(f=>add(f,layer.name||"Imported layer")));
-  return features;
-}
-async function gisSaveProject(project){
-  if(!gisCloud.user||!gisCloud.organizationId)return false;
-  const payload={action:"save",organization_id:Number(gisCloud.organizationId),name:project.name||"Untitled Project",description:project.description||"",project_data:project,features:gisProjectFeatures(project)};
-  if(gisCloud.projectId)payload.id=Number(gisCloud.projectId);
-  const result=await gisApi("projects.php",{method:"POST",body:payload});
-  gisCloud.projectId=String(result.project_id);gisCloud.projectName=payload.name;
-  return result;
-}
-async function gisListProjects(){
-  if(!gisCloud.user)await gisRefreshSession();
-  if(!gisCloud.organizationId){
-    if(!gisCloud.organizations.length)await gisRefreshSession();
-    const org=await arcMapDialog.select({title:"Cloud Projects",message:"Choose organization.",label:"Organization",value:String(gisCloud.organizations[0]?.id||""),options:gisCloud.organizations.map(o=>({value:String(o.id),label:o.name}))});
-    if(!org)return [];
-    gisCloud.organizationId=String(org);
+async function remoteGisChooseProject(){
+  if(!remoteGisUser&&!await remoteGisLogin())return null;
+  const result=await remoteGisRequest("projects.php?organization_id="+encodeURIComponent(remoteGisOrganization.id));
+  const projects=result.projects||[];
+  const choices=[{value:"new",label:"+ New server project"}].concat(projects.map(p=>({value:String(p.id),label:p.name+" · "+p.updated_at})));
+  const selected=await arcMapDialog.select({title:"Organization GIS Projects",message:"Projects are stored on the server and scoped to the selected organization.",label:"Project",value:"new",options:choices});
+  if(!selected)return null;
+  if(selected==="new"){
+    const name=await arcMapDialog.prompt({title:"New Server Project",message:"Enter a project name.",label:"Project name",value:$("projectName").value.trim()||"Untitled Project"});
+    if(!name)return null;
+    remoteGisProjectId=null;return {id:null,name:name.trim()};
   }
-  const d=await gisApi("projects.php?organization_id="+encodeURIComponent(gisCloud.organizationId));
-  return d.projects||[];
+  const remote=await remoteGisRequest("projects.php?organization_id="+encodeURIComponent(remoteGisOrganization.id)+"&id="+encodeURIComponent(selected));
+  const p=remote.project;if(!p)throw new Error("project_not_found");
+  let projectData=p.project_data;if(typeof projectData==="string"){try{projectData=JSON.parse(projectData)}catch(_){throw new Error("invalid_server_project_data")}}
+  if(!projectData||typeof projectData!=="object")throw new Error("empty_server_project_data");
+  remoteGisProjectId=Number(p.id);
+  return {id:Number(p.id),name:p.name,project_data:projectData};
 }
-async function gisOpenProject(id){
-  const d=await gisApi("projects.php?organization_id="+encodeURIComponent(gisCloud.organizationId)+"&id="+encodeURIComponent(id));
-  const p=d.project;if(!p)throw new Error("Cloud project response is empty.");
-  let data=p.project_data;
-  if(typeof data==="string")data=JSON.parse(data);
-  if(!data||typeof data!=="object")throw new Error("Cloud project has invalid saved data.");
-  data.id=String(p.id);data.name=p.name||data.name;data.description=p.description||data.description||"";
-  if(!restoreProject(data))throw new Error("Project could not be restored in the map.");
-  currentProjectId=data.id;gisCloud.projectId=String(p.id);gisCloud.projectName=data.name;
-  $("projectName").value=data.name||"Untitled Project";window.currentProjectDescription=data.description||"";
-  $("projectStatus").textContent="Cloud project opened: "+new Date(p.updated_at||Date.now()).toLocaleString();
-  status("Project restored from Sabz Royan server.");
-  return data;
+async function remoteGisSaveProject(project){
+  if(!remoteGisUser&&!await remoteGisLogin())return false;
+  if(!remoteGisOrganization)throw new Error("organization_not_selected");
+  const allFeatures=[];
+  (project.drawn||[]).forEach(f=>{if(f&&f.geometry)allFeatures.push({...f,layer_name:"My Drawings"})});
+  (project.layers||[]).forEach(layer=>(layer.features||[]).forEach(f=>{if(f&&f.geometry)allFeatures.push({...f,layer_name:String(layer.name||"Layer").slice(0,100)})}));
+  if(allFeatures.length>5000)throw new Error("project_feature_limit_5000");
+  const body={action:"save",organization_id:Number(remoteGisOrganization.id),name:String(project.name||"Untitled Project").slice(0,200),description:String(project.description||""),project_data:project,features:allFeatures};
+  if(remoteGisProjectId)body.id=remoteGisProjectId;
+  const result=await remoteGisRequest("projects.php",{method:"POST",body:JSON.stringify(body)});
+  if(!result.project_id)throw new Error("server_did_not_return_project_id");
+  remoteGisProjectId=Number(result.project_id);return result;
 }
-async function openGisCloudManager(){
+async function openRemoteGisProjects(){
   try{
-    if(!await gisEnsureAccount())return;
-    const action=await arcMapDialog.select({title:"GIS account",message:"Signed in as "+(gisCloud.user.display_name||gisCloud.user.username)+". Choose a cloud action.",label:"Action",value:"projects",options:[{value:"projects",label:"Manage / open cloud projects"},{value:"new",label:"Create cloud project from current map"},{value:"logout",label:"Sign out"}]});
-    if(action==="logout"){await gisApi("auth.php?action=logout",{method:"DELETE",body:{}});gisCloud.user=null;gisCloud.organizations=[];gisCloud.organizationId=null;gisCloud.projectId=null;gisCloud.csrf=null;status("Signed out of Sabz Royan GIS. Local browser projects remain available.");return;}
-    if(action==="new"){const name=await arcMapDialog.prompt({title:"New Cloud Project",message:"Save the current map and drawings to the server.",label:"Project name",value:$("projectName").value||"Untitled Project"});if(!name)return;const p=serializeProject();p.name=name.trim();p.description=window.currentProjectDescription||"";const saved=await gisSaveProject(p);$("projectName").value=p.name;$("projectStatus").textContent="Cloud project saved ("+saved.feature_count+" features).";status("Project and "+saved.feature_count+" features saved to the server database.");return;}
-    const projects=await gisListProjects();
-    if(!projects.length){status("No cloud projects in this organization yet.");return;}
-    const id=await arcMapDialog.select({title:"Open Cloud Project",message:"Projects saved on the server.",label:"Project",value:String(projects[0].id),options:projects.map(p=>({value:String(p.id),label:p.name+" — "+new Date(p.updated_at||Date.now()).toLocaleDateString()}))});
-    if(id)await gisOpenProject(id);
-  }catch(e){console.error("Sabz Royan GIS cloud:",e);status("Cloud GIS: "+(e.message||"request failed"));}
+    const choice=await remoteGisChooseProject();if(!choice)return;
+    if(choice.project_data){
+      if(!restoreProject(choice.project_data))return;
+      currentProjectId=String(choice.id);$("projectName").value=choice.name||choice.project_data.name||"Untitled Project";
+      $("projectStatus").textContent="Server project loaded: "+new Date().toLocaleString();
+      status("Project loaded from organization server database.");return;
+    }
+    const project=serializeProject();project.name=choice.name;$("projectName").value=choice.name;
+    const saved=await remoteGisSaveProject(project);if(!saved)return;
+    currentProjectId=String(saved.project_id);$("projectStatus").textContent="Server project saved: "+new Date().toLocaleString();
+    status("Project saved to organization database ("+saved.feature_count+" features).");
+  }catch(e){status("Organization GIS: "+(e.message||e));}
 }
-
 async function openOnlineData(){
-  const mode=await arcMapDialog.select({title:"Add Online Data",message:"Connect a public GIS service or open your GIS account.",label:"Source",value:"service",options:[{value:"service",label:"Public GeoJSON / ArcGIS FeatureServer / WFS"},{value:"account",label:"GIS account & cloud projects"}]});
-  if(mode==="account"){await openGisCloudManager();return;}
-  const value=await arcMapDialog.prompt({title:"Add Online Data",message:"Enter a public GeoJSON URL, ArcGIS FeatureServer layer URL, or WFS/GeoServer endpoint. WFS supports GetCapabilities layer discovery and paged GetFeature requests when the server supports them.",label:"Service URL",value:""});
+  const sourceChoice=await arcMapDialog.select({title:"Add Online Data",message:"Choose an online data source or open your organization GIS workspace.",label:"Source",value:"service",options:[{value:"service",label:"External GeoJSON / ArcGIS FeatureServer / WFS"},{value:"account",label:"Sabz Royan GIS account · open/save organization projects"}]});
+  if(!sourceChoice)return;
+  if(sourceChoice==="account"){await openRemoteGisProjects();return;}
+  const value=await arcMapDialog.prompt({title:"Add Online Data",message:"Enter a public GeoJSON URL, ArcGIS FeatureServer layer URL, or WFS/GeoServer endpoint.",label:"Service URL",value:""});
   if(!value)return;
   let url;try{url=new URL(value.trim());if(!/^https?:$/.test(url.protocol))throw new Error();}catch(_){status("Enter a valid HTTP or HTTPS data URL.");return;}
   if(location.protocol==="https:"&&url.protocol!=="https:"){status("Use an HTTPS data service on this secure page.");return;}
@@ -4495,13 +4474,8 @@ function scheduleAutoSave(){
       const p=serializeProject();
       p.id=projectId();p.updatedAt=new Date().toISOString();
       await putProject(p);currentProjectId=p.id;saved=true;
-      let cloudSaved=false;
-      if(gisCloud.user&&gisCloud.organizationId){
-        try{await gisSaveProject(p);cloudSaved=true;}
-        catch(cloudError){console.warn("Cloud autosave failed:",cloudError);status("Browser autosave succeeded, but server sync failed: "+(cloudError.message||"retry with Save Project"));}
-      }
       const tablePending=typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits();
-      $("projectStatus").textContent=(cloudSaved?"Saved locally + server: ":tablePending?"Map auto-saved; Attribute Table edits still pending: ":"Saved locally: ")+new Date().toLocaleString("en-US");
+      $("projectStatus").textContent=(tablePending?"Map auto-saved; Attribute Table edits still pending: ":"Saved locally: ")+new Date().toLocaleString("en-US");
     }catch(e){console.warn("IndexedDB autosave:",e);status("Autosave failed: "+(e.message||"local storage unavailable")+". Save the project manually.")}
     // A newer edit may have rescheduled autosave while this write was in flight.
     // Keep the shared promise pending until the newest snapshot has been persisted.
@@ -4715,18 +4689,16 @@ function restoreProject(project,fromHistory=false){
 async function saveProject(){
   if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before saving the project; pending cell values are not included yet.");return}
   try{
-    const project=serializeProject();
-    project.id=projectId();project.updatedAt=new Date().toISOString();
-    await putProject(project);currentProjectId=project.id;
-    if(gisCloud.user&&gisCloud.organizationId){
-      const cloud=await gisSaveProject(project);
-      $("projectStatus").textContent="Saved locally and to server ("+cloud.feature_count+" features): "+new Date().toLocaleString("en-US");
-      status("Project saved in browser and Sabz Royan server database.");
-    }else{
-      $("projectStatus").textContent="Project saved locally: "+new Date().toLocaleString("en-US");
-      status("Project saved in this browser. To save to the server, use Add Online Data → GIS account.");
+    const project=serializeProject();project.id=projectId();project.updatedAt=new Date().toISOString();
+    if(remoteGisUser&&remoteGisOrganization){
+      const saved=await remoteGisSaveProject(project);if(!saved)return;currentProjectId=String(saved.project_id);
+      $("projectStatus").textContent="Server saved: "+new Date().toLocaleString("en-US");
+      status("Project and "+saved.feature_count+" feature(s) saved to the organization database.");return;
     }
-  }catch(e){status("Project save failed: "+e.message)}
+    await putProject(project);currentProjectId=project.id;
+    $("projectStatus").textContent="Project saved locally: "+new Date().toLocaleString("en-US");
+    status("Project saved in this browser. Use Add Online Data → Sabz Royan GIS account for server storage.");
+  }catch(e){status("Project save failed: "+(e.message||e))}
 }
 async function loadProject(){
   if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before opening another project; pending cell values have been preserved.");return}
@@ -4750,19 +4722,18 @@ function openProjectManager(){document.getElementById("projectManager").classLis
 async function renderProjectManagerList(){
   const el=$("projectList");if(!el)return;
   try{
-    const cloud=!!gisCloud.user&&!!gisCloud.organizationId;
-    const ps=cloud?await gisListProjects():await listProjects();
-    if(!ps.length){el.innerHTML="<div class='small'>"+(cloud?"No cloud projects in this organization yet.":"No local projects. Use Add Online Data → GIS account for server projects.")+"</div>";return}
+    const ps=await listProjects();
+    if(!ps.length){el.innerHTML="<div class='small'>No projects have been created yet.</div>";return}
     el.innerHTML="";
     ps.forEach(p=>{
       const row=document.createElement("div");row.className="pm-item";
       const info=document.createElement("div");info.className="pm-item-info";
-      info.innerHTML="<div class='pm-item-name'>"+esc(p.name||"Untitled Project")+"</div><div class='pm-item-meta'>"+(cloud?"Server project":"Local browser project")+" — "+new Date(p.updatedAt||p.updated_at||p.savedAt||Date.now()).toLocaleString("en-US")+"</div>";
+      info.innerHTML="<div class='pm-item-name'>"+esc(p.name||"Untitled Project")+"</div><div class='pm-item-meta'>"+esc(p.crs||"EPSG:32638")+" — "+new Date(p.updatedAt||p.savedAt).toLocaleString("en-US")+"</div>";
       const b=document.createElement("button");b.className="action secondary";b.textContent="Open Project";
-      b.onclick=async()=>{if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before opening another project; pending cell values have been preserved.");return}if(cloud){await gisOpenProject(p.id);}else{if(!restoreProject(p))return;currentProjectId=p.id;gisCloud.projectId=null;gisCloud.projectName=null;$("projectName").value=p.name||"Untitled Project";window.currentProjectDescription=p.description||"";}closeProjectManager();};
+      b.onclick=async()=>{if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before opening another project; pending cell values have been preserved.");return}if(!restoreProject(p))return;currentProjectId=p.id;$("projectName").value=p.name||"Untitled Project";window.currentProjectDescription=p.description||"";closeProjectManager();status("Project opened.")};
       row.append(info,b);el.appendChild(row);
     });
-  }catch(e){el.innerHTML="<div class='small'>Could not load projects: "+esc(e.message||"request failed")+"</div>"}
+  }catch(e){el.innerHTML="<div class='small'>Could not load projects.</div>"}
 }
 async function createNewProject(){
   if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before creating a project; pending cell values have been preserved.");return}
@@ -4773,7 +4744,6 @@ async function createNewProject(){
   namedLayers.slice().forEach(x=>{map.removeLayer(x.layer);layerControl.removeLayer(x.layer)});
   namedLayers.length=0;
   currentProjectId=crypto.randomUUID?crypto.randomUUID():("p-"+Date.now());
-  gisCloud.projectId=null;gisCloud.projectName=null;
   $("projectName").value=name;
   setCRS(crs);
   renderLayerList();refreshAttributeLayers();
@@ -8686,7 +8656,7 @@ const arcMapDialog=(()=>{
  let active=null;
  const root=()=>document.getElementById("arcMapToolDialog");
  const close=value=>{if(!active)return;const a=active;active=null;root().classList.remove("open");root().setAttribute("aria-hidden","true");document.removeEventListener("keydown",a.keydown,true);a.resolve(value);if(a.previous?.isConnected)a.previous.focus();};
- function show({title="Tool",message="",label="Value",value="",options=null,confirm=false,confirmText="OK",danger=false,fields=null,optionMaps=null,inputType="text"}={}){
+ function show({title="Tool",message="",label="Value",value="",options=null,confirm=false,confirmText="OK",danger=false,fields=null,optionMaps=null}={}){
   const el=root();if(!el)return Promise.resolve(null);
   if(active)close(null);
   document.getElementById("arcToolDialogTitle").textContent=title;
@@ -8721,7 +8691,7 @@ const arcMapDialog=(()=>{
    const lab=document.createElement("label");lab.htmlFor="arcToolDialogInput";lab.textContent=label;host.append(lab);
    input=document.createElement(options?"select":"input");input.id="arcToolDialogInput";
    if(options){options.forEach(item=>{const opt=document.createElement("option");opt.value=item.value;opt.textContent=item.label;input.append(opt)});input.value=String(value??"");}
-   else{input.type=["text","password","number","email"].includes(inputType)?inputType:"text";input.value=String(value??"");input.autocomplete=inputType==="password"?"current-password":"off";}
+   else{input.type="text";input.value=String(value??"");input.autocomplete="off";}
    host.append(input);
   }else{host.className="";host.hidden=true;}
   const ok=document.getElementById("arcToolDialogOk"),cancel=document.getElementById("arcToolDialogCancel");
