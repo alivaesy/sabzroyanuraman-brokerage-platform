@@ -145,3 +145,27 @@ test("Geoprocessing rejects unsplit lines and validates result geometry", () => 
 test('Bulk attribute editing converts blank typed boolean, object, and array values to null', () => {
   assert.match(html, /raw\.trim\(\)===""&&\["boolean","object","array"\]\.includes\(valueType\)/);
 });
+
+
+test('GIS account workspace uses explicit organization-scoped login, project listing, save, and restore', () => {
+  assert.match(html, /async function remoteGisLogin\(\)/);
+  assert.match(html, /auth\.php\?action=csrf/);
+  assert.match(html, /auth\.php\?action=login/);
+  assert.match(html, /async function remoteGisChooseProject\(\)/);
+  assert.match(html, /projects\.php\?organization_id="\+encodeURIComponent\(remoteGisOrganization\.id\)/);
+  assert.match(html, /async function remoteGisSaveProject\(project\)/);
+  assert.match(html, /organization_id:Number\(remoteGisOrganization\.id\)/);
+  assert.match(html, /async function openRemoteGisProjects\(\)/);
+  assert.match(html, /if\(remoteGisUser&&remoteGisOrganization\)/);
+  assert.doesNotMatch(html, /async function gisEnsureAccount\(\)/);
+});
+
+test('GIS project API scopes reads and feature retrieval to the selected organization', () => {
+  const apiPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'api', 'gis', 'projects.php');
+  const api = fs.readFileSync(apiPath, 'utf8');
+  assert.match(api, /gis_auth_require_org\(\$pdo,\$user,\(int\)\$org,'viewer'\)/);
+  assert.match(api, /WHERE id=:id AND organization_id=:o/);
+  assert.match(api, /WHERE project_id=:p AND organization_id=:o/);
+  assert.match(api, /gis_auth_require_org_subscription\(\$pdo,\$user,\(int\)\$org\)/);
+  assert.doesNotMatch(api, /ORDER BY updated_at DESC LIMIT 200/);
+});
