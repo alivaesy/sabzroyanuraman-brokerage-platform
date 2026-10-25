@@ -4,7 +4,7 @@ set -Eeuo pipefail
 DB="gis_staging"
 BATCH_SIZE=5000
 while true; do
-  OUT="$(sudo -u postgres psql -X -qAt -v ON_ERROR_STOP=1 -d "$DB" -c "
+  OUT="$(runuser -u postgres -- psql -X -qAt -v ON_ERROR_STOP=1 -d "$DB" -c "
     WITH batch AS (
       SELECT ctid
       FROM public.gis_login_attempts
