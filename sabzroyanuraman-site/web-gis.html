@@ -4495,8 +4495,13 @@ function scheduleAutoSave(){
       const p=serializeProject();
       p.id=projectId();p.updatedAt=new Date().toISOString();
       await putProject(p);currentProjectId=p.id;saved=true;
+      let cloudSaved=false;
+      if(gisCloud.user&&gisCloud.organizationId){
+        try{await gisSaveProject(p);cloudSaved=true;}
+        catch(cloudError){console.warn("Cloud autosave failed:",cloudError);status("Browser autosave succeeded, but server sync failed: "+(cloudError.message||"retry with Save Project"));}
+      }
       const tablePending=typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits();
-      $("projectStatus").textContent=(tablePending?"Map auto-saved; Attribute Table edits still pending: ":"Saved locally: ")+new Date().toLocaleString("en-US");
+      $("projectStatus").textContent=(cloudSaved?"Saved locally + server: ":tablePending?"Map auto-saved; Attribute Table edits still pending: ":"Saved locally: ")+new Date().toLocaleString("en-US");
     }catch(e){console.warn("IndexedDB autosave:",e);status("Autosave failed: "+(e.message||"local storage unavailable")+". Save the project manually.")}
     // A newer edit may have rescheduled autosave while this write was in flight.
     // Keep the shared promise pending until the newest snapshot has been persisted.
@@ -4745,18 +4750,19 @@ function openProjectManager(){document.getElementById("projectManager").classLis
 async function renderProjectManagerList(){
   const el=$("projectList");if(!el)return;
   try{
-    const ps=await listProjects();
-    if(!ps.length){el.innerHTML="<div class='small'>No projects have been created yet.</div>";return}
+    const cloud=!!gisCloud.user&&!!gisCloud.organizationId;
+    const ps=cloud?await gisListProjects():await listProjects();
+    if(!ps.length){el.innerHTML="<div class='small'>"+(cloud?"No cloud projects in this organization yet.":"No local projects. Use Add Online Data → Sabz Royan GIS account for server projects.")+"</div>";return}
     el.innerHTML="";
     ps.forEach(p=>{
       const row=document.createElement("div");row.className="pm-item";
       const info=document.createElement("div");info.className="pm-item-info";
-      info.innerHTML="<div class='pm-item-name'>"+esc(p.name||"Untitled Project")+"</div><div class='pm-item-meta'>"+esc(p.crs||"EPSG:32638")+" — "+new Date(p.updatedAt||p.savedAt).toLocaleString("en-US")+"</div>";
+      info.innerHTML="<div class='pm-item-name'>"+esc(p.name||"Untitled Project")+"</div><div class='pm-item-meta'>"+(cloud?"Server project":"Local browser project")+" — "+new Date(p.updatedAt||p.updated_at||p.savedAt||Date.now()).toLocaleString("en-US")+"</div>";
       const b=document.createElement("button");b.className="action secondary";b.textContent="Open Project";
-      b.onclick=async()=>{if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before opening another project; pending cell values have been preserved.");return}if(!restoreProject(p))return;currentProjectId=p.id;$("projectName").value=p.name||"Untitled Project";window.currentProjectDescription=p.description||"";closeProjectManager();status("Project opened.")};
+      b.onclick=async()=>{if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before opening another project; pending cell values have been preserved.");return}if(cloud){await gisOpenProject(p.id);}else{if(!restoreProject(p))return;currentProjectId=p.id;$("projectName").value=p.name||"Untitled Project";window.currentProjectDescription=p.description||"";}closeProjectManager();};
       row.append(info,b);el.appendChild(row);
     });
-  }catch(e){el.innerHTML="<div class='small'>Could not load projects.</div>"}
+  }catch(e){el.innerHTML="<div class='small'>Could not load projects: "+esc(e.message||"request failed")+"</div>"}
 }
 async function createNewProject(){
   if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before creating a project; pending cell values have been preserved.");return}
