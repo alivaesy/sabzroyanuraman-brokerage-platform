@@ -62,13 +62,16 @@ GRANT INSERT (actor_user_id, organization_id, action, target_type, target_id, de
 -- Admin API uses a distinct DB login; it cannot elevate users or rewrite audit history.
 GRANT SELECT (id, status, username, email, display_name)
   ON public.gis_users TO gis_admin_api;
+GRANT UPDATE (updated_at) ON public.gis_users TO gis_admin_api; -- permits row locking without changing credentials
 GRANT INSERT (username, email, password_hash, display_name, status)
   ON public.gis_users TO gis_admin_api;
 
-GRANT INSERT (name, slug) ON public.gis_organizations TO gis_admin_api;
+GRANT INSERT (name, slug, status) ON public.gis_organizations TO gis_admin_api;
 GRANT SELECT (id, name, slug, status) ON public.gis_organizations TO gis_admin_api;
+GRANT UPDATE (status) ON public.gis_organizations TO gis_admin_api; -- permits row locking; API does not change org status here
 GRANT INSERT (organization_id, user_id, role, status)
   ON public.gis_organization_members TO gis_admin_api;
+GRANT UPDATE (role, status) ON public.gis_organization_members TO gis_admin_api;
 
 GRANT INSERT (organization_id, user_id, plan_code, requested_days, status,
               starts_at, expires_at, max_users, activated_by, activation_note)
