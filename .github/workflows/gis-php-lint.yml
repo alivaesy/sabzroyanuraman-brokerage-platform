@@ -1,16 +1,19 @@
-name: GIS PHP lint
+name: GIS PHP lint and safety checks
 
 on:
   pull_request:
     paths:
       - 'sabzroyanuraman-site/api/gis/**/*.php'
+      - 'sabzroyanuraman-site/api/gis/sql/**/*.sql'
       - '.github/workflows/gis-php-lint.yml'
   push:
     branches:
       - master
       - feat/gis-org-auth-schema
+      - reconcile/gis-org-auth-schema-20261025
     paths:
       - 'sabzroyanuraman-site/api/gis/**/*.php'
+      - 'sabzroyanuraman-site/api/gis/sql/**/*.sql'
       - '.github/workflows/gis-php-lint.yml'
 
 permissions:
@@ -31,6 +34,29 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          count=0
           while IFS= read -r -d '' file; do
             php -l "$file"
+            count=$((count + 1))
           done < <(find sabzroyanuraman-site/api/gis -type f -name '*.php' -print0)
+          test "$count" -gt 0
+
+      - name: Check critical auth and tenant-isolation guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          auth=sabzroyanuraman-site/api/gis/auth-common.php
+          login=sabzroyanuraman-site/api/gis/auth.php
+          admin=sabzroyanuraman-site/api/gis/admin.php
+          projects=sabzroyanuraman-site/api/gis/projects.php
+          schema=sabzroyanuraman-site/api/gis/sql/002_accounts_orgs_projects.sql
+          grep -q "hash('sha256',\$raw)" "$auth"
+          grep -q "hash_equals(\$c,\$h)" "$auth"
+          grep -q "gis_auth_csrf_check();" "$login"
+          grep -q "platform_admin_required" "$admin"
+          grep -q "organization_id=:o" "$projects"
+          grep -q "gis_auth_require_org_subscription" "$projects"
+          grep -q "FOREIGN KEY (project_id, organization_id)" "$schema"
+          grep -q "ST_IsValid(geom)" "$schema"
+          grep -q "CREATE TABLE IF NOT EXISTS public.gis_login_attempts" "$schema"
+          echo "Critical static guard checks passed (not a substitute for integration/security testing)."
