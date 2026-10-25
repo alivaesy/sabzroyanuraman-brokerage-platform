@@ -130,3 +130,10 @@ At the end of each meaningful batch, update this file with the verified date, co
 - Topology remains immediately beside Editor at the start of the Editor toolbar.
 - HTML commit: ccd3fae820b321a448a98b8b80aa13994c266b5c.
 - CSS change committed to master; live browser/deployment verification was not performed.
+
+
+### Verification update (2026-10-25, Editor toolbar late-style override)
+- Root cause: the previous height CSS had accidentally been inserted into the generated map-viewer HTML string, not the main page. A later body-level style also reset #editorToolbar to wrapping/32px padding, explaining the brief correct appearance followed by expansion.
+- Removed the misplaced CSS and appended a high-specificity final override at the end of the actual page, enforcing a 28px row after later styles.
+- HTML commit: 2719160fd53e31b02c947a83bce8dd7c127fc6fc.
+- Still requires live browser confirmation after refresh.
