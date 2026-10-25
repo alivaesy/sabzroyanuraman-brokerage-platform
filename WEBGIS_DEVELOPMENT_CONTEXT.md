@@ -118,3 +118,8 @@ At the end of each meaningful batch, update this file with the verified date, co
 - No CDN URLs or library references were changed.
 - Verification: GitHub content read-back and targeted source assertions confirmed the expected edits. The requested `node --test tests/web-gis-static.test.cjs` was **not run** because this session has no network access to retrieve/run the repository files locally; GitHub reports no status checks attached to this commit. No headless browser test or live deployment test was run.
 - Remaining: run all 13 static tests and browser checks (all 10 main menus, Editor-toolbar menu placement, entering `1:5000`, Layout View, and console errors); verify scale behavior at min/max zoom and on basemap changes.
+
+
+### Verification update (2026-10-25)
+- Re-evaluated all 13 assertions from `tests/web-gis-static.test.cjs` against the committed HTML using a JavaScript harness: **13/13 passed**. The 11 inline JavaScript blocks also passed syntax compilation.
+- This was not the literal `node --test tests/web-gis-static.test.cjs` CLI invocation; the local container could not reach GitHub to check out the repository. No browser/Playwright run was performed.
