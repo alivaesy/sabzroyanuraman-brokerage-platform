@@ -188,6 +188,12 @@ body{background:#dfe5e8;color:#173b57}
 #webgisLayoutTitle{font-size:24px;font-weight:700;text-align:center;padding:12px;border-bottom:1px solid #667781}
 .webgis-layout-map-slot{min-height:50vh;margin:18px 0;border:1px dashed #9baab4;display:grid;place-items:center;text-align:center;color:#687b86;padding:18px}
 #webgisLayoutFooter{border-top:1px solid #9baab4;padding:10px;min-height:20px}
+.webgis-layout-legend{display:flex;flex-wrap:wrap;gap:10px;padding:10px;border-top:1px solid #d6dde1}
+.webgis-layout-legend-item{display:inline-flex;align-items:center;gap:5px}
+.webgis-layout-legend-swatch{display:inline-block;width:13px;height:13px;border:1px solid #52616a;border-radius:2px}
+.webgis-layout-north{position:absolute;right:34px;top:112px;font-size:22px;font-weight:700;text-align:center;background:#fffE;padding:7px 10px;border:1px solid #9baab4}
+.webgis-layout-scale{display:inline-block;margin:8px 0;padding:5px 8px;border-bottom:4px solid #243746;border-left:1px solid #243746;border-right:1px solid #243746;font-size:11px}
+@media print{body.layout-view-active #webgisLayoutView .webgis-layout-north{position:absolute}body.layout-view-active #webgisLayoutView .webgis-layout-legend{break-inside:avoid}}
 @media print{body.layout-view-active>*:not(#webgisLayoutView){display:none!important}body.layout-view-active #webgisLayoutView{position:static;inset:auto;overflow:visible;background:#fff;padding:0}body.layout-view-active #webgisLayoutView .webgis-layout-toolbar{display:none}body.layout-view-active #webgisLayoutView .webgis-layout-sheet{box-shadow:none;border:0;margin:0;max-width:none;min-height:95vh}body.layout-view-active #webgisLayoutView .webgis-layout-map-slot{min-height:65vh}}
 /* Keep the coordinate/status strip visible without a surrounding coordinate box. */
 
