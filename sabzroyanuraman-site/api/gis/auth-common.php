@@ -15,7 +15,7 @@ function gis_auth_db(): PDO {
  catch(Throwable $e){error_log('[gis-auth] DB connect failed: '.get_class($e));gis_auth_json(503,['ok'=>false,'error'=>'auth_database_unavailable']);}
 }
 function gis_auth_method(array $allowed):void{$m=strtoupper((string)($_SERVER['REQUEST_METHOD']??'GET'));if(!in_array($m,$allowed,true)){header('Allow: '.implode(', ',$allowed));gis_auth_json(405,['ok'=>false,'error'=>'method_not_allowed']);}}
-function gis_auth_cookie(string $name,string $value,int $expires):void{setcookie($name,$value,['expires'=>$expires,'path'=>'/api/gis/','secure'=>(!empty($_SERVER['HTTPS'])&&strtolower((string)$_SERVER['HTTPS'])!=='off'),'httponly'=>$name==='gis_session','samesite'=>'Strict']);}
+function gis_auth_cookie(string $name,string $value,int $expires):void{setcookie($name,$value,['expires'=>$expires,'path'=>'/api/gis/','secure'=>true,'httponly'=>$name==='gis_session','samesite'=>'Strict']);}
 function gis_auth_csrf_check():void{
  $origin=(string)($_SERVER['HTTP_ORIGIN']??'');$host=strtolower((string)($_SERVER['HTTP_HOST']??''));
  if($origin!==''){$p=parse_url($origin);$hp=parse_url('http://'.$host);$oh=strtolower((string)($p['host']??''));$hh=strtolower((string)($hp['host']??''));$os=strtolower((string)($p['scheme']??''));$https=(!empty($_SERVER['HTTPS'])&&strtolower((string)$_SERVER['HTTPS'])!=='off');$expectedScheme=$https?'https':'http';
