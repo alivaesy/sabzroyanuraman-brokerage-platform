@@ -5637,7 +5637,10 @@ function syncVisibleAttributeTableSelection(){
   const summary=$("attributeTableSummary");
   if(summary){
     const fieldCount=table.querySelectorAll("thead th[data-sort-key]").length;
-    summary.textContent=fieldCount+" field(s) · "+items.length+" record(s) · "+selectedFeatures.size+" selected";
+    // The table can show one layer while map selection spans several layers.
+    // Report selection within this table's visible records, matching the row checkboxes.
+    const selectedCount=items.reduce((count,item)=>count+(selectedFeatures.has(item.layer)?1:0),0);
+    summary.textContent=fieldCount+" field(s) · "+items.length+" record(s) · "+selectedCount+" selected";
   }
 }
 function applySelectionVisual(){
