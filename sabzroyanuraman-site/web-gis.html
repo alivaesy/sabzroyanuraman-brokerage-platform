@@ -8497,7 +8497,10 @@ function runModelBuilder(modal){
       else document.querySelector('[data-action="saveProject"]')?.click();
       return;
     }
-    if(!event.ctrlKey && !event.metaKey && (event.key==='Delete' || event.key==='Backspace')){
+    // Match ArcMap: Delete removes selected features; Backspace must never delete them.
+    if(!event.ctrlKey && !event.metaKey && event.key==='Delete'){
+      const target=event.target;
+      if(target?.isContentEditable||target?.closest?.('input,textarea,select,button,a,[role=button],[contenteditable=true]'))return;
       event.preventDefault();click('deleteBtn');
     }
   }, true);
