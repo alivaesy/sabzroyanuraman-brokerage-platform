@@ -167,5 +167,5 @@ test('GIS project API scopes reads and feature retrieval to the selected organiz
   assert.match(api, /WHERE id=:id AND organization_id=:o/);
   assert.match(api, /WHERE project_id=:p AND organization_id=:o/);
   assert.match(api, /gis_auth_require_org_subscription\(\$pdo,\$user,\(int\)\$org\)/);
-  assert.doesNotMatch(api, /ORDER BY updated_at DESC LIMIT 200/);
+  assert.match(api, /ORDER BY lower\(name\) ASC, updated_at DESC LIMIT 200/);
 });
