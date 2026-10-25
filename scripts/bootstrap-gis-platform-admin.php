@@ -1,0 +1,118 @@
+<?php
+declare(strict_types=1);
+
+/**
+ * One-time CLI bootstrap for the first Sabz Royan GIS platform administrator.
+ *
+ * Keep this script outside the web document root and remove it after use.
+ * Configure /home/sabzroyanuraman/private/gis-bootstrap-db.php with a temporary
+ * database role allowed to create the initial administrator, organization,
+ * membership, subscription and audit record. Never commit that config.
+ */
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+if (!defined('STDIN') || !function_exists('readline')) {
+    fwrite(STDERR, "Run this script from an interactive PHP CLI.
+");
+    exit(2);
+}
+$configFile = '/home/sabzroyanuraman/private/gis-bootstrap-db.php';
+if (!is_file($configFile) || !is_readable($configFile)) {
+    fwrite(STDERR, "Missing private bootstrap DB config: {$configFile}
+");
+    exit(2);
+}
+$config = require $configFile;
+foreach (['host', 'port', 'database', 'username', 'password'] as $key) {
+    if (!is_array($config) || !isset($config[$key]) || !is_scalar($config[$key]) || (string)$config[$key] === '') {
+        fwrite(STDERR, "Invalid bootstrap DB config.
+");
+        exit(2);
+    }
+}
+$username = strtolower(trim((string)readline('Initial admin username (3-64 chars): ')));
+if (!preg_match('/^[a-z0-9][a-z0-9._-]{2,63}$/', $username)) {
+    fwrite(STDERR, "Invalid username.
+");
+    exit(2);
+}
+$displayName = trim((string)readline('Display name: '));
+$email = trim((string)readline('Email (optional): '));
+if (strlen($displayName) > 200 || ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL))) {
+    fwrite(STDERR, "Invalid display name or email.
+");
+    exit(2);
+}
+$orgName = trim((string)readline('Initial organization name: '));
+$slug = strtolower(trim((string)readline('Organization slug (a-z, 0-9, hyphens): ')));
+if (strlen($orgName) < 2 || strlen($orgName) > 200 || !preg_match('/^[a-z0-9][a-z0-9-]{1,62}$/', $slug)) {
+    fwrite(STDERR, "Invalid organization name or slug.
+");
+    exit(2);
+}
+$daysRaw = trim((string)readline('Initial subscription days [30]: '));
+$days = $daysRaw === '' ? 30 : filter_var($daysRaw, FILTER_VALIDATE_INT);
+if ($days === false || $days < 1 || $days > 3650) {
+    fwrite(STDERR, "Subscription days must be 1-3650.
+");
+    exit(2);
+}
+fwrite(STDOUT, "Enter a strong password (minimum 12 characters); input is hidden by terminal where supported.\n");
+$pass = trim((string)readline('Password: '));
+if (strlen($pass) < 12 || strlen($pass) > 1024) {
+    fwrite(STDERR, "Password must be 12-1024 characters.
+");
+    exit(2);
+}
+$confirm = trim((string)readline('Confirm password: '));
+if (!hash_equals($pass, $confirm)) {
+    fwrite(STDERR, "Passwords do not match.
+");
+    exit(2);
+}
+
+try {
+    $pdo = new PDO(
+        sprintf('pgsql:host=%s;port=%d;dbname=%s;connect_timeout=3', (string)$config['host'], (int)$config['port'], (string)$config['database']),
+        (string)$config['username'],
+        (string)$config['password'],
+        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC, PDO::ATTR_EMULATE_PREPARES => false, PDO::ATTR_TIMEOUT => 4]
+    );
+    $pdo->beginTransaction();
+    $existingAdmin = (int)$pdo->query("SELECT count(*) FROM public.gis_users WHERE is_platform_admin = true")->fetchColumn();
+    if ($existingAdmin !== 0) {
+        $pdo->rollBack();
+        fwrite(STDERR, "Bootstrap refused: a platform administrator already exists.
+");
+        exit(3);
+    }
+    $q = $pdo->prepare("INSERT INTO public.gis_users(username,email,password_hash,display_name,status,is_platform_admin) VALUES(:u,:e,:p,:d,'active',true) RETURNING id");
+    $q->execute(['u' => $username, 'e' => $email !== '' ? $email : null, 'p' => password_hash($pass, PASSWORD_DEFAULT), 'd' => $displayName]);
+    $userId = (int)$q->fetchColumn();
+
+    $q = $pdo->prepare("INSERT INTO public.gis_organizations(name,slug,status) VALUES(:n,:s,'active') RETURNING id");
+    $q->execute(['n' => $orgName, 's' => $slug]);
+    $orgId = (int)$q->fetchColumn();
+
+    $q = $pdo->prepare("INSERT INTO public.gis_organization_members(organization_id,user_id,role,status) VALUES(:o,:u,'owner','active')");
+    $q->execute(['o' => $orgId, 'u' => $userId]);
+
+    $q = $pdo->prepare("INSERT INTO public.gis_subscriptions(organization_id,plan_code,requested_days,status,starts_at,expires_at,max_users,activated_by,activation_note) VALUES(:o,'bootstrap',:days,'active',now(),now()+make_interval(days => :days2),1,:u,'Initial one-time platform bootstrap') RETURNING id");
+    $q->execute(['o' => $orgId, 'days' => $days, 'days2' => $days, 'u' => $userId]);
+    $subscriptionId = (int)$q->fetchColumn();
+
+    $q = $pdo->prepare("INSERT INTO public.gis_admin_audit_log(actor_user_id,organization_id,action,target_type,target_id,details) VALUES(:u,:o,'bootstrap_first_admin','organization',:id,CAST(:d AS jsonb))");
+    $q->execute(['u' => $userId, 'o' => $orgId, 'id' => (string)$orgId, 'd' => json_encode(['subscription_id' => $subscriptionId, 'username' => $username], JSON_UNESCAPED_SLASHES)]);
+    $pdo->commit();
+    fwrite(STDOUT, "Bootstrap complete. User ID: {$userId}; organization ID: {$orgId}; subscription ID: {$subscriptionId}.\n");
+    fwrite(STDOUT, "Now remove the temporary bootstrap DB config and this script from the server.\n");
+} catch (Throwable $e) {
+    if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    error_log('[gis-bootstrap] failed: ' . get_class($e));
+    fwrite(STDERR, "Bootstrap failed; transaction rolled back. Check DB schema and temporary DB-role grants.\n");
+    exit(1);
+}
