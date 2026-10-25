@@ -14,7 +14,7 @@ if (PHP_SAPI !== 'cli') {
     exit;
 }
 if (!defined('STDIN') || !defined('STDOUT')) {
-    fwrite(STDERR, "Run this script from an interactive PHP CLI.\\n");
+    fwrite(STDERR, "Run this script from an interactive PHP CLI.\n");
     exit(2);
 }
 
@@ -23,7 +23,7 @@ function promptLine(string $prompt): string
 {
     fwrite(STDOUT, $prompt);
     $line = fgets(STDIN);
-    return $line === false ? '' : rtrim($line, "\\r\\n");
+    return $line === false ? '' : rtrim($line, "\r\n");
 }
 
 /**
