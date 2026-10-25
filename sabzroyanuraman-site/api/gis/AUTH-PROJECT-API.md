@@ -25,3 +25,18 @@ All endpoints are proposed for staging and are not deployed automatically by Git
 8. Government SSO and payment processing are not included. Subscription activation is manual after payment verification outside this site.
 
 Do not enable on production until syntax tests, staging migration, role grants and cross-organization authorization tests pass.
+
+
+## Separate database credentials for privileged administration
+
+The regular API connection uses `/home/sabzroyanuraman/private/gis-auth-db.php`. The platform-admin mutation endpoint uses a different connection file, `/home/sabzroyanuraman/private/gis-admin-db.php`, and must use a dedicated non-superuser PostgreSQL role. Do not copy the regular role's broad grants to the admin role.
+
+Before enabling this endpoint, provision grants narrowly for only the columns and operations required by `admin.php`:
+- read only the minimum user columns needed to validate an organization owner;
+- insert users, organizations, organization memberships, subscriptions, and audit events;
+- read the columns required by `INSERT/UPDATE ... RETURNING` and predicates;
+- update only subscription activation columns; do not grant updates to `gis_users.is_platform_admin`;
+- do not grant UPDATE/DELETE on `gis_admin_audit_log`, nor broad table-wide grants;
+- grant sequence `USAGE` only for identity sequences used by these inserts.
+
+Keep both configuration files outside the web root, owned by the site OS user, mode `600`. The admin config is intentionally a separate prerequisite; if absent, the admin endpoint returns a generic 503 rather than falling back to the regular DB role. Revoke existing broad grants on the staging role only after the replacement grants have been verified against staging integration tests.
