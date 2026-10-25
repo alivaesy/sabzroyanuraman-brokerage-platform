@@ -13,10 +13,17 @@ if (PHP_SAPI !== 'cli') {
     http_response_code(404);
     exit;
 }
-if (!defined('STDIN') || !function_exists('readline')) {
-    fwrite(STDERR, "Run this script from an interactive PHP CLI.
-");
+if (!defined('STDIN') || !defined('STDOUT')) {
+    fwrite(STDERR, "Run this script from an interactive PHP CLI.\\n");
     exit(2);
+}
+
+/** Read a non-secret value from the CLI without requiring PHP's readline extension. */
+function promptLine(string $prompt): string
+{
+    fwrite(STDOUT, $prompt);
+    $line = fgets(STDIN);
+    return $line === false ? '' : rtrim($line, "\\r\\n");
 }
 
 /**
@@ -70,27 +77,27 @@ foreach (['host', 'port', 'database', 'username', 'password'] as $key) {
         exit(2);
     }
 }
-$username = strtolower(trim((string)readline('Initial admin username (3-64 chars): ')));
+$username = strtolower(trim((string)promptLine('Initial admin username (3-64 chars): ')));
 if (!preg_match('/^[a-z0-9][a-z0-9._-]{2,63}$/', $username)) {
     fwrite(STDERR, "Invalid username.
 ");
     exit(2);
 }
-$displayName = trim((string)readline('Display name: '));
-$email = trim((string)readline('Email (optional): '));
+$displayName = trim((string)promptLine('Display name: '));
+$email = trim((string)promptLine('Email (optional): '));
 if (strlen($displayName) > 200 || ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL))) {
     fwrite(STDERR, "Invalid display name or email.
 ");
     exit(2);
 }
-$orgName = trim((string)readline('Initial organization name: '));
-$slug = strtolower(trim((string)readline('Organization slug (a-z, 0-9, hyphens): ')));
+$orgName = trim((string)promptLine('Initial organization name: '));
+$slug = strtolower(trim((string)promptLine('Organization slug (a-z, 0-9, hyphens): ')));
 if (strlen($orgName) < 2 || strlen($orgName) > 200 || !preg_match('/^[a-z0-9][a-z0-9-]{1,62}$/', $slug)) {
     fwrite(STDERR, "Invalid organization name or slug.
 ");
     exit(2);
 }
-$daysRaw = trim((string)readline('Initial subscription days [30]: '));
+$daysRaw = trim((string)promptLine('Initial subscription days [30]: '));
 $days = $daysRaw === '' ? 30 : filter_var($daysRaw, FILTER_VALIDATE_INT);
 if ($days === false || $days < 1 || $days > 3650) {
     fwrite(STDERR, "Subscription days must be 1-3650.
@@ -118,6 +125,8 @@ try {
         [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC, PDO::ATTR_EMULATE_PREPARES => false, PDO::ATTR_TIMEOUT => 4]
     );
     $pdo->beginTransaction();
+    // Serialize concurrent first-admin bootstrap attempts on this database.
+    $pdo->query('SELECT pg_advisory_xact_lock(731904281)');
     $existingAdmin = (int)$pdo->query("SELECT count(*) FROM public.gis_users WHERE is_platform_admin = true")->fetchColumn();
     if ($existingAdmin !== 0) {
         $pdo->rollBack();
