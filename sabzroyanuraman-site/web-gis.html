@@ -181,6 +181,14 @@ body{background:#dfe5e8;color:#173b57}
 .data-dialog-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:14px}
 .layer-properties-card{width:min(540px,96vw);max-height:88vh;overflow:auto;padding:0;background:#f4f6f7}.layer-properties-titlebar{display:flex;align-items:center;justify-content:space-between;padding:12px 15px;background:linear-gradient(#f9fafb,#e1e5e8);border-bottom:1px solid #aeb8be}.layer-properties-titlebar h2{margin:0;font-size:15px}.layer-properties-titlebar button{border:1px solid #aab5bb;background:#fff;width:25px;height:24px;cursor:pointer}.layer-properties-tabs{display:flex;border-bottom:1px solid #aeb8be;background:#e6e9eb;padding:0 12px}.layer-properties-tabs button{padding:8px 13px;border:0;border-right:1px solid #d0d6da;background:transparent;font-size:11px;cursor:pointer}.layer-properties-tabs button.active{background:#fff;box-shadow:inset 0 -2px #347ca5;font-weight:700}.layer-properties-card form{padding:14px 16px}.lp-pane label{display:block;font-size:11px;font-weight:700;margin:8px 0}.lp-pane input:not([type=checkbox]):not([type=color]):not([type=range]),.lp-pane select{display:block;width:100%;margin-top:4px;box-sizing:border-box}.lp-pane input[type=color]{display:block;width:100%;height:30px;margin-top:4px}.lp-pane input[type=checkbox]{vertical-align:middle;margin-right:6px}.lp-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px 14px}.lp-grid label{margin:4px 0}.lp-grid input[type=range]{display:block;width:100%}.lp-preview{display:flex;align-items:center;gap:10px;border:1px solid #c3cbd0;background:#fff;padding:10px;margin-top:10px;font-size:11px}.lp-source-details,.lp-fields-list{padding:8px;border:1px solid #c7d0d5;background:#fff;font-size:11px;overflow-wrap:anywhere;max-height:110px;overflow:auto}.lp-fields-list{display:flex;flex-wrap:wrap;gap:5px}.lp-field-chip{padding:3px 6px;background:#edf2f5;border:1px solid #d2dbe0;border-radius:2px}.lp-preview #lpSymbolPreview{display:inline-block;width:42px;height:22px;border:2px solid #146c43;background:rgba(86,168,120,.2)}.layer-properties-card .data-dialog-actions{padding-top:10px;border-top:1px solid #d2d8dc}
 
+#webgisLayoutView{position:fixed;inset:0;z-index:20000;overflow:auto;background:#d5dbe0;padding:14px;box-sizing:border-box;color:#243746;font:12px Arial,sans-serif}
+.webgis-layout-toolbar{position:sticky;top:0;display:flex;flex-wrap:wrap;align-items:center;gap:7px;padding:8px;background:#edf1f4;border:1px solid #9aaab4;box-shadow:0 2px 6px #0002;z-index:2}
+.webgis-layout-toolbar span{margin-right:auto;color:#5b6c76}.webgis-layout-toolbar button{border:1px solid #9baab4;background:#fff;padding:5px 9px;cursor:pointer}
+.webgis-layout-sheet{max-width:1100px;min-height:75vh;margin:18px auto;background:#fff;border:1px solid #aab4ba;box-shadow:0 3px 14px #0002;padding:24px;box-sizing:border-box}
+#webgisLayoutTitle{font-size:24px;font-weight:700;text-align:center;padding:12px;border-bottom:1px solid #667781}
+.webgis-layout-map-slot{min-height:50vh;margin:18px 0;border:1px dashed #9baab4;display:grid;place-items:center;text-align:center;color:#687b86;padding:18px}
+#webgisLayoutFooter{border-top:1px solid #9baab4;padding:10px;min-height:20px}
+@media print{body.layout-view-active #webgisLayoutView{position:static;inset:auto;overflow:visible;background:#fff;padding:0}body.layout-view-active #webgisLayoutView .webgis-layout-toolbar{display:none}body.layout-view-active #webgisLayoutView .webgis-layout-sheet{box-shadow:none;border:0;margin:0;max-width:none;min-height:95vh}body.layout-view-active #webgisLayoutView .webgis-layout-map-slot{min-height:65vh}}
 /* Keep the coordinate/status strip visible without a surrounding coordinate box. */
 
 /* Main menu layout follows the compact ArcMap desktop chrome. */
@@ -1159,13 +1167,13 @@ Object.entries(base).forEach(([key,layer])=>{
 });
 base.osm.addTo(map);
 let currentBase=base.osm;
+let currentBasemapKey="osm";
 let customWmsConfig=null;
 function selectBasemap(key,notify=true){
   if(key==="customWms"){
     if(!customWmsConfig){
-      const previous=$("basemap").value;
       openGisDock("display");
-      $("basemap").value=previous==="customWms"?"osm":previous;
+      $("basemap").value=currentBasemapKey||"osm";
       $("wmsUrl").focus();
       status("Enter a WMS service URL and layer name, then choose Use WMS as Basemap.");
       return false;
@@ -1179,7 +1187,7 @@ function selectBasemap(key,notify=true){
   // A new selection starts a fresh failure streak; stale errors from an old request must not trigger fallback.
   basemapTileErrors[key]=0;
   if(currentBase&&map.hasLayer(currentBase))map.removeLayer(currentBase);
-  currentBase=next;currentBase.addTo(map);$("basemap").value=key;
+  currentBase=next;currentBasemapKey=key;currentBase.addTo(map);$("basemap").value=key;
   const labels={osm:"OpenStreetMap",topo:"OpenTopoMap",sat:"Esri World Imagery",esriStreet:"Esri World Street Map",esriTopo:"Esri World Topographic Map",esriGray:"Esri Light Gray Canvas",nasaWms:"NASA Blue Marble (WMS)",customWms:customWmsConfig?.name||"Custom WMS Basemap"};
   if(notify)status("Basemap: "+(labels[key]||key));
   scheduleAutoSave();
@@ -4053,7 +4061,7 @@ $("fillSelected").onclick=async()=>{
  status("Calculated '"+key+"' for "+changed.length+" feature(s)."+(synced&&projectSaved?"":" Local save/sync failed; retry Save Edits before leaving."));
 };
 $("measureSelected").onclick=()=>{if(selectedLayer)calcMeasure(selectedLayer);else status("Select a feature on the map first.");};
-$("basemap").onchange=e=>selectBasemap(e.target.value);
+$("basemap").onchange=e=>{const key=e.target.value;if(!selectBasemap(key)){e.target.value=currentBasemapKey||"osm";}};
 $("clearDraw").onclick=async()=>{
   if(blockForUnsavedTableEdits("clearing drawings"))return;
   if(!drawn.getLayers().length){status("There are no features to clear.");return}
@@ -5291,6 +5299,9 @@ const GIS_TOOLS=[
  {id:"repairSelectedGeometry",title:"Repair Geometry",category:"Geoprocessing",keys:"repair geometry fix invalid geometry"},
  {id:"runGisOperation",op:"centroid",title:"Feature To Point (Centroid)",category:"Geoprocessing",keys:"feature to point centroid polygon"},
  {id:"modelBuilder",title:"ModelBuilder",category:"Geoprocessing",keys:"workflow model chain automate geoprocessing"},
+ {id:"fieldCalculatorTool",title:"Field Calculator",category:"Data Management",keys:"calculate field expression attributes table"},
+ {id:"definitionQueryTool",title:"Definition Query",category:"Data Management",keys:"filter features attribute query layer"},
+ {id:"layoutViewTool",title:"Layout View / Print Layout",category:"Layout",keys:"page setup map title legend north arrow scale print"},
  {id:"selectFeatures",title:"Select Features",category:"Tools",keys:"select feature"},
  {id:"importData",title:"Add Data",category:"File",keys:"import layer geojson kml shapefile csv geodatabase"},
  {id:"exportData",title:"Export Data",category:"File",keys:"export geojson kml gpx shapefile geodatabase dxf"},
@@ -6693,20 +6704,22 @@ function updateLayerSymbolPreview(){
 function definitionQueryMatches(query,properties){
  if(!query)return true;
  const raw=properties?.[query.field],value=String(query.value??""),needle=value.toLocaleLowerCase();
+ const numericField=typeof raw==="number"||(raw!==null&&raw!==undefined&&String(raw).trim()!==""&&Number.isFinite(Number(raw)));
+ const numericValue=value.trim()!==""&&Number.isFinite(Number(value));
  if(query.operator==="is null")return raw===null||raw===undefined||raw==="";
  if(query.operator==="is not null")return raw!==null&&raw!==undefined&&raw!=="";
  if(raw===null||raw===undefined)return false;
  const text=String(typeof raw==="object"?JSON.stringify(raw):raw),actual=text.toLocaleLowerCase(),n=Number(value),numeric=typeof raw==="number"&&Number.isFinite(n);
  switch(query.operator){
-  case "=":return numeric?raw===n:actual===needle;
-  case "!=":return numeric?raw!==n:actual!==needle;
+  case "=":return numericField&&numericValue?Number(raw)===Number(value):actual===needle;
+  case "!=":return numericField&&numericValue?Number(raw)!==Number(value):actual!==needle;
   case "contains":return actual.includes(needle);
   case "starts":return actual.startsWith(needle);
   case "ends":return actual.endsWith(needle);
-  case ">":return Number.isFinite(Number(raw))&&Number(raw)>n;
-  case ">=":return Number.isFinite(Number(raw))&&Number(raw)>=n;
-  case "<":return Number.isFinite(Number(raw))&&Number(raw)<n;
-  case "<=":return Number.isFinite(Number(raw))&&Number(raw)<=n;
+  case ">":return numericField&&numericValue&&Number(raw)>Number(value);
+  case ">=":return numericField&&numericValue&&Number(raw)>=Number(value);
+  case "<":return numericField&&numericValue&&Number(raw)<Number(value);
+  case "<=":return numericField&&numericValue&&Number(raw)<=Number(value);
   default:return false;
  }
 }
@@ -7281,6 +7294,9 @@ function runGisTool(tool){
  if(!tool||typeof tool!=="object"){status("Invalid toolbox command.");return;}
  if(tool.id==="geometrySelfTest"){runGeometryRegressionTests();return;}
  if(tool.id==="modelBuilder"){openModelBuilder();return;}
+ if(tool.id==="fieldCalculatorTool"){const layer=selectedLayer&&isVectorLayer(selectedLayer)?selectedLayer:(currentAttributeLayer()||null);if(!layer){status("Select a vector layer first.");return;}openLayerAttributeTable({layer},"vertical");status("Select table rows, start editing, then use Calculate Field.");return;}
+ if(tool.id==="definitionQueryTool"){const layer=selectedLayer&&isVectorLayer(selectedLayer)?selectedLayer:(currentAttributeLayer()||null);const owner=layer?namedLayers.find(x=>x.layer===layer):null;if(!owner){status("Select a named vector layer in the Table of Contents first.");return;}openDefinitionQuery(owner);return;}
+ if(tool.id==="layoutViewTool"){openLayoutView();return;}
  if(tool.id==="selectFeatures"){$("selectFeaturesBtn").click();return;}
   if(tool.id==="importData"){openDataFormatDialog("import");return;}
   if(tool.id==="exportData"){openDataFormatDialog("export");return;}
@@ -7362,6 +7378,22 @@ function runGisTool(tool){
 $("gisToolSearch").oninput=e=>renderGisToolbox(e.target.value);
 renderGisToolbox(); // Show the complete registered ArcToolbox catalog immediately; search narrows it.
 
+function openLayoutView(){
+  let panel=document.getElementById("webgisLayoutView");
+  if(panel){panel.remove();document.body.classList.remove("layout-view-active");status("Layout View closed.");return;}
+  panel=document.createElement("section");panel.id="webgisLayoutView";panel.setAttribute("role","dialog");panel.setAttribute("aria-label","Map Layout View");
+  panel.innerHTML='<div class="webgis-layout-toolbar"><strong>Layout View</strong><span>Print-ready map composition</span><button type="button" data-layout-action="title">Add Title</button><button type="button" data-layout-action="legend">Add Legend</button><button type="button" data-layout-action="north">North Arrow</button><button type="button" data-layout-action="scale">Scale Bar</button><button type="button" data-layout-action="print">Print / Export PDF</button><button type="button" data-layout-action="close">Close Layout</button></div><div class="webgis-layout-sheet"><header id="webgisLayoutTitle">'+String($("projectName").value||"Map").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))+'</header><div class="webgis-layout-map-slot">The live map below will be prepared for printing. Use Print / Export PDF to open the browser print dialog.</div><footer id="webgisLayoutFooter"></footer></div>';
+  document.body.appendChild(panel);document.body.classList.add("layout-view-active");
+  panel.addEventListener("click",async e=>{const b=e.target.closest("[data-layout-action]");if(!b)return;const a=b.dataset.layoutAction;
+    if(a==="close"){panel.remove();document.body.classList.remove("layout-view-active");return;}
+    if(a==="print"){window.print();return;}
+    if(a==="title"){const v=await arcMapDialog.prompt({title:"Layout Title",message:"Enter the map title:",label:"Title",value:$("projectName").value||"Map"});if(v!==null)$("webgisLayoutTitle").textContent=v;}
+    if(a==="legend"){$("webgisLayoutFooter").textContent="Legend: "+namedLayers.map(x=>x.name).join(" · ");}
+    if(a==="north")$("webgisLayoutFooter").textContent+="  |  North ↑";
+    if(a==="scale")$("webgisLayoutFooter").textContent+="  |  Scale bar (see map scale control)";
+  });
+  status("Layout View opened. Add layout elements, then print or export to PDF.");
+}
 async function addMapDecoration(kind){
   window._mapDecorations=window._mapDecorations||{};
   const controls=window._mapDecorations;
