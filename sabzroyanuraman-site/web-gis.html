@@ -1603,6 +1603,8 @@ document.addEventListener("keydown",e=>{
     return;
   }
   if(["input","textarea","select"].includes(tag)||e.target?.isContentEditable)return;
+  // Ctrl+Shift+L toggles the print-layout workspace.
+  if(key==="l"&&e.shiftKey){e.preventDefault();if(typeof openLayoutView==="function")openLayoutView();return;}
   // Ctrl+O opens the saved-project picker, unless focus is in an editable control.
   if(key==="o"){
     e.preventDefault();
