@@ -3225,7 +3225,11 @@ const clipMask=turf.polygon([[[0,0],[.006,0],[.006,.01],[0,.01],[0,0]]]);
 const pointInside=turf.point([.003,.005],{id:1}),pointOutside=turf.point([.009,.005],{id:2});
 test('Clip retains points inside polygon mask only',clipFeatureToPolygon(pointInside,clipMask).length===1&&clipFeatureToPolygon(pointOutside,clipMask).length===0);
 const clippedLine=clipFeatureToPolygon(turf.lineString([[.001,.005],[.009,.005]],{road:'R'}),clipMask);
-test('Clip line output is limited to polygon mask',clippedLine.length>0&&clippedLine.every(f=>f.geometry&&['LineString','MultiLineString'].includes(f.geometry.type)));
+test('Clip line output is limited to polygon mask',clippedLine.length>0&&clippedLine.every(f=>f.geometry&&['LineString','MultiLineString'].includes(f.geometry.type)&&(()=>{const coords=f.geometry.type==='LineString'?f.geometry.coordinates:f.geometry.coordinates[0];if(!coords||coords.length<2)return false;const mid=turf.along(turf.lineString(coords),turf.length(turf.lineString(coords),{units:'kilometers'})/2,{units:'kilometers'});return turf.booleanPointInPolygon(mid,clipMask)})()));
+const clipPolygon=turf.polygon([[[.002,.002],[.009,.002],[.009,.008],[.002,.008],[.002,.002]]],{parcel:'P1'});
+const clippedPolygon=clipFeatureToPolygon(clipPolygon,clipMask);
+test('Clip polygon output stays within input and mask footprints',clippedPolygon.length===1&&turf.area(clippedPolygon[0])<=turf.area(clipPolygon)+1&&turf.area(clippedPolygon[0])<=turf.area(clipMask)+1);
+test('Clip polygon output retains only the intersecting area',clippedPolygon.length===1&&Math.abs(turf.area(clippedPolygon[0])-turf.area(turf.intersect(turf.featureCollection([clipPolygon,clipMask]))))<1);
 test('Bounding-box operation returns polygon geometry',turf.bboxPolygon(turf.bbox(a)).geometry.type==='Polygon');
 const report=checks.join('\n');console.info('Synthetic geometry tests:\n'+report);status('Geometry self-test: '+checks.filter(x=>x.startsWith('PASS')).length+'/'+checks.length+' passed.');await arcMapDialog.alert({title:'Geometry Self-Test — Synthetic Data',message:report+'\n\nSynthetic checks do not replace tests on cadastral data or comparison with ArcMap.'});}
 function mergeFeaturesPreservingGeometry(inputFeature,overlayFeature){
