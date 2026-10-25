@@ -3,7 +3,7 @@ declare(strict_types=1); require_once __DIR__.'/auth-common.php'; gis_auth_metho
 $contentType=strtolower(trim(explode(';',(string)($_SERVER['CONTENT_TYPE']??''))[0]));if($contentType!=='application/json')gis_auth_json(415,['ok'=>false,'error'=>'application_json_required']);
 $length=(int)($_SERVER['CONTENT_LENGTH']??0);if($length>2100000)gis_auth_json(413,['ok'=>false,'error'=>'request_body_too_large']);
 gis_auth_csrf_check();$u=gis_auth_current_user(false);if(!$u['is_platform_admin'])gis_auth_json(403,['ok'=>false,'error'=>'platform_admin_required']);
-$rawBody=(string)file_get_contents('php://input');if(strlen($rawBody)>2100000)gis_auth_json(413,['ok'=>false,'error'=>'request_body_too_large']);$b=json_decode($rawBody,true);if(!is_array($b))gis_auth_json(400,['ok'=>false,'error'=>'invalid_json']);$pdo=gis_auth_db();$a=(string)($b['action']??'');
+$rawBody=(string)file_get_contents('php://input');if(strlen($rawBody)>2100000)gis_auth_json(413,['ok'=>false,'error'=>'request_body_too_large']);$b=json_decode($rawBody,true);if(!is_array($b))gis_auth_json(400,['ok'=>false,'error'=>'invalid_json']);$pdo=gis_auth_admin_db();$a=(string)($b['action']??'');
 if($a==='create_user'){
  $username=strtolower(trim((string)($b['username']??'')));$password=(string)($b['password']??'');$email=trim((string)($b['email']??''));$display=trim((string)($b['display_name']??''));
  if(!preg_match('/^[a-z0-9][a-z0-9._-]{2,63}$/',$username)||strlen($password)<12||strlen($password)>1024||($email!==''&&!filter_var($email,FILTER_VALIDATE_EMAIL))||strlen($display)>200)gis_auth_json(400,['ok'=>false,'error'=>'invalid_user_parameters']);
