@@ -188,7 +188,7 @@ body{background:#dfe5e8;color:#173b57}
 #webgisLayoutTitle{font-size:24px;font-weight:700;text-align:center;padding:12px;border-bottom:1px solid #667781}
 .webgis-layout-map-slot{min-height:50vh;margin:18px 0;border:1px dashed #9baab4;display:grid;place-items:center;text-align:center;color:#687b86;padding:18px}
 #webgisLayoutFooter{border-top:1px solid #9baab4;padding:10px;min-height:20px}
-@media print{body.layout-view-active #webgisLayoutView{position:static;inset:auto;overflow:visible;background:#fff;padding:0}body.layout-view-active #webgisLayoutView .webgis-layout-toolbar{display:none}body.layout-view-active #webgisLayoutView .webgis-layout-sheet{box-shadow:none;border:0;margin:0;max-width:none;min-height:95vh}body.layout-view-active #webgisLayoutView .webgis-layout-map-slot{min-height:65vh}}
+@media print{body.layout-view-active>*:not(#webgisLayoutView){display:none!important}body.layout-view-active #webgisLayoutView{position:static;inset:auto;overflow:visible;background:#fff;padding:0}body.layout-view-active #webgisLayoutView .webgis-layout-toolbar{display:none}body.layout-view-active #webgisLayoutView .webgis-layout-sheet{box-shadow:none;border:0;margin:0;max-width:none;min-height:95vh}body.layout-view-active #webgisLayoutView .webgis-layout-map-slot{min-height:65vh}}
 /* Keep the coordinate/status strip visible without a surrounding coordinate box. */
 
 /* Main menu layout follows the compact ArcMap desktop chrome. */
