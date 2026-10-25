@@ -920,6 +920,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
           <div class="row">
             <button class="action" id="saveProject">Save Project</button>
             <button class="action secondary" id="loadProject">Open Project</button>
+            <button class="action secondary" id="closeCurrentProjectBtn" title="Close the current project and clear its layers from the map">Close Project</button>
           </div>
           <div class="small">Projects are stored locally in this browser.</div>
           <div class="row">
@@ -1744,11 +1745,12 @@ async function remoteGisGetCsrf(){
 }
 async function remoteGisLogin(){
   await remoteGisGetCsrf();
-  const username=await arcMapDialog.prompt({title:"GIS Online Login",message:"Enter your Sabz Royan account username.",label:"Username",value:""});
-  if(!username)return false;
-  const password=await arcMapDialog.prompt({title:"GIS Online Login",message:"Enter your password. It is sent only to the same-origin GIS API.",label:"Password",value:"",inputType:"password"});
-  if(password===null||password==="")return false;
-  await remoteGisRequest("auth.php?action=login",{method:"POST",body:JSON.stringify({username:username.trim(),password})});
+  const credentials=await arcMapDialog.form({title:"GIS Online Login",message:"Credentials are sent only to the same-origin GIS API.",fields:[
+    {name:"username",label:"Username",type:"text",value:"",required:true},
+    {name:"password",label:"Password",type:"password",value:"",required:true}
+  ]});
+  if(!credentials)return false;
+  await remoteGisRequest("auth.php?action=login",{method:"POST",body:JSON.stringify({username:credentials.username.trim(),password:credentials.password})});
   const me=await remoteGisRequest("auth.php?action=me");
   remoteGisUser=me.user;const orgs=(me.organizations||[]).filter(o=>o.subscribed===true||o.subscribed===1||o.subscribed==="1"||o.subscribed==="t");
   if(!orgs.length)throw new Error("no_active_organization_subscription");
@@ -1805,10 +1807,13 @@ async function openRemoteGisProjects(){
   }catch(e){status("Organization GIS: "+(e.message||e));}
 }
 async function openOnlineData(){
-  const sourceChoice=await arcMapDialog.select({title:"Add Online Data",message:"Choose an online data source or open your organization GIS workspace.",label:"Source",value:"service",options:[{value:"service",label:"External GeoJSON / ArcGIS FeatureServer / WFS"},{value:"account",label:"Sabz Royan GIS account · open/save organization projects"}]});
-  if(!sourceChoice)return;
-  if(sourceChoice==="account"){await openRemoteGisProjects();return;}
-  const value=await arcMapDialog.prompt({title:"Add Online Data",message:"Enter a public GeoJSON URL, ArcGIS FeatureServer layer URL, or WFS/GeoServer endpoint.",label:"Service URL",value:""});
+  const sourceForm=await arcMapDialog.form({title:"Add Online Data",message:"Choose a source below. For external services, enter the URL in this same window.",fields:[
+    {name:"source",label:"Data source",type:"select",value:"service",options:[{value:"service",label:"External GeoJSON / ArcGIS FeatureServer / WFS"},{value:"account",label:"Sabz Royan GIS account · open/save organization projects"}]},
+    {name:"url",label:"Service URL (external services only)",type:"url",value:"",required:false}
+  ]});
+  if(!sourceForm)return;
+  if(sourceForm.source==="account"){await openRemoteGisProjects();return;}
+  const value=sourceForm.url;
   if(!value)return;
   let url;try{url=new URL(value.trim());if(!/^https?:$/.test(url.protocol))throw new Error();}catch(_){status("Enter a valid HTTP or HTTPS data URL.");return;}
   if(location.protocol==="https:"&&url.protocol!=="https:"){status("Use an HTTPS data service on this secure page.");return;}
@@ -4717,6 +4722,23 @@ async function loadProject(){
     currentProjectId=choice.id;
   }catch(e){status("Project could not be opened: "+e.message)}
 }
+async function closeCurrentProject(){
+  if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){
+    status("Save Attribute Table edits before closing the project.");return;
+  }
+  const ok=await arcMapDialog.confirm({title:"Close Project",message:"Close the current project and remove its layers from the map? Save any changes first.",confirmText:"Close Project"});
+  if(!ok)return;
+  clearTimeout(autoSaveTimer);autoSaveGeneration++;
+  if(autoSaveResolve){const resolve=autoSaveResolve;autoSaveResolve=null;autoSavePromise=null;resolve(false)}
+  drawn.clearLayers();
+  namedLayers.slice().forEach(item=>{try{map.removeLayer(item.layer);layerControl.removeLayer(item.layer)}catch(_){}});
+  namedLayers.length=0;
+  currentProjectId=null;remoteGisProjectId=null;
+  $("projectName").value="Untitled Project";window.currentProjectDescription="";
+  renderLayerList();refreshAttributeLayers();applySelectionVisual();refreshAll();
+  $("projectStatus").textContent="No project open.";
+  status("Project closed. Open Add Online Data to load another organization project.");
+}
 function closeProjectManager(){document.getElementById("projectManager").classList.remove("show")}
 function openProjectManager(){document.getElementById("projectManager").classList.add("show");renderProjectManagerList()}
 async function renderProjectManagerList(){
@@ -4754,6 +4776,7 @@ async function createNewProject(){
 function initProjectManager(){
   $("createProjectBtn").onclick=createNewProject;
   $("closeProjectManager").onclick=closeProjectManager;
+  $("closeCurrentProjectBtn").onclick=closeCurrentProject;
 }
 function downloadProject(){
   if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before exporting the project; pending cell values are not included yet.");return}
@@ -8670,7 +8693,7 @@ const arcMapDialog=(()=>{
    if(control.tagName==="SELECT"){
     (field.options||[]).forEach(item=>{const opt=document.createElement("option");opt.value=String(item.value);opt.textContent=item.label;control.append(opt)});
     control.value=String(initial??field.options?.[0]?.value??"");
-   }else{control.type=field.type==="number"?"number":"text";control.value=String(initial??"");control.autocomplete="off";}
+   }else{control.type=["number","password","email","url"].includes(field.type)?field.type:"text";control.value=String(initial??"");control.autocomplete=field.type==="password"?"current-password":"off";}
    if(field.required)control.required=true;
    wrap.append(control);controls[field.name]=control;return {wrap,control};
   };
