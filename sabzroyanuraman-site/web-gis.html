@@ -1755,7 +1755,7 @@ async function remoteGisLogin(){
   remoteGisUser=me.user;const orgs=(me.organizations||[]).filter(o=>o.subscribed===true||o.subscribed===1||o.subscribed==="1"||o.subscribed==="t");
   if(!orgs.length)throw new Error("no_active_organization_subscription");
   const choice=await arcMapDialog.select({title:"Choose Organization",message:"Select the organization where this project should be stored.",label:"Organization",value:String(orgs[0].id),options:orgs.map(o=>({value:String(o.id),label:o.name+" — "+o.role}))});
-  if(!choice)return false;remoteGisOrganization=orgs.find(o=>String(o.id)===String(choice));
+  if(!choice){await remoteGisRequest("auth.php?action=logout",{method:"POST",body:JSON.stringify({})});remoteGisUser=null;remoteGisOrganization=null;remoteGisProjectId=null;remoteGisCsrf=null;return false;}remoteGisOrganization=orgs.find(o=>String(o.id)===String(choice));
   status("Signed in as "+(remoteGisUser.display_name||remoteGisUser.username)+" · "+remoteGisOrganization.name);
   return true;
 }
@@ -1791,21 +1791,78 @@ async function remoteGisSaveProject(project){
   if(!result.project_id)throw new Error("server_did_not_return_project_id");
   remoteGisProjectId=Number(result.project_id);return result;
 }
+async function remoteGisLogout(){
+  await remoteGisGetCsrf();
+  await remoteGisRequest("auth.php?action=logout",{method:"POST",body:JSON.stringify({})});
+  remoteGisUser=null;remoteGisOrganization=null;remoteGisProjectId=null;remoteGisCsrf=null;
+  status("Signed out. Local browser projects remain available.");
+}
+async function remoteGisListProjects(){
+  if(!remoteGisUser&&!await remoteGisLogin())return [];
+  if(!remoteGisOrganization)throw new Error("organization_not_selected");
+  const result=await remoteGisRequest("projects.php?organization_id="+encodeURIComponent(remoteGisOrganization.id));
+  return result.projects||[];
+}
+async function remoteGisOpenProject(id){
+  const remote=await remoteGisRequest("projects.php?organization_id="+encodeURIComponent(remoteGisOrganization.id)+"&id="+encodeURIComponent(id));
+  const p=remote.project;if(!p)throw new Error("project_not_found");
+  let data=p.project_data;if(typeof data==="string")data=JSON.parse(data);
+  if(!data||typeof data!=="object")throw new Error("empty_server_project_data");
+  if(!restoreProject(data))throw new Error("project_restore_failed");
+  currentProjectId=String(p.id);remoteGisProjectId=Number(p.id);
+  $("projectName").value=p.name||data.name||"Untitled Project";window.currentProjectDescription=p.description||data.description||"";
+  $("projectStatus").textContent="Server project loaded: "+new Date(p.updated_at||Date.now()).toLocaleString();
+  status("Project restored from the organization database.");
+}
 async function openRemoteGisProjects(){
   try{
-    const choice=await remoteGisChooseProject();if(!choice)return;
-    if(choice.project_data){
-      if(!restoreProject(choice.project_data))return;
-      currentProjectId=String(choice.id);$("projectName").value=choice.name||choice.project_data.name||"Untitled Project";
-      $("projectStatus").textContent="Server project loaded: "+new Date().toLocaleString();
-      status("Project loaded from organization server database.");return;
+    if(remoteGisUser){
+      try{await remoteGisRequest("auth.php?action=me");}catch(_){remoteGisUser=null;remoteGisOrganization=null;remoteGisProjectId=null;}
     }
-    const project=serializeProject();project.name=choice.name;$("projectName").value=choice.name;
-    const saved=await remoteGisSaveProject(project);if(!saved)return;
-    currentProjectId=String(saved.project_id);$("projectStatus").textContent="Server project saved: "+new Date().toLocaleString();
-    status("Project saved to organization database ("+saved.feature_count+" features).");
-  }catch(e){status("Organization GIS: "+(e.message||e));}
+    const signedIn=!!remoteGisUser;
+    const action=await arcMapDialog.select({
+      title:"Sabz Royan GIS Account",
+      message:signedIn
+        ? "Account: "+(remoteGisUser.display_name||remoteGisUser.username)+"\nOrganization: "+(remoteGisOrganization?.name||"not selected")
+        : "Not signed in. Sign in to manage server projects.",
+      label:"Action",value:signedIn?"projects":"signin",
+      options:signedIn
+        ? [{value:"projects",label:"Open an existing project"},{value:"new",label:"Save current map as a new project"},{value:"switch",label:"Switch account"},{value:"logout",label:"Sign out"}]
+        : [{value:"signin",label:"Sign in"},{value:"projects",label:"Open an existing project"}]
+    });
+    if(!action)return;
+    if(action==="logout"){await remoteGisLogout();return;}
+    if(action==="signin"){if(await remoteGisLogin())return await openRemoteGisProjects();return;}
+    if(action==="switch"){await remoteGisLogout();if(await remoteGisLogin())return await openRemoteGisProjects();return;}
+    if(!remoteGisUser&&!await remoteGisLogin())return;
+    if(action==="new"){
+      const name=await arcMapDialog.prompt({title:"New Server Project",message:"Save the current map, layers and drawings.",label:"Project name",value:$("projectName").value.trim()||"Untitled Project"});
+      if(!name)return;
+      const project=serializeProject();project.name=name.trim();project.description=window.currentProjectDescription||"";
+      remoteGisProjectId=null;
+      const saved=await remoteGisSaveProject(project);if(!saved)return;
+      currentProjectId=String(saved.project_id);$("projectName").value=project.name;
+      $("projectStatus").textContent="Server project saved: "+new Date().toLocaleString();
+      status("Project saved to organization database ("+saved.feature_count+" features).");return;
+    }
+    const projects=await remoteGisListProjects();
+    if(!projects.length){status("No projects in this organization yet.");return;}
+    const id=await arcMapDialog.select({title:"Open Server Project",message:"Choose a project from the selected organization.",label:"Project",value:String(projects[0].id),options:projects.map(p=>({value:String(p.id),label:p.name+" — "+new Date(p.updated_at||Date.now()).toLocaleDateString()}))});
+    if(id)await remoteGisOpenProject(id);
+  }catch(e){console.error("Sabz Royan GIS account:",e);status("Organization GIS: "+(e.message||e));}
 }
+// Compatibility bridge: project manager and autosave use the same authenticated organization session.
+const gisCloud={
+  get user(){return remoteGisUser},
+  get organizationId(){return remoteGisOrganization?String(remoteGisOrganization.id):null},
+  get projectId(){return remoteGisProjectId},
+  set projectId(value){remoteGisProjectId=value},
+  get projectName(){return null},
+  set projectName(_value){}
+};
+async function gisSaveProject(project){return remoteGisSaveProject(project)}
+async function gisListProjects(){return remoteGisListProjects()}
+async function gisOpenProject(id){return remoteGisOpenProject(id)}
 async function openOnlineData(){
   const sourceForm=await arcMapDialog.form({title:"Add Online Data",message:"Choose a source below. For external services, enter the URL in this same window.",fields:[
     {name:"source",label:"Data source",type:"select",value:"service",options:[{value:"service",label:"External GeoJSON / ArcGIS FeatureServer / WFS"},{value:"account",label:"Sabz Royan GIS account · open/save organization projects"}]},
