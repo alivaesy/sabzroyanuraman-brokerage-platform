@@ -1768,10 +1768,28 @@ async function gisLogin(){
   return true;
 }
 async function gisEnsureAccount(){
-  try{await gisRefreshSession();return true}catch(e){if(!String(e.message).includes("sign in"))throw e;}
-  const yes=await arcMapDialog.confirm({title:"GIS account",message:"Sign in to manage projects stored on the Sabz Royan server. Public online services can still be added without signing in."});
-  if(!yes)return false;
-  return await gisLogin();
+  try{await gisRefreshSession();}catch(e){
+    if(!String(e.message).toLowerCase().includes("sign in"))throw e;
+    const yes=await arcMapDialog.confirm({title:"GIS account",message:"Sign in to manage projects stored on the Sabz Royan server. Public online services can still be added without signing in."});
+    if(!yes)return false;
+    return await gisLogin();
+  }
+  // A valid legacy/platform-admin session may have no organization membership.
+  // Do not leave the user in a project menu that cannot proceed.
+  if(!gisCloud.organizations.length){
+    const yes=await arcMapDialog.confirm({title:"Switch GIS account",message:"The current account ("+(gisCloud.user?.username||"unknown")+") has no active organization membership for cloud projects. Sign out and sign in with your GIS project account?"});
+    if(!yes)return false;
+    await gisApi("auth.php?action=logout",{method:"DELETE",body:{}});
+    gisCloud.user=null;gisCloud.organizations=[];gisCloud.organizationId=null;gisCloud.projectId=null;gisCloud.projectName=null;gisCloud.csrf=null;
+    return await gisLogin();
+  }
+  if(!gisCloud.organizationId||!gisCloud.organizations.some(o=>String(o.id)===String(gisCloud.organizationId))){
+    const org=await arcMapDialog.select({title:"Choose GIS organization",message:"Signed in as "+(gisCloud.user.display_name||gisCloud.user.username)+". Select the organization for cloud projects.",label:"Organization",value:String(gisCloud.organizations[0].id),options:gisCloud.organizations.map(o=>({value:String(o.id),label:o.name+(o.subscribed?"":" (subscription inactive)"))}))});
+    if(!org)return false;
+    gisCloud.organizationId=String(org);
+    gisCloud.projectId=null;gisCloud.projectName=null;
+  }
+  return true;
 }
 function gisProjectFeatures(project){
   const features=[];
