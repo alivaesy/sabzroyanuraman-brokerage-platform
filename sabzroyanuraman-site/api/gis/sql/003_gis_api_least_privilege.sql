@@ -96,7 +96,8 @@ GRANT USAGE, SELECT ON SEQUENCE
 GRANT USAGE, SELECT ON SEQUENCE
   public.gis_users_id_seq,
   public.gis_organizations_id_seq,
-  public.gis_subscriptions_id_seq
+  public.gis_subscriptions_id_seq,
+  public.gis_admin_audit_log_id_seq
   TO gis_admin_api;
 
 COMMIT;
