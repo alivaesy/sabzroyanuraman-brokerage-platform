@@ -25,7 +25,7 @@ if (!defined('STDIN') || !function_exists('readline')) {
  */
 function readSecret(string $prompt): string
 {
-    if (PHP_SAPI !== 'cli' || !defined('STDIN') || !function_exists('shell_exec')) {
+    if (PHP_SAPI !== 'cli' || !defined('STDIN') || !function_exists('exec')) {
         fwrite(STDERR, "Secure hidden password input is unavailable in this environment.\n");
         exit(2);
     }
@@ -34,8 +34,7 @@ function readSecret(string $prompt): string
         fwrite(STDERR, "No interactive terminal is available; refusing visible password input.\n");
         exit(2);
     }
-    $disabled = trim((string) @shell_exec('stty -echo < /dev/tty 2>/dev/null'));
-    // stty is silent on success; verify terminal state by attempting to disable echo.
+    // stty is silent on success; verify its exit status.
     $status = 1;
     @exec('stty -echo < /dev/tty 2>/dev/null', $unused, $status);
     if ($status !== 0) {
