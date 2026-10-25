@@ -1560,8 +1560,12 @@ async function applyHistorySnapshot(source,destination,message){
   }finally{
     historyRestoring=false;updateUndoButtons();
   }
-  const persisted=await scheduleAutoSave();
-  status(message+" applied."+(persisted?"":"; local autosave failed, so retry Save Edits before leaving."));
+  // Undo/Redo changes the same editable layer state as Move/Split/Merge.
+  // Persist both the project snapshot and the geodatabase bridge before reporting success.
+  let persisted=false,synced=false;
+  try{[synced,persisted]=await Promise.all([flushGeodatabaseEdits(),scheduleAutoSave()]);}
+  catch(err){console.warn(message+" persistence failed:",err);}
+  status(message+" applied."+(synced&&persisted?" Changes saved.":"; local project save or geodatabase synchronization failed, so retry Save Edits before leaving."));
 }
 function undoMapEdit(){
   // A pending split sketch is a transient operation, not a committed edit.
