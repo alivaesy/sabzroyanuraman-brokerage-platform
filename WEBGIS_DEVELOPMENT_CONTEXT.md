@@ -107,3 +107,14 @@ Therefore do **not** claim the whole page is fully CDN-independent until every s
 
 ## Session handoff rule
 At the end of each meaningful batch, update this file with the verified date, commit SHA, files changed, tests actually run, outcomes, and unresolved items. Keep this file as the durable handoff for future ChatGPT accounts/conversations.
+
+
+## WebGIS ArcMap-style scale and menus (2026-10-25)
+- Updated `sabzroyanuraman-site/web-gis.html` directly on `master`; implementation commit: `180d6f7bae33359197b05845350bb5776c1236a9`.
+- Replaced the fixed zoom-level selector with a typed scale input and suggestions from 1:1,000,000 to 1:500. Scale denominator uses center latitude and the requested 96-DPI formula; Enter computes a fractional zoom, temporarily disables `zoomSnap`, clamps to map min/max zoom, then restores snapping. Scale refreshes on `zoomend` and `moveend`.
+- Removed Backspace from the sketch-vertex removal shortcut; Delete remains.
+- Removed Editor and Topology from the main menu and added both to the beginning of the Editor toolbar. Toolbar-originated menus open below the triggering toolbar button.
+- Added File > Print Map, Edit > Cut/Copy/Paste/Delete wired to existing toolbar buttons, and View > Layout View / Data View wired to the registered `layoutViewTool`.
+- No CDN URLs or library references were changed.
+- Verification: GitHub content read-back and targeted source assertions confirmed the expected edits. The requested `node --test tests/web-gis-static.test.cjs` was **not run** because this session has no network access to retrieve/run the repository files locally; GitHub reports no status checks attached to this commit. No headless browser test or live deployment test was run.
+- Remaining: run all 13 static tests and browser checks (all 10 main menus, Editor-toolbar menu placement, entering `1:5000`, Layout View, and console errors); verify scale behavior at min/max zoom and on basemap changes.
