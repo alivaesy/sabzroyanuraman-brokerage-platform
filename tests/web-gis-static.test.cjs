@@ -145,3 +145,23 @@ test("Geoprocessing rejects unsplit lines and validates result geometry", () => 
 test('Bulk attribute editing converts blank typed boolean, object, and array values to null', () => {
   assert.match(html, /raw\.trim\(\)===""&&\["boolean","object","array"\]\.includes\(valueType\)/);
 });
+
+
+test('Online data uses one form and the workspace has a direct close-project action', () => {
+  const start = html.indexOf('async function openOnlineData()');
+  const end = html.indexOf('function ', start + 10);
+  const handler = html.slice(start, end > start ? end : start + 5000);
+  assert.match(handler, /arcMapDialog\.form\(/);
+  assert.match(handler, /name:"source"/);
+  assert.match(handler, /name:"url"/);
+  assert.match(html, /id="closeCurrentProjectBtn"/);
+  assert.match(html, /async function closeCurrentProject\(/);
+  assert.match(html, /credentials=await arcMapDialog\.form\(/);
+});
+
+test('Organization project listing is alphabetic and has no recent-200 cutoff', () => {
+  const apiPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'api', 'gis', 'projects.php');
+  const api = fs.readFileSync(apiPath, 'utf8');
+  assert.match(api, /ORDER BY lower\(name\) ASC, updated_at DESC/);
+  assert.doesNotMatch(api, /ORDER BY updated_at DESC LIMIT 200/);
+});
