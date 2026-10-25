@@ -1816,9 +1816,15 @@ async function remoteGisOpenProject(id){
 }
 async function openRemoteGisProjects(){
   try{
-    if(remoteGisUser){
-      try{await remoteGisRequest("auth.php?action=me");}catch(_){remoteGisUser=null;remoteGisOrganization=null;remoteGisProjectId=null;}
-    }
+    // Always ask the server for the current cookie session, including after a page reload.
+    // This exposes the real signed-in account so the user can actually sign out.
+    try{
+      const me=await remoteGisRequest("auth.php?action=me");
+      remoteGisUser=me.user;
+      const activeOrgs=(me.organizations||[]).filter(o=>o.subscribed===true||o.subscribed===1||o.subscribed==="1"||o.subscribed==="t");
+      if(remoteGisOrganization&&!activeOrgs.some(o=>String(o.id)===String(remoteGisOrganization.id)))remoteGisOrganization=null;
+      if(!remoteGisOrganization&&activeOrgs.length===1)remoteGisOrganization=activeOrgs[0];
+    }catch(_){remoteGisUser=null;remoteGisOrganization=null;remoteGisProjectId=null;}
     const signedIn=!!remoteGisUser;
     const action=await arcMapDialog.select({
       title:"Sabz Royan GIS Account",
@@ -1835,6 +1841,14 @@ async function openRemoteGisProjects(){
     if(action==="signin"){if(await remoteGisLogin())return await openRemoteGisProjects();return;}
     if(action==="switch"){await remoteGisLogout();if(await remoteGisLogin())return await openRemoteGisProjects();return;}
     if(!remoteGisUser&&!await remoteGisLogin())return;
+    if(!remoteGisOrganization){
+      const me=await remoteGisRequest("auth.php?action=me");
+      const orgs=(me.organizations||[]).filter(o=>o.subscribed===true||o.subscribed===1||o.subscribed==="1"||o.subscribed==="t");
+      if(!orgs.length)throw new Error("This account has no active organization subscription.");
+      const orgId=await arcMapDialog.select({title:"Choose Organization",message:"Select the organization for cloud projects.",label:"Organization",value:String(orgs[0].id),options:orgs.map(o=>({value:String(o.id),label:o.name+" — "+o.role}))});
+      if(!orgId)return;
+      remoteGisOrganization=orgs.find(o=>String(o.id)===String(orgId));
+    }
     if(action==="new"){
       const name=await arcMapDialog.prompt({title:"New Server Project",message:"Save the current map, layers and drawings.",label:"Project name",value:$("projectName").value.trim()||"Untitled Project"});
       if(!name)return;
