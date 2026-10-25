@@ -28,7 +28,9 @@ jobs:
           php -l sabzroyanuraman-site/api/gis/projects.php
           php -l sabzroyanuraman-site/api/gis/admin.php
       - name: Shell syntax
-        run: bash -n sabzroyanuraman-site/api/gis/tests/check-gis-db-grants.sh
+        run: |
+          bash -n sabzroyanuraman-site/api/gis/tests/check-gis-db-grants.sh
+          bash -n ops/cleanup-gis-login-attempts.sh
       - name: Verify least-privilege SQL guardrails
         run: |
           grep -q "REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM gis_staging, gis_admin_api" sabzroyanuraman-site/api/gis/sql/003_gis_api_least_privilege.sql
