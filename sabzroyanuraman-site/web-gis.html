@@ -7380,19 +7380,33 @@ renderGisToolbox(); // Show the complete registered ArcToolbox catalog immediate
 
 function openLayoutView(){
   let panel=document.getElementById("webgisLayoutView");
-  if(panel){panel.remove();document.body.classList.remove("layout-view-active");status("Layout View closed.");return;}
+  if(panel){closeLayoutView();return;}
+  const mapElement=$("map"),originalParent=mapElement?.parentNode,originalNext=mapElement?.nextSibling;
   panel=document.createElement("section");panel.id="webgisLayoutView";panel.setAttribute("role","dialog");panel.setAttribute("aria-label","Map Layout View");
-  panel.innerHTML='<div class="webgis-layout-toolbar"><strong>Layout View</strong><span>Print-ready map composition</span><button type="button" data-layout-action="title">Add Title</button><button type="button" data-layout-action="legend">Add Legend</button><button type="button" data-layout-action="north">North Arrow</button><button type="button" data-layout-action="scale">Scale Bar</button><button type="button" data-layout-action="print">Print / Export PDF</button><button type="button" data-layout-action="close">Close Layout</button></div><div class="webgis-layout-sheet"><header id="webgisLayoutTitle">'+String($("projectName").value||"Map").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))+'</header><div class="webgis-layout-map-slot">The live map below will be prepared for printing. Use Print / Export PDF to open the browser print dialog.</div><footer id="webgisLayoutFooter"></footer></div>';
+  panel.innerHTML='<div class="webgis-layout-toolbar"><strong>Layout View</strong><span>Print-ready map composition</span><button type="button" data-layout-action="title">Add Title</button><button type="button" data-layout-action="legend">Add Legend</button><button type="button" data-layout-action="north">North Arrow</button><button type="button" data-layout-action="scale">Scale Bar</button><button type="button" data-layout-action="print">Print / Export PDF</button><button type="button" data-layout-action="close">Close Layout</button></div><div class="webgis-layout-sheet"><header id="webgisLayoutTitle">'+String($("projectName").value||"Map").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))+'</header><div class="webgis-layout-map-slot" id="webgisLayoutMapSlot"></div><footer id="webgisLayoutFooter"></footer></div>';
   document.body.appendChild(panel);document.body.classList.add("layout-view-active");
+  if(mapElement){panel._mapRestore={mapElement,originalParent,originalNext,oldStyle:mapElement.getAttribute("style")};mapElement.style.width="100%";mapElement.style.height="65vh";mapElement.style.minHeight="420px";$("webgisLayoutMapSlot").appendChild(mapElement);requestAnimationFrame(()=>{try{map.invalidateSize({pan:false})}catch(_){}});}
   panel.addEventListener("click",async e=>{const b=e.target.closest("[data-layout-action]");if(!b)return;const a=b.dataset.layoutAction;
-    if(a==="close"){panel.remove();document.body.classList.remove("layout-view-active");return;}
+    if(a==="close"){closeLayoutView();return;}
     if(a==="print"){window.print();return;}
     if(a==="title"){const v=await arcMapDialog.prompt({title:"Layout Title",message:"Enter the map title:",label:"Title",value:$("projectName").value||"Map"});if(v!==null)$("webgisLayoutTitle").textContent=v;}
-    if(a==="legend"){$("webgisLayoutFooter").textContent="Legend: "+namedLayers.map(x=>x.name).join(" · ");}
+    if(a==="legend")$("webgisLayoutFooter").textContent="Legend: "+namedLayers.map(x=>x.name).join(" · ");
     if(a==="north")$("webgisLayoutFooter").textContent+="  |  North ↑";
-    if(a==="scale")$("webgisLayoutFooter").textContent+="  |  Scale bar (see map scale control)";
+    if(a==="scale")$("webgisLayoutFooter").textContent+="  |  Scale: "+map.getZoom();
   });
-  status("Layout View opened. Add layout elements, then print or export to PDF.");
+  status("Layout View opened with the live map. Add elements, then print or export to PDF.");
+}
+function closeLayoutView(){
+  const panel=document.getElementById("webgisLayoutView");if(!panel)return;
+  const restore=panel._mapRestore;
+  if(restore?.mapElement&&restore.originalParent){
+    if(restore.originalNext&&restore.originalNext.parentNode===restore.originalParent)restore.originalParent.insertBefore(restore.mapElement,restore.originalNext);
+    else restore.originalParent.appendChild(restore.mapElement);
+    if(restore.oldStyle===null)restore.mapElement.removeAttribute("style");else restore.mapElement.setAttribute("style",restore.oldStyle);
+  }
+  panel.remove();document.body.classList.remove("layout-view-active");
+  requestAnimationFrame(()=>{try{map.invalidateSize({pan:false})}catch(_){}});
+  status("Layout View closed.");
 }
 async function addMapDecoration(kind){
   window._mapDecorations=window._mapDecorations||{};
