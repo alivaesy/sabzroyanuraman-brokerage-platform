@@ -1756,7 +1756,7 @@ async function gisRefreshSession(){
 async function gisLogin(){
   const username=await arcMapDialog.prompt({title:"Sabz Royan GIS — Sign in",message:"Enter your GIS account username.",label:"Username",value:""});
   if(!username)return false;
-  const password=await arcMapDialog.prompt({title:"Sabz Royan GIS — Sign in",message:"Password is sent only to the same-origin HTTPS API.",label:"Password",value:""});
+  const password=await arcMapDialog.prompt({title:"Sabz Royan GIS — Sign in",message:"Password is sent only to the same-origin HTTPS API.",label:"Password",value:"",inputType:"password"});
   if(password===null||password==="")return false;
   gisCloud.csrf=null;
   await gisApi("auth.php?action=login",{method:"POST",body:{username:username.trim(),password}});
@@ -8686,7 +8686,7 @@ const arcMapDialog=(()=>{
  let active=null;
  const root=()=>document.getElementById("arcMapToolDialog");
  const close=value=>{if(!active)return;const a=active;active=null;root().classList.remove("open");root().setAttribute("aria-hidden","true");document.removeEventListener("keydown",a.keydown,true);a.resolve(value);if(a.previous?.isConnected)a.previous.focus();};
- function show({title="Tool",message="",label="Value",value="",options=null,confirm=false,confirmText="OK",danger=false,fields=null,optionMaps=null}={}){
+ function show({title="Tool",message="",label="Value",value="",options=null,confirm=false,confirmText="OK",danger=false,fields=null,optionMaps=null,inputType="text"}={}){
   const el=root();if(!el)return Promise.resolve(null);
   if(active)close(null);
   document.getElementById("arcToolDialogTitle").textContent=title;
@@ -8721,7 +8721,7 @@ const arcMapDialog=(()=>{
    const lab=document.createElement("label");lab.htmlFor="arcToolDialogInput";lab.textContent=label;host.append(lab);
    input=document.createElement(options?"select":"input");input.id="arcToolDialogInput";
    if(options){options.forEach(item=>{const opt=document.createElement("option");opt.value=item.value;opt.textContent=item.label;input.append(opt)});input.value=String(value??"");}
-   else{input.type="text";input.value=String(value??"");input.autocomplete="off";}
+   else{input.type=["text","password","number","email"].includes(inputType)?inputType:"text";input.value=String(value??"");input.autocomplete=inputType==="password"?"current-password":"off";}
    host.append(input);
   }else{host.className="";host.hidden=true;}
   const ok=document.getElementById("arcToolDialogOk"),cancel=document.getElementById("arcToolDialogCancel");
