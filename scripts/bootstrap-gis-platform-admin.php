@@ -18,6 +18,45 @@ if (!defined('STDIN') || !function_exists('readline')) {
 ");
     exit(2);
 }
+
+/**
+ * Read a secret from an interactive Unix terminal without echoing it.
+ * Fail closed when terminal echo cannot be disabled; never fall back to visible input.
+ */
+function readSecret(string $prompt): string
+{
+    if (PHP_SAPI !== 'cli' || !defined('STDIN') || !function_exists('shell_exec')) {
+        fwrite(STDERR, "Secure hidden password input is unavailable in this environment.\n");
+        exit(2);
+    }
+    $tty = @fopen('/dev/tty', 'r+');
+    if ($tty === false) {
+        fwrite(STDERR, "No interactive terminal is available; refusing visible password input.\n");
+        exit(2);
+    }
+    $disabled = trim((string) @shell_exec('stty -echo < /dev/tty 2>/dev/null'));
+    // stty is silent on success; verify terminal state by attempting to disable echo.
+    $status = 1;
+    @exec('stty -echo < /dev/tty 2>/dev/null', $unused, $status);
+    if ($status !== 0) {
+        fclose($tty);
+        fwrite(STDERR, "Could not disable terminal echo; refusing visible password input.\n");
+        exit(2);
+    }
+    fwrite(STDOUT, $prompt);
+    try {
+        $line = fgets(STDIN);
+        if ($line === false) {
+            throw new RuntimeException('Unable to read terminal input.');
+        }
+        return rtrim($line, "\r\n");
+    } finally {
+        @exec('stty echo < /dev/tty 2>/dev/null');
+        fwrite(STDOUT, "\n");
+        fclose($tty);
+    }
+}
+
 $configFile = '/home/sabzroyanuraman/private/gis-bootstrap-db.php';
 if (!is_file($configFile) || !is_readable($configFile)) {
     fwrite(STDERR, "Missing private bootstrap DB config: {$configFile}
@@ -59,8 +98,7 @@ if ($days === false || $days < 1 || $days > 3650) {
 ");
     exit(2);
 }
-fwrite(STDOUT, "Enter a strong password (minimum 12 characters); input is hidden by terminal where supported.\n");
-$pass = trim((string)readline('Password: '));
+$pass = readSecret('Password: ');
 if (strlen($pass) < 12 || strlen($pass) > 1024) {
     fwrite(STDERR, "Password must be 12-1024 characters.
 ");
