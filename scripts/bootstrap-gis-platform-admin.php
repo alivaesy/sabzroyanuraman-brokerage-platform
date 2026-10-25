@@ -66,7 +66,7 @@ if (strlen($pass) < 12 || strlen($pass) > 1024) {
 ");
     exit(2);
 }
-$confirm = trim((string)readline('Confirm password: '));
+$confirm = readSecret('Confirm password: ');
 if (!hash_equals($pass, $confirm)) {
     fwrite(STDERR, "Passwords do not match.
 ");
