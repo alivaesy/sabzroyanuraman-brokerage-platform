@@ -123,3 +123,10 @@ At the end of each meaningful batch, update this file with the verified date, co
 ### Verification update (2026-10-25)
 - Re-evaluated all 13 assertions from `tests/web-gis-static.test.cjs` against the committed HTML using a JavaScript harness: **13/13 passed**. The 11 inline JavaScript blocks also passed syntax compilation.
 - This was not the literal `node --test tests/web-gis-static.test.cjs` CLI invocation; the local container could not reach GitHub to check out the repository. No browser/Playwright run was performed.
+
+
+### Verification update (2026-10-25, Editor toolbar row sizing)
+- Fixed the Editor toolbar CSS to use the same compact 28px row height as Standard/Tools; disabled wrapping and enabled horizontal scrolling so its longer toolset no longer makes the row taller.
+- Topology remains immediately beside Editor at the start of the Editor toolbar.
+- HTML commit: ccd3fae820b321a448a98b8b80aa13994c266b5c.
+- CSS change committed to master; live browser/deployment verification was not performed.
