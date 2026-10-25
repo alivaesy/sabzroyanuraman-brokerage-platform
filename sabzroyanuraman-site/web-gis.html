@@ -4430,7 +4430,7 @@ function layerToProjectItem(item){
     transparent:layer.options.transparent!==false,
     version:layer.options.version||"1.3.0"
   }:null;
-  return {name:item.name,type:wms?"wms":"vector",features,styles,wms,visible:!!(layer&&map.hasLayer(layer)),opacity:Number.isFinite(Number(layer?.options?.opacity))?Number(layer.options.opacity):1,gdb:layer?._gdbMetadata||null,drawingSet:item.drawingSet||null,drawingType:item._webgisDrawingType||null,displayName:item.displayName||null};
+  return {name:item.name,type:wms?"wms":"vector",features,styles,wms,visible:!!(layer&&map.hasLayer(layer)),opacity:Number.isFinite(Number(layer?.options?.opacity))?Number(layer.options.opacity):1,gdb:layer?._gdbMetadata||null,drawingSet:item.drawingSet||null,drawingType:item._webgisDrawingType||null,displayName:item.displayName||null,definitionQuery:item._definitionQuery?{field:item._definitionQuery.field,operator:item._definitionQuery.operator,value:item._definitionQuery.value??""}:null};
 }
 function serializeProject(){
   const project={
@@ -4555,9 +4555,11 @@ function restoreProject(project,fromHistory=false){
       addNamedLayer(item.name||"Layer",layer,false);
       if(item.visible===false)map.removeLayer(layer);
       const restoredItem=namedLayers.find(x=>x.layer===layer);
-      if(restoredItem){restoredItem.drawingSet=item.drawingSet||null;restoredItem._webgisDrawingType=item.drawingType||null;restoredItem.displayName=item.displayName||null;}
+      if(restoredItem){restoredItem.drawingSet=item.drawingSet||null;restoredItem._webgisDrawingType=item.drawingType||null;restoredItem.displayName=item.displayName||null;restoredItem._definitionQuery=item.definitionQuery&&typeof item.definitionQuery.field==="string"&&typeof item.definitionQuery.operator==="string"?{field:item.definitionQuery.field,operator:item.definitionQuery.operator,value:String(item.definitionQuery.value??"")}:null;}
     }
   });
+  // Restore saved Definition Queries only after all vector layers have been registered.
+  namedLayers.filter(item=>item._definitionQuery&&isVectorLayer(item.layer)).forEach(item=>{try{applyDefinitionQuery(item)}catch(error){item._definitionQuery=null;console.warn("Definition Query restore skipped for "+item.name,error);}});
   if(typeof restoreGdbCatalogFromJSON==="function")restoreGdbCatalogFromJSON(project.gdbCatalog||null);
   (project.selected||[]).forEach(ref=>{
     let featureLayer=null;
