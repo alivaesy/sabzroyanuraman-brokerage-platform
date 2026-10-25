@@ -1731,7 +1731,7 @@ async function deleteSelectedFeatures(){
   records.forEach(r=>r.owner.layer.removeLayer(r.layer));
   selectedFeatures.clear();selectedLayer=null;selectedOverlay=null;const editor=$("attributeEditor");if(editor)editor.style.display="none";applySelectionVisual();refreshAll();const synced=await flushGeodatabaseEdits();scheduleAutoSave();updateStandardActionButtons();status(records.length+" feature(s) deleted."+(synced?"":" Geodatabase sync failed; save edits again."));
 }
-async function openOnlineData(){
+async function openOnlineDataSource(){
   const value=await arcMapDialog.prompt({title:"Add Online Data",message:"Enter a public GeoJSON URL, ArcGIS FeatureServer layer URL, or WFS/GeoServer endpoint. WFS supports GetCapabilities layer discovery and paged GetFeature requests when the server supports them.",label:"Service URL",value:""});
   if(!value)return;
   let url;try{url=new URL(value.trim());if(!/^https?:$/.test(url.protocol))throw new Error();}catch(_){status("Enter a valid HTTP or HTTPS data URL.");return;}
@@ -4610,21 +4610,107 @@ function restoreProject(project,fromHistory=false){
   }finally{historyRestoring=previousHistoryRestoring;updateUndoButtons();}
   return true;
 }
+
+/* Sabz Royan account-backed online projects */
+const GIS_API_BASE=new URL("api/gis/",document.baseURI);
+let gisOnlineAccount=null,gisOnlineOrganization=null,gisOnlineProjectId=null,gisCsrfToken=null;
+async function gisApi(path,options={}){
+  const headers={Accept:"application/json",...(options.headers||{})};
+  if(options.body!==undefined){headers["Content-Type"]="application/json";if(gisCsrfToken)headers["X-CSRF-Token"]=gisCsrfToken;}
+  const response=await fetch(new URL(path,GIS_API_BASE),{credentials:"same-origin",cache:"no-store",...options,headers});
+  let body={};try{body=await response.json()}catch(_){}
+  if(!response.ok)throw new Error(body.error||("GIS API HTTP "+response.status));
+  if(body.ok===false)throw new Error(body.error||"GIS API request failed");
+  return body;
+}
+async function gisEnsureCsrf(){
+  if(!gisCsrfToken){const r=await gisApi("auth.php?action=csrf");gisCsrfToken=r.csrf_token;}
+  return gisCsrfToken;
+}
+async function gisSignIn(){
+  await gisEnsureCsrf();
+  const username=await arcMapDialog.prompt({title:"ورود به GIS سبز رویان",message:"نام کاربری حساب GIS را وارد کنید.",label:"نام کاربری",value:""});
+  if(!username)return false;
+  const password=await arcMapDialog.prompt({title:"ورود به GIS سبز رویان",message:"رمز عبور حساب را وارد کنید.",label:"رمز عبور",value:""});
+  if(!password)return false;
+  await gisApi("auth.php?action=login",{method:"POST",body:JSON.stringify({username:username.trim(),password})});
+  const me=await gisApi("auth.php?action=me");
+  gisOnlineAccount=me.user;
+  const orgs=(me.organizations||[]).filter(o=>o.subscribed===true||o.subscribed===1||o.subscribed==="t"||o.subscribed==="true");
+  if(!orgs.length)throw new Error("برای این حساب سازمان فعال دارای اشتراک پیدا نشد.");
+  const selected=await arcMapDialog.select({title:"انتخاب سازمان",message:"فضای کاری سازمانی خود را انتخاب کنید.",label:"سازمان",value:String(orgs[0].id),options:orgs.map(o=>({value:String(o.id),label:o.name+" — "+o.role}))});
+  if(selected===null)return false;
+  gisOnlineOrganization=orgs.find(o=>String(o.id)===String(selected));
+  return true;
+}
+async function gisChooseOnlineProject(){
+  if(!gisOnlineAccount&&!await gisSignIn())return;
+  const result=await gisApi("projects.php?organization_id="+encodeURIComponent(gisOnlineOrganization.id));
+  const projects=result.projects||[];
+  const options=[{value:"new",label:"+ ایجاد پروژهٔ جدید"}].concat(projects.map(p=>({value:String(p.id),label:p.name+" — "+new Date(p.updated_at).toLocaleString()})));
+  const chosen=await arcMapDialog.select({title:"پروژه‌های آنلاین",message:"پروژه‌ای را برای بازکردن انتخاب کنید یا پروژهٔ جدید بسازید.",label:"پروژه",value:options[0].value,options});
+  if(chosen===null)return;
+  if(chosen==="new"){
+    gisOnlineProjectId=null;
+    const name=await arcMapDialog.prompt({title:"پروژهٔ آنلاین جدید",message:"نام پروژه را وارد کنید.",label:"نام پروژه",value:$("projectName").value.trim()||"پروژهٔ جدید"});
+    if(!name)return;
+    $("projectName").value=name.trim();
+    await saveProject();
+    return;
+  }
+  const full=await gisApi("projects.php?organization_id="+encodeURIComponent(gisOnlineOrganization.id)+"&id="+encodeURIComponent(chosen));
+  const p=full.project;
+  let snapshot=p.project_data;
+  if(typeof snapshot==="string")snapshot=JSON.parse(snapshot);
+  if(!snapshot||typeof snapshot!=="object")throw new Error("ساختار پروژهٔ سرور معتبر نیست.");
+  snapshot.id=String(p.id);snapshot.name=p.name;snapshot.description=p.description||snapshot.description||"";
+  if(!restoreProject(snapshot))return;
+  gisOnlineProjectId=Number(p.id);currentProjectId=String(p.id);
+  $("projectName").value=p.name;
+  $("projectStatus").textContent="پروژهٔ آنلاین بارگذاری شد: "+p.name;
+  status("پروژه از پایگاه دادهٔ سرور بازیابی شد.");
+}
+async function gisSaveOnlineProject(project){
+  if(!gisOnlineAccount||!gisOnlineOrganization)throw new Error("ابتدا از Add Online Data وارد حساب GIS شوید و سازمان را انتخاب کنید.");
+  const features=[];
+  (project.drawn||[]).forEach(f=>features.push({...f,layer_name:"drawn"}));
+  (project.layers||[]).forEach(layer=>(layer.features||[]).forEach(f=>features.push({...f,layer_name:String(layer.name||"layer").slice(0,100)})));
+  const payload={action:"save",organization_id:Number(gisOnlineOrganization.id),name:project.name||"Untitled Project",description:project.description||"",project_data:project,features};
+  if(gisOnlineProjectId)payload.id=gisOnlineProjectId;
+  const saved=await gisApi("projects.php",{method:"POST",body:JSON.stringify(payload)});
+  gisOnlineProjectId=Number(saved.project_id);currentProjectId=String(saved.project_id);
+  return saved;
+}
+async function openOnlineData(){
+  const choice=await arcMapDialog.select({title:"Add Online Data",message:"به حساب GIS سبز رویان وارد شوید و پروژه‌ها را از سرور باز یا ذخیره کنید؛ یا یک سرویس مکانی عمومی اضافه کنید.",label:"عملیات",value:"account",options:[{value:"account",label:"ورود به حساب GIS و پروژه‌های آنلاین"},{value:"service",label:"افزودن سرویس مکانی (GeoJSON / WFS / FeatureServer)"}]});
+  if(choice==="service"){await openOnlineDataSource();return}
+  if(choice!=="account")return;
+  try{await gisChooseOnlineProject()}catch(e){status("GIS آنلاین: "+e.message)}
+}
+
 async function saveProject(){
   if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before saving the project; pending cell values are not included yet.");return}
   try{
     const project=serializeProject();
     project.id=projectId();project.updatedAt=new Date().toISOString();
-    await putProject(project);currentProjectId=project.id;
-    $("projectStatus").textContent= "Project saved locally: "+new Date().toLocaleString("en-US");
-    status("Project saved in this browser.");
+    if(gisOnlineAccount&&gisOnlineOrganization){
+      const result=await gisSaveOnlineProject(project);
+      await putProject(project);
+      $("projectStatus").textContent="Saved to GIS server · "+result.feature_count+" feature(s) · "+new Date().toLocaleString();
+      status("Project saved to the server database and local recovery cache.");
+    }else{
+      await putProject(project);currentProjectId=project.id;
+      $("projectStatus").textContent="Project saved locally: "+new Date().toLocaleString("en-US");
+      status("Project saved in this browser. For server storage, use Add Online Data → GIS account.");
+    }
   }catch(e){status("Project save failed: "+e.message)}
 }
 async function loadProject(){
   if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before opening another project; pending cell values have been preserved.");return}
   try{
+    if(gisOnlineAccount&&gisOnlineOrganization){await gisChooseOnlineProject();return}
     const projects=await listProjects();
-    if(!projects.length){status("No saved project exists in this browser.");return}
+    if(!projects.length){status("No saved project exists in this browser. Use Add Online Data to open server projects.");return}
     let choice=projects.find(p=>p.id===currentProjectId);
     if(!choice){
       const names=projects.map((p,i)=>(i+1)+". "+(p.name||"Untitled Project")+" — "+new Date(p.updatedAt||p.savedAt).toLocaleString("en-US")).join("\n");
