@@ -5,7 +5,7 @@ declare(strict_types=1);
  * Idempotently provisions the two permanent GIS test organizations and two
  * independent owner accounts. CLI only; keep outside public_html.
  *
- * Config: /home/sabzroyanuraman/private/gis-bootstrap-db.php
+ * Config: /home/sabzroyanuraman/private/gis-admin-db.php
  * Existing users/passwords and organization IDs are preserved. No schema
  * migration, destructive SQL, or password reset is performed.
  */
@@ -28,7 +28,7 @@ function secret(string $prompt): string {
     try { $v = fgets($tty); if ($v === false) throw new RuntimeException('Password input failed'); return rtrim($v, "\r\n"); }
     finally { @exec('stty echo < /dev/tty 2>/dev/null'); fwrite(STDOUT, "\n"); fclose($tty); }
 }
-$cfgPath = '/home/sabzroyanuraman/private/gis-bootstrap-db.php';
+$cfgPath = '/home/sabzroyanuraman/private/gis-admin-db.php';
 if (!is_file($cfgPath) || !is_readable($cfgPath)) { fwrite(STDERR, "Missing private DB config: {$cfgPath}\n"); exit(2); }
 $cfg = require $cfgPath;
 foreach (['host','port','database','username','password'] as $k) {
@@ -87,7 +87,7 @@ try {
     fwrite(STDOUT, "SUCCESS: both organizations/accounts are provisioned. Existing passwords and IDs were preserved.\n");
 } catch (Throwable $e) {
     if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) $pdo->rollBack();
-    error_log('[gis-test-org-provision] failed: '.get_class($e));
+    error_log('[gis-test-org-provision] failed: '.get_class($e).': '.$e->getMessage());
     fwrite(STDERR, "FAILED; transaction rolled back. Check schema and least-privilege DB grants. No passwords were printed.\n");
     exit(1);
 }
