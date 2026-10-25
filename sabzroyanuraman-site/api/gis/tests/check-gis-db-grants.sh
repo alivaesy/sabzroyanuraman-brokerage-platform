@@ -9,6 +9,13 @@ BEGIN
   IF NOT has_database_privilege('gis_staging','gis_staging','CONNECT') THEN RAISE EXCEPTION 'regular role cannot connect'; END IF;
   IF NOT has_table_privilege('gis_staging','public.gis_projects','INSERT') THEN RAISE EXCEPTION 'regular role cannot create projects'; END IF;
   IF NOT has_table_privilege('gis_staging','public.gis_projects','SELECT') THEN RAISE EXCEPTION 'regular role cannot read projects'; END IF;
+  IF NOT has_column_privilege('gis_staging','public.gis_sessions','user_id','SELECT') THEN RAISE EXCEPTION 'regular role cannot scope session revocation'; END IF;
+  IF NOT has_column_privilege('gis_staging','public.gis_projects','project_data','UPDATE') THEN RAISE EXCEPTION 'regular role cannot update project data'; END IF;
+  IF NOT has_column_privilege('gis_staging','public.gis_project_features','geom','INSERT') THEN RAISE EXCEPTION 'regular role cannot save geometries'; END IF;
+  IF NOT has_column_privilege('gis_admin_api','public.gis_users','password_hash','INSERT') THEN RAISE EXCEPTION 'admin role cannot create user credentials'; END IF;
+  IF NOT has_column_privilege('gis_admin_api','public.gis_subscriptions','status','UPDATE') THEN RAISE EXCEPTION 'admin role cannot activate subscriptions'; END IF;
+  IF (SELECT rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication FROM pg_roles WHERE rolname='gis_staging') THEN RAISE EXCEPTION 'regular role has elevated role attributes'; END IF;
+  IF (SELECT rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication FROM pg_roles WHERE rolname='gis_admin_api') THEN RAISE EXCEPTION 'admin API role has elevated role attributes'; END IF;
   IF has_table_privilege('gis_staging','public.gis_users','DELETE') THEN RAISE EXCEPTION 'regular role can delete users'; END IF;
   IF has_column_privilege('gis_staging','public.gis_users','is_platform_admin','UPDATE') THEN RAISE EXCEPTION 'regular role can elevate users'; END IF;
   IF has_table_privilege('gis_staging','public.gis_subscriptions','UPDATE') THEN RAISE EXCEPTION 'regular role has table-wide subscription update'; END IF;
