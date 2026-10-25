@@ -1,0 +1,38 @@
+name: GIS API security package
+
+on:
+  pull_request:
+    paths:
+      - 'sabzroyanuraman-site/api/gis/**'
+      - '.github/workflows/gis-api-security.yml'
+  push:
+    branches:
+      - master
+      - 'security/gis-db-role-separation'
+
+permissions:
+  contents: read
+
+jobs:
+  php-and-script-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+      - name: PHP syntax
+        run: |
+          php -l sabzroyanuraman-site/api/gis/auth-common.php
+          php -l sabzroyanuraman-site/api/gis/auth.php
+          php -l sabzroyanuraman-site/api/gis/projects.php
+          php -l sabzroyanuraman-site/api/gis/admin.php
+      - name: Shell syntax
+        run: |
+          bash -n sabzroyanuraman-site/api/gis/tests/check-gis-db-grants.sh
+          bash -n ops/cleanup-gis-login-attempts.sh
+      - name: Verify least-privilege SQL guardrails
+        run: |
+          grep -q "REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM gis_staging, gis_admin_api" sabzroyanuraman-site/api/gis/sql/003_gis_api_least_privilege.sql
+          grep -q "GRANT INSERT (actor_user_id, organization_id, action, target_type, target_id, details)" sabzroyanuraman-site/api/gis/sql/003_gis_api_least_privilege.sql
+          ! grep -Eq "GRANT UPDATE .*is_platform_admin|GRANT ALL PRIVILEGES" sabzroyanuraman-site/api/gis/sql/003_gis_api_least_privilege.sql
