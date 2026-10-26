@@ -137,3 +137,10 @@ At the end of each meaningful batch, update this file with the verified date, co
 - Removed the misplaced CSS and appended a high-specificity final override at the end of the actual page, enforcing a 28px row after later styles.
 - HTML commit: 2719160fd53e31b02c947a83bce8dd7c127fc6fc.
 - Still requires live browser confirmation after refresh.
+
+
+## Property form ↔ Web GIS handoff (2026-10-26)
+- Implemented directly on `master` in `sabzroyanuraman-site/map-preparation-form.html` and `sabzroyanuraman-site/web-gis.html`.
+- The property-location form opens `web-gis.html?propertyHandoff=1` in a separate window. In this mode Web GIS immediately presents the existing **GIS Online Login** dialog; ordinary Web GIS visits are unchanged.
+- After drawing, the user can select the property feature and click **ذخیره در حساب GIS و بازگشت به فرم**. The handoff requires an authenticated GIS organization, saves the serialized project through the existing server API, then sends the selected GeoJSON feature and representative coordinates to the opener with same-origin `postMessage`. The form validates the origin, source window, message type/version, and coordinate ranges, saves the location in its existing draft, and displays the geometry on its Leaflet map.
+- This is code-level implementation only; no live browser, server, or end-to-end login/save test was run in this session. Follow-up: run the full flow in the deployed site, verify popup permissions, organization selection, remote save success, form draft restoration, and polygon rendering. Do not treat a successful postMessage as proof of server persistence; the UI waits for the GIS save API to return first.
