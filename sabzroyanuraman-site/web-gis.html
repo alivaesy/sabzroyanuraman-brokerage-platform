@@ -42,7 +42,7 @@ button.action.danger{background:#fff5f5;color:#a33;border-color:#e4bcbc}
 @media(max-width:650px){.workspace{position:relative}.panel{position:absolute;left:0;right:auto;top:0;bottom:0;width:285px;transform:translateX(-100%);transition:.2s}.panel.open{transform:translateX(0)}.coord{right:12px;bottom:48px}.topbar .top-btn{padding:6px 8px}.brand{font-size:12px}}
 
 
-#attributeTableWrap table input.cell-edit{width:100%;height:28px;border:1px solid #cbd9df;border-radius:5px;padding:2px 5px;font-size:10px}.multi-selected-feature{filter:drop-shadow(0 0 5px #ff9800);stroke-width:5!important}
+#attributeTableWrap table input.cell-edit{width:100%;height:28px;border:1px solid #cbd9df;border-radius:5px;padding:2px 5px;font-size:10px}.computed-field-readonly{background:#eef1f3!important;color:#52616a!important;cursor:not-allowed!important;border-style:dashed!important}.multi-selected-feature{filter:drop-shadow(0 0 5px #ff9800);stroke-width:5!important}
 #multiFeatureEditor{display:none;margin-top:8px;padding:8px;border:1px solid #cbd9df;border-radius:8px;background:#f8fbfc}
 #multiFeatureEditor input{min-width:0}
 .attr-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px}
@@ -2796,9 +2796,9 @@ function renderAttributeEditor(){
   let html="<div id='attributeRows'>";
   keys.forEach(k=>{
     html+="<div class='row attr-edit-row' data-key='"+esc(k)+"' style='align-items:flex-start'>"+
-      "<input class='attr-key' value='"+esc(k)+"' title='Field Name' style='width:42%'>"+
-      "<input class='attr-value' value='"+esc(typeof props[k]==="object"&&props[k]!==null?JSON.stringify(props[k]):props[k])+"' title='Value' style='width:48%'>"+
-      "<button class='action danger attr-delete' type='button' title='Delete Field'>×</button></div>";
+      "<input class='attr-key' value='"+esc(k)+"' title='Field Name' style='width:42%' "+(isComputedAttributeField(k)?"readonly aria-readonly='true' title='Calculated field name — read only'":"")+">"+
+      "<input class='attr-value"+(isComputedAttributeField(k)?" computed-field-readonly":"")+"' value='"+esc(typeof props[k]==="object"&&props[k]!==null?JSON.stringify(props[k]):props[k])+"' title='"+(isComputedAttributeField(k)?"Calculated field — read only":"Value")+"' style='width:48%' "+(isComputedAttributeField(k)?"readonly aria-readonly='true'":"")+">"+
+      (isComputedAttributeField(k)?"<span class='small' title='Calculated field'>Auto</span>":"<button class='action danger attr-delete' type='button' title='Delete Field'>×</button>")+"</div>";
   });
   if(!keys.length)html+="<div class='small'>This feature has no editable attributes.</div>";
   html+="</div><div class='row'><button class='action secondary' id='addAttributeField' type='button'>+ Add Field</button><button class='action' id='saveAttributes' type='button'>Save Attribute</button></div>";
@@ -2823,7 +2823,9 @@ function saveAttributes(){
   $( "attributeRows" ).querySelectorAll(".attr-edit-row").forEach(row=>{
     const key=row.querySelector(".attr-key").value.trim(),raw=row.querySelector(".attr-value").value;
     if(!key)return;
+    if(isComputedAttributeField(key)){props[key]=previous[key];return}
     if(isReservedAttributeField(key)){errors.push("Reserved field name: "+key+" (names beginning with underscore and geometry are managed by the editor)");return}
+    if(isComputedAttributeField(key)){props[key]=previous[key];return}
     if(Object.keys(props).some(existing=>existing.toLowerCase()===key.toLowerCase())){errors.push("Duplicate field name (field names are case-insensitive): "+key);return}
     const old=previous[key];
     let value=raw;
@@ -3556,6 +3558,8 @@ function currentAttributeItems(){
  return owner?._definitionQuery?items.filter(x=>definitionQueryMatches(owner._definitionQuery,x.feature.properties||{})):items;
 }
 function isReservedAttributeField(key){return typeof key!=="string"||key.startsWith("_")||key.toLowerCase()==="geometry"}
+function isComputedAttributeField(key){return typeof key==="string"&&["area_m2","length_m","x","y"].includes(key.toLowerCase())}
+function isProtectedAttributeValueField(key){return isReservedAttributeField(key)||isComputedAttributeField(key)}
 function tableKeys(items){
  // Include declared schema fields even when a feature class contains zero rows.
  const layer=currentAttributeLayer(),schema=layer?._gdbMetadata?.fields||[];
@@ -3586,7 +3590,7 @@ function renderEditableTable(){
  let html="<div class='attribute-schema-toolbar'><details class='attribute-grid-menu'><summary>Table Options ▾</summary><div class='attribute-grid-menu-items'><button type='button' id='attributeAddField' title='Add a field to the feature class'>＋ Add Field</button><button type='button' id='attributeDeleteField' title='Delete a field from the feature class'>− Delete Field</button><button type='button' id='attributeSwitchSelection' title='Invert selection for displayed records'>Switch Selection</button><button type='button' id='attributeSelectByQuery' title='Select records using attribute criteria'>Select By Attributes</button><button type='button' id='attributeZoomSelected' title='Zoom the map to selected records'>Zoom To Selected</button><button type='button' id='attributeClearSelection' title='Clear the current map and table selection'>Clear Selection</button><button type='button' id='attributeExportCsv' title='Export selected records, or all currently displayed records, as CSV'>Export CSV</button><div class='attribute-menu-separator'></div><button type='button' data-forward-table-action='layout'>Dock / Horizontal</button><button type='button' data-forward-table-action='start-edit'>Start Editing</button><button type='button' data-forward-table-action='save'>Save Cell Edits</button><button type='button' data-forward-table-action='delete'>Delete Selected Rows</button><button type='button' data-forward-table-action='copy'>Copy Rows</button><button type='button' data-forward-table-action='paste'>Paste Rows</button><button type='button' data-forward-table-action='calculate'>Calculate Field</button><button type='button' data-forward-table-action='refresh'>Refresh</button></div></details><span id='attributeTableSummary'>"+keys.length+" field(s) · "+items.length+" record(s) · "+selectedFeatures.size+" selected</span></div><table class='arc-attribute-grid'><thead><tr><th><input type='checkbox' class='attr-check' id='checkAllRows'></th><th>#</th>"+
  keys.map(k=>"<th data-sort-key='"+esc(k)+"' title='Sort by "+esc(k)+"' style='padding:3px;border-bottom:1px solid #ccd9df;white-space:nowrap;cursor:pointer;user-select:none'>"+esc(k)+(attributeSort.key===k?(attributeSort.direction===1?" ▲":" ▼"):" ↕")+"</th>").join("")+"</tr></thead><tbody>";
  rows.forEach(o=>{html+="<tr data-index='"+o.i+"' tabindex='0' role='row' aria-selected='"+(selectedFeatures.has(o.x.layer)?"true":"false")+"' class='"+(selectedFeatures.has(o.x.layer)?"attribute-row-selected":"")+"'><td><input type='checkbox' class='row-check attr-check' "+(selectedFeatures.has(o.x.layer)?"checked":"")+"></td><td>"+(o.i+1)+"</td>"+
- keys.map(k=>{const v=(o.x.feature.properties||{})[k],shown=v===null||v===undefined?"":typeof v==="object"?JSON.stringify(v):String(v);return "<td style='padding:2px'><input class='cell-edit' data-key='"+esc(k)+"' data-original='"+esc(shown)+"' value='"+esc(shown) +"'></td>"}).join("")+"</tr>"});
+ keys.map(k=>{const v=(o.x.feature.properties||{})[k],shown=v===null||v===undefined?"":typeof v==="object"?JSON.stringify(v):String(v),computed=isComputedAttributeField(k);return "<td style='padding:2px'><input class='cell-edit"+(computed?" computed-field-readonly":"")+"' data-key='"+esc(k)+"' data-original='"+esc(shown)+"' value='"+esc(shown)+"' "+(computed?"readonly aria-readonly='true' title='Calculated field — read only'":"")+"></td>"}).join("")+"</tr>"});
  $("attributeTableWrap").innerHTML=html+"</tbody></table>";$("attributeTableWrap").style.display="block";
  // Resizable field columns, similar to the desktop ArcMap attribute grid.
  $("attributeTableWrap").querySelectorAll("th[data-sort-key]").forEach(th=>{
@@ -3616,12 +3620,23 @@ function renderEditableTable(){
  };
  const addFieldBtn=$("attributeAddField");if(addFieldBtn)addFieldBtn.onclick=async()=>{
   const layer=currentAttributeLayer();if(!layer)return;
-  if(!editSessionActive||!isLayerInEditTarget(layer)){status("Start Editing this feature class before adding fields.");return;}
+  if(hasUnsavedTableEdits()){status("Save Table Edits before adding a field.");return}
+  if(!editSessionActive||!isLayerInEditTarget(layer)){
+   if(editSessionActive){
+    await stopEditing();
+    if(editSessionActive){status("The current edit session could not be closed. Save edits before adding a field to another feature class.");return}
+   }
+   const targetSelect=$("editTargetLayer");
+   if(targetSelect){const idx=namedLayers.findIndex(x=>x.layer===layer);targetSelect.value=layer===drawn?"drawn":String(idx)}
+   startEditing({layer});
+   if(!editSessionActive||!isLayerInEditTarget(layer)){status("Could not start editing this feature class.");return}
+  }
   const name=await arcMapDialog.prompt({title:"Add Field",message:"Enter a new field name (letters, numbers, underscore):",label:"Field name",value:"NEW_FIELD"});if(name===null)return;
   const field=name.trim();if(!/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(field)){status("Field names must start with a letter and contain only letters, numbers, or underscores (max 64 characters).");return;}
   if(keys.some(k=>k.toLowerCase()===field.toLowerCase())){status("A field with that name already exists.");return;}
   const type=await arcMapDialog.select({title:"Add Field",message:"Choose the field data type:",label:"Field type",value:"TEXT",options:[{value:"TEXT",label:"TEXT — Text"},{value:"INTEGER",label:"INTEGER — Whole number"},{value:"REAL",label:"REAL — Decimal number"},{value:"DATE",label:"DATE — Date"}]});if(type===null)return;
   const fieldType=type.trim().toUpperCase();if(!["TEXT","INTEGER","REAL","DATE"].includes(fieldType)){status("Choose TEXT, INTEGER, REAL, or DATE.");return;}
+  if(isComputedAttributeField(field)){status("Area_m2, Length_m, X and Y are reserved calculated field names.");return;}
   recordUndoState();const meta=layer._gdbMetadata||(layer._gdbMetadata={fields:[]});meta.fields=meta.fields||[];meta.fields.push({name:field,type:fieldType});
   items.forEach(item=>{const props=ensureFeatureProperties(item.layer);if(!(field in props))props[field]=null;});
   const synced=await flushGeodatabaseEdits();const projectSaved=await scheduleAutoSave();renderEditableTable();status("Field "+field+" ("+fieldType+") added to the feature class."+(synced&&projectSaved?"":" Local save failed; retry Save Edits."));
@@ -3630,7 +3645,7 @@ function renderEditableTable(){
   const layer=currentAttributeLayer();if(!layer)return;
   if(hasUnsavedTableEdits()){status("Save or discard pending cell edits before deleting a field.");return}
   if(!editSessionActive||!isLayerInEditTarget(layer)){status("Start Editing this feature class before deleting fields.");return}
-  const deletableFields=keys.filter(k=>!isReservedAttributeField(k));
+  const deletableFields=keys.filter(k=>!isProtectedAttributeValueField(k));
   if(!deletableFields.length){status("There are no deletable fields. Internal fields are protected.");return}
   const field=await arcMapDialog.select({title:"Delete Field",message:"Select the field to permanently delete from this feature class:",label:"Field",value:deletableFields[0],options:deletableFields.map(name=>({value:name,label:name}))});if(field===null)return;
   const name=field.trim(),actual=deletableFields.find(k=>k.toLowerCase()===name.toLowerCase());
@@ -4033,6 +4048,7 @@ $("saveTableEdits").onclick=async()=>{
    const props=item.feature.properties||{},next={};
    row.querySelectorAll(".cell-edit").forEach(inp=>{
     const key=inp.dataset.key,oldValue=props[key],raw=inp.value;
+    if(isComputedAttributeField(key))return;
     // Only write cells the user actually changed. The table's columns are the
     // union of fields across features, so untouched blank cells may mean a
     // missing property or null rather than an empty string.
@@ -4219,6 +4235,7 @@ $("fillSelected").onclick=async()=>{
  if(requested===null)return;
  const key=keys.find(k=>k.toLowerCase()===requested.trim().toLowerCase());
  if(!key){status("Choose an existing field from the list.");return}
+ if(isComputedAttributeField(key)){status("Calculated fields Area_m2, Length_m, X and Y are read-only.");return}
  const raw=await arcMapDialog.prompt({title:"Calculate Field",message:"Enter a value or expression for "+key+". Examples: 12, text, !FIELD! + 10, UPPER(!NAME!), ROUND(!AREA! / 100, 2), CONCAT(!FIRST!, !LAST!)",label:"Value or expression",value:$("fillValue").value||""});
  if(raw===null)return;
  const targets=inds.map(i=>Number.isInteger(i)&&i>=0?items[i]:null);
