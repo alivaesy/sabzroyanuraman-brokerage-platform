@@ -8907,5 +8907,80 @@ const arcMapDialog=(()=>{
 }
 </style>
 
+
+<script id="property-location-handoff">
+(function(){
+  "use strict";
+  const params=new URLSearchParams(window.location.search);
+  if(params.get("propertyHandoff")!=="1")return;
+  const style=document.createElement("style");
+  style.textContent="#propertyHandoffPanel{position:fixed;z-index:10050;top:8px;left:50%;transform:translateX(-50%);width:min(720px,calc(100% - 24px));padding:10px 14px;border:1px solid #9bc8b2;border-radius:10px;background:#f0fbf4;color:#164b35;box-shadow:0 5px 22px #0002;display:flex;align-items:center;justify-content:space-between;gap:12px;font:14px/1.6 Tahoma,sans-serif}#propertyHandoffPanel button{border:0;border-radius:7px;padding:9px 13px;background:#087653;color:#fff;font-weight:700;cursor:pointer;white-space:nowrap}#propertyHandoffPanel button:disabled{opacity:.55;cursor:wait}@media(max-width:560px){#propertyHandoffPanel{align-items:stretch;flex-direction:column}#propertyHandoffPanel button{white-space:normal}}";
+  document.head.appendChild(style);
+  const panel=document.createElement("section");panel.id="propertyHandoffPanel";
+  const note=document.createElement("div");note.textContent="حالت تعیین موقعیت ملک: در Web GIS ترسیم کن، سپس ذخیره و بازگشت را بزن.";
+  const save=document.createElement("button");save.type="button";save.textContent="ذخیره در حساب GIS و بازگشت به فرم";
+  panel.append(note,save);document.body.appendChild(panel);
+  function fail(message){note.textContent=message;save.disabled=false;}
+  function featureLabel(feature,index){
+    const p=feature.properties||{};
+    return String(p.name||p.Name||p.title||p.id||("عارضه "+(index+1))).slice(0,100);
+  }
+  function getFeaturePoint(feature){
+    if(window.turf){
+      try{const p=typeof turf.pointOnFeature==="function"?turf.pointOnFeature(feature):turf.centroid(feature);if(p?.geometry?.coordinates)return {longitude:Number(p.geometry.coordinates[0]),latitude:Number(p.geometry.coordinates[1])}}catch(_){}
+    }
+    const bounds=L.geoJSON(feature).getBounds();
+    if(!bounds||!bounds.isValid())throw new Error("برای عارضه مختصات قابل استفاده پیدا نشد.");
+    const p=bounds.getCenter();return {latitude:p.lat,longitude:p.lng};
+  }
+  save.addEventListener("click",async()=>{
+    save.disabled=true;
+    try{
+      if(!window.opener||window.opener.closed)throw new Error("فرم تهیه نقشه باز نیست؛ از همان فرم Web GIS را باز کن.");
+      if(!remoteGisUser&&!await remoteGisLogin())throw new Error("ورود به حساب GIS انجام نشد.");
+      if(!remoteGisOrganization)throw new Error("سازمان GIS انتخاب نشده است.");
+      const all=collectGeoJSON().features.filter(f=>f&&f.geometry);
+      if(!all.length)throw new Error("ابتدا ملک را با ابزار ترسیم رسم کن.");
+      let feature=null;
+      if(selectedFeatures&&selectedFeatures.size){
+        const selected=[...selectedFeatures].map(layer=>{try{return JSON.parse(JSON.stringify(layer.feature||asFeature(layer)))}catch(_){return null}}).filter(f=>f?.geometry);
+        if(selected.length===1)feature=selected[0];
+        else if(selected.length>1){
+          const choice=await arcMapDialog.select({title:"انتخاب محدوده ملک",message:"کدام عارضه موقعیت ملک است؟",label:"عارضه",value:"0",options:selected.map((f,i)=>({value:String(i),label:featureLabel(f,i)}))});
+          if(choice===null||choice===undefined)return;
+          feature=selected[Number(choice)];
+        }
+      }
+      if(!feature&&all.length===1)feature=all[0];
+      if(!feature){
+        const choice=await arcMapDialog.select({title:"انتخاب محدوده ملک",message:"محدوده ملک را از عوارض ترسیم‌شده انتخاب کن.",label:"عارضه",value:"0",options:all.map((f,i)=>({value:String(i),label:featureLabel(f,i)}))});
+        if(choice===null||choice===undefined)return;
+        feature=all[Number(choice)];
+      }
+      if(!feature?.geometry)throw new Error("عارضه انتخاب‌شده هندسه ندارد.");
+      const project=serializeProject();
+      project.name=(document.getElementById("projectName")?.value||"موقعیت ملک").trim()||"موقعیت ملک";
+      const saved=await remoteGisSaveProject(project);
+      if(!saved)throw new Error("ذخیره پروژه در حساب GIS انجام نشد.");
+      const point=getFeaturePoint(feature);
+      if(!Number.isFinite(point.latitude)||!Number.isFinite(point.longitude)||Math.abs(point.latitude)>90||Math.abs(point.longitude)>180)throw new Error("مختصات عارضه معتبر نیست.");
+      window.opener.postMessage({type:"sabzroyan:property-location",version:1,latitude:point.latitude,longitude:point.longitude,feature:feature,projectId:saved.project_id||null},window.location.origin);
+      note.textContent="پروژه ذخیره شد؛ موقعیت ملک به فرم ارسال شد.";
+      save.textContent="ارسال شد";
+      setTimeout(()=>window.close(),500);
+    }catch(error){console.error("Property location handoff failed",error);fail("انتقال انجام نشد: "+(error?.message||error));}
+  });
+  window.addEventListener("load",()=>{
+    setTimeout(async()=>{
+      try{
+        if(!remoteGisUser)await remoteGisLogin();
+        if(!remoteGisUser)fail("برای ادامه وارد حساب GIS شو.");
+        else note.textContent="وارد حساب GIS شدی؛ ملک را ترسیم و سپس ذخیره و بازگشت را بزن.";
+      }catch(error){console.error("Property GIS login failed",error);fail("ورود به حساب GIS ناموفق بود: "+(error?.message||error));}
+    },250);
+  },{once:true});
+})();
+</script>
+
 </body>
 </html>
