@@ -512,7 +512,7 @@
         }
         function updateLocationSummary() {
             const m = draft?.data?.map || {};
-            document.getElementById("mapLocationSummary").textContent = [m.address,m.city,m.province,m.latitude && m.longitude ? `مختصات ${m.latitude}، ${m.longitude}` : ""].filter(Boolean).join(" · ") || "موقعیتی وارد نشده است.";
+            document.getElementById("mapLocationSummary").textContent = [m.address,m.city,m.province,m.latitude && m.longitude ? `Coordinates ${m.latitude}, ${m.longitude}` : ""].filter(Boolean).join(" · ") || "No location entered.";
         }
         let propertyGeometryLayer = null;
         let propertyGisWindow = null;
@@ -535,10 +535,10 @@
             if (!Array.isArray(vertices) || !vertices.length) { host.style.display="none"; return; }
             const title=document.createElement("div");
             title.style.cssText="font-weight:700;margin:6px 0";
-            title.textContent="مختصات نقاط شکست ملک"+(coordinateSystem ? " ("+coordinateSystem+")" : "");
+            title.textContent="Property Vertex Coordinates"+(coordinateSystem ? " ("+coordinateSystem+")" : "");
             const table=document.createElement("table");
             table.style.cssText="width:100%;border-collapse:collapse;font-size:13px;text-align:center";
-            table.innerHTML="<thead><tr><th style='padding:6px;border:1px solid #ddd'>شماره رأس</th><th style='padding:6px;border:1px solid #ddd'>X</th><th style='padding:6px;border:1px solid #ddd'>Y</th></tr></thead>";
+            table.innerHTML="<thead><tr><th style='padding:6px;border:1px solid #ddd'>Vertex</th><th style='padding:6px;border:1px solid #ddd'>X</th><th style='padding:6px;border:1px solid #ddd'>Y</th></tr></thead>";
             const tbody=document.createElement("tbody");
             vertices.forEach((v,index)=>{
                 const x=Number(v?.x), y=Number(v?.y);
@@ -679,7 +679,7 @@
         document.getElementById("openPropertyWebGIS").addEventListener("click",()=>{
             const url=new URL("web-gis.html",window.location.href);url.searchParams.set("propertyHandoff","1");
             propertyGisWindow=window.open(url.href,"sabzRoyanPropertyGIS","popup=yes,width=1450,height=900,resizable=yes,scrollbars=yes");
-            if(!propertyGisWindow){alert("پنجره Web GIS مسدود شد؛ اجازه بازشدن پنجره‌های بازشو را برای این سایت فعال کن.");return;}
+            if(!propertyGisWindow){alert("The Web GIS window was blocked. Allow pop-ups for this site and try again.");return;}
             propertyGisWindow.focus();
         });
         window.addEventListener("message",event=>{
@@ -698,7 +698,7 @@
             renderPropertyGeometry(data.feature.geometry);
             if(map){const bounds=propertyGeometryLayer?.getBounds?.();if(bounds?.isValid())map.fitBounds(bounds,{padding:[20,20],maxZoom:18});}
             saveRecord().catch(()=>{});
-            document.getElementById("coordinates").textContent=lat.toFixed(6)+" , "+lng.toFixed(6)+" · محدوده از Web GIS";
+            document.getElementById("coordinates").textContent=lat.toFixed(6)+" , "+lng.toFixed(6)+" · Boundary from Web GIS";
             propertyGisWindow=null;
         });
         window.addEventListener("beforeunload",()=>{if(draft){collectControls();saveRecord().catch(()=>{});}});
