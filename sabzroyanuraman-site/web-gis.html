@@ -7720,7 +7720,23 @@ async function addMapDecoration(kind){
   document.querySelectorAll(".arc-dropdown button[data-base]").forEach(b=>b.onclick=()=>{
     const key=b.dataset.base; selectBasemap(key); closeMenus();
   });
-  document.querySelectorAll(".arc-dropdown button[data-action], .classic-toolbar button[data-action]").forEach(b=>b.onclick=()=>{
+  /* Keep Share Project in the main GIS script scope so it can access the authenticated session state. */
+window.__shareCurrentProject=async function(){
+  try{
+    if(!remoteGisUser||!remoteGisOrganization||!remoteGisProjectId){
+      status("ابتدا وارد حساب GIS شوید و پروژه را از Save Project روی سرور ذخیره کنید؛ سپس Share Project را بزنید.");return;
+    }
+    await remoteGisGetCsrf();
+    const response=await fetch("/api/gis/share.php",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","Accept":"application/json","X-CSRF-Token":remoteGisCsrf},body:JSON.stringify({action:"create",id:Number(remoteGisProjectId),organization_id:Number(remoteGisOrganization.id)})});
+    let result={};try{result=await response.json()}catch(_){}
+    if(!response.ok||result.ok===false)throw new Error(result.error||("HTTP "+response.status));
+    if(!result.url)throw new Error("The sharing API did not return a link.");
+    if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(result.url);status("لینک اشتراک‌گذاری ساخته و کپی شد: "+result.url);}
+    else if(typeof arcMapDialog!=="undefined"&&arcMapDialog.prompt){await arcMapDialog.prompt({title:"Shared map link",message:"Send this link to let others view the map.",label:"Link",value:result.url});}
+    else{window.prompt("Shared map link",result.url);}
+  }catch(error){console.error("Share Project failed:",error);status("Share Project failed: "+(error&&error.message?error.message:"unknown error"));}
+};
+document.querySelectorAll(".arc-dropdown button[data-action], .classic-toolbar button[data-action]").forEach(b=>b.onclick=()=>{
     const a=b.dataset.action;
     const mapActions={
       shareProject:()=>{if(typeof window.__shareCurrentProject==="function")window.__shareCurrentProject();else status("Share Project is not ready. Reload the page and try again.");},
@@ -9081,7 +9097,6 @@ const arcMapDialog=(()=>{
      else{await arcMapDialog.prompt({title:"Shared map link",message:"این لینک را برای مشاهده نقشه ارسال کنید.",label:"Link",value:url});status("لینک اشتراک‌گذاری ساخته شد.");}
    }catch(error){status("ساخت لینک انجام نشد: "+(error.message||"خطای سرور")+"؛ بررسی کنید migration اشتراک‌گذاری روی دیتابیس اجرا شده باشد.");}
 };
- if(shareButton)shareButton.addEventListener("click",()=>window.__shareCurrentProject());
  if(query.has("share")){if(shareButton)shareButton.hidden=true;loadSharedProject();}
 })();
 </script>
