@@ -8442,11 +8442,12 @@ function runModelBuilder(modal){
         }
         if(!Array.isArray(vertices)||vertices.length<2)throw new Error("عارضه انتخاب‌شده رأس قابل نمایش ندارد؛ یک چندضلعی یا خط مرزی ترسیم‌شده انتخاب کن.");
         pendingFeature=feature;
-        const rows=vertices.map((coord,index)=>{
+        const vertexCoordinates=vertices.map((coord,index)=>{
           const xy=projectCoords("EPSG:4326",getCRS(),[Number(coord[0]),Number(coord[1])]);
           if(!xy.every(Number.isFinite))throw new Error("تبدیل مختصات رأس "+(index+1)+" ناموفق بود.");
-          return "<tr><td>"+(index+1)+"</td><td>"+xy[0].toFixed(3)+"</td><td>"+xy[1].toFixed(3)+"</td></tr>";
+          return {vertex:index+1,x:xy[0],y:xy[1]};
         });
+        const rows=vertexCoordinates.map(v=>"<tr><td>"+v.vertex+"</td><td>"+v.x.toFixed(3)+"</td><td>"+v.y.toFixed(3)+"</td></tr>");
         if(!vertexPreviewReady){
           verticesWrap.innerHTML="<div><strong>نقاط شکست ملک</strong> <span>("+getCRS()+")</span></div><div style=\"max-height:220px;overflow:auto\"><table id=\"propertyVertexTable\"><thead><tr><th>شماره رأس</th><th>X</th><th>Y</th></tr></thead><tbody>"+rows.join("")+"</tbody></table></div>";
           vertexPreviewReady=true;save.textContent="ذخیره نهایی و بازگشت به فرم";
@@ -8459,7 +8460,7 @@ function runModelBuilder(modal){
         if(!saved)throw new Error("ذخیره پروژه در حساب GIS انجام نشد.");
         const point=getFeaturePoint(feature);
         if(!Number.isFinite(point.latitude)||!Number.isFinite(point.longitude)||Math.abs(point.latitude)>90||Math.abs(point.longitude)>180)throw new Error("مختصات عارضه معتبر نیست.");
-        window.opener.postMessage({type:"sabzroyan:property-location",version:1,latitude:point.latitude,longitude:point.longitude,feature:feature,projectId:saved.project_id||null},window.location.origin);
+        window.opener.postMessage({type:"sabzroyan:property-location",version:1,latitude:point.latitude,longitude:point.longitude,feature:feature,vertices:vertexCoordinates,coordinateSystem:getCRS(),projectId:saved.project_id||null},window.location.origin);
         note.textContent="پروژه ذخیره شد و محدوده به فرم منتقل شد.";
         save.textContent="ارسال شد";
         setTimeout(()=>window.close(),500);
