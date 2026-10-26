@@ -8425,18 +8425,18 @@ function runModelBuilder(modal){
         const point=getFeaturePoint(feature);
         if(!Number.isFinite(point.latitude)||!Number.isFinite(point.longitude)||Math.abs(point.latitude)>90||Math.abs(point.longitude)>180)throw new Error("مختصات عارضه معتبر نیست.");
         window.opener.postMessage({type:"sabzroyan:property-location",version:1,latitude:point.latitude,longitude:point.longitude,feature:feature,projectId:saved.project_id||null},window.location.origin);
-        note.textContent="پروژه ذخیره شد؛ موقعیت ملک به فرم ارسال شد.";
-        save.textContent="ارسال شد";
+        note.textContent="Project saved; location sent to the form.";
+        save.textContent="Sent";
         setTimeout(()=>window.close(),500);
       }catch(error){console.error("Property location handoff failed",error);fail("انتقال انجام نشد: "+(error?.message||error));}
-      finally{if(save.textContent!=="ارسال شد")save.disabled=false;}
+      finally{if(save.textContent!=="Sent")save.disabled=false;}
     });
     window.addEventListener("load",()=>{
       setTimeout(async()=>{
         try{
           if(!remoteGisUser)await remoteGisLogin();
           if(!remoteGisUser)fail("برای ادامه وارد حساب GIS شو.");
-          else note.textContent="You are signed in to your GIS account. Draw the property, then save and return to the form.";
+          else note.textContent="You are signed in to your GIS account. Draw the boundary, then save and return to the form.";
         }catch(error){console.error("Property GIS login failed",error);fail("ورود به حساب GIS ناموفق بود: "+(error?.message||error));}
       },250);
     },{once:true});
