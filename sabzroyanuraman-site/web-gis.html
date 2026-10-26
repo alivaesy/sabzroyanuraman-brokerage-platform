@@ -8436,7 +8436,7 @@ function runModelBuilder(modal){
         try{
           if(!remoteGisUser)await remoteGisLogin();
           if(!remoteGisUser)fail("برای ادامه وارد حساب GIS شو.");
-          else note.textContent="Draw the boundary.";
+          else note.textContent="Draw";
         }catch(error){console.error("Property GIS login failed",error);fail("ورود به حساب GIS ناموفق بود: "+(error?.message||error));}
       },250);
     },{once:true});
