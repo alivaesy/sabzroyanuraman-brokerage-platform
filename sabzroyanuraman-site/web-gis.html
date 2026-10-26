@@ -9129,7 +9129,7 @@ const arcMapDialog=(()=>{
        });
        // Never trust a non-empty layer list alone: verify the map actually has
        // rendered child features before considering restoration successful.
-       if(savedFeatures.length&&renderedFeatureCount===0){
+       if(savedFeatures.length){
          const fallback=L.geoJSON({type:"FeatureCollection",features:savedFeatures},{
            style:{color:"#146c43",weight:3,fillOpacity:.2},
            pointToLayer:(feature,latlng)=>L.circleMarker(latlng,{
