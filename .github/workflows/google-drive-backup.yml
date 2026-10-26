@@ -1,9 +1,7 @@
-name: Scheduled Google Drive repository backup
+name: Manual Google Drive repository backup
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "17 2 * * *"
 
 permissions:
   contents: read
