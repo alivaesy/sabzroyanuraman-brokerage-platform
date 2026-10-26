@@ -9086,6 +9086,18 @@ const arcMapDialog=(()=>{
    try{
      const result=await readJson(await fetch("/api/gis/share.php?token="+encodeURIComponent(token),{credentials:"omit",cache:"no-store",headers:{Accept:"application/json"}}));
      if(!result.project||!result.project.project_data||typeof restoreProject!=="function"||!restoreProject(result.project.project_data))throw new Error("shared_project_restore_failed");
+     // A saved map extent can be stale or much wider than its features. For shared
+     // read-only links, fit the visible vector content so recipients immediately see it.
+     try{
+       const contentBounds=L.latLngBounds([]);
+       (typeof namedLayers!=="undefined"?namedLayers:[]).forEach(item=>{
+         if(!item||!item.layer||!map.hasLayer(item.layer)||typeof isVectorLayer==="function"&&!isVectorLayer(item.layer))return;
+         if(typeof item.layer.getBounds==="function"){
+           const b=item.layer.getBounds();if(b&&b.isValid())contentBounds.extend(b);
+         }
+       });
+       if(contentBounds.isValid())map.fitBounds(contentBounds,{padding:[28,28],maxZoom:17,animate:false});
+     }catch(fitError){console.warn("Shared map extent fallback skipped:",fitError);}
      const p=result.project;
      if(document.getElementById("projectName"))document.getElementById("projectName").value=p.name||"Shared map";
      if(document.getElementById("projectStatus"))document.getElementById("projectStatus").textContent="Shared read-only map · updated "+new Date(p.updated_at||Date.now()).toLocaleString();
