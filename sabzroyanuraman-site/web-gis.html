@@ -8529,6 +8529,15 @@ function runModelBuilder(modal){
     },{once:true});
   })();
 
+  // Explicit bridge for later scripts: the core GIS state lives inside this IIFE.
+  // Shared-link code must use this bridge instead of inaccessible local bindings.
+  window.__sabzWebGISSharedBridge={
+    get map(){return map;},
+    get namedLayers(){return namedLayers;},
+    get drawn(){return drawn;},
+    restoreProject,
+    status
+  };
 })();
 </script>
 <script>
@@ -9081,11 +9090,13 @@ const arcMapDialog=(()=>{
  async function readJson(response){let data={};try{data=await response.json()}catch(_){}if(!response.ok||data.ok===false)throw new Error(data.error||("HTTP "+response.status));return data;}
  async function loadSharedProject(){
    const token=query.get("share");if(!token)return;
+   const bridge=window.__sabzWebGISSharedBridge;
+   if(!bridge){console.error("Shared GIS bridge unavailable: core WebGIS script did not initialize.");return;}
    window.__sharedProjectReadOnly=true;
-   if(!/^[a-f0-9]{64}$/.test(token)){status("Shared project link is invalid.");return;}
+   if(!/^[a-f0-9]{64}$/.test(token)){bridge.status("Shared project link is invalid.");return;}
    try{
      const result=await readJson(await fetch("/api/gis/share.php?token="+encodeURIComponent(token),{credentials:"omit",cache:"no-store",headers:{Accept:"application/json"}}));
-     if(!result.project||!result.project.project_data||typeof restoreProject!=="function")throw new Error("shared_project_data_missing");
+     if(!result.project||!result.project.project_data||typeof bridge.restoreProject!=="function")throw new Error("shared_project_data_missing");
      let sharedData=result.project.project_data;
      if(typeof sharedData==="string")sharedData=JSON.parse(sharedData);
      if(!sharedData||typeof sharedData!=="object")throw new Error("shared_project_data_invalid");
@@ -9102,7 +9113,7 @@ const arcMapDialog=(()=>{
      if(!Array.isArray(sharedData.drawnStyles))sharedData.drawnStyles=[];
      sharedData.integrity={drawnCount:sharedData.drawn.length,layerCount:sharedData.layers.length,featureCount:sharedData.drawn.length+sharedData.layers.reduce((n,item)=>n+item.features.length,0)};
      const sharedFeatureCount=sharedData.drawn.length+sharedData.layers.reduce((n,item)=>n+item.features.length,0);
-     if(!restoreProject(sharedData)){
+     if(!bridge.restoreProject(sharedData)){
        // Preserve a readable diagnostic instead of silently leaving a blank map.
        throw new Error("shared_project_restore_failed: version="+sharedData.version+", layers="+sharedData.layers.length+", features="+sharedFeatureCount);
      }
@@ -9112,8 +9123,8 @@ const arcMapDialog=(()=>{
      try{
        const contentBounds=L.latLngBounds([]);
        let renderedFeatureCount=0;
-       (typeof namedLayers!=="undefined"?namedLayers:[]).forEach(item=>{
-         if(!item||!item.layer||!map.hasLayer(item.layer))return;
+       (bridge.namedLayers||[]).forEach(item=>{
+         if(!item||!item.layer||!bridge.map.hasLayer(item.layer))return;
          if(typeof item.layer.getBounds==="function"){
            const b=item.layer.getBounds();
            if(b&&b.isValid())contentBounds.extend(b);
@@ -9138,7 +9149,7 @@ const arcMapDialog=(()=>{
          });
          const fb=fallback.getBounds();
          if(fb&&fb.isValid()){
-           fallback.addTo(map);
+           fallback.addTo(bridge.map);
            contentBounds.extend(fb);
            console.warn("Shared map: rendered GeoJSON fallback",savedFeatures.length,"features");
          }
@@ -9155,16 +9166,16 @@ const arcMapDialog=(()=>{
        });
        const targetBounds=actualBounds.isValid()?actualBounds:contentBounds;
        if(targetBounds.isValid()){
-         map.fitBounds(targetBounds,{padding:[28,28],maxZoom:17,animate:false});
-         if(typeof map.invalidateSize==="function")setTimeout(()=>map.invalidateSize({pan:false}),150);
+         bridge.map.fitBounds(targetBounds,{padding:[28,28],maxZoom:17,animate:false});
+         if(typeof bridge.map.invalidateSize==="function")setTimeout(()=>bridge.map.invalidateSize({pan:false}),150);
        }else if(!savedFeatures.length){
-         status("Shared project opened, but it contains no saved geometries.");
+         bridge.status("Shared project opened, but it contains no saved geometries.");
        }else{
-         status("Shared project has "+savedFeatures.length+" geometries, but Leaflet could not calculate their extent. Check the browser console.");
+         bridge.status("Shared project has "+savedFeatures.length+" geometries, but Leaflet could not calculate their extent. Check the browser console.");
        }
      }catch(fitError){
        console.error("Shared map rendering fallback failed:",fitError);
-       status("Shared features were received, but rendering failed: "+(fitError.message||"unknown error"));
+       bridge.status("Shared features were received, but rendering failed: "+(fitError.message||"unknown error"));
      }
      const p=result.project;
      if(document.getElementById("projectName"))document.getElementById("projectName").value=p.name||"Shared map";
@@ -9172,8 +9183,8 @@ const arcMapDialog=(()=>{
      document.title=(p.name||"Shared map")+" — Sabz Royan GIS";
      document.querySelectorAll("#shareProjectBtn,#saveProjectIcon,#openProjectBtn,#newMapBtn,#startEditingBtn,#stopEditingBtn,#deleteBtn").forEach(el=>{if(el)el.disabled=true;});
      document.body.classList.add("shared-project-readonly");
-     status("Shared map opened in read-only mode. Sign-in is not required.");
-   }catch(error){status("Unable to open shared map: "+(error.message||"link unavailable"));}
+     bridge.status("Shared map opened in read-only mode. Sign-in is not required.");
+   }catch(error){bridge.status("Unable to open shared map: "+(error.message||"link unavailable"));}
  }
  if(query.has("share")){if(shareButton)shareButton.hidden=true;loadSharedProject();}
 })();
