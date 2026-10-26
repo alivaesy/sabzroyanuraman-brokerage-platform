@@ -9100,6 +9100,7 @@ const arcMapDialog=(()=>{
  async function loadSharedProject(){
    const token=query.get("share");if(!token)return;
    const bridge=window.__sabzWebGISSharedBridge;
+   const status=message=>{const b=window.__sabzWebGISSharedBridge;if(b&&typeof b.status==="function")b.status(message);else{const n=document.getElementById("status");if(n)n.textContent=String(message??"");console.info("[Shared WebGIS]",message);}};
    if(!bridge){console.error("Shared GIS bridge unavailable: core WebGIS script did not initialize.");return;}
    window.__sharedProjectReadOnly=true;
    // Wait briefly for map construction; if the core script crashed, show the actual reason.
