@@ -9117,14 +9117,32 @@ const arcMapDialog=(()=>{
          }
        });
        if(!contentBounds.isValid()){
-         sharedData.layers.forEach(item=>{
+         // Last-resort rendering path: if project restoration created no visible
+         // vector bounds, render the saved GeoJSON directly instead of a blank map.
+         sharedData.layers.forEach((item,index)=>{
            if(!Array.isArray(item?.features)||!item.features.length)return;
-           const rawLayer=L.geoJSON({type:"FeatureCollection",features:item.features});
-           const b=rawLayer.getBounds();if(b&&b.isValid())contentBounds.extend(b);
+           const rawLayer=L.geoJSON({type:"FeatureCollection",features:item.features},{
+             style:{color:"#146c43",weight:3,fillOpacity:.16},
+             pointToLayer:(feature,latlng)=>L.circleMarker(latlng,{radius:6,color:"#146c43",fillColor:"#fff",fillOpacity:.9,weight:2})
+           });
+           const b=rawLayer.getBounds();
+           if(b&&b.isValid()){
+             contentBounds.extend(b);
+             if(!map.hasLayer(rawLayer))rawLayer.addTo(map);
+           }
+         });
+         sharedData.drawn.forEach(feature=>{
+           if(!feature||!feature.geometry)return;
+           const rawLayer=L.geoJSON(feature,{style:{color:"#146c43",weight:3,fillOpacity:.16}});
+           const b=rawLayer.getBounds();
+           if(b&&b.isValid()){contentBounds.extend(b);rawLayer.addTo(map);}
          });
        }
-       if(contentBounds.isValid())map.fitBounds(contentBounds,{padding:[28,28],maxZoom:17,animate:false});
-       else if(!sharedData.drawn.length&&!sharedData.layers.some(item=>Array.isArray(item?.features)&&item.features.length))status("Shared project opened, but it contains no saved features.");
+       if(contentBounds.isValid()){
+         map.fitBounds(contentBounds,{padding:[28,28],maxZoom:17,animate:false});
+         if(typeof map.invalidateSize==="function")setTimeout(()=>map.invalidateSize({pan:false}),100);
+       }else if(!sharedData.drawn.length&&!sharedData.layers.some(item=>Array.isArray(item?.features)&&item.features.length))status("Shared project opened, but it contains no saved features.");
+       else status("Saved features were found, but their geometries could not be displayed. Check the shared project data.");
      }catch(fitError){console.warn("Shared map extent fallback skipped:",fitError);}
      const p=result.project;
      if(document.getElementById("projectName"))document.getElementById("projectName").value=p.name||"Shared map";
