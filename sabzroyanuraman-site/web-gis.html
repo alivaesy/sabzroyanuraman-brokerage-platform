@@ -9106,44 +9106,66 @@ const arcMapDialog=(()=>{
        // Preserve a readable diagnostic instead of silently leaving a blank map.
        throw new Error("shared_project_restore_failed: version="+sharedData.version+", layers="+sharedData.layers.length+", features="+sharedFeatureCount);
      }
-     // A saved map extent can be stale or much wider than its features. For shared
-     // read-only links, fit the visible vector content so recipients immediately see it.
+     // Derive the shared extent from the actual saved GeoJSON, not the stale
+     // project bounds. If restored layers are empty/invisible, add a visible
+     // read-only fallback layer from the exact server payload.
      try{
        const contentBounds=L.latLngBounds([]);
+       let renderedFeatureCount=0;
        (typeof namedLayers!=="undefined"?namedLayers:[]).forEach(item=>{
-         if(!item||!item.layer||!map.hasLayer(item.layer)||typeof isVectorLayer==="function"&&!isVectorLayer(item.layer))return;
+         if(!item||!item.layer||!map.hasLayer(item.layer))return;
          if(typeof item.layer.getBounds==="function"){
-           const b=item.layer.getBounds();if(b&&b.isValid())contentBounds.extend(b);
+           const b=item.layer.getBounds();
+           if(b&&b.isValid())contentBounds.extend(b);
          }
+         if(typeof item.layer.getLayers==="function")renderedFeatureCount+=item.layer.getLayers().length;
        });
-       if(!contentBounds.isValid()){
-         // Last-resort rendering path: if project restoration created no visible
-         // vector bounds, render the saved GeoJSON directly instead of a blank map.
-         sharedData.layers.forEach((item,index)=>{
-           if(!Array.isArray(item?.features)||!item.features.length)return;
-           const rawLayer=L.geoJSON({type:"FeatureCollection",features:item.features},{
-             style:{color:"#146c43",weight:3,fillOpacity:.16},
-             pointToLayer:(feature,latlng)=>L.circleMarker(latlng,{radius:6,color:"#146c43",fillColor:"#fff",fillOpacity:.9,weight:2})
-           });
-           const b=rawLayer.getBounds();
-           if(b&&b.isValid()){
-             contentBounds.extend(b);
-             if(!map.hasLayer(rawLayer))rawLayer.addTo(map);
-           }
+       const savedFeatures=[];
+       sharedData.drawn.forEach(f=>{if(f&&f.type==="Feature"&&f.geometry)savedFeatures.push(f);});
+       sharedData.layers.forEach(item=>{
+         (Array.isArray(item.features)?item.features:[]).forEach(f=>{
+           if(f&&f.type==="Feature"&&f.geometry)savedFeatures.push(f);
          });
-         sharedData.drawn.forEach(feature=>{
-           if(!feature||!feature.geometry)return;
-           const rawLayer=L.geoJSON(feature,{style:{color:"#146c43",weight:3,fillOpacity:.16}});
-           const b=rawLayer.getBounds();
-           if(b&&b.isValid()){contentBounds.extend(b);rawLayer.addTo(map);}
+       });
+       // Never trust a non-empty layer list alone: verify the map actually has
+       // rendered child features before considering restoration successful.
+       if(savedFeatures.length&&renderedFeatureCount===0){
+         const fallback=L.geoJSON({type:"FeatureCollection",features:savedFeatures},{
+           style:{color:"#146c43",weight:3,fillOpacity:.2},
+           pointToLayer:(feature,latlng)=>L.circleMarker(latlng,{
+             radius:6,color:"#146c43",fillColor:"#fff",fillOpacity:.95,weight:2
+           })
          });
+         const fb=fallback.getBounds();
+         if(fb&&fb.isValid()){
+           fallback.addTo(map);
+           contentBounds.extend(fb);
+           console.warn("Shared map: rendered GeoJSON fallback",savedFeatures.length,"features");
+         }
        }
-       if(contentBounds.isValid()){
-         map.fitBounds(contentBounds,{padding:[28,28],maxZoom:17,animate:false});
-         if(typeof map.invalidateSize==="function")setTimeout(()=>map.invalidateSize({pan:false}),100);
-       }else if(!sharedData.drawn.length&&!sharedData.layers.some(item=>Array.isArray(item?.features)&&item.features.length))status("Shared project opened, but it contains no saved features.");
-       else status("Saved features were found, but their geometries could not be displayed. Check the shared project data.");
-     }catch(fitError){console.warn("Shared map extent fallback skipped:",fitError);}
+       // Always fit to actual feature coordinates, even when a stale saved extent
+       // is valid but spans a continent.
+       const actualBounds=L.latLngBounds([]);
+       savedFeatures.forEach(feature=>{
+         try{
+           const one=L.geoJSON(feature);
+           const b=one.getBounds();
+           if(b&&b.isValid())actualBounds.extend(b);
+         }catch(geometryError){console.warn("Invalid shared feature geometry:",geometryError);}
+       });
+       const targetBounds=actualBounds.isValid()?actualBounds:contentBounds;
+       if(targetBounds.isValid()){
+         map.fitBounds(targetBounds,{padding:[28,28],maxZoom:17,animate:false});
+         if(typeof map.invalidateSize==="function")setTimeout(()=>map.invalidateSize({pan:false}),150);
+       }else if(!savedFeatures.length){
+         status("Shared project opened, but it contains no saved geometries.");
+       }else{
+         status("Shared project has "+savedFeatures.length+" geometries, but Leaflet could not calculate their extent. Check the browser console.");
+       }
+     }catch(fitError){
+       console.error("Shared map rendering fallback failed:",fitError);
+       status("Shared features were received, but rendering failed: "+(fitError.message||"unknown error"));
+     }
      const p=result.project;
      if(document.getElementById("projectName"))document.getElementById("projectName").value=p.name||"Shared map";
      if(document.getElementById("projectStatus"))document.getElementById("projectStatus").textContent="Shared read-only map · updated "+new Date(p.updated_at||Date.now()).toLocaleString();
