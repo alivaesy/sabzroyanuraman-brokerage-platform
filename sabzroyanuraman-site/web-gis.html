@@ -7723,6 +7723,7 @@ async function addMapDecoration(kind){
   document.querySelectorAll(".arc-dropdown button[data-action], .classic-toolbar button[data-action]").forEach(b=>b.onclick=()=>{
     const a=b.dataset.action;
     const mapActions={
+      shareProject:()=>{if(typeof window.__shareCurrentProject==="function")window.__shareCurrentProject();else status("Share Project is not ready. Reload the page and try again.");},
       startEditing:()=>startEditing(),
       newMap:()=>clearWorkspace(),
       printMap:()=>window.print(),
@@ -9068,7 +9069,7 @@ const arcMapDialog=(()=>{
      status("Shared map opened in read-only mode. Sign-in is not required.");
    }catch(error){status("Unable to open shared map: "+(error.message||"link unavailable"));}
  }
- if(shareButton)shareButton.addEventListener("click",async()=>{
+ window.__shareCurrentProject=async()=>{
    if(!remoteGisUser||!remoteGisOrganization||!remoteGisProjectId){
      status("برای ساخت لینک، ابتدا وارد حساب GIS شوید، پروژه را روی سرور ذخیره کنید و سپس دوباره Share را بزنید.");return;
    }
@@ -9079,7 +9080,8 @@ const arcMapDialog=(()=>{
      if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(url);status("لینک اشتراک‌گذاری ساخته و کپی شد: "+url);}
      else{await arcMapDialog.prompt({title:"Shared map link",message:"این لینک را برای مشاهده نقشه ارسال کنید.",label:"Link",value:url});status("لینک اشتراک‌گذاری ساخته شد.");}
    }catch(error){status("ساخت لینک انجام نشد: "+(error.message||"خطای سرور")+"؛ بررسی کنید migration اشتراک‌گذاری روی دیتابیس اجرا شده باشد.");}
- });
+ })
+ if(shareButton)shareButton.addEventListener("click",()=>window.__shareCurrentProject());;
  if(query.has("share")){if(shareButton)shareButton.hidden=true;loadSharedProject();}
 })();
 </script>
