@@ -8385,7 +8385,7 @@ function runModelBuilder(modal){
     function fail(message){note.textContent=message;save.disabled=false;}
     function featureLabel(feature,index){
       const p=feature.properties||{};
-      return String(p.name||p.Name||p.title||p.id||("عارضه "+(index+1))).slice(0,100);
+      return String(p.name||p.Name||p.title||p.id||("Feature "+(index+1))).slice(0,100);
     }
     function getFeaturePoint(feature){
       if(window.turf){
@@ -8398,30 +8398,30 @@ function runModelBuilder(modal){
     save.addEventListener("click",async()=>{
       save.disabled=true;
       try{
-        if(!window.opener||window.opener.closed)throw new Error("فرم تهیه نقشه باز نیست؛ از همان فرم Web GIS را باز کن.");
-        if(!remoteGisUser&&!await remoteGisLogin())throw new Error("ورود به حساب GIS انجام نشد.");
-        if(!remoteGisOrganization)throw new Error("سازمان GIS انتخاب نشده است.");
+        if(!window.opener||window.opener.closed)throw new Error("The map preparation form is not open. Open Web GIS from that form.");
+        if(!remoteGisUser&&!await remoteGisLogin())throw new Error("GIS sign-in failed.");
+        if(!remoteGisOrganization)throw new Error("No GIS organization is selected.");
         let feature=pendingFeature;
         if(!feature){
         const all=collectGeoJSON().features.filter(f=>f&&f.geometry);
-        if(!all.length)throw new Error("ابتدا ملک را با ابزار ترسیم رسم کن.");
+        if(!all.length)throw new Error("Draw the property boundary first.");
         if(selectedFeatures&&selectedFeatures.size){
           const selected=[...selectedFeatures].map(layer=>{try{return JSON.parse(JSON.stringify(layer.feature||asFeature(layer)))}catch(_){return null}}).filter(f=>f?.geometry);
           if(selected.length===1)feature=selected[0];
           else if(selected.length>1){
-            const choice=await arcMapDialog.select({title:"انتخاب محدوده ملک",message:"کدام عارضه موقعیت ملک است؟",label:"عارضه",value:"0",options:selected.map((f,i)=>({value:String(i),label:featureLabel(f,i)}))});
+            const choice=await arcMapDialog.select({title:"انتخاب محدوده ملک",message:"Which feature represents the property boundary?",label:"عارضه",value:"0",options:selected.map((f,i)=>({value:String(i),label:featureLabel(f,i)}))});
             if(choice===null||choice===undefined)return;
             feature=selected[Number(choice)];
           }
         }
         if(!feature&&all.length===1)feature=all[0];
         if(!feature){
-          const choice=await arcMapDialog.select({title:"انتخاب محدوده ملک",message:"محدوده ملک را از عوارض ترسیم‌شده انتخاب کن.",label:"عارضه",value:"0",options:all.map((f,i)=>({value:String(i),label:featureLabel(f,i)}))});
+          const choice=await arcMapDialog.select({title:"انتخاب محدوده ملک",message:"Select the property boundary from the drawn features.",label:"عارضه",value:"0",options:all.map((f,i)=>({value:String(i),label:featureLabel(f,i)}))});
           if(choice===null||choice===undefined)return;
           feature=all[Number(choice)];
         }
         }
-        if(!feature?.geometry)throw new Error("عارضه انتخاب‌شده هندسه ندارد.");
+        if(!feature?.geometry)throw new Error("The selected feature has no geometry.");
         const geometry=feature.geometry;
         let vertices=null;
         if(geometry.type==="Polygon"){
@@ -8429,7 +8429,7 @@ function runModelBuilder(modal){
           if(vertices?.length){const first=vertices[0],last=vertices[vertices.length-1];if(first&&last&&first[0]===last[0]&&first[1]===last[1])vertices.pop();}
         }else if(geometry.type==="MultiPolygon"){
           const rings=(geometry.coordinates||[]).map(poly=>poly?.[0]).filter(r=>Array.isArray(r)&&r.length>=3);
-          if(rings.length!==1)throw new Error("برای Show Vertex Coordinates، یک چندضلعی یا یک خط مرزی انتخاب کن.");
+          if(rings.length!==1)throw new Error("Select a polygon or boundary line to show vertex coordinates.");
           vertices=rings[0].slice();
           const first=vertices[0],last=vertices[vertices.length-1];
           if(first&&last&&first[0]===last[0]&&first[1]===last[1])vertices.pop();
@@ -8437,35 +8437,35 @@ function runModelBuilder(modal){
           vertices=geometry.coordinates?.slice();
         }else if(geometry.type==="MultiLineString"){
           const lines=(geometry.coordinates||[]).filter(line=>Array.isArray(line)&&line.length>=2);
-          if(lines.length!==1)throw new Error("برای Show Vertex Coordinates، یک خط مرزی پیوسته انتخاب کن.");
+          if(lines.length!==1)throw new Error("Select one continuous boundary line to show vertex coordinates.");
           vertices=lines[0].slice();
         }
-        if(!Array.isArray(vertices)||vertices.length<2)throw new Error("عارضه انتخاب‌شده رأس قابل نمایش ندارد؛ یک چندضلعی یا خط مرزی ترسیم‌شده انتخاب کن.");
+        if(!Array.isArray(vertices)||vertices.length<2)throw new Error("The selected feature has no displayable vertices. Select a drawn polygon or boundary line.");
         pendingFeature=feature;
         const vertexCoordinates=vertices.map((coord,index)=>{
           const xy=projectCoords("EPSG:4326",getCRS(),[Number(coord[0]),Number(coord[1])]);
-          if(!xy.every(Number.isFinite))throw new Error("Could not transform vertex coordinates for vertex "+(index+1)+" ناموفق بود.");
+          if(!xy.every(Number.isFinite))throw new Error("Could not transform vertex coordinates for vertex "+(index+1)+" failed.");
           return {vertex:index+1,x:xy[0],y:xy[1]};
         });
         const rows=vertexCoordinates.map(v=>"<tr><td>"+v.vertex+"</td><td>"+v.x.toFixed(3)+"</td><td>"+v.y.toFixed(3)+"</td></tr>");
         if(!vertexPreviewReady){
-          verticesWrap.innerHTML="<div><strong>نقاط شکست ملک</strong> <span>("+getCRS()+")</span></div><div style=\"max-height:220px;overflow:auto\"><table id=\"propertyVertexTable\"><thead><tr><th>شماره رأس</th><th>X</th><th>Y</th></tr></thead><tbody>"+rows.join("")+"</tbody></table></div>";
+          verticesWrap.innerHTML="<div><strong>Property Vertex Coordinates</strong> <span>("+getCRS()+")</span></div><div style=\"max-height:220px;overflow:auto\"><table id=\"propertyVertexTable\"><thead><tr><th>شماره رأس</th><th>X</th><th>Y</th></tr></thead><tbody>"+rows.join("")+"</tbody></table></div>";
           vertexPreviewReady=true;save.textContent="Save and Return to Form";
           note.textContent="Coordinates are listed in drawing order. Click Save to complete the transfer.";
           return;
         }
         const project=serializeProject();
-        project.name=(document.getElementById("projectName")?.value||"موقعیت ملک").trim()||"موقعیت ملک";
+        project.name=(document.getElementById("projectName")?.value||"Property Location").trim()||"Property Location";
         const saved=await remoteGisSaveProject(project);
-        if(!saved)throw new Error("ذخیره پروژه در حساب GIS انجام نشد.");
+        if(!saved)throw new Error("Could not save the project to your GIS account.");
         const point=getFeaturePoint(feature);
         if(!Number.isFinite(point.latitude)||!Number.isFinite(point.longitude)||Math.abs(point.latitude)>90||Math.abs(point.longitude)>180)throw new Error("The feature coordinates are invalid.");
         window.opener.postMessage({type:"sabzroyan:property-location",version:1,latitude:point.latitude,longitude:point.longitude,feature:feature,vertices:vertexCoordinates,coordinateSystem:getCRS(),projectId:saved.project_id||null},window.location.origin);
-        note.textContent="پروژه ذخیره شد و محدوده به فرم منتقل شد.";
-        save.textContent="ارسال شد";
+        note.textContent="Project saved and boundary transferred to the form.";
+        save.textContent="Transferred";
         setTimeout(()=>window.close(),500);
       }catch(error){console.error("Property location handoff failed",error);fail("Transfer failed: "+(error?.message||error));}
-      finally{if(save.textContent!=="ارسال شد")save.disabled=false;}
+      finally{if(save.textContent!=="Transferred")save.disabled=false;}
     });
     window.addEventListener("load",()=>{
       setTimeout(async()=>{
@@ -8473,7 +8473,7 @@ function runModelBuilder(modal){
           if(!remoteGisUser)await remoteGisLogin();
           if(!remoteGisUser)fail("Sign in to your GIS account to continue.");
           else note.textContent="Draw";
-        }catch(error){console.error("Property GIS login failed",error);fail("ورود به حساب GIS ناموفق بود: "+(error?.message||error));}
+        }catch(error){console.error("Property GIS login failed",error);fail("GIS sign-in failed: "+(error?.message||error));}
       },250);
     },{once:true});
   })();
@@ -8868,7 +8868,7 @@ window.addEventListener("beforeunload",event=>{
  }
  async function load(limit=null){
    list.replaceChildren();const loading=document.createElement("div");loading.className="public-feedback-item";loading.textContent="در حال دریافت بازخوردها…";list.append(loading);
-   try{const response=await fetch(endpoint+"?t="+Date.now(),{headers:{Accept:"application/json"},cache:"no-store"});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||"دریافت بازخوردها ناموفق بود.");const items=Array.isArray(data.feedback)?data.feedback:[];render(Number.isInteger(limit)&&limit>0?items.slice(0,limit):items);}
+   try{const response=await fetch(endpoint+"?t="+Date.now(),{headers:{Accept:"application/json"},cache:"no-store"});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||"دریافت بازخوردها failed.");const items=Array.isArray(data.feedback)?data.feedback:[];render(Number.isInteger(limit)&&limit>0?items.slice(0,limit):items);}
    catch(error){list.replaceChildren();const err=document.createElement("div");err.className="public-feedback-item";err.textContent="دریافت بازخوردها ممکن نشد. مطمئن شوید نسخه روی میزبانی دارای PHP منتشر شده است.";list.append(err);setStatus(error.message,true);}
  }
  openBtn.addEventListener("click",open);closeBtn.addEventListener("click",close);
@@ -8894,7 +8894,7 @@ window.addEventListener("beforeunload",event=>{
      const response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({text})});
      const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||"ارسال بازخورد انجام نشد.");
      field.value="";updateCount();setStatus("بازخورد شما ثبت شد؛ بازخورد شما و دو بازخورد اخیر نمایش داده می‌شوند.");list.classList.add("expanded");listToggle.setAttribute("aria-expanded","true");listToggle.textContent="▴";listToggle.setAttribute("aria-label","پنهان‌کردن بازخوردها");listToggle.title="پنهان‌کردن بازخوردها";await load(3);
-   }catch(error){setStatus(error.message||"ارسال بازخورد ناموفق بود.",true);}
+   }catch(error){setStatus(error.message||"ارسال بازخورد failed.",true);}
    finally{send.disabled=false;}
  });
  updateCount();
