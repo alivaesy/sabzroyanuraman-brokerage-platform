@@ -8374,12 +8374,14 @@ function runModelBuilder(modal){
     const params=new URLSearchParams(window.location.search);
     if(params.get("propertyHandoff")!=="1")return;
     const style=document.createElement("style");
-    style.textContent="#propertyHandoffPanel{position:fixed;z-index:10050;top:8px;left:50%;transform:translateX(-50%);width:min(720px,calc(100% - 24px));padding:10px 14px;border:1px solid #9bc8b2;border-radius:10px;background:#f0fbf4;color:#164b35;box-shadow:0 5px 22px #0002;display:flex;align-items:center;justify-content:space-between;gap:12px;font:14px/1.6 Tahoma,sans-serif}#propertyHandoffPanel button{border:0;border-radius:7px;padding:9px 13px;background:#087653;color:#fff;font-weight:700;cursor:pointer;white-space:nowrap}#propertyHandoffPanel button:disabled{opacity:.55;cursor:wait}@media(max-width:560px){#propertyHandoffPanel{align-items:stretch;flex-direction:column}#propertyHandoffPanel button{white-space:normal}}";
+    style.textContent="#propertyHandoffPanel{position:fixed;z-index:10050;top:8px;left:50%;transform:translateX(-50%);width:min(760px,calc(100% - 24px));max-height:48vh;overflow:auto;padding:10px 14px;border:1px solid #9bc8b2;border-radius:10px;background:#f0fbf4;color:#164b35;box-shadow:0 5px 22px #0002;display:flex;flex-direction:column;gap:8px;font:14px/1.6 Tahoma,sans-serif}#propertyHandoffPanel button{align-self:flex-start;border:0;border-radius:7px;padding:9px 13px;background:#087653;color:#fff;font-weight:700;cursor:pointer}#propertyHandoffPanel button:disabled{opacity:.55;cursor:wait}#propertyVertexTable{width:100%;border-collapse:collapse;background:white;color:#173b57;font:13px Arial,sans-serif}#propertyVertexTable th,#propertyVertexTable td{border:1px solid #c8d8d2;padding:5px 8px;text-align:right}#propertyVertexTable th{background:#e2f1e9;position:sticky;top:0}";
     document.head.appendChild(style);
     const panel=document.createElement("section");panel.id="propertyHandoffPanel";
     const note=document.createElement("div");note.textContent="Location mode: Draw the boundary in Web GIS, then save and return to the form.";
-    const save=document.createElement("button");save.type="button";save.textContent="Save to GIS Account and Return to Form";
-    panel.append(note,save);document.body.appendChild(panel);
+    const verticesWrap=document.createElement("div");verticesWrap.id="propertyVerticesWrap";
+    const save=document.createElement("button");save.type="button";save.textContent="نمایش نقاط شکست";
+    panel.append(note,verticesWrap,save);document.body.appendChild(panel);
+    let pendingFeature=null,vertexPreviewReady=false;
     function fail(message){note.textContent=message;save.disabled=false;}
     function featureLabel(feature,index){
       const p=feature.properties||{};
@@ -8399,9 +8401,10 @@ function runModelBuilder(modal){
         if(!window.opener||window.opener.closed)throw new Error("فرم تهیه نقشه باز نیست؛ از همان فرم Web GIS را باز کن.");
         if(!remoteGisUser&&!await remoteGisLogin())throw new Error("ورود به حساب GIS انجام نشد.");
         if(!remoteGisOrganization)throw new Error("سازمان GIS انتخاب نشده است.");
+        let feature=pendingFeature;
+        if(!feature){
         const all=collectGeoJSON().features.filter(f=>f&&f.geometry);
         if(!all.length)throw new Error("ابتدا ملک را با ابزار ترسیم رسم کن.");
-        let feature=null;
         if(selectedFeatures&&selectedFeatures.size){
           const selected=[...selectedFeatures].map(layer=>{try{return JSON.parse(JSON.stringify(layer.feature||asFeature(layer)))}catch(_){return null}}).filter(f=>f?.geometry);
           if(selected.length===1)feature=selected[0];
@@ -8418,6 +8421,30 @@ function runModelBuilder(modal){
           feature=all[Number(choice)];
         }
         if(!feature?.geometry)throw new Error("عارضه انتخاب‌شده هندسه ندارد.");
+        pendingFeature=feature;
+        const geometry=feature.geometry;
+        let ring=null;
+        if(geometry.type==="Polygon")ring=geometry.coordinates?.[0];
+        else if(geometry.type==="MultiPolygon"){
+          const rings=(geometry.coordinates||[]).map(poly=>poly?.[0]).filter(r=>Array.isArray(r)&&r.length>=3);
+          if(rings.length!==1)throw new Error("برای نمایش نقاط شکست، محدوده باید یک چندضلعی پیوسته باشد.");
+          ring=rings[0];
+        }
+        if(!Array.isArray(ring)||ring.length<4)throw new Error("هندسه انتخاب‌شده چندضلعی معتبر ندارد.");
+        const vertices=ring.slice();
+        const first=vertices[0],last=vertices[vertices.length-1];
+        if(first&&last&&first[0]===last[0]&&first[1]===last[1])vertices.pop();
+        const rows=vertices.map((coord,index)=>{
+          const xy=projectCoords("EPSG:4326",getCRS(),[Number(coord[0]),Number(coord[1])]);
+          if(!xy.every(Number.isFinite))throw new Error("تبدیل مختصات رأس "+(index+1)+" ناموفق بود.");
+          return "<tr><td>"+(index+1)+"</td><td>"+xy[0].toFixed(3)+"</td><td>"+xy[1].toFixed(3)+"</td></tr>";
+        });
+        if(!vertexPreviewReady){
+          verticesWrap.innerHTML="<div><strong>نقاط شکست ملک</strong> <span>("+getCRS()+")</span></div><div style=\"max-height:220px;overflow:auto\"><table id=\"propertyVertexTable\"><thead><tr><th>شماره رأس</th><th>X</th><th>Y</th></tr></thead><tbody>"+rows.join("")+"</tbody></table></div>";
+          vertexPreviewReady=true;save.textContent="ذخیره نهایی و بازگشت به فرم";
+          note.textContent="مختصات به ترتیب ترسیم نمایش داده شده‌اند؛ برای انتقال نهایی، ذخیره را بزن.";
+          return;
+        }
         const project=serializeProject();
         project.name=(document.getElementById("projectName")?.value||"موقعیت ملک").trim()||"موقعیت ملک";
         const saved=await remoteGisSaveProject(project);
@@ -8425,11 +8452,11 @@ function runModelBuilder(modal){
         const point=getFeaturePoint(feature);
         if(!Number.isFinite(point.latitude)||!Number.isFinite(point.longitude)||Math.abs(point.latitude)>90||Math.abs(point.longitude)>180)throw new Error("مختصات عارضه معتبر نیست.");
         window.opener.postMessage({type:"sabzroyan:property-location",version:1,latitude:point.latitude,longitude:point.longitude,feature:feature,projectId:saved.project_id||null},window.location.origin);
-        note.textContent="Project saved; location sent to the form.";
-        save.textContent="Sent";
+        note.textContent="پروژه ذخیره شد و محدوده به فرم منتقل شد.";
+        save.textContent="ارسال شد";
         setTimeout(()=>window.close(),500);
       }catch(error){console.error("Property location handoff failed",error);fail("انتقال انجام نشد: "+(error?.message||error));}
-      finally{if(save.textContent!=="Sent")save.disabled=false;}
+      finally{if(save.textContent!=="ارسال شد")save.disabled=false;}
     });
     window.addEventListener("load",()=>{
       setTimeout(async()=>{
