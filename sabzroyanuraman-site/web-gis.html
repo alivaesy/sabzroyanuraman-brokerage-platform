@@ -9105,9 +9105,9 @@ const arcMapDialog=(()=>{
    window.__sharedProjectReadOnly=true;
    // Wait briefly for map construction; if the core script crashed, show the actual reason.
    for(let attempt=0;attempt<50&&!bridge.map&&!window.__sabzWebGISCoreError;attempt++)await new Promise(resolve=>setTimeout(resolve,100));
-   if(window.__sabzWebGISCoreError){bridge.status("WebGIS startup failed before map creation: "+window.__sabzWebGISCoreError);console.error("WebGIS startup failed:",window.__sabzWebGISCoreError);return;}
-   if(!bridge.map){bridge.status("WebGIS map did not initialize. Check the browser console for the first JavaScript error.");return;}
-   if(!/^[a-f0-9]{64}$/.test(token)){bridge.status("Shared project link is invalid.");return;}
+   if(window.__sabzWebGISCoreError){status("WebGIS startup failed before map creation: "+window.__sabzWebGISCoreError);console.error("WebGIS startup failed:",window.__sabzWebGISCoreError);return;}
+   if(!bridge.map){status("WebGIS map did not initialize. Check the browser console for the first JavaScript error.");return;}
+   if(!/^[a-f0-9]{64}$/.test(token)){status("Shared project link is invalid.");return;}
    try{
      const result=await readJson(await fetch("/api/gis/share.php?token="+encodeURIComponent(token),{credentials:"omit",cache:"no-store",headers:{Accept:"application/json"}}));
      if(!result.project||!result.project.project_data||typeof bridge.restoreProject!=="function")throw new Error("shared_project_data_missing");
@@ -9189,13 +9189,13 @@ const arcMapDialog=(()=>{
          bridge.map.fitBounds(targetBounds,{padding:[28,28],maxZoom:17,animate:false});
          if(typeof bridge.map.invalidateSize==="function")setTimeout(()=>bridge.map.invalidateSize({pan:false}),150);
        }else if(!savedFeatures.length){
-         bridge.status("Shared project opened, but it contains no saved geometries.");
+         status("Shared project opened, but it contains no saved geometries.");
        }else{
-         bridge.status("Shared project has "+savedFeatures.length+" geometries, but Leaflet could not calculate their extent. Check the browser console.");
+         status("Shared project has "+savedFeatures.length+" geometries, but Leaflet could not calculate their extent. Check the browser console.");
        }
      }catch(fitError){
        console.error("Shared map rendering fallback failed:",fitError);
-       bridge.status("Shared features were received, but rendering failed: "+(fitError.message||"unknown error"));
+       status("Shared features were received, but rendering failed: "+(fitError.message||"unknown error"));
      }
      const p=result.project;
      if(document.getElementById("projectName"))document.getElementById("projectName").value=p.name||"Shared map";
@@ -9208,9 +9208,9 @@ const arcMapDialog=(()=>{
      const verifiedFeatureCount=visibleSharedLayers.reduce((count,item)=>count+(typeof item.layer.getLayers==="function"?item.layer.getLayers().length:0),0);
      const fallbackCount=verifiedMap.__sabzSharedFallbackCount||0;
      const actuallyDisplayed=verifiedFeatureCount>0||fallbackCount>0;
-     if(!actuallyDisplayed){bridge.status("Shared data loaded, but no features are confirmed visible on the map. Check the browser console.");console.error("Shared project visibility verification failed",{visibleLayers:visibleSharedLayers.length,verifiedFeatureCount,restoreWarning});return;}
-     bridge.status("Shared map opened: "+Math.max(verifiedFeatureCount,fallbackCount)+" features displayed in read-only mode."+(restoreWarning?" (GeoJSON fallback used; "+restoreWarning+")":""));
-   }catch(error){bridge.status("Unable to open shared map: "+(error.message||"link unavailable"));}
+     if(!actuallyDisplayed){status("Shared data loaded, but no features are confirmed visible on the map. Check the browser console.");console.error("Shared project visibility verification failed",{visibleLayers:visibleSharedLayers.length,verifiedFeatureCount,restoreWarning});return;}
+     status("Shared map opened: "+Math.max(verifiedFeatureCount,fallbackCount)+" features displayed in read-only mode."+(restoreWarning?" (GeoJSON fallback used; "+restoreWarning+")":""));
+   }catch(error){status("Unable to open shared map: "+(error.message||"link unavailable"));}
  }
  if(query.has("share")){if(shareButton)shareButton.hidden=true;loadSharedProject();}
 })();
