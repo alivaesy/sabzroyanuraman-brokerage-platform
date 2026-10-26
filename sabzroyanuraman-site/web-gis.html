@@ -1849,7 +1849,7 @@ async function openRemoteGisProjects(){
     }catch(_){remoteGisUser=null;remoteGisOrganization=null;remoteGisProjectId=null;}
     const signedIn=!!remoteGisUser;
     const action=await arcMapDialog.select({
-      title:"Sabz Royan GIS Account",
+      title:"GIS Account",
       message:signedIn
         ? "Account: "+(remoteGisUser.display_name||remoteGisUser.username)+"\nOrganization: "+(remoteGisOrganization?.name||"not selected")
         : "Not signed in. Sign in to manage server projects.",
@@ -1901,7 +1901,7 @@ async function gisListProjects(){return remoteGisListProjects()}
 async function gisOpenProject(id){return remoteGisOpenProject(id)}
 async function openOnlineData(){
   const sourceForm=await arcMapDialog.form({title:"Add Online Data",message:"Choose a source below. For external services, enter the URL in this same window.",fields:[
-    {name:"source",label:"Data source",type:"select",value:"service",options:[{value:"service",label:"External GeoJSON / ArcGIS FeatureServer / WFS"},{value:"account",label:"Sabz Royan GIS account · open/save organization projects"}]},
+    {name:"source",label:"Data source",type:"select",value:"service",options:[{value:"service",label:"External GeoJSON / ArcGIS FeatureServer / WFS"},{value:"account",label:"GIS account · open/save organization projects"}]},
     {name:"url",label:"Service URL (external services only)",type:"url",value:"",required:false}
   ]});
   if(!sourceForm)return;
