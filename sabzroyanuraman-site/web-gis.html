@@ -9113,13 +9113,18 @@ const arcMapDialog=(()=>{
      if(!Array.isArray(sharedData.drawnStyles))sharedData.drawnStyles=[];
      sharedData.integrity={drawnCount:sharedData.drawn.length,layerCount:sharedData.layers.length,featureCount:sharedData.drawn.length+sharedData.layers.reduce((n,item)=>n+item.features.length,0)};
      const sharedFeatureCount=sharedData.drawn.length+sharedData.layers.reduce((n,item)=>n+item.features.length,0);
-     if(!bridge.restoreProject(sharedData)){
-       // Preserve a readable diagnostic instead of silently leaving a blank map.
-       throw new Error("shared_project_restore_failed: version="+sharedData.version+", layers="+sharedData.layers.length+", features="+sharedFeatureCount);
+     // Restore the full project when possible, but never let a restore validation
+     // failure prevent the public read-only viewer from drawing the saved GeoJSON.
+     let restoreWarning="";
+     try{
+       if(!bridge.restoreProject(sharedData))restoreWarning="Project restore validation failed";
+     }catch(restoreError){
+       restoreWarning="Project restore failed: "+(restoreError.message||"unknown error");
+       console.error(restoreWarning,restoreError);
      }
-     // Derive the shared extent from the actual saved GeoJSON, not the stale
-     // project bounds. If restored layers are empty/invisible, add a visible
-     // read-only fallback layer from the exact server payload.
+     // Render from the API payload independently of restoreProject. This is the
+     // critical fallback: a stale extent or other restore-only validation issue
+     // must not suppress otherwise valid saved geometries.
      try{
        const contentBounds=L.latLngBounds([]);
        let renderedFeatureCount=0;
@@ -9183,7 +9188,7 @@ const arcMapDialog=(()=>{
      document.title=(p.name||"Shared map")+" — Sabz Royan GIS";
      document.querySelectorAll("#shareProjectBtn,#saveProjectIcon,#openProjectBtn,#newMapBtn,#startEditingBtn,#stopEditingBtn,#deleteBtn").forEach(el=>{if(el)el.disabled=true;});
      document.body.classList.add("shared-project-readonly");
-     bridge.status("Shared map opened in read-only mode. Sign-in is not required.");
+     bridge.status("Shared map opened in read-only mode. Sign-in is not required."+(restoreWarning?" (GeoJSON fallback used; "+restoreWarning+")":""));
    }catch(error){bridge.status("Unable to open shared map: "+(error.message||"link unavailable"));}
  }
  if(query.has("share")){if(shareButton)shareButton.hidden=true;loadSharedProject();}
