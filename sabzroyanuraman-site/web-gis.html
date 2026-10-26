@@ -9085,7 +9085,14 @@ const arcMapDialog=(()=>{
    if(!/^[a-f0-9]{64}$/.test(token)){status("Shared project link is invalid.");return;}
    try{
      const result=await readJson(await fetch("/api/gis/share.php?token="+encodeURIComponent(token),{credentials:"omit",cache:"no-store",headers:{Accept:"application/json"}}));
-     if(!result.project||!result.project.project_data||typeof restoreProject!=="function"||!restoreProject(result.project.project_data))throw new Error("shared_project_restore_failed");
+     if(!result.project||!result.project.project_data||typeof restoreProject!=="function")throw new Error("shared_project_data_missing");
+     let sharedData=result.project.project_data;
+     if(typeof sharedData==="string")sharedData=JSON.parse(sharedData);
+     if(!sharedData||typeof sharedData!=="object")throw new Error("shared_project_data_invalid");
+     sharedData.drawn=Array.isArray(sharedData.drawn)?sharedData.drawn:[];
+     sharedData.layers=Array.isArray(sharedData.layers)?sharedData.layers:[];
+     sharedData.integrity={drawnCount:sharedData.drawn.length,layerCount:sharedData.layers.length,featureCount:sharedData.drawn.length+sharedData.layers.reduce((n,item)=>n+(Array.isArray(item?.features)?item.features.length:0),0)};
+     if(!restoreProject(sharedData))throw new Error("shared_project_restore_failed");
      // A saved map extent can be stale or much wider than its features. For shared
      // read-only links, fit the visible vector content so recipients immediately see it.
      try{
@@ -9096,7 +9103,15 @@ const arcMapDialog=(()=>{
            const b=item.layer.getBounds();if(b&&b.isValid())contentBounds.extend(b);
          }
        });
+       if(!contentBounds.isValid()){
+         sharedData.layers.forEach(item=>{
+           if(!Array.isArray(item?.features)||!item.features.length)return;
+           const rawLayer=L.geoJSON({type:"FeatureCollection",features:item.features});
+           const b=rawLayer.getBounds();if(b&&b.isValid())contentBounds.extend(b);
+         });
+       }
        if(contentBounds.isValid())map.fitBounds(contentBounds,{padding:[28,28],maxZoom:17,animate:false});
+       else if(!sharedData.drawn.length&&!sharedData.layers.some(item=>Array.isArray(item?.features)&&item.features.length))status("Shared project opened, but it contains no saved features.");
      }catch(fitError){console.warn("Shared map extent fallback skipped:",fitError);}
      const p=result.project;
      if(document.getElementById("projectName"))document.getElementById("projectName").value=p.name||"Shared map";
