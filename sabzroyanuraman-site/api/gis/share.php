@@ -41,7 +41,7 @@ try{
     $q=$pdo->prepare("UPDATE public.gis_projects SET share_token=:t,share_enabled=true,updated_at=now() WHERE id=:id AND organization_id=:o AND status='active' RETURNING id");
     $q->execute(['t'=>$token,'id'=>$id,'o'=>$org]);
     if(!$q->fetch())gis_auth_json(404,['ok'=>false,'error'=>'project_not_found']);
-    $url='https://server.sabzroyanuraman.com/web-gis.html?share='.$token;
+    $url='https://sabzroyanuraman.com/web-gis.html?share='.$token;
     gis_auth_json(200,['ok'=>true,'token'=>$token,'url'=>$url]);
   }
   $q=$pdo->prepare("UPDATE public.gis_projects SET share_enabled=false,share_token=NULL,updated_at=now() WHERE id=:id AND organization_id=:o AND status='active' RETURNING id");
