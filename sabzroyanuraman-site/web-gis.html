@@ -8815,7 +8815,7 @@ const arcMapDialog=(()=>{
    if(control.tagName==="SELECT"){
     (field.options||[]).forEach(item=>{const opt=document.createElement("option");opt.value=String(item.value);opt.textContent=item.label;control.append(opt)});
     control.value=String(initial??field.options?.[0]?.value??"");
-   }else{control.type=field.type==="number"?"number":"text";control.value=String(initial??"");control.autocomplete="off";}
+   }else{control.type=["text","password","number","email"].includes(field.type)?field.type:"text";control.value=String(initial??"");control.autocomplete=field.type==="password"?"current-password":"off";}
    if(field.required)control.required=true;
    wrap.append(control);controls[field.name]=control;return {wrap,control};
   };
@@ -8969,6 +8969,7 @@ const arcMapDialog=(()=>{
       save.textContent="ارسال شد";
       setTimeout(()=>window.close(),500);
     }catch(error){console.error("Property location handoff failed",error);fail("انتقال انجام نشد: "+(error?.message||error));}
+    finally{if(save.textContent!=="ارسال شد")save.disabled=false;}
   });
   window.addEventListener("load",()=>{
     setTimeout(async()=>{
