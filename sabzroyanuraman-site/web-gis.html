@@ -1315,6 +1315,7 @@ function refreshEditorTargets(){
   editTarget=sel.value==="drawn"?drawn:(namedLayers[Number(sel.value)]?.layer||drawn);
 }
 function startEditing(item=null){
+  if(window.__sharedProjectReadOnly){status("This shared map is read-only.");return}
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("changing the edit target"))return;
   if(item&&item.layer!==drawn&&!isVectorLayer(item.layer)){status("This layer cannot be edited.");return}
   const sel=$("editTargetLayer");
@@ -1452,6 +1453,7 @@ function syncLiveVertexEditsForSave(){
   return true;
 }
 async function saveEdits(){
+  if(window.__sharedProjectReadOnly){status("This shared map is read-only.");return false}
   if(!syncLiveVertexEditsForSave())return false;
   if(!editSessionActive){status("No edit session is active.");return false}
   if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){
@@ -2104,6 +2106,7 @@ function createMapViewer(){
  async function readJson(response){let data={};try{data=await response.json()}catch(_){}if(!response.ok||data.ok===false)throw new Error(data.error||("HTTP "+response.status));return data;}
  async function loadSharedProject(){
    const token=query.get("share");if(!token)return;
+   window.__sharedProjectReadOnly=true;
    if(!/^[a-f0-9]{64}$/.test(token)){status("Shared project link is invalid.");return;}
    try{
      const result=await readJson(await fetch("/api/gis/share.php?token="+encodeURIComponent(token),{credentials:"omit",cache:"no-store",headers:{Accept:"application/json"}}));
@@ -4876,6 +4879,7 @@ function restoreProject(project,fromHistory=false){
   return true;
 }
 async function saveProject(){
+  if(window.__sharedProjectReadOnly){status("This shared map is read-only.");return}
   if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before saving the project; pending cell values are not included yet.");return}
   try{
     const project=serializeProject();project.id=projectId();project.updatedAt=new Date().toISOString();
@@ -7574,6 +7578,7 @@ function countGeometryVertices(g){
   return walk(g.coordinates);
 }
 function runGisTool(tool){
+ if(window.__sharedProjectReadOnly){status("Geoprocessing is disabled for read-only shared maps.");return;}
  if(!tool||typeof tool!=="object"){status("Invalid toolbox command.");return;}
  if(tool.id==="geometrySelfTest"){runGeometryRegressionTests();return;}
  if(tool.id==="modelBuilder"){openModelBuilder();return;}
