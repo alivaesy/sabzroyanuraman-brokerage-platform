@@ -9080,8 +9080,8 @@ const arcMapDialog=(()=>{
      if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(url);status("لینک اشتراک‌گذاری ساخته و کپی شد: "+url);}
      else{await arcMapDialog.prompt({title:"Shared map link",message:"این لینک را برای مشاهده نقشه ارسال کنید.",label:"Link",value:url});status("لینک اشتراک‌گذاری ساخته شد.");}
    }catch(error){status("ساخت لینک انجام نشد: "+(error.message||"خطای سرور")+"؛ بررسی کنید migration اشتراک‌گذاری روی دیتابیس اجرا شده باشد.");}
- })
- if(shareButton)shareButton.addEventListener("click",()=>window.__shareCurrentProject());;
+};
+ if(shareButton)shareButton.addEventListener("click",()=>window.__shareCurrentProject());
  if(query.has("share")){if(shareButton)shareButton.hidden=true;loadSharedProject();}
 })();
 </script>
