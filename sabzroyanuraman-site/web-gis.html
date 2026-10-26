@@ -8422,19 +8422,26 @@ function runModelBuilder(modal){
         }
         }
         if(!feature?.geometry)throw new Error("عارضه انتخاب‌شده هندسه ندارد.");
-        pendingFeature=feature;
         const geometry=feature.geometry;
-        let ring=null;
-        if(geometry.type==="Polygon")ring=geometry.coordinates?.[0];
-        else if(geometry.type==="MultiPolygon"){
+        let vertices=null;
+        if(geometry.type==="Polygon"){
+          vertices=geometry.coordinates?.[0]?.slice();
+          if(vertices?.length){const first=vertices[0],last=vertices[vertices.length-1];if(first&&last&&first[0]===last[0]&&first[1]===last[1])vertices.pop();}
+        }else if(geometry.type==="MultiPolygon"){
           const rings=(geometry.coordinates||[]).map(poly=>poly?.[0]).filter(r=>Array.isArray(r)&&r.length>=3);
-          if(rings.length!==1)throw new Error("برای نمایش نقاط شکست، محدوده باید یک چندضلعی پیوسته باشد.");
-          ring=rings[0];
+          if(rings.length!==1)throw new Error("برای نمایش نقاط شکست، یک چندضلعی یا یک خط مرزی انتخاب کن.");
+          vertices=rings[0].slice();
+          const first=vertices[0],last=vertices[vertices.length-1];
+          if(first&&last&&first[0]===last[0]&&first[1]===last[1])vertices.pop();
+        }else if(geometry.type==="LineString"){
+          vertices=geometry.coordinates?.slice();
+        }else if(geometry.type==="MultiLineString"){
+          const lines=(geometry.coordinates||[]).filter(line=>Array.isArray(line)&&line.length>=2);
+          if(lines.length!==1)throw new Error("برای نمایش نقاط شکست، یک خط مرزی پیوسته انتخاب کن.");
+          vertices=lines[0].slice();
         }
-        if(!Array.isArray(ring)||ring.length<4)throw new Error("هندسه انتخاب‌شده چندضلعی معتبر ندارد.");
-        const vertices=ring.slice();
-        const first=vertices[0],last=vertices[vertices.length-1];
-        if(first&&last&&first[0]===last[0]&&first[1]===last[1])vertices.pop();
+        if(!Array.isArray(vertices)||vertices.length<2)throw new Error("عارضه انتخاب‌شده رأس قابل نمایش ندارد؛ یک چندضلعی یا خط مرزی ترسیم‌شده انتخاب کن.");
+        pendingFeature=feature;
         const rows=vertices.map((coord,index)=>{
           const xy=projectCoords("EPSG:4326",getCRS(),[Number(coord[0]),Number(coord[1])]);
           if(!xy.every(Number.isFinite))throw new Error("تبدیل مختصات رأس "+(index+1)+" ناموفق بود.");
