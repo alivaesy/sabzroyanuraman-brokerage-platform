@@ -9089,10 +9089,23 @@ const arcMapDialog=(()=>{
      let sharedData=result.project.project_data;
      if(typeof sharedData==="string")sharedData=JSON.parse(sharedData);
      if(!sharedData||typeof sharedData!=="object")throw new Error("shared_project_data_invalid");
+     // Older server saves may omit the client-side version/envelope fields. Normalize
+     // only the shared copy, never the stored project, before passing it to restoreProject.
+     if(![1,2,3].includes(Number(sharedData.version)))sharedData.version=3;
      sharedData.drawn=Array.isArray(sharedData.drawn)?sharedData.drawn:[];
      sharedData.layers=Array.isArray(sharedData.layers)?sharedData.layers:[];
-     sharedData.integrity={drawnCount:sharedData.drawn.length,layerCount:sharedData.layers.length,featureCount:sharedData.drawn.length+sharedData.layers.reduce((n,item)=>n+(Array.isArray(item?.features)?item.features.length:0),0)};
-     if(!restoreProject(sharedData))throw new Error("shared_project_restore_failed");
+     sharedData.layers=sharedData.layers.filter(item=>item&&typeof item==="object").map(item=>({
+       ...item,
+       features:Array.isArray(item.features)?item.features.filter(feature=>feature&&feature.type==="Feature"):[]
+     }));
+     if(!Array.isArray(sharedData.selected))sharedData.selected=[];
+     if(!Array.isArray(sharedData.drawnStyles))sharedData.drawnStyles=[];
+     sharedData.integrity={drawnCount:sharedData.drawn.length,layerCount:sharedData.layers.length,featureCount:sharedData.drawn.length+sharedData.layers.reduce((n,item)=>n+item.features.length,0)};
+     const sharedFeatureCount=sharedData.drawn.length+sharedData.layers.reduce((n,item)=>n+item.features.length,0);
+     if(!restoreProject(sharedData)){
+       // Preserve a readable diagnostic instead of silently leaving a blank map.
+       throw new Error("shared_project_restore_failed: version="+sharedData.version+", layers="+sharedData.layers.length+", features="+sharedFeatureCount);
+     }
      // A saved map extent can be stale or much wider than its features. For shared
      // read-only links, fit the visible vector content so recipients immediately see it.
      try{
