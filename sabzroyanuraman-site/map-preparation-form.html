@@ -147,6 +147,7 @@
                                 <button class="btn btn-green" type="button" id="openPropertyWebGIS">Draw on Web GIS and Sign In</button>
                             </div>
                             <div class="map-foot">For precise mapping, open Web GIS, sign in, draw the boundary, and save it to your GIS account. Then click “Save and Return to Form” to transfer the geometry and coordinates here.</div>
+                            <div id="propertyVertexTableWrap" style="display:none;margin:10px 12px;max-height:260px;overflow:auto"></div>
                         </div>
                         <div class="form-grid" style="margin-top:12px">
                             <div class="field"><label class="required" for="latitude">عرض جغرافیایی</label><input id="latitude" data-bind="map.latitude" inputmode="decimal" required></div>
@@ -527,6 +528,34 @@
                 if (bounds && bounds.isValid()) map.fitBounds(bounds,{padding:[20,20],maxZoom:18});
             } catch (error) { console.warn("Could not render imported property geometry",error); }
         }
+        function renderPropertyVertexTable(vertices, coordinateSystem) {
+            const host = document.getElementById("propertyVertexTableWrap");
+            if (!host) return;
+            host.replaceChildren();
+            if (!Array.isArray(vertices) || !vertices.length) { host.style.display="none"; return; }
+            const title=document.createElement("div");
+            title.style.cssText="font-weight:700;margin:6px 0";
+            title.textContent="مختصات نقاط شکست ملک"+(coordinateSystem ? " ("+coordinateSystem+")" : "");
+            const table=document.createElement("table");
+            table.style.cssText="width:100%;border-collapse:collapse;font-size:13px;text-align:center";
+            table.innerHTML="<thead><tr><th style='padding:6px;border:1px solid #ddd'>شماره رأس</th><th style='padding:6px;border:1px solid #ddd'>X</th><th style='padding:6px;border:1px solid #ddd'>Y</th></tr></thead>";
+            const tbody=document.createElement("tbody");
+            vertices.forEach((v,index)=>{
+                const x=Number(v?.x), y=Number(v?.y);
+                if(!Number.isFinite(x)||!Number.isFinite(y)) return;
+                const tr=document.createElement("tr");
+                [Number(v.vertex)||index+1,x.toFixed(3),y.toFixed(3)].forEach(value=>{
+                    const td=document.createElement("td");
+                    td.style.cssText="padding:5px;border:1px solid #ddd";
+                    td.textContent=String(value);
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            host.append(title,table);
+            host.style.display=tbody.children.length ? "block" : "none";
+        }
         function initMap() {
             if (!window.L || map || !document.getElementById("propertyMap")) return;
             const savedLat = parseFloat(getPath(draft?.data || {}, "map.latitude"));
@@ -539,6 +568,7 @@
                 document.getElementById("coordinates").textContent = savedLat.toFixed(6) + " , " + savedLng.toFixed(6);
             }
             if (draft?.data?.map?.geometry) renderPropertyGeometry(draft.data.map.geometry);
+            renderPropertyVertexTable(draft?.data?.map?.vertices,draft?.data?.map?.coordinateSystem);
             map.on("click", event => { if (propertyGeometryLayer) { map.removeLayer(propertyGeometryLayer); propertyGeometryLayer=null; setPath(draft.data,"map.geometry",null); } setMarker(event.latlng.lat,event.latlng.lng); });
             setTimeout(() => map.invalidateSize(), 120);
         }
@@ -660,6 +690,10 @@
             if(!Number.isFinite(lat)||lat < -90||lat > 90||!Number.isFinite(lng)||lng < -180||lng > 180)return;
             if(!draft)return;
             setPath(draft.data,"map.geometry",data.feature.geometry);
+            const vertices=Array.isArray(data.vertices) ? data.vertices.filter(v=>Number.isFinite(Number(v?.x))&&Number.isFinite(Number(v?.y))).map(v=>({vertex:Number(v.vertex),x:Number(v.x),y:Number(v.y)})) : [];
+            setPath(draft.data,"map.vertices",vertices);
+            setPath(draft.data,"map.coordinateSystem",typeof data.coordinateSystem==="string" ? data.coordinateSystem : "");
+            renderPropertyVertexTable(vertices,data.coordinateSystem);
             setMarker(lat,lng);
             renderPropertyGeometry(data.feature.geometry);
             if(map){const bounds=propertyGeometryLayer?.getBounds?.();if(bounds?.isValid())map.fitBounds(bounds,{padding:[20,20],maxZoom:18});}
