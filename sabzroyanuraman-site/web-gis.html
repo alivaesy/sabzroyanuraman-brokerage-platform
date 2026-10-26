@@ -1139,7 +1139,7 @@ window.__sabzWebGISSharedBridge={
   get namedLayers(){return window.__sabzGISNamedLayers||[];},
   get drawn(){return window.__sabzGISDrawn||null;},
   restoreProject,
-  status
+  status:message=>{try{status(message);}catch(error){const node=document.getElementById("status");if(node)node.textContent=String(message??"");console.error("WebGIS status reporting failed:",error);}}
 };
 window.__sabzWebGISCoreError=null;
 window.addEventListener("error",event=>{if(!window.__sabzGISMap)window.__sabzWebGISCoreError=event.message||"WebGIS startup error";});
