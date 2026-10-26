@@ -144,3 +144,9 @@ At the end of each meaningful batch, update this file with the verified date, co
 - The property-location form opens `web-gis.html?propertyHandoff=1` in a separate window. In this mode Web GIS immediately presents the existing **GIS Online Login** dialog; ordinary Web GIS visits are unchanged.
 - After drawing, the user can select the property feature and click **ذخیره در حساب GIS و بازگشت به فرم**. The handoff requires an authenticated GIS organization, saves the serialized project through the existing server API, then sends the selected GeoJSON feature and representative coordinates to the opener with same-origin `postMessage`. The form validates the origin, source window, message type/version, and coordinate ranges, saves the location in its existing draft, and displays the geometry on its Leaflet map.
 - This is code-level implementation only; no live browser, server, or end-to-end login/save test was run in this session. Follow-up: run the full flow in the deployed site, verify popup permissions, organization selection, remote save success, form draft restoration, and polygon rendering. Do not treat a successful postMessage as proof of server persistence; the UI waits for the GIS save API to return first.
+
+
+### Handoff implementation read-back (2026-10-26)
+- Commits on `master`: form integration `2fd7f865c96ab0c33fa2d49df7bd48997573bc36`; Web GIS handoff `7f99c0f63a1b2a3cb7cea73dd58851e1913e2709`; password masking/cancel recovery `2f520424ba551b9b60655c033d6a7a18d1003ae7`; this context update follows.
+- GitHub read-back confirmed the latest file contents. Static checks passed for all seven targeted handoff assertions. JavaScript syntax compilation passed for the form's 1 inline script and Web GIS's 12 inline scripts.
+- Syntax compilation does not execute code. Browser UI, popup handling, login, server-side project persistence, geometry transfer, and draft restoration remain untested end-to-end.
