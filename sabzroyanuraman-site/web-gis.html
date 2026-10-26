@@ -8420,6 +8420,7 @@ function runModelBuilder(modal){
           if(choice===null||choice===undefined)return;
           feature=all[Number(choice)];
         }
+        }
         if(!feature?.geometry)throw new Error("عارضه انتخاب‌شده هندسه ندارد.");
         pendingFeature=feature;
         const geometry=feature.geometry;
