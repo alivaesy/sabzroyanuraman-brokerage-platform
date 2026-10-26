@@ -1,0 +1,63 @@
+name: Scheduled Google Drive repository backup
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 2 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: google-drive-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Create a full Git mirror
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          git clone --mirror "https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git" repository.git
+          ARCHIVE="sabzroyanuraman-$(date -u +%Y-%m-%dT%H-%M-%SZ).tar.gz"
+          tar -czf "$ARCHIVE" repository.git
+          echo "BACKUP_ARCHIVE=$ARCHIVE" >> "$GITHUB_ENV"
+
+      - name: Upload archive to Google Drive
+        env:
+          GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+          BACKUP_ARCHIVE: ${{ env.BACKUP_ARCHIVE }}
+        run: |
+          set -euo pipefail
+          test -n "$GDRIVE_SERVICE_ACCOUNT_JSON" || { echo "Missing GDRIVE_SERVICE_ACCOUNT_JSON secret"; exit 1; }
+          test -n "$GDRIVE_FOLDER_ID" || { echo "Missing GDRIVE_FOLDER_ID secret"; exit 1; }
+          python -m pip install --disable-pip-version-check google-api-python-client google-auth
+          python - <<'PY'
+          import json, os
+          from google.oauth2 import service_account
+          from googleapiclient.discovery import build
+          from googleapiclient.http import MediaFileUpload
+
+          credentials = service_account.Credentials.from_service_account_info(
+              json.loads(os.environ["GDRIVE_SERVICE_ACCOUNT_JSON"]),
+              scopes=["https://www.googleapis.com/auth/drive"]
+          )
+          drive = build("drive", "v3", credentials=credentials, cache_discovery=False)
+          metadata = {
+              "name": os.environ["BACKUP_ARCHIVE"],
+              "parents": [os.environ["GDRIVE_FOLDER_ID"]],
+              "description": "Automated full Git mirror of alivaesy/sabzroyanuraman-brokerage-platform"
+          }
+          result = drive.files().create(
+              body=metadata,
+              media_body=MediaFileUpload(os.environ["BACKUP_ARCHIVE"], mimetype="application/gzip", resumable=True),
+              fields="id,name,size"
+          ).execute()
+          print("Uploaded backup:", result.get("name"), "size:", result.get("size"), "bytes")
+          PY
