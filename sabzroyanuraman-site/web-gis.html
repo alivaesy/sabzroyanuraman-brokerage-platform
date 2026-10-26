@@ -8377,8 +8377,8 @@ function runModelBuilder(modal){
     style.textContent="#propertyHandoffPanel{position:fixed;z-index:10050;top:8px;left:50%;transform:translateX(-50%);width:min(720px,calc(100% - 24px));padding:10px 14px;border:1px solid #9bc8b2;border-radius:10px;background:#f0fbf4;color:#164b35;box-shadow:0 5px 22px #0002;display:flex;align-items:center;justify-content:space-between;gap:12px;font:14px/1.6 Tahoma,sans-serif}#propertyHandoffPanel button{border:0;border-radius:7px;padding:9px 13px;background:#087653;color:#fff;font-weight:700;cursor:pointer;white-space:nowrap}#propertyHandoffPanel button:disabled{opacity:.55;cursor:wait}@media(max-width:560px){#propertyHandoffPanel{align-items:stretch;flex-direction:column}#propertyHandoffPanel button{white-space:normal}}";
     document.head.appendChild(style);
     const panel=document.createElement("section");panel.id="propertyHandoffPanel";
-    const note=document.createElement("div");note.textContent="حالت تعیین موقعیت ملک: در Web GIS ترسیم کن، سپس ذخیره و بازگشت را بزن.";
-    const save=document.createElement("button");save.type="button";save.textContent="ذخیره در حساب GIS و بازگشت به فرم";
+    const note=document.createElement("div");note.textContent="Property location mode: Draw the property in Web GIS, then save and return to the form.";
+    const save=document.createElement("button");save.type="button";save.textContent="Save to GIS Account and Return to Form";
     panel.append(note,save);document.body.appendChild(panel);
     function fail(message){note.textContent=message;save.disabled=false;}
     function featureLabel(feature,index){
@@ -8436,7 +8436,7 @@ function runModelBuilder(modal){
         try{
           if(!remoteGisUser)await remoteGisLogin();
           if(!remoteGisUser)fail("برای ادامه وارد حساب GIS شو.");
-          else note.textContent="وارد حساب GIS شدی؛ ملک را ترسیم و سپس ذخیره و بازگشت را بزن.";
+          else note.textContent="You are signed in to your GIS account. Draw the property, then save and return to the form.";
         }catch(error){console.error("Property GIS login failed",error);fail("ورود به حساب GIS ناموفق بود: "+(error?.message||error));}
       },250);
     },{once:true});
