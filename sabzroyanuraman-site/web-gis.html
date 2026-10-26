@@ -8379,7 +8379,7 @@ function runModelBuilder(modal){
     const panel=document.createElement("section");panel.id="propertyHandoffPanel";
     const note=document.createElement("div");note.textContent="Location mode: Draw the boundary in Web GIS, then save and return to the form.";
     const verticesWrap=document.createElement("div");verticesWrap.id="propertyVerticesWrap";
-    const save=document.createElement("button");save.type="button";save.textContent="نمایش نقاط شکست";
+    const save=document.createElement("button");save.type="button";save.textContent="Show Vertex Coordinates";
     panel.append(note,verticesWrap,save);document.body.appendChild(panel);
     let pendingFeature=null,vertexPreviewReady=false;
     function fail(message){note.textContent=message;save.disabled=false;}
@@ -8392,7 +8392,7 @@ function runModelBuilder(modal){
         try{const p=typeof turf.pointOnFeature==="function"?turf.pointOnFeature(feature):turf.centroid(feature);if(p?.geometry?.coordinates)return {longitude:Number(p.geometry.coordinates[0]),latitude:Number(p.geometry.coordinates[1])}}catch(_){}
       }
       const bounds=L.geoJSON(feature).getBounds();
-      if(!bounds||!bounds.isValid())throw new Error("برای عارضه مختصات قابل استفاده پیدا نشد.");
+      if(!bounds||!bounds.isValid())throw new Error("No usable coordinates were found for this feature.");
       const p=bounds.getCenter();return {latitude:p.lat,longitude:p.lng};
     }
     save.addEventListener("click",async()=>{
@@ -8429,7 +8429,7 @@ function runModelBuilder(modal){
           if(vertices?.length){const first=vertices[0],last=vertices[vertices.length-1];if(first&&last&&first[0]===last[0]&&first[1]===last[1])vertices.pop();}
         }else if(geometry.type==="MultiPolygon"){
           const rings=(geometry.coordinates||[]).map(poly=>poly?.[0]).filter(r=>Array.isArray(r)&&r.length>=3);
-          if(rings.length!==1)throw new Error("برای نمایش نقاط شکست، یک چندضلعی یا یک خط مرزی انتخاب کن.");
+          if(rings.length!==1)throw new Error("برای Show Vertex Coordinates، یک چندضلعی یا یک خط مرزی انتخاب کن.");
           vertices=rings[0].slice();
           const first=vertices[0],last=vertices[vertices.length-1];
           if(first&&last&&first[0]===last[0]&&first[1]===last[1])vertices.pop();
@@ -8437,21 +8437,21 @@ function runModelBuilder(modal){
           vertices=geometry.coordinates?.slice();
         }else if(geometry.type==="MultiLineString"){
           const lines=(geometry.coordinates||[]).filter(line=>Array.isArray(line)&&line.length>=2);
-          if(lines.length!==1)throw new Error("برای نمایش نقاط شکست، یک خط مرزی پیوسته انتخاب کن.");
+          if(lines.length!==1)throw new Error("برای Show Vertex Coordinates، یک خط مرزی پیوسته انتخاب کن.");
           vertices=lines[0].slice();
         }
         if(!Array.isArray(vertices)||vertices.length<2)throw new Error("عارضه انتخاب‌شده رأس قابل نمایش ندارد؛ یک چندضلعی یا خط مرزی ترسیم‌شده انتخاب کن.");
         pendingFeature=feature;
         const vertexCoordinates=vertices.map((coord,index)=>{
           const xy=projectCoords("EPSG:4326",getCRS(),[Number(coord[0]),Number(coord[1])]);
-          if(!xy.every(Number.isFinite))throw new Error("تبدیل مختصات رأس "+(index+1)+" ناموفق بود.");
+          if(!xy.every(Number.isFinite))throw new Error("Could not transform vertex coordinates for vertex "+(index+1)+" ناموفق بود.");
           return {vertex:index+1,x:xy[0],y:xy[1]};
         });
         const rows=vertexCoordinates.map(v=>"<tr><td>"+v.vertex+"</td><td>"+v.x.toFixed(3)+"</td><td>"+v.y.toFixed(3)+"</td></tr>");
         if(!vertexPreviewReady){
           verticesWrap.innerHTML="<div><strong>نقاط شکست ملک</strong> <span>("+getCRS()+")</span></div><div style=\"max-height:220px;overflow:auto\"><table id=\"propertyVertexTable\"><thead><tr><th>شماره رأس</th><th>X</th><th>Y</th></tr></thead><tbody>"+rows.join("")+"</tbody></table></div>";
-          vertexPreviewReady=true;save.textContent="ذخیره نهایی و بازگشت به فرم";
-          note.textContent="مختصات به ترتیب ترسیم نمایش داده شده‌اند؛ برای انتقال نهایی، ذخیره را بزن.";
+          vertexPreviewReady=true;save.textContent="Save and Return to Form";
+          note.textContent="Coordinates are listed in drawing order. Click Save to complete the transfer.";
           return;
         }
         const project=serializeProject();
@@ -8459,19 +8459,19 @@ function runModelBuilder(modal){
         const saved=await remoteGisSaveProject(project);
         if(!saved)throw new Error("ذخیره پروژه در حساب GIS انجام نشد.");
         const point=getFeaturePoint(feature);
-        if(!Number.isFinite(point.latitude)||!Number.isFinite(point.longitude)||Math.abs(point.latitude)>90||Math.abs(point.longitude)>180)throw new Error("مختصات عارضه معتبر نیست.");
+        if(!Number.isFinite(point.latitude)||!Number.isFinite(point.longitude)||Math.abs(point.latitude)>90||Math.abs(point.longitude)>180)throw new Error("The feature coordinates are invalid.");
         window.opener.postMessage({type:"sabzroyan:property-location",version:1,latitude:point.latitude,longitude:point.longitude,feature:feature,vertices:vertexCoordinates,coordinateSystem:getCRS(),projectId:saved.project_id||null},window.location.origin);
         note.textContent="پروژه ذخیره شد و محدوده به فرم منتقل شد.";
         save.textContent="ارسال شد";
         setTimeout(()=>window.close(),500);
-      }catch(error){console.error("Property location handoff failed",error);fail("انتقال انجام نشد: "+(error?.message||error));}
+      }catch(error){console.error("Property location handoff failed",error);fail("Transfer failed: "+(error?.message||error));}
       finally{if(save.textContent!=="ارسال شد")save.disabled=false;}
     });
     window.addEventListener("load",()=>{
       setTimeout(async()=>{
         try{
           if(!remoteGisUser)await remoteGisLogin();
-          if(!remoteGisUser)fail("برای ادامه وارد حساب GIS شو.");
+          if(!remoteGisUser)fail("Sign in to your GIS account to continue.");
           else note.textContent="Draw";
         }catch(error){console.error("Property GIS login failed",error);fail("ورود به حساب GIS ناموفق بود: "+(error?.message||error));}
       },250);
