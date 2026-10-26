@@ -150,3 +150,9 @@ At the end of each meaningful batch, update this file with the verified date, co
 - Commits on `master`: form integration `2fd7f865c96ab0c33fa2d49df7bd48997573bc36`; Web GIS handoff `7f99c0f63a1b2a3cb7cea73dd58851e1913e2709`; password masking/cancel recovery `2f520424ba551b9b60655c033d6a7a18d1003ae7`; this context update follows.
 - GitHub read-back confirmed the latest file contents. Static checks passed for all seven targeted handoff assertions. JavaScript syntax compilation passed for the form's 1 inline script and Web GIS's 12 inline scripts.
 - Syntax compilation does not execute code. Browser UI, popup handling, login, server-side project persistence, geometry transfer, and draft restoration remain untested end-to-end.
+
+
+### Property GIS login scope fix (2026-10-26)
+- User reported `remoteGisUser is not defined` and no GIS Online Login dialog. Root cause: the handoff code was in a separate script block and could not access the main Web GIS script's lexical `let` state or `remoteGisLogin()`.
+- Fixed in commit `5868f001592c65fbdbda7df2571d613432a2fadf`: moved the handoff logic into the existing main GIS script scope so it can call the real login dialog, organization selector, and save API.
+- Re-read master after commit. Static validation passed: all 11 inline JavaScript blocks compile, the handoff and auth state are now in the same script scope, and the `GIS Online Login` dialog remains present. Browser end-to-end verification is still required.
