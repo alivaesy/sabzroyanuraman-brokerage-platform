@@ -166,6 +166,15 @@ At the end of each meaningful batch, update this file with the verified date, co
 - Static regression test added in `tests/web-gis-static.test.cjs`. The test suite and browser workflow have not yet been executed in this turn; do not report them as passing.
 
 
+## File Geodatabase vs. MXD settings — 2026-10-27
+
+- A File Geodatabase (.gdb) primarily contains feature classes, geometries, attributes, and related geodatabase schema. It does **not** generally contain the ArcMap map's complete layer symbology, label placement/fonts, layer order/grouping, bookmarks, or page layout. Those are primarily stored in the MXD/MXT map document (with some styling possibly embedded in source data or layer files).
+- The web importer must not claim a faithful MXD import when it only converts GDB feature classes to GeoJSON. Full fidelity needs an ArcMap/ArcObjects-compatible extraction step that exports a manifest for layer sources, renderer classes/symbols, label expressions and placement, fonts, visibility/order/groups, coordinate systems, bookmarks, and layout, plus accessible data/assets.
+- Recent master fix: GDB import reports the number of datasets, imported layers/features, empty classes, and failed classes instead of silently swallowing per-layer failures. It does not yet fix GDAL's possible inability to preserve the selected .gdb directory structure in the browser; runtime testing with the user's actual GDB is still required.
+- Automatic labels based merely on fields like name, title, or کد were disabled because they are not proof that ArcMap configured those fields as labels and caused visual clutter. Labels should be restored from explicit MXD metadata or configured in Layer Properties.
+- Removed a global vector-effect: non-scaling-stroke rule so Leaflet's normal zoom-aware vector rendering applies. Vector geometry coordinates remain unchanged; display symbol width is a renderer setting, not a change to the geometry.
+- Commit: 6aa6f37cabb9359d949fb3a7a86ae82d1340d658. Inline JavaScript syntax check passed (12 inline scripts, 0 syntax errors); no live browser/GDB runtime test was performed.
+
 ## MXD reconstruction priorities confirmed by user — 2026-10-27
 - Treat the MXD as the map-document definition and expect most spatial data to live in referenced File Geodatabases (`.gdb`), not inside the MXD. Preserve/resolve data-source paths and enumerate feature datasets/classes where possible; do not silently claim that importing an MXD imports its underlying geodatabase.
 - Required reconstruction targets: Persian fonts and correct RTL/text shaping; label expressions and placement; full feasible symbology including point markers, line/fill symbols, colors, sizes, transparency, and custom symbol dependencies; map bookmarks (extent/scale); layer order/groups/visibility; coordinate systems; and layout elements (legend, title, north arrow, scale bar, map frames and print settings).
