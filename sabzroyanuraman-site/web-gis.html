@@ -4657,10 +4657,15 @@ async function importGDBFiles(fileList){
         try{info=await Gdal.getInfo(ds)}catch(infoErr){report.layerErrors.push("Dataset "+(i+1)+" metadata: "+(infoErr?.message||String(infoErr)))}
         let ogrDetails=null;
         try{ogrDetails=await Gdal.ogrinfo(ds,["-al","-so"])}catch(infoErr){report.layerErrors.push("Dataset "+(i+1)+" CRS/schema details: "+(infoErr?.message||String(infoErr)))}
+        if(ds?.type==="raster"||info?.type==="raster"){
+          report.unsupported.push((info?.dsName||ds?.path||("Dataset "+(i+1)))+": raster dataset detected; raster conversion is not yet implemented.");
+          continue;
+        }
         const sourceLayers=Array.isArray(info?.layers)&&info.layers.length?info.layers:[{name:ds?.info?.name||ds?.info?.layerName||("FeatureClass_"+(i+1)),featureCount:info?.featureCount}];
         for(let li=0;li<sourceLayers.length;li++){
           const sourceLayer=sourceLayers[li];
           const layerName=String(sourceLayer?.name||("FeatureClass_"+(i+1)+"_"+(li+1)));
+          const detailedLayer=(Array.isArray(ogrDetails?.layers)?ogrDetails.layers:[]).find(x=>String(x.name)===layerName)||{};
           try{
             const options=["-f","GeoJSON","-t_srs","EPSG:4326"];
             // A FileGDB is commonly one GDAL dataset containing many feature classes.
@@ -4676,7 +4681,19 @@ async function importGDBFiles(fileList){
               report.failedLayers++;report.layerErrors.push(layerName+": output was not a GeoJSON FeatureCollection.");continue;
             }
             if(!fc.features.length){
-              report.emptyLayers++;report.layerErrors.push(layerName+": empty feature class (0 records).");continue;
+              report.emptyLayers++;
+              // Keep empty feature classes visible in the catalog and retain schema metadata.
+              const emptyLayer=L.geoJSON({type:"FeatureCollection",features:[]});
+              addNamedLayer(layerName,emptyLayer,false);
+              const emptyItem=namedLayers.find(x=>x.layer===emptyLayer);
+              const emptyFields=Array.isArray(detailedLayer.fields)?detailedLayer.fields:[];
+              emptyLayer._gdbMetadata={workspace:root,featureClass:layerName,driver:info?.driverName||"OpenFileGDB",
+                sourceFeatureCount:sourceLayer?.featureCount??0,displayCRS:"EPSG:4326",
+                fields:emptyFields.map(f=>typeof f==="string"?f:f?.name).filter(Boolean),
+                fieldDefinitions:emptyFields,sourceDatasetInfo:info||null,sourceSchemaAndCRS:ogrDetails||null};
+              if(emptyItem)emptyItem.sourceName=root+"/"+layerName;
+              report.layerErrors.push(layerName+": empty feature class (0 records); schema retained in layer metadata.");
+              continue;
             }
             const displayLayer=geoJsonLayer(fc,layerName);
             const item=namedLayers.find(x=>x.layer===displayLayer);
@@ -4686,9 +4703,17 @@ async function importGDBFiles(fileList){
                 workspace:root,featureClass:layerName,driver:info?.driverName||"OpenFileGDB",
                 sourceFeatureCount:sourceLayer?.featureCount??fc.features.length,
                 displayCRS:"EPSG:4326",geometryType:[...new Set(fc.features.map(f=>f.geometry?.type).filter(Boolean))].join(", "),
-                fields:[...new Set(fc.features.flatMap(f=>Object.keys(f.properties||{})))],
+                fields:[...new Set([
+                  ...fc.features.flatMap(f=>Object.keys(f.properties||{})),
+                  ...(Array.isArray(detailedLayer.fields)?detailedLayer.fields.map(f=>typeof f==="string"?f:f?.name).filter(Boolean):[])
+                ])],
+                fieldDefinitions:Array.isArray(detailedLayer.fields)?detailedLayer.fields:[],
                 sourceDatasetInfo:info||null,sourceSchemaAndCRS:ogrDetails||null
               };
+            }
+            const expectedCount=Number(sourceLayer?.featureCount);
+            if(Number.isFinite(expectedCount)&&expectedCount!==fc.features.length){
+              report.layerErrors.push(layerName+": feature-count mismatch; source reports "+expectedCount+", exported "+fc.features.length+".");
             }
             report.importedLayers++;report.importedFeatures+=fc.features.length;
           }catch(err){
@@ -4710,8 +4735,9 @@ async function importGDBFiles(fileList){
       "; features: "+report.importedFeatures+
       "; empty: "+report.emptyLayers+
       "; failed: "+report.failedLayers+
+      "; raster/other unsupported: "+report.unsupported.length+
       "; open warnings: "+report.openErrors.length+".";
-    const details=[...report.openErrors,...report.layerErrors].slice(0,7).join(" | ");
+    const details=[...report.openErrors,...report.layerErrors,...report.unsupported].slice(0,10).join(" | ");
     status(summary+(details?" Details: "+details:"")+
       " Geometry and attributes are converted to WGS84 for map display; the original folder is unchanged. MXD symbology/labels and advanced geodatabase rules are not yet reconstructed.");
     report.files=relative.map((path,index)=>({path,size:files[index]?.size||0}));
