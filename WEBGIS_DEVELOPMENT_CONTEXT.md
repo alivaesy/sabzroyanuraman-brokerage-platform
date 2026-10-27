@@ -156,3 +156,11 @@ At the end of each meaningful batch, update this file with the verified date, co
 - User reported `remoteGisUser is not defined` and no GIS Online Login dialog. Root cause: the handoff code was in a separate script block and could not access the main Web GIS script's lexical `let` state or `remoteGisLogin()`.
 - Fixed in commit `5868f001592c65fbdbda7df2571d613432a2fadf`: moved the handoff logic into the existing main GIS script scope so it can call the real login dialog, organization selector, and save API.
 - Re-read master after commit. Static validation passed: all 11 inline JavaScript blocks compile, the handoff and auth state are now in the same script scope, and the `GIS Online Login` dialog remains present. Browser end-to-end verification is still required.
+
+
+## ArcMap MXD/MPK import status — 2026-10-27
+- Added **File → Import ArcMap Document (.mxd / .mpk)** in `sabzroyanuraman-site/web-gis.html`.
+- The picker accepts `.mxd`, `.mxt`, and `.mpk`. `.mpk` is inspected as a ZIP package and supported embedded GeoJSON, KML, and Shapefile datasets are added to the existing map/TOC.
+- For `.mxd`/`.mxt`, the browser attempts the optional same-origin endpoint `api/gis/import-mxd.php` and accepts returned GeoJSON feature collections. **That converter endpoint has not been implemented or verified here**; if absent, the UI explains the limitation rather than claiming the MXD opened.
+- Important limitation: this is an import entry point and partial data extraction, **not** full ArcMap project reconstruction. It does not preserve MXD symbology, fonts, label rules, layer-source connections, map frames, or layout. Full reconstruction requires a Windows ArcMap/ArcObjects-compatible conversion worker or another licensed conversion workflow, plus a defined server response contract.
+- Static regression test added in `tests/web-gis-static.test.cjs`. The test suite and browser workflow have not yet been executed in this turn; do not report them as passing.
