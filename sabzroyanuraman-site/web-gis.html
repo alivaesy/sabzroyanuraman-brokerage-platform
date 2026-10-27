@@ -4625,7 +4625,15 @@ async function importGDBFiles(fileList){
   const root=(relative[0]||"").split("/")[0]||"selected.gdb";
   if(!/\.gdb$/i.test(root)){status("Select the actual folder ending in .gdb.");return}
   if(typeof JSZip==="undefined")throw new Error("ZIP library is unavailable; cannot preserve the File Geodatabase directory structure.");
-  const report={selectedFiles:files.length,openedDatasets:0,importedLayers:0,importedFeatures:0,emptyLayers:0,failedLayers:0,openErrors:[],layerErrors:[],unsupported:[]};
+  const report={selectedFiles:files.length,openedDatasets:0,sourceFeatureClasses:0,importedLayers:0,importedFeatures:0,emptyLayers:0,failedLayers:0,openErrors:[],layerErrors:[],unsupported:[],
+    notExtracted:[
+      "ArcMap renderer/symbology and label expressions/placement (these belong to MXD/MXT, not raw GDB geometry)",
+      "Geodatabase topology definitions and validation errors",
+      "Domains, subtypes, relationship classes and attachment payloads",
+      "Annotation feature classes and network datasets/rules",
+      "Raster/mosaic data and raster pyramids",
+      "Exact source field types, aliases, defaults, nullability and coded/range domain semantics where GeoJSON cannot represent them"
+    ]};
   try{
     status("Reading "+root+": preserving folder structure and scanning all files...");
     // Browser File objects expose only basenames to GDAL. Repackage the selected
@@ -4672,7 +4680,7 @@ async function importGDBFiles(fileList){
           const layerName=String(sourceLayer?.name||("FeatureClass_"+(i+1)+"_"+(li+1)));
           const detailedLayer=metadataLayers.find(x=>String(x.name)===layerName)||{};
           try{
-            const options=["-f","GeoJSON","-t_srs","EPSG:4326"];
+            const options=["-f","GeoJSON","-t_srs","EPSG:4326","-preserve_fid"];
             // A FileGDB is commonly one GDAL dataset containing many feature classes.
             // Explicit SQL prevents ogr2ogr from exporting only the first class.
             if(sourceLayers.length>1){
@@ -4752,7 +4760,7 @@ async function importGDBFiles(fileList){
       "; open warnings: "+report.openErrors.length+".";
     const details=[...report.openErrors,...report.layerErrors,...report.unsupported].slice(0,10).join(" | ");
     status(summary+(details?" Details: "+details:"")+
-      " Geometry and attributes are converted to WGS84 for map display; the original folder is unchanged. MXD symbology/labels and advanced geodatabase rules are not yet reconstructed.");
+      " Geometry/attributes are converted to WGS84 for display. NOT EXTRACTED: "+report.notExtracted.join("; ")+". The original folder is unchanged.");
     report.files=relative.map((path,index)=>({path,size:files[index]?.size||0}));
     download(JSON.stringify(report,null,2),root+"-import-report.json","application/json");
     console.info("File Geodatabase import report",report);
