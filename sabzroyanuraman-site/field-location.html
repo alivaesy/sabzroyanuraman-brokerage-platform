@@ -26,15 +26,36 @@
 <script>
 (function(){
 'use strict';
-const startBtn=document.getElementById('start'),stopBtn=document.getElementById('stop'),statusEl=document.getElementById('status');
-let watchId=null,sessionId=null,points=0,lastUpload=0,queue=Promise.resolve(),stopping=false,trackCoords=[];
+const startBtn=document.getElementById('start'),stopBtn=document.getElementById('stop'),statusEl=document.getElementById('status'),exportBtn=document.getElementById('exportKml');
+const STORE='sru_gps_pending_v1';
+let watchId=null,sessionId=null,points=0,lastLocalPoint=0,stopping=false,trackCoords=[],pending=null,syncing=false;
 function status(t){statusEl.textContent=t;}
 function id(){try{if(window.crypto&&crypto.randomUUID)return crypto.randomUUID();}catch(e){}return 'trk-'+Date.now()+'-'+Math.random().toString(36).slice(2);}
+function savePending(){try{if(pending)localStorage.setItem(STORE,JSON.stringify(pending));else localStorage.removeItem(STORE);return true;}catch(e){status('ذخیرهٔ محلی انجام نشد؛ فضای ذخیره‌سازی مرورگر ممکن است پر باشد. مسیر را فوراً KML دانلود کنید.');return false;}}
+function loadPending(){try{const raw=localStorage.getItem(STORE);if(raw){const x=JSON.parse(raw);if(x&&x.session_id&&Array.isArray(x.points))pending=x;}}catch(e){pending=null;}}
 async function send(payload){
  const response=await fetch('/api/location/track.php',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload),cache:'no-store'});
  const result=await response.json().catch(()=>({}));
  if(!response.ok||!result.ok)throw new Error(result.error||('خطای سرور '+response.status));
  return result;
+}
+async function syncPending(){
+ if(syncing||!navigator.onLine||!pending)return;
+ syncing=true;
+ try{
+  if(!pending.serverStarted){await send({action:'start',session_id:pending.session_id,started_at:pending.started_at});pending.serverStarted=true;savePending();}
+  while(pending&&pending.sentCount<pending.points.length){
+   const p=pending.points[pending.sentCount];
+   await send({action:'point',session_id:pending.session_id,latitude:p[0],longitude:p[1],accuracy:p[2],speed:p[3],heading:p[4],altitude:p[5],recorded_at:p[6]});
+   pending.sentCount++;savePending();
+  }
+  if(pending&&pending.stopped_at&&pending.serverStarted&&pending.sentCount>=pending.points.length){
+   await send({action:'stop',session_id:pending.session_id,stopped_at:pending.stopped_at});
+   pending=null;savePending();
+   status('مسیر با موفقیت به سرور ارسال شد. نسخهٔ محلی KML نیز تا وقتی این صفحه باز است در دسترس است.');
+  }else if(pending){status('GPS ثبت شده است؛ ارسال به سرور '+pending.sentCount+' از '+pending.points.length+' موقعیت.');}
+ }catch(e){status('مسیر روی گوشی نگه داشته شد؛ ارسال به سرور پس از اتصال اینترنت دوباره تلاش می‌شود.');}
+ finally{syncing=false;if(pending&&navigator.onLine&&pending.stopped_at&&pending.sentCount>=pending.points.length)setTimeout(()=>syncPending(),0);}
 }
 function exportKml(){
  if(trackCoords.length<2){status('برای دانلود مسیر، ابتدا دست‌کم دو موقعیت GPS ثبت کنید.');return;}
@@ -44,8 +65,8 @@ function exportKml(){
 }
 function clearTrack(){
  if(watchId!==null||sessionId!==null)end();
- trackCoords=[];points=0;document.getElementById('exportKml').disabled=true;
- status('مسیر از این صفحه پاک شد. اطلاعاتی که قبلاً به سرور ارسال شده حذف نمی‌شود.');
+ trackCoords=[];points=0;exportBtn.disabled=true;
+ status('مسیر از نمایش همین صفحه پاک شد. داده‌های ارسال‌نشدهٔ ذخیره‌شده برای جلوگیری از گم‌شدن حذف نشدند؛ داده‌های قبلاً ارسال‌شده نیز از سرور حذف نمی‌شوند.');
 }
 function gpsError(e){
  if(e.code===1)status('دسترسی موقعیت مکانی رد شده است. مجوز Location را برای همین سایت در تنظیمات مرورگر فعال کنید و دوباره شروع بزنید.');
@@ -55,40 +76,44 @@ function gpsError(e){
 }
 async function begin(){
  if(watchId!==null)return;
+ if(pending){status('یک مسیر قبلی هنوز ارسال نشده است. ابتدا اینترنت را وصل کنید تا ارسال کامل شود؛ سپس مسیر جدید را شروع کنید.');syncPending();return;}
  if(!window.isSecureContext){status('این صفحه باید با اتصال امن HTTPS باز شود.');return;}
  if(!navigator.geolocation){status('مرورگر این گوشی از موقعیت مکانی پشتیبانی نمی‌کند. از مرورگر به‌روز استفاده کنید.');return;}
- startBtn.disabled=true;status('در حال آماده‌سازی ثبت…');
- sessionId=id();points=0;trackCoords=[];document.getElementById('exportKml').disabled=true;lastUpload=0;stopping=false;queue=Promise.resolve();
- try{await send({action:'start',session_id:sessionId,started_at:new Date().toISOString()});}
- catch(e){sessionId=null;startBtn.disabled=false;status('شروع ثبت انجام نشد: '+e.message);return;}
+ startBtn.disabled=true;status('در حال آماده‌سازی ثبت GPS…');
+ sessionId=id();points=0;trackCoords=[];exportBtn.disabled=true;lastLocalPoint=0;stopping=false;
+ pending={session_id:sessionId,started_at:new Date().toISOString(),stopped_at:null,serverStarted:false,sentCount:0,points:[]};
+ if(!savePending()){pending=null;sessionId=null;startBtn.disabled=false;return;}
  startBtn.hidden=true;stopBtn.hidden=false;stopBtn.disabled=false;
  try{
   watchId=navigator.geolocation.watchPosition(function(pos){
    if(stopping||!sessionId)return;
-   const c=pos.coords;points++;trackCoords.push([c.latitude,c.longitude]);document.getElementById('exportKml').disabled=trackCoords.length<2;
-   const accuracy=Math.round(c.accuracy||0);
-   status('ثبت فعال است. تعداد موقعیت‌های دریافت‌شده: '+points+' · دقت تقریبی: '+accuracy+' متر. برای پایان، دکمهٔ قرمز را بزنید.');
-   if(points===1||Date.now()-lastUpload>=5000){
-    lastUpload=Date.now();const sid=sessionId;
-    queue=queue.then(()=>send({action:'point',session_id:sid,latitude:c.latitude,longitude:c.longitude,accuracy:c.accuracy,speed:c.speed,heading:c.heading,altitude:c.altitude,recorded_at:new Date(pos.timestamp||Date.now()).toISOString()})).catch(e=>status('GPS فعال است، اما ارسال به سرور خطا دارد: '+e.message));
+   const c=pos.coords,now=Date.now();points++;
+   if(!trackCoords.length||now-lastLocalPoint>=5000){
+    const rec=[c.latitude,c.longitude,c.accuracy,c.speed,c.heading,c.altitude,new Date(pos.timestamp||now).toISOString()];
+    trackCoords.push([c.latitude,c.longitude]);pending.points.push(rec);lastLocalPoint=now;savePending();exportBtn.disabled=trackCoords.length<2;
+    if(navigator.onLine)syncPending();
    }
+   const accuracy=Math.round(c.accuracy||0);
+   status((navigator.onLine?'GPS فعال است. ':'اینترنت قطع است؛ مسیر روی گوشی ذخیره می‌شود. ')+'موقعیت‌های محلی: '+trackCoords.length+' · دقت تقریبی: '+accuracy+' متر.');
   },gpsError,{enableHighAccuracy:true,timeout:30000,maximumAge:0});
-  status('در انتظار دریافت موقعیت GPS… ممکن است چند لحظه طول بکشد.');
- }catch(e){status('امکان شروع GPS وجود ندارد. تنظیمات موقعیت مکانی گوشی را بررسی کنید.');}
+  if(navigator.onLine)syncPending();
+  status(navigator.onLine?'در انتظار دریافت موقعیت GPS…':'اینترنت در دسترس نیست؛ ثبت محلی GPS آغاز می‌شود.');
+ }catch(e){status('امکان شروع GPS وجود ندارد. تنظیمات موقعیت مکانی گوشی را بررسی کنید.');startBtn.hidden=false;startBtn.disabled=false;stopBtn.hidden=true;pending=null;sessionId=null;savePending();}
 }
 async function end(){
  if(stopping)return;stopping=true;stopBtn.disabled=true;
  if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}
- const sid=sessionId;sessionId=null;
- try{
-  await queue;
-  if(sid)await send({action:'stop',session_id:sid,stopped_at:new Date().toISOString()});
-  status('ثبت پایان یافت. تعداد موقعیت‌های دریافت‌شده در این گوشی: '+points+'.');
- }catch(e){status('ثبت در گوشی متوقف شد، اما تأیید پایان از سرور دریافت نشد. اینترنت را بررسی کنید.');}
+ if(pending&&sessionId===pending.session_id){pending.stopped_at=new Date().toISOString();savePending();}
+ sessionId=null;
  startBtn.hidden=false;startBtn.disabled=false;stopBtn.hidden=true;stopBtn.disabled=false;stopping=false;
+ status('ثبت روی گوشی پایان یافت. '+trackCoords.length+' موقعیت محلی ثبت شد.'+(navigator.onLine?' در حال ارسال/تکمیل ارسال به سرور…':' اینترنت که وصل شود، مسیر ارسال خواهد شد.'));
+ if(navigator.onLine)syncPending();
 }
-startBtn.addEventListener('click',begin);stopBtn.addEventListener('click',end);document.getElementById('exportKml').addEventListener('click',exportKml);document.getElementById('clearTrack').addEventListener('click',clearTrack);
+window.addEventListener('online',()=>{if(pending){status('اینترنت وصل شد؛ در حال ارسال مسیر ذخیره‌شده…');syncPending();}});
 window.addEventListener('pagehide',function(){if(watchId!==null)navigator.geolocation.clearWatch(watchId);});
+loadPending();
+if(pending){status('یک مسیر ذخیره‌شده هنوز در انتظار ارسال است. اینترنت را وصل کنید و صفحه را باز نگه دارید.');if(navigator.onLine)syncPending();}
+startBtn.addEventListener('click',begin);stopBtn.addEventListener('click',end);exportBtn.addEventListener('click',exportKml);document.getElementById('clearTrack').addEventListener('click',clearTrack);
 })();
 </script>
 </body>
