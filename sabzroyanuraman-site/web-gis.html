@@ -4657,35 +4657,50 @@ async function importGDBFiles(fileList){
         try{info=await Gdal.getInfo(ds)}catch(infoErr){report.layerErrors.push("Dataset "+(i+1)+" metadata: "+(infoErr?.message||String(infoErr)))}
         let ogrDetails=null;
         try{ogrDetails=await Gdal.ogrinfo(ds,["-al","-so"])}catch(infoErr){report.layerErrors.push("Dataset "+(i+1)+" CRS/schema details: "+(infoErr?.message||String(infoErr)))}
-        const rawName=ds?.info?.name||ds?.info?.layerName||info?.layers?.[0]?.name||("FeatureClass_"+(i+1));
-        const layerName=String(rawName).replace(/.*[\\/]/,"");
-        out=await Gdal.ogr2ogr(ds,["-f","GeoJSON","-t_srs","EPSG:4326"]);
-        const bytes=await Gdal.getFileBytes(out);
-        const fc=JSON.parse(new TextDecoder().decode(bytes));
-        if(!fc||fc.type!=="FeatureCollection"||!Array.isArray(fc.features)){
-          report.failedLayers++;report.layerErrors.push(layerName+": output was not a GeoJSON FeatureCollection.");continue;
+        const sourceLayers=Array.isArray(info?.layers)&&info.layers.length?info.layers:[{name:ds?.info?.name||ds?.info?.layerName||("FeatureClass_"+(i+1)),featureCount:info?.featureCount}];
+        for(let li=0;li<sourceLayers.length;li++){
+          const sourceLayer=sourceLayers[li];
+          const layerName=String(sourceLayer?.name||("FeatureClass_"+(i+1)+"_"+(li+1)));
+          try{
+            const options=["-f","GeoJSON","-t_srs","EPSG:4326"];
+            // A FileGDB is commonly one GDAL dataset containing many feature classes.
+            // Explicit SQL prevents ogr2ogr from exporting only the first class.
+            if(sourceLayers.length>1){
+              const sqlName=layerName.replace(/"/g,'""');
+              options.push("-sql",'SELECT * FROM "'+sqlName+'"');
+            }
+            out=await Gdal.ogr2ogr(ds,options);
+            const bytes=await Gdal.getFileBytes(out);
+            const fc=JSON.parse(new TextDecoder().decode(bytes));
+            if(!fc||fc.type!=="FeatureCollection"||!Array.isArray(fc.features)){
+              report.failedLayers++;report.layerErrors.push(layerName+": output was not a GeoJSON FeatureCollection.");continue;
+            }
+            if(!fc.features.length){
+              report.emptyLayers++;report.layerErrors.push(layerName+": empty feature class (0 records).");continue;
+            }
+            const displayLayer=geoJsonLayer(fc,layerName);
+            const item=namedLayers.find(x=>x.layer===displayLayer);
+            if(item){
+              item.sourceName=root+"/"+layerName;
+              displayLayer._gdbMetadata={
+                workspace:root,featureClass:layerName,driver:info?.driverName||"OpenFileGDB",
+                sourceFeatureCount:sourceLayer?.featureCount??fc.features.length,
+                displayCRS:"EPSG:4326",geometryType:[...new Set(fc.features.map(f=>f.geometry?.type).filter(Boolean))].join(", "),
+                fields:[...new Set(fc.features.flatMap(f=>Object.keys(f.properties||{})))],
+                sourceDatasetInfo:info||null,sourceSchemaAndCRS:ogrDetails||null
+              };
+            }
+            report.importedLayers++;report.importedFeatures+=fc.features.length;
+          }catch(err){
+            report.failedLayers++;report.layerErrors.push(layerName+": "+(err?.message||String(err)));
+            console.warn("File Geodatabase feature class import failed:",layerName,err);
+          }finally{
+            if(out){try{Gdal.close(out)}catch(_){}out=null}
+          }
         }
-        if(!fc.features.length){
-          report.emptyLayers++;report.layerErrors.push(layerName+": empty feature class (0 records).");continue;
-        }
-        const displayLayer=geoJsonLayer(fc,layerName);
-        const item=namedLayers.find(x=>x.layer===displayLayer);
-        if(item){
-          item.sourceName=root+"/"+layerName;
-          displayLayer._gdbMetadata={
-            workspace:root,featureClass:layerName,driver:info?.driverName||"OpenFileGDB",
-            sourceFeatureCount:info?.featureCount??fc.features.length,
-            displayCRS:"EPSG:4326",geometryType:[...new Set(fc.features.map(f=>f.geometry?.type).filter(Boolean))].join(", "),
-            fields:[...new Set(fc.features.flatMap(f=>Object.keys(f.properties||{})))],
-            sourceDatasetInfo:info||null,sourceSchemaAndCRS:ogrDetails||null
-          };
-        }
-        report.importedLayers++;report.importedFeatures+=fc.features.length;
       }catch(err){
-        report.failedLayers++;report.layerErrors.push((ds?.info?.name||"Dataset "+(i+1))+": "+(err?.message||String(err)));
-        console.warn("File Geodatabase import failed:",err);
+        report.failedLayers++;report.layerErrors.push("Dataset "+(i+1)+": "+(err?.message||String(err)));
       }finally{
-        if(out){try{Gdal.close(out)}catch(_){}}
         try{Gdal.close(ds)}catch(_){}
       }
     }
@@ -4699,6 +4714,8 @@ async function importGDBFiles(fileList){
     const details=[...report.openErrors,...report.layerErrors].slice(0,7).join(" | ");
     status(summary+(details?" Details: "+details:"")+
       " Geometry and attributes are converted to WGS84 for map display; the original folder is unchanged. MXD symbology/labels and advanced geodatabase rules are not yet reconstructed.");
+    report.files=relative.map((path,index)=>({path,size:files[index]?.size||0}));
+    download(JSON.stringify(report,null,2),root+"-import-report.json","application/json");
     console.info("File Geodatabase import report",report);
   }catch(err){
     console.error("File Geodatabase import failed",err,report);
