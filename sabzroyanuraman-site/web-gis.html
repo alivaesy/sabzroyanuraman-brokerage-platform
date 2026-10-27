@@ -1195,7 +1195,53 @@ function ensureSpecialBasemapPanels(){
  if(!googleMyMapsPanel){googleMyMapsPanel=document.createElement("div");googleMyMapsPanel.id="gisGoogleMyMapsPanel";googleMyMapsPanel.style.cssText="display:none;position:absolute;z-index:1190;top:12px;right:12px;bottom:38px;width:min(48%,560px);min-width:280px;background:#fff;border:1px solid #9baebd;border-radius:8px;overflow:hidden;box-shadow:0 3px 12px #0002";googleMyMapsPanel.innerHTML='<div style="height:34px;background:#f4f7f8;display:flex;align-items:center;justify-content:space-between;padding:0 8px;font:12px sans-serif"><strong>Google My Maps</strong><button type="button" id="gisGoogleMyMapsClose" title="بستن">×</button></div><iframe title="Google My Maps" src="'+GOOGLE_MY_MAPS_EMBED+'" style="width:100%;height:calc(100% - 34px);border:0" loading="lazy" allowfullscreen></iframe>';host.appendChild(googleMyMapsPanel);googleMyMapsPanel.querySelector("#gisGoogleMyMapsClose").onclick=()=>{googleMyMapsPanel.style.display="none";if(currentBasemapKey==="googleMyMaps"){currentBasemapKey="osm";$("basemap").value="osm";}};}
 }
 function waybackNormalize(data){const src=Array.isArray(data)?data:Object.keys(data||{}).map(k=>data[k]&&typeof data[k]==="object"?Object.assign({releaseNum:Number(k)},data[k]):null);return src.filter(x=>x&&(x.releaseNum!==undefined)&&(x.releaseDateLabel||x.releaseDatetime)).map(x=>({releaseNum:Number(x.releaseNum),releaseDateLabel:x.releaseDateLabel||(x.releaseDatetime?new Date(x.releaseDatetime).toISOString().slice(0,10):String(x.releaseNum)),releaseDatetime:Number(x.releaseDatetime||0),itemURL:x.itemURL||""})).filter(x=>Number.isFinite(x.releaseNum)&&x.itemURL).sort((a,b)=>a.releaseDatetime-b.releaseDatetime);}
-async function loadWaybackItems(){ensureSpecialBasemapPanels();if(waybackItems.length)return true;if(waybackLoading)return waybackLoading;waybackLoading=(async()=>{const statusEl=document.getElementById("gisWaybackStatus");try{const res=await fetch(WAYBACK_CONFIG_URL,{cache:"no-store"});if(!res.ok)throw new Error("HTTP "+res.status);waybackItems=waybackNormalize(await res.json());if(!waybackItems.length)throw new Error("فهرست نسخه‌ها خالی است");const slider=document.getElementById("gisWaybackSlider"),sel=document.getElementById("gisWaybackDate");slider.max=String(waybackItems.length-1);slider.disabled=false;sel.innerHTML="";waybackItems.forEach((it,i)=>{const op=document.createElement("option");op.value=String(i);op.textContent=it.releaseDateLabel;sel.appendChild(op)});sel.disabled=false;waybackIndex=waybackItems.length-1;setWaybackIndex(waybackIndex);return true;}catch(e){if(statusEl)statusEl.textContent="آرشیو Wayback در دسترس نیست: "+e.message;status("Esri Wayback بارگذاری نشد؛ اتصال شبکه را بررسی کنید.");return false;}finally{waybackLoading=null;}})();return waybackLoading;}
+const WAYBACK_CACHE_KEY="sabzroyan-webgis-wayback-config-v1";
+async function fetchWaybackConfig(){
+  let lastError=null;
+  // Retry transient network failures; do not use public third-party proxy services for map metadata.
+  for(let attempt=0;attempt<3;attempt++){
+    const controller=typeof AbortController!=="undefined"?new AbortController():null;
+    const timeout=controller?setTimeout(()=>controller.abort(),9000):null;
+    try{
+      const res=await fetch(WAYBACK_CONFIG_URL,{cache:attempt===0?"no-cache":"reload",mode:"cors",signal:controller?controller.signal:undefined});
+      if(!res.ok)throw new Error("HTTP "+res.status);
+      const data=await res.json();
+      const normalized=waybackNormalize(data);
+      if(!normalized.length)throw new Error("فهرست نسخه‌ها خالی یا با قالب نامعتبر است");
+      try{localStorage.setItem(WAYBACK_CACHE_KEY,JSON.stringify({savedAt:Date.now(),items:normalized}));}catch(_){}
+      return normalized;
+    }catch(e){lastError=e;if(attempt<2)await new Promise(resolve=>setTimeout(resolve,500*(attempt+1)));}
+    finally{if(timeout)clearTimeout(timeout);}
+  }
+  // Previously loaded metadata can keep the archive selector usable during an outage.
+  try{
+    const cached=JSON.parse(localStorage.getItem(WAYBACK_CACHE_KEY)||"null");
+    const items=Array.isArray(cached?.items)?waybackNormalize(cached.items):[];
+    if(items.length){items._fromCache=true;return items;}
+  }catch(_){}
+  throw lastError||new Error("دریافت فهرست آرشیو ناموفق بود");
+}
+async function loadWaybackItems(){
+  ensureSpecialBasemapPanels();if(waybackItems.length)return true;if(waybackLoading)return waybackLoading;
+  waybackLoading=(async()=>{
+    const statusEl=document.getElementById("gisWaybackStatus");
+    const slider=document.getElementById("gisWaybackSlider"),sel=document.getElementById("gisWaybackDate");
+    if(statusEl)statusEl.textContent="در حال دریافت فهرست تاریخ‌های آرشیو Esri…";
+    try{
+      waybackItems=await fetchWaybackConfig();
+      slider.max=String(waybackItems.length-1);slider.disabled=false;sel.innerHTML="";
+      waybackItems.forEach((it,i)=>{const op=document.createElement("option");op.value=String(i);op.textContent=it.releaseDateLabel;sel.appendChild(op)});
+      sel.disabled=false;waybackIndex=waybackItems.length-1;setWaybackIndex(waybackIndex);
+      if(waybackItems._fromCache&&statusEl)statusEl.textContent="اتصال به سرور آرشیو برقرار نشد؛ از فهرست ذخیره‌شده قبلی استفاده می‌شود. ممکن است نسخه‌های جدیدتر نمایش داده نشوند.";
+      return true;
+    }catch(e){
+      const msg=(e&&e.name==="AbortError")?"مهلت اتصال تمام شد":(e&&e.message)||"خطای شبکه";
+      if(statusEl)statusEl.textContent="فهرست آرشیو دریافت نشد ("+msg+"). ممکن است شبکه، CORS یا پراکسی دسترسی را مسدود کرده باشد. تصاویر عادی نقشه همچنان قابل استفاده‌اند.";
+      status("Esri Wayback: دریافت فهرست ناموفق بود؛ جزئیات در پنل آرشیو نمایش داده شد.");
+      return false;
+    }finally{waybackLoading=null;}
+  })();return waybackLoading;
+}
 function setWaybackIndex(i){if(!waybackItems.length)return;waybackIndex=Math.max(0,Math.min(i,waybackItems.length-1));const item=waybackItems[waybackIndex],url=item.itemURL.replace(/\{level\}/g,"{z}").replace(/\{row\}/g,"{y}").replace(/\{col\}/g,"{x}");if(!url)return;const old=base.wayback;if(old&&map.hasLayer(old))map.removeLayer(old);if(currentBase&&map.hasLayer(currentBase))map.removeLayer(currentBase);base.wayback=L.tileLayer(url,{maxZoom:19,maxNativeZoom:18,attribution:"Historical imagery © Esri"});base.wayback.on("tileerror",()=>{const el=document.getElementById("gisWaybackStatus");if(el)el.textContent="کاشی تصویر تاریخی دریافت نشد؛ ممکن است این نسخه در سطح زوم فعلی پوشش نداشته باشد.";});base.wayback.addTo(map);currentBase=base.wayback;currentBasemapKey="wayback";$("basemap").value="wayback";const slider=document.getElementById("gisWaybackSlider"),sel=document.getElementById("gisWaybackDate");if(slider)slider.value=String(waybackIndex);if(sel)sel.value=String(waybackIndex);const el=document.getElementById("gisWaybackStatus");if(el)el.textContent="نسخه آرشیو: "+item.releaseDateLabel+"؛ تاریخ انتشار نسخه ممکن است با تاریخ برداشت تصویر متفاوت باشد.";scheduleAutoSave();}
 
 const basemapTileErrors=Object.create(null);
