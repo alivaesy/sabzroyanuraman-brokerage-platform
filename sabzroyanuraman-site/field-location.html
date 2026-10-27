@@ -37,7 +37,7 @@ function haversine(a,b){
 }
 function renderTrackMap(){
  const canvas=document.getElementById('trackCanvas');if(!canvas)return;
- const rect=canvas.getBoundingClientRect(),dpr=Math.max(1,window.devicePixelRatio||1),w=Math.max(280,rect.width||280),h=250;
+ const rect=canvas.getBoundingClientRect(),dpr=Math.max(1,window.devicePixelRatio||1),w=Math.max(280,rect.width||280),h=Math.max(180,rect.height||250);
  canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
  const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);
  ctx.fillStyle='#eaf1e6';ctx.fillRect(0,0,w,h);
@@ -106,7 +106,7 @@ async function syncPending(){
    await send({action:'stop',session_id:pending.session_id,stopped_at:pending.stopped_at});
    pending=null;savePending();
    status('مسیر با موفقیت به سرور ارسال شد. نسخهٔ محلی KML نیز تا وقتی این صفحه باز است در دسترس است.');
-  }else if(pending){status('GPS ثبت شده است؛ ارسال به سرور '+pending.sentCount+' از '+pending.points.length+' موقعیت.');}
+  }else if(pending&&pending.stopped_at){status('ارسال مسیر در حال تکمیل است؛ '+pending.sentCount+' از '+pending.points.length+' نقطه ارسال شده.');}
  }catch(e){status('مسیر روی گوشی نگه داشته شد؛ ارسال به سرور پس از اتصال اینترنت دوباره تلاش می‌شود.');}
  finally{syncing=false;if(pending&&navigator.onLine&&pending.stopped_at&&pending.sentCount>=pending.points.length)setTimeout(()=>syncPending(),0);}
 }
