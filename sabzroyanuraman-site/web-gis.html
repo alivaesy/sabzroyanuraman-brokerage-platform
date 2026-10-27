@@ -465,7 +465,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 /* Imported ArcMap/GDB data: fine linework and Persian/Arabic label rendering. */
 .gis-imported-feature-label,.gis-feature-label{font-family:Tahoma,"Noto Naskh Arabic","Noto Sans Arabic",Arial,sans-serif!important;direction:rtl;unicode-bidi:plaintext;white-space:nowrap;color:#202020;background:rgba(255,255,255,.88);border:1px solid rgba(105,120,128,.55);border-radius:1px;padding:0 2px;box-shadow:none;font-weight:400;line-height:1.35}
 .gis-imported-feature-label:before,.gis-feature-label:before{display:none!important}
-.leaflet-overlay-pane path{vector-effect:non-scaling-stroke}
+/* Keep Leaflet's normal zoom-aware vector rendering; source symbol metadata wins. */
 </style>
 <style>
 /* ArcMap Editor task menu + KMZ support */
@@ -4567,13 +4567,10 @@ function geoJsonLayer(data,name){
     onEachFeature:(f,l)=>{
       const p=f.properties||{}, rows=Object.keys(p).filter(k=>!k.startsWith("_")).map(k=>"<b>"+esc(k)+"</b>: "+esc(p[k])).join("<br>");
       l.bindPopup(rows||"No attributes available.");
-      // If source data contains an explicit label/name field, display it. All attributes
-      // remain in the popup/table even when they are not map labels.
-      const labelKey=Object.keys(p).find(k=>/^(label|labeltext|name|title|نام|عنوان|شرح|کد)$/i.test(k.trim()));
-      const label=labelKey==null?"":p[labelKey];
-      if(label!==null&&label!==undefined&&String(label).trim()&&l.bindTooltip){
-        l.bindTooltip(String(label),{permanent:true,direction:"center",className:"gis-imported-feature-label",opacity:.96,interactive:false});
-      }
+      // Attribute fields are not equivalent to ArcMap label settings.
+      // Do not auto-label every "name/title/code" field: that creates clutter and
+      // can misrepresent the MXD. Labels must be restored from explicit renderer/
+      // label metadata or configured by the user in Layer Properties.
     }
   });
   addNamedLayer(name,layer,true);
@@ -4626,32 +4623,43 @@ async function importGDBFiles(fileList){
   const gdbRoot=(files[0].webkitRelativePath||"").split("/")[0]||"selected.gdb";
   if(!/\.gdb$/i.test(gdbRoot)){status("Select a folder ending in .gdb.");return}
   try{
-    status("Preparing the file geodatabase...");
+    status("Preparing File Geodatabase (checking each feature class)...");
     const Gdal=await getGdalBrowser();
     const opened=await Gdal.open(files);
     const datasets=opened.datasets||[];
-    if(!datasets.length)throw new Error("No supported feature classes were found in the geodatabase.");
-    let imported=0;
-    for(const ds of datasets){
+    if(!datasets.length)throw new Error("GDAL opened no datasets. The selected folder may have lost its .gdb directory structure, or this browser build may not support this File Geodatabase.");
+    let imported=0,empty=0,failed=0,featureCount=0;
+    const failures=[];
+    for(let i=0;i<datasets.length;i++){
+      const ds=datasets[i];
+      let out=null;
+      const rawName=ds.info?.name||ds.info?.layerName||("FeatureClass_"+(i+1));
+      const layerName=String(rawName).replace(/.*[\\/]/,"");
       try{
-        const out=await Gdal.ogr2ogr(ds,["-f","GeoJSON","-t_srs","EPSG:4326"]);
+        out=await Gdal.ogr2ogr(ds,["-f","GeoJSON","-t_srs","EPSG:4326"]);
         const bytes=await Gdal.getFileBytes(out);
-        const json=new TextDecoder().decode(bytes);
-        const fc=JSON.parse(json);
-        if(fc&&fc.type==="FeatureCollection"&&fc.features?.length){
-          const layerName=(ds.info?.name||ds.info?.layerName||("GDB_"+(imported+1))).replace(/.*[\\/]/,"");
-          geoJsonLayer(fc,layerName);
-          imported++;
-        }
-        try{Gdal.close(out)}catch(_){}
-      }catch(err){console.warn("GDB layer import:",err)}
-      try{Gdal.close(ds)}catch(_){}
+        const fc=JSON.parse(new TextDecoder().decode(bytes));
+        if(fc&&fc.type==="FeatureCollection"&&Array.isArray(fc.features)){
+          if(fc.features.length){geoJsonLayer(fc,layerName);imported++;featureCount+=fc.features.length}
+          else {empty++;failures.push(layerName+": feature class is empty (0 records).")}
+        }else{failed++;failures.push(layerName+": GDAL output was not a GeoJSON FeatureCollection.")}
+      }catch(err){
+        failed++;failures.push(layerName+": "+(err?.message||String(err)));
+        console.warn("GDB layer import failed:",layerName,err);
+      }finally{
+        if(out){try{Gdal.close(out)}catch(_){}}
+        try{Gdal.close(ds)}catch(_){}
+      }
     }
-    if(imported)status("File Geodatabase imported. Added layers: "+imported+" layer(s) imported.");
-    else status("No supported feature classes were found in the geodatabase.");
+    const summary="File Geodatabase scan: "+datasets.length+" dataset(s); imported "+imported+" layer(s), "+featureCount+" feature(s); empty "+empty+"; failed "+failed+".";
+    if(failed||empty){
+      const detail=failures.slice(0,5).join(" | ")+(failures.length>5?" | and "+(failures.length-5)+" more":"");
+      status(summary+" Some classes were not added: "+detail+" Labels, symbology and layer order belong to the MXD/map document, not ordinary feature geometry.");
+    }else if(imported)status(summary+" This imports geometry and attributes only; MXD labels, symbology, grouping and layout must be restored separately.");
+    else status(summary+" No populated supported feature classes were imported.");
   }catch(err){
     console.error(err);
-    status("Geodatabase import failed: "+(err.message||err));
+    status("Geodatabase import failed: "+(err.message||err)+" Check that you selected the actual .gdb folder and that its internal files are intact.");
   }
 }
 $("gdbInput").onchange=async e=>{
