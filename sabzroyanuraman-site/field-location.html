@@ -19,6 +19,7 @@
 <button class="btn start" id="start">شروع ارسال موقعیت زمین</button>
 <button class="btn stop" id="stop" hidden>پایان ثبت</button>
 <button class="btn" id="exportKml" disabled style="background:#e8f3ec;color:#145b39;font-size:16px">دانلود مسیر (KML)</button>
+<button class="btn" id="exportReport" disabled style="background:#eaf0fb;color:#234a85;font-size:16px">دانلود گزارش GPS (CSV)</button>
 <button class="btn" id="clearTrack" style="background:#fff4e5;color:#805000;font-size:16px">پاک‌کردن مسیر از این صفحه</button>
 <div class="status" id="status" role="status" aria-live="polite">هنوز ثبت شروع نشده است.</div>
 <div class="small">موقعیت‌ها ابتدا روی همین گوشی ذخیره می‌شوند و در صورت وجود اینترنت به سرور ارسال می‌شوند. برای جلوگیری از گم‌شدن مسیر، تا تکمیل ارسال داده‌های معوق، اطلاعات مرورگر را پاک نکنید.</div>
@@ -57,15 +58,28 @@ async function syncPending(){
  }catch(e){status('مسیر روی گوشی نگه داشته شد؛ ارسال به سرور پس از اتصال اینترنت دوباره تلاش می‌شود.');}
  finally{syncing=false;if(pending&&navigator.onLine&&pending.stopped_at&&pending.sentCount>=pending.points.length)setTimeout(()=>syncPending(),0);}
 }
+function downloadBlob(name,content,type){
+ const url=URL.createObjectURL(new Blob(['\\ufeff',content],{type:type}));const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
 function exportKml(){
  if(trackCoords.length<2){status('برای دانلود مسیر، ابتدا دست‌کم دو موقعیت GPS ثبت کنید.');return;}
- const coords=trackCoords.map(p=>p[1]+','+p[0]+',0').join(' ');
- const kml='<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>مسیر زمین</name><Placemark><name>مسیر GPS</name><LineString><tessellate>1</tessellate><coordinates>'+coords+'</coordinates></LineString></Placemark></Document></kml>';
- const url=URL.createObjectURL(new Blob([kml],{type:'application/vnd.google-earth.kml+xml'}));const a=document.createElement('a');a.href=url;a.download='masir-zamin-'+new Date().toISOString().replace(/[:.]/g,'-')+'.kml';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+ const coords=trackCoords.map(p=>p[1]+','+p[0]+','+(Number.isFinite(p[2])?p[2]:0)).join(' ');
+ const placemarks=trackCoords.map((p,i)=>'<Placemark><name>نقطه '+(i+1)+'</name><TimeStamp><when>'+esc(p[6]||'')+'</when></TimeStamp><ExtendedData><Data name="accuracy_m"><value>'+esc(p[2]===null?'':p[2])+'</value></Data><Data name="speed_mps"><value>'+esc(p[3]===null?'':p[3])+'</value></Data><Data name="heading_deg"><value>'+esc(p[4]===null?'':p[4])+'</value></Data><Data name="altitude_gps_m"><value>'+esc(p[5]===null?'':p[5])+'</value></Data></ExtendedData><Point><altitudeMode>absolute</altitudeMode><coordinates>'+p[1]+','+p[0]+','+(Number.isFinite(p[5])?p[5]:0)+'</coordinates></Point></Placemark>').join('');
+ const kml='<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>گزارش مسیر GPS</name><description>داده‌های این فایل از مرورگر گوشی دریافت شده‌اند و به‌تنهایی اصالت مسیر را اثبات نمی‌کنند.</description><Placemark><name>مسیر GPS</name><LineString><tessellate>1</tessellate><altitudeMode>absolute</altitudeMode><coordinates>'+coords+'</coordinates></LineString></Placemark>'+placemarks+'</Document></kml>';
+ downloadBlob('masir-zamin-'+new Date().toISOString().replace(/[:.]/g,'-')+'.kml',kml,'application/vnd.google-earth.kml+xml');
+}
+function exportReport(){
+ if(!trackCoords.length){status('هنوز نقطه‌ای برای گزارش GPS ثبت نشده است.');return;}
+ const rows=[['شماره','زمان ثبت گوشی','عرض جغرافیایی','طول جغرافیایی','ارتفاع GPS (متر)','دقت افقی GPS (متر)','سرعت (متر بر ثانیه)','جهت (درجه)']];
+ trackCoords.forEach((p,i)=>rows.push([i+1,p[6]||'',p[0],p[1],p[5]??'',p[2]??'',p[3]??'',p[4]??'']));
+ const csv=rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
+ downloadBlob('gozaresh-gps-'+new Date().toISOString().replace(/[:.]/g,'-')+'.csv',csv,'text/csv;charset=utf-8');
+ status('گزارش CSV آماده شد. فایل را همراه KML برای کارشناس بفرستید؛ اطلاعات فایل به‌تنهایی اصالت مسیر را تضمین نمی‌کند.');
 }
 function clearTrack(){
  if(watchId!==null||sessionId!==null)end();
- trackCoords=[];points=0;exportBtn.disabled=true;
+ trackCoords=[];points=0;exportBtn.disabled=true;document.getElementById('exportReport').disabled=true;
  status('مسیر از نمایش همین صفحه پاک شد. داده‌های ارسال‌نشدهٔ ذخیره‌شده برای جلوگیری از گم‌شدن حذف نشدند؛ داده‌های قبلاً ارسال‌شده نیز از سرور حذف نمی‌شوند.');
 }
 function gpsError(e){
@@ -90,7 +104,7 @@ async function begin(){
    const c=pos.coords,now=Date.now();points++;
    if(!trackCoords.length||now-lastLocalPoint>=5000){
     const rec=[c.latitude,c.longitude,c.accuracy,c.speed,c.heading,c.altitude,new Date(pos.timestamp||now).toISOString()];
-    trackCoords.push([c.latitude,c.longitude]);pending.points.push(rec);lastLocalPoint=now;savePending();exportBtn.disabled=trackCoords.length<2;
+    trackCoords.push([c.latitude,c.longitude,c.altitude, c.accuracy, c.speed, c.heading, rec[6]]);pending.points.push(rec);lastLocalPoint=now;savePending();exportBtn.disabled=trackCoords.length<2;document.getElementById('exportReport').disabled=trackCoords.length<1;
     if(navigator.onLine)syncPending();
    }
    const accuracy=Math.round(c.accuracy||0);
@@ -113,7 +127,7 @@ window.addEventListener('online',()=>{if(pending){status('اینترنت وصل 
 window.addEventListener('pagehide',function(){if(watchId!==null)navigator.geolocation.clearWatch(watchId);});
 loadPending();
 if(pending){status('یک مسیر ذخیره‌شده هنوز در انتظار ارسال است. اینترنت را وصل کنید و صفحه را باز نگه دارید.');if(navigator.onLine)syncPending();}
-startBtn.addEventListener('click',begin);stopBtn.addEventListener('click',end);exportBtn.addEventListener('click',exportKml);document.getElementById('clearTrack').addEventListener('click',clearTrack);
+startBtn.addEventListener('click',begin);stopBtn.addEventListener('click',end);exportBtn.addEventListener('click',exportKml);document.getElementById('exportReport').addEventListener('click',exportReport);document.getElementById('clearTrack').addEventListener('click',clearTrack);
 })();
 </script>
 </body>
