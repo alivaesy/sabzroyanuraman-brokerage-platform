@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#126b45">
 <title>ثبت موقعیت زمین | سبز رویان اورامان</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#f1f6f0;color:#173b2b;font-family:Tahoma,Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px}.card{width:min(100%,480px);background:#fff;border-radius:22px;padding:26px 22px;box-shadow:0 8px 30px #173b2b16;text-align:center}.logo{font-size:15px;color:#397354;font-weight:bold}.icon{font-size:48px;margin:18px 0 8px}h1{font-size:25px;margin:8px 0 12px}p{line-height:1.9;color:#496356;font-size:15px}.hint{background:#f4f8f2;border-radius:12px;padding:12px;text-align:right;font-size:14px;line-height:1.9;margin:18px 0}.btn{width:100%;border:0;border-radius:14px;padding:18px 12px;font: bold 20px Tahoma,Arial,sans-serif;cursor:pointer;margin-top:10px}.start{background:#147448;color:white}.stop{background:#b42318;color:white}.btn:disabled{opacity:.45;cursor:not-allowed}.status{min-height:48px;margin-top:16px;padding:12px;background:#f6f8fa;border-radius:12px;line-height:1.8;font-size:14px;overflow-wrap:anywhere}.small{font-size:12px;color:#68796f;line-height:1.8;margin-top:15px}
+*{box-sizing:border-box}body{margin:0;background:#f1f6f0;color:#173b2b;font-family:Tahoma,Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px}.card{width:min(100%,480px);background:#fff;border-radius:22px;padding:26px 22px;box-shadow:0 8px 30px #173b2b16;text-align:center}.logo{font-size:15px;color:#397354;font-weight:bold}.icon{font-size:48px;margin:18px 0 8px}h1{font-size:25px;margin:8px 0 12px}p{line-height:1.9;color:#496356;font-size:15px}.hint{background:#f4f8f2;border-radius:12px;padding:12px;text-align:right;font-size:14px;line-height:1.9;margin:18px 0}.btn{width:100%;border:0;border-radius:14px;padding:18px 12px;font: bold 20px Tahoma,Arial,sans-serif;cursor:pointer;margin-top:10px}.start{background:#147448;color:white}.stop{background:#b42318;color:white}.btn:disabled{opacity:.45;cursor:not-allowed}.status{min-height:48px;margin-top:16px;padding:12px;background:#f6f8fa;border-radius:12px;line-height:1.8;font-size:14px;overflow-wrap:anywhere}.track-map{position:relative;margin:16px 0 8px;border:1px solid #d8e7db;border-radius:16px;overflow:hidden;background:#edf4e9;text-align:right}.track-map canvas{display:block;width:100%;height:210px}.map-caption{position:absolute;top:9px;right:10px;background:#ffffffed;border:1px solid #dce7dc;border-radius:9px;padding:6px 9px;font-size:12px;color:#24563a;pointer-events:none}.map-foot{font-size:12px;color:#52685a;text-align:center;padding:8px 10px;background:#f7faf5;border-top:1px solid #e0eade;line-height:1.7}.small{font-size:12px;color:#68796f;line-height:1.8;margin-top:15px}
 </style>
 </head>
 <body>
@@ -16,6 +16,7 @@
 <h1>ثبت موقعیت زمین</h1>
 <p>وقتی داخل زمین هستید، دکمهٔ شروع را بزنید. گوشی مسیر را ثبت می‌کند؛ اگر اینترنت نباشد، موقعیت‌ها روی همین گوشی می‌مانند و بعداً ارسال می‌شوند.</p>
 <div class="hint">۱. موقعیت مکانی (GPS) گوشی را روشن کنید؛ برای ثبت اولیه اینترنت لازم نیست.<br>۲. اگر پیام اجازهٔ موقعیت آمد، «اجازه دادن» را انتخاب کنید.<br>۳. صفحه را باز نگه دارید و در پایان «پایان ثبت» را بزنید. برای ارسال به کارشناس، بعداً اینترنت را وصل کنید و همین صفحه را باز کنید.</div>
+<div class="track-map" aria-label="نمایش زنده مسیر GPS"><canvas id="trackCanvas" aria-label="نقشه شماتیک مسیر ثبت‌شده"></canvas><div class="map-caption">مسیر زنده شما</div><div class="map-foot" id="mapFoot">پس از دریافت GPS، مسیر حرکت شما در این قسمت نمایش داده می‌شود. برای این نمایش اینترنت لازم نیست.</div></div>
 <button class="btn start" id="start">شروع ارسال موقعیت زمین</button>
 <button class="btn stop" id="stop" hidden>پایان ثبت</button>
 <button class="btn" id="exportKml" disabled style="background:#e8f3ec;color:#145b39;font-size:16px">دانلود مسیر (KML)</button>
@@ -31,9 +32,36 @@ const startBtn=document.getElementById('start'),stopBtn=document.getElementById(
 const STORE='sru_gps_pending_v1';
 let watchId=null,sessionId=null,points=0,lastLocalPoint=0,stopping=false,trackCoords=[],pending=null,syncing=false;
 function status(t){statusEl.textContent=t;}
+function renderTrackMap(){
+ const canvas=document.getElementById('trackCanvas');if(!canvas)return;
+ const rect=canvas.getBoundingClientRect(),dpr=Math.max(1,window.devicePixelRatio||1),w=Math.max(280,rect.width||280),h=210;
+ canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
+ const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);
+ ctx.fillStyle='#edf4e9';ctx.fillRect(0,0,w,h);
+ ctx.strokeStyle='#d8e5d3';ctx.lineWidth=1;
+ for(let x=0;x<w;x+=28){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
+ for(let y=0;y<h;y+=28){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+ // Decorative field boundaries make the offline schematic easier to read; they are not a real map.
+ ctx.strokeStyle='#c6d9bd';ctx.lineWidth=2;
+ for(let i=0;i<5;i++){ctx.beginPath();ctx.moveTo(-20,35+i*39);ctx.bezierCurveTo(w*.28,5+i*39,w*.58,68+i*31,w+20,25+i*39);ctx.stroke();}
+ const pts=trackCoords.map(p=>[Number(p[1]),Number(p[0])]).filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1]));
+ const foot=document.getElementById('mapFoot');
+ if(!pts.length){ctx.fillStyle='#4f7158';ctx.font='14px Tahoma,Arial';ctx.textAlign='center';ctx.fillText('با شروع ثبت، مسیر اینجا دیده می‌شود',w/2,h/2);if(foot)foot.textContent='منتظر دریافت موقعیت GPS هستیم؛ نمایش مسیر بدون اینترنت هم کار می‌کند.';return;}
+ let minX=Math.min(...pts.map(p=>p[0])),maxX=Math.max(...pts.map(p=>p[0])),minY=Math.min(...pts.map(p=>p[1])),maxY=Math.max(...pts.map(p=>p[1]));
+ if(maxX-minX<0.00003){minX-=0.00003;maxX+=0.00003;}if(maxY-minY<0.00003){minY-=0.00003;maxY+=0.00003;}
+ const pad=28,scaleX=(w-pad*2)/(maxX-minX),scaleY=(h-pad*2)/(maxY-minY),scale=Math.min(scaleX,scaleY);
+ const cx=(minX+maxX)/2,cy=(minY+maxY)/2;
+ const xy=p=>[w/2+(p[0]-cx)*scale,h/2-(p[1]-cy)*scale];
+ if(pts.length>1){ctx.beginPath();pts.forEach((p,i)=>{const q=xy(p);if(i===0)ctx.moveTo(q[0],q[1]);else ctx.lineTo(q[0],q[1]);});ctx.strokeStyle='#16824b';ctx.lineWidth=4;ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke();}
+ const first=xy(pts[0]),last=xy(pts[pts.length-1]);
+ ctx.beginPath();ctx.arc(first[0],first[1],6,0,Math.PI*2);ctx.fillStyle='#2878c8';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+ ctx.beginPath();ctx.arc(last[0],last[1],10,0,Math.PI*2);ctx.fillStyle='#e8a72c55';ctx.fill();
+ ctx.beginPath();ctx.arc(last[0],last[1],5,0,Math.PI*2);ctx.fillStyle='#c43125';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+ if(foot)foot.textContent=pts.length+' نقطه ثبت شده · نقطه آبی: شروع · نقطه قرمز: آخرین موقعیت · این تصویر شماتیک است، نقشه جغرافیایی نیست.';
+}
 function id(){try{if(window.crypto&&crypto.randomUUID)return crypto.randomUUID();}catch(e){}return 'trk-'+Date.now()+'-'+Math.random().toString(36).slice(2);}
 function savePending(){try{if(pending)localStorage.setItem(STORE,JSON.stringify(pending));else localStorage.removeItem(STORE);return true;}catch(e){status('ذخیرهٔ محلی انجام نشد؛ فضای ذخیره‌سازی مرورگر ممکن است پر باشد. مسیر را فوراً KML دانلود کنید.');return false;}}
-function loadPending(){try{const raw=localStorage.getItem(STORE);if(raw){const x=JSON.parse(raw);if(x&&x.session_id&&Array.isArray(x.points)){pending=x;trackCoords=x.points.map(p=>[p[0],p[1],p[5],p[2],p[3],p[4],p[6]]);exportBtn.disabled=trackCoords.length<2;document.getElementById('exportReport').disabled=trackCoords.length<1;}}}catch(e){pending=null;}}
+function loadPending(){try{const raw=localStorage.getItem(STORE);if(raw){const x=JSON.parse(raw);if(x&&x.session_id&&Array.isArray(x.points)){pending=x;trackCoords=x.points.map(p=>[p[0],p[1],p[5],p[2],p[3],p[4],p[6]]);renderTrackMap();exportBtn.disabled=trackCoords.length<2;document.getElementById('exportReport').disabled=trackCoords.length<1;}}}catch(e){pending=null;}}
 async function send(payload){
  const response=await fetch('/api/location/track.php',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload),cache:'no-store'});
  const result=await response.json().catch(()=>({}));
@@ -79,7 +107,7 @@ function exportReport(){
 }
 function clearTrack(){
  if(watchId!==null||sessionId!==null)end();
- trackCoords=[];points=0;exportBtn.disabled=true;document.getElementById('exportReport').disabled=true;
+ trackCoords=[];points=0;renderTrackMap();exportBtn.disabled=true;document.getElementById('exportReport').disabled=true;
  status('مسیر از نمایش همین صفحه پاک شد. داده‌های ارسال‌نشدهٔ ذخیره‌شده برای جلوگیری از گم‌شدن حذف نشدند؛ داده‌های قبلاً ارسال‌شده نیز از سرور حذف نمی‌شوند.');
 }
 function gpsError(e){
@@ -104,7 +132,7 @@ async function begin(){
    const c=pos.coords,now=Date.now();points++;
    if(!trackCoords.length||now-lastLocalPoint>=5000){
     const rec=[c.latitude,c.longitude,c.accuracy,c.speed,c.heading,c.altitude,new Date(pos.timestamp||now).toISOString()];
-    trackCoords.push([c.latitude,c.longitude,c.altitude, c.accuracy, c.speed, c.heading, rec[6]]);pending.points.push(rec);lastLocalPoint=now;savePending();exportBtn.disabled=trackCoords.length<2;document.getElementById('exportReport').disabled=trackCoords.length<1;
+    trackCoords.push([c.latitude,c.longitude,c.altitude, c.accuracy, c.speed, c.heading, rec[6]]);renderTrackMap();pending.points.push(rec);lastLocalPoint=now;savePending();exportBtn.disabled=trackCoords.length<2;document.getElementById('exportReport').disabled=trackCoords.length<1;
     if(navigator.onLine)syncPending();
    }
    const accuracy=Math.round(c.accuracy||0);
@@ -125,7 +153,7 @@ async function end(){
 }
 window.addEventListener('online',()=>{if(pending){status('اینترنت وصل شد؛ در حال ارسال مسیر ذخیره‌شده…');syncPending();}});
 window.addEventListener('pagehide',function(){if(watchId!==null)navigator.geolocation.clearWatch(watchId);});
-loadPending();
+loadPending();renderTrackMap();window.addEventListener('resize',renderTrackMap);
 if(pending){status('یک مسیر ذخیره‌شده هنوز در انتظار ارسال است. اینترنت را وصل کنید و صفحه را باز نگه دارید.');if(navigator.onLine)syncPending();}
 startBtn.addEventListener('click',begin);stopBtn.addEventListener('click',end);exportBtn.addEventListener('click',exportKml);document.getElementById('exportReport').addEventListener('click',exportReport);document.getElementById('clearTrack').addEventListener('click',clearTrack);
 })();
