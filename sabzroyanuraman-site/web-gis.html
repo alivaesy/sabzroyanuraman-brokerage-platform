@@ -662,6 +662,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
     <button data-action="addOnlineData">Add Data from ArcGIS Online...</button>
     <button data-action="wms">Add WMS Layer...</button>
     <button data-action="exportData">Export Data...</button>
+    <button type="button" data-action="importArcMap">Import ArcMap Document (.mxd / .mpk)...</button>
     <div class="arc-sep"></div>
     <button type="button" data-action="printMap">Print Map...</button>
     <div class="arc-sep"></div><button type="button" data-action="geodatabaseManager">Create / Manage Geodatabase...</button>
@@ -789,6 +790,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 
     <div style="display:none">
       <input id="fileInput" type="file" accept=".geojson,.json,.kml,.kmz,.gpx,.zip,.shp">
+      <input id="mxdInput" type="file" accept=".mxd,.mpk,.mxt" aria-label="Import ArcMap document" hidden>
       <input id="gdbInput" type="file" webkitdirectory directory multiple>
       <button id="exportGeoJSON" type="button"></button>
       <button id="exportKML" type="button"></button>
@@ -4713,6 +4715,66 @@ $("fileInput").onchange=async e=>{
   e.target.value="";
 };
 
+
+async function importArcMapDocument(file){
+  const ext=String(file.name||"").toLowerCase().split(".").pop();
+  const addCollection=(data,name)=>{
+    if(data?.type==="FeatureCollection"&&Array.isArray(data.features)){geoJsonLayer(data,name);return true}
+    if(data?.type==="Feature"&&data.geometry){geoJsonLayer({type:"FeatureCollection",features:[data]},name);return true}
+    return false;
+  };
+  status("Inspecting ArcMap document: "+file.name+"...");
+  if(ext==="mxd"||ext==="mxt"){
+    // MXD/MXT are ArcGIS Desktop binary documents, not GeoJSON or ZIP archives.
+    // A licensed ArcMap/ArcObjects conversion service can be connected at this endpoint.
+    let response;
+    try{
+      const body=new FormData();body.append("file",file,file.name);
+      response=await fetch("api/gis/import-mxd.php",{method:"POST",body,credentials:"same-origin",headers:{"Accept":"application/json"}});
+    }catch(_){}
+    if(response&&response.ok){
+      const result=await response.json();
+      let count=0;
+      if(addCollection(result.geojson||result.data,file.name))count++;
+      for(const item of (Array.isArray(result.layers)?result.layers:[])){
+        if(addCollection(item.geojson||item.data||item.featureCollection,item.name||file.name))count++;
+      }
+      if(count){status("ArcMap conversion returned "+count+" spatial layer(s). Review symbology, fonts and layout; full ArcMap fidelity is not guaranteed.");return}
+      throw new Error("The MXD converter responded, but returned no supported GeoJSON feature layers.");
+    }
+    throw new Error("This ."+ext+" file is an ArcMap binary document and cannot be decoded by the browser alone. No compatible server converter is installed at api/gis/import-mxd.php. Use this importer with an .mpk package or connect a licensed Windows ArcMap/ArcObjects conversion worker; the original file was not changed.");
+  }
+  if(ext!=="mpk")throw new Error("Choose an ArcMap .mxd, .mxt, or map package .mpk file.");
+  if(typeof JSZip==="undefined")throw new Error("The ZIP library is unavailable; cannot inspect the map package.");
+  const archive=await JSZip.loadAsync(await file.arrayBuffer());
+  const entries=Object.values(archive.files).filter(entry=>!entry.dir);
+  let imported=0;
+  for(const entry of entries.filter(entry=>/\.(geojson|json|kml)$/i.test(entry.name))){
+    try{
+      if(/\.kml$/i.test(entry.name)){if(addCollection(parseKML(await entry.async("text")),entry.name))imported++}
+      else if(addCollection(JSON.parse(await entry.async("text")),entry.name))imported++;
+    }catch(err){console.warn("Skipped unsupported package document:",entry.name,err)}
+  }
+  const shapeEntries=entries.filter(entry=>/\.(shp|dbf|shx|prj|cpg)$/i.test(entry.name));
+  if(shapeEntries.some(entry=>/\.shp$/i.test(entry.name))){
+    try{
+      const shapeZip=new JSZip();
+      for(const entry of shapeEntries)shapeZip.file(entry.name,await entry.async("uint8array"));
+      const data=await shp(await shapeZip.generateAsync({type:"arraybuffer"}));
+      (Array.isArray(data)?data:[data]).forEach((fc,index)=>{if(addCollection(fc,Array.isArray(data)&&data.length>1?file.name+" / "+(index+1):file.name))imported++});
+    }catch(err){console.warn("Could not import packaged shapefiles:",err)}
+  }
+  if(imported){status("Map package inspected. Imported "+imported+" spatial layer(s). MXD styling, fonts, layer-source links and layout are not reproduced by feature extraction; inspect the Table Of Contents.");return}
+  const hasGdb=entries.some(entry=>/\.gdb\//i.test(entry.name)||/\.gdb$/i.test(entry.name));
+  throw new Error("The .mpk package was opened, but no supported GeoJSON, KML, or Shapefile layers were found."+ (hasGdb?" It appears to contain a file geodatabase; extract it and import the .gdb folder using Add Data.":"")+" An embedded .mxd is not itself converted by the browser.");
+}
+$("mxdInput").addEventListener("change",async event=>{
+  const file=event.target.files&&event.target.files[0];if(!file)return;
+  try{await importArcMapDocument(file)}
+  catch(error){console.error("ArcMap import:",error);status("ArcMap import failed: "+(error&&error.message?error.message:String(error)))}
+  finally{event.target.value=""}
+});
+
 let exportSourceLayer=null;
 function closeDataFormatDialog(){
   const dlg=$("dataCommandDialog");dlg.classList.remove("show");dlg.setAttribute("aria-hidden","true");
@@ -8053,6 +8115,7 @@ document.querySelectorAll(".arc-dropdown button[data-action], .classic-toolbar b
       about:()=>gisNotify("ArcMap-style Web GIS workspace"),
       shortcuts:()=>gisNotify("Drawing: Enter or double-click finishes a line or polygon; Backspace/Delete removes the last sketch vertex; Escape cancels the active tool. Selection: Ctrl-click or Shift-click adds/removes features. Editing: use Undo/Redo in the Edit menu to reverse/restore recorded map edits."),
       importData:()=>openDataFormatDialog("import"),
+      importArcMap:()=>document.getElementById("mxdInput")?.click(),
       exportData:()=>openDataFormatDialog("export"),
       geodatabaseManager:()=>openGeodatabaseManager(),
       openProjectManager:()=>openProjectManager(),
