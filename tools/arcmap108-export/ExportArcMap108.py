@@ -72,18 +72,18 @@ def describe_layer(layer, index, output_dir):
     except Exception:
         item['isGroupLayer'] = False
     try:
+        item['dataSource'] = getattr(layer, 'dataSource', None)
+        desc = arcpy.Describe(layer)
+        item['dataType'] = getattr(desc, 'dataType', None)
         if not layer.isFeatureLayer:
-            item['dataType'] = 'non-feature-layer'
             item['warnings'].append('Raster, service, annotation, network and other non-feature layers need type-specific export.')
             return item
     except Exception:
-        item['warnings'].append('Layer type could not be determined.')
+        item['warnings'].append('Layer type could not be determined or described.')
         return item
 
     try:
         desc = arcpy.Describe(layer)
-        item['dataSource'] = getattr(layer, 'dataSource', None)
-        item['dataType'] = getattr(desc, 'dataType', None)
         item['shapeType'] = getattr(desc, 'shapeType', None)
         sr = getattr(desc, 'spatialReference', None)
         if sr:
