@@ -18,6 +18,8 @@
 <div class="hint">۱. اینترنت و موقعیت مکانی (GPS) گوشی را روشن کنید.<br>۲. اگر پیام اجازهٔ موقعیت آمد، «اجازه دادن» را انتخاب کنید.<br>۳. هنگام ثبت مسیر، صفحه را باز نگه دارید. پس از پایان کار، «پایان ثبت» را بزنید.</div>
 <button class="btn start" id="start">شروع ارسال موقعیت زمین</button>
 <button class="btn stop" id="stop" hidden>پایان ثبت</button>
+<button class="btn" id="exportKml" disabled style="background:#e8f3ec;color:#145b39;font-size:16px">دانلود مسیر (KML)</button>
+<button class="btn" id="clearTrack" style="background:#fff4e5;color:#805000;font-size:16px">پاک‌کردن مسیر از این صفحه</button>
 <div class="status" id="status" role="status" aria-live="polite">هنوز ثبت شروع نشده است.</div>
 <div class="small">با زدن شروع، موقعیت مکانی شما به سرور این سایت ارسال و ذخیره می‌شود. فقط زمانی شروع کنید که آمادهٔ ثبت هستید.</div>
 </main>
@@ -25,7 +27,7 @@
 (function(){
 'use strict';
 const startBtn=document.getElementById('start'),stopBtn=document.getElementById('stop'),statusEl=document.getElementById('status');
-let watchId=null,sessionId=null,points=0,lastUpload=0,queue=Promise.resolve(),stopping=false;
+let watchId=null,sessionId=null,points=0,lastUpload=0,queue=Promise.resolve(),stopping=false,trackCoords=[];
 function status(t){statusEl.textContent=t;}
 function id(){try{if(window.crypto&&crypto.randomUUID)return crypto.randomUUID();}catch(e){}return 'trk-'+Date.now()+'-'+Math.random().toString(36).slice(2);}
 async function send(payload){
@@ -33,6 +35,17 @@ async function send(payload){
  const result=await response.json().catch(()=>({}));
  if(!response.ok||!result.ok)throw new Error(result.error||('خطای سرور '+response.status));
  return result;
+}
+function exportKml(){
+ if(trackCoords.length<2){status('برای دانلود مسیر، ابتدا دست‌کم دو موقعیت GPS ثبت کنید.');return;}
+ const coords=trackCoords.map(p=>p[1]+','+p[0]+',0').join(' ');
+ const kml='<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>مسیر زمین</name><Placemark><name>مسیر GPS</name><LineString><tessellate>1</tessellate><coordinates>'+coords+'</coordinates></LineString></Placemark></Document></kml>';
+ const url=URL.createObjectURL(new Blob([kml],{type:'application/vnd.google-earth.kml+xml'}));const a=document.createElement('a');a.href=url;a.download='masir-zamin-'+new Date().toISOString().replace(/[:.]/g,'-')+'.kml';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function clearTrack(){
+ if(watchId!==null||sessionId!==null)end();
+ trackCoords=[];points=0;document.getElementById('exportKml').disabled=true;
+ status('مسیر از این صفحه پاک شد. اطلاعاتی که قبلاً به سرور ارسال شده حذف نمی‌شود.');
 }
 function gpsError(e){
  if(e.code===1)status('دسترسی موقعیت مکانی رد شده است. مجوز Location را برای همین سایت در تنظیمات مرورگر فعال کنید و دوباره شروع بزنید.');
@@ -45,14 +58,14 @@ async function begin(){
  if(!window.isSecureContext){status('این صفحه باید با اتصال امن HTTPS باز شود.');return;}
  if(!navigator.geolocation){status('مرورگر این گوشی از موقعیت مکانی پشتیبانی نمی‌کند. از مرورگر به‌روز استفاده کنید.');return;}
  startBtn.disabled=true;status('در حال آماده‌سازی ثبت…');
- sessionId=id();points=0;lastUpload=0;stopping=false;queue=Promise.resolve();
+ sessionId=id();points=0;trackCoords=[];document.getElementById('exportKml').disabled=true;lastUpload=0;stopping=false;queue=Promise.resolve();
  try{await send({action:'start',session_id:sessionId,started_at:new Date().toISOString()});}
  catch(e){sessionId=null;startBtn.disabled=false;status('شروع ثبت انجام نشد: '+e.message);return;}
  startBtn.hidden=true;stopBtn.hidden=false;stopBtn.disabled=false;
  try{
   watchId=navigator.geolocation.watchPosition(function(pos){
    if(stopping||!sessionId)return;
-   const c=pos.coords;points++;
+   const c=pos.coords;points++;trackCoords.push([c.latitude,c.longitude]);document.getElementById('exportKml').disabled=trackCoords.length<2;
    const accuracy=Math.round(c.accuracy||0);
    status('ثبت فعال است. تعداد موقعیت‌های دریافت‌شده: '+points+' · دقت تقریبی: '+accuracy+' متر. برای پایان، دکمهٔ قرمز را بزنید.');
    if(points===1||Date.now()-lastUpload>=5000){
@@ -74,7 +87,7 @@ async function end(){
  }catch(e){status('ثبت در گوشی متوقف شد، اما تأیید پایان از سرور دریافت نشد. اینترنت را بررسی کنید.');}
  startBtn.hidden=false;startBtn.disabled=false;stopBtn.hidden=true;stopBtn.disabled=false;stopping=false;
 }
-startBtn.addEventListener('click',begin);stopBtn.addEventListener('click',end);
+startBtn.addEventListener('click',begin);stopBtn.addEventListener('click',end);document.getElementById('exportKml').addEventListener('click',exportKml);document.getElementById('clearTrack').addEventListener('click',clearTrack);
 window.addEventListener('pagehide',function(){if(watchId!==null)navigator.geolocation.clearWatch(watchId);});
 })();
 </script>
