@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#126b45">
+<title>ثبت موقعیت زمین | سبز رویان اورامان</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f1f6f0;color:#173b2b;font-family:Tahoma,Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px}.card{width:min(100%,480px);background:#fff;border-radius:22px;padding:26px 22px;box-shadow:0 8px 30px #173b2b16;text-align:center}.logo{font-size:15px;color:#397354;font-weight:bold}.icon{font-size:48px;margin:18px 0 8px}h1{font-size:25px;margin:8px 0 12px}p{line-height:1.9;color:#496356;font-size:15px}.hint{background:#f4f8f2;border-radius:12px;padding:12px;text-align:right;font-size:14px;line-height:1.9;margin:18px 0}.btn{width:100%;border:0;border-radius:14px;padding:18px 12px;font: bold 20px Tahoma,Arial,sans-serif;cursor:pointer;margin-top:10px}.start{background:#147448;color:white}.stop{background:#b42318;color:white}.btn:disabled{opacity:.45;cursor:not-allowed}.status{min-height:48px;margin-top:16px;padding:12px;background:#f6f8fa;border-radius:12px;line-height:1.8;font-size:14px;overflow-wrap:anywhere}.small{font-size:12px;color:#68796f;line-height:1.8;margin-top:15px}
+</style>
+</head>
+<body>
+<main class="card">
+<div class="logo">سبز رویان اورامان</div>
+<div class="icon" aria-hidden="true">📍</div>
+<h1>ثبت موقعیت زمین</h1>
+<p>وقتی داخل زمین هستید، دکمهٔ شروع را بزنید. گوشی موقعیت شما را ثبت و برای کارشناس ارسال می‌کند.</p>
+<div class="hint">۱. اینترنت و موقعیت مکانی (GPS) گوشی را روشن کنید.<br>۲. اگر پیام اجازهٔ موقعیت آمد، «اجازه دادن» را انتخاب کنید.<br>۳. هنگام ثبت مسیر، صفحه را باز نگه دارید. پس از پایان کار، «پایان ثبت» را بزنید.</div>
+<button class="btn start" id="start">شروع ارسال موقعیت زمین</button>
+<button class="btn stop" id="stop" hidden>پایان ثبت</button>
+<div class="status" id="status" role="status" aria-live="polite">هنوز ثبت شروع نشده است.</div>
+<div class="small">با زدن شروع، موقعیت مکانی شما به سرور این سایت ارسال و ذخیره می‌شود. فقط زمانی شروع کنید که آمادهٔ ثبت هستید.</div>
+</main>
+<script>
+(function(){
+'use strict';
+const startBtn=document.getElementById('start'),stopBtn=document.getElementById('stop'),statusEl=document.getElementById('status');
+let watchId=null,sessionId=null,points=0,lastUpload=0,queue=Promise.resolve(),stopping=false;
+function status(t){statusEl.textContent=t;}
+function id(){try{if(window.crypto&&crypto.randomUUID)return crypto.randomUUID();}catch(e){}return 'trk-'+Date.now()+'-'+Math.random().toString(36).slice(2);}
+async function send(payload){
+ const response=await fetch('/api/location/track.php',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload),cache:'no-store'});
+ const result=await response.json().catch(()=>({}));
+ if(!response.ok||!result.ok)throw new Error(result.error||('خطای سرور '+response.status));
+ return result;
+}
+function gpsError(e){
+ if(e.code===1)status('دسترسی موقعیت مکانی رد شده است. مجوز Location را برای همین سایت در تنظیمات مرورگر فعال کنید و دوباره شروع بزنید.');
+ else if(e.code===2)status('موقعیت پیدا نشد. GPS گوشی را روشن کنید و به فضای باز بروید.');
+ else if(e.code===3)status('پیدا کردن موقعیت طول کشید. گوشی را در فضای باز نگه دارید؛ ثبت همچنان فعال است.');
+ else status('خطا در دریافت موقعیت مکانی. GPS و مجوز مرورگر را بررسی کنید.');
+}
+async function begin(){
+ if(watchId!==null)return;
+ if(!window.isSecureContext){status('این صفحه باید با اتصال امن HTTPS باز شود.');return;}
+ if(!navigator.geolocation){status('مرورگر این گوشی از موقعیت مکانی پشتیبانی نمی‌کند. از مرورگر به‌روز استفاده کنید.');return;}
+ startBtn.disabled=true;status('در حال آماده‌سازی ثبت…');
+ sessionId=id();points=0;lastUpload=0;stopping=false;queue=Promise.resolve();
+ try{await send({action:'start',session_id:sessionId,started_at:new Date().toISOString()});}
+ catch(e){sessionId=null;startBtn.disabled=false;status('شروع ثبت انجام نشد: '+e.message);return;}
+ startBtn.hidden=true;stopBtn.hidden=false;stopBtn.disabled=false;
+ try{
+  watchId=navigator.geolocation.watchPosition(function(pos){
+   if(stopping||!sessionId)return;
+   const c=pos.coords;points++;
+   const accuracy=Math.round(c.accuracy||0);
+   status('ثبت فعال است. تعداد موقعیت‌های دریافت‌شده: '+points+' · دقت تقریبی: '+accuracy+' متر. برای پایان، دکمهٔ قرمز را بزنید.');
+   if(points===1||Date.now()-lastUpload>=5000){
+    lastUpload=Date.now();const sid=sessionId;
+    queue=queue.then(()=>send({action:'point',session_id:sid,latitude:c.latitude,longitude:c.longitude,accuracy:c.accuracy,speed:c.speed,heading:c.heading,altitude:c.altitude,recorded_at:new Date(pos.timestamp||Date.now()).toISOString()})).catch(e=>status('GPS فعال است، اما ارسال به سرور خطا دارد: '+e.message));
+   }
+  },gpsError,{enableHighAccuracy:true,timeout:30000,maximumAge:0});
+  status('در انتظار دریافت موقعیت GPS… ممکن است چند لحظه طول بکشد.');
+ }catch(e){status('امکان شروع GPS وجود ندارد. تنظیمات موقعیت مکانی گوشی را بررسی کنید.');}
+}
+async function end(){
+ if(stopping)return;stopping=true;stopBtn.disabled=true;
+ if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}
+ const sid=sessionId;sessionId=null;
+ try{
+  await queue;
+  if(sid)await send({action:'stop',session_id:sid,stopped_at:new Date().toISOString()});
+  status('ثبت پایان یافت. تعداد موقعیت‌های دریافت‌شده در این گوشی: '+points+'.');
+ }catch(e){status('ثبت در گوشی متوقف شد، اما تأیید پایان از سرور دریافت نشد. اینترنت را بررسی کنید.');}
+ startBtn.hidden=false;startBtn.disabled=false;stopBtn.hidden=true;stopBtn.disabled=false;stopping=false;
+}
+startBtn.addEventListener('click',begin);stopBtn.addEventListener('click',end);
+window.addEventListener('pagehide',function(){if(watchId!==null)navigator.geolocation.clearWatch(watchId);});
+})();
+</script>
+</body>
+</html>
