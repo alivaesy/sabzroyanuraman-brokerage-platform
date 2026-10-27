@@ -806,6 +806,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
             <option value="osm">OpenStreetMap</option>
             <option value="topo">OpenTopoMap</option>
             <option value="sat">Esri World Imagery</option>
+          <option value="googleSat">Google Satellite (API)</option>
             <option value="esriStreet">Esri World Street Map</option>
             <option value="esriTopo">Esri World Topographic Map</option>
             <option value="esriGray">Esri Light Gray Canvas</option>
@@ -1140,6 +1141,8 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 <script src="https://unpkg.com/@turf/turf@7.2.0/turf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gdal3.js@2.8.1/dist/package/gdal3.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCh3Elxg1P6rxHkNiyvTyFiZ6kBdl1W-Zk"></script>
+<script src="https://unpkg.com/leaflet.gridlayer.googlemutant@0.15.0/dist/Leaflet.GoogleMutant.js"></script>
 <script>
 (function(){
 "use strict";
@@ -1183,6 +1186,7 @@ const base={
  esriTopo:L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Tiles © Esri"}),
  esriGray:L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Tiles © Esri"}),
 nasaWms:L.tileLayer.wms("https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi",{layers:"BlueMarble_ShadedRelief",format:"image/png",transparent:false,version:"1.3.0",attribution:"NASA GIBS • Blue Marble"}),
+googleSat:(window.L&&L.gridLayer&&L.gridLayer.googleMutant)?L.gridLayer.googleMutant({type:"satellite"}):null,
 };
 const WAYBACK_CONFIG_URL="https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json";
 let waybackItems=[],waybackIndex=0,waybackLoading=null,waybackPanel=null,googleMyMapsPanel=null;
@@ -1313,13 +1317,14 @@ function selectBasemap(key,notify=true){
     next.on("tileerror",()=>status("Custom WMS basemap failed to load. Check the URL, layer name, service access, and CRS support."));
     base.customWms=next;
   }
+  if(key==="googleSat"&&!base.googleSat){status("Google Satellite بارگذاری نشد؛ کلید API، مجوز دامنه، Billing و اتصال شبکه را بررسی کنید.");return false;}
   const next=key==="customWms"?base.customWms:base[key];
   if(!next){status("Basemap is unavailable: "+key);return false;}
   // A new selection starts a fresh failure streak; stale errors from an old request must not trigger fallback.
   basemapTileErrors[key]=0;
   if(currentBase&&map.hasLayer(currentBase))map.removeLayer(currentBase);
   currentBase=next;currentBasemapKey=key;currentBase.addTo(map);$("basemap").value=key;
-  const labels={osm:"OpenStreetMap",topo:"OpenTopoMap",sat:"Esri World Imagery",esriStreet:"Esri World Street Map",esriTopo:"Esri World Topographic Map",esriGray:"Esri Light Gray Canvas",nasaWms:"NASA Blue Marble (WMS)",wayback:"Esri World Imagery Wayback",googleMyMaps:"Google My Maps",customWms:customWmsConfig?.name||"Custom WMS Basemap"};
+  const labels={googleSat:"Google Satellite",osm:"OpenStreetMap",topo:"OpenTopoMap",sat:"Esri World Imagery",esriStreet:"Esri World Street Map",esriTopo:"Esri World Topographic Map",esriGray:"Esri Light Gray Canvas",nasaWms:"NASA Blue Marble (WMS)",wayback:"Esri World Imagery Wayback",googleMyMaps:"Google My Maps",customWms:customWmsConfig?.name||"Custom WMS Basemap"};
   if(notify)status("Basemap: "+(labels[key]||key));
   scheduleAutoSave();
   return true;
