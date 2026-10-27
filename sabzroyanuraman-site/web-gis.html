@@ -694,7 +694,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
     <button data-action="display">Display / Basemap Settings...</button>
     <div class="arc-sep"></div><div class="arc-menu-title">Basemap</div>
     <button data-base="osm">OpenStreetMap</button><button data-base="topo">OpenTopoMap</button>
-    <button data-base="sat">Esri World Imagery</button><button data-base="googleSat">Google Satellite (API)</button><button data-base="nasaWms">NASA Blue Marble (WMS)</button>
+    <button data-base="sat">Esri World Imagery</button><button data-base="googleSat">Google Satellite (API)</button><button data-base="googleXyz">Google Satellite (XYZ - external)</button><button data-base="nasaWms">NASA Blue Marble (WMS)</button>
     <button data-base="esriStreet">Esri World Street Map</button><button data-base="esriTopo">Esri World Topographic Map</button>
     <button data-base="esriGray">Esri Light Gray Canvas</button>
     <button data-base="esriTerrain">Esri World Terrain</button><button data-base="esriNatGeo">Esri National Geographic</button>
@@ -810,6 +810,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
             <option value="topo">OpenTopoMap</option>
             <option value="sat">Esri World Imagery</option>
           <option value="googleSat">Google Satellite (API)</option>
+            <option value="googleXyz">Google Satellite (XYZ - external)</option>
             <option value="esriStreet">Esri World Street Map</option>
             <option value="esriTopo">Esri World Topographic Map</option>
             <option value="esriGray">Esri Light Gray Canvas</option>
@@ -1198,6 +1199,7 @@ const base={
  esriHillshade:L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}",{maxZoom:16,attribution:"Hillshade © Esri"}),
 nasaWms:L.tileLayer.wms("https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi",{layers:"BlueMarble_ShadedRelief",format:"image/png",transparent:false,version:"1.3.0",attribution:"NASA GIBS • Blue Marble"}),
 googleSat:(window.L&&L.gridLayer&&L.gridLayer.googleMutant)?L.gridLayer.googleMutant({type:"satellite"}):null,
+ googleXyz:L.tileLayer("https://mt0.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",{maxZoom:20,maxNativeZoom:20,attribution:"Imagery © Google",crossOrigin:true}),
 };
 const WAYBACK_CONFIG_URL="https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json";
 let waybackItems=[],waybackIndex=0,waybackLoading=null,waybackPanel=null,googleMyMapsPanel=null;
@@ -1335,7 +1337,7 @@ function selectBasemap(key,notify=true){
   basemapTileErrors[key]=0;
   if(currentBase&&map.hasLayer(currentBase))map.removeLayer(currentBase);
   currentBase=next;currentBasemapKey=key;currentBase.addTo(map);$("basemap").value=key;
-  const labels={googleSat:"Google Satellite",osm:"OpenStreetMap",topo:"OpenTopoMap",sat:"Esri World Imagery",esriStreet:"Esri World Street Map",esriTopo:"Esri World Topographic Map",esriGray:"Esri Light Gray Canvas",esriTerrain:"Esri World Terrain",esriNatGeo:"Esri National Geographic",esriTransport:"Esri Transportation Reference",esriHillshade:"Esri World Hillshade",nasaWms:"NASA Blue Marble (WMS)",wayback:"Esri World Imagery Wayback",googleMyMaps:"Google My Maps",customWms:customWmsConfig?.name||"Custom WMS Basemap"};
+  const labels={googleSat:"Google Satellite (API)",googleXyz:"Google Satellite (XYZ - external)",osm:"OpenStreetMap",topo:"OpenTopoMap",sat:"Esri World Imagery",esriStreet:"Esri World Street Map",esriTopo:"Esri World Topographic Map",esriGray:"Esri Light Gray Canvas",esriTerrain:"Esri World Terrain",esriNatGeo:"Esri National Geographic",esriTransport:"Esri Transportation Reference",esriHillshade:"Esri World Hillshade",nasaWms:"NASA Blue Marble (WMS)",wayback:"Esri World Imagery Wayback",googleMyMaps:"Google My Maps",customWms:customWmsConfig?.name||"Custom WMS Basemap"};
   if(notify)status("Basemap: "+(labels[key]||key));
   scheduleAutoSave();
   return true;
