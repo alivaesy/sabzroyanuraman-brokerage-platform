@@ -4633,8 +4633,10 @@ async function importGDBFiles(fileList){
     const zip=new JSZip(),prefix=root+"/";
     for(let i=0;i<files.length;i++){
       const f=files[i],path=relative[i]||f.name;
-      const inside=path.startsWith(prefix)?path.slice(prefix.length):path;
-      if(!inside||inside.split("/").some(part=>part===".."||part==="")){report.openErrors.push("Unsafe/empty relative path skipped: "+path);continue}
+      // Preserve the actual .gdb directory in the ZIP; loose .gdbtable files at
+      // archive root are not a reliable FileGDB datasource for GDAL.
+      const inside=path.startsWith(prefix)?path:(prefix+path);
+      if(!inside.startsWith(prefix)||inside.split("/").some(part=>part===".."||part==="")){report.openErrors.push("Unsafe/empty relative path skipped: "+path);continue}
       zip.file(inside,f,{binary:true,createFolders:true});
     }
     const zipBlob=await zip.generateAsync({type:"blob",compression:"STORE"},meta=>{
@@ -4661,11 +4663,14 @@ async function importGDBFiles(fileList){
           report.unsupported.push((info?.dsName||ds?.path||("Dataset "+(i+1)))+": raster dataset detected; raster conversion is not yet implemented.");
           continue;
         }
-        const sourceLayers=Array.isArray(info?.layers)&&info.layers.length?info.layers:[{name:ds?.info?.name||ds?.info?.layerName||("FeatureClass_"+(i+1)),featureCount:info?.featureCount}];
+        const metadataLayers=Array.isArray(ogrDetails?.layers)?ogrDetails.layers:[];
+        const infoLayers=Array.isArray(info?.layers)?info.layers:[];
+        const sourceLayers=infoLayers.length?infoLayers:(metadataLayers.length?metadataLayers:[{name:ds?.info?.name||ds?.info?.layerName||("FeatureClass_"+(i+1)),featureCount:info?.featureCount}]);
+        report.sourceFeatureClasses=(report.sourceFeatureClasses||0)+sourceLayers.length;
         for(let li=0;li<sourceLayers.length;li++){
           const sourceLayer=sourceLayers[li];
           const layerName=String(sourceLayer?.name||("FeatureClass_"+(i+1)+"_"+(li+1)));
-          const detailedLayer=(Array.isArray(ogrDetails?.layers)?ogrDetails.layers:[]).find(x=>String(x.name)===layerName)||{};
+          const detailedLayer=metadataLayers.find(x=>String(x.name)===layerName)||{};
           try{
             const options=["-f","GeoJSON","-t_srs","EPSG:4326"];
             // A FileGDB is commonly one GDAL dataset containing many feature classes.
@@ -4693,6 +4698,7 @@ async function importGDBFiles(fileList){
                 fieldDefinitions:emptyFields,sourceDatasetInfo:info||null,sourceSchemaAndCRS:ogrDetails||null};
               if(emptyItem)emptyItem.sourceName=root+"/"+layerName;
               report.layerErrors.push(layerName+": empty feature class (0 records); schema retained in layer metadata.");
+            report.emptyFeatureClasses=(report.emptyFeatureClasses||[]).concat([{name:layerName,fields:emptyLayer._gdbMetadata.fields}]);
               continue;
             }
             const displayLayer=geoJsonLayer(fc,layerName);
@@ -4716,6 +4722,13 @@ async function importGDBFiles(fileList){
               report.layerErrors.push(layerName+": feature-count mismatch; source reports "+expectedCount+", exported "+fc.features.length+".");
             }
             report.importedLayers++;report.importedFeatures+=fc.features.length;
+            report.importedFeatureClasses=(report.importedFeatureClasses||[]).concat([{
+              name:layerName,sourceFeatureCount:sourceLayer?.featureCount??null,exportedFeatureCount:fc.features.length,
+              geometryTypes:displayLayer._gdbMetadata?.geometryType||"",
+              fields:displayLayer._gdbMetadata?.fields||[],
+              fieldDefinitions:displayLayer._gdbMetadata?.fieldDefinitions||[],
+              sourceCRS:detailedLayer?.geometryFields||detailedLayer?.srs||detailedLayer?.crs||null
+            }]);
           }catch(err){
             report.failedLayers++;report.layerErrors.push(layerName+": "+(err?.message||String(err)));
             console.warn("File Geodatabase feature class import failed:",layerName,err);
@@ -4744,9 +4757,12 @@ async function importGDBFiles(fileList){
     download(JSON.stringify(report,null,2),root+"-import-report.json","application/json");
     console.info("File Geodatabase import report",report);
   }catch(err){
+    report.fatalError=err?.message||String(err);
+    report.files=relative.map((path,index)=>({path,size:files[index]?.size||0}));
+    try{download(JSON.stringify(report,null,2),root+"-import-report.json","application/json")}catch(reportErr){console.warn("Could not download failed GDB import report",reportErr)}
     console.error("File Geodatabase import failed",err,report);
     status("File Geodatabase import failed: "+(err?.message||String(err))+
-      " Selected files: "+report.selectedFiles+". Check the folder structure and browser GDAL OpenFileGDB support. No source files were changed.");
+      " Selected files: "+report.selectedFiles+". A diagnostic JSON report was attempted; no source files were changed.");
   }
 }
 $("gdbInput").onchange=async e=>{
