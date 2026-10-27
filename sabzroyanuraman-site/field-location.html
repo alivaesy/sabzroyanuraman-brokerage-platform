@@ -134,13 +134,21 @@ function gpsError(e){
 }
 async function begin(){
  if(watchId!==null)return;
- if(pending){status('یک مسیر قبلی هنوز ارسال نشده است. ابتدا اینترنت را وصل کنید تا ارسال کامل شود؛ سپس مسیر جدید را شروع کنید.');syncPending();return;}
+ // Resume an unfinished local session after an accidental page close.
+ if(pending&&pending.stopped_at){status('یک مسیر قبلی هنوز ارسال نشده است. ابتدا اینترنت را وصل کنید تا ارسال کامل شود؛ سپس مسیر جدید را شروع کنید.');syncPending();return;}
  if(!window.isSecureContext){status('این صفحه باید با اتصال امن HTTPS باز شود.');return;}
  if(!navigator.geolocation){status('مرورگر این گوشی از موقعیت مکانی پشتیبانی نمی‌کند. از مرورگر به‌روز استفاده کنید.');return;}
  startBtn.disabled=true;status('در حال آماده‌سازی ثبت GPS…');
- sessionId=id();points=0;trackCoords=[];exportBtn.disabled=true;lastLocalPoint=0;stopping=false;
- pending={session_id:sessionId,started_at:new Date().toISOString(),stopped_at:null,serverStarted:false,sentCount:0,points:[]};
- if(!savePending()){pending=null;sessionId=null;startBtn.disabled=false;return;}
+ if(pending){
+  sessionId=pending.session_id;
+  trackCoords=pending.points.map(p=>[p[0],p[1],p[5],p[2],p[3],p[4],p[6]]);
+  exportBtn.disabled=trackCoords.length<2;
+ }else{
+  sessionId=id();trackCoords=[];exportBtn.disabled=true;
+  pending={session_id:sessionId,started_at:new Date().toISOString(),stopped_at:null,serverStarted:false,sentCount:0,points:[]};
+ }
+ points=0;lastLocalPoint=0;stopping=false;renderTrackMap();
+ if(!savePending()){sessionId=null;startBtn.disabled=false;return;}
  startBtn.hidden=true;stopBtn.hidden=false;stopBtn.disabled=false;
  try{
   watchId=navigator.geolocation.watchPosition(function(pos){
