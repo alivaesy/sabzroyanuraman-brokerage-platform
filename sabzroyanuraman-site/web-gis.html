@@ -4576,6 +4576,7 @@ function geoJsonLayer(data,name){
   addNamedLayer(name,layer,true);
   layer.eachLayer&&layer.eachLayer(l=>attachFeatureSelection(l));
   status(name+" imported with source fields preserved; verify labels and symbols against the MXD.");scheduleAutoSave();
+  return layer;
 }
 function parseKML(text){
   const doc=new DOMParser().parseFromString(text,"application/xml");
@@ -4620,46 +4621,87 @@ async function getGdalBrowser(){
 async function importGDBFiles(fileList){
   const files=Array.from(fileList||[]);
   if(!files.length){status("No geodatabase folder was selected.");return}
-  const gdbRoot=(files[0].webkitRelativePath||"").split("/")[0]||"selected.gdb";
-  if(!/\.gdb$/i.test(gdbRoot)){status("Select a folder ending in .gdb.");return}
+  const relative=files.map(f=>f.webkitRelativePath||f.name);
+  const root=(relative[0]||"").split("/")[0]||"selected.gdb";
+  if(!/\.gdb$/i.test(root)){status("Select the actual folder ending in .gdb.");return}
+  if(typeof JSZip==="undefined")throw new Error("ZIP library is unavailable; cannot preserve the File Geodatabase directory structure.");
+  const report={selectedFiles:files.length,openedDatasets:0,importedLayers:0,importedFeatures:0,emptyLayers:0,failedLayers:0,openErrors:[],layerErrors:[],unsupported:[]};
   try{
-    status("Preparing File Geodatabase (checking each feature class)...");
+    status("Reading "+root+": preserving folder structure and scanning all files...");
+    // Browser File objects expose only basenames to GDAL. Repackage the selected
+    // geodatabase contents with relative paths and open via GDAL's /vsizip/ handler.
+    const zip=new JSZip(),prefix=root+"/";
+    for(let i=0;i<files.length;i++){
+      const f=files[i],path=relative[i]||f.name;
+      const inside=path.startsWith(prefix)?path.slice(prefix.length):path;
+      if(!inside||inside.split("/").some(part=>part===".."||part==="")){report.openErrors.push("Unsafe/empty relative path skipped: "+path);continue}
+      zip.file(inside,f,{binary:true,createFolders:true});
+    }
+    const zipBlob=await zip.generateAsync({type:"blob",compression:"STORE"},meta=>{
+      if(meta.percent===0||meta.percent===100)status("Packaging File Geodatabase: "+Math.round(meta.percent)+"%");
+    });
+    const gdbZip=new File([zipBlob],root+".zip",{type:"application/zip"});
     const Gdal=await getGdalBrowser();
-    const opened=await Gdal.open(files);
-    const datasets=opened.datasets||[];
-    if(!datasets.length)throw new Error("GDAL opened no datasets. The selected folder may have lost its .gdb directory structure, or this browser build may not support this File Geodatabase.");
-    let imported=0,empty=0,failed=0,featureCount=0;
-    const failures=[];
+    const opened=await Gdal.open(gdbZip,[],["vsizip"]);
+    const datasets=Array.isArray(opened?.datasets)?opened.datasets:[];
+    const openErrors=Array.isArray(opened?.errors)?opened.errors:[];
+    report.openedDatasets=datasets.length;
+    report.openErrors.push(...openErrors.map(e=>typeof e==="string"?e:(e?.message||JSON.stringify(e))));
+    if(!datasets.length){
+      const detail=report.openErrors.slice(0,4).join(" | ");
+      throw new Error("GDAL did not discover any feature classes in the packaged .gdb. "+(detail||"This GDAL build may not expose FileGDB layers through /vsizip/."));
+    }
     for(let i=0;i<datasets.length;i++){
-      const ds=datasets[i];
-      let out=null;
-      const rawName=ds.info?.name||ds.info?.layerName||("FeatureClass_"+(i+1));
-      const layerName=String(rawName).replace(/.*[\\/]/,"");
+      const ds=datasets[i];let out=null,info=null;
       try{
+        try{info=await Gdal.getInfo(ds)}catch(infoErr){report.layerErrors.push("Dataset "+(i+1)+" metadata: "+(infoErr?.message||String(infoErr)))}
+        const rawName=ds?.info?.name||ds?.info?.layerName||info?.layers?.[0]?.name||("FeatureClass_"+(i+1));
+        const layerName=String(rawName).replace(/.*[\\/]/,"");
         out=await Gdal.ogr2ogr(ds,["-f","GeoJSON","-t_srs","EPSG:4326"]);
         const bytes=await Gdal.getFileBytes(out);
         const fc=JSON.parse(new TextDecoder().decode(bytes));
-        if(fc&&fc.type==="FeatureCollection"&&Array.isArray(fc.features)){
-          if(fc.features.length){geoJsonLayer(fc,layerName);imported++;featureCount+=fc.features.length}
-          else {empty++;failures.push(layerName+": feature class is empty (0 records).")}
-        }else{failed++;failures.push(layerName+": GDAL output was not a GeoJSON FeatureCollection.")}
+        if(!fc||fc.type!=="FeatureCollection"||!Array.isArray(fc.features)){
+          report.failedLayers++;report.layerErrors.push(layerName+": output was not a GeoJSON FeatureCollection.");continue;
+        }
+        if(!fc.features.length){
+          report.emptyLayers++;report.layerErrors.push(layerName+": empty feature class (0 records).");continue;
+        }
+        const displayLayer=geoJsonLayer(fc,layerName);
+        const item=namedLayers.find(x=>x.layer===displayLayer);
+        if(item){
+          item.sourceName=root+"/"+layerName;
+          displayLayer._gdbMetadata={
+            workspace:root,featureClass:layerName,driver:info?.driverName||"OpenFileGDB",
+            sourceFeatureCount:info?.featureCount??fc.features.length,
+            displayCRS:"EPSG:4326",geometryType:[...new Set(fc.features.map(f=>f.geometry?.type).filter(Boolean))].join(", "),
+            fields:[...new Set(fc.features.flatMap(f=>Object.keys(f.properties||{})))],
+            sourceDatasetInfo:info||null
+          };
+        }
+        report.importedLayers++;report.importedFeatures+=fc.features.length;
       }catch(err){
-        failed++;failures.push(layerName+": "+(err?.message||String(err)));
-        console.warn("GDB layer import failed:",layerName,err);
+        report.failedLayers++;report.layerErrors.push((ds?.info?.name||"Dataset "+(i+1))+": "+(err?.message||String(err)));
+        console.warn("File Geodatabase import failed:",err);
       }finally{
         if(out){try{Gdal.close(out)}catch(_){}}
         try{Gdal.close(ds)}catch(_){}
       }
     }
-    const summary="File Geodatabase scan: "+datasets.length+" dataset(s); imported "+imported+" layer(s), "+featureCount+" feature(s); empty "+empty+"; failed "+failed+".";
-    if(failed||empty){
-      const detail=failures.slice(0,5).join(" | ")+(failures.length>5?" | and "+(failures.length-5)+" more":"");
-      status(summary+" Some classes were not added: "+detail+" Labels, symbology and layer order belong to the MXD/map document, not ordinary feature geometry.");
-    }else if(imported)status(summary+" This imports geometry and attributes only; MXD labels, symbology, grouping and layout must be restored separately.");
-    else status(summary+" No populated supported feature classes were imported.");
+    const summary="GDB scan — files: "+report.selectedFiles+
+      "; GDAL datasets: "+report.openedDatasets+
+      "; layers imported: "+report.importedLayers+
+      "; features: "+report.importedFeatures+
+      "; empty: "+report.emptyLayers+
+      "; failed: "+report.failedLayers+
+      "; open warnings: "+report.openErrors.length+".";
+    const details=[...report.openErrors,...report.layerErrors].slice(0,7).join(" | ");
+    status(summary+(details?" Details: "+details:"")+
+      " Geometry and attributes are converted to WGS84 for map display; the original folder is unchanged. MXD symbology/labels and advanced geodatabase rules are not yet reconstructed.");
+    console.info("File Geodatabase import report",report);
   }catch(err){
-    console.error(err);
-    status("Geodatabase import failed: "+(err.message||err)+" Check that you selected the actual .gdb folder and that its internal files are intact.");
+    console.error("File Geodatabase import failed",err,report);
+    status("File Geodatabase import failed: "+(err?.message||String(err))+
+      " Selected files: "+report.selectedFiles+". Check the folder structure and browser GDAL OpenFileGDB support. No source files were changed.");
   }
 }
 $("gdbInput").onchange=async e=>{
