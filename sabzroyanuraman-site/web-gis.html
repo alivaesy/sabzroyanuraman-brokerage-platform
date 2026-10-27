@@ -1194,59 +1194,6 @@ function ensureSpecialBasemapPanels(){
  }
  if(!googleMyMapsPanel){googleMyMapsPanel=document.createElement("div");googleMyMapsPanel.id="gisGoogleMyMapsPanel";googleMyMapsPanel.style.cssText="display:none;position:absolute;z-index:1190;top:12px;right:12px;bottom:38px;width:min(48%,560px);min-width:280px;background:#fff;border:1px solid #9baebd;border-radius:8px;overflow:hidden;box-shadow:0 3px 12px #0002";googleMyMapsPanel.innerHTML='<div style="height:34px;background:#f4f7f8;display:flex;align-items:center;justify-content:space-between;padding:0 8px;font:12px sans-serif"><strong>Google My Maps</strong><button type="button" id="gisGoogleMyMapsClose" title="بستن">×</button></div><iframe title="Google My Maps" src="'+GOOGLE_MY_MAPS_EMBED+'" style="width:100%;height:calc(100% - 34px);border:0" loading="lazy" allowfullscreen></iframe>';host.appendChild(googleMyMapsPanel);googleMyMapsPanel.querySelector("#gisGoogleMyMapsClose").onclick=()=>{googleMyMapsPanel.style.display="none";if(currentBasemapKey==="googleMyMaps"){currentBasemapKey="osm";$("basemap").value="osm";}};}
 }
-let googleSatelliteLayer=null,googleSatelliteLoading=null;
-const GOOGLE_MAPS_KEY_STORAGE="sabzroyan-webgis-google-maps-key-v1";
-async function activateGoogleSatellite(notify=true){
-  let key="";
-  try{key=localStorage.getItem(GOOGLE_MAPS_KEY_STORAGE)||"";}catch(e){}
-  if(!key){
-    key=window.prompt("برای فعال‌سازی Google Satellite، کلید API مربوط به Google Maps JavaScript API را وارد کنید. کلید در همین مرورگر ذخیره می‌شود؛ آن را در Google Cloud به دامنه سایت محدود کنید.");
-    if(!key||!key.trim()){
-      $("basemap").value=currentBasemapKey||"osm";
-      status("Google Satellite فعال نشد؛ ابتدا کلید API را از Google Cloud تنظیم کنید.");
-      return false;
-    }
-    key=key.trim();
-    try{localStorage.setItem(GOOGLE_MAPS_KEY_STORAGE,key);}catch(e){}
-  }
-  try{
-    if(!googleSatelliteLoading){
-      googleSatelliteLoading=(async()=>{
-        if(!window.google?.maps){
-          await new Promise((resolve,reject)=>{
-            const script=document.createElement("script");
-            script.src="https://maps.googleapis.com/maps/api/js?key="+encodeURIComponent(key)+"&v=weekly";
-            script.async=true;script.defer=true;
-            script.onload=resolve;script.onerror=()=>reject(new Error("Google Maps API load failed"));
-            document.head.appendChild(script);
-          });
-        }
-        if(!window.L?.gridLayer?.googleMutant){
-          await new Promise((resolve,reject)=>{
-            const script=document.createElement("script");
-            script.src="https://unpkg.com/leaflet.gridlayer.googlemutant@0.13.5/dist/Leaflet.GoogleMutant.js";
-            script.onload=resolve;script.onerror=()=>reject(new Error("GoogleMutant plugin load failed"));
-            document.head.appendChild(script);
-          });
-        }
-        if(!window.L.gridLayer.googleMutant)throw new Error("GoogleMutant plugin unavailable");
-        googleSatelliteLayer=L.gridLayer.googleMutant({type:"satellite",maxZoom:22});
-      })();
-    }
-    await googleSatelliteLoading;
-    if(currentBase&&map.hasLayer(currentBase))map.removeLayer(currentBase);
-    currentBase=googleSatelliteLayer;currentBasemapKey="googleMyMaps";
-    googleSatelliteLayer.addTo(map);$("basemap").value="googleMyMaps";
-    if(notify)status("Google Satellite فعال شد؛ ابزارهای ترسیم Leaflet روی نقشه باقی می‌مانند.");
-    scheduleAutoSave();return true;
-  }catch(err){
-    googleSatelliteLoading=null;
-    $("basemap").value=currentBasemapKey||"osm";
-    status("Google Satellite بارگذاری نشد. کلید API، فعال‌بودن Maps JavaScript API، صورتحساب و محدودیت دامنه را بررسی کنید.");
-    console.error("Google Satellite initialization failed",err);
-    return false;
-  }
-}
 function waybackNormalize(data){const src=Array.isArray(data)?data:Object.keys(data||{}).map(k=>data[k]&&typeof data[k]==="object"?Object.assign({releaseNum:Number(k)},data[k]):null);return src.filter(x=>x&&(x.releaseNum!==undefined)&&(x.releaseDateLabel||x.releaseDatetime)).map(x=>({releaseNum:Number(x.releaseNum),releaseDateLabel:x.releaseDateLabel||(x.releaseDatetime?new Date(x.releaseDatetime).toISOString().slice(0,10):String(x.releaseNum)),releaseDatetime:Number(x.releaseDatetime||0),itemURL:x.itemURL||""})).filter(x=>Number.isFinite(x.releaseNum)&&x.itemURL).sort((a,b)=>a.releaseDatetime-b.releaseDatetime);}
 const WAYBACK_CACHE_KEY="sabzroyan-webgis-wayback-config-v1";
 async function fetchWaybackConfig(){
