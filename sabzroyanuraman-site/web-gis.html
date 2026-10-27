@@ -9456,5 +9456,32 @@ const arcMapDialog=(()=>{
 </style>
 
 
+
+<!-- HOST-UPDATE-TEST-20261027: temporary deployment verification -->
+<style>
+#hostUpdateTest{position:fixed;z-index:2147483000;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 18px;background:rgba(255,255,255,.97);border:2px solid #16734a;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.28);direction:rtl;text-align:center;font: bold 14px/1.5 Arial,sans-serif}
+#hostUpdateTest button{border:0;border-radius:8px;background:#16734a;color:#fff;padding:11px 24px;font:inherit;cursor:pointer}
+#hostUpdateTest small{font-weight:normal;color:#334155}
+#hostUpdateTest.done{border-color:#16734a}
+</style>
+<div id="hostUpdateTest" data-build="HOST-UPDATE-TEST-20261027">
+  <button type="button" id="hostUpdateTestButton">تست به‌روزرسانی هاست</button>
+  <small id="hostUpdateTestResult">برای بررسی نسخهٔ منتشرشده کلیک کنید</small>
+</div>
+<script>
+(function(){
+  var button=document.getElementById('hostUpdateTestButton');
+  var result=document.getElementById('hostUpdateTestResult');
+  if(!button||!result)return;
+  button.addEventListener('click',function(){
+    var now=new Date();
+    result.textContent='نسخهٔ آزمایشی 2026-10-27 فعال است · '+now.toLocaleString('fa-IR');
+    button.textContent='تست موفق شد';
+    document.getElementById('hostUpdateTest').classList.add('done');
+  });
+})();
+</script>
+<!-- /HOST-UPDATE-TEST-20261027 -->
+
 </body>
 </html>
