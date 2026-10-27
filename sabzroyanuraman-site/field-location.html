@@ -33,7 +33,7 @@ let watchId=null,sessionId=null,points=0,lastLocalPoint=0,stopping=false,trackCo
 function status(t){statusEl.textContent=t;}
 function id(){try{if(window.crypto&&crypto.randomUUID)return crypto.randomUUID();}catch(e){}return 'trk-'+Date.now()+'-'+Math.random().toString(36).slice(2);}
 function savePending(){try{if(pending)localStorage.setItem(STORE,JSON.stringify(pending));else localStorage.removeItem(STORE);return true;}catch(e){status('ذخیرهٔ محلی انجام نشد؛ فضای ذخیره‌سازی مرورگر ممکن است پر باشد. مسیر را فوراً KML دانلود کنید.');return false;}}
-function loadPending(){try{const raw=localStorage.getItem(STORE);if(raw){const x=JSON.parse(raw);if(x&&x.session_id&&Array.isArray(x.points))pending=x;}}catch(e){pending=null;}}
+function loadPending(){try{const raw=localStorage.getItem(STORE);if(raw){const x=JSON.parse(raw);if(x&&x.session_id&&Array.isArray(x.points)){pending=x;trackCoords=x.points.map(p=>[p[0],p[1],p[5],p[2],p[3],p[4],p[6]]);exportBtn.disabled=trackCoords.length<2;document.getElementById('exportReport').disabled=trackCoords.length<1;}}}catch(e){pending=null;}}
 async function send(payload){
  const response=await fetch('/api/location/track.php',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload),cache:'no-store'});
  const result=await response.json().catch(()=>({}));
@@ -65,14 +65,14 @@ function exportKml(){
  if(trackCoords.length<2){status('برای دانلود مسیر، ابتدا دست‌کم دو موقعیت GPS ثبت کنید.');return;}
  const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
  const coords=trackCoords.map(p=>p[1]+','+p[0]+','+(Number.isFinite(p[2])?p[2]:0)).join(' ');
- const placemarks=trackCoords.map((p,i)=>'<Placemark><name>نقطه '+(i+1)+'</name><TimeStamp><when>'+esc(p[6]||'')+'</when></TimeStamp><ExtendedData><Data name="accuracy_m"><value>'+esc(p[2]===null?'':p[2])+'</value></Data><Data name="speed_mps"><value>'+esc(p[3]===null?'':p[3])+'</value></Data><Data name="heading_deg"><value>'+esc(p[4]===null?'':p[4])+'</value></Data><Data name="altitude_gps_m"><value>'+esc(p[5]===null?'':p[5])+'</value></Data></ExtendedData><Point><altitudeMode>absolute</altitudeMode><coordinates>'+p[1]+','+p[0]+','+(Number.isFinite(p[5])?p[5]:0)+'</coordinates></Point></Placemark>').join('');
+ const placemarks=trackCoords.map((p,i)=>'<Placemark><name>نقطه '+(i+1)+'</name><TimeStamp><when>'+esc(p[6]||'')+'</when></TimeStamp><ExtendedData><Data name="accuracy_m"><value>'+esc(p[3]===null?'':p[3])+'</value></Data><Data name="speed_mps"><value>'+esc(p[4]===null?'':p[4])+'</value></Data><Data name="heading_deg"><value>'+esc(p[5]===null?'':p[5])+'</value></Data><Data name="altitude_gps_m"><value>'+esc(p[2]===null?'':p[2])+'</value></Data></ExtendedData><Point><altitudeMode>absolute</altitudeMode><coordinates>'+p[1]+','+p[0]+','+(Number.isFinite(p[5])?p[5]:0)+'</coordinates></Point></Placemark>').join('');
  const kml='<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>گزارش مسیر GPS</name><description>داده‌های این فایل از مرورگر گوشی دریافت شده‌اند و به‌تنهایی اصالت مسیر را اثبات نمی‌کنند.</description><Placemark><name>مسیر GPS</name><LineString><tessellate>1</tessellate><altitudeMode>absolute</altitudeMode><coordinates>'+coords+'</coordinates></LineString></Placemark>'+placemarks+'</Document></kml>';
  downloadBlob('masir-zamin-'+new Date().toISOString().replace(/[:.]/g,'-')+'.kml',kml,'application/vnd.google-earth.kml+xml');
 }
 function exportReport(){
  if(!trackCoords.length){status('هنوز نقطه‌ای برای گزارش GPS ثبت نشده است.');return;}
  const rows=[['شماره','زمان ثبت گوشی','عرض جغرافیایی','طول جغرافیایی','ارتفاع GPS (متر)','دقت افقی GPS (متر)','سرعت (متر بر ثانیه)','جهت (درجه)']];
- trackCoords.forEach((p,i)=>rows.push([i+1,p[6]||'',p[0],p[1],p[5]??'',p[2]??'',p[3]??'',p[4]??'']));
+ trackCoords.forEach((p,i)=>rows.push([i+1,p[6]||'',p[0],p[1],p[2]??'',p[3]??'',p[4]??'',p[5]??'']));
  const csv=rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
  downloadBlob('gozaresh-gps-'+new Date().toISOString().replace(/[:.]/g,'-')+'.csv',csv,'text/csv;charset=utf-8');
  status('گزارش CSV آماده شد. فایل را همراه KML برای کارشناس بفرستید؛ اطلاعات فایل به‌تنهایی اصالت مسیر را تضمین نمی‌کند.');
