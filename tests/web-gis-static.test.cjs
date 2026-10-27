@@ -180,3 +180,13 @@ test('ArcMap import entry point accepts MXD/MXT/MPK and extracts supported MPK d
   assert.match(html, /parseKML\(await entry\.async\("text"\)\)/);
   assert.match(html, /MXD styling, fonts, layer-source links and layout are not reproduced/);
 });
+
+test('FileGDB import reports missing classes, preserves schema metadata, and flags unsupported rasters', () => {
+  assert.match(html, /async function importGDBFiles\(fileList\)/);
+  assert.match(html, /zip\.file\(inside,f/);
+  assert.match(html, /const detailedLayer=/);
+  assert.match(html, /fieldDefinitions:/);
+  assert.match(html, /feature-count mismatch/);
+  assert.match(html, /raster dataset detected; raster conversion is not yet implemented/);
+  assert.match(html, /import-report\.json/);
+});
