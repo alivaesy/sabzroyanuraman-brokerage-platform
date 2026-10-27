@@ -182,6 +182,13 @@ At the end of each meaningful batch, update this file with the verified date, co
 - Do not claim every geodatabase component is imported. Feature classes and their simple feature attributes/geometries are the current target. FileGDB domains, subtypes, relationship classes, attachments, annotation, topology/network rules, raster/mosaic content, and ArcMap renderer/label settings need separate extraction and support. Full coverage requires a richer manifest and/or a server-side native GDAL/ArcObjects-compatible conversion worker.
 - Inline JavaScript syntax check after the change: 12 inline scripts, 0 syntax errors; no live runtime/browser test.
 
+## FileGDB import audit — follow-up corrections (2026-10-27)
+
+- Commit `be7f7afe725ac43602807387244631c6a1e5b804` fixes a concrete archive-layout defect: the ZIP now preserves the `.gdb/` directory instead of flattening its contents into loose files at ZIP root. It also falls back to the `ogrinfo` layer inventory when `getInfo()` does not return layers, records field definitions and source/export count mismatches, and attempts to download diagnostics even when opening fails.
+- Commit `7ec475302d5712232df6f946246f3267ebf5c1e7` requests preservation of feature IDs and explicitly lists unsupported content in the import report and status.
+- Static regression assertions updated in commit `a0b45328a28ca0e0b96e1d3c64aeb5d491f9e059`.
+- Important: the ZIP/GDAL path fix has only passed inline-JavaScript syntax checks (12 scripts, zero syntax errors); it has not been runtime-tested with a real `.gdb`. MXD/MXT import endpoint `api/gis/import-mxd.php` is referenced by the front end but was not found in the repository, so native ArcMap symbology, labels, text, and layout cannot currently be restored. A complete solution still requires an ArcMap/ArcObjects-compatible Windows extraction worker or another verified reader that exports a manifest plus original data/assets. Browser GeoJSON rendering alone cannot preserve topology rules, domains, subtypes, relationship classes, attachments, annotation, raster/mosaic datasets, exact field semantics, or full symbology.
+
 ## Full FileGDB audit follow-up — 2026-10-27
 
 - Commit `41b0135b3785d36d6de7cd376367242d8cbbb1aa` improves the importer: retains source field definitions when GDAL exposes them, keeps empty feature classes in the layer catalog with schema metadata, compares source/export feature counts, and explicitly reports raster datasets as unsupported rather than treating them as vector classes.
