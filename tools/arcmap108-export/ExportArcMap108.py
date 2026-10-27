@@ -31,6 +31,18 @@ def json_value(value):
     except Exception:
         return repr(value)
 
+def to_json_safe(value):
+    if value is None or isinstance(value, (bool, int, long, float, str, unicode)):
+        return value
+    if isinstance(value, dict):
+        return dict((unicode(k), to_json_safe(v)) for k, v in value.items())
+    if isinstance(value, (list, tuple, set)):
+        return [to_json_safe(v) for v in value]
+    try:
+        return unicode(value)
+    except Exception:
+        return repr(value)
+
 def field_info(field):
     return {
         'name': field.name,
@@ -392,7 +404,7 @@ def main():
                 })
         manifest_path = os.path.join(output_dir, 'manifest.json')
         with open(manifest_path, 'wb') as handle:
-            handle.write(json.dumps(manifest, ensure_ascii=False, indent=2).encode('utf-8'))
+            handle.write(json.dumps(to_json_safe(manifest), ensure_ascii=False, indent=2).encode('utf-8'))
     finally:
         del mxd
 
