@@ -785,7 +785,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
     </div>
 
     <div style="display:none">
-      <input id="fileInput" type="file" accept=".geojson,.json,.kml,.kmz,.zip,.shp">
+      <input id="fileInput" type="file" accept=".geojson,.json,.kml,.kmz,.gpx,.zip,.shp">
       <input id="gdbInput" type="file" webkitdirectory directory multiple>
       <button id="exportGeoJSON" type="button"></button>
       <button id="exportKML" type="button"></button>
@@ -820,6 +820,14 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
           <input id="wmsUrl" placeholder="https://server/.../wms">
           <input id="wmsLayer" placeholder="Layer names (LAYERS)" style="margin-top:6px"><input id="wmsVersion" value="1.3.0" placeholder="WMS version" style="margin-top:6px">
           <div class="row"><button class="action" id="addWms">Add WMS Layer</button><button class="action" id="setWmsBasemap">Use WMS as Basemap</button></div>
+        </div>
+        <div class="compact-block">
+          <label class="compact-label">XYZ / Tile Service</label>
+          <input id="xyzUrl" placeholder="https://server/{z}/{x}/{y}.png">
+          <input id="xyzLayerName" placeholder="Layer name (optional)" style="margin-top:6px">
+          <input id="xyzAttribution" placeholder="Attribution (optional)" style="margin-top:6px">
+          <div class="row"><button class="action" id="addXyz">Add XYZ Layer</button><button class="action" id="setXyzBasemap">Use XYZ as Basemap</button></div>
+          <div class="small">Use {z}/{x}/{y} in the tile URL. The service must permit browser access and tile requests.</div>
         </div>
         <div class="compact-block">
           <label class="compact-label">Coordinates</label>
@@ -1224,6 +1232,13 @@ function selectBasemap(key,notify=true){
   }
   if(key==="wayback"){
     loadWaybackItems().then(ok=>{if(ok){setWaybackIndex(waybackIndex);if(notify)status("Esri World Imagery Wayback فعال شد؛ تاریخ را از پنل روی نقشه تغییر دهید.");}});return true;
+  }
+  if(key==="customXyz"){
+    const layer=base.customXyz;
+    if(!layer){status("Configure an XYZ URL first.");return false;}
+    if(currentBase&&map.hasLayer(currentBase))map.removeLayer(currentBase);
+    layer.addTo(map);currentBase=layer;currentBasemapKey=key;$("basemap").value=key;
+    scheduleAutoSave();return true;
   }
   if(key==="customWms"){
     if(!customWmsConfig){
@@ -4570,6 +4585,30 @@ async function importDXFFile(file){
   }
 }
 
+function parseGPX(xmlText){
+  const doc=new DOMParser().parseFromString(xmlText,"application/xml");
+  if(doc.querySelector("parsererror"))throw new Error("Invalid GPX/XML file.");
+  const features=[];
+  const textOf=(el,tag)=>{const n=el.getElementsByTagNameNS("*",tag)[0];return n?n.textContent.trim():""};
+  const numberAttr=(el,key)=>{const n=Number(el.getAttribute(key));return Number.isFinite(n)?n:null};
+  const props=(el,fallback)=>({name:textOf(el,"name")||fallback,sourceFormat:"GPX"});
+  doc.getElementsByTagNameNS("*","wpt").length&&Array.from(doc.getElementsByTagNameNS("*","wpt")).forEach((el,i)=>{
+    const lat=numberAttr(el,"lat"),lon=numberAttr(el,"lon");if(lat===null||lon===null)return;
+    features.push({type:"Feature",properties:props(el,"Waypoint "+(i+1)),geometry:{type:"Point",coordinates:[lon,lat]}});
+  });
+  Array.from(doc.getElementsByTagNameNS("*","rte")).forEach((el,i)=>{
+    const coords=Array.from(el.getElementsByTagNameNS("*","rtept")).map(p=>[numberAttr(p,"lon"),numberAttr(p,"lat")]).filter(c=>c[0]!==null&&c[1]!==null);
+    if(coords.length>=2)features.push({type:"Feature",properties:props(el,"Route "+(i+1)),geometry:{type:"LineString",coordinates:coords}});
+  });
+  Array.from(doc.getElementsByTagNameNS("*","trk")).forEach((el,i)=>{
+    const segments=Array.from(el.getElementsByTagNameNS("*","trkseg")).map(seg=>Array.from(seg.getElementsByTagNameNS("*","trkpt")).map(p=>[numberAttr(p,"lon"),numberAttr(p,"lat")]).filter(c=>c[0]!==null&&c[1]!==null)).filter(a=>a.length>=2);
+    if(segments.length===1)features.push({type:"Feature",properties:props(el,"Track "+(i+1)),geometry:{type:"LineString",coordinates:segments[0]}});
+    else if(segments.length>1)features.push({type:"Feature",properties:props(el,"Track "+(i+1)),geometry:{type:"MultiLineString",coordinates:segments}});
+  });
+  if(!features.length)throw new Error("No valid waypoints, routes, or tracks were found in the GPX file.");
+  return {type:"FeatureCollection",features};
+}
+
 $("fileInput").onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
   try{
@@ -4586,6 +4625,8 @@ $("fileInput").onchange=async e=>{
       geoJsonLayer(data,f.name);
     }else if(ext==="kml"){
       geoJsonLayer(parseKML(await f.text()),f.name);
+    }else if(ext==="gpx"){
+      geoJsonLayer(parseGPX(await f.text()),f.name);
     }else{
       geoJsonLayer(JSON.parse(await f.text()),f.name);
     }
@@ -4673,6 +4714,34 @@ $("addWms").onclick=()=>{
   }catch(e){status("WMS error: "+e.message)}
 };
 $("setWmsBasemap").onclick=activateWmsBasemap;
+
+function makeXyzLayer(){
+  const url=$("xyzUrl").value.trim();
+  if(!url||!/^https?:\/\//i.test(url)||!url.includes("{z}")||!url.includes("{x}")||!url.includes("{y}")){
+    status("Enter a valid XYZ tile URL containing {z}, {x}, and {y}.");return null;
+  }
+  const name=$("xyzLayerName").value.trim()||"XYZ Tiles";
+  const attribution=$("xyzAttribution").value.trim()||name;
+  try{
+    const layer=L.tileLayer(url,{maxZoom:22,attribution, crossOrigin:true});
+    layer.on("tileerror",()=>status("XYZ tiles failed to load. Check the URL template, zoom limits, and service access/CORS."));
+    return {layer,name};
+  }catch(e){status("XYZ layer error: "+e.message);return null}
+}
+$("addXyz").onclick=()=>{
+  const result=makeXyzLayer();if(!result)return;
+  addNamedLayer(result.name,result.layer,false);result.layer.addTo(map);
+  status("XYZ layer added: "+result.name);scheduleAutoSave();
+};
+$("setXyzBasemap").onclick=()=>{
+  const result=makeXyzLayer();if(!result)return;
+  const key="customXyz";
+  base[key]=result.layer;
+  const option=$("basemap").querySelector('option[value="customXyz"]');
+  if(!option){const opt=document.createElement("option");opt.value=key;opt.textContent="Custom XYZ: "+result.name;$("basemap").appendChild(opt);}
+  selectBasemap(key);
+  status("Custom XYZ basemap activated: "+result.name);
+};
 
 const PROJECT_DB_NAME="sabzroyan-webgis";
 const PROJECT_DB_VERSION=1;
