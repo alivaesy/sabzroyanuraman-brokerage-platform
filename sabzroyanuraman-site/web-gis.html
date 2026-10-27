@@ -1277,7 +1277,16 @@ function selectBasemap(key,notify=true){
     scheduleAutoSave();return true;
   }
   if(key==="wayback"){
-    loadWaybackItems().then(ok=>{if(ok){setWaybackIndex(waybackIndex);if(notify)status("Esri World Imagery Wayback فعال شد؛ تاریخ را از پنل روی نقشه تغییر دهید.");}});return true;
+    // Wayback is an explicit basemap choice: never leave OSM visible if its archive index fails.
+    if(currentBase&&map.hasLayer(currentBase))map.removeLayer(currentBase);
+    currentBase=null;currentBasemapKey="wayback";$("basemap").value="wayback";
+    loadWaybackItems().then(ok=>{
+      if(ok){setWaybackIndex(waybackIndex);if(notify)status("Esri World Imagery Wayback فعال شد؛ تاریخ را از پنل روی نقشه تغییر دهید.");}
+      else {
+        if(currentBase&&map.hasLayer(currentBase))map.removeLayer(currentBase);
+        currentBase=null;currentBasemapKey="wayback";$("basemap").value="wayback";
+      }
+    });return true;
   }
   if(key==="customXyz"){
     const layer=base.customXyz;
