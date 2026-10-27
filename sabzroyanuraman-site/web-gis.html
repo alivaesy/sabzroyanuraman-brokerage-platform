@@ -696,6 +696,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
     <button data-base="sat">Esri World Imagery</button><button data-base="nasaWms">NASA Blue Marble (WMS)</button>
     <button data-base="esriStreet">Esri World Street Map</button><button data-base="esriTopo">Esri World Topographic Map</button>
     <button data-base="esriGray">Esri Light Gray Canvas</button>
+    <button data-base="wayback">Esri World Imagery Wayback (تاریخی)</button><button data-base="googleMyMaps">Google My Maps (نقشه سفارشی)</button>
   </div>
   <div class="arc-dropdown" id="viewMenu">
     <div class="arc-menu-title">Bookmarks</div>
@@ -809,6 +810,8 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
             <option value="esriTopo">Esri World Topographic Map</option>
             <option value="esriGray">Esri Light Gray Canvas</option>
             <option value="nasaWms">NASA Blue Marble (WMS)</option>
+            <option value="wayback">Esri World Imagery Wayback (تاریخی)</option>
+            <option value="googleMyMaps">Google My Maps (نقشه سفارشی)</option>
             <option value="customWms">Configure Custom WMS...</option>
           </select>
         </div>
@@ -1171,8 +1174,22 @@ const base={
  esriStreet:L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Tiles © Esri"}),
  esriTopo:L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Tiles © Esri"}),
  esriGray:L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Tiles © Esri"}),
- nasaWms:L.tileLayer.wms("https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi",{layers:"BlueMarble_ShadedRelief",format:"image/png",transparent:false,version:"1.3.0",attribution:"NASA GIBS • Blue Marble"}),
+nasaWms:L.tileLayer.wms("https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi",{layers:"BlueMarble_ShadedRelief",format:"image/png",transparent:false,version:"1.3.0",attribution:"NASA GIBS • Blue Marble"}),
 };
+const WAYBACK_CONFIG_URL="https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json";
+let waybackItems=[],waybackIndex=0,waybackLoading=null,waybackPanel=null,googleMyMapsPanel=null;
+const GOOGLE_MY_MAPS_EMBED="https://www.google.com/maps/d/embed?mid=18GJ7jBoL2_MhwZpzE3sfbmIqwquXJwg&ehbc=2E312F&noprof=1";
+function ensureSpecialBasemapPanels(){
+ const host=document.getElementById("map");if(!host)return;
+ if(!waybackPanel){waybackPanel=document.createElement("div");waybackPanel.id="gisWaybackPanel";waybackPanel.style.cssText="display:none;position:absolute;z-index:1200;top:12px;right:12px;width:min(360px,calc(100% - 24px));background:#fff;border:1px solid #9baebd;border-radius:8px;padding:10px;box-shadow:0 3px 12px #0002;font:12px sans-serif;direction:rtl";waybackPanel.innerHTML='<strong>تصاویر تاریخی Esri Wayback</strong><div style="display:flex;gap:6px;align-items:center;margin-top:8px"><input id="gisWaybackSlider" type="range" min="0" max="0" value="0" step="1" disabled style="flex:1"><select id="gisWaybackDate" disabled style="max-width:125px"></select></div><div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px"><button type="button" id="gisWaybackPrev">قبلی</button><button type="button" id="gisWaybackNext">بعدی</button><button type="button" id="gisWaybackLatest">جدیدترین</button></div><div id="gisWaybackStatus" style="margin-top:7px;line-height:1.6">در حال بارگذاری آرشیو...</div>';host.appendChild(waybackPanel);
+ const slider=waybackPanel.querySelector("#gisWaybackSlider"),date=waybackPanel.querySelector("#gisWaybackDate");slider.addEventListener("input",()=>setWaybackIndex(+slider.value));date.addEventListener("change",()=>setWaybackIndex(+date.value));waybackPanel.querySelector("#gisWaybackPrev").onclick=()=>setWaybackIndex(waybackIndex-1);waybackPanel.querySelector("#gisWaybackNext").onclick=()=>setWaybackIndex(waybackIndex+1);waybackPanel.querySelector("#gisWaybackLatest").onclick=()=>setWaybackIndex(waybackItems.length-1);
+ }
+ if(!googleMyMapsPanel){googleMyMapsPanel=document.createElement("div");googleMyMapsPanel.id="gisGoogleMyMapsPanel";googleMyMapsPanel.style.cssText="display:none;position:absolute;z-index:1190;top:12px;right:12px;bottom:38px;width:min(48%,560px);min-width:280px;background:#fff;border:1px solid #9baebd;border-radius:8px;overflow:hidden;box-shadow:0 3px 12px #0002";googleMyMapsPanel.innerHTML='<div style="height:34px;background:#f4f7f8;display:flex;align-items:center;justify-content:space-between;padding:0 8px;font:12px sans-serif"><strong>Google My Maps</strong><button type="button" id="gisGoogleMyMapsClose" title="بستن">×</button></div><iframe title="Google My Maps" src="'+GOOGLE_MY_MAPS_EMBED+'" style="width:100%;height:calc(100% - 34px);border:0" loading="lazy" allowfullscreen></iframe>';host.appendChild(googleMyMapsPanel);googleMyMapsPanel.querySelector("#gisGoogleMyMapsClose").onclick=()=>{googleMyMapsPanel.style.display="none";if(currentBasemapKey==="googleMyMaps"){currentBasemapKey="osm";$("basemap").value="osm";}};}
+}
+function waybackNormalize(data){const src=Array.isArray(data)?data:Object.keys(data||{}).map(k=>data[k]&&typeof data[k]==="object"?Object.assign({releaseNum:Number(k)},data[k]):null);return src.filter(x=>x&&(x.releaseNum!==undefined)&&(x.releaseDateLabel||x.releaseDatetime)).map(x=>({releaseNum:Number(x.releaseNum),releaseDateLabel:x.releaseDateLabel||(x.releaseDatetime?new Date(x.releaseDatetime).toISOString().slice(0,10):String(x.releaseNum)),releaseDatetime:Number(x.releaseDatetime||0),itemURL:x.itemURL||""})).filter(x=>Number.isFinite(x.releaseNum)&&x.itemURL).sort((a,b)=>a.releaseDatetime-b.releaseDatetime);}
+async function loadWaybackItems(){ensureSpecialBasemapPanels();if(waybackItems.length)return true;if(waybackLoading)return waybackLoading;waybackLoading=(async()=>{const statusEl=document.getElementById("gisWaybackStatus");try{const res=await fetch(WAYBACK_CONFIG_URL,{cache:"no-store"});if(!res.ok)throw new Error("HTTP "+res.status);waybackItems=waybackNormalize(await res.json());if(!waybackItems.length)throw new Error("فهرست نسخه‌ها خالی است");const slider=document.getElementById("gisWaybackSlider"),sel=document.getElementById("gisWaybackDate");slider.max=String(waybackItems.length-1);slider.disabled=false;sel.innerHTML="";waybackItems.forEach((it,i)=>{const op=document.createElement("option");op.value=String(i);op.textContent=it.releaseDateLabel;sel.appendChild(op)});sel.disabled=false;waybackIndex=waybackItems.length-1;setWaybackIndex(waybackIndex);return true;}catch(e){if(statusEl)statusEl.textContent="آرشیو Wayback در دسترس نیست: "+e.message;status("Esri Wayback بارگذاری نشد؛ اتصال شبکه را بررسی کنید.");return false;}finally{waybackLoading=null;}})();return waybackLoading;}
+function setWaybackIndex(i){if(!waybackItems.length)return;waybackIndex=Math.max(0,Math.min(i,waybackItems.length-1));const item=waybackItems[waybackIndex],url=item.itemURL.replace(/\{level\}/g,"{z}").replace(/\{row\}/g,"{y}").replace(/\{col\}/g,"{x}");if(!url)return;const old=base.wayback;if(old&&map.hasLayer(old))map.removeLayer(old);base.wayback=L.tileLayer(url,{maxZoom:19,maxNativeZoom:18,attribution:"Historical imagery © Esri"});base.wayback.on("tileerror",()=>{const el=document.getElementById("gisWaybackStatus");if(el)el.textContent="کاشی تصویر تاریخی دریافت نشد؛ ممکن است این نسخه در سطح زوم فعلی پوشش نداشته باشد.";});base.wayback.addTo(map);currentBase=base.wayback;currentBasemapKey="wayback";$("basemap").value="wayback";const slider=document.getElementById("gisWaybackSlider"),sel=document.getElementById("gisWaybackDate");if(slider)slider.value=String(waybackIndex);if(sel)sel.value=String(waybackIndex);const el=document.getElementById("gisWaybackStatus");if(el)el.textContent="نسخه آرشیو: "+item.releaseDateLabel+"؛ تاریخ انتشار نسخه ممکن است با تاریخ برداشت تصویر متفاوت باشد.";scheduleAutoSave();}
+
 const basemapTileErrors=Object.create(null);
 Object.entries(base).forEach(([key,layer])=>{
   // Count consecutive failures only; a successful tile proves the service is responding.
@@ -1197,6 +1214,17 @@ let currentBase=base.osm;
 let currentBasemapKey="osm";
 let customWmsConfig=null;
 function selectBasemap(key,notify=true){
+  ensureSpecialBasemapPanels();
+  if(waybackPanel)waybackPanel.style.display=key==="wayback"?"block":"none";
+  if(googleMyMapsPanel)googleMyMapsPanel.style.display=key==="googleMyMaps"?"block":"none";
+  if(key==="googleMyMaps"){
+    $("basemap").value="googleMyMaps";currentBasemapKey="googleMyMaps";
+    if(notify)status("Google My Maps در پنل کناری نمایش داده شد؛ برای حفظ ابزارهای GIS، بیس‌مپ اصلی زیر آن باقی می‌ماند.");
+    scheduleAutoSave();return true;
+  }
+  if(key==="wayback"){
+    loadWaybackItems().then(ok=>{if(ok){setWaybackIndex(waybackIndex);if(notify)status("Esri World Imagery Wayback فعال شد؛ تاریخ را از پنل روی نقشه تغییر دهید.");}});return true;
+  }
   if(key==="customWms"){
     if(!customWmsConfig){
       openGisDock("display");
@@ -1215,7 +1243,7 @@ function selectBasemap(key,notify=true){
   basemapTileErrors[key]=0;
   if(currentBase&&map.hasLayer(currentBase))map.removeLayer(currentBase);
   currentBase=next;currentBasemapKey=key;currentBase.addTo(map);$("basemap").value=key;
-  const labels={osm:"OpenStreetMap",topo:"OpenTopoMap",sat:"Esri World Imagery",esriStreet:"Esri World Street Map",esriTopo:"Esri World Topographic Map",esriGray:"Esri Light Gray Canvas",nasaWms:"NASA Blue Marble (WMS)",customWms:customWmsConfig?.name||"Custom WMS Basemap"};
+  const labels={osm:"OpenStreetMap",topo:"OpenTopoMap",sat:"Esri World Imagery",esriStreet:"Esri World Street Map",esriTopo:"Esri World Topographic Map",esriGray:"Esri Light Gray Canvas",nasaWms:"NASA Blue Marble (WMS)",wayback:"Esri World Imagery Wayback",googleMyMaps:"Google My Maps",customWms:customWmsConfig?.name||"Custom WMS Basemap"};
   if(notify)status("Basemap: "+(labels[key]||key));
   scheduleAutoSave();
   return true;
