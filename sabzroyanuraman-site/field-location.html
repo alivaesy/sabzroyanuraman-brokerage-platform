@@ -20,7 +20,6 @@
 <button class="btn start" id="start">شروع ارسال موقعیت زمین</button>
 <button class="btn stop" id="stop" hidden>پایان ثبت</button>
 <button class="btn" id="exportKml" disabled style="background:#e8f3ec;color:#145b39;font-size:16px">دانلود مسیر (KML)</button>
-<button class="btn" id="exportReport" disabled style="background:#eaf0fb;color:#234a85;font-size:16px">دانلود گزارش GPS (CSV)</button>
 <button class="btn" id="clearTrack" style="background:#fff4e5;color:#805000;font-size:16px">پاک‌کردن مسیر از این صفحه</button>
 <div class="status" id="status" role="status" aria-live="polite">هنوز ثبت شروع نشده است.</div>
 <div class="small">موقعیت‌ها ابتدا روی همین گوشی ذخیره می‌شوند و در صورت وجود اینترنت به سرور ارسال می‌شوند. برای جلوگیری از گم‌شدن مسیر، تا تکمیل ارسال داده‌های معوق، اطلاعات مرورگر را پاک نکنید.</div>
@@ -87,7 +86,7 @@ function renderTrackMap(){
 }
 function id(){try{if(window.crypto&&crypto.randomUUID)return crypto.randomUUID();}catch(e){}return 'trk-'+Date.now()+'-'+Math.random().toString(36).slice(2);}
 function savePending(){try{if(pending)localStorage.setItem(STORE,JSON.stringify(pending));else localStorage.removeItem(STORE);return true;}catch(e){status('ذخیرهٔ محلی انجام نشد؛ فضای ذخیره‌سازی مرورگر ممکن است پر باشد. مسیر را فوراً KML دانلود کنید.');return false;}}
-function loadPending(){try{const raw=localStorage.getItem(STORE);if(raw){const x=JSON.parse(raw);if(x&&x.session_id&&Array.isArray(x.points)){pending=x;trackCoords=x.points.map(p=>[p[0],p[1],p[5],p[2],p[3],p[4],p[6]]);renderTrackMap();exportBtn.disabled=trackCoords.length<2;document.getElementById('exportReport').disabled=trackCoords.length<1;}}}catch(e){pending=null;}}
+function loadPending(){try{const raw=localStorage.getItem(STORE);if(raw){const x=JSON.parse(raw);if(x&&x.session_id&&Array.isArray(x.points)){pending=x;trackCoords=x.points.map(p=>[p[0],p[1],p[5],p[2],p[3],p[4],p[6]]);renderTrackMap();exportBtn.disabled=trackCoords.length<2;}}}catch(e){pending=null;}}
 async function send(payload){
  const response=await fetch('/api/location/track.php',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload),cache:'no-store'});
  const result=await response.json().catch(()=>({}));
@@ -123,17 +122,9 @@ function exportKml(){
  const kml='<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>گزارش مسیر GPS</name><description>داده‌های این فایل از مرورگر گوشی دریافت شده‌اند و به‌تنهایی اصالت مسیر را اثبات نمی‌کنند.</description><Placemark><name>مسیر GPS</name><LineString><tessellate>1</tessellate><altitudeMode>absolute</altitudeMode><coordinates>'+coords+'</coordinates></LineString></Placemark>'+placemarks+'</Document></kml>';
  downloadBlob('masir-zamin-'+new Date().toISOString().replace(/[:.]/g,'-')+'.kml',kml,'application/vnd.google-earth.kml+xml');
 }
-function exportReport(){
- if(!trackCoords.length){status('هنوز نقطه‌ای برای گزارش GPS ثبت نشده است.');return;}
- const rows=[['شماره','زمان ثبت گوشی','عرض جغرافیایی','طول جغرافیایی','ارتفاع GPS (متر)','دقت افقی GPS (متر)','سرعت (متر بر ثانیه)','جهت (درجه)']];
- trackCoords.forEach((p,i)=>rows.push([i+1,p[6]||'',p[0],p[1],p[2]??'',p[3]??'',p[4]??'',p[5]??'']));
- const csv=rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
- downloadBlob('gozaresh-gps-'+new Date().toISOString().replace(/[:.]/g,'-')+'.csv',csv,'text/csv;charset=utf-8');
- status('گزارش CSV آماده شد. فایل را همراه KML برای کارشناس بفرستید؛ اطلاعات فایل به‌تنهایی اصالت مسیر را تضمین نمی‌کند.');
-}
 function clearTrack(){
  if(watchId!==null||sessionId!==null)end();
- trackCoords=[];points=0;renderTrackMap();exportBtn.disabled=true;document.getElementById('exportReport').disabled=true;
+ trackCoords=[];points=0;renderTrackMap();exportBtn.disabled=true;
  status('مسیر از نمایش همین صفحه پاک شد. داده‌های ارسال‌نشدهٔ ذخیره‌شده برای جلوگیری از گم‌شدن حذف نشدند؛ داده‌های قبلاً ارسال‌شده نیز از سرور حذف نمی‌شوند.');
 }
 function gpsError(e){
@@ -158,7 +149,7 @@ async function begin(){
    const c=pos.coords,now=Date.now();points++;
    if(!trackCoords.length||now-lastLocalPoint>=5000){
     const rec=[c.latitude,c.longitude,c.accuracy,c.speed,c.heading,c.altitude,new Date(pos.timestamp||now).toISOString()];
-    trackCoords.push([c.latitude,c.longitude,c.altitude, c.accuracy, c.speed, c.heading, rec[6]]);renderTrackMap();pending.points.push(rec);lastLocalPoint=now;savePending();exportBtn.disabled=trackCoords.length<2;document.getElementById('exportReport').disabled=trackCoords.length<1;
+    trackCoords.push([c.latitude,c.longitude,c.altitude, c.accuracy, c.speed, c.heading, rec[6]]);renderTrackMap();pending.points.push(rec);lastLocalPoint=now;savePending();exportBtn.disabled=trackCoords.length<2;
     if(navigator.onLine)syncPending();
    }
    const accuracy=Math.round(c.accuracy||0);
@@ -181,7 +172,7 @@ window.addEventListener('online',()=>{if(pending){status('اینترنت وصل 
 window.addEventListener('pagehide',function(){if(watchId!==null)navigator.geolocation.clearWatch(watchId);});
 loadPending();renderTrackMap();window.addEventListener('resize',renderTrackMap);
 if(pending){status('یک مسیر ذخیره‌شده هنوز در انتظار ارسال است. اینترنت را وصل کنید و صفحه را باز نگه دارید.');if(navigator.onLine)syncPending();}
-startBtn.addEventListener('click',begin);stopBtn.addEventListener('click',end);exportBtn.addEventListener('click',exportKml);document.getElementById('exportReport').addEventListener('click',exportReport);document.getElementById('clearTrack').addEventListener('click',clearTrack);
+startBtn.addEventListener('click',begin);stopBtn.addEventListener('click',end);exportBtn.addEventListener('click',exportKml);document.getElementById('clearTrack').addEventListener('click',clearTrack);
 })();
 </script>
 </body>
