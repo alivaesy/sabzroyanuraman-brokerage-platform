@@ -4655,6 +4655,8 @@ async function importGDBFiles(fileList){
       const ds=datasets[i];let out=null,info=null;
       try{
         try{info=await Gdal.getInfo(ds)}catch(infoErr){report.layerErrors.push("Dataset "+(i+1)+" metadata: "+(infoErr?.message||String(infoErr)))}
+        let ogrDetails=null;
+        try{ogrDetails=await Gdal.ogrinfo(ds,["-al","-so"])}catch(infoErr){report.layerErrors.push("Dataset "+(i+1)+" CRS/schema details: "+(infoErr?.message||String(infoErr)))}
         const rawName=ds?.info?.name||ds?.info?.layerName||info?.layers?.[0]?.name||("FeatureClass_"+(i+1));
         const layerName=String(rawName).replace(/.*[\\/]/,"");
         out=await Gdal.ogr2ogr(ds,["-f","GeoJSON","-t_srs","EPSG:4326"]);
@@ -4675,7 +4677,7 @@ async function importGDBFiles(fileList){
             sourceFeatureCount:info?.featureCount??fc.features.length,
             displayCRS:"EPSG:4326",geometryType:[...new Set(fc.features.map(f=>f.geometry?.type).filter(Boolean))].join(", "),
             fields:[...new Set(fc.features.flatMap(f=>Object.keys(f.properties||{})))],
-            sourceDatasetInfo:info||null
+            sourceDatasetInfo:info||null,sourceSchemaAndCRS:ogrDetails||null
           };
         }
         report.importedLayers++;report.importedFeatures+=fc.features.length;
