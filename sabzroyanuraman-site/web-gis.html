@@ -811,7 +811,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
             <option value="esriGray">Esri Light Gray Canvas</option>
             <option value="nasaWms">NASA Blue Marble (WMS)</option>
             <option value="wayback">Esri World Imagery Wayback (تاریخی)</option>
-            <option value="googleMyMaps">Google My Maps (نقشه سفارشی)</option>
+            <option value="googleMyMaps">Google My Maps (مرجع) + تصاویر ماهواره‌ای</option>
             <option value="customWms">Configure Custom WMS...</option>
           </select>
         </div>
@@ -1325,9 +1325,15 @@ function selectBasemap(key,notify=true){
   if(waybackPanel)waybackPanel.style.display=key==="wayback"?"block":"none";
   if(googleMyMapsPanel)googleMyMapsPanel.style.display=key==="googleMyMaps"?"block":"none";
   if(key==="googleMyMaps"){
-    if(googleMyMapsPanel)googleMyMapsPanel.style.display="none";
-    activateGoogleSatellite(notify);
-    return false;
+    // Google My Maps embeds cannot be used as Leaflet tile basemaps without an approved Google Maps integration.
+    // Keep the custom map available for reference, and use Esri imagery as the editable satellite basemap.
+    if(googleMyMapsPanel)googleMyMapsPanel.style.display="block";
+    const satellite=base.sat;
+    if(currentBase&&map.hasLayer(currentBase))map.removeLayer(currentBase);
+    currentBase=satellite;currentBasemapKey="sat";satellite.addTo(map);
+    $("basemap").value="sat";
+    if(notify)status("تصویر ماهواره‌ای Esri فعال شد و ابزارهای ترسیم روی آن کار می‌کنند؛ Google My Maps فقط در پنل مرجع نمایش داده می‌شود و بدون API قابل تبدیل به بیس‌مپ نیست.");
+    scheduleAutoSave();return true;
   }
   if(key==="wayback"){
     // Wayback is an explicit basemap choice: never leave OSM visible if its archive index fails.
