@@ -200,6 +200,101 @@ def describe_layer(layer, index, output_dir):
         item['warnings'].append('GeoJSON export failed: ' + unicode(exc))
     return item
 
+def inspect_geodatabase(workspace):
+    catalog = {
+        'path': workspace,
+        'domains': [],
+        'featureDatasets': [],
+        'featureClasses': [],
+        'relationshipClasses': [],
+        'topologies': [],
+        'warnings': []
+    }
+    try:
+        for domain in arcpy.da.ListDomains(workspace):
+            catalog['domains'].append({
+                'name': getattr(domain, 'name', None),
+                'description': getattr(domain, 'description', None),
+                'fieldType': getattr(domain, 'type', None),
+                'domainType': getattr(domain, 'domainType', None),
+                'mergePolicy': getattr(domain, 'mergePolicy', None),
+                'splitPolicy': getattr(domain, 'splitPolicy', None),
+                'codedValues': getattr(domain, 'codedValues', None),
+                'range': getattr(domain, 'range', None)
+            })
+    except Exception as exc:
+        catalog['warnings'].append('Domain catalog unavailable: ' + unicode(exc))
+    try:
+        datasets = arcpy.ListDatasets('', 'Feature') or []
+        catalog['featureDatasets'] = list(datasets)
+        for dataset in datasets:
+            try:
+                desc = arcpy.Describe(os.path.join(workspace, dataset))
+                for child in getattr(desc, 'children', []):
+                    if getattr(child, 'dataType', '') == 'Topology':
+                        catalog['topologies'].append({
+                            'name': getattr(child, 'name', None),
+                            'catalogPath': getattr(child, 'catalogPath', None),
+                            'clusterTolerance': getattr(child, 'clusterTolerance', None),
+                            'maximumGeneratedErrorCount': getattr(child, 'maximumGeneratedErrorCount', None),
+                            'rules': 'ArcPy Describe does not expose a portable full rule/error export in this worker.'
+                        })
+            except Exception as exc:
+                catalog['warnings'].append('Dataset inspection failed for ' + unicode(dataset) + ': ' + unicode(exc))
+    except Exception as exc:
+        catalog['warnings'].append('Feature dataset catalog unavailable: ' + unicode(exc))
+    try:
+        arcpy.env.workspace = workspace
+        classes = arcpy.ListFeatureClasses() or []
+        for dataset in catalog['featureDatasets']:
+            arcpy.env.workspace = os.path.join(workspace, dataset)
+            classes.extend([os.path.join(dataset, fc) for fc in (arcpy.ListFeatureClasses() or [])])
+        arcpy.env.workspace = workspace
+        for fc in classes:
+            full = os.path.join(workspace, fc)
+            record = {'name': fc, 'subtypes': [], 'fields': [], 'featureCount': None}
+            try:
+                record['fields'] = [field_info(f) for f in arcpy.ListFields(full)]
+                record['featureCount'] = int(arcpy.GetCount_management(full).getOutput(0))
+                for code, subtype in arcpy.da.ListSubtypes(full).items():
+                    record['subtypes'].append({
+                        'code': code,
+                        'name': subtype.get('Name'),
+                        'default': subtype.get('Default'),
+                        'domains': subtype.get('Domains')
+                    })
+            except Exception as exc:
+                record['warnings'] = [unicode(exc)]
+            catalog['featureClasses'].append(record)
+        arcpy.env.workspace = workspace
+        for rel in (arcpy.ListDatasets('', 'RelationshipClass') or []):
+            catalog['relationshipClasses'].append(rel)
+    except Exception as exc:
+        catalog['warnings'].append('Feature class/subtype/relationship inspection incomplete: ' + unicode(exc))
+    return catalog
+
+def discover_geodatabases(layers):
+    found = set()
+    for layer in layers:
+        source = layer.get('dataSource')
+        if not source:
+            continue
+        normalized = os.path.normpath(source)
+        parts = normalized.split(os.sep)
+        for i, part in enumerate(parts):
+            if part.lower().endswith('.gdb'):
+                path = os.sep.join(parts[:i + 1])
+                if path:
+                    found.add(path)
+                break
+    result = []
+    for workspace in sorted(found):
+        try:
+            result.append(inspect_geodatabase(workspace))
+        except Exception as exc:
+            result.append({'path': workspace, 'warnings': [unicode(exc)]})
+    return result
+
 def main():
     if len(sys.argv) < 3:
         raise RuntimeError('Usage: ExportArcMap108.py <input.mxd> <output-directory>')
@@ -228,6 +323,8 @@ def main():
             'dataFrames': []
         },
         'layers': [],
+        'geodatabases': [],
+        'pageLayout': {'elements': [], 'note': 'Layout extraction is best-effort; exact page rendering is not serialized.'},
         'validation': {'sourceFeatureCount': 0, 'exportedFeatureCount': 0, 'countMismatches': [], 'fieldMismatches': []},
         'knownLimitations': [
             'GeoJSON does not preserve FileGDB domains, subtypes, relationship classes, attachments, topology rules/errors, network datasets, raster pyramids or all source field semantics.',
@@ -237,6 +334,21 @@ def main():
         ]
     }
     try:
+        try:
+            for element in arcpy.mapping.ListLayoutElements(mxd):
+                entry = {
+                    'name': getattr(element, 'name', None),
+                    'type': getattr(element, 'type', None),
+                    'elementPositionX': getattr(element, 'elementPositionX', None),
+                    'elementPositionY': getattr(element, 'elementPositionY', None),
+                    'elementWidth': getattr(element, 'elementWidth', None),
+                    'elementHeight': getattr(element, 'elementHeight', None),
+                    'text': getattr(element, 'text', None),
+                    'visible': getattr(element, 'visible', None)
+                }
+                manifest['pageLayout']['elements'].append(entry)
+        except Exception as exc:
+            manifest['pageLayout']['warnings'] = [unicode(exc)]
         for df in arcpy.mapping.ListDataFrames(mxd):
             manifest['document']['dataFrames'].append({
                 'name': df.name,
@@ -260,6 +372,7 @@ def main():
                         'export': {'status': 'failed'},
                         'warnings': [unicode(exc), traceback.format_exc()]
                     })
+        manifest['geodatabases'] = discover_geodatabases(manifest['layers'])
         for layer in manifest['layers']:
             if isinstance(layer.get('featureCount'), (int, long)):
                 manifest['validation']['sourceFeatureCount'] += layer['featureCount']
