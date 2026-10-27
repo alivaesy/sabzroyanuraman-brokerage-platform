@@ -14,7 +14,8 @@ The worker creates `D:\exports\project.zip`, containing `manifest.json` and expo
 
 ## What is extracted
 
-- Map/document metadata and data-frame extent, scale, rotation and spatial reference.
+- Map/document metadata, data-frame extent/scale/rotation/spatial reference, and best-effort page-layout element positions/text.
+- File Geodatabase catalog inspection for domains, feature datasets/classes, subtype summaries and discoverable topology metadata.
 - Layer order, names, visibility, scale ranges, definition query, source path, geometry type, extent, spatial reference, feature count and field schema.
 - A portable summary of common renderers and label-class expressions/settings.
 - WGS84 GeoJSON exports and per-layer source/export feature-count checks.
@@ -28,7 +29,7 @@ Counts are checked against the ArcMap layer as configured. Definition queries an
 
 ## WebGIS integration contract (next stage)
 
-The WebGIS should accept a ZIP produced by this worker and:
+The WebGIS now accepts a ZIP produced by this worker and performs a first-pass manifest import and validation. It should continue to:
 1. Validate archive paths and require a valid `manifest.json`.
 2. Display a preflight report before adding any layer.
 3. Match each manifest layer to its GeoJSON by the manifest's relative `export.path`.
@@ -37,3 +38,8 @@ The WebGIS should accept a ZIP produced by this worker and:
 6. Keep the manifest with the project so source metadata and limitations remain inspectable.
 
 Do not let a browser upload execute scripts or commands on the Windows worker. If this is later exposed as a service, isolate it on a private network, authenticate requests, enforce size/time limits, use per-job temporary directories, disable arbitrary paths, and remove uploaded source files according to an explicit retention policy.
+
+
+## Verification status
+
+The worker and browser ZIP-package path have been committed, and the WebGIS's 12 inline JavaScript blocks passed syntax compilation after the integration change. The ArcPy worker has **not** yet been run against a real ArcMap 10.8 installation or a representative MXD/GDB; this environment cannot truthfully certify ArcPy runtime behavior or exact output fidelity. Before production use, run it on a test MXD that includes simple/unique/graduated symbology, label classes, a file geodatabase with domains/subtypes, and at least one broken data source; review every mismatch in the generated manifest.
