@@ -795,7 +795,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 
     <div style="display:none">
       <input id="fileInput" type="file" accept=".geojson,.json,.kml,.kmz,.gpx,.zip,.shp">
-      <input id="mxdInput" type="file" accept=".mxd,.mpk,.mxt" aria-label="Import ArcMap document" hidden>
+      <input id="mxdInput" type="file" accept=".mxd,.mpk,.mxt,.zip" aria-label="Import ArcMap document or ArcMap export package" hidden>
       <input id="gdbInput" type="file" webkitdirectory directory multiple>
       <button id="exportGeoJSON" type="button"></button>
       <button id="exportKML" type="button"></button>
@@ -4894,10 +4894,39 @@ async function importArcMapDocument(file){
     }
     throw new Error("This ."+ext+" file is an ArcMap binary document and cannot be decoded by the browser alone. No compatible server converter is installed at api/gis/import-mxd.php. Use this importer with an .mpk package or connect a licensed Windows ArcMap/ArcObjects conversion worker; the original file was not changed.");
   }
-  if(ext!=="mpk")throw new Error("Choose an ArcMap .mxd, .mxt, or map package .mpk file.");
+  if(ext!=="mpk"&&ext!=="zip")throw new Error("Choose an ArcMap .mxd, .mxt, .mpk, or ArcMap worker .zip package.");
   if(typeof JSZip==="undefined")throw new Error("The ZIP library is unavailable; cannot inspect the map package.");
   const archive=await JSZip.loadAsync(await file.arrayBuffer());
   const entries=Object.values(archive.files).filter(entry=>!entry.dir);
+  const manifestEntry=entries.find(entry=>entry.name==="manifest.json"||entry.name.endsWith("/manifest.json"));
+  if(manifestEntry){
+    let manifest;
+    try{manifest=JSON.parse(await manifestEntry.async("text"))}catch(_){throw new Error("The ZIP contains manifest.json, but it is not valid JSON.")}
+    if(manifest.format!=="sabzroyan-arcmap-export"||!Array.isArray(manifest.layers))throw new Error("Unsupported ArcMap worker package; expected sabzroyan-arcmap-export manifest.");
+    const byPath=new Map(entries.map(entry=>[entry.name.startsWith("./")?entry.name.slice(2):entry.name,entry]));
+    const audit={layers:0,features:0,countMismatches:[],failed:[],fieldWarnings:[]};
+    for(const item of manifest.layers){
+      const rel=item&&item.export&&item.export.path;
+      if(!rel||item.export.status!=="ok"){audit.failed.push((item&&item.name||"Unnamed layer")+": "+(item&&item.export&&item.export.error||"export unavailable"));continue}
+      if(rel.startsWith("/")||rel.split("/").some(part=>part===".."||part==="")){audit.failed.push((item.name||rel)+": unsafe manifest path");continue}
+      const entry=byPath.get(rel);if(!entry){audit.failed.push((item.name||rel)+": missing "+rel);continue}
+      try{
+        const data=JSON.parse(await entry.async("text"));
+        if(!data||data.type!=="FeatureCollection"||!Array.isArray(data.features))throw new Error("not a GeoJSON FeatureCollection");
+        const lyr=geoJsonLayer(data,item.name||rel);lyr._arcmapMetadata=item;
+        audit.layers++;audit.features+=data.features.length;
+        const sourceCount=Number(item.featureCount);if(Number.isFinite(sourceCount)&&sourceCount!==data.features.length)audit.countMismatches.push({name:item.name,source:sourceCount,exported:data.features.length});
+        const sourceFields=(item.fields||[]).map(f=>f.name).filter(Boolean);
+        const exportedFields=data.features.length?Object.keys(data.features[0].properties||{}):[];
+        const missing=sourceFields.filter(field=>!exportedFields.includes(field));if(missing.length)audit.fieldWarnings.push({name:item.name,missing});
+      }catch(err){audit.failed.push((item.name||rel)+": "+(err&&err.message||String(err)))}
+    }
+    status("ArcMap package imported: "+audit.layers+"/"+manifest.layers.length+" layers, "+audit.features+" features; count mismatches "+audit.countMismatches.length+", field warnings "+audit.fieldWarnings.length+", failed "+audit.failed.length+". Renderer/label metadata is retained but not fully reconstructed yet.");
+    try{const report={package:file.name,source:manifest.sourceDocument,sourceValidation:manifest.validation||{},actual:audit,knownLimitations:manifest.knownLimitations||[]};const blob=new Blob([JSON.stringify(report,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="arcmap-import-validation.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch(_){}
+    if(!audit.layers)throw new Error("The ArcMap manifest was read, but no layer was imported. See the validation report.");
+    return;
+  }
+  if(ext==="zip")throw new Error("This ZIP is not an ArcMap worker package (manifest.json missing). Run tools/arcmap108-export/ExportArcMap108.py against the MXD first.");
   let imported=0;
   for(const entry of entries.filter(entry=>/\.(geojson|json|kml)$/i.test(entry.name))){
     try{
