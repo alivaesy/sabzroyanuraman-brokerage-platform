@@ -2050,7 +2050,7 @@ async function gisOpenProject(id){return remoteGisOpenProject(id)}
 async function openOnlineData(){
   const sourceForm=await arcMapDialog.form({title:"Add Online Data",message:"Choose a source below. For external services, enter the URL in this same window.",fields:[
     {name:"source",label:"Data source",type:"select",value:"service",options:[{value:"service",label:"External GeoJSON / ArcGIS FeatureServer / WFS"},{value:"account",label:"GIS account · open/save organization projects"}]},
-    {name:"url",label:"Service URL (external services only)",type:"url",value:"",required:false}
+    {name:"url",label:"Service URL (external services only)",type:"url",value:"https://sabzroyanuraman.com/geoserver/ne/ows?service=WFS&version=2.0.0",required:false}
   ]});
   if(!sourceForm)return;
   if(sourceForm.source==="account"){await openRemoteGisProjects();return;}
