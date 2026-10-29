@@ -340,3 +340,63 @@ Until new evidence is recorded, do **not** claim that:
 - the historical server hardening configuration is still active and correct.
 
 The goal of this file is to preserve verified knowledge, make missing pieces visible, and prevent duplicate work—not to make the project appear more complete than it is.
+
+
+## 13. GeoServer installation and WebGIS WFS integration — verified setup notes (2026-10-29)
+
+This section extends the existing database/storage handoff. It records the configuration already performed so later work does not reinstall or recreate the same resources. Values below are operational identifiers, not credentials.
+
+### 13.1 Installed service and network exposure
+- Server: `server.sabzroyanuraman.com`, Ubuntu 24.04.2 LTS (recheck before future system changes).
+- GeoServer version: `3.0.2`; Jetty version observed: `12.1.14`.
+- Web application: `/opt/webapps/geoserver`; GeoServer data directory: `/opt/data_dir`; logs: `/opt/logs`; logging config: `/opt/data_dir/logging.xml`.
+- Startup helper recorded at `/opt/bin/startup.sh`; startup test log at `/var/log/geoserver-start-test.log`.
+- systemd unit: `/etc/systemd/system/geoserver.service`.
+- GeoServer listens on `127.0.0.1:8080`; do not expose port 8080 publicly.
+- Public HTTPS URL: `https://sabzroyanuraman.com/geoserver/`.
+- Apache reverse proxy file recorded at `/etc/apache2/conf.d/userdata/ssl/2_4/sabzroyanuraman/sabzroyanuraman.com/geoserver-proxy.conf`. It preserves the host, sets `X-Forwarded-Proto: https`, and proxies `/geoserver/` to `http://127.0.0.1:8080/geoserver/`.
+- `global.xml` has `useHeadersProxyURL=true`. Workspace `ne` had `useHeadersProxyURL=false` at the last inspection; do not change without testing generated service URLs.
+- GeoServer's default master password was changed through the GeoServer REST API. The admin password was also reset in the UI. **Do not store either password, a hash, or API credentials in GitHub.** Keep both in a password manager; never edit the password file manually.
+
+### 13.2 Databases: keep these three purposes distinct
+1. **`sabzroy_gis`** — WebGIS spatial-data DB; table `public.webgis_features` was intended for WebGIS geometry/features. It was reported empty at the last WFS test.
+2. **`sabzroyan_personal_gis`** — separate PostGIS database used as the GeoServer personal-GIS data source. GeoServer store `personal_gis_postgis` points to this DB, schema `public`, host `localhost`, port `5432`, user `geoserver_personal_ro`. That role is read-only.
+3. **`gis_staging`** — separate GIS authentication/account database. It is not the spatial-data database and must not be conflated with either database above.
+
+A one-time table copy was performed from `sabzroy_gis.public.webgis_features` into `sabzroyan_personal_gis.public.webgis_features` using `pg_dump -t public.webgis_features` piped to `psql`. The output included `COPY 0`. This is an **independent snapshot, not replication or synchronization**; later edits to the source table will not automatically appear in the personal DB.
+
+### 13.3 GeoServer workspace, stores and published layers
+- Workspace: `ne`.
+- PostGIS store: `personal_gis_postgis`.
+- Published WebGIS layer: `ne:webgis_features`, from `personal_gis_postgis`; native and declared CRS were set to `EPSG:4326`.
+- Because the table was empty, approximate bounds were entered: minX 44, minY 25, maxX 64, maxY 40. Recompute bounds from actual data once features are present.
+- Existing Natural Earth layers observed in workspace `ne`: `ne:boundary_lines`, `ne:coastlines`, `ne:countries`, `ne:disputed_areas`, `ne:populated_places`, plus `ne:webgis_features`.
+- Natural Earth layers contain third-party map data and are not features the user drew. Use `ne:webgis_features` when testing the user's own layer.
+
+### 13.4 WFS endpoint and test evidence
+- Public WFS endpoint / capabilities URL: `https://sabzroyanuraman.com/geoserver/ne/ows?service=WFS&version=2.0.0`.
+- Example GetFeature test: `https://sabzroyanuraman.com/geoserver/ne/ows?service=WFS&version=2.0.0&request=GetFeature&typeNames=ne%3Awebgis_features&count=1`.
+- The browser downloading or displaying XML for a WFS response is expected; an XML “no style information” browser message is not a service error.
+- Tested response for `ne:webgis_features` returned `numberMatched="0"` and `numberReturned="0"`. This proves the WFS request resolved but the published table contained zero features at test time.
+- WFS GetCapabilities and the layer name were visible anonymously. Treat the current service as public/read-only. **Do not enable WFS-T or public write access** until authentication, authorization, audit logging, validation and a protected write design are implemented.
+- A successful WFS read only proves read access. It does not prove WebGIS edits are saved to PostGIS.
+
+### 13.5 WebGIS source change already committed
+- Source file: `sabzroyanuraman-site/web-gis.html`, branch `master`.
+- Commit: `66fb67c20a042867e3e4dc530618ed5591fb65aa` — [view commit](https://github.com/alivaesy/sabzroyanuraman-brokerage-platform/commit/66fb67c20a042867e3e4dc530618ed5591fb65aa).
+- Change: the WebGIS “Add Online Data” URL field was prefilled with `https://sabzroyanuraman.com/geoserver/ne/ows?service=WFS&version=2.0.0`. The GitHub file was read back after commit.
+- This source change does **not** prove the cPanel/public site has been deployed with that version. The prior deploy script `/home/sabzroyanuraman/bin/deploy-site.sh` was reported failing because the local repository's `.git` refs could not be updated due to permission errors during fetch/reset. Verify the deployment and repair permissions safely before assuming the live page contains the prefilled URL.
+
+### 13.6 Current status and exact next steps
+- [x] GeoServer installed and reachable through HTTPS reverse proxy.
+- [x] PostGIS store and `ne:webgis_features` layer configured.
+- [x] WFS capabilities and GetFeature request tested.
+- [x] WebGIS source updated on GitHub master to prefill the WFS endpoint.
+- [ ] Verify the deployed public WebGIS file reflects the master commit.
+- [ ] Decide whether user-drawn WebGIS features should be written to `sabzroy_gis` or another authoritative WebGIS database; do not silently use the personal-GIS snapshot as the source of truth.
+- [ ] Implement a protected server-side write/read API, with per-user/project authorization, geometry/SRID validation, transactions, audit logs and stable feature IDs.
+- [ ] Add a safe, explicit sync/import procedure if `sabzroyan_personal_gis` must mirror source data; do not assume the one-time copy syncs.
+- [ ] Once features exist, compute true layer bounds and repeat WFS read-after-write validation.
+- [ ] Verify backup and restore for both spatial databases. Existing GIS DB backup script paths recorded outside this repo: `/usr/local/sbin/sabzroyan-gis-backup`, backup directory `/var/backups/sabzroyan-gis`, cron file `/etc/cron.d/sabzroyan-gis`. Check current contents/status before relying on them; do not store backup credentials or dumps in GitHub.
+
+**Evidence level:** this entry consolidates prior server/test observations and GitHub source read-back; it is not a fresh live-server audit or deployment confirmation.
