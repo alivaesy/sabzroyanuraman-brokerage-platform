@@ -10058,6 +10058,24 @@ const arcMapDialog=(()=>{
 #webgisLayoutView .webgis-layout-tool-group label{display:inline-flex;align-items:center;white-space:nowrap}
 #webgisLayoutView .webgis-layout-tool-group button{flex:0 0 auto}
 @media(max-width:650px){#webgisLayoutView .webgis-layout-tool-group{flex-wrap:wrap;padding:2px;border-left:0;border-top:1px solid #c0c9ce;width:100%}#webgisLayoutView .webgis-layout-toolbar>strong{border-right:0}}
+
+/* Keep Layout controls in the map workspace, never underneath the TOC dock. */
+#webgisLayoutView .webgis-layout-toolbar{
+  position:sticky!important;
+  top:0;
+  z-index:1200!important;
+  width:calc(100% - 300px);
+  max-width:100%;
+  box-sizing:border-box;
+  margin:0 0 8px 0;
+  justify-content:flex-start;
+  background:#e7ecef;
+}
+#webgisLayoutView .webgis-layout-tool-group{flex-shrink:0}
+@media(max-width:850px){
+  #webgisLayoutView .webgis-layout-toolbar{width:100%;max-width:100%}
+}
+
 </style>
 
 
