@@ -191,9 +191,14 @@ body.layout-view-active .workspace>.panel{visibility:visible!important;pointer-e
 body.layout-view-active .workspace>.arcmap-search-dock{visibility:visible!important;pointer-events:auto!important}
 body.layout-view-active #map{background:#eef1f3}
 body.layout-view-active .webgis-layout-sheet{min-height:calc(100% - 30px)}
-#layoutModeToggle{min-width:34px;position:relative}
+#layoutModeToggle{min-width:88px;white-space:nowrap;position:relative}
 #layoutModeToggle.active{background:#d4e7f2;border-color:#397ba0;box-shadow:inset 0 -2px #347ca5}
-#layoutModeToggle .layout-toggle-label{font-size:10px;font-weight:700}
+#webgisLayoutView{left:0;right:310px;top:0;bottom:0;max-width:none;min-width:0}
+#webgisLayoutView .webgis-layout-sheet{width:100%!important;max-width:100%!important;min-width:0!important;min-height:0!important;margin:8px auto;padding:clamp(8px,1.5vw,20px);box-sizing:border-box}
+#webgisLayoutView .webgis-layout-map-frame{min-height:clamp(220px,45vh,520px);flex:1 1 auto}
+#webgisLayoutView .webgis-layout-map-slot,#webgisLayoutView .webgis-layout-map-slot>#map{height:100%!important;min-height:clamp(220px,45vh,520px)!important;margin:0;padding:0}
+#webgisLayoutView .webgis-layout-toolbar{flex-wrap:nowrap;overflow-x:auto;white-space:nowrap}
+#webgisLayoutView .webgis-layout-toolbar>span{display:none}
 @media(max-width:900px){#webgisLayoutView{padding:6px;right:270px}.webgis-layout-toolbar{position:sticky}}
 @media(max-width:650px){#webgisLayoutView{left:0;right:0;top:0;bottom:0;z-index:900}} 
 /* Compact ArcMap-like layout controls and keep the paper fitted to the available map pane. */
@@ -625,7 +630,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 <button type="button" class="icon-tool" id="redoBtn" title="Redo" aria-label="Redo"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-redo"></use></svg></button>
 <span class="toolbar-separator" aria-hidden="true"></span>
 <button type="button" class="icon-tool" id="addDataIcon" title="Add Data" aria-label="Add Data" data-action="importData"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-adddata"></use></svg></button>
-<button type="button" class="icon-tool" id="layoutModeToggle" title="Switch between Map View and Layout View" aria-label="Switch between Map View and Layout View" data-action="layoutView"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-template"></use></svg><span class="layout-toggle-label">Layout</span></button>
+
 <button type="button" class="icon-tool" id="addOnlineDataBtn" title="Add Data from ArcGIS Online" aria-label="Add Data from ArcGIS Online"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-webdata"></use></svg></button>
 <input id="mapScale" type="text" inputmode="numeric" list="mapScaleOptions" value="1:100,000" title="Map Scale (type a scale such as 1:5000 and press Enter)" aria-label="Map Scale"><datalist id="mapScaleOptions"><option value="1:1,000,000"></option><option value="1:500,000"></option><option value="1:250,000"></option><option value="1:100,000"></option><option value="1:50,000"></option><option value="1:25,000"></option><option value="1:10,000"></option><option value="1:5,000"></option><option value="1:2,500"></option><option value="1:1,000"></option><option value="1:500"></option></datalist>
 <span class="toolbar-separator" aria-hidden="true"></span>
@@ -657,6 +662,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 <button type="button" class="icon-tool" id="createViewerBtn" title="Create Viewer Window" aria-label="Create Viewer Window"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-viewer"></use></svg></button></div>
 <div class="classic-toolbar editor-toolbar show" id="editorToolbar" role="toolbar" aria-label="Editor"><button type="button" class="arc-menu-btn toolbar-menu-btn" data-menu="editMenu" aria-haspopup="true" aria-expanded="false">Editor ▾</button><button type="button" class="arc-menu-btn toolbar-menu-btn" data-menu="topologyMenu" aria-haspopup="true" aria-expanded="false">Topology ▾</button><span class="toolbar-separator" aria-hidden="true"></span><select id="editTargetLayer" title="Target layer" aria-label="Target layer"><option value="drawn">My Drawings</option></select>
 <button type="button" class="action secondary" id="newDrawingSetBtn" title="Create another drawing set">New Drawing</button>
+<button type="button" class="action secondary" id="layoutModeToggle" title="Switch between Map View and Layout View" aria-label="Switch between Map View and Layout View" aria-pressed="false" data-action="layoutView">Layout View</button>
 <button type="button" class="icon-tool" id="startEditingBtn" title="Start Editing" aria-label="Start Editing"><svg class="arcmap-icon"><use href="#arc-icon-editor"></use></svg></button>
 <button type="button" class="icon-tool" id="saveEditsBtn" disabled title="Save Edits" aria-label="Save Edits"><svg class="arcmap-icon"><use href="#arc-icon-save"></use></svg></button>
 <button type="button" class="icon-tool" id="stopEditingBtn" disabled title="Stop Editing" aria-label="Stop Editing"><svg class="arcmap-icon"><use href="#arc-icon-delete"></use></svg></button>
@@ -8360,7 +8366,7 @@ function openLayoutView(){
   const workspace=mapElement?.closest(".workspace")||document.querySelector(".workspace");
   if(!workspace)throw new Error("Main GIS workspace is unavailable.");
   panel._workspace=workspace;workspace.appendChild(panel);document.body.classList.add("layout-view-active");
-  const modeButton=document.getElementById("layoutModeToggle");if(modeButton){modeButton.classList.add("active");modeButton.setAttribute("aria-pressed","true");modeButton.title="Switch back to Map View";const label=modeButton.querySelector(".layout-toggle-label");if(label)label.textContent="Map";}
+  const modeButton=document.getElementById("layoutModeToggle");if(modeButton){modeButton.classList.add("active");modeButton.setAttribute("aria-pressed","true");modeButton.title="Switch back to Map View";modeButton.textContent="Map View";}
   if(mapElement){panel._mapRestore={mapElement,originalParent,originalNext,placeholder:mapPlaceholder,oldStyle:mapElement.getAttribute("style")};mapElement.style.width="100%";mapElement.style.height="100%";mapElement.style.minHeight="420px";$("webgisLayoutMapSlot",panel).appendChild(mapElement);requestAnimationFrame(()=>{try{map.invalidateSize({pan:false});updateLayoutScale()}catch(_){}});}
   const refreshLegend=()=>{
     const legend=$("webgisLayoutLegend",panel);legend.replaceChildren();
@@ -8455,7 +8461,7 @@ function closeLayoutView(){
   }
   restore?.placeholder?.remove();
   panel.remove();document.body.classList.remove("layout-view-active");
-  const modeButton=document.getElementById("layoutModeToggle");if(modeButton){modeButton.classList.remove("active");modeButton.setAttribute("aria-pressed","false");modeButton.title="Switch to Layout View";const label=modeButton.querySelector(".layout-toggle-label");if(label)label.textContent="Layout";}
+  const modeButton=document.getElementById("layoutModeToggle");if(modeButton){modeButton.classList.remove("active");modeButton.setAttribute("aria-pressed","false");modeButton.title="Switch from Map View to Layout View";modeButton.textContent="Layout View";}
   requestAnimationFrame(()=>{try{map.invalidateSize({pan:false})}catch(_){}});
   status("Layout View closed.");
 }
