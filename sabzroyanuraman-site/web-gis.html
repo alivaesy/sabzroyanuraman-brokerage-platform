@@ -709,7 +709,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
   <div class="arc-dropdown" id="publishMenu">
     <div class="arc-menu-title">Publish / Share</div>
     <div class="arc-menu-title" style="font-weight:normal;white-space:normal;max-width:250px">Share a read-only map, prepare a print layout, or export GIS data. Server service publishing requires a configured GeoServer/API endpoint.</div>
-    <button type="button" data-action="saveProject">Save Project to GIS Server</button>
+    <button type="button" data-action="saveProject">Save Project + Layout</button>
     <button type="button" data-action="shareProject">Share Read-only Map Link...</button>
     <div class="arc-sep"></div>
     <button type="button" data-action="layoutView">Open Layout View...</button>
@@ -8405,6 +8405,9 @@ function openLayoutView(){
 }
 function closeLayoutView(){
   const panel=document.getElementById("webgisLayoutView");if(!panel)return;
+  // Keep the latest layout definition when the panel closes so project saves
+  // and read-only sharing include the same layout configuration.
+  try{captureLayoutDefinition()}catch(error){console.warn("Layout snapshot skipped:",error)}
   if(panel._scaleListener&&map){try{map.off("zoomend moveend",panel._scaleListener)}catch(_){}}
   const restore=panel._mapRestore;
   if(restore?.mapElement&&restore.originalParent){
