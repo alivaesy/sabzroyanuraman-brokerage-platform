@@ -400,3 +400,21 @@ A one-time table copy was performed from `sabzroy_gis.public.webgis_features` in
 - [ ] Verify backup and restore for both spatial databases. Existing GIS DB backup script paths recorded outside this repo: `/usr/local/sbin/sabzroyan-gis-backup`, backup directory `/var/backups/sabzroyan-gis`, cron file `/etc/cron.d/sabzroyan-gis`. Check current contents/status before relying on them; do not store backup credentials or dumps in GitHub.
 
 **Evidence level:** this entry consolidates prior server/test observations and GitHub source read-back; it is not a fresh live-server audit or deployment confirmation.
+
+
+## Verified organization project persistence — 2026-10-29
+
+This section supersedes earlier statements that organization-project persistence had not been confirmed. It records user-provided read-only query output from the live server on 2026-10-29; it is not a query run by the repository editor and does not prove the deployed source matches the current GitHub commit.
+
+- The private server config at `/home/sabzroyanuraman/private/gis-auth-db.php` was inspected by the operator without revealing secrets. It points the GIS auth/project API to PostgreSQL database `gis_staging`, host `127.0.0.1`.
+- The API source `sabzroyanuraman-site/api/gis/projects.php` reads/writes `public.gis_projects` and `public.gis_project_features` in that configured database. Saving a project runs in a transaction; existing-project saves replace that project's feature rows and reinsert the submitted feature list.
+- Operator query output showed `gis_projects = 49` rows and `gis_project_features = 140` rows in `gis_staging`.
+- Latest project query showed project ID `49`, name `New Project`, created/updated at `2026-10-29 09:13:31 +03`, with exactly **5** rows in `gis_project_features`. This is strong evidence that the five features reported by the WebGIS UI were persisted under project 49, assuming this was the same save operation/session.
+- This evidence concerns **organization project storage**, not `public.webgis_features` and not GeoServer's `ne:webgis_features` layer. Do not confuse these data paths. The previous read-only checks found `public.webgis_features` empty in `sabzroy_gis` and `sabzroyan_personal_gis`; the 140 organization features are in the two `gis_staging` project tables.
+- **Still unverified:** opening project 49 through the WebGIS UI and confirming that the five geometries and attributes are restored; the live deployed API's read-after-write response; whether the UI's exact five drawings were the rows in project 49. No further server commands are required to document the current evidence. Browser read-back testing can be done when convenient.
+
+### Do not repeat these investigations without new evidence
+1. Do not query `public.webgis_features` to check organization project saves; check `gis_staging.public.gis_projects` and `gis_staging.public.gis_project_features` instead.
+2. Do not change DB targets, copy data between databases, or enable GeoServer/WFS-T writes as a workaround. The existing authenticated API is the organization-project persistence path.
+3. Do not store credentials or private config contents in GitHub. Database names/table names and sanitized row counts are sufficient for this handoff.
+4. When investigating a future save issue, first inspect the project's ID, update timestamp, and feature count in the configured API database; then verify UI restore before altering code/schema.
