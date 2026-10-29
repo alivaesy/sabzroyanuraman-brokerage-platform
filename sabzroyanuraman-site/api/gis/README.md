@@ -117,3 +117,11 @@ Use this section as the handoff record before repeating diagnostics. It records 
 ### Avoid repeating completed checks
 
 Do not rerun WMS GetMap for `ne:countries`, WFS GetCapabilities, or the same empty `ne:webgis_features` GetFeature request unless configuration changes or new evidence justifies a retest. Start from the next diagnostic sequence above and update this record with new verified findings.
+
+
+### Follow-up result (2026-10-29)
+
+- Queried `geometry_columns` correctly in both `sabzroyan_personal_gis` and `sabzroyan_gis`.
+- Each database exposes exactly one geometry table: `public.webgis_features`, geometry column `geom`, SRID 4326, generic type `GEOMETRY`.
+- No other registered geometry table was found in either database. Both `webgis_features` tables were previously counted as 0 rows.
+- Next: inventory all ordinary tables and row counts in both databases (not just geometry tables). This can reveal whether saved data lives in a non-geometry project table or another named table. Do not alter schema/data until this inventory is reviewed.
