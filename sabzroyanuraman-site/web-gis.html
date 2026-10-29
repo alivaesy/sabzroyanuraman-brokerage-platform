@@ -184,7 +184,12 @@ body{background:#dfe5e8;color:#173b57}
 .data-dialog-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:14px}
 .layer-properties-card{width:min(540px,96vw);max-height:88vh;overflow:auto;padding:0;background:#f4f6f7}.layer-properties-titlebar{display:flex;align-items:center;justify-content:space-between;padding:12px 15px;background:linear-gradient(#f9fafb,#e1e5e8);border-bottom:1px solid #aeb8be}.layer-properties-titlebar h2{margin:0;font-size:15px}.layer-properties-titlebar button{border:1px solid #aab5bb;background:#fff;width:25px;height:24px;cursor:pointer}.layer-properties-tabs{display:flex;border-bottom:1px solid #aeb8be;background:#e6e9eb;padding:0 12px}.layer-properties-tabs button{padding:8px 13px;border:0;border-right:1px solid #d0d6da;background:transparent;font-size:11px;cursor:pointer}.layer-properties-tabs button.active{background:#fff;box-shadow:inset 0 -2px #347ca5;font-weight:700}.layer-properties-card form{padding:14px 16px}.lp-pane label{display:block;font-size:11px;font-weight:700;margin:8px 0}.lp-pane input:not([type=checkbox]):not([type=color]):not([type=range]),.lp-pane select{display:block;width:100%;margin-top:4px;box-sizing:border-box}.lp-pane input[type=color]{display:block;width:100%;height:30px;margin-top:4px}.lp-pane input[type=checkbox]{vertical-align:middle;margin-right:6px}.lp-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px 14px}.lp-grid label{margin:4px 0}.lp-grid input[type=range]{display:block;width:100%}.lp-preview{display:flex;align-items:center;gap:10px;border:1px solid #c3cbd0;background:#fff;padding:10px;margin-top:10px;font-size:11px}.lp-source-details,.lp-fields-list{padding:8px;border:1px solid #c7d0d5;background:#fff;font-size:11px;overflow-wrap:anywhere;max-height:110px;overflow:auto}.lp-fields-list{display:flex;flex-wrap:wrap;gap:5px}.lp-field-chip{padding:3px 6px;background:#edf2f5;border:1px solid #d2dbe0;border-radius:2px}.lp-preview #lpSymbolPreview{display:inline-block;width:42px;height:22px;border:2px solid #146c43;background:rgba(86,168,120,.2)}.layer-properties-card .data-dialog-actions{padding-top:10px;border-top:1px solid #d2d8dc}
 
-#webgisLayoutView{position:fixed;inset:0;z-index:20000;overflow:auto;background:#d5dbe0;padding:14px;box-sizing:border-box;color:#243746;font:12px Arial,sans-serif}
+/* Layout is an in-workspace mode: keep the ArcMap menus/toolbars on screen. */
+.workspace{position:relative}
+#webgisLayoutView{position:absolute;inset:0;z-index:1400;overflow:auto;background:#d5dbe0;padding:10px;box-sizing:border-box;color:#243746;font:12px Arial,sans-serif}
+body.layout-view-active .workspace>.panel,body.layout-view-active .workspace>.arcmap-search-dock{visibility:hidden;pointer-events:none}
+body.layout-view-active .webgis-layout-sheet{min-height:calc(100% - 30px)}
+@media(max-width:900px){#webgisLayoutView{padding:6px}.webgis-layout-toolbar{position:relative}}
 .webgis-layout-toolbar{position:sticky;top:0;display:flex;flex-wrap:wrap;align-items:center;gap:7px;padding:8px;background:#edf1f4;border:1px solid #9aaab4;box-shadow:0 2px 6px #0002;z-index:2}
 .webgis-layout-toolbar span{margin-right:auto;color:#5b6c76}.webgis-layout-toolbar button{border:1px solid #9baab4;background:#fff;padding:5px 9px;cursor:pointer}
 .webgis-layout-sheet{max-width:1100px;min-height:75vh;margin:18px auto;background:#fff;border:1px solid #aab4ba;box-shadow:0 3px 14px #0002;padding:24px;box-sizing:border-box}
@@ -8322,7 +8327,9 @@ function openLayoutView(){
   // cannot find them until the panel is attached to the document.
   panel.querySelector("#webgisLayoutTitle").textContent=$("projectName")?.value||"Map";
   panel.querySelector("#webgisLayoutFooter").textContent="Sabz Royan Uraman · "+new Date().toLocaleDateString();
-  document.body.appendChild(panel);document.body.classList.add("layout-view-active");
+  const workspace=mapElement?.closest(".workspace")||document.querySelector(".workspace");
+  if(!workspace)throw new Error("Main GIS workspace is unavailable.");
+  panel._workspace=workspace;workspace.appendChild(panel);document.body.classList.add("layout-view-active");
   if(mapElement){panel._mapRestore={mapElement,originalParent,originalNext,oldStyle:mapElement.getAttribute("style")};mapElement.style.width="100%";mapElement.style.height="100%";mapElement.style.minHeight="420px";$("webgisLayoutMapSlot",panel).appendChild(mapElement);requestAnimationFrame(()=>{try{map.invalidateSize({pan:false});updateLayoutScale()}catch(_){}});}
   const refreshLegend=()=>{
     const legend=$("webgisLayoutLegend",panel);legend.replaceChildren();
