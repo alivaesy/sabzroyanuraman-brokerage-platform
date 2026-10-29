@@ -195,7 +195,24 @@ body.layout-view-active .webgis-layout-sheet{min-height:calc(100% - 30px)}
 #layoutModeToggle.active{background:#d4e7f2;border-color:#397ba0;box-shadow:inset 0 -2px #347ca5}
 #layoutModeToggle .layout-toggle-label{font-size:10px;font-weight:700}
 @media(max-width:900px){#webgisLayoutView{padding:6px;right:270px}.webgis-layout-toolbar{position:sticky}}
-@media(max-width:650px){#webgisLayoutView{left:0;right:0;top:0;bottom:0;z-index:900}.webgis-layout-sheet{width:calc(100% - 8px)!important;min-width:0!important;margin-left:4px;margin-right:4px;padding:12px}}
+@media(max-width:650px){#webgisLayoutView{left:0;right:0;top:0;bottom:0;z-index:900}} 
+/* Compact ArcMap-like layout controls and keep the paper fitted to the available map pane. */
+.webgis-layout-toolbar{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;white-space:nowrap;gap:5px;padding:6px;min-height:38px}
+.webgis-layout-toolbar>strong,.webgis-layout-toolbar>span{flex:0 0 auto}
+.webgis-layout-toolbar>span{display:none}
+.webgis-layout-toolbar button{flex:0 0 auto;padding:5px 7px;font-size:11px}
+.webgis-layout-toolbar label{flex:0 0 auto;font-size:11px}
+#webgisLayoutView .webgis-layout-sheet,
+#webgisLayoutView .webgis-layout-sheet.page-a4.portrait,
+#webgisLayoutView .webgis-layout-sheet.page-a4.landscape,
+#webgisLayoutView .webgis-layout-sheet.page-a3.portrait,
+#webgisLayoutView .webgis-layout-sheet.page-a3.landscape,
+#webgisLayoutView .webgis-layout-sheet.page-letter.portrait,
+#webgisLayoutView .webgis-layout-sheet.page-letter.landscape{width:100%!important;max-width:100%;min-width:0;min-height:0;margin:8px auto;padding:clamp(10px,2vw,24px);box-sizing:border-box}
+#webgisLayoutView .webgis-layout-map-frame{min-height:clamp(260px,48vh,560px);flex:1 1 auto}
+#webgisLayoutView .webgis-layout-map-slot{height:100%;min-height:clamp(260px,48vh,560px);margin:0;padding:0}
+#webgisLayoutView .webgis-layout-map-slot>#map{height:100%!important;min-height:clamp(260px,48vh,560px)!important}
+#webgisLayoutView #webgisLayoutTitle{font-size:clamp(17px,2vw,24px);padding:8px}
 .webgis-layout-toolbar{position:sticky;top:0;display:flex;flex-wrap:wrap;align-items:center;gap:7px;padding:8px;background:#edf1f4;border:1px solid #9aaab4;box-shadow:0 2px 6px #0002;z-index:2}
 .webgis-layout-toolbar span{margin-right:auto;color:#5b6c76}.webgis-layout-toolbar button{border:1px solid #9baab4;background:#fff;padding:5px 9px;cursor:pointer}
 .webgis-layout-sheet{max-width:1100px;min-height:75vh;margin:18px auto;background:#fff;border:1px solid #aab4ba;box-shadow:0 3px 14px #0002;padding:24px;box-sizing:border-box}
@@ -8327,6 +8344,12 @@ function openLayoutView(){
   let panel=document.getElementById("webgisLayoutView");
   if(panel){closeLayoutView();return;}
   const mapElement=$("map"),originalParent=mapElement?.parentNode,originalNext=mapElement?.nextSibling;
+  // Keep the workspace flex layout intact while the live Leaflet map is inside the page.
+  const mapPlaceholder=document.createElement("div");
+  mapPlaceholder.id="webgisMapViewPlaceholder";
+  mapPlaceholder.setAttribute("aria-hidden","true");
+  mapPlaceholder.style.cssText="flex:1 1 auto;min-width:0;min-height:0;visibility:hidden;pointer-events:none";
+  if(mapElement&&originalParent)originalParent.insertBefore(mapPlaceholder,mapElement);
   panel=document.createElement("section");panel.id="webgisLayoutView";panel.setAttribute("role","dialog");panel.setAttribute("aria-label","Map Layout View");
   panel.innerHTML='<div class="webgis-layout-toolbar"><strong>Layout</strong><span>Page · map · map furniture · print</span><label>Paper <select data-layout-setting="paper"><option value="a4">A4</option><option value="a3">A3</option><option value="letter">Letter</option></select></label><label>Orientation <select data-layout-setting="orientation"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label><button type="button" data-layout-action="title">Title</button><button type="button" data-layout-action="subtitle">Subtitle</button><button type="button" data-layout-action="text">Add Text</button><button type="button" data-layout-action="legend">Legend</button><button type="button" data-layout-action="north">North Arrow</button><button type="button" data-layout-action="scale">Scale Bar</button><button type="button" data-layout-action="grid">Coordinate Grid</button><button type="button" data-layout-action="footer">Footer</button><button type="button" data-layout-action="date">Date</button><button type="button" data-layout-action="move">Move Items</button><button type="button" data-layout-action="save">Export Layout</button><button type="button" data-layout-action="load">Import Layout</button><input type="file" accept="application/json,.json" data-layout-import hidden><button type="button" data-layout-action="print">Print / PDF</button><button type="button" data-layout-action="close">Map View</button></div><div class="webgis-layout-sheet page-a4 portrait"><header id="webgisLayoutTitle" class="webgis-layout-item" contenteditable="true" data-layout-item="title"></header><div id="webgisLayoutSubtitle" class="webgis-layout-subtitle webgis-layout-item" contenteditable="true" data-layout-item="subtitle" hidden>Map subtitle</div><div class="webgis-layout-map-frame"><div class="webgis-layout-map-slot" id="webgisLayoutMapSlot"></div><div id="webgisLayoutNorth" class="webgis-layout-north webgis-layout-item" data-layout-item="north" hidden aria-label="North arrow">N <span>▲</span></div><div id="webgisLayoutScale" class="webgis-layout-scale webgis-layout-item" data-layout-item="scale" hidden></div><div id="webgisLayoutGrid" class="webgis-layout-grid" hidden aria-label="Illustrative grid"></div></div><div id="webgisLayoutLegend" class="webgis-layout-legend webgis-layout-item" data-layout-item="legend" hidden></div><footer id="webgisLayoutFooter" class="webgis-layout-item" contenteditable="true" data-layout-item="footer"></footer></div>';
   const sheet=panel.querySelector(".webgis-layout-sheet");
@@ -8338,7 +8361,7 @@ function openLayoutView(){
   if(!workspace)throw new Error("Main GIS workspace is unavailable.");
   panel._workspace=workspace;workspace.appendChild(panel);document.body.classList.add("layout-view-active");
   const modeButton=document.getElementById("layoutModeToggle");if(modeButton){modeButton.classList.add("active");modeButton.setAttribute("aria-pressed","true");modeButton.title="Switch back to Map View";const label=modeButton.querySelector(".layout-toggle-label");if(label)label.textContent="Map";}
-  if(mapElement){panel._mapRestore={mapElement,originalParent,originalNext,oldStyle:mapElement.getAttribute("style")};mapElement.style.width="100%";mapElement.style.height="100%";mapElement.style.minHeight="420px";$("webgisLayoutMapSlot",panel).appendChild(mapElement);requestAnimationFrame(()=>{try{map.invalidateSize({pan:false});updateLayoutScale()}catch(_){}});}
+  if(mapElement){panel._mapRestore={mapElement,originalParent,originalNext,placeholder:mapPlaceholder,oldStyle:mapElement.getAttribute("style")};mapElement.style.width="100%";mapElement.style.height="100%";mapElement.style.minHeight="420px";$("webgisLayoutMapSlot",panel).appendChild(mapElement);requestAnimationFrame(()=>{try{map.invalidateSize({pan:false});updateLayoutScale()}catch(_){}});}
   const refreshLegend=()=>{
     const legend=$("webgisLayoutLegend",panel);legend.replaceChildren();
     const visible=(namedLayers||[]).filter(x=>x.visible!==false&&x.layer&&map?.hasLayer(x.layer));
@@ -8430,6 +8453,7 @@ function closeLayoutView(){
     else restore.originalParent.appendChild(restore.mapElement);
     if(restore.oldStyle===null)restore.mapElement.removeAttribute("style");else restore.mapElement.setAttribute("style",restore.oldStyle);
   }
+  restore?.placeholder?.remove();
   panel.remove();document.body.classList.remove("layout-view-active");
   const modeButton=document.getElementById("layoutModeToggle");if(modeButton){modeButton.classList.remove("active");modeButton.setAttribute("aria-pressed","false");modeButton.title="Switch to Layout View";const label=modeButton.querySelector(".layout-toggle-label");if(label)label.textContent="Layout";}
   requestAnimationFrame(()=>{try{map.invalidateSize({pan:false})}catch(_){}});
