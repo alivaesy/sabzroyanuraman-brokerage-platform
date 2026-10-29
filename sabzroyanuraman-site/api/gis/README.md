@@ -154,3 +154,11 @@ Do not rerun WMS GetMap for `ne:countries`, WFS GetCapabilities, or the same emp
 - `gis_auth_staging` has the same project/feature tables but both are empty. The two `sabzroyan_*_gis` databases' `webgis_features` tables are also empty.
 - Code review: `api/gis/projects.php` reads and writes `public.gis_projects` and `public.gis_project_features` using `gis_auth_db()`, while `api/gis/features.php` uses the separate private config `/home/sabzroyanuraman/private/gis-db.php` and is read-only. These are distinct data paths.
 - Next: safely identify only the database name used by `gis_auth_db()` and the `database` field in `gis-db.php` (do not print credentials or full config files). Do not repoint either path until the intended active database and ownership of the 135 staging features are confirmed.
+
+
+### Follow-up result: API database targets confirmed (2026-10-29)
+
+- Sanitized server-side config inspection confirms the authenticated projects API (`gis-auth-db.php`) targets database `gis_staging`.
+- The separate read-only feature catalog/query API (`gis-db.php`) targets `sabzroyan_gis`.
+- This explains the observed split: the authenticated project API has 48 project rows and 135 geometrically valid features in `gis_staging`, while `sabzroyan_gis.public.webgis_features` is empty.
+- Do not repoint either config yet. First determine whether `gis_staging` is intentionally a staging/test database and whether the 48 projects/135 features are user-owned data that must be retained. The correct next engineering step is to audit deployment/runtime status and the WebGIS save/load calls, then plan a backed-up, authenticated migration/connection change only after explicit confirmation of the intended production target.
