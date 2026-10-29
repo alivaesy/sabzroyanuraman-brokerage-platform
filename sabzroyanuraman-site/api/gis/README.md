@@ -172,3 +172,28 @@ Do not rerun WMS GetMap for `ne:countries`, WFS GetCapabilities, or the same emp
 - The read-only `api/gis/features.php` endpoint uses `gis-db.php` → `sabzroyan_gis` → `public.webgis_features`; it is not the source used to load authenticated server projects. This mismatch is why the generic feature endpoint can be empty while server projects/features exist in staging.
 - User confirmed the 135 staging features are disposable test shapes. They do not need preservation as business data. Nevertheless, do not silently erase the 48 project rows or change the active connection until deciding the target architecture.
 - Recommended implementation direction: keep project save/load authenticated through `projects.php`; avoid exposing organization project features via the public read-only endpoint. If the generic feature endpoint is needed for published/shared layers, give it a separate explicitly public/published-only data source or require authorization. Consider changing UI wording so users can distinguish local project save, local edit save, and authenticated server project save.
+
+
+## Storage architecture decision: multiple independent WebGIS routes (2026-10-29)
+
+The WebGIS must support multiple storage scopes, with at least two first-class routes and room for future providers:
+
+1. **Organization workspace**: authenticated organization membership, role checks, active subscription checks, and organization-scoped project access. Current implementation: `api/gis/projects.php` via `gis-auth-db.php` → `gis_staging`; it stores `project_data` plus normalized feature rows.
+2. **Personal workspace**: authenticated individual ownership, independent from organization membership/subscription. It must not require an `organization_id` and must not be able to read or modify organization projects. Target database: `sabzroyan_personal_gis` unless deployment review determines another production target. This route is not implemented yet; the database currently only has the empty `webgis_features` table.
+3. **Future providers**: keep the front-end provider choice separate from editing tools and map state. Add providers through a small registry/adapter interface (list/open/save/delete/capabilities) rather than branching throughout drawing/editing code.
+
+### Required implementation sequence
+
+- Add an explicit storage-scope selector: Personal / Organization. Do not silently fall back from a failed server save to IndexedDB; clearly label local-only save as a separate option.
+- Keep the organization endpoint and its role/subscription checks intact.
+- Implement personal project endpoints with session authentication, CSRF protection, owner-scoped SQL predicates, payload/geometry validation, limits, and audit logging. Personal endpoints must never accept an organization ID as an ownership substitute.
+- Create a versioned SQL migration for personal project/feature tables in `sabzroyan_personal_gis`; do not reuse `webgis_features` for private project snapshots.
+- Separate the read-only published-feature catalog from private project storage. No anonymous WFS-T and no browser-to-database credentials.
+- Verify save → reload → edit → save → reload for both scopes, and test cross-user/cross-organization access denial before declaring complete.
+
+### Current constraints / status
+
+- Organization storage exists in code and currently points at `gis_staging`; this is a staging database, not yet confirmed as production.
+- Personal project storage is a design target, not yet implemented. Do not imply that the empty `sabzroyan_personal_gis` database already stores personal projects.
+- Existing IndexedDB remains browser-local and is not a third server scope; label it explicitly as local backup/workspace.
+- Do not migrate or delete existing staging data as part of this design step. The 135 staging features were confirmed by the user to be disposable test shapes.
