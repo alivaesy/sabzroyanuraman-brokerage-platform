@@ -10112,6 +10112,16 @@ const arcMapDialog=(()=>{
 
 
 /* Center Layout View toolbar and page for viewport comparison. */
+/* Center the complete Layout toolbar container, not just its contents. */
+#webgisLayoutView .webgis-layout-toolbar{
+  width:fit-content!important;
+  max-width:calc(100% - 20px)!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+  justify-content:center!important;
+  box-sizing:border-box!important;
+}
+
 #webgisLayoutView .webgis-layout-toolbar{margin-left:auto!important;margin-right:auto!important}
 #webgisLayoutView .webgis-layout-sheet{margin-left:auto!important;margin-right:auto!important}
 
