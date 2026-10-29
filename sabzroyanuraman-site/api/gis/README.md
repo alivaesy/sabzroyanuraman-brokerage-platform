@@ -174,26 +174,27 @@ Do not rerun WMS GetMap for `ne:countries`, WFS GetCapabilities, or the same emp
 - Recommended implementation direction: keep project save/load authenticated through `projects.php`; avoid exposing organization project features via the public read-only endpoint. If the generic feature endpoint is needed for published/shared layers, give it a separate explicitly public/published-only data source or require authorization. Consider changing UI wording so users can distinguish local project save, local edit save, and authenticated server project save.
 
 
-## Storage architecture decision: multiple independent WebGIS routes (2026-10-29)
+## Storage architecture decision: owner-scoped workspaces (2026-10-29)
 
-The WebGIS must support multiple storage scopes, with at least two first-class routes and room for future providers:
+The architecture uses one common project-storage model, not separate GIS implementations for individuals and organizations. Every workspace has an explicit owner and an isolated access boundary.
 
-1. **Organization workspace**: authenticated organization membership, role checks, active subscription checks, and organization-scoped project access. Current implementation: `api/gis/projects.php` via `gis-auth-db.php` → `gis_staging`; it stores `project_data` plus normalized feature rows.
-2. **Personal workspace**: authenticated individual ownership, independent from organization membership/subscription. It must not require an `organization_id` and must not be able to read or modify organization projects. Target database: `sabzroyan_personal_gis` unless deployment review determines another production target. This route is not implemented yet; the database currently only has the empty `webgis_features` table.
-3. **Future providers**: keep the front-end provider choice separate from editing tools and map state. Add providers through a small registry/adapter interface (list/open/save/delete/capabilities) rather than branching throughout drawing/editing code.
+- **Personal workspace owner**: an individual user.
+- **Organization workspace owner**: an organization; access is granted to its active members according to role and subscription policy.
+- **Future owner types**: can be added through the same ownership/access model without duplicating GIS drawing, editing, or project serialization code.
+- **Browser-local IndexedDB**: an explicitly local workspace/backup, not a server owner type.
 
-### Required implementation sequence
+### Implementation requirements
 
-- Add an explicit storage-scope selector: Personal / Organization. Do not silently fall back from a failed server save to IndexedDB; clearly label local-only save as a separate option.
-- Keep the organization endpoint and its role/subscription checks intact.
-- Implement personal project endpoints with session authentication, CSRF protection, owner-scoped SQL predicates, payload/geometry validation, limits, and audit logging. Personal endpoints must never accept an organization ID as an ownership substitute.
-- Create a versioned SQL migration for personal project/feature tables in `sabzroyan_personal_gis`; do not reuse `webgis_features` for private project snapshots.
-- Separate the read-only published-feature catalog from private project storage. No anonymous WFS-T and no browser-to-database credentials.
-- Verify save → reload → edit → save → reload for both scopes, and test cross-user/cross-organization access denial before declaring complete.
+1. Use a common project/feature schema with an explicit owner scope/type and owner ID (or equivalent normalized owner/workspace table). Do not rely on a nullable `organization_id` alone to distinguish all ownership types.
+2. Every read/write/delete query must enforce ownership server-side. Personal users must not access organization data; organization members must pass membership, role, and subscription checks. Test cross-owner denial.
+3. Keep login/session authentication, CSRF protection, payload and geometry validation, size limits, and audit logging on every write route.
+4. Keep front-end storage selection separate from map tools and project serialization. Failed server saves must never silently fall back to local storage.
+5. Keep published/read-only feature services separate from private project persistence. No anonymous WFS-T and no database credentials in the browser.
+6. Verify save → reload → edit → save → reload for personal and organization workspaces before declaring the paths complete.
 
-### Current constraints / status
+### Current implementation status
 
-- Organization storage exists in code and currently points at `gis_staging`; this is a staging database, not yet confirmed as production.
-- Personal project storage is a design target, not yet implemented. Do not imply that the empty `sabzroyan_personal_gis` database already stores personal projects.
-- Existing IndexedDB remains browser-local and is not a third server scope; label it explicitly as local backup/workspace.
-- Do not migrate or delete existing staging data as part of this design step. The 135 staging features were confirmed by the user to be disposable test shapes.
+- Organization project persistence is implemented in `api/gis/projects.php` through `gis-auth-db.php` → `gis_staging`; that database is still staging, not confirmed production.
+- A personal workspace route is not yet implemented. `sabzroyan_personal_gis` currently has an empty `webgis_features` table; it is not yet a working personal-project store.
+- The existing 135 features in staging are disposable test shapes per the user; no data migration or deletion is part of this architecture decision.
+- Next implementation step: converge personal and organization projects on a shared owner-scoped model where practical, while preserving existing organization authorization rules and isolating each owner's data.
