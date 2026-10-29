@@ -135,3 +135,13 @@ Do not rerun WMS GetMap for `ne:countries`, WFS GetCapabilities, or the same emp
   - `public.webgis_features`: 0 rows.
 - Therefore the previously saved shapes are not currently present in either of these two tables. This does **not** prove they are lost: other databases, non-public schemas, project-storage tables, or browser IndexedDB may be involved.
 - Next read-only step: list database names, schemas, and tables across all non-template databases; inspect only names/metadata first, not sensitive attribute values. Do not create/import sample records or modify GeoServer until the actual storage location is identified.
+
+
+### Follow-up result: staging project data located (2026-10-29)
+
+- Read-only inventory across all connectable non-template databases found the project tables in both `gis_staging` and `gis_auth_staging`.
+- Counts in `gis_staging`: `public.gis_projects` = 48 rows; `public.gis_project_features` = 135 rows.
+- Counts in `gis_auth_staging`: both tables = 0 rows.
+- In both databases, `public.gis_project_features.geom` is registered in `geometry_columns` as SRID 4326, type `GEOMETRY`.
+- This is the first positive evidence of stored project/feature records and is a strong candidate for the user's previously saved work. Do not call it production-ready or change application connections yet: verify feature distribution and the WebGIS project's configured database first.
+- Next read-only checks: aggregate feature counts by project and geometry type in `gis_staging`; inspect application config using commands that reveal only the database name/host, never passwords or full secret files. Do not copy staging records into production or expose personal/project attributes.
