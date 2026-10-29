@@ -607,6 +607,9 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 <button type="button" class="icon-tool" data-editor-draw="Polygon" title="Create Polygon" aria-label="Create Polygon"><svg class="arcmap-icon"><use href="#arc-icon-polygon"></use></svg></button>
 <button type="button" class="icon-tool" data-editor-draw="Rectangle" title="Create Rectangle" aria-label="Create Rectangle"><svg class="arcmap-icon"><use href="#arc-icon-rectangle"></use></svg></button>
 <button type="button" class="icon-tool" data-editor-draw="Circle" title="Create Circle" aria-label="Create Circle"><svg class="arcmap-icon"><use href="#arc-icon-circle"></use></svg></button>
+<button type="button" class="icon-tool" data-editor-draw="Ellipse" title="Create Ellipse" aria-label="Create Ellipse"><svg class="arcmap-icon"><use href="#arc-icon-circle"></use></svg></button>
+<button type="button" class="icon-tool" data-editor-draw="FreehandLine" title="Freehand Line — hold and drag" aria-label="Freehand Line"><svg class="arcmap-icon"><use href="#arc-icon-line"></use></svg></button>
+<button type="button" class="icon-tool" data-editor-draw="FreehandPolygon" title="Freehand Polygon — hold and drag" aria-label="Freehand Polygon"><svg class="arcmap-icon"><use href="#arc-icon-polygon"></use></svg></button>
 <button type="button" class="icon-tool" id="finishSketchBtn" disabled title="Finish Sketch" aria-label="Finish Sketch"><svg class="arcmap-icon"><use href="#arc-icon-check"></use></svg></button>
 <span class="toolbar-separator" aria-hidden="true"></span>
 <button type="button" class="icon-tool" data-action="clearDraw" title="Clear Drawings" aria-label="Clear Drawings"><svg class="arcmap-icon"><use href="#arc-icon-delete"></use></svg></button>
@@ -682,7 +685,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
     <button data-action="toggleEditorToolbar">Editor Toolbar</button>
     <button data-action="startEditing">Start Editing</button><button data-action="saveEdits">Save Edits</button><button data-action="stopEditing">Stop Editing</button>
     <div class="arc-sep"></div><div class="arc-menu-title">Create Features</div>
-    <button type="button" data-editor-draw="Marker">Point</button><button type="button" data-editor-draw="Polyline">Line</button><button type="button" data-editor-draw="Polygon">Polygon</button><button type="button" data-editor-draw="Rectangle">Rectangle</button><button type="button" data-editor-draw="Circle">Circle</button>
+    <button type="button" data-editor-draw="Marker">Point</button><button type="button" data-editor-draw="Polyline">Line</button><button type="button" data-editor-draw="Polygon">Polygon</button><button type="button" data-editor-draw="Rectangle">Rectangle</button><button type="button" data-editor-draw="Circle">Circle</button><button type="button" data-editor-draw="Ellipse">Ellipse</button><button type="button" data-editor-draw="FreehandLine">Freehand Line</button><button type="button" data-editor-draw="FreehandPolygon">Freehand Polygon</button>
   </div>
   <div class="arc-dropdown" id="mapMenu">
     <div class="arc-menu-title">View</div>
@@ -2416,8 +2419,13 @@ function goToXY(){
   if(currentCRS==="EPSG:4326"){xInput.value=center.lng.toFixed(6);yInput.value=center.lat.toFixed(6);system.value="wgs84";}
   xInput.focus();xInput.select();
 }
+function ellipseRing(a,b){
+  const centerLat=(a.lat+b.lat)/2,centerLng=(a.lng+b.lng)/2,rx=Math.abs(b.lng-a.lng)/2,ry=Math.abs(b.lat-a.lat)/2,ring=[];
+  for(let i=0;i<=48;i++){const t=2*Math.PI*i/48;ring.push(L.latLng(centerLat+ry*Math.sin(t),centerLng+rx*Math.cos(t)));}
+  return ring;
+}
 function drawingLayerForType(type){
-  const kind=type==="Marker"?"Point":type==="Polyline"?"Line":"Polygon";
+  const kind=type==="Marker"?"Point":(["Polyline","FreehandLine"].includes(type)?"Line":"Polygon");
   const suffix=kind==="Point"?"Points":kind==="Line"?"Lines":"Polygons";
   const setName=activeDrawingSetName||"My Drawings";
   let item=namedLayers.find(x=>x.drawingSet===setName&&x._webgisDrawingType===kind);
@@ -2485,7 +2493,7 @@ function startNativeDraw(type,button){
   const target=editTarget;
   const targetMeta=target._gdbMetadata;
   if(targetMeta){
-    const actual=type==="Marker"?"Point":type==="Polyline"?"LineString":"Polygon";
+    const actual=type==="Marker"?"Point":(["Polyline","FreehandLine"].includes(type)?"LineString":"Polygon");
     if(targetMeta.geometryType!==actual){status("Geometry mismatch: this feature class accepts "+targetMeta.geometryType+" features only. Choose the matching drawing tool.");return;}
   }
   const style={color:"#146c43",weight:3,fillColor:"#4b9b71",fillOpacity:.2};
@@ -2494,7 +2502,8 @@ function startNativeDraw(type,button){
   const updatePreview=cursor=>{
     if(type==="Marker")return;
     const coords=cursor?[...points,cursor]:points;
-    if(type==="Polyline"||type==="Polygon"){
+    if(["Polyline","Polygon","FreehandLine","FreehandPolygon","Ellipse"].includes(type)){
+      if(type==="Ellipse"&&coords.length>=2){const ring=ellipseRing(coords[0],coords[1]);if(!preview)preview=L.polygon(ring,{...style,interactive:false}).addTo(map);else preview.setLatLngs(ring);return;}
       if(coords.length<2)return;
       if(!preview){preview=type==="Polygon"&&coords.length>=3?L.polygon(coords,{...style,interactive:false}):L.polyline(coords,{...style,interactive:false});preview.addTo(map)}
       else if(type==="Polygon"&&coords.length>=3&&!(preview instanceof L.Polygon)){removePreview();preview=L.polygon(coords,{...style,interactive:false}).addTo(map)}
@@ -2513,8 +2522,9 @@ function startNativeDraw(type,button){
   };
   const complete=()=>{
     if(finished)return;
-    const needed={Polyline:2,Polygon:3,Rectangle:2,Circle:2}[type]||1;
+    const needed={Polyline:2,Polygon:3,Rectangle:2,Circle:2,Ellipse:2,FreehandLine:2,FreehandPolygon:3}[type]||1;
     if(points.length<needed){status(type==="Polygon"?"Add at least three vertices before finishing.":type==="Polyline"?"Add at least two vertices before finishing.":"Add a second point to finish.");return}
+    if(type==="Ellipse"&&points[0].equals(points[1])){status("Choose a different opposite corner for the ellipse.");return}
     if(type==="Circle"&&points[0].distanceTo(points[1])<=0){status("Move the second point away from the center to give the circle a positive radius.");return}
     if(type==="Rectangle"&&points[0].equals(points[1])){status("Choose a different opposite corner so the rectangle has an area.");return}
     let layer;
@@ -2523,6 +2533,9 @@ function startNativeDraw(type,button){
     else if(type==="Polygon")layer=L.polygon(points,style);
     else if(type==="Rectangle")layer=L.rectangle(L.latLngBounds(points[0],points[1]),style);
     else if(type==="Circle")layer=L.circle(points[0],{...style,radius:points[0].distanceTo(points[1])});
+    else if(type==="Ellipse")layer=L.polygon(ellipseRing(points[0],points[1]),style);
+    else if(type==="FreehandLine")layer=L.polyline(points,style);
+    else if(type==="FreehandPolygon")layer=L.polygon(points,style);
     if(!layer){status("This drawing tool is unavailable.");return}
     finished=true;removePreview();
     recordUndoState();
@@ -2556,7 +2569,7 @@ function startNativeDraw(type,button){
     // active and reset only the current geometry, so multiple features can be
     // placed without clicking the toolbar icon again.
     points=[];finished=false;removePreview();updateEditorToolbar();
-    const ready={Marker:"Point created. Click the map to place another point.",Polyline:"Line created. Continue clicking to draw another line; double-click/Enter to finish each line.",Polygon:"Polygon created. Click to start another polygon; double-click/Enter to finish each polygon.",Rectangle:"Rectangle created. Click to draw another rectangle.",Circle:"Circle created. Click to draw another circle."};
+    const ready={Marker:"Point created. Click the map to place another point.",Polyline:"Line created. Continue clicking to draw another line; double-click/Enter to finish each line.",Polygon:"Polygon created. Click to start another polygon; double-click/Enter to finish each polygon.",Rectangle:"Rectangle created. Click to draw another rectangle.",Circle:"Circle created. Click to draw another circle.",Ellipse:"Ellipse created. Draw another ellipse.",FreehandLine:"Freehand line created.",FreehandPolygon:"Freehand polygon created."};
     status("Feature added to "+targetName+". "+(ready[type]||"Drawing tool remains active."));
   };
   const onClick=e=>{
@@ -2621,9 +2634,9 @@ function startNativeDraw(type,button){
       if(nearest)point=nearest;
     }
     points.push(point);
-    if(type==="Marker"||((type==="Circle"||type==="Rectangle")&&points.length>=2)){complete();return}
+    if(type==="Marker"||((type==="Circle"||type==="Rectangle"||type==="Ellipse")&&points.length>=2)){complete();return}
     updatePreview();
-    const messages={Polyline:"Add line vertices; double-click, press Enter, or use ✓ to finish.",Polygon:"Add polygon vertices; double-click, press Enter, or use ✓ to finish.",Rectangle:"Click the opposite corner to finish the rectangle.",Circle:"Click the circle edge to set its radius."};
+    const messages={Polyline:"Add line vertices; double-click, press Enter, or use ✓ to finish.",Polygon:"Add polygon vertices; double-click, press Enter, or use ✓ to finish.",Rectangle:"Click the opposite corner to finish the rectangle.",Circle:"Click the circle edge to set its radius.",Ellipse:"Click the opposite corner to finish the ellipse."};
     status(messages[type]||"Sketch in progress.");
   };
   const onMove=e=>{if(points.length)updatePreview(e.latlng)};
@@ -2645,8 +2658,15 @@ function startNativeDraw(type,button){
   button?.classList.add("active");
   updateEditorToolbar();
   map.doubleClickZoom.disable();
-  map.on("click",onClick);map.on("mousemove",onMove);map.on("dblclick",onDoubleClick);
-  const instructions={Marker:"Click once on the map to place a point.",Polyline:"Click on the map to add line vertices.",Polygon:"Click on the map to add polygon vertices.",Rectangle:"Click the first rectangle corner.",Circle:"Click the circle center."};
+  if(type==="FreehandLine"||type==="FreehandPolygon"){
+    let drawing=false;
+    const onDown=e=>{if(e.originalEvent?.button!==0)return;drawing=true;points=[e.latlng];updatePreview();};
+    const onFreeMove=e=>{if(!drawing)return;const last=points[points.length-1];if(!last||last.distanceTo(e.latlng)>map.distance(map.containerPointToLatLng([0,0]),map.containerPointToLatLng([3,0]))){points.push(e.latlng);updatePreview();}};
+    const onUp=()=>{if(!drawing)return;drawing=false;if(points.length>=2){if(type==="FreehandPolygon"&&points.length<3){status("Draw a larger stroke to make a polygon.");return;}complete();}else{removePreview();points=[];status("Draw a longer freehand stroke.");}};
+    handler.disable=()=>{map.off("mousedown",onDown);map.off("mousemove",onFreeMove);map.off("mouseup",onUp);removePreview()};
+    map.on("mousedown",onDown);map.on("mousemove",onFreeMove);map.on("mouseup",onUp);
+  }else{map.on("click",onClick);map.on("mousemove",onMove);map.on("dblclick",onDoubleClick);}
+  const instructions={Marker:"Click once on the map to place a point.",Polyline:"Click on the map to add line vertices.",Polygon:"Click on the map to add polygon vertices.",Rectangle:"Click the first rectangle corner.",Circle:"Click the circle center.",Ellipse:"Click one corner, then the opposite corner.",FreehandLine:"Hold left mouse button and drag to draw a freehand line.",FreehandPolygon:"Hold left mouse button and drag to draw a freehand polygon."};
   status(instructions[type]||"Drawing tool active.");
 }
 function startSelectionShape(type,options,callback){
@@ -9251,7 +9271,7 @@ function runModelBuilder(modal){
  menu.addEventListener("click",function(e){
   const b=e.target.closest("[data-editor-task]");if(!b)return;
   const actions={start:"startEditingBtn",save:"saveEditsBtn",stop:"stopEditingBtn",attributes:"openTable",clear:null};
-  const draw={point:"Marker",line:"Polyline",polygon:"Polygon",rectangle:"Rectangle",circle:"Circle"};
+  const draw={point:"Marker",line:"Polyline",polygon:"Polygon",rectangle:"Rectangle",circle:"Circle",ellipse:"Ellipse",freehandLine:"FreehandLine",freehandPolygon:"FreehandPolygon"};
   const task=b.dataset.editorTask;
   if(draw[task]){document.querySelector('[data-editor-draw="'+draw[task]+'"]')?.click();}
   else if(task==="clear"){document.querySelector('[data-action="clearDraw"]')?.click();}
