@@ -10112,18 +10112,23 @@ const arcMapDialog=(()=>{
 
 
 /* Center Layout View toolbar and page for viewport comparison. */
-/* Center the complete Layout toolbar container, not just its contents. */
+/* Keep Layout Toolbar compact and centered; wrap controls into centered rows. */
 #webgisLayoutView .webgis-layout-toolbar{
-  width:fit-content!important;
+  display:flex!important;
+  flex-flow:row wrap!important;
+  width:max-content!important;
   max-width:calc(100% - 20px)!important;
-  margin-left:auto!important;
-  margin-right:auto!important;
+  margin:0 auto 8px!important;
   justify-content:center!important;
+  align-items:center!important;
+  align-content:center!important;
   box-sizing:border-box!important;
+  gap:6px 8px!important;
 }
-
-#webgisLayoutView .webgis-layout-toolbar{margin-left:auto!important;margin-right:auto!important}
-#webgisLayoutView .webgis-layout-sheet{margin-left:auto!important;margin-right:auto!important}
+#webgisLayoutView .webgis-layout-toolbar>*{
+  flex:0 0 auto!important;
+  max-width:100%!important;
+}
 
 /* ModelBuilder is a full-workspace GIS view, not a floating dialog card. */
 /* ArcMap-style ModelBuilder workspace: application frame, ribbon and process cards. */
