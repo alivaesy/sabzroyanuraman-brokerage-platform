@@ -225,3 +225,6 @@ At the end of each meaningful batch, update this file with the verified date, co
 - Commits on master: `4c8cd5ecad871876d06790b0d565e73c69527b02` (tools) and `d69b6889aecf8a7327563b68eea4f951b426f361` (freehand polygon preview correction).
 - Static GitHub read-back confirmed toolbar/menu entries, geometry creation branches, ellipse helper, mouse-drag listeners, and line-vs-polygon drawing-layer routing. Not yet browser-tested; check mouse interaction, geometry validity, save/reload, and feature-class geometry constraints before declaring complete.
 
+## Drawing geometry correction (2026-10-29)
+- Follow-up audit found the prior ellipse helper built its radii directly in longitude/latitude degrees, which distorts the ellipse as latitude changes. Updated `ellipseRing()` to calculate the center/radii in Leaflet's projected map plane and generate a 64-segment polygon ring; rejects zero-width/height ellipses. Master commit: `d762b86b8fcaaef6d1376a2ba229aded2294fe68`.
+- This was a targeted correction, not a claim that every ArcMap-like tool is complete. Existing Split/Merge/Reshape/Vertex Edit/Snapping implementations were found and should be regression-tested rather than duplicated. No browser-level tests were run; test ellipse creation at different latitudes, freehand strokes, edit undo/redo, and save/reload next.
