@@ -1069,7 +1069,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
     <div class="layer-properties-tabs" role="tablist"><button type="button" class="active" data-lp-tab="general" role="tab" aria-selected="true">General</button><button type="button" data-lp-tab="symbology" role="tab" aria-selected="false">Symbology</button><button type="button" data-lp-tab="labels" role="tab" aria-selected="false">Labels</button><button type="button" data-lp-tab="source" role="tab" aria-selected="false">Source</button></div>
     <form id="layerPropertiesForm">
       <div class="lp-pane" data-lp-pane="general"><label for="lpLayerName">Layer name</label><input id="lpLayerName" maxlength="180"><p class="small">Changes the display name in the Table Of Contents.</p><label><input type="checkbox" id="lpLayerVisible"> Layer is visible</label></div>
-      <div class="lp-pane" data-lp-pane="symbology" hidden><div class="lp-grid"><label>Outline color<input id="lpOutlineColor" type="color" value="#146c43"></label><label>Fill color<input id="lpFillColor" type="color" value="#56a878"></label><label>Outline width (px)<input id="lpLineWidth" type="number" min="0" max="20" step=".5" value="2"></label><label>Point size (px)<input id="lpPointSize" type="number" min="1" max="40" step="1" value="7"></label><label>Layer opacity<input id="lpOpacity" type="range" min="0" max="1" step=".05" value="1"><span id="lpOpacityValue">100%</span></label><label>Fill opacity<input id="lpFillOpacity" type="range" min="0" max="1" step=".05" value=".2"><span id="lpFillOpacityValue">20%</span></label></div><div class="lp-preview"><span id="lpSymbolPreview"></span><span>Symbol preview</span></div></div>
+      <div class="lp-pane" data-lp-pane="symbology" hidden><div class="lp-grid"><label>Renderer<select id="lpRenderer"><option value="single">Single Symbol</option><option value="unique">Unique Values</option><option value="graduated">Graduated Colors</option></select></label><label>Value field<select id="lpStyleField"></select></label><label>Color ramp<select id="lpColorRamp"><option value="green">Greens</option><option value="blue">Blues</option><option value="red">Reds</option><option value="purple">Purples</option><option value="spectral">Spectral</option></select></label><label>Classes (2–7)<input id="lpClassCount" type="number" min="2" max="7" value="5"></label><label>Outline color<input id="lpOutlineColor" type="color" value="#146c43"></label><label>Fill color<input id="lpFillColor" type="color" value="#56a878"></label><label>Outline width (px)<input id="lpLineWidth" type="number" min="0" max="20" step=".5" value="2"></label><label>Point size (px)<input id="lpPointSize" type="number" min="1" max="40" step="1" value="7"></label><label>Layer opacity<input id="lpOpacity" type="range" min="0" max="1" step=".05" value="1"><span id="lpOpacityValue">100%</span></label><label>Fill opacity<input id="lpFillOpacity" type="range" min="0" max="1" step=".05" value=".2"><span id="lpFillOpacityValue">20%</span></label></div><div class="lp-preview"><span id="lpSymbolPreview"></span><span>Symbol preview</span></div><div id="lpRendererLegend" class="lp-fields-list" aria-live="polite">Single symbol: one symbol for all features.</div></div>
       <div class="lp-pane" data-lp-pane="labels" hidden><label><input id="lpLabelsEnabled" type="checkbox"> Label features</label><label for="lpLabelField">Label field</label><select id="lpLabelField"></select><label for="lpLabelSize">Text size (px)</label><input id="lpLabelSize" type="number" min="8" max="32" value="12"><label for="lpLabelColor">Text color</label><input id="lpLabelColor" type="color" value="#202020"></div><div class="lp-pane" data-lp-pane="source" hidden><label>Data source</label><div id="lpSourceDetails" class="lp-source-details">Source details unavailable.</div><label>Fields</label><div id="lpFieldsList" class="lp-fields-list"></div></div>
       <div class="data-dialog-actions"><button type="button" class="top-btn" id="layerPropertiesCancel">Cancel</button><button type="submit" class="action">Apply</button><button type="submit" class="action" id="layerPropertiesOk">OK</button></div>
     </form>
@@ -7470,6 +7470,27 @@ function closeLayerProperties(){
   const d=$("layerPropertiesDialog");if(d){d.classList.remove("show");d.setAttribute("aria-hidden","true");}
   layerPropertiesTarget=null;
 }
+function layerStyleRamp(name,count){
+  const ramps={green:["#edf8e9","#bae4b3","#74c476","#31a354","#006d2c","#00441b","#002b12"],blue:["#eff3ff","#c6dbef","#9ecae1","#6baed6","#3182bd","#08519c","#08306b"],red:["#fee5d9","#fcae91","#fb6a4a","#ef3b2c","#cb181d","#99000d","#67000d"],purple:["#f2f0f7","#cbc9e2","#9e9ac8","#756bb1","#54278f","#3f007d","#2a0054"],spectral:["#2c7bb6","#abd9e9","#ffffbf","#fdae61","#d7191c","#a50026","#67001f"]};
+  const palette=ramps[name]||ramps.green;
+  if(count<=1)return [palette[Math.floor(palette.length/2)]];
+  return Array.from({length:count},(_,i)=>palette[Math.round(i*(palette.length-1)/(count-1))]);
+}
+function refreshLayerRendererControls(){
+  const mode=$("lpRenderer")?.value||"single",field=$("lpStyleField")?.value||"",legend=$("lpRendererLegend");
+  ["lpStyleField","lpColorRamp","lpClassCount"].forEach(id=>{const el=$(id);if(el)el.disabled=mode==="single"});
+  if(!legend)return;
+  const records=layerPropertiesRecords(layerPropertiesTarget?.target),vals=records.map(r=>r.feature?.properties?.[field]).filter(v=>v!==null&&v!==undefined&&String(v).trim()!=="");
+  if(mode==="single"){legend.textContent="Single symbol: one symbol for all features.";return}
+  if(!field){legend.textContent="Choose an attribute field.";return}
+  if(mode==="unique"){
+    const values=[...new Set(vals.map(v=>String(v)))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})).slice(0,30),colors=layerStyleRamp($("lpColorRamp").value,Math.max(1,values.length));
+    legend.replaceChildren();values.forEach((v,i)=>{const row=document.createElement("div");row.className="lp-field-chip";const sw=document.createElement("span");sw.style.cssText="display:inline-block;width:12px;height:12px;border:1px solid #52616b;margin-right:6px;background:"+colors[i]+";vertical-align:middle";row.append(sw,document.createTextNode(v));legend.appendChild(row)});if(!values.length)legend.textContent="No non-empty values in this field.";if(vals.length>30){const note=document.createElement("div");note.textContent="Legend limited to first 30 values; all unique values are still styled.";legend.appendChild(note)}return
+  }
+  const nums=vals.map(Number).filter(Number.isFinite).sort((a,b)=>a-b),count=Math.max(2,Math.min(7,Number($("lpClassCount").value)||5)),colors=layerStyleRamp($("lpColorRamp").value,count);
+  if(!nums.length){legend.textContent="Graduated Colors requires a numeric field.";return}
+  const min=nums[0],max=nums[nums.length-1];legend.replaceChildren();colors.forEach((color,i)=>{const low=min+(max-min)*i/count,high=i===count-1?max:min+(max-min)*(i+1)/count,row=document.createElement("div");row.className="lp-field-chip";const sw=document.createElement("span");sw.style.cssText="display:inline-block;width:12px;height:12px;border:1px solid #52616b;margin-right:6px;background:"+color+";vertical-align:middle";row.append(sw,document.createTextNode(low.toLocaleString()+" – "+high.toLocaleString()));legend.appendChild(row)});
+}
 function updateLayerSymbolPreview(){
   const preview=$("lpSymbolPreview");if(!preview)return;
   preview.style.borderColor=$("lpOutlineColor").value;preview.style.backgroundColor=$("lpFillColor").value;
@@ -7594,11 +7615,17 @@ function openLayerProperties(item=null){
   const fieldSelect=$("lpLabelField");fieldSelect.innerHTML="";
   fields.forEach(field=>{const o=document.createElement("option");o.value=field;o.textContent=field;fieldSelect.appendChild(o)});
   fieldSelect.value=fields.includes(owner?._labelField) ? owner._labelField : (fields.includes("name")?"name":fields[0]||"");
+  const styleField=$("lpStyleField");styleField.replaceChildren();
+  fields.forEach(field=>{const o=document.createElement("option");o.value=field;o.textContent=field;styleField.appendChild(o)});
+  styleField.value=fields.includes(owner?._rendererConfig?.field)?owner._rendererConfig.field:(fields.includes("type")?"type":fields[0]||"");
+  $("lpRenderer").value=["single","unique","graduated"].includes(owner?._rendererConfig?.mode)?owner._rendererConfig.mode:"single";
+  $("lpColorRamp").value=["green","blue","red","purple","spectral"].includes(owner?._rendererConfig?.ramp)?owner._rendererConfig.ramp:"green";
+  $("lpClassCount").value=Math.max(2,Math.min(7,Number(owner?._rendererConfig?.classes)||5));
   $("lpLabelsEnabled").checked=!!owner?._labelsEnabled;
   $("lpLabelSize").value=owner?._labelSize||12;$("lpLabelColor").value=owner?._labelColor||"#202020";
   document.querySelectorAll("[data-lp-tab]").forEach((b,i)=>{b.classList.toggle("active",i===0);b.setAttribute("aria-selected",i===0?"true":"false")});
   document.querySelectorAll("[data-lp-pane]").forEach((p,i)=>p.hidden=i!==0);
-  updateLayerSymbolPreview();
+  updateLayerSymbolPreview();refreshLayerRendererControls();
   const d=$("layerPropertiesDialog");d.classList.add("show");d.setAttribute("aria-hidden","false");
 }
 document.querySelectorAll("[data-lp-tab]").forEach(button=>button.addEventListener("click",()=>{
@@ -7607,6 +7634,7 @@ document.querySelectorAll("[data-lp-tab]").forEach(button=>button.addEventListen
   document.querySelectorAll("[data-lp-pane]").forEach(p=>p.hidden=p.dataset.lpPane!==key);
 }));
 ["lpOutlineColor","lpFillColor","lpLineWidth","lpOpacity","lpFillOpacity"].forEach(id=>$(id).addEventListener("input",updateLayerSymbolPreview));
+["lpRenderer","lpStyleField","lpColorRamp","lpClassCount"].forEach(id=>$(id).addEventListener("change",refreshLayerRendererControls));
 $("layerPropertiesClose").onclick=$("layerPropertiesCancel").onclick=closeLayerProperties;
 $("layerPropertiesDialog").addEventListener("click",e=>{if(e.target===$("layerPropertiesDialog"))closeLayerProperties()});
 $("layerPropertiesForm").addEventListener("submit",e=>{
@@ -7620,10 +7648,25 @@ $("layerPropertiesForm").addEventListener("submit",e=>{
   if(owner){owner.name=name;owner._labelsEnabled=$("lpLabelsEnabled").checked;owner._labelField=$("lpLabelField").value;owner._labelSize=Math.max(8,Math.min(32,Number($("lpLabelSize").value)||12));owner._labelColor=$("lpLabelColor").value;layerLabelClass(owner);}
   const visible=$("lpLayerVisible").checked;
   if(visible&&!map.hasLayer(target))map.addLayer(target);else if(!visible&&map.hasLayer(target))map.removeLayer(target);
-  const style={color:$("lpOutlineColor").value,fillColor:$("lpFillColor").value,weight:width,opacity,fillOpacity,radius};
+  const baseStyle={color:$("lpOutlineColor").value,fillColor:$("lpFillColor").value,weight:width,opacity,fillOpacity,radius};
+  const rendererMode=$("lpRenderer").value,styleField=$("lpStyleField").value,ramp=$("lpColorRamp").value,classCount=Math.max(2,Math.min(7,Number($("lpClassCount").value)||5));
+  const values=records.map(r=>r.feature?.properties?.[styleField]),uniqueValues=[...new Set(values.filter(v=>v!==null&&v!==undefined&&String(v).trim()!=="").map(String))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+  const colors=layerStyleRamp(ramp,rendererMode==="unique"?Math.max(1,uniqueValues.length):classCount);
+  const numericValues=values.map(Number).filter(Number.isFinite),minValue=numericValues.length?Math.min(...numericValues):0,maxValue=numericValues.length?Math.max(...numericValues):0;
+  if(rendererMode==="graduated"&&!numericValues.length){status("Graduated Colors requires a numeric field with values.");return}
+  const rendererConfig={mode:rendererMode,field:styleField,ramp,classes:classCount};
+  if(owner)owner._rendererConfig=rendererConfig;
   let styled=0;
   records.forEach(r=>{
     try{
+      let style={...baseStyle};
+      const raw=r.feature?.properties?.[styleField];
+      if(rendererMode==="unique"){
+        const idx=uniqueValues.indexOf(String(raw));if(idx>=0)style.fillColor=colors[idx%colors.length];
+      }else if(rendererMode==="graduated"&&raw!==null&&raw!==undefined&&Number.isFinite(Number(raw))){
+        const value=Number(raw),idx=maxValue===minValue?Math.floor(classCount/2):Math.min(classCount-1,Math.max(0,Math.floor((value-minValue)/(maxValue-minValue)*classCount)));
+        style.fillColor=colors[idx];
+      }
       if(typeof r.layer.setStyle==="function"){r.layer.setStyle(style);styled++;}
       if(typeof r.layer.setRadius==="function")r.layer.setRadius(radius);
       if(owner?._labelsEnabled&&owner._labelField&&typeof r.layer.bindTooltip==="function"){
