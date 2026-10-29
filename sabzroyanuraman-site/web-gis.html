@@ -10059,21 +10059,35 @@ const arcMapDialog=(()=>{
 #webgisLayoutView .webgis-layout-tool-group button{flex:0 0 auto}
 @media(max-width:650px){#webgisLayoutView .webgis-layout-tool-group{flex-wrap:wrap;padding:2px;border-left:0;border-top:1px solid #c0c9ce;width:100%}#webgisLayoutView .webgis-layout-toolbar>strong{border-right:0}}
 
-/* Keep Layout controls in the map workspace, never underneath the TOC dock. */
+/* Reserve the TOC dock's width for the Layout ribbon; let groups wrap instead of painting underneath it. */
 #webgisLayoutView .webgis-layout-toolbar{
   position:sticky!important;
   top:0;
   z-index:1200!important;
-  width:calc(100% - 300px);
-  max-width:100%;
+  width:calc(100% - 312px);
+  max-width:calc(100% - 312px);
+  min-width:0;
   box-sizing:border-box;
   margin:0 0 8px 0;
   justify-content:flex-start;
+  flex-wrap:wrap!important;
+  overflow:visible!important;
+  white-space:normal!important;
   background:#e7ecef;
 }
-#webgisLayoutView .webgis-layout-tool-group{flex-shrink:0}
+#webgisLayoutView .webgis-layout-tool-group{
+  flex:0 1 auto!important;
+  min-width:0!important;
+  max-width:100%;
+  flex-wrap:wrap!important;
+}
+#webgisLayoutView .webgis-layout-tool-group label{white-space:normal!important}
 @media(max-width:850px){
-  #webgisLayoutView .webgis-layout-toolbar{width:100%;max-width:100%}
+  #webgisLayoutView .webgis-layout-toolbar{width:calc(100% - 252px);max-width:calc(100% - 252px)}
+}
+@media(max-width:650px){
+  #webgisLayoutView .webgis-layout-toolbar{width:calc(100% - 297px);max-width:calc(100% - 297px)}
+  #webgisLayoutView .webgis-layout-tool-group{width:auto!important}
 }
 
 </style>
