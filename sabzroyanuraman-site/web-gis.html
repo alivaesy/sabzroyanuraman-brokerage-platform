@@ -2505,8 +2505,9 @@ function startNativeDraw(type,button){
     if(["Polyline","Polygon","FreehandLine","FreehandPolygon","Ellipse"].includes(type)){
       if(type==="Ellipse"&&coords.length>=2){const ring=ellipseRing(coords[0],coords[1]);if(!preview)preview=L.polygon(ring,{...style,interactive:false}).addTo(map);else preview.setLatLngs(ring);return;}
       if(coords.length<2)return;
-      if(!preview){preview=type==="Polygon"&&coords.length>=3?L.polygon(coords,{...style,interactive:false}):L.polyline(coords,{...style,interactive:false});preview.addTo(map)}
-      else if(type==="Polygon"&&coords.length>=3&&!(preview instanceof L.Polygon)){removePreview();preview=L.polygon(coords,{...style,interactive:false}).addTo(map)}
+      const polygonType=["Polygon","FreehandPolygon"].includes(type);
+      if(!preview){preview=polygonType&&coords.length>=3?L.polygon(coords,{...style,interactive:false}):L.polyline(coords,{...style,interactive:false});preview.addTo(map)}
+      else if(polygonType&&coords.length>=3&&!(preview instanceof L.Polygon)){removePreview();preview=L.polygon(coords,{...style,interactive:false}).addTo(map)}
       else preview.setLatLngs(coords);
       return;
     }
