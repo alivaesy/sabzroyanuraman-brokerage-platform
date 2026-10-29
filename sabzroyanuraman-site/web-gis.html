@@ -187,7 +187,7 @@ body{background:#dfe5e8;color:#173b57}
 /* ArcMap/RustGIS-style Layout overlay: preserve every dock/panel at its original position. */
 .workspace{position:relative}
 #webgisLayoutView{position:absolute;left:0;right:310px;top:0;bottom:0;z-index:900;overflow:auto;background:#d5dbe0;padding:10px;box-sizing:border-box;color:#243746;font:12px Arial,sans-serif}
-body.layout-view-active .workspace>.panel{visibility:visible!important;pointer-events:auto!important}
+body.layout-view-active .workspace>.panel{position:absolute!important;right:0!important;left:auto!important;top:0!important;bottom:0!important;width:290px!important;min-width:290px!important;height:auto!important;flex:none!important;visibility:visible!important;pointer-events:auto!important}
 /* Search belongs to Map View; hide its floating dock in Layout so it cannot become a second right-side panel. */
 body.layout-view-active .workspace>.arcmap-search-dock{display:none!important}
 body.layout-view-active #searchDock{display:none!important;width:0!important;min-width:0!important;visibility:hidden!important;pointer-events:none!important}
