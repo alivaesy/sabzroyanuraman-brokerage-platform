@@ -8319,7 +8319,7 @@ function openLayoutView(){
       sheet.querySelectorAll(".webgis-layout-added-text").forEach(el=>el.remove());
       for(const item of data.items){
         let el=document.getElementById(item.key);
-        if(!el&&["text","date"].includes(item.kind)){el=document.createElement("div");el.className="webgis-layout-added-text webgis-layout-item";el.dataset.layoutItem=item.kind;sheet.insertBefore(el,$("webgisLayoutFooter",panel));}
+        if(!el&&["text","date"].includes(item.kind)){el=document.createElement("div");el.className="webgis-layout-added-text webgis-layout-item";el.id=String(item.key||("webgisLayoutCustom"+Date.now()));el.dataset.layoutItem=item.kind;sheet.insertBefore(el,$("webgisLayoutFooter",panel));}
         if(!el||!sheet.contains(el))continue;
         if(!["webgisLayoutScale","webgisLayoutLegend","webgisLayoutGrid"].includes(el.id))el.textContent=String(item.text||"");
         el.hidden=!!item.hidden;
@@ -8336,7 +8336,7 @@ function openLayoutView(){
     const b=e.target.closest("[data-layout-action]");if(!b)return;const a=b.dataset.layoutAction;
     if(a==="close"){closeLayoutView();return;}
     if(a==="save"){
-      const items=Array.from(sheet.querySelectorAll(".webgis-layout-item,.webgis-layout-added-text")).map((el,index)=>({key:el.id||el.dataset.layoutItem||("item-"+index),kind:el.dataset.layoutItem||"text",text:el.textContent,hidden:!!el.hidden,style:el.getAttribute("style"),editable:el.isContentEditable}));
+      const items=Array.from(sheet.querySelectorAll(".webgis-layout-item,.webgis-layout-added-text,#webgisLayoutGrid")).map((el,index)=>({key:el.id||el.dataset.layoutItem||("item-"+index),kind:el.dataset.layoutItem||"text",text:el.textContent,hidden:!!el.hidden,style:el.getAttribute("style"),editable:el.isContentEditable}));
       const data={format:"sabzroyan-layout",version:1,paper:panel.querySelector('[data-layout-setting="paper"]').value,orientation:panel.querySelector('[data-layout-setting="orientation"]').value,items};
       const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download="sabzroyan-layout.json";document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);status("Layout exported to JSON.");return;
     }
@@ -8344,13 +8344,13 @@ function openLayoutView(){
     if(a==="print"){try{map.invalidateSize({pan:false});updateLayoutScale()}catch(_){}const paper=panel.querySelector('[data-layout-setting="paper"]').value,orientation=panel.querySelector('[data-layout-setting="orientation"]').value,paperName=paper==="letter"?"Letter":paper.toUpperCase();let printStyle=document.getElementById("webgisLayoutPrintPage");if(!printStyle){printStyle=document.createElement("style");printStyle.id="webgisLayoutPrintPage";document.head.appendChild(printStyle);}printStyle.textContent="@page{size:"+paperName+" "+orientation+";margin:8mm}";const cleanup=()=>{printStyle.remove();window.removeEventListener("afterprint",cleanup)};window.addEventListener("afterprint",cleanup,{once:true});window.print();return;}
     if(a==="title"){const v=await arcMapDialog.prompt({title:"Layout Title",message:"Enter the map title:",label:"Title",value:$("webgisLayoutTitle",panel).textContent});if(v!==null)$("webgisLayoutTitle",panel).textContent=v;}
     if(a==="subtitle"){const el=$("webgisLayoutSubtitle",panel);if(el.hidden){const v=await arcMapDialog.prompt({title:"Map Subtitle",message:"Enter a subtitle:",label:"Subtitle",value:el.textContent==="Map subtitle"?"":el.textContent});if(v===null)return;el.textContent=v;}el.hidden=!el.hidden;}
-    if(a==="text"){const v=await arcMapDialog.prompt({title:"Insert Layout Text",message:"Enter text to add to the page:",label:"Text",value:""});if(v===null||!v.trim())return;const el=document.createElement("div");el.className="webgis-layout-added-text webgis-layout-item";el.dataset.layoutItem="text";el.contentEditable="true";el.textContent=v;sheet.insertBefore(el,$("webgisLayoutFooter",panel));}
+    if(a==="text"){const v=await arcMapDialog.prompt({title:"Insert Layout Text",message:"Enter text to add to the page:",label:"Text",value:""});if(v===null||!v.trim())return;const el=document.createElement("div");el.className="webgis-layout-added-text webgis-layout-item";el.id="webgisLayoutCustom"+Date.now();el.dataset.layoutItem="text";el.contentEditable="true";el.textContent=v;sheet.insertBefore(el,$("webgisLayoutFooter",panel));}
     if(a==="legend"){const el=$("webgisLayoutLegend",panel);if(el.hidden)refreshLegend();else el.hidden=true;}
     if(a==="north")$("webgisLayoutNorth",panel).hidden=!$("webgisLayoutNorth",panel).hidden;
     if(a==="scale"){const el=$("webgisLayoutScale",panel);el.hidden=!el.hidden;updateLayoutScale();}
     if(a==="grid"){const el=$("webgisLayoutGrid",panel);el.hidden=!el.hidden;if(!el.hidden){el.textContent="Graticule preview · not CRS-accurate";status("Grid is a visual print guide, not a projected coordinate graticule.");}}
     if(a==="footer"){const v=await arcMapDialog.prompt({title:"Layout Footer",message:"Enter footer text:",label:"Footer",value:$("webgisLayoutFooter",panel).textContent});if(v!==null)$("webgisLayoutFooter",panel).textContent=v;}
-    if(a==="date"){const el=document.createElement("div");el.className="webgis-layout-added-text webgis-layout-item";el.dataset.layoutItem="date";el.textContent=new Date().toLocaleDateString();sheet.insertBefore(el,$("webgisLayoutFooter",panel));}
+    if(a==="date"){const el=document.createElement("div");el.className="webgis-layout-added-text webgis-layout-item";el.id="webgisLayoutCustom"+Date.now();el.dataset.layoutItem="date";el.textContent=new Date().toLocaleDateString();sheet.insertBefore(el,$("webgisLayoutFooter",panel));}
     if(a==="move"){panel.classList.toggle("layout-move-mode");b.classList.toggle("active",panel.classList.contains("layout-move-mode"));status(panel.classList.contains("layout-move-mode")?"Move Items: drag layout elements; click Move Items again to finish.":"Layout item positioning finished.");}
   });
   panel.addEventListener("pointerdown",e=>{
