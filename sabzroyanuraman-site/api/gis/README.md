@@ -125,3 +125,13 @@ Do not rerun WMS GetMap for `ne:countries`, WFS GetCapabilities, or the same emp
 - Each database exposes exactly one geometry table: `public.webgis_features`, geometry column `geom`, SRID 4326, generic type `GEOMETRY`.
 - No other registered geometry table was found in either database. Both `webgis_features` tables were previously counted as 0 rows.
 - Next: inventory all ordinary tables and row counts in both databases (not just geometry tables). This can reveal whether saved data lives in a non-geometry project table or another named table. Do not alter schema/data until this inventory is reviewed.
+
+
+### Follow-up result: complete public-table count inventory (2026-10-29)
+
+- Corrected the inventory command after the initial `\\gexec` syntax error; no database changes were made.
+- In both `sabzroyan_personal_gis` and `sabzroyan_gis`, the only public tables returned were:
+  - `public.spatial_ref_sys`: 8,500 rows (PostGIS spatial reference system metadata, not user features).
+  - `public.webgis_features`: 0 rows.
+- Therefore the previously saved shapes are not currently present in either of these two tables. This does **not** prove they are lost: other databases, non-public schemas, project-storage tables, or browser IndexedDB may be involved.
+- Next read-only step: list database names, schemas, and tables across all non-template databases; inspect only names/metadata first, not sensitive attribute values. Do not create/import sample records or modify GeoServer until the actual storage location is identified.
