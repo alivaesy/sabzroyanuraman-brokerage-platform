@@ -10032,6 +10032,26 @@ const arcMapDialog=(()=>{
 <style>
 .shared-project-readonly .leaflet-draw,.shared-project-readonly #editorToolbar,.shared-project-readonly #editToolbar,.shared-project-readonly #attributeTablePanel,
 .shared-project-readonly #attributeEditor,.shared-project-readonly #arcToolbox,.shared-project-readonly #editorToolbarToggleBtn{display:none!important}
+/* ArcMap-style page layout: preserve paper proportions instead of stretching the sheet to the workspace. */
+#webgisLayoutView{background:#cfd5d9;padding:12px;overscroll-behavior:contain}
+#webgisLayoutView .webgis-layout-toolbar{display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding:5px 7px;background:linear-gradient(#f8f9fa,#e2e6e8);border:1px solid #9aa6ad;box-shadow:0 1px 3px #0002}
+#webgisLayoutView .webgis-layout-toolbar>strong{padding:0 8px 0 2px;border-right:1px solid #b6c0c5;font-size:12px}
+#webgisLayoutView .webgis-layout-toolbar label{gap:4px;padding:0 4px;color:#394f5b}
+#webgisLayoutView .webgis-layout-toolbar select{height:25px;max-width:112px;border-radius:2px;font-size:11px}
+#webgisLayoutView .webgis-layout-toolbar button{height:25px;border-radius:2px;border:1px solid #aab4ba;background:linear-gradient(#fff,#e8ecee);color:#263f50;padding:3px 8px;font-size:10px;white-space:nowrap}
+#webgisLayoutView .webgis-layout-toolbar button:hover{background:#e0edf4;border-color:#7899aa}
+#webgisLayoutView .webgis-layout-toolbar button[data-layout-action="print"]{background:linear-gradient(#e9f2f7,#cddfe9);border-color:#8da9b8}
+#webgisLayoutView .webgis-layout-toolbar button[data-layout-action="close"]{margin-left:auto}
+#webgisLayoutView .webgis-layout-sheet,#webgisLayoutView .webgis-layout-sheet.page-a4.portrait{width:min(210mm,calc(100vw - 36px))!important;max-width:calc(100vw - 36px)!important;min-width:0!important;min-height:0!important;aspect-ratio:210 / 297;margin:14px auto 24px;padding:clamp(12px,2vw,24px);gap:clamp(6px,1vw,12px);box-sizing:border-box}
+#webgisLayoutView .webgis-layout-sheet.page-a4.landscape{width:min(297mm,calc(100vw - 36px))!important;aspect-ratio:297 / 210}
+#webgisLayoutView .webgis-layout-sheet.page-a3.portrait{width:min(297mm,calc(100vw - 36px))!important;aspect-ratio:297 / 420}
+#webgisLayoutView .webgis-layout-sheet.page-a3.landscape{width:min(420mm,calc(100vw - 36px))!important;aspect-ratio:420 / 297}
+#webgisLayoutView .webgis-layout-sheet.page-letter.portrait{width:min(8.5in,calc(100vw - 36px))!important;aspect-ratio:8.5 / 11}
+#webgisLayoutView .webgis-layout-sheet.page-letter.landscape{width:min(11in,calc(100vw - 36px))!important;aspect-ratio:11 / 8.5}
+#webgisLayoutView .webgis-layout-map-frame{min-height:clamp(240px,42vh,520px)!important;flex:1 1 auto}
+#webgisLayoutView .webgis-layout-map-slot,#webgisLayoutView .webgis-layout-map-slot>#map{height:100%!important;min-height:clamp(240px,42vh,520px)!important}
+#webgisLayoutView .webgis-layout-legend{flex:0 0 auto}
+@media(max-width:650px){#webgisLayoutView{padding:5px}#webgisLayoutView .webgis-layout-toolbar{position:sticky;top:0;gap:3px;padding:4px}#webgisLayoutView .webgis-layout-toolbar button{padding:3px 5px}#webgisLayoutView .webgis-layout-toolbar button[data-layout-action="close"]{margin-left:0}#webgisLayoutView .webgis-layout-sheet,#webgisLayoutView .webgis-layout-sheet.page-a4.portrait,#webgisLayoutView .webgis-layout-sheet.page-a4.landscape,#webgisLayoutView .webgis-layout-sheet.page-a3.portrait,#webgisLayoutView .webgis-layout-sheet.page-a3.landscape,#webgisLayoutView .webgis-layout-sheet.page-letter.portrait,#webgisLayoutView .webgis-layout-sheet.page-letter.landscape{width:calc(100vw - 20px)!important;max-width:calc(100vw - 20px)!important;min-height:0!important;aspect-ratio:auto;padding:10px}#webgisLayoutView .webgis-layout-map-frame,#webgisLayoutView .webgis-layout-map-slot,#webgisLayoutView .webgis-layout-map-slot>#map{min-height:42vh!important}}
 </style>
 
 
