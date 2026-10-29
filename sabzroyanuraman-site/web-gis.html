@@ -215,6 +215,9 @@ body{background:#dfe5e8;color:#173b57}
 @media print{body.layout-view-active #webgisLayoutView .webgis-layout-item[style*="position: absolute"]{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
 
 #webgisLayoutFooter{margin-top:auto}
+.webgis-layout-toolbar [data-layout-action="save"],.webgis-layout-toolbar [data-layout-action="load"]{background:#e7f0f5;border-color:#7895a5}
+@media print{body.layout-view-active #webgisLayoutView .webgis-layout-map-frame{break-inside:avoid;page-break-inside:avoid}body.layout-view-active #webgisLayoutView .webgis-layout-grid{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+
 @media(max-width:900px){.webgis-layout-sheet,.webgis-layout-sheet.page-a4.portrait,.webgis-layout-sheet.page-a4.landscape,.webgis-layout-sheet.page-a3.portrait,.webgis-layout-sheet.page-a3.landscape,.webgis-layout-sheet.page-letter.portrait,.webgis-layout-sheet.page-letter.landscape{width:100%;min-height:75vh;padding:16px;box-sizing:border-box}.webgis-layout-map-frame,.webgis-layout-map-slot,.webgis-layout-map-slot>#map{min-height:420px!important}}
 
 .webgis-layout-legend{display:flex;flex-wrap:wrap;gap:10px;padding:10px;border-top:1px solid #d6dde1}
@@ -8265,7 +8268,7 @@ function openLayoutView(){
   if(panel){closeLayoutView();return;}
   const mapElement=$("map"),originalParent=mapElement?.parentNode,originalNext=mapElement?.nextSibling;
   panel=document.createElement("section");panel.id="webgisLayoutView";panel.setAttribute("role","dialog");panel.setAttribute("aria-label","Map Layout View");
-  panel.innerHTML='<div class="webgis-layout-toolbar"><strong>Layout</strong><span>Page · map · map furniture · print</span><label>Paper <select data-layout-setting="paper"><option value="a4">A4</option><option value="a3">A3</option><option value="letter">Letter</option></select></label><label>Orientation <select data-layout-setting="orientation"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label><button type="button" data-layout-action="title">Title</button><button type="button" data-layout-action="subtitle">Subtitle</button><button type="button" data-layout-action="text">Add Text</button><button type="button" data-layout-action="legend">Legend</button><button type="button" data-layout-action="north">North Arrow</button><button type="button" data-layout-action="scale">Scale Bar</button><button type="button" data-layout-action="grid">Coordinate Grid</button><button type="button" data-layout-action="footer">Footer</button><button type="button" data-layout-action="date">Date</button><button type="button" data-layout-action="move">Move Items</button><button type="button" data-layout-action="print">Print / PDF</button><button type="button" data-layout-action="close">Close</button></div><div class="webgis-layout-sheet page-a4 portrait"><header id="webgisLayoutTitle" class="webgis-layout-item" contenteditable="true" data-layout-item="title"></header><div id="webgisLayoutSubtitle" class="webgis-layout-subtitle webgis-layout-item" contenteditable="true" data-layout-item="subtitle" hidden>Map subtitle</div><div class="webgis-layout-map-frame"><div class="webgis-layout-map-slot" id="webgisLayoutMapSlot"></div><div id="webgisLayoutNorth" class="webgis-layout-north webgis-layout-item" data-layout-item="north" hidden aria-label="North arrow">N <span>▲</span></div><div id="webgisLayoutScale" class="webgis-layout-scale webgis-layout-item" data-layout-item="scale" hidden></div><div id="webgisLayoutGrid" class="webgis-layout-grid" hidden aria-label="Illustrative grid"></div></div><div id="webgisLayoutLegend" class="webgis-layout-legend webgis-layout-item" data-layout-item="legend" hidden></div><footer id="webgisLayoutFooter" class="webgis-layout-item" contenteditable="true" data-layout-item="footer"></footer></div>';
+  panel.innerHTML='<div class="webgis-layout-toolbar"><strong>Layout</strong><span>Page · map · map furniture · print</span><label>Paper <select data-layout-setting="paper"><option value="a4">A4</option><option value="a3">A3</option><option value="letter">Letter</option></select></label><label>Orientation <select data-layout-setting="orientation"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label><button type="button" data-layout-action="title">Title</button><button type="button" data-layout-action="subtitle">Subtitle</button><button type="button" data-layout-action="text">Add Text</button><button type="button" data-layout-action="legend">Legend</button><button type="button" data-layout-action="north">North Arrow</button><button type="button" data-layout-action="scale">Scale Bar</button><button type="button" data-layout-action="grid">Coordinate Grid</button><button type="button" data-layout-action="footer">Footer</button><button type="button" data-layout-action="date">Date</button><button type="button" data-layout-action="move">Move Items</button><button type="button" data-layout-action="save">Export Layout</button><button type="button" data-layout-action="load">Import Layout</button><input type="file" accept="application/json,.json" data-layout-import hidden><button type="button" data-layout-action="print">Print / PDF</button><button type="button" data-layout-action="close">Close</button></div><div class="webgis-layout-sheet page-a4 portrait"><header id="webgisLayoutTitle" class="webgis-layout-item" contenteditable="true" data-layout-item="title"></header><div id="webgisLayoutSubtitle" class="webgis-layout-subtitle webgis-layout-item" contenteditable="true" data-layout-item="subtitle" hidden>Map subtitle</div><div class="webgis-layout-map-frame"><div class="webgis-layout-map-slot" id="webgisLayoutMapSlot"></div><div id="webgisLayoutNorth" class="webgis-layout-north webgis-layout-item" data-layout-item="north" hidden aria-label="North arrow">N <span>▲</span></div><div id="webgisLayoutScale" class="webgis-layout-scale webgis-layout-item" data-layout-item="scale" hidden></div><div id="webgisLayoutGrid" class="webgis-layout-grid" hidden aria-label="Illustrative grid"></div></div><div id="webgisLayoutLegend" class="webgis-layout-legend webgis-layout-item" data-layout-item="legend" hidden></div><footer id="webgisLayoutFooter" class="webgis-layout-item" contenteditable="true" data-layout-item="footer"></footer></div>';
   const sheet=panel.querySelector(".webgis-layout-sheet");
   $("webgisLayoutTitle",panel).textContent=$("projectName")?.value||"Map";
   $("webgisLayoutFooter",panel).textContent="Sabz Royan Uraman · "+new Date().toLocaleDateString();
@@ -8305,10 +8308,39 @@ function openLayoutView(){
     try{const size=map.getSize(),p1=map.containerPointToLatLng([size.x/2-50,size.y/2]),p2=map.containerPointToLatLng([size.x/2+50,size.y/2]);const metres=map.distance(p1,p2);if(!Number.isFinite(metres)||metres<=0)return;const power=Math.pow(10,Math.floor(Math.log10(metres))),normalized=metres/power,nice=(normalized>=5?5:normalized>=2?2:1)*power,width=Math.max(35,Math.min(150,100*nice/metres));scale.replaceChildren();const line=document.createElement("span");line.className="webgis-layout-scale-line";line.style.width=width+"px";const label=document.createElement("span");label.textContent=nice>=1000?(nice/1000)+" km":Math.round(nice)+" m";scale.append(line,label);}catch(_){}
   };
   panel._updateLayoutScale=updateLayoutScale;
+  panel.querySelector("[data-layout-import]").addEventListener("change",async e=>{
+    const file=e.target.files&&e.target.files[0];if(!file)return;
+    try{
+      const data=JSON.parse(await file.text());
+      if(data.format!=="sabzroyan-layout"||data.version!==1||!Array.isArray(data.items))throw Error("Unsupported layout file");
+      const paper=panel.querySelector('[data-layout-setting="paper"]'),orientation=panel.querySelector('[data-layout-setting="orientation"]');
+      paper.value=["a4","a3","letter"].includes(data.paper)?data.paper:"a4";orientation.value=data.orientation==="landscape"?"landscape":"portrait";
+      sheet.classList.remove("page-a4","page-a3","page-letter","portrait","landscape");sheet.classList.add("page-"+paper.value,orientation.value);
+      sheet.querySelectorAll(".webgis-layout-added-text").forEach(el=>el.remove());
+      for(const item of data.items){
+        let el=document.getElementById(item.key);
+        if(!el&&["text","date"].includes(item.kind)){el=document.createElement("div");el.className="webgis-layout-added-text webgis-layout-item";el.dataset.layoutItem=item.kind;sheet.insertBefore(el,$("webgisLayoutFooter",panel));}
+        if(!el||!sheet.contains(el))continue;
+        if(!["webgisLayoutScale","webgisLayoutLegend","webgisLayoutGrid"].includes(el.id))el.textContent=String(item.text||"");
+        el.hidden=!!item.hidden;
+        if(item.style===null||item.style===undefined)el.removeAttribute("style");else el.setAttribute("style",String(item.style));
+        if(item.editable)el.contentEditable="true";
+      }
+      requestAnimationFrame(()=>{try{map.invalidateSize({pan:false});updateLayoutScale()}catch(_){}});
+      status("Layout imported successfully.");
+    }catch(err){status("Layout import failed: "+(err.message||err));}
+    e.target.value="";
+  });
   panel.addEventListener("change",e=>{const sel=e.target.closest("[data-layout-setting]");if(!sel)return;sheet.classList.remove("page-a4","page-a3","page-letter","portrait","landscape");sheet.classList.add("page-"+panel.querySelector('[data-layout-setting="paper"]').value,panel.querySelector('[data-layout-setting="orientation"]').value);requestAnimationFrame(()=>{try{map.invalidateSize({pan:false});updateLayoutScale()}catch(_){}});});
   panel.addEventListener("click",async e=>{
     const b=e.target.closest("[data-layout-action]");if(!b)return;const a=b.dataset.layoutAction;
     if(a==="close"){closeLayoutView();return;}
+    if(a==="save"){
+      const items=Array.from(sheet.querySelectorAll(".webgis-layout-item,.webgis-layout-added-text")).map((el,index)=>({key:el.id||el.dataset.layoutItem||("item-"+index),kind:el.dataset.layoutItem||"text",text:el.textContent,hidden:!!el.hidden,style:el.getAttribute("style"),editable:el.isContentEditable}));
+      const data={format:"sabzroyan-layout",version:1,paper:panel.querySelector('[data-layout-setting="paper"]').value,orientation:panel.querySelector('[data-layout-setting="orientation"]').value,items};
+      const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download="sabzroyan-layout.json";document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);status("Layout exported to JSON.");return;
+    }
+    if(a==="load"){panel.querySelector("[data-layout-import]").click();return;}
     if(a==="print"){try{map.invalidateSize({pan:false});updateLayoutScale()}catch(_){}const paper=panel.querySelector('[data-layout-setting="paper"]').value,orientation=panel.querySelector('[data-layout-setting="orientation"]').value,paperName=paper==="letter"?"Letter":paper.toUpperCase();let printStyle=document.getElementById("webgisLayoutPrintPage");if(!printStyle){printStyle=document.createElement("style");printStyle.id="webgisLayoutPrintPage";document.head.appendChild(printStyle);}printStyle.textContent="@page{size:"+paperName+" "+orientation+";margin:8mm}";const cleanup=()=>{printStyle.remove();window.removeEventListener("afterprint",cleanup)};window.addEventListener("afterprint",cleanup,{once:true});window.print();return;}
     if(a==="title"){const v=await arcMapDialog.prompt({title:"Layout Title",message:"Enter the map title:",label:"Title",value:$("webgisLayoutTitle",panel).textContent});if(v!==null)$("webgisLayoutTitle",panel).textContent=v;}
     if(a==="subtitle"){const el=$("webgisLayoutSubtitle",panel);if(el.hidden){const v=await arcMapDialog.prompt({title:"Map Subtitle",message:"Enter a subtitle:",label:"Subtitle",value:el.textContent==="Map subtitle"?"":el.textContent});if(v===null)return;el.textContent=v;}el.hidden=!el.hidden;}
@@ -8322,7 +8354,7 @@ function openLayoutView(){
     if(a==="move"){panel.classList.toggle("layout-move-mode");b.classList.toggle("active",panel.classList.contains("layout-move-mode"));status(panel.classList.contains("layout-move-mode")?"Move Items: drag layout elements; click Move Items again to finish.":"Layout item positioning finished.");}
   });
   panel.addEventListener("pointerdown",e=>{
-    if(!panel.classList.contains("layout-move-mode")||e.button!==0||e.target.closest("[contenteditable=true]"))return;
+    if(!panel.classList.contains("layout-move-mode")||e.button!==0)return;
     const item=e.target.closest(".webgis-layout-item,.webgis-layout-added-text");if(!item||!sheet.contains(item))return;
     e.preventDefault();const startX=e.clientX,startY=e.clientY,rect=item.getBoundingClientRect(),parent=sheet.getBoundingClientRect();
     item.style.position="absolute";item.style.left=(rect.left-parent.left+sheet.scrollLeft)+"px";item.style.top=(rect.top-parent.top+sheet.scrollTop)+"px";item.style.margin="0";item.style.zIndex="800";item.style.cursor="move";
