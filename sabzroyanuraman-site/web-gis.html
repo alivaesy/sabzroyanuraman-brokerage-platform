@@ -184,18 +184,18 @@ body{background:#dfe5e8;color:#173b57}
 .data-dialog-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:14px}
 .layer-properties-card{width:min(540px,96vw);max-height:88vh;overflow:auto;padding:0;background:#f4f6f7}.layer-properties-titlebar{display:flex;align-items:center;justify-content:space-between;padding:12px 15px;background:linear-gradient(#f9fafb,#e1e5e8);border-bottom:1px solid #aeb8be}.layer-properties-titlebar h2{margin:0;font-size:15px}.layer-properties-titlebar button{border:1px solid #aab5bb;background:#fff;width:25px;height:24px;cursor:pointer}.layer-properties-tabs{display:flex;border-bottom:1px solid #aeb8be;background:#e6e9eb;padding:0 12px}.layer-properties-tabs button{padding:8px 13px;border:0;border-right:1px solid #d0d6da;background:transparent;font-size:11px;cursor:pointer}.layer-properties-tabs button.active{background:#fff;box-shadow:inset 0 -2px #347ca5;font-weight:700}.layer-properties-card form{padding:14px 16px}.lp-pane label{display:block;font-size:11px;font-weight:700;margin:8px 0}.lp-pane input:not([type=checkbox]):not([type=color]):not([type=range]),.lp-pane select{display:block;width:100%;margin-top:4px;box-sizing:border-box}.lp-pane input[type=color]{display:block;width:100%;height:30px;margin-top:4px}.lp-pane input[type=checkbox]{vertical-align:middle;margin-right:6px}.lp-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px 14px}.lp-grid label{margin:4px 0}.lp-grid input[type=range]{display:block;width:100%}.lp-preview{display:flex;align-items:center;gap:10px;border:1px solid #c3cbd0;background:#fff;padding:10px;margin-top:10px;font-size:11px}.lp-source-details,.lp-fields-list{padding:8px;border:1px solid #c7d0d5;background:#fff;font-size:11px;overflow-wrap:anywhere;max-height:110px;overflow:auto}.lp-fields-list{display:flex;flex-wrap:wrap;gap:5px}.lp-field-chip{padding:3px 6px;background:#edf2f5;border:1px solid #d2dbe0;border-radius:2px}.lp-preview #lpSymbolPreview{display:inline-block;width:42px;height:22px;border:2px solid #146c43;background:rgba(86,168,120,.2)}.layer-properties-card .data-dialog-actions{padding-top:10px;border-top:1px solid #d2d8dc}
 
-/* ArcMap/RustGIS-style map/layout switch: keep workspace controls and panels persistent. */
-.workspace{position:relative;isolation:isolate}
-#webgisLayoutView{position:absolute;left:0;right:310px;top:0;bottom:0;z-index:1400;overflow:auto;background:#d5dbe0;padding:10px;box-sizing:border-box;color:#243746;font:12px Arial,sans-serif}
-body.layout-view-active .workspace>.panel{visibility:visible!important;pointer-events:auto!important;position:relative;z-index:1501}
-body.layout-view-active .workspace>.arcmap-search-dock{visibility:visible!important;pointer-events:auto!important;z-index:1502}
+/* ArcMap/RustGIS-style Layout overlay: preserve every dock/panel at its original position. */
+.workspace{position:relative}
+#webgisLayoutView{position:absolute;left:0;right:310px;top:0;bottom:0;z-index:900;overflow:auto;background:#d5dbe0;padding:10px;box-sizing:border-box;color:#243746;font:12px Arial,sans-serif}
+body.layout-view-active .workspace>.panel{visibility:visible!important;pointer-events:auto!important}
+body.layout-view-active .workspace>.arcmap-search-dock{visibility:visible!important;pointer-events:auto!important}
 body.layout-view-active #map{background:#eef1f3}
 body.layout-view-active .webgis-layout-sheet{min-height:calc(100% - 30px)}
 #layoutModeToggle{min-width:34px;position:relative}
 #layoutModeToggle.active{background:#d4e7f2;border-color:#397ba0;box-shadow:inset 0 -2px #347ca5}
 #layoutModeToggle .layout-toggle-label{font-size:10px;font-weight:700}
 @media(max-width:900px){#webgisLayoutView{padding:6px;right:270px}.webgis-layout-toolbar{position:sticky}}
-@media(max-width:650px){#webgisLayoutView{left:0;right:0;top:0;bottom:0;z-index:1400}.workspace>.panel{z-index:1501!important}.webgis-layout-sheet{width:calc(100% - 8px)!important;min-width:0!important;margin-left:4px;margin-right:4px;padding:12px}}
+@media(max-width:650px){#webgisLayoutView{left:0;right:0;top:0;bottom:0;z-index:900}.webgis-layout-sheet{width:calc(100% - 8px)!important;min-width:0!important;margin-left:4px;margin-right:4px;padding:12px}}
 .webgis-layout-toolbar{position:sticky;top:0;display:flex;flex-wrap:wrap;align-items:center;gap:7px;padding:8px;background:#edf1f4;border:1px solid #9aaab4;box-shadow:0 2px 6px #0002;z-index:2}
 .webgis-layout-toolbar span{margin-right:auto;color:#5b6c76}.webgis-layout-toolbar button{border:1px solid #9baab4;background:#fff;padding:5px 9px;cursor:pointer}
 .webgis-layout-sheet{max-width:1100px;min-height:75vh;margin:18px auto;background:#fff;border:1px solid #aab4ba;box-shadow:0 3px 14px #0002;padding:24px;box-sizing:border-box}
