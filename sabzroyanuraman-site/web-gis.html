@@ -191,6 +191,23 @@ body{background:#dfe5e8;color:#173b57}
 #webgisLayoutTitle{font-size:24px;font-weight:700;text-align:center;padding:12px;border-bottom:1px solid #667781}
 .webgis-layout-map-slot{min-height:50vh;margin:18px 0;border:1px dashed #9baab4;display:grid;place-items:center;text-align:center;color:#687b86;padding:18px}
 #webgisLayoutFooter{border-top:1px solid #9baab4;padding:10px;min-height:20px}
+.webgis-layout-toolbar label{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}.webgis-layout-toolbar select{max-width:100px;padding:4px;border:1px solid #9baab4;background:#fff}
+.webgis-layout-sheet{position:relative;width:min(100%,210mm);min-height:297mm;margin:18px auto;padding:16mm;display:flex;flex-direction:column;gap:10px}
+.webgis-layout-sheet.page-a4.portrait{width:210mm;min-height:297mm}.webgis-layout-sheet.page-a4.landscape{width:297mm;min-height:210mm}
+.webgis-layout-sheet.page-a3.portrait{width:297mm;min-height:420mm}.webgis-layout-sheet.page-a3.landscape{width:420mm;min-height:297mm}
+.webgis-layout-sheet.page-letter.portrait{width:8.5in;min-height:11in}.webgis-layout-sheet.page-letter.landscape{width:11in;min-height:8.5in}
+#webgisLayoutTitle{outline:1px dashed transparent;cursor:text}#webgisLayoutTitle:focus,#webgisLayoutSubtitle:focus,#webgisLayoutFooter:focus{outline:1px dashed #7298ad}
+.webgis-layout-subtitle{text-align:center;font-size:13px;color:#536875;padding:2px 8px}
+.webgis-layout-map-frame{position:relative;flex:1;min-height:120mm;border:1px solid #8798a2;overflow:hidden}
+.webgis-layout-map-slot{height:100%;min-height:120mm;margin:0;border:0;padding:0;display:block}
+.webgis-layout-map-slot>#map{height:100%!important;min-height:120mm!important}
+.webgis-layout-north{right:12px;top:12px;z-index:500;background:#fffE}.webgis-layout-north span{display:block;color:#263e4d}
+.webgis-layout-scale{position:absolute;left:14px;bottom:12px;z-index:500;display:flex;flex-direction:column;align-items:flex-start;gap:2px;background:#fffE;padding:5px 7px}
+.webgis-layout-scale-line{display:block;height:5px;border:1px solid #243746;border-top:3px solid #243746;box-sizing:border-box}
+.webgis-layout-grid{position:absolute;inset:0;z-index:400;pointer-events:none;border:1px dashed #557a8a;background:repeating-linear-gradient(0deg,transparent 0,transparent 24.8%,#527b8b55 25%,transparent 25.2%),repeating-linear-gradient(90deg,transparent 0,transparent 24.8%,#527b8b55 25%,transparent 25.2%);font-size:10px;color:#345;display:flex;align-items:flex-end;justify-content:center;padding:4px;background-color:transparent}
+#webgisLayoutFooter{margin-top:auto}
+@media(max-width:900px){.webgis-layout-sheet,.webgis-layout-sheet.page-a4.portrait,.webgis-layout-sheet.page-a4.landscape,.webgis-layout-sheet.page-a3.portrait,.webgis-layout-sheet.page-a3.landscape,.webgis-layout-sheet.page-letter.portrait,.webgis-layout-sheet.page-letter.landscape{width:100%;min-height:75vh;padding:16px;box-sizing:border-box}.webgis-layout-map-frame,.webgis-layout-map-slot,.webgis-layout-map-slot>#map{min-height:420px!important}}
+
 .webgis-layout-legend{display:flex;flex-wrap:wrap;gap:10px;padding:10px;border-top:1px solid #d6dde1}
 .webgis-layout-legend-item{display:inline-flex;align-items:center;gap:5px}
 .webgis-layout-legend-swatch{display:inline-block;width:13px;height:13px;border:1px solid #52616a;border-radius:2px}
@@ -8239,21 +8256,34 @@ function openLayoutView(){
   if(panel){closeLayoutView();return;}
   const mapElement=$("map"),originalParent=mapElement?.parentNode,originalNext=mapElement?.nextSibling;
   panel=document.createElement("section");panel.id="webgisLayoutView";panel.setAttribute("role","dialog");panel.setAttribute("aria-label","Map Layout View");
-  panel.innerHTML='<div class="webgis-layout-toolbar"><strong>Layout View</strong><span>Print-ready map composition</span><button type="button" data-layout-action="title">Add Title</button><button type="button" data-layout-action="legend">Add Legend</button><button type="button" data-layout-action="north">North Arrow</button><button type="button" data-layout-action="scale">Scale Bar</button><button type="button" data-layout-action="print">Print / Export PDF</button><button type="button" data-layout-action="close">Close Layout</button></div><div class="webgis-layout-sheet"><header id="webgisLayoutTitle">'+String($("projectName").value||"Map").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))+'</header><div class="webgis-layout-map-slot" id="webgisLayoutMapSlot"></div><div id="webgisLayoutLegend" class="webgis-layout-legend" hidden></div><div id="webgisLayoutNorth" class="webgis-layout-north" hidden aria-label="North arrow">N ↑</div><div id="webgisLayoutScale" class="webgis-layout-scale" hidden></div><footer id="webgisLayoutFooter"></footer></div>';
+  panel.innerHTML='<div class="webgis-layout-toolbar"><strong>Layout View</strong><span>Page setup · map furniture · print</span><label>Paper <select data-layout-setting="paper"><option value="a4">A4</option><option value="a3">A3</option><option value="letter">Letter</option></select></label><label>Orientation <select data-layout-setting="orientation"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label><button type="button" data-layout-action="title">Title</button><button type="button" data-layout-action="subtitle">Subtitle</button><button type="button" data-layout-action="legend">Refresh Legend</button><button type="button" data-layout-action="north">North Arrow</button><button type="button" data-layout-action="scale">Scale Bar</button><button type="button" data-layout-action="grid">Coordinate Grid</button><button type="button" data-layout-action="footer">Footer</button><button type="button" data-layout-action="print">Print / Save PDF</button><button type="button" data-layout-action="close">Close</button></div><div class="webgis-layout-sheet page-a4 portrait"><header id="webgisLayoutTitle" contenteditable="true"></header><div id="webgisLayoutSubtitle" contenteditable="true" class="webgis-layout-subtitle" hidden>Map subtitle</div><div class="webgis-layout-map-frame"><div class="webgis-layout-map-slot" id="webgisLayoutMapSlot"></div><div id="webgisLayoutNorth" class="webgis-layout-north" hidden aria-label="North arrow">N <span>▲</span></div><div id="webgisLayoutScale" class="webgis-layout-scale" hidden></div><div id="webgisLayoutGrid" class="webgis-layout-grid" hidden>Coordinate grid overlay is illustrative; map coordinates remain in the map status panel.</div></div><div id="webgisLayoutLegend" class="webgis-layout-legend" hidden></div><footer id="webgisLayoutFooter" contenteditable="true"></footer></div>';
+  const sheet=panel.querySelector(".webgis-layout-sheet");
+  $("webgisLayoutTitle",panel).textContent=$("projectName")?.value||"Map";
+  $("webgisLayoutFooter",panel).textContent="Sabz Royan Uraman · "+new Date().toLocaleDateString();
   document.body.appendChild(panel);document.body.classList.add("layout-view-active");
-  if(mapElement){panel._mapRestore={mapElement,originalParent,originalNext,oldStyle:mapElement.getAttribute("style")};mapElement.style.width="100%";mapElement.style.height="65vh";mapElement.style.minHeight="420px";$("webgisLayoutMapSlot").appendChild(mapElement);requestAnimationFrame(()=>{try{map.invalidateSize({pan:false})}catch(_){}});}
+  if(mapElement){panel._mapRestore={mapElement,originalParent,originalNext,oldStyle:mapElement.getAttribute("style")};mapElement.style.width="100%";mapElement.style.height="100%";mapElement.style.minHeight="420px";$("webgisLayoutMapSlot",panel).appendChild(mapElement);requestAnimationFrame(()=>{try{map.invalidateSize({pan:false});updateLayoutScale()}catch(_){}});}
+  const refreshLegend=()=>{const legend=$("webgisLayoutLegend",panel);legend.replaceChildren();const visible=(namedLayers||[]).filter(x=>x.visible!==false);visible.forEach(layer=>{const row=document.createElement("div");row.className="webgis-layout-legend-item";const swatch=document.createElement("span");swatch.className="webgis-layout-legend-swatch";const cfg=layer._rendererConfig||{};swatch.style.background=cfg.color||layer.color||layer.style?.color||"#4b8065";swatch.style.borderColor=cfg.outlineColor||layer.style?.color||"#52616a";const label=document.createElement("span");label.textContent=layer.name||"Layer";row.append(swatch,label);legend.append(row);});if(!legend.childElementCount)legend.textContent="No visible layers";legend.hidden=false;};
+  const updateLayoutScale=()=>{const scale=$("webgisLayoutScale",panel);if(!scale||scale.hidden||!map||!map.getSize||!map.getSize().x)return;try{const size=map.getSize(),p1=map.containerPointToLatLng([size.x/2-50,size.y/2]),p2=map.containerPointToLatLng([size.x/2+50,size.y/2]);const metres=map.distance(p1,p2);if(!Number.isFinite(metres)||metres<=0)return;const target=metres;const power=Math.pow(10,Math.floor(Math.log10(target)));const normalized=target/power;const nice=(normalized>=5?5:normalized>=2?2:1)*power;const width=Math.max(35,Math.min(150,100*nice/target));scale.replaceChildren();const line=document.createElement("span");line.className="webgis-layout-scale-line";line.style.width=width+"px";const text=document.createElement("span");text.textContent=nice>=1000?(nice/1000)+" km":Math.round(nice)+" m";scale.append(line,text);}catch(_){}};
+  panel._updateLayoutScale=updateLayoutScale;
+  panel.addEventListener("change",e=>{const sel=e.target.closest("[data-layout-setting]");if(!sel)return;sheet.classList.remove("page-a4","page-a3","page-letter","portrait","landscape");sheet.classList.add("page-"+panel.querySelector('[data-layout-setting="paper"]').value,panel.querySelector('[data-layout-setting="orientation"]').value);requestAnimationFrame(()=>{try{map.invalidateSize({pan:false});updateLayoutScale()}catch(_){}});});
   panel.addEventListener("click",async e=>{const b=e.target.closest("[data-layout-action]");if(!b)return;const a=b.dataset.layoutAction;
     if(a==="close"){closeLayoutView();return;}
-    if(a==="print"){window.print();return;}
-    if(a==="title"){const v=await arcMapDialog.prompt({title:"Layout Title",message:"Enter the map title:",label:"Title",value:$("projectName").value||"Map"});if(v!==null)$("webgisLayoutTitle").textContent=v;}
-    if(a==="legend"){const legend=$("webgisLayoutLegend");legend.replaceChildren();namedLayers.filter(x=>x.visible!==false).forEach(layer=>{const row=document.createElement("div");row.className="webgis-layout-legend-item";const swatch=document.createElement("span");swatch.className="webgis-layout-legend-swatch";swatch.style.background=layer.color||layer.style?.color||"#4b8065";const label=document.createElement("span");label.textContent=layer.name||"Layer";row.append(swatch,label);legend.append(row);});legend.hidden=false;if(!legend.childElementCount)legend.textContent="No visible layers";}
-    if(a==="north")$("webgisLayoutNorth").hidden=false;
-    if(a==="scale"){const p1=map.containerPointToLatLng([30,map.getSize().y-30]),p2=map.containerPointToLatLng([130,map.getSize().y-30]);const metres=map.distance(p1,p2);const nice=metres>=1000?(Math.round(metres/1000*10)/10)+" km":Math.round(metres)+" m";const scale=$("webgisLayoutScale");scale.textContent="Scale bar: "+nice;scale.style.width="100px";scale.hidden=false;}
+    if(a==="print"){try{map.invalidateSize({pan:false});updateLayoutScale()}catch(_){}window.print();return;}
+    if(a==="title"){const v=await arcMapDialog.prompt({title:"Layout Title",message:"Enter the map title:",label:"Title",value=$("webgisLayoutTitle",panel).textContent});if(v!==null)$("webgisLayoutTitle",panel).textContent=v;}
+    if(a==="subtitle"){const el=$("webgisLayoutSubtitle",panel);if(el.hidden){const v=await arcMapDialog.prompt({title:"Map Subtitle",message:"Enter a subtitle:",label:"Subtitle",value:el.textContent==="Map subtitle"?"":el.textContent});if(v===null)return;el.textContent=v;}el.hidden=!el.hidden;}
+    if(a==="legend")refreshLegend();
+    if(a==="north")$("webgisLayoutNorth",panel).hidden=!$("webgisLayoutNorth",panel).hidden;
+    if(a==="scale"){const el=$("webgisLayoutScale",panel);el.hidden=!el.hidden;updateLayoutScale();}
+    if(a==="grid")$("webgisLayoutGrid",panel).hidden=!$("webgisLayoutGrid",panel).hidden;
+    if(a==="footer"){const v=await arcMapDialog.prompt({title:"Layout Footer",message:"Enter footer text:",label:"Footer",value:$("webgisLayoutFooter",panel).textContent});if(v!==null)$("webgisLayoutFooter",panel).textContent=v;}
   });
-  status("Layout View opened with live map, legend, north arrow, scale bar and print/PDF.");
+  if(map){panel._scaleListener=updateLayoutScale;map.on("zoomend moveend",updateLayoutScale);}
+  refreshLegend();
+  status("Layout ready: page setup, editable title/subtitle/footer, legend, north arrow, scale bar, grid toggle and print/PDF.");
 }
 function closeLayoutView(){
   const panel=document.getElementById("webgisLayoutView");if(!panel)return;
+  if(panel._scaleListener&&map){try{map.off("zoomend moveend",panel._scaleListener)}catch(_){}}
   const restore=panel._mapRestore;
   if(restore?.mapElement&&restore.originalParent){
     if(restore.originalNext&&restore.originalNext.parentNode===restore.originalParent)restore.originalParent.insertBefore(restore.mapElement,restore.originalNext);
