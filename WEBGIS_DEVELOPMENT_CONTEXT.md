@@ -228,3 +228,9 @@ At the end of each meaningful batch, update this file with the verified date, co
 ## Drawing geometry correction (2026-10-29)
 - Follow-up audit found the prior ellipse helper built its radii directly in longitude/latitude degrees, which distorts the ellipse as latitude changes. Updated `ellipseRing()` to calculate the center/radii in Leaflet's projected map plane and generate a 64-segment polygon ring; rejects zero-width/height ellipses. Master commit: `d762b86b8fcaaef6d1376a2ba229aded2294fe68`.
 - This was a targeted correction, not a claim that every ArcMap-like tool is complete. Existing Split/Merge/Reshape/Vertex Edit/Snapping implementations were found and should be regression-tested rather than duplicated. No browser-level tests were run; test ellipse creation at different latitudes, freehand strokes, edit undo/redo, and save/reload next.
+
+## Layer styling bundle (2026-10-29)
+- Expanded Layer Properties > Symbology with three renderers: Single Symbol, Unique Values, and Graduated Colors; added attribute-field selection, five color ramps, 2–7 classes, and a generated legend preview.
+- Unique-value styling assigns palette colors per attribute value; graduated styling bins numeric values into equal-interval classes. Base outline, width, point size, opacity, and fill opacity remain available.
+- Commits on master: `0fe5e0094aa0f618539c7c8383e982075b2aa19e` (renderer UI and logic), `280f41c695b645147956be3786e65a7ac16aaef5` (safe numeric range calculation for large layers).
+- Static validation after re-fetch: all 12 inline scripts parsed successfully; renderer controls and modes were present. Not browser-tested. Verify symbol rendering on points/lines/polygons, project save/reload persistence of renderer settings, empty/non-numeric fields, and large feature layers. Renderer config is stored on the in-memory layer owner; persistence across reload still needs confirmation.
