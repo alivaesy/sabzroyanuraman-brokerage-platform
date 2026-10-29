@@ -162,3 +162,13 @@ Do not rerun WMS GetMap for `ne:countries`, WFS GetCapabilities, or the same emp
 - The separate read-only feature catalog/query API (`gis-db.php`) targets `sabzroyan_gis`.
 - This explains the observed split: the authenticated project API has 48 project rows and 135 geometrically valid features in `gis_staging`, while `sabzroyan_gis.public.webgis_features` is empty.
 - Do not repoint either config yet. First determine whether `gis_staging` is intentionally a staging/test database and whether the 48 projects/135 features are user-owned data that must be retained. The correct next engineering step is to audit deployment/runtime status and the WebGIS save/load calls, then plan a backed-up, authenticated migration/connection change only after explicit confirmation of the intended production target.
+
+
+### WebGIS front-end save/load code audit (2026-10-29)
+
+- In `web-gis.html`, `saveProject()` persists to the server only when both `remoteGisUser` and `remoteGisOrganization` are set; otherwise it writes the project to browser IndexedDB and explicitly reports that it is local-only.
+- The online account flow calls the authenticated same-origin `api/gis/projects.php` endpoint. That endpoint uses `gis_auth_db()` and the confirmed `gis_staging` database. Server project save stores the full serialized map in `gis_projects.project_data` and normalized feature geometries in `gis_project_features`.
+- Edit-session `Save Edits` is a separate local IndexedDB path and explicitly does not publish changes to GeoServer/PostGIS. Do not confuse it with saving the whole project through the online account workflow.
+- The read-only `api/gis/features.php` endpoint uses `gis-db.php` → `sabzroyan_gis` → `public.webgis_features`; it is not the source used to load authenticated server projects. This mismatch is why the generic feature endpoint can be empty while server projects/features exist in staging.
+- User confirmed the 135 staging features are disposable test shapes. They do not need preservation as business data. Nevertheless, do not silently erase the 48 project rows or change the active connection until deciding the target architecture.
+- Recommended implementation direction: keep project save/load authenticated through `projects.php`; avoid exposing organization project features via the public read-only endpoint. If the generic feature endpoint is needed for published/shared layers, give it a separate explicitly public/published-only data source or require authorization. Consider changing UI wording so users can distinguish local project save, local edit save, and authenticated server project save.
