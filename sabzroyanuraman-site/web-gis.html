@@ -10140,6 +10140,12 @@ body.modelbuilder-view-active #map{background:#eef1f3}
 /* Keep Layout and ModelBuilder controls above the TOC stacking layer. */
 #webgisLayoutView{z-index:1100!important}
 #gisModelBuilder{z-index:1100!important}
+
+/* Reserve the TOC column in every desktop view so it remains stationary and usable. */
+@media(min-width:851px){#webgisLayoutView,#gisModelBuilder{left:0!important;right:290px!important;width:auto!important;max-width:none!important}}
+@media(min-width:651px) and (max-width:850px){#webgisLayoutView,#gisModelBuilder{left:0!important;right:270px!important;width:auto!important;max-width:none!important}}
+/* On narrow screens the TOC is an existing slide-out panel; retain its mobile behavior. */
+@media(max-width:650px){#webgisLayoutView,#gisModelBuilder{left:0!important;right:0!important;width:auto!important}}
 </style>
 
 
