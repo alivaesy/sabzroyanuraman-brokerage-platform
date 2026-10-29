@@ -531,6 +531,19 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 .gis-imported-feature-label,.gis-feature-label{font-family:Tahoma,"Noto Naskh Arabic","Noto Sans Arabic",Arial,sans-serif!important;direction:rtl;unicode-bidi:plaintext;white-space:nowrap;color:#202020;background:rgba(255,255,255,.88);border:1px solid rgba(105,120,128,.55);border-radius:1px;padding:0 2px;box-shadow:none;font-weight:400;line-height:1.35}
 .gis-imported-feature-label:before,.gis-feature-label:before{display:none!important}
 /* Keep Leaflet's normal zoom-aware vector rendering; source symbol metadata wins. */
+
+/* Align Layout and ModelBuilder viewports with the Map View flex area beside the TOC. */
+@media(min-width:851px){
+  #webgisLayoutView,#gisModelBuilder{left:0!important;right:290px!important;width:auto!important;max-width:none!important}
+}
+@media(min-width:651px) and (max-width:850px){
+  #webgisLayoutView,#gisModelBuilder{left:0!important;right:270px!important;width:auto!important;max-width:none!important}
+}
+@media(max-width:650px){
+  #webgisLayoutView,#gisModelBuilder{left:0!important;right:0!important;width:auto!important;max-width:none!important}
+}
+#webgisLayoutView .webgis-layout-toolbar{width:100%!important;max-width:100%!important;box-sizing:border-box}
+
 </style>
 <style>
 /* ArcMap Editor task menu + KMZ support */
