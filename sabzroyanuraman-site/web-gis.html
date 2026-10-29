@@ -536,22 +536,6 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 /* Center the ModelBuilder workflow cards within the full workspace. */
 #gisModelBuilder [data-mb-steps]{justify-content:flex-start!important;justify-items:center!important}
 #gisModelBuilder [data-mb-step]{margin-left:auto!important;margin-right:auto!important}
-/* Narrow the ModelBuilder work panel from both sides and center it. */
-body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
-  width:calc(100% - 48px)!important;
-  max-width:1100px!important;
-  height:calc(100% - 24px)!important;
-  margin:12px auto!important;
-  align-self:center!important;
-  box-sizing:border-box!important;
-}
-@media(max-width:650px){
-  body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
-    width:calc(100% - 16px)!important;
-    height:calc(100% - 12px)!important;
-    margin:6px auto!important;
-  }
-}
 
 </style>
 <style>
