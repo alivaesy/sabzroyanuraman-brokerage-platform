@@ -145,3 +145,12 @@ Do not rerun WMS GetMap for `ne:countries`, WFS GetCapabilities, or the same emp
 - In both databases, `public.gis_project_features.geom` is registered in `geometry_columns` as SRID 4326, type `GEOMETRY`.
 - This is the first positive evidence of stored project/feature records and is a strong candidate for the user's previously saved work. Do not call it production-ready or change application connections yet: verify feature distribution and the WebGIS project's configured database first.
 - Next read-only checks: aggregate feature counts by project and geometry type in `gis_staging`; inspect application config using commands that reveal only the database name/host, never passwords or full secret files. Do not copy staging records into production or expose personal/project attributes.
+
+
+### Follow-up result: staging feature integrity check (2026-10-29)
+
+- Read-only aggregate check on `gis_staging.public.gis_project_features`: 135 features, associated with 43 distinct project IDs, 0 NULL geometries, and 0 geometries failing `ST_IsValid`.
+- This confirms that the staging feature table contains geometrically valid records; it does not alone establish that these are the exact shapes the user remembers or that this staging database is the active production target.
+- `gis_auth_staging` has the same project/feature tables but both are empty. The two `sabzroyan_*_gis` databases' `webgis_features` tables are also empty.
+- Code review: `api/gis/projects.php` reads and writes `public.gis_projects` and `public.gis_project_features` using `gis_auth_db()`, while `api/gis/features.php` uses the separate private config `/home/sabzroyanuraman/private/gis-db.php` and is read-only. These are distinct data paths.
+- Next: safely identify only the database name used by `gis_auth_db()` and the `database` field in `gis-db.php` (do not print credentials or full config files). Do not repoint either path until the intended active database and ownership of the 135 staging features are confirmed.
