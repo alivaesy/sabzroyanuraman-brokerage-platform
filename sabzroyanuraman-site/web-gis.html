@@ -575,6 +575,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
     <button class="arc-menu-btn" data-menu="insertMenu">Insert</button>
     <button class="arc-menu-btn" data-menu="selectionMenu">Selection</button>
     <button class="arc-menu-btn" data-menu="analysisMenu">Geoprocessing</button>
+    <button class="arc-menu-btn" data-menu="publishMenu">Publish</button>
     <button class="arc-menu-btn" data-menu="layerMenu">Customize</button>
     <button class="arc-menu-btn" data-menu="windowsMenu">Windows</button>
     <button class="arc-menu-btn" data-menu="helpMenu">Help</button>
@@ -704,6 +705,19 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
     <div class="arc-sep"></div>
     <button type="button" data-action="printMap">Print Map...</button>
     <div class="arc-sep"></div><button type="button" data-action="geodatabaseManager">Create / Manage Geodatabase...</button>
+  </div>
+  <div class="arc-dropdown" id="publishMenu">
+    <div class="arc-menu-title">Publish / Share</div>
+    <div class="arc-menu-title" style="font-weight:normal;white-space:normal;max-width:250px">Share a read-only map, prepare a print layout, or export GIS data. Server service publishing requires a configured GeoServer/API endpoint.</div>
+    <button type="button" data-action="saveProject">Save Project to GIS Server</button>
+    <button type="button" data-action="shareProject">Share Read-only Map Link...</button>
+    <div class="arc-sep"></div>
+    <button type="button" data-action="layoutView">Open Layout View...</button>
+    <button type="button" data-action="printMap">Print / Save PDF...</button>
+    <button type="button" data-action="exportData">Export GIS Data...</button>
+    <div class="arc-sep"></div>
+    <button type="button" data-action="publishServices">Configure WMS / WFS Connection...</button>
+    <button type="button" data-action="publishHelp">Publishing Status / Requirements</button>
   </div>
   <div class="arc-dropdown" id="projectMenu">
     <div class="arc-menu-title">Edit</div>
@@ -8474,6 +8488,10 @@ document.querySelectorAll(".arc-dropdown button[data-action], .classic-toolbar b
     const a=b.dataset.action;
     const mapActions={
       shareProject:()=>{if(typeof window.__shareCurrentProject==="function")window.__shareCurrentProject();else status("Share Project is not ready. Reload the page and try again.");},
+      layoutView:()=>{if(typeof openLayoutView==="function")openLayoutView();else status("Layout View is not available.");},
+      publishServices:()=>{openGisDock("display");document.getElementById("wmsUrl")?.focus();status("Service connection settings opened. This connects to an existing WMS service; publishing new WMS/WFS layers requires a configured GeoServer/API endpoint.");},
+      publishHelp:()=>status("Available here: save project to GIS server, share a read-only link, print/PDF via Layout, and export GIS data. Direct publishing of new layers/services to GeoServer or PostGIS is not implemented in this page yet."),
+
       startEditing:()=>startEditing(),
       newMap:()=>clearWorkspace(),
       printMap:()=>window.print(),
