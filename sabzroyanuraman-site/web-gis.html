@@ -627,6 +627,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 <button type="button" class="icon-tool" data-tool="showVerticesTool" title="Show Vertices — toggle vertex markers for selected features" aria-label="Show Vertices" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-show-vertices"></use></svg></button>
 <button type="button" class="icon-tool" data-tool="flipLineDirection" title="Flip Line Direction" aria-label="Flip Line Direction" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-flip"></use></svg></button>
 <button type="button" class="icon-tool" data-tool="featureTemplates" title="Feature Templates" aria-label="Feature Templates" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-template"></use></svg></button>
+<button type="button" class="icon-tool" data-tool="copyPasteAttributes" title="Copy / Paste Attributes — copy fields from one feature to selected features" aria-label="Copy / Paste Attributes" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-table"></use></svg></button>
 <span class="edit-tool-separator" aria-hidden="true" title="Validation and snapping"></span>
 <button type="button" class="icon-tool" data-tool="topologyCheckTool" title="Check Topology" aria-label="Check Topology" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-topology"></use></svg></button>
 <button type="button" class="icon-tool" data-tool="repairSelectedGeometry" title="Repair Selected Geometry" aria-label="Repair Selected Geometry" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-reshape"></use></svg></button>
@@ -6083,6 +6084,7 @@ const GIS_TOOLS=[
  {id:"showVerticesTool",title:"Show Vertices",category:"Editor",keys:"vertex handles nodes display"},
  {id:"flipLineDirection",title:"Flip Line Direction",category:"Editor",keys:"reverse line direction"},
  {id:"featureTemplates",title:"Feature Templates",category:"Editor",keys:"save apply feature attribute templates"},
+ {id:"copyPasteAttributes",title:"Copy / Paste Attributes",category:"Editor",keys:"copy paste transfer attributes fields selected features"},
  {id:"gridToggle",title:"Toggle Editor Grid",category:"Editor",keys:"grid coordinate"},
  {id:"constraintTool",title:"Set Snap Tolerance",category:"Editor",keys:"snapping distance meters"},
  {id:"attachmentsTool",title:"Feature Attachments",category:"Editor",keys:"attach files photos documents"},
@@ -7846,6 +7848,36 @@ async function flipLineDirection(){
     status("Could not reverse line direction; original geometry restored where possible: "+err.message);
   }
 }
+async function copyPasteAttributes(){
+  if(window.__sharedProjectReadOnly){status("This shared map is read-only.");return;}
+  const action=await arcMapDialog.select({title:"Copy / Paste Attributes",message:"Copy attributes from one feature, or paste them into selected features. Geometry will not change.",label:"Operation",value:"copy",options:[{value:"copy",label:"Copy attributes from one selected feature"},{value:"paste",label:"Paste attributes to selected features"}]});
+  if(action===null)return;
+  if(action==="copy"){
+    const records=selectedRecords();
+    if(records.length!==1){status("Select exactly one source feature to copy its attributes.");return;}
+    window._featureAttributeClipboard=JSON.parse(JSON.stringify(records[0].feature?.properties||{}));
+    status("Copied "+Object.keys(window._featureAttributeClipboard).length+" attribute field(s). Select destination feature(s), start editing, then paste.");
+    return;
+  }
+  if(!window._featureAttributeClipboard||typeof window._featureAttributeClipboard!=="object"){status("Copy attributes from a source feature first.");return;}
+  if(!editSessionActive||!editTarget){status("Start Editing before pasting attributes.");return;}
+  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("pasting feature attributes"))return;
+  const records=editableSelectedRecords(false);
+  if(!records.length)return;
+  const fields=Object.keys(window._featureAttributeClipboard);
+  if(!fields.length){status("The copied feature has no attributes to paste.");return;}
+  if(!await arcMapDialog.confirm({title:"Paste Attributes",message:"Apply "+fields.length+" copied field(s) to "+records.length+" selected feature(s)? Geometry and fields not present in the copied feature will be preserved.",confirmText:"Paste"}))return;
+  recordUndoState();
+  records.forEach(r=>{
+    const properties={...(r.feature.properties||{}),...JSON.parse(JSON.stringify(window._featureAttributeClipboard))};
+    r.feature.properties=properties;
+    if(r.layer.feature)r.layer.feature.properties=JSON.parse(JSON.stringify(properties));
+  });
+  refreshAll();
+  const synced=await flushGeodatabaseEdits();
+  const saved=await scheduleAutoSave();
+  status("Pasted attributes to "+records.length+" feature(s)."+(synced&&saved?"":" Check Save Edits; persistence reported a problem."));
+}
 async function featureTemplates(){
   const key="sabzRoyanWebGisFeatureTemplates";let templates=[];
   try{templates=JSON.parse(localStorage.getItem(key)||"[]");if(!Array.isArray(templates))templates=[]}catch(_){templates=[]}
@@ -8079,6 +8111,7 @@ function runGisTool(tool){
  if(tool.id==="showVerticesTool"){showVerticesTool();return;}
  if(tool.id==="flipLineDirection"){flipLineDirection();return;}
  if(tool.id==="featureTemplates"){featureTemplates();return;}
+ if(tool.id==="copyPasteAttributes"){copyPasteAttributes();return;}
  if(tool.id==="advancedSnap"){advancedSnap();return;}
  if(tool.id==="gridToggle"){gridToggle();return;}
  if(tool.id==="constraintTool"){constraintTool();return;}
