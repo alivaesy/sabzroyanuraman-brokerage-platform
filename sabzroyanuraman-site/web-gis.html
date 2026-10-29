@@ -8350,6 +8350,7 @@ $("gisToolSearch").oninput=e=>renderGisToolbox(e.target.value);
 renderGisToolbox(); // Show the complete registered ArcToolbox catalog immediately; search narrows it.
 
 function openLayoutView(){
+  if(typeof closeModelBuilderView==="function")closeModelBuilderView();
   let panel=document.getElementById("webgisLayoutView");
   if(panel){closeLayoutView();return;}
   const mapElement=$("map"),originalParent=mapElement?.parentNode,originalNext=mapElement?.nextSibling;
@@ -9049,15 +9050,25 @@ $("applyCrs").onclick=()=>{
 window.__webGisGdbBridge={get currentCRS(){return currentCRS},addLayer(name,layer){addNamedLayer(name,layer,false)},refreshEditorTargets,layerIndex(layer){return namedLayers.findIndex(x=>x.layer===layer)},save(){scheduleAutoSave()},openExport(){openDataFormatDialog("export")},cancelActiveTool(){if(!activeDrawHandler)return false;stopActiveDraw(true);return true}};
 
 /* ArcMap-like ModelBuilder: chained, in-memory geoprocessing steps. */
+function closeModelBuilderView(){
+  const modal=document.getElementById("gisModelBuilder");if(!modal)return;
+  modal.style.display="none";modal.remove();
+  document.body.classList.remove("modelbuilder-view-active");
+  const modeButton=document.getElementById("layoutModeToggle");if(modeButton){modeButton.classList.remove("active");modeButton.setAttribute("aria-pressed","false");modeButton.title="Switch from Map View to Layout View";modeButton.textContent="Layout View";}
+  requestAnimationFrame(()=>{try{map.invalidateSize({pan:false})}catch(_){}});
+}
 function openModelBuilder(){
+  if(document.getElementById("webgisLayoutView"))closeLayoutView();
   let modal=document.getElementById("gisModelBuilder");
   if(!modal){
     modal=document.createElement("div");modal.id="gisModelBuilder";
-    modal.style.cssText="position:fixed;inset:0;z-index:12000;background:#d5dbe0;display:flex;align-items:stretch;justify-content:stretch;padding:0;font:13px Arial,sans-serif;color:#243746";
+    modal.style.cssText="position:absolute;inset:0;z-index:950;background:#d5dbe0;display:flex;align-items:stretch;justify-content:stretch;padding:0;font:13px Arial,sans-serif;color:#243746;min-width:0;min-height:0;overflow:hidden";
     modal.innerHTML='<section class="webgis-modelbuilder-workspace" style="display:flex;flex-direction:column;background:#f4f6f8;color:#17212b;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;border:0;border-radius:0;box-shadow:none"><header style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex:0 0 auto;background:#dce4eb;padding:8px 12px;border-bottom:1px solid #aab8c5"><strong style="font-size:15px">ModelBuilder</strong><span style="margin-left:auto;color:#536273">Geoprocessing workflow</span><button type="button" data-mb-close style="font-size:18px">✕</button></header><div style="padding:12px;overflow:auto;min-height:0;flex:1 1 auto"><div style="display:grid;grid-template-columns:repeat(2,minmax(180px,1fr));gap:10px"><label>Input feature layer<select data-mb-source style="display:block;width:100%;padding:7px;margin-top:4px"></select></label><label>Output layer name<input data-mb-name value="Model_Output" style="display:block;width:100%;padding:7px;margin-top:4px;box-sizing:border-box"></label></div><p style="color:#536273;margin:10px 0">Steps run in order; each step receives the previous step’s output. Overlay operations use the selected overlay layer.</p><div data-mb-steps></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"><button type="button" data-mb-add>Add Step</button><button type="button" data-mb-validate>Validate Model</button><label style="display:flex;align-items:center;gap:5px"><input type="checkbox" data-mb-intermediates checked> Save intermediate outputs</label><button type="button" data-mb-run style="background:#176b42;color:white;border:0;padding:8px 14px">Run Model</button><button type="button" data-mb-save>Export Model</button><button type="button" data-mb-load>Import Model</button><input type="file" data-mb-file accept=".json,application/json" style="display:none"><button type="button" data-mb-clear>Clear Steps</button></div><div data-mb-status role="status" style="padding:8px;background:#f2f5f8;border:1px solid #d8e0e8;white-space:pre-wrap">Build a workflow, then run it.</div></div></section>';
-    document.body.appendChild(modal);
-    modal.addEventListener("click",e=>{if(e.target===modal||e.target.closest("[data-mb-close]"))modal.style.display="none";});
-    modal.querySelector(".webgis-modelbuilder-workspace").addEventListener("keydown",e=>{if(e.key==="Escape"){modal.style.display="none";}});
+    const workspace=document.querySelector(".workspace");
+    if(!workspace)throw new Error("Main GIS workspace is unavailable.");
+    workspace.appendChild(modal);document.body.classList.add("modelbuilder-view-active");
+    modal.addEventListener("click",e=>{if(e.target===modal||e.target.closest("[data-mb-close]"))closeModelBuilderView();});
+    modal.querySelector(".webgis-modelbuilder-workspace").addEventListener("keydown",e=>{if(e.key==="Escape")closeModelBuilderView();});
     modal.querySelector("[data-mb-add]").onclick=()=>addModelBuilderStep(modal);
     modal.querySelector("[data-mb-clear]").onclick=()=>{modal.querySelector("[data-mb-steps]").replaceChildren();addModelBuilderStep(modal);};
     modal.querySelector("[data-mb-validate]").onclick=()=>validateModelBuilder(modal,true);
@@ -9080,6 +9091,9 @@ function openModelBuilder(){
   if([...source.options].some(o=>o.value===old))source.value=old;
   if(!modal.querySelector("[data-mb-step]"))addModelBuilderStep(modal);
   modal.style.display="flex";
+  document.body.classList.add("modelbuilder-view-active");
+  const modeButton=document.getElementById("layoutModeToggle");if(modeButton){modeButton.classList.add("active");modeButton.setAttribute("aria-pressed","true");modeButton.title="Switch back to Map View";modeButton.textContent="Map View";}
+  requestAnimationFrame(()=>{try{map.invalidateSize({pan:false})}catch(_){}});
 }
 function refreshModelBuilderStepNumbers(host){
   [...host.children].forEach((el,i)=>{const n=el.querySelector("strong");if(n)n.textContent=String(i+1);});
@@ -10093,7 +10107,8 @@ const arcMapDialog=(()=>{
 
 
 /* ModelBuilder is a full-workspace GIS view, not a floating dialog card. */
-#gisModelBuilder{padding:0!important;background:#d5dbe0!important;}
+#gisModelBuilder{position:absolute!important;inset:0!important;width:100%;height:100%;padding:0!important;background:#d5dbe0!important;box-sizing:border-box;}
+body.modelbuilder-view-active #map{background:#eef1f3}
 #gisModelBuilder .webgis-modelbuilder-workspace{width:100%!important;height:100%!important;max-height:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;}
 #gisModelBuilder [data-mb-steps]{display:flex;flex-direction:column;gap:8px;}
 #gisModelBuilder [data-mb-step]{max-width:none;}
