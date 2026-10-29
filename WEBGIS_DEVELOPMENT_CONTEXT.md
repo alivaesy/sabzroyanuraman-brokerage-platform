@@ -205,3 +205,11 @@ At the end of each meaningful batch, update this file with the verified date, co
 - Read `docs/WEBGIS_STORAGE_SERVER_ACCESS.md` section 13 before changing GeoServer, the spatial databases, WFS, or WebGIS remote-data integration. It records the installed GeoServer 3.0.2 service, HTTPS reverse proxy, PostGIS store/layer names, the distinction between `sabzroy_gis`, `sabzroyan_personal_gis`, and `gis_staging`, the successful WFS read test returning zero features, and the existing master commit that prefilled the WFS URL.
 - Key limitation: the one-time copy of `public.webgis_features` into the personal GIS database is not synchronization. WFS read success is not proof of WebGIS-to-PostGIS editing/persistence.
 - No credentials or passwords belong in either handoff file. Check deployment status before assuming the master change is live.
+
+
+## Organization project persistence verification (2026-10-29)
+- Read `docs/WEBGIS_STORAGE_SERVER_ACCESS.md` before repeating storage diagnostics; the detailed record was added after operator-provided read-only live-server results on 2026-10-29.
+- WebGIS organization project API uses the database configured in the private server file `/home/sabzroyanuraman/private/gis-auth-db.php`; the operator confirmed its database is `gis_staging` (no secrets were exposed).
+- Operator query output: `gis_staging.public.gis_projects` has 49 rows and `gis_project_features` has 140 rows. Project 49 (`New Project`) was created/updated at `2026-10-29 09:13:31 +03` and has 5 linked feature rows. This likely corresponds to the five features reported saved by the UI, but exact identity and UI read-back are not yet verified.
+- Do not confuse these tables with `public.webgis_features` in `sabzroy_gis` or the GeoServer personal-GIS datastore. Do not rerun old empty-table checks as a test of organization project saves.
+- Remaining verification: open project 49 in the WebGIS UI and confirm all five geometries/attributes restore. No code or database changes were made as part of this diagnostic update; this commit updates documentation only.
