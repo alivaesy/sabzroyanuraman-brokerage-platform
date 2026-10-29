@@ -220,3 +220,8 @@ At the end of each meaningful batch, update this file with the verified date, co
 - Verification performed: GitHub master read-back confirmed the new function, toolbar entry, toolbox entry, and dispatch each occur exactly once. No browser, CI, live-server, or end-to-end persistence test was run.
 - Next Editor gaps to test against ArcMap/RustGIS: vertex snapping across target layers and in projected units, Cut/Copy/Paste selection ownership, undo/redo after multi-feature operations, split/reshape edge cases, attachment file size/persistence, and whether edit operations truly persist remotely (current Save Edits status distinguishes local IndexedDB from GeoServer/PostGIS publication).
 
+## Drawing tools expansion (2026-10-29)
+- Added Editor sketch tools **Ellipse**, **Freehand Line**, and **Freehand Polygon** to the main Editor toolbar and Edit > Create Features menu. Ellipse is stored as a polygon ring; freehand tools collect map points during mouse drag and create LineString/Polygon features in the active edit layer.
+- Commits on master: `4c8cd5ecad871876d06790b0d565e73c69527b02` (tools) and `d69b6889aecf8a7327563b68eea4f951b426f361` (freehand polygon preview correction).
+- Static GitHub read-back confirmed toolbar/menu entries, geometry creation branches, ellipse helper, mouse-drag listeners, and line-vs-polygon drawing-layer routing. Not yet browser-tested; check mouse interaction, geometry validity, save/reload, and feature-class geometry constraints before declaring complete.
+
