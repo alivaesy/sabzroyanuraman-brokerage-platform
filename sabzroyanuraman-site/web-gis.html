@@ -2420,8 +2420,15 @@ function goToXY(){
   xInput.focus();xInput.select();
 }
 function ellipseRing(a,b){
-  const centerLat=(a.lat+b.lat)/2,centerLng=(a.lng+b.lng)/2,rx=Math.abs(b.lng-a.lng)/2,ry=Math.abs(b.lat-a.lat)/2,ring=[];
-  for(let i=0;i<=48;i++){const t=2*Math.PI*i/48;ring.push(L.latLng(centerLat+ry*Math.sin(t),centerLng+rx*Math.cos(t)));}
+  // Build the ellipse in Leaflet's projected map plane, not in longitude/
+  // latitude degrees (degrees shrink differently with latitude).
+  const zoom=map.getZoom(),pa=map.project(a,zoom),pb=map.project(b,zoom);
+  const cx=(pa.x+pb.x)/2,cy=(pa.y+pb.y)/2,rx=Math.abs(pb.x-pa.x)/2,ry=Math.abs(pb.y-pa.y)/2,ring=[];
+  if(![cx,cy,rx,ry].every(Number.isFinite)||rx<=0||ry<=0)return [];
+  for(let i=0;i<=64;i++){
+    const t=2*Math.PI*i/64;
+    ring.push(map.unproject(L.point(cx+rx*Math.cos(t),cy+ry*Math.sin(t)),zoom));
+  }
   return ring;
 }
 function drawingLayerForType(type){
