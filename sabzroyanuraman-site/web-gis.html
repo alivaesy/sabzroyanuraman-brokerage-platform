@@ -8362,7 +8362,15 @@ function openLayoutView(){
   panel.querySelector("#webgisLayoutFooter").textContent="Sabz Royan Uraman · "+new Date().toLocaleDateString();
   const workspace=mapElement?.closest(".workspace")||document.querySelector(".workspace");
   if(!workspace)throw new Error("Main GIS workspace is unavailable.");
-  panel._workspace=workspace;workspace.appendChild(panel);document.body.classList.add("layout-view-active");
+  panel._workspace=workspace;
+  // Keep the Table Of Contents pinned to the right while the map is moved into Layout View.
+  const tocPanel=workspace.querySelector(":scope > #panel");
+  if(tocPanel){
+    panel._tocRestore={element:tocPanel,style:tocPanel.getAttribute("style")};
+    tocPanel.style.position="absolute";tocPanel.style.right="0";tocPanel.style.left="auto";
+    tocPanel.style.top="0";tocPanel.style.bottom="0";tocPanel.style.height="auto";tocPanel.style.zIndex="1500";
+  }
+  workspace.appendChild(panel);document.body.classList.add("layout-view-active");
   const modeButton=document.getElementById("layoutModeToggle");if(modeButton){modeButton.classList.add("active");modeButton.setAttribute("aria-pressed","true");modeButton.title="Switch back to Map View";modeButton.textContent="Map View";}
   if(mapElement){panel._mapRestore={mapElement,originalParent,originalNext,oldStyle:mapElement.getAttribute("style")};mapElement.style.width="100%";mapElement.style.height="100%";mapElement.style.minHeight="420px";$("webgisLayoutMapSlot",panel).appendChild(mapElement);requestAnimationFrame(()=>{try{map.invalidateSize({pan:false});updateLayoutScale()}catch(_){}});}
   const refreshLegend=()=>{
@@ -8456,7 +8464,12 @@ function closeLayoutView(){
     else restore.originalParent.appendChild(restore.mapElement);
     if(restore.oldStyle===null)restore.mapElement.removeAttribute("style");else restore.mapElement.setAttribute("style",restore.oldStyle);
   }
-  panel.remove();document.body.classList.remove("layout-view-active");
+  panel.remove();
+  if(panel._tocRestore){
+    const t=panel._tocRestore.element;
+    if(panel._tocRestore.style===null)t.removeAttribute("style");else t.setAttribute("style",panel._tocRestore.style);
+  }
+  document.body.classList.remove("layout-view-active");
   const modeButton=document.getElementById("layoutModeToggle");if(modeButton){modeButton.classList.remove("active");modeButton.setAttribute("aria-pressed","false");modeButton.title="Switch from Map View to Layout View";modeButton.textContent="Layout View";}
   requestAnimationFrame(()=>{try{map.invalidateSize({pan:false})}catch(_){}});
   status("Layout View closed.");
