@@ -26,7 +26,7 @@
     const row=document.createElement("div");row.style.cssText="border:1px solid #cbd5dc;padding:6px;margin:4px 0;font-size:10px";
     const title=document.createElement("strong");title.textContent=plugin.name+" "+plugin.version;row.appendChild(title);
     const info=document.createElement("div");info.textContent=plugin.id+" · "+(plugin.enabled?"Enabled":"Disabled")+" · SHA-256 "+plugin.sha256;row.appendChild(info);
-    const toggle=document.createElement("button");toggle.type="button";toggle.textContent=plugin.enabled?"Disable":"Enable";toggle.onclick=async()=>{try{await bridge().setPluginEnabled(plugin.id,!plugin.enabled);await refresh();}catch(e){status.textContent=e.message;}};row.appendChild(toggle);
+    const toggle=document.createElement("button");toggle.type="button";toggle.textContent=plugin.enabled?"Disable":"Enable";toggle.onclick=async()=>{try{await bridge().setPluginEnabled(plugin.id,!plugin.enabled);const records=await all(),saved=records.find(r=>r.id===plugin.id);if(saved){saved.enabled=!plugin.enabled;await put(saved);}await refresh();}catch(e){status.textContent=e.message;}};row.appendChild(toggle);
     const uninstall=document.createElement("button");uninstall.type="button";uninstall.textContent="Uninstall";uninstall.style.marginLeft="5px";uninstall.onclick=async()=>{if(!confirm("Uninstall "+plugin.name+"?"))return;try{await bridge().uninstallPlugin(plugin.id);await remove(plugin.id);await refresh();}catch(e){status.textContent=e.message;}};row.appendChild(uninstall);
     list.appendChild(row);
     (plugin.commands||[]).forEach(cmd=>{const o=document.createElement("option");o.value=cmd.id;o.textContent=plugin.name+" — "+cmd.label;commands.appendChild(o);});
@@ -38,8 +38,9 @@
    for(const record of records){
     if(have.has(record.id))continue;
     try{
-     const info=await bridge().installPluginPackage(new Uint8Array(record.bytes),record.approvedPermissions||[]);
+     const info=const info=await bridge().installPluginPackage(new Uint8Array(record.bytes),record.approvedPermissions||[]);
      if(info.sha256!==record.sha256||info.id!==record.id)throw new Error("Saved plugin package hash or identity changed; reinstallation blocked.");
+     if(record.enabled===false)await bridge().setPluginEnabled(record.id,false);
     }catch(e){console.warn("Saved plugin not restored:",record.id,e);}
    }
   }
