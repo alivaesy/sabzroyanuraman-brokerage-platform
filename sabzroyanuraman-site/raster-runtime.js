@@ -64,6 +64,8 @@
     if (!width || !height || !bands.length || bands.some(b => b.length !== width * height)) throw new Error("Raster dimensions or band data are invalid.");
     const rawNoData = typeof image.getGDALNoData === "function" ? image.getGDALNoData() : readTag(directory, "GDAL_NODATA");
     const noData = rawNoData === null || rawNoData === undefined || rawNoData === "" ? null : Number(rawNoData);
+    const crs = crsFromKeys(keys);
+    if (!crs.epsg) throw new Error("GeoTIFF CRS is missing or has no recognized EPSG code; refusing to assume EPSG:4326.");
     const transform = getGeoTransform(directory, image);
     const bounds = image.getBoundingBox();
     if (!bounds || bounds.length !== 4 || !bounds.every(Number.isFinite)) throw new Error("GeoTIFF extent is invalid.");
@@ -75,7 +77,7 @@
       sampleFormat: sampleFormat == null ? null : Array.from(sampleFormat),
       bitsPerSample: bitsPerSample == null ? null : Array.from(bitsPerSample),
       noData: Number.isFinite(noData) ? noData : null,
-      crs: crsFromKeys(keys), geoKeys: keys,
+      crs, geoKeys: keys,
       geoTransform: transform,
       extent: { xmin: bounds[0], ymin: bounds[1], xmax: bounds[2], ymax: bounds[3] },
       pixelScale: [Math.hypot(transform[1], transform[4]), Math.hypot(transform[2], transform[5])],
