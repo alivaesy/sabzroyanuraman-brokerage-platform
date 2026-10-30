@@ -111,24 +111,25 @@ Workflow برای این مراحل تنظیم شده است:
 ### موارد پیاده‌سازی‌شده در شاخه
 
 - Adapter اختصاصی Rust متصل به crateهای `rustgis-analysis` و `rustgis-data`
-- API دریافت فهرست ابزارها و اجرای ابزار
-- مسیر ورودی Vector مبتنی بر GeoJSON
-- اجرای پردازش Vector از طریق `rustgis_analysis::run`
-- مسیر بازگرداندن خروجی Vector به WebGIS
-- پنل Runtime و تولید فرم پارامترها بر اساس schema
-- آزمون Native برای Buffer روی نمونه GeoJSON
+- مسیر ورودی و خروجی Vector مبتنی بر GeoJSON
+- اجرای ابزارهای Vector از طریق `rustgis_analysis::run`
+- دریافت فایل اصلی GeoTIFF در مرورگر و نگهداری بایت‌های آن در رجیستری Raster همان نشست
+- خواندن GeoTIFF در Rust با `rustgis_data::raster::geotiff::read`
+- اجرای Slope، Aspect، Hillshade و Raster Calculator با توابع واقعی `rustgis_analysis::rasterops`
+- نوشتن خروجی GeoTIFF با `rustgis_data::raster::geotiff::write` و حفظ CRS و GeoTransform شبکه ورودی
+- دانلود فایل GeoTIFF و ساخت پیش‌نمایش Leaflet از خروجی؛ تصویر پیش‌نمایش جایگزین فایل اصلی نیست
+- امکان استفاده از Raster در کنار لایه Vector برای ابزارهای سازگار مانند Zonal Statistics از طریق `Inputs::raster`
+- آزمون Native برای Buffer و آزمون Raster Slope به‌همراه round-trip نوشتن و خواندن GeoTIFF
 
-### مواردی که هنوز تکمیل یا تأیید نشده‌اند
+### محدودیت‌های باقی‌مانده
 
-- اتصال Raster و GeoTIFF
-- ورودی Raster واقعی و دسترسی به مقادیر پیکسل
-- Raster Calculator، Slope، Aspect و Hillshade در WebGIS
-- تولید خروجی GeoTIFF معتبر با اطلاعات مکانی
-- اعمال Selection Output در مدل انتخاب فعلی WebGIS
-- اتصال GeoLibre و ابزارهای Plugin
-- آزمون End-to-End در مرورگر و هاست واقعی
+- بایت‌های Raster فعلاً در رجیستری نشست مرورگر نگهداری می‌شوند و هنوز در فایل پروژه WebGIS ذخیره نمی‌شوند.
+- Selection Output هنوز به مدل انتخاب فعلی WebGIS اعمال نمی‌شود.
+- همه ابزارهای Raster upstream، ابزارهای نیازمند مسیر فایل، GeoLibre و Pluginها متصل نشده‌اند.
+- پردازش داده‌های بسیار بزرگ و streaming/windowed transfer هنوز پیاده‌سازی نشده است.
+- آزمون End-to-End واقعی در مرورگر و تأیید روی هاست Production انجام نشده است.
 
-برخی انواع خروجی در مدل پاسخ Adapter پیش‌بینی شده‌اند، اما این به معنی پشتیبانی عملیاتی کامل آن‌ها در رابط فعلی نیست. همچنین PNG رندرشده نقشه، جایگزین Raster داده‌ای یا GeoTIFF معتبر نیست.
+PNG پیش‌نمایش نقشه، خروجی تحلیلی Raster نیست. خروجی تحلیلی همان GeoTIFF تولیدشده توسط RustGIS است.
 
 ## 5. وضعیت CI در آخرین گزارش قبلی
 
@@ -143,36 +144,19 @@ Workflow برای این مراحل تنظیم شده است:
 
 **این اطلاعات صرفاً وضعیت تاریخی است.** ادامه‌دهنده باید آخرین commit شاخه و آخرین GitHub Actions مرتبط با HEAD فعلی PR #41 را بررسی کند و نتیجه Native Test و WASM Build را مستقلاً تأیید کند. نتیجه موفقیت build را از روی گزارش قبلی حدس نزند.
 
-## 6. مرحله بعد پس از تأیید بسته فعلی: Raster و GeoTIFF
+## 6. مرحله بعد از اتصال اولیه Raster
 
-پس از تأیید build و تست بسته Vector، مرحله بعد توسعه مسیر Raster است. قبل از تغییر کد، ساختار واقعی Raster در `web-gis.html` و Runtime فعلی را بررسی کنید:
+اتصال اولیه Raster و GeoTIFF در شاخه پیاده‌سازی شده است. اکنون ادامه کار باید روی تکمیل و اعتبارسنجی آن متمرکز باشد:
 
-- منبع فایل اصلی Raster چگونه نگهداری می‌شود؟
-- آیا بایت‌های GeoTIFF یا دسترسی به فایل اصلی موجود است؟
-- آیا `geotiff.js` در پروژه استفاده می‌شود؟
-- آیا فقط تصویر Overlay نگهداری می‌شود یا داده پیکسلی واقعی نیز در دسترس است؟
-- CRS، GeoTransform، Extent، ابعاد تصویر، تعداد باندها، Data Type و NoData کجا ذخیره می‌شوند؟
-- آیا داده Raster فعلی قابل تبدیل به ورودی مورد انتظار RustGIS است؟
+1. بررسی آخرین GitHub Actions برای HEAD فعلی PR و اطمینان از موفقیت Native Test، WASM Build و JavaScript syntax check.
+2. آزمون با GeoTIFF واقعی چندباندی و DEM، از جمله فایل UTM و فایل WGS84.
+3. بررسی صحت CRS، GeoTransform، Extent، اندازه پیکسل، NoData و مقادیر سلولی خروجی.
+4. آزمون زنجیره‌ای: تولید خروجی Raster، انتخاب همان خروجی به‌عنوان ورودی پردازش بعدی، و اطمینان از باقی ماندن فایل اصلی در رجیستری.
+5. بررسی و پیاده‌سازی ذخیره‌سازی Raster source و metadata در فایل پروژه WebGIS، به‌جای نگهداری صرفاً session-scoped.
+6. افزودن آزمون E2E در مرورگر برای Import GeoTIFF، اجرای ابزار RustGIS، نمایش preview و دانلود GeoTIFF.
+7. بررسی محدودیت حافظه WebAssembly و ارائه پیام خطای روشن برای Rasterهای بزرگ‌تر از سقف نمونه‌ها.
 
-سپس:
-
-1. APIهای Raster واقعی در commit قفل‌شده RustGIS را بررسی کنید؛ ابتدا وجود و امضای ابزارها و نوع ورودی/خروجی را از کد upstream تأیید کنید.
-2. پشتیبانی Raster را در Adapter Rust اضافه کنید؛ از جمله ورودی Raster واقعی و metadata مکانی.
-3. انتقال داده Raster از JavaScript به WASM را پیاده کنید. داده ورودی باید مقادیر پیکسل واقعی باشد، نه تصویر نمایشی نقشه.
-4. CRS، transform، extent، ابعاد، باندها، نوع داده و NoData را در مسیر پردازش حفظ کنید.
-5. ابزارهای Raster موجود و قابل استفاده در نسخه pin‌شده RustGIS را به Runtime متصل کنید.
-6. خروجی Raster را به‌صورت GeoTIFF واقعی با CRS و GeoTransform صحیح تولید کنید.
-7. امکان افزودن GeoTIFF خروجی به WebGIS و نمایش آن به‌عنوان لایه Raster را فراهم کنید.
-8. آزمون‌هایی برای صحت metadata و مقادیر پیکسل خروجی اضافه کنید.
-
-ابزارهای هدف اولیه:
-
-- Raster Calculator
-- Slope
-- Aspect
-- Hillshade
-
-وجود هر ابزار در فهرست هدف به معنی موجود بودن آن در نسخه pin‌شده RustGIS نیست؛ قبل از پیاده‌سازی، باید کد و API upstream بررسی شود. اگر ابزاری در نسخه مورد استفاده وجود ندارد، آن را به‌عنوان قابلیت RustGIS معرفی نکنید.
+عملیات Raster متصل‌شده در مرحله فعلی: Slope، Aspect، Hillshade و Raster Calculator. وجود هر ابزار دیگر در فهرست هدف به معنی پشتیبانی آن در commit pin‌شده RustGIS نیست؛ ابتدا API upstream را بررسی کنید.
 
 ## 7. دستورالعمل ادامه کار
 
