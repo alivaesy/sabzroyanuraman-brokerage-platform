@@ -9238,7 +9238,7 @@ function validateModelBuilder(modal,show=true){
    if(["buffer","centroid","pointOnFeature","cleanCoords","simplify","dissolve","dissolveField","selectByAttribute","singlepart","clip","intersection","erase","union","identity","convexHull","boundingBox","areaLength"].includes(op))fields.add("_model_operation");
    if(["centroid","pointOnFeature"].includes(op))geometryTypes=new Set(["Point"]);
    if(["convexHull","boundingBox","buffer","dissolve","dissolveField","clip","intersection","erase","union","identity"].includes(op))geometryTypes=new Set(["Polygon","MultiPolygon"]);
-   if(op==="singlepart"){geometryTypes=new Set([...geometryTypes].map(t=>({MultiPoint:"Point",MultiLineString:"LineString",MultiPolygon:"Polygon"}[t]||t));}
+   if(op==="singlepart"){geometryTypes=new Set([...geometryTypes].map(t=>({MultiPoint:"Point",MultiLineString:"LineString",MultiPolygon:"Polygon"}[t]||t)));}
   });
   if(issues.length)throw new Error(issues.join(String.fromCharCode(10)));
   if(show)say("Validation passed ✓\nInput: "+items[sourceIndex].name+" ("+source.length+" features)\nSteps: "+steps.length+" — layer references and parameters are valid.");
