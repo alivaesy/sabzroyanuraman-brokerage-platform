@@ -1284,6 +1284,8 @@ window.__sabzWebGISSharedBridge={
     let finalName=base,index=2;
     while(used.has(finalName.toLowerCase()))finalName=base+" ("+(index++)+")";
     const layer=L.imageOverlay(imageUrl,L.latLngBounds(bounds[0],bounds[1]),{opacity:.88,interactive:false});
+    layer._sabzRasterPreview=true;
+    layer._sabzGeoTIFFFileName=fileName||finalName+".tif";
     addNamedLayer(finalName,layer,true);
     const sources=window.__sabzGISRasterSources||(window.__sabzGISRasterSources=[]);
     sources.push({name:finalName,fileName:fileName||finalName+".tif",bytes:bytes instanceof Uint8Array?new Uint8Array(bytes):new Uint8Array(bytes)});
@@ -5406,7 +5408,9 @@ function serializeProject(){
     }
     project.drawn.push(f);project.drawnStyles.push(projectStyleOf(l));
   });
-  namedLayers.forEach(x=>project.layers.push(layerToProjectItem(x)));
+  // Raster previews are session layers backed by downloaded GeoTIFF files. They are not
+  // silently serialized as empty vector layers; save the GeoTIFF separately to retain data.
+  namedLayers.filter(x=>!x.layer?._sabzRasterPreview).forEach(x=>project.layers.push(layerToProjectItem(x)));
   selectedFeatures.forEach(featureLayer=>{
     const drawnIndex=drawn.getLayers().indexOf(featureLayer);
     if(drawnIndex>=0){project.selected.push({source:"drawn",index:drawnIndex});return}
