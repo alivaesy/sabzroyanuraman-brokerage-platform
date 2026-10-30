@@ -9154,6 +9154,7 @@ function refreshModelBuilderNodeInputs(modal){
 }
 function modelBuilderTopologicalSteps(modal){
  const rows=[...modal.querySelectorAll("[data-mb-step]")],byId=new Map(rows.map(row=>[row.dataset.mbNodeId,row])),state=new Map(),ordered=[];
+ if(rows.some(row=>!row.dataset.mbNodeId)||byId.size!==rows.length)throw new Error("Model graph contains a missing or duplicate node ID. Re-import or recreate the affected node.");
  const visit=row=>{const id=row.dataset.mbNodeId,mark=state.get(id)||0;if(mark===1)throw new Error("Model graph contains a cycle at node "+(rows.indexOf(row)+1)+". Reconnect the nodes to remove the circular dependency.");if(mark===2)return;state.set(id,1);const input=row.querySelector("[data-mb-input]")?.value||"source",secondary=row.querySelector("[data-mb-overlay-node]")?.value||"";for(const ref of [input==="source"?"":input,secondary]){if(ref){const parent=byId.get(ref);if(!parent)throw new Error("Node "+(rows.indexOf(row)+1)+" references a missing input node.");visit(parent);}}state.set(id,2);ordered.push(row);};
  rows.forEach(visit);return ordered;
 }
@@ -9236,7 +9237,7 @@ function addModelBuilderStep(modal,op="buffer"){
   const down=document.createElement("button");down.type="button";down.dataset.mbDown="1";down.textContent="↓";down.title="Move step down";
   const remove=document.createElement("button");remove.type="button";remove.dataset.mbRemove="1";remove.textContent="−";remove.title="Remove step";
   controls.append(up,down,remove);row.append(number,inputNode,operation,param,overlay,overlayNode,relation,calcTarget,field,whereOp,whereValue,logic,field2,whereOp2,whereValue2,controls);host.appendChild(row);
-  refreshModelBuilderNodeInputs(modal);refreshModelBuilderNodeInputs(modal);refreshModelBuilderStepNumbers(host);renderModelBuilderGraph(modal);
+  refreshModelBuilderNodeInputs(modal);refreshModelBuilderNodeInputs(modal);const output=modal.querySelector("[data-mb-output]");if(output)output.value=row.dataset.mbNodeId;refreshModelBuilderStepNumbers(host);renderModelBuilderGraph(modal);
 }
 function renderModelBuilderGraph(modal){
  const graph=modal.querySelector("[data-mb-graph]"),host=modal.querySelector("[data-mb-steps]");if(!graph||!host)return;
