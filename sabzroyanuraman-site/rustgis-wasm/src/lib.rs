@@ -13,7 +13,7 @@ use serde_json::{Value, json};
 use wasm_bindgen::prelude::*;
 
 const UPSTREAM_REVISION: &str = "38f24336140d59092a31f964e9ac86aab18fdecd";
-const ADAPTER_PROTOCOL_VERSION: u32 = 2;
+const ADAPTER_PROTOCOL_VERSION: u32 = 3;
 const MAX_INPUT_BYTES: usize = 128 * 1024 * 1024;
 
 #[derive(Default)]
@@ -184,7 +184,7 @@ pub fn upstream_revision() -> String {
 
 #[wasm_bindgen]
 pub fn adapter_status() -> String {
-    "ready: RustGIS analysis tools are available".to_owned()
+    "ready: RustGIS vector and raster analysis tools are available".to_owned()
 }
 
 /// Returns the actual RustGIS analysis tool catalogue and parameter definitions.
