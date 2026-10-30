@@ -9651,6 +9651,18 @@ function openRasterWorkspace(){
  p=document.createElement("section");p.id="sabzRasterWorkspace";p.style.cssText="position:fixed;z-index:10020;right:18px;top:72px;width:min(390px,calc(100vw - 30px));max-height:78vh;overflow:auto;background:#f5f7f9;border:1px solid #9aaab4;box-shadow:0 8px 28px #14253635;border-radius:5px;padding:12px;color:#243746;font:12px Arial,sans-serif";
  p.innerHTML='<header style="display:flex;justify-content:space-between"><strong>Raster Analysis · ArcMap</strong><button data-r-close>×</button></header><label>GeoTIFF / COG<input data-r-file type="file" accept=".tif,.tiff,image/tiff" style="display:block;width:100%;margin:8px 0"></label><div data-r-meta style="padding:7px;background:#e8eef2">No raster loaded</div><label style="display:block;margin:8px 0">Operation<select data-r-op style="display:block;width:100%;padding:7px"><option value="display">Display / Stretch</option><option value="slope">Slope (degrees)</option><option value="aspect">Aspect (degrees)</option><option value="hillshade">Hillshade</option><option value="calculator">Raster Calculator</option></select></label><label data-r-expr-wrap style="display:block;margin:8px 0">Expression<input data-r-expr value="B1" style="display:block;width:100%;padding:7px;box-sizing:border-box"><small>B1, B2, B3; + − × ÷ and parentheses.</small></label><label>Output name<input data-r-name value="Raster_Result" style="display:block;width:100%;padding:7px;box-sizing:border-box"></label><div style="display:flex;gap:6px;margin-top:8px"><button data-r-run>Run</button><button data-r-export>Export PNG</button></div><pre data-r-status style="white-space:pre-wrap;background:#e8eef2;padding:8px">Select a GeoTIFF.</pre>';
  document.body.appendChild(p);const say=t=>p.querySelector('[data-r-status]').textContent=t;
+ const tiffButton=document.createElement("button");tiffButton.type="button";tiffButton.textContent="Export GeoTIFF";tiffButton.style.cssText="margin:6px 0;padding:7px 10px";
+ tiffButton.onclick=async()=>{try{
+  const r=sabzRasterState;if(!r||!r.output)throw Error("Run a raster operation first.");
+  const gt=r.sourceMetadata.geoTransform.slice();gt[1]*=r.factor;gt[2]*=r.factor;gt[4]*=r.factor;gt[5]*=r.factor;
+  const meta={...r.sourceMetadata,width:r.ow,height:r.oh,bandCount:1,geoTransform:gt,extent:{xmin:gt[0],ymin:gt[3]+r.ow*gt[4]+r.oh*gt[5],xmax:gt[0]+r.ow*gt[1]+r.oh*gt[2],ymax:gt[3]}};
+  const blob=await SabzRasterRuntime.writeFloat32(r.output.values,meta);
+  const check=await SabzRasterRuntime.verify(blob,meta);if(!check.valid)throw Error("GeoTIFF validation failed: "+JSON.stringify(check.checks));
+  const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=(p.querySelector("[data-r-name]").value||"Raster_Result")+".tif";a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
+  say("GeoTIFF exported; dimensions, CRS, extent and band count verified.");
+ }catch(err){say("GeoTIFF export failed: "+err.message);}};
+ p.querySelector("[data-r-export]").insertAdjacentElement("afterend",tiffButton);
+
  p.querySelector('[data-r-close]').onclick=()=>p.hidden=true;
  p.querySelector('[data-r-op]').onchange=()=>p.querySelector('[data-r-expr-wrap]').hidden=p.querySelector('[data-r-op]').value!=="calculator";
  p.querySelector('[data-r-file]').onchange=async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;try{
