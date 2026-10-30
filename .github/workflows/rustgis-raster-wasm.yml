@@ -1,0 +1,30 @@
+name: RustGIS raster WASM adapter
+on:
+  push:
+    paths:
+      - "rust-raster-wasm/**"
+      - ".github/workflows/rustgis-raster-wasm.yml"
+  pull_request:
+    paths:
+      - "rust-raster-wasm/**"
+      - ".github/workflows/rustgis-raster-wasm.yml"
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: latest
+      - name: Test adapter
+        run: cargo test --manifest-path rust-raster-wasm/Cargo.toml
+      - name: Build browser WASM
+        run: wasm-pack build rust-raster-wasm --target web --out-dir ../sabzroyanuraman-site/wasm/rust-raster --out-name sabz_raster_wasm
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sabz-rustgis-raster-wasm
+          path: sabzroyanuraman-site/wasm/rust-raster/
+          if-no-files-found: error
