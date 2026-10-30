@@ -1263,6 +1263,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <script src="https://unpkg.com/proj4@2.9.2/dist/proj4.js"></script>
 <script src="https://unpkg.com/@turf/turf@7.2.0/turf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js" crossorigin="anonymous"></script>
+<script src="./raster-runtime.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gdal3.js@2.8.1/dist/package/gdal3.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCh3Elxg1P6rxHkNiyvTyFiZ6kBdl1W-Zk"></script>
@@ -5382,6 +5383,7 @@ function serializeProject(){
     if(drawnIndex>=0){project.selected.push({source:"drawn",index:drawnIndex});return}
     for(const item of namedLayers){const i=vectorFeatures(item.layer).findIndex(x=>x.layer===featureLayer);if(i>=0){project.selected.push({source:"layer",name:item.name,index:i});break}}
   });
+  project.rasterAssets=sabzRasterState&&sabzRasterState.assetId?[{assetId:sabzRasterState.assetId,fileName:sabzRasterState.fileName,metadata:sabzRasterState.sourceMetadata}]:[];
   project.integrity={drawnCount:project.drawn.length,layerCount:project.layers.length,featureCount:project.drawn.length+project.layers.reduce((n,x)=>n+x.features.length,0)};
   return project;
 }
@@ -9626,16 +9628,16 @@ function openRasterWorkspace(){
  p.querySelector('[data-r-op]').onchange=()=>p.querySelector('[data-r-expr-wrap]').hidden=p.querySelector('[data-r-op]').value!=="calculator";
  p.querySelector('[data-r-file]').onchange=async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;try{
   if(typeof GeoTIFF==="undefined")throw Error("GeoTIFF reader unavailable.");
-  say("Reading raster…");const tif=await GeoTIFF.fromArrayBuffer(await file.arrayBuffer()),im=await tif.getImage(),w=im.getWidth(),h=im.getHeight();
+  say("Reading source GeoTIFF…");if(!window.SabzRasterRuntime)throw Error("Raster runtime is not loaded.");const rasterData=await SabzRasterRuntime.read(file),im=await (await GeoTIFF.fromArrayBuffer(rasterData.bytes)).getImage(),w=rasterData.metadata.width,h=rasterData.metadata.height;
   if(w*h>50000000)throw Error("Raster exceeds 50 million pixels; clip or build an overview first.");
-  const bands=(await im.readRasters({interleave:false})).map(a=>Float32Array.from(a)),keys=im.getGeoKeys?im.getGeoKeys():{},epsg=Number(keys.ProjectedCSTypeGeoKey||keys.GeographicTypeGeoKey||4326),rawNoData=im.getGDALNoData?im.getGDALNoData():null,noData=rawNoData===null||rawNoData===undefined?null:Number(rawNoData),bb=im.getBoundingBox();
+  const bands=rasterData.bands.map(a=>Float32Array.from(a)),keys=rasterData.metadata.geoKeys||{},epsg=rasterData.metadata.crs.epsg||4326,noData=rasterData.metadata.noData,bb=[rasterData.metadata.extent.xmin,rasterData.metadata.extent.ymin,rasterData.metadata.extent.xmax,rasterData.metadata.extent.ymax];
   if(!bb||bb.length!==4||!bb.every(Number.isFinite))throw Error("No valid GeoTIFF georeferencing found.");
   let crs=epsg===4326?"EPSG:4326":epsg===3857?"EPSG:3857":epsg>=32601&&epsg<=32660?"+proj=utm +zone="+(epsg-32600)+" +datum=WGS84 +units=m +no_defs":epsg>=32701&&epsg<=32760?"+proj=utm +zone="+(epsg-32700)+" +south +datum=WGS84 +units=m +no_defs":null;
   if(!crs)throw Error("EPSG:"+epsg+" not supported in browser. Reproject to EPSG:4326 or UTM WGS84.");
   const ll=xy=>epsg===4326?xy:epsg===3857?[xy[0]/6378137*180/Math.PI,Math.atan(Math.sinh(xy[1]/6378137))*180/Math.PI]:proj4(crs,"EPSG:4326",xy);
   const a=ll([bb[0],bb[1]]),b=ll([bb[2],bb[3]]),bounds=[[Math.min(a[1],b[1]),Math.min(a[0],b[0])],[Math.max(a[1],b[1]),Math.max(a[0],b[0])]];
   const factor=Math.max(1,Math.ceil(Math.max(w,h)/1400)),ow=Math.ceil(w/factor),oh=Math.ceil(h/factor),scale=im.getFileDirectory().ModelPixelScale||[],canvas=document.createElement("canvas");canvas.width=ow;canvas.height=oh;
-  sabzRasterState={fileName:file.name,w,h,bands,epsg,noData:Number.isFinite(noData)?noData:null,bounds,factor,ow,oh,cellX:Number(scale[0])||Math.abs(bb[2]-bb[0])/w,cellY:Number(scale[1])||Math.abs(bb[3]-bb[1])/h,canvas,layer:null};
+  sabzRasterState={fileName:file.name,w,h,bands,epsg,noData:Number.isFinite(noData)?noData:null,bounds,factor,ow,oh,cellX:rasterData.metadata.pixelScale[0]||Math.abs(bb[2]-bb[0])/w,cellY:rasterData.metadata.pixelScale[1]||Math.abs(bb[3]-bb[1])/h,canvas,layer:null,sourceBlob:rasterData.blob,sourceMetadata:rasterData.metadata,assetId:null};const rasterProjectId=currentProjectId||projectId();currentProjectId=rasterProjectId;sabzRasterState.assetId="raster-"+Date.now().toString(36);await SabzRasterRuntime.saveAsset(rasterProjectId,sabzRasterState.assetId,rasterData.blob,rasterData.metadata);
   p.querySelector('[data-r-meta]').textContent=w+" × "+h+" px · "+bands.length+" band(s) · EPSG:"+epsg+" · "+file.name;say("Loaded. Choose operation and Run.");p.querySelector('[data-r-op]').dispatchEvent(new Event("change"));renderSabzRaster("display");
  }catch(err){say("Load failed: "+err.message);}};
  p.querySelector('[data-r-run]').onclick=()=>{try{if(!sabzRasterState)throw Error("Load a GeoTIFF first.");renderSabzRaster(p.querySelector('[data-r-op]').value);say("Completed: "+p.querySelector('[data-r-name]').value);}catch(err){say("Processing failed: "+err.message);}};
