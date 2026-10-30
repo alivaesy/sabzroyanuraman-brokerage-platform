@@ -217,3 +217,41 @@ pub fn run_tool(tool_id: &str, layers_json: &str, params_json: &str) -> Result<S
     }
     serde_json::to_string(&output).map_err(js_error)
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn buffer_runs_through_the_pinned_rustgis_analysis_engine() {
+        let geojson = r#"{
+            "type":"FeatureCollection",
+            "features":[
+                {"type":"Feature","id":1,"properties":{"site":"test"},"geometry":{"type":"Point","coordinates":[47.75,33.62]}}
+            ]
+        }"#;
+        let (dataset, _) = rustgis_data::io::read_geojson(geojson, "test_points")
+            .expect("test GeoJSON must be readable");
+        let mut inputs = LayerInputs::default();
+        inputs.datasets.insert("test_points".into(), dataset);
+
+        let result = rustgis_analysis::run(
+            "buffer",
+            &inputs,
+            &json!({
+                "input":"test_points",
+                "distance":250,
+                "units":"Meters",
+                "dissolve":"None",
+                "output":"test_buffers"
+            }),
+        ).expect("RustGIS Buffer should execute");
+
+        let Output::Layer(output) = result.output else {
+            panic!("RustGIS Buffer should return a vector layer");
+        };
+        assert!(!output.features.is_empty(), "Buffer should produce at least one polygon");
+        let encoded = dataset_geojson(&output).expect("Buffer output should serialize to GeoJSON");
+        assert_eq!(encoded.get("type").and_then(Value::as_str), Some("FeatureCollection"));
+        assert_eq!(encoded.get("features").and_then(Value::as_array).map(Vec::len), Some(output.features.len()));
+    }
+}
