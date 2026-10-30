@@ -176,7 +176,7 @@
       await module.default();
       engine = module;
       const raw = JSON.parse(engine.list_tools());
-      catalogue = [...(Array.isArray(raw.tools) ? raw.tools : []), ...(Array.isArray(raw.rasterTools) ? raw.rasterTools : [])];
+      catalogue = Array.isArray(raw.tools) ? raw.tools : [];
       window.SabzRoyanRustGIS = {
         status: engine.adapter_status(),
         protocol: engine.adapter_protocol_version(),
