@@ -29,7 +29,6 @@ Map upstream crates to adapter responsibilities: data/geom for formats and spati
 ## Functional boundaries
 
 This package improves graph interaction and Layout element selection. It does NOT claim to complete:
-
 - georeferenced GeoTIFF output from Raster Calculator/Slope/Aspect/Hillshade
 - arbitrary EPSG/CRS support in the current browser raster loader
 - a full RustGIS geoprocessing catalogue or WASM runtime
