@@ -38,6 +38,7 @@
       noData: module.output_nodata_value(), crs: m.crs, engine: "RustGIS/WASM"
     };
   }
+  async function outputNoDataValue() { return (await load()).output_nodata_value(); }
   async function inspectPluginPackage(fileBytes) {
     const module = await load();
     const bytes = fileBytes instanceof Uint8Array ? fileBytes : new Uint8Array(fileBytes);
@@ -61,7 +62,7 @@
     return JSON.parse((await load()).run_installed_plugin_command(id, JSON.stringify(params || {})));
   }
   root.SabzRustRasterBridge = Object.freeze({
-    load, processRaster, inspectPluginPackage, installPluginPackage,
+    load, processRaster, outputNoDataValue, inspectPluginPackage, installPluginPackage,
     listPlugins, setPluginEnabled, uninstallPlugin, runPluginCommand
   });
 })(window);
