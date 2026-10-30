@@ -5453,6 +5453,38 @@ function projectFeatureLayer(features,name){
   return layer;
 }
 
+async function addGeoLibreOutputToWebGIS(output){
+  const name=String(output.name||"GeoLibre_Output"),blob=new Blob([output.bytes],{type:/\.(tif|tiff)$/i.test(name)?"image/tiff":"application/octet-stream"});
+  if(/\.(tif|tiff)$/i.test(name)){
+    const parsed=await SabzRasterRuntime.read(new File([blob],name,{type:"image/tiff"})),m=parsed.metadata;
+    if(Math.abs(m.geoTransform[2])>1e-12||Math.abs(m.geoTransform[4])>1e-12)throw new Error("Rotated GeoTIFF output must be warped to a north-up grid before map preview.");
+    const epsg=m.crs.epsg,xyToLL=xy=>epsg===4326?xy:epsg===3857?[xy[0]/6378137*180/Math.PI,Math.atan(Math.sinh(xy[1]/6378137))*180/Math.PI]:proj4("EPSG:"+epsg,"EPSG:4326",xy);
+    const a=xyToLL([m.extent.xmin,m.extent.ymin]),b=xyToLL([m.extent.xmax,m.extent.ymax]);
+    const bounds=[[Math.min(a[1],b[1]),Math.min(a[0],b[0])],[Math.max(a[1],b[1]),Math.max(a[0],b[0])]];
+    const factor=Math.max(1,Math.ceil(Math.max(m.width,m.height)/1400)),width=Math.ceil(m.width/factor),height=Math.ceil(m.height/factor),canvas=document.createElement("canvas");canvas.width=width;canvas.height=height;
+    const ctx=canvas.getContext("2d"),img=ctx.createImageData(width,height),band=parsed.bands[0];let lo=Infinity,hi=-Infinity;
+    for(let y=0;y<height;y++)for(let x=0;x<width;x++){const v=band[Math.min(m.height-1,y*factor)*m.width+Math.min(m.width-1,x*factor)];if(Number.isFinite(v)&&(m.noData===null||v!==m.noData)){lo=Math.min(lo,v);hi=Math.max(hi,v);}}
+    if(!Number.isFinite(lo)||!Number.isFinite(hi))throw new Error("GeoLibre raster output contains no valid pixels.");
+    const span=Math.max(1e-12,hi-lo);
+    for(let y=0;y<height;y++)for(let x=0;x<width;x++){const v=band[Math.min(m.height-1,y*factor)*m.width+Math.min(m.width-1,x*factor)],k=(y*width+x)*4;if(!Number.isFinite(v)||(m.noData!==null&&v===m.noData)){img.data[k+3]=0;continue;}const c=Math.max(0,Math.min(255,Math.round((v-lo)/span*255)));img.data[k]=img.data[k+1]=img.data[k+2]=c;img.data[k+3]=255;}
+    ctx.putImageData(img,0,0);
+    const assetProjectId=String(currentProjectId||projectId());currentProjectId=assetProjectId;
+    const assetId="geolibre-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7);
+    await SabzRasterRuntime.saveAsset(assetProjectId,assetId,blob,m);
+    sabzRasterAssetRefs=sabzRasterAssetRefs.filter(r=>r.assetId!==assetId);sabzRasterAssetRefs.push({assetId,fileName:name,metadata:m});
+    const layer=L.imageOverlay(canvas.toDataURL("image/png"),L.latLngBounds(bounds[0],bounds[1]),{opacity:.9});
+    layer._sabzRasterAssetId=assetId;layer._sabzRasterMetadata=m;addNamedLayer(name+" · GeoLibre",layer,true);
+    if(remoteGisUser&&remoteGisOrganization&&remoteGisProjectId)await remoteGisSyncRasterAssets(assetProjectId,remoteGisProjectId);
+    scheduleAutoSave();return {type:"raster",name,assetId};
+  }
+  if(/\.(geojson|json)$/i.test(name)){
+    const data=JSON.parse(new TextDecoder().decode(output.bytes));
+    if(!data||!(data.type==="FeatureCollection"||data.type==="Feature"||data.type==="GeometryCollection"))throw new Error("JSON output is not GeoJSON.");
+    const layer=L.geoJSON(data,{style:()=>({color:"#a45a16",weight:2,fillOpacity:.15}),onEachFeature:(feature,featureLayer)=>{featureLayer.bindPopup(Object.entries(feature.properties||{}).map(([k,v])=>esc(k)+": "+esc(v)).join("<br>"));attachFeatureSelection(featureLayer);}});
+    addNamedLayer(name+" · GeoLibre",layer,true);scheduleAutoSave();return {type:"vector",name};
+  }
+  return {type:"download",name,blob};
+}
 async function restoreSavedRasterAssets(project){
   sabzRasterAssetRefs=project&&Array.isArray(project.rasterAssets)?project.rasterAssets.slice():[];
   if(!project||!Array.isArray(project.rasterAssets)||!project.rasterAssets.length||!window.SabzRasterRuntime)return;
@@ -9729,7 +9761,11 @@ function openRasterWorkspace(){
   const bytes=new Uint8Array(await sabzRasterState.sourceBlob.arrayBuffer());
   const result=await SabzGeoLibreBridge.run(tool,args,[{name:"input.tif",bytes}]);
   note.textContent=(result.exitCode===0?"Completed":"Tool returned exit code "+result.exitCode)+"\n"+result.stdout.join("\n");
-  result.files.forEach(file=>{const blob=new Blob([file.bytes],{type:/\.(tif|tiff)$/i.test(file.name)?"image/tiff":"application/octet-stream"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=file.name;a.textContent="Download "+file.name;a.style.display="block";a.style.margin="5px 0";filesBox.appendChild(a);});
+  for(const file of result.files){
+    const imported=await addGeoLibreOutputToWebGIS(file);
+    const linkBlob=imported.blob||new Blob([file.bytes],{type:"application/octet-stream"}),url=URL.createObjectURL(linkBlob),a=document.createElement("a");
+    a.href=url;a.download=file.name;a.textContent=imported.type==="download"?"Download "+file.name:"Added to WebGIS layers: "+file.name;a.style.display="block";a.style.margin="5px 0";filesBox.appendChild(a);
+  }
   if(result.exitCode!==0)throw Error("GeoLibre tool did not complete successfully.");
   if(!result.files.length)note.textContent+="\\nNo output files were returned.";
  }catch(error){note.textContent="GeoLibre run failed: "+(error.message||error);}};
