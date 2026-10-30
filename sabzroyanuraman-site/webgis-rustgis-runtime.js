@@ -38,6 +38,92 @@
     throw new Error("Layer '" + item.name + "' did not produce a GeoJSON FeatureCollection.");
   }
 
+  function availableRasterLayers() {
+    return bridge()?.rasterSources || [];
+  }
+
+  function rasterSource(name) {
+    return availableRasterLayers().find(item => item?.name === name && item.bytes);
+  }
+
+  function bytesToBase64(input) {
+    const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
+    let binary = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + chunk, bytes.length)));
+    }
+    return btoa(binary);
+  }
+
+  function downloadBytes(bytes, fileName, mimeType) {
+    const blob = new Blob([bytes], {type:mimeType || "application/octet-stream"});
+    const url = URL.createObjectURL(blob);
+    const a = $("a", {href:url, download:fileName || "rustgis-output.bin"});
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+  }
+
+  async function addGeoTIFFOutput(name, bytes, fileName) {
+    if (typeof GeoTIFF === "undefined") throw new Error("GeoTIFF reader is unavailable for preview.");
+    const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    const tif = await GeoTIFF.fromArrayBuffer(buffer);
+    const image = await tif.getImage();
+    const width = image.getWidth(), height = image.getHeight();
+    const factor = Math.max(1, Math.ceil(Math.max(width, height) / 1400));
+    const outWidth = Math.max(1, Math.ceil(width / factor));
+    const outHeight = Math.max(1, Math.ceil(height / factor));
+    const bands = await image.readRasters({width:outWidth, height:outHeight, interleave:false});
+    const geoKeys = image.getGeoKeys ? image.getGeoKeys() : {};
+    const epsg = Number(geoKeys.ProjectedCSTypeGeoKey || geoKeys.GeographicTypeGeoKey || 4326);
+    const box = image.getBoundingBox();
+    if (!box || box.length !== 4 || !box.every(Number.isFinite)) throw new Error("Output GeoTIFF has no valid bounding box.");
+    const toLonLat = xy => {
+      if (epsg === 4326) return xy;
+      const code = "EPSG:" + epsg;
+      if (typeof proj4 !== "function" || !proj4.defs(code)) throw new Error("Cannot preview " + code + " because its projection definition is unavailable.");
+      return proj4(code, "EPSG:4326", xy);
+    };
+    const a = toLonLat([box[0], box[1]]), b = toLonLat([box[2], box[3]]);
+    const bounds = [[Math.min(a[1], b[1]), Math.min(a[0], b[0])], [Math.max(a[1], b[1]), Math.max(a[0], b[0])]];
+    const canvas = document.createElement("canvas");
+    canvas.width = outWidth; canvas.height = outHeight;
+    const ctx = canvas.getContext("2d");
+    const imageData = ctx.createImageData(outWidth, outHeight);
+    const noDataRaw = image.getGDALNoData ? image.getGDALNoData() : null;
+    const noData = noDataRaw === null || noDataRaw === undefined ? null : Number(noDataRaw);
+    const valid = value => Number.isFinite(value) && (noData === null || value !== noData);
+    const first = bands[0];
+    const sample = Array.from(first).filter(valid).sort((x,y)=>x-y);
+    if (!sample.length) throw new Error("Output GeoTIFF has no valid pixels to preview.");
+    const lo = sample[Math.floor((sample.length-1)*0.02)];
+    const hi = sample[Math.floor((sample.length-1)*0.98)];
+    const span = Math.max(1e-12, hi-lo);
+    const rgb = bands.length >= 3;
+    const ranges = rgb ? bands.slice(0,3).map(band => {
+      const values = Array.from(band).filter(valid).sort((x,y)=>x-y);
+      return values.length ? [values[Math.floor((values.length-1)*0.02)], values[Math.floor((values.length-1)*0.98)]] : [0,255];
+    }) : null;
+    for (let i=0;i<first.length;i++) {
+      const offset=i*4, value=first[i];
+      if (!valid(value)) { imageData.data[offset+3]=0; continue; }
+      if (rgb) {
+        for (let channel=0;channel<3;channel++) {
+          const range=ranges[channel], v=bands[channel][i];
+          imageData.data[offset+channel]=valid(v)?Math.max(0,Math.min(255,Math.round((v-range[0])/Math.max(1e-12,range[1]-range[0])*255))):0;
+        }
+      } else {
+        const gray=Math.max(0,Math.min(255,Math.round((value-lo)/span*255)));
+        imageData.data[offset]=gray; imageData.data[offset+1]=gray; imageData.data[offset+2]=gray;
+      }
+      imageData.data[offset+3]=255;
+    }
+    ctx.putImageData(imageData,0,0);
+    const added = bridge()?.addRasterOverlay?.(name, canvas.toDataURL("image/png"), bounds, bytes, fileName || (name + ".tif"));
+    if (!added) throw new Error("The map could not register the GeoTIFF output layer.");
+    return added;
+  }
+
   function uniqueName(name) {
     const used = new Set(availableLayers().map(item => String(item.name).toLowerCase()));
     const base = String(name || "RustGIS output").trim() || "RustGIS output";
@@ -62,13 +148,14 @@
       await module.default();
       engine = module;
       const raw = JSON.parse(engine.list_tools());
-      catalogue = Array.isArray(raw.tools) ? raw.tools : [];
+      catalogue = [...(Array.isArray(raw.tools) ? raw.tools : []), ...(Array.isArray(raw.rasterTools) ? raw.rasterTools : [])];
       window.SabzRoyanRustGIS = {
         status: engine.adapter_status(),
         protocol: engine.adapter_protocol_version(),
         upstream: engine.upstream_revision(),
         listTools: () => catalogue.slice(),
-        runTool: (id, layers, params) => JSON.parse(engine.run_tool(id, JSON.stringify(layers), JSON.stringify(params)))
+        runTool: (id, layers, params) => JSON.parse(engine.run_tool(id, JSON.stringify(layers), JSON.stringify(params))),
+        runRasterTool: (id, base64, fileName, params) => JSON.parse(engine.run_raster_tool(id, base64, fileName, JSON.stringify(params)))
       };
       setStatus("RustGIS آماده است؛ " + catalogue.length + " ابزار پردازشی شناسایی شد.");
       return engine;
@@ -144,13 +231,11 @@
   }
 
   function unsupportedReason(tool) {
-    const unsupported = (tool.params || []).find(param =>
-      ["raster-layer","raster-layers","path","save-file"].includes(param.kind?.type)
-    );
-    if (!unsupported) return "";
-    const kind = unsupported.kind?.type;
-    if (kind === "raster-layer" || kind === "raster-layers") return "ورودی Raster هنوز به پل داده‌های مرورگر متصل نشده است.";
-    return "این ابزار به ورودی/خروجی فایل مستقیم نیاز دارد که هنوز به رابط مرورگر متصل نشده است.";
+    const rasterParam = (tool.params || []).find(param => ["raster-source","raster-layer","raster-layers"].includes(param.kind?.type));
+    if (rasterParam && !availableRasterLayers().length) return "ابتدا از مسیر Insert → Raster Analysis یک فایل GeoTIFF بارگذاری کنید.";
+    const unsupported = (tool.params || []).find(param => ["path","save-file"].includes(param.kind?.type));
+    if (unsupported) return "این ابزار به ورودی/خروجی فایل مستقیم نیاز دارد که هنوز به رابط مرورگر متصل نشده است.";
+    return "";
   }
 
   function renderParams() {
@@ -164,19 +249,25 @@
       return;
     }
     const layers = availableLayers();
+    const rasters = availableRasterLayers();
     for (const param of tool.params || []) {
       const row = $("div", {class:"rg-row"});
       const id = "rgp-" + param.name;
       row.appendChild($("label", {for:id}, param.label + (param.required ? " *" : "")));
       const kind = param.kind?.type;
       let control;
-      if (["layer","polygon-layer","point-layer","vector-layer","raster-layer"].includes(kind)) {
+      if (kind === "raster-source" || kind === "raster-layer") {
+        control = $("select", {id, "data-param":param.name, "data-kind":kind});
+        if (!param.required) control.appendChild($("option", {value:""}, "— انتخاب Raster —"));
+        for (const item of rasters) control.appendChild($("option", {value:item.name}, item.name));
+      } else if (["layer","polygon-layer","point-layer","vector-layer"].includes(kind)) {
         control = $("select", {id, "data-param":param.name, "data-kind":kind});
         if (!param.required) control.appendChild($("option", {value:""}, "— انتخاب لایه —"));
         for (const item of layers) control.appendChild($("option", {value:item.name}, item.name));
       } else if (kind === "vector-layers" || kind === "raster-layers") {
         control = $("select", {id, multiple:"multiple", "data-param":param.name, "data-kind":kind});
-        for (const item of layers) control.appendChild($("option", {value:item.name}, item.name));
+        const sourceList = kind === "raster-layers" ? rasters : layers;
+        for (const item of sourceList) control.appendChild($("option", {value:item.name}, item.name));
       } else if (kind === "choice") {
         control = $("select", {id, "data-param":param.name, "data-kind":kind});
         for (const choice of (param.kind.choices || [])) control.appendChild($("option", {value:choice}, choice));
@@ -229,7 +320,15 @@
         if (!param.required && value === "") continue;
       }
 
-      if (["layer","polygon-layer","point-layer","vector-layer","raster-layer"].includes(kind)) {
+      if (kind === "raster-source") {
+        if (value && !rasterSource(value)) throw new Error("Raster «" + value + "» دیگر در پروژه موجود نیست.");
+      } else if (kind === "raster-layer") {
+        if (value) {
+          const item = rasterSource(value);
+          if (!item) throw new Error("Raster «" + value + "» دیگر در پروژه موجود نیست.");
+          layerPayload[value] = {__kind:"geotiff",fileName:item.fileName || (item.name + ".tif"),base64:bytesToBase64(item.bytes)};
+        }
+      } else if (["layer","polygon-layer","point-layer","vector-layer"].includes(kind)) {
         if (value) {
           const item = availableLayers().find(layer => layer.name === value);
           if (!item) throw new Error("لایه «" + value + "» دیگر در پروژه وجود ندارد.");
@@ -237,9 +336,15 @@
         }
       } else if (kind === "vector-layers" || kind === "raster-layers") {
         for (const name of value) {
-          const item = availableLayers().find(layer => layer.name === name);
-          if (!item) throw new Error("لایه «" + name + "» دیگر در پروژه وجود ندارد.");
-          layerPayload[name] = layerGeoJSON(item);
+          if (kind === "raster-layers") {
+            const item = rasterSource(name);
+            if (!item) throw new Error("Raster «" + name + "» دیگر در پروژه موجود نیست.");
+            layerPayload[name] = {__kind:"geotiff",fileName:item.fileName || (item.name + ".tif"),base64:bytesToBase64(item.bytes)};
+          } else {
+            const item = availableLayers().find(layer => layer.name === name);
+            if (!item) throw new Error("لایه «" + name + "» دیگر در پروژه وجود ندارد.");
+            layerPayload[name] = layerGeoJSON(item);
+          }
         }
       }
       if (value !== "" && value !== undefined) params[param.name] = value;
@@ -267,7 +372,14 @@
       const {params, layerPayload} = collectParams(tool);
       status.textContent = "در حال اجرای " + tool.name + " با RustGIS...";
       setStatus(status.textContent);
-      const result = window.SabzRoyanRustGIS.runTool(tool.id, layerPayload, params);
+      let result;
+      if (tool.engine === "rasterops") {
+        const source = rasterSource(params.raster);
+        if (!source) throw new Error("Raster ورودی انتخاب‌شده در دسترس نیست.");
+        result = window.SabzRoyanRustGIS.runRasterTool(tool.id, bytesToBase64(source.bytes), source.fileName || (source.name + ".tif"), params);
+      } else {
+        result = window.SabzRoyanRustGIS.runTool(tool.id, layerPayload, params);
+      }
       const outputMessages = [];
       for (const output of result.outputs || []) {
         if (output.kind === "vector" || output.kind === "update") {
@@ -275,15 +387,24 @@
           const added = bridge()?.addGeoJSONLayer?.(name, output.geojson);
           if (!added) throw new Error("خروجی محاسبه شد، اما رابط نقشه امکان افزودن لایه را فراهم نکرد.");
           outputMessages.push("لایه خروجی افزوده شد: " + added);
+        } else if (output.kind === "raster-file" && output.base64) {
+          const binary = atob(output.base64);
+          const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+          const fileName = output.fileName || ((output.name || "rustgis-raster") + ".tif");
+          try {
+            const added = await addGeoTIFFOutput(uniqueName(output.name || tool.name), bytes, fileName);
+            outputMessages.push("لایه Raster با GeoTIFF واقعی به نقشه افزوده شد: " + added);
+          } catch (previewError) {
+            outputMessages.push("GeoTIFF تولید شد؛ پیش‌نمایش نقشه ایجاد نشد: " + (previewError?.message || previewError));
+          }
+          downloadBytes(bytes, fileName, "image/tiff");
+          outputMessages.push("فایل GeoTIFF دانلود شد: " + fileName);
         } else if (output.kind === "selection") {
           outputMessages.push("ابزار " + output.name + " تعداد " + (output.rows || []).length + " عارضه را انتخاب کرد. اعمال انتخاب به جدول در مرحله بعدی اتصال انجام می‌شود.");
         } else if (output.base64) {
           const binary = atob(output.base64);
           const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
-          const blob = new Blob([bytes], {type:"application/octet-stream"});
-          const url = URL.createObjectURL(blob);
-          const a = $("a", {href:url, download:output.fileName || output.name || "rustgis-output.bin"});
-          document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+          downloadBytes(bytes, output.fileName || output.name || "rustgis-output.bin", "application/octet-stream");
           outputMessages.push("فایل خروجی دانلود شد: " + (output.fileName || output.name));
         }
       }
