@@ -63,3 +63,19 @@ The generated WASM package is not available to the live site until the PR is mer
 ## Important architecture boundary
 
 This is a real first-stage RustGIS processing integration for vector data, not a complete ArcMap replacement. The UI, editing, layer management, Layout View and ModelBuilder remain in the existing Sabz Royan application. The next substantial integration is the raster data bridge, followed by applying selection/update outputs and adding end-to-end tests with representative GeoJSON and GeoTIFF fixtures.
+
+
+## Raster / GeoTIFF integration
+
+The adapter now has a second execution path for raster data:
+
+- GeoTIFF input is read from browser-provided bytes using `rustgis_data::raster::geotiff::read`.
+- `run_raster_tool` dispatches to the pinned RustGIS `rasterops` algorithms for Slope, Aspect, Hillshade and Raster Calculator.
+- `rustgis_analysis::rasterops::derive` builds the output on the input raster grid.
+- `rustgis_data::raster::geotiff::write` produces the actual output GeoTIFF, preserving the grid transform and CRS.
+- The runtime downloads the TIFF and attempts a lightweight Leaflet preview using GeoTIFF.js.
+- The standard `run_tool` adapter path can now receive a GeoTIFF payload in addition to GeoJSON and exposes it through `Inputs::raster`, for mixed workflows such as Zonal Statistics.
+
+The existing Raster Import workspace registers original GeoTIFF bytes in a browser-session source registry. The RG toolbox reads from that registry. Output previews are deliberately excluded from the current vector-only project serializer so they are not silently saved as empty vector layers. Persisting raster sources and raster layers inside saved WebGIS projects is a later task.
+
+This stage does not yet connect every upstream raster tool. In particular, Raster-to-PMTiles requires a map/style-aware tile provider implementation, and other file/path tools remain unavailable in the browser UI.
