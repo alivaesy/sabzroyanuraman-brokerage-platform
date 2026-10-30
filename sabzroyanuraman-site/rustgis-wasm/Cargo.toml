@@ -12,17 +12,14 @@ crate-type = ["cdylib", "rlib"]
 wasm-bindgen = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-serde-wasm-bindgen = "0.6"
+base64 = "0.23"
 
-# Pin the upstream workspace to a reviewed commit. These dependencies deliberately
-# make the RustGIS engine/data/analysis crates part of this adapter's build graph.
-# The command/session API is wired in the next integration stage after API-level
-# compatibility tests are added; this crate currently exposes only a bridge handshake.
-rustgis-engine = { git = "https://github.com/opengeos/RustGIS.git", rev = "38f24336140d59092a31f964e9ac86aab18fdecd", default-features = false }
+# Use RustGIS's actual analysis and data crates, pinned to one immutable upstream revision.
+# The UI remains in the Sabz Royan JavaScript application; the processing algorithms execute here.
 rustgis-analysis = { git = "https://github.com/opengeos/RustGIS.git", rev = "38f24336140d59092a31f964e9ac86aab18fdecd", default-features = false }
 rustgis-data = { git = "https://github.com/opengeos/RustGIS.git", rev = "38f24336140d59092a31f964e9ac86aab18fdecd", default-features = false }
 
 [profile.release]
 opt-level = 3
-lto = true
+lto = "fat"
 codegen-units = 1
