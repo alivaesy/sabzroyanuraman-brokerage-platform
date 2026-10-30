@@ -10,7 +10,7 @@ const { chromium } = require("playwright");
     await page.waitForFunction(() => {
       const text = document.querySelector("#out")?.textContent || "";
       return text.includes("ALL TESTS PASSED") || text.includes("FAIL:");
-    }, { timeout: 180000 });
+    }, null, { timeout: 180000 });
     const output = await page.locator("#out").textContent();
     process.stdout.write(output + "\n");
     if (!output.includes("ALL TESTS PASSED")) process.exitCode = 1;
