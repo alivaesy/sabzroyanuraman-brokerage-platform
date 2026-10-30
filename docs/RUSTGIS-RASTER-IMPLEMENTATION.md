@@ -70,3 +70,15 @@ The native Buffer test passed before Raster was added. A native Slope-to-GeoTIFF
 - Perform browser testing with a real GeoTIFF and verify CRS, dimensions, transform, NoData and pixel values after reopening the output.
 
 Do not merge PR #41 or deploy to the live site without the repository owner's explicit approval.
+
+
+## CI evidence
+
+Workflow run `41071256533` on commit `f19fea52dbae89be0defbda257ec27e117236078` completed successfully. The following steps all passed:
+
+- Native adapter tests, including the Raster slope-to-GeoTIFF round-trip.
+- Optimized WebAssembly package build.
+- Browser runtime JavaScript syntax check.
+- Upload of the `sabzroyan-rustgis-wasm` artifact (about 1.6 MB).
+
+The artifact is available in GitHub Actions for 14 days from 2026-10-30. Later commits bumped the adapter protocol to version 3 and expanded the Raster test to exercise Aspect, Hillshade and band math; their newer CI runs were still in progress at the time of this note. Therefore the successful run proves the Raster implementation builds, but not yet the final protocol-v3/test-expanded commit.
