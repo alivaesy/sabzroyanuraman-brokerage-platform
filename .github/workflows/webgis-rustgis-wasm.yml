@@ -3,27 +3,73 @@ name: WebGIS RustGIS WASM adapter
 on:
   pull_request:
     paths:
+      - "sabzroyanuraman-site/web-gis.html"
+      - "sabzroyanuraman-site/webgis-rustgis-runtime.js"
       - "sabzroyanuraman-site/rustgis-wasm/**"
       - ".github/workflows/webgis-rustgis-wasm.yml"
   push:
     branches: [master]
     paths:
+      - "sabzroyanuraman-site/web-gis.html"
+      - "sabzroyanuraman-site/webgis-rustgis-runtime.js"
       - "sabzroyanuraman-site/rustgis-wasm/**"
       - ".github/workflows/webgis-rustgis-wasm.yml"
 
+permissions:
+  contents: write
+
 jobs:
-  wasm-check:
+  wasm-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
-      - name: Install Clang for RustGIS raster dependencies
+
+      - uses: jetli/wasm-pack-action@v0.4.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install native build tools used by RustGIS data dependencies
         run: sudo apt-get update && sudo apt-get install -y clang
-      - name: Check pinned RustGIS adapter for WebAssembly
+
+      - name: Check Rust adapter formatting
         working-directory: sabzroyanuraman-site/rustgis-wasm
-        run: cargo check --target wasm32-unknown-unknown
-      - name: Build optimized WebAssembly adapter
+        run: cargo fmt --all -- --check
+
+      - name: Test adapter on the native host
         working-directory: sabzroyanuraman-site/rustgis-wasm
-        run: cargo build --release --target wasm32-unknown-unknown
+        run: cargo test --locked=false
+
+      - name: Build optimized RustGIS WebAssembly package
+        working-directory: sabzroyanuraman-site/rustgis-wasm
+        run: wasm-pack build --target web --release --out-dir ../rustgis-wasm-pkg --out-name sabzroyan_rustgis_wasm
+
+      - name: Check browser runtime JavaScript syntax
+        run: node --check sabzroyanuraman-site/webgis-rustgis-runtime.js
+
+      - name: Upload WASM package for pull request inspection
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sabzroyan-rustgis-wasm
+          path: sabzroyanuraman-site/rustgis-wasm-pkg/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Commit generated browser WASM package to master for static hosting
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add sabzroyanuraman-site/rustgis-wasm-pkg sabzroyanuraman-site/rustgis-wasm/Cargo.lock
+          if ! git diff --cached --quiet; then
+            git commit -m "build(webgis): publish RustGIS WebAssembly runtime"
+            git push
+          fi
