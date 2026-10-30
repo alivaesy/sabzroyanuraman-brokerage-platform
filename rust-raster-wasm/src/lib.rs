@@ -105,6 +105,92 @@ pub fn run_raster_operation(
     Ok(Float32Array::from(result.as_slice()))
 }
 
+
+/// Parse and validate a .rgplugin package using RustGIS' own package and manifest validator.
+#[wasm_bindgen]
+pub fn inspect_plugin_package(bytes: js_sys::Uint8Array) -> Result<String, JsValue> {
+    use rustgis_plugins::Package;
+    let mut data = vec![0u8; bytes.length() as usize];
+    bytes.copy_to(&mut data);
+    let pkg = Package::from_zip(&data).map_err(|e| JsValue::from_str(&e))?;
+    if pkg.manifest.runtime != rustgis_plugins::Runtime::Wasm {
+        return Err(JsValue::from_str("Only sandboxed WebAssembly .rgplugin packages are supported in the browser; process plugins are rejected."));
+    }
+    let permissions: Vec<&str> = pkg.manifest.permissions.iter().map(|p| p.code()).collect();
+    let commands: Vec<serde_json::Value> = pkg.manifest.commands.iter().map(|c| serde_json::json!({
+        "id": c.id, "label": c.label, "params": c.params
+    })).collect();
+    let tools: Vec<serde_json::Value> = pkg.manifest.tools.iter().map(|t| serde_json::json!({
+        "id": t.id, "name": t.name, "summary": t.summary
+    })).collect();
+    Ok(serde_json::json!({
+        "id": pkg.manifest.id, "name": pkg.manifest.name, "version": pkg.manifest.version,
+        "description": pkg.manifest.description, "author": pkg.manifest.author,
+        "license": pkg.manifest.license, "runtime": "wasm", "sha256": pkg.sha256,
+        "permissions": permissions, "commands": commands, "tools": tools
+    }).to_string())
+}
+
+/// Install only after the UI has explicitly approved every permission declared in the manifest.
+#[wasm_bindgen]
+pub fn install_plugin_package(bytes: js_sys::Uint8Array, approved_permissions_json: &str) -> Result<String, JsValue> {
+    use rustgis_plugins::{self as plugins, Package, Runtime};
+    let approved: Vec<String> = serde_json::from_str(approved_permissions_json)
+        .map_err(|_| JsValue::from_str("Invalid plugin permission approval payload."))?;
+    let mut data = vec![0u8; bytes.length() as usize];
+    bytes.copy_to(&mut data);
+    let pkg = Package::from_zip(&data).map_err(|e| JsValue::from_str(&e))?;
+    if pkg.manifest.runtime != Runtime::Wasm {
+        return Err(JsValue::from_str("Process plugins are not allowed in the browser."));
+    }
+    for permission in &pkg.manifest.permissions {
+        if !approved.iter().any(|p| p == permission.code()) {
+            return Err(JsValue::from_str("Installation cancelled: not every declared permission was approved."));
+        }
+    }
+    let plugin = plugins::load(pkg, "user-uploaded .rgplugin").map_err(|e| JsValue::from_str(&e))?;
+    Ok(plugin.info().to_string())
+}
+
+#[wasm_bindgen]
+pub fn list_installed_plugins() -> String {
+    let list: Vec<serde_json::Value> = rustgis_plugins::list().iter().map(|p| p.info()).collect();
+    serde_json::Value::Array(list).to_string()
+}
+
+#[wasm_bindgen]
+pub fn set_installed_plugin_enabled(id: &str, enabled: bool) -> Result<(), JsValue> {
+    rustgis_plugins::set_enabled(id, enabled).map_err(|e| JsValue::from_str(&e))
+}
+
+#[wasm_bindgen]
+pub fn uninstall_plugin(id: &str) -> Result<(), JsValue> {
+    if rustgis_plugins::get(id).is_none() {
+        return Err(JsValue::from_str("Plugin is not installed."));
+    }
+    rustgis_plugins::unload(id);
+    Ok(())
+}
+
+/// Run a plugin command inside RustGIS' wasmi sandbox, with fuel and memory limits.
+/// NoHost intentionally exposes no project editing, file-system or network capabilities.
+#[wasm_bindgen]
+pub fn run_installed_plugin_command(id: &str, params_json: &str) -> Result<String, JsValue> {
+    use rustgis_plugins::{self as plugins, Host, NoHost, Permission};
+    let cmd = plugins::command(id).ok_or_else(|| JsValue::from_str("Plugin command is unavailable or disabled."))?;
+    for permission in [Permission::Edit, Permission::Files, Permission::Network] {
+        if cmd.plugin.manifest.has(permission) {
+            return Err(JsValue::from_str("This command requests elevated host permissions. It remains blocked until the WebGIS capability adapter is reviewed and enabled."));
+        }
+    }
+    let params: serde_json::Value = serde_json::from_str(params_json)
+        .map_err(|_| JsValue::from_str("Plugin parameters must be valid JSON."))?;
+    let mut host = NoHost;
+    let result = plugins::run_command(&cmd, &mut host as &mut dyn Host, &params)
+        .map_err(|e| JsValue::from_str(&e))?;
+    Ok(result.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
