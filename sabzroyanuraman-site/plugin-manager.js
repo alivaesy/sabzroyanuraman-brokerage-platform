@@ -53,7 +53,7 @@
     const prompt="Install "+info.name+" "+info.version+"?\nAuthor: "+(info.author||"not specified")+"\nLicense: "+(info.license||"not specified")+"\nSHA-256: "+info.sha256+"\n\nDeclared permissions:\n"+detail+"\n\nOnly WASM is accepted. Commands requiring edit/files/network host capabilities remain blocked in this WebGIS build.";
     if(!confirm(prompt)){status.textContent="Installation cancelled; no permission was granted.";return;}
     const installed=await bridge().installPluginPackage(bytes,permissions);
-    await put({id:installed.id,bytes:Array.from(bytes),sha256:installed.sha256,approvedPermissions:permissions,installedAt:new Date().toISOString()});
+    await put({id:installed.id,bytes:bytes,sha256:installed.sha256,approvedPermissions:permissions,installedAt:new Date().toISOString()});
     status.textContent="Installed and validated: "+installed.name+" · "+installed.sha256;
     await refresh();
    }catch(e){status.textContent="Plugin installation failed: "+(e.message||e);}
