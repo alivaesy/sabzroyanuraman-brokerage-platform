@@ -5501,7 +5501,7 @@ async function restoreSavedRasterAssets(project){
       if(!saved||!saved.blob)throw new Error("Saved raster bytes are missing from this browser.");
       const data=await SabzRasterRuntime.read(new File([saved.blob],ref.fileName||"project-raster.tif",{type:"image/tiff"}));
       const m=data.metadata,w=m.width,h=m.height,factor=Math.max(1,Math.ceil(Math.max(w,h)/1400)),ow=Math.ceil(w/factor),oh=Math.ceil(h/factor);
-      const epsg=m.crs.epsg||4326;
+      const epsg=m.crs.epsg;if(!Number.isInteger(epsg)||epsg<1)throw new Error("Saved GeoTIFF CRS is missing; refusing to assume EPSG:4326.");
       const xyToLL=xy=>epsg===4326?xy:epsg===3857?[xy[0]/6378137*180/Math.PI,Math.atan(Math.sinh(xy[1]/6378137))*180/Math.PI]:proj4("EPSG:"+epsg,"EPSG:4326",xy);
       const corners=[xyToLL([m.extent.xmin,m.extent.ymin]),xyToLL([m.extent.xmax,m.extent.ymax])];
       const bounds=[[Math.min(corners[0][1],corners[1][1]),Math.min(corners[0][0],corners[1][0])],[Math.max(corners[0][1],corners[1][1]),Math.max(corners[0][0],corners[1][0])]];
@@ -9783,8 +9783,8 @@ function openRasterWorkspace(){
   if(typeof GeoTIFF==="undefined")throw Error("GeoTIFF reader unavailable.");
   say("Reading source GeoTIFF…");if(!window.SabzRasterRuntime)throw Error("Raster runtime is not loaded.");const rasterData=await SabzRasterRuntime.read(file),im=await (await GeoTIFF.fromArrayBuffer(rasterData.bytes)).getImage(),w=rasterData.metadata.width,h=rasterData.metadata.height;
   if(w*h>50000000)throw Error("Raster exceeds 50 million pixels; clip or build an overview first.");
-  const bands=rasterData.bands.map(a=>Float32Array.from(a)),keys=rasterData.metadata.geoKeys||{},epsg=rasterData.metadata.crs.epsg||4326,noData=rasterData.metadata.noData,bb=[rasterData.metadata.extent.xmin,rasterData.metadata.extent.ymin,rasterData.metadata.extent.xmax,rasterData.metadata.extent.ymax];
-  if(!bb||bb.length!==4||!bb.every(Number.isFinite))throw Error("No valid GeoTIFF georeferencing found.");
+  const bands=rasterData.bands.map(a=>Float32Array.from(a)),keys=rasterData.metadata.geoKeys||{},epsg=rasterData.metadata.crs.epsg,noData=rasterData.metadata.noData,bb=[rasterData.metadata.extent.xmin,rasterData.metadata.extent.ymin,rasterData.metadata.extent.xmax,rasterData.metadata.extent.ymax];
+  if(!bb||bb.length!==4||!bb.every(Number.isFinite))throw Error("No valid GeoTIFF georeferencing found.");if(!Number.isInteger(epsg)||epsg<1)throw Error("GeoTIFF CRS is missing; WebGIS will not assume EPSG:4326.");
   let crs=epsg===4326?"EPSG:4326":epsg===3857?"EPSG:3857":epsg>=32601&&epsg<=32660?"+proj=utm +zone="+(epsg-32600)+" +datum=WGS84 +units=m +no_defs":epsg>=32701&&epsg<=32760?"+proj=utm +zone="+(epsg-32700)+" +south +datum=WGS84 +units=m +no_defs":null;
   if(!crs)throw Error("EPSG:"+epsg+" not supported in browser. Reproject to EPSG:4326 or UTM WGS84.");
   const ll=xy=>epsg===4326?xy:epsg===3857?[xy[0]/6378137*180/Math.PI,Math.atan(Math.sinh(xy[1]/6378137))*180/Math.PI]:proj4(crs,"EPSG:4326",xy);
