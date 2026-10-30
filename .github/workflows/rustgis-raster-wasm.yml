@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - "rust-raster-wasm/**"
+      - "tests/**"
       - "sabzroyanuraman-site/**"
       - ".github/workflows/rustgis-raster-wasm.yml"
   pull_request:
