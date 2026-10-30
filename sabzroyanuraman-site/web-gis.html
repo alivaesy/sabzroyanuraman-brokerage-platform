@@ -8434,7 +8434,24 @@ function openLayoutView(){
     const scale=$("webgisLayoutScale",panel);if(!scale||scale.hidden||!map?.getSize||!map.getSize().x)return;
     try{const size=map.getSize(),p1=map.containerPointToLatLng([size.x/2-50,size.y/2]),p2=map.containerPointToLatLng([size.x/2+50,size.y/2]);const metres=map.distance(p1,p2);if(!Number.isFinite(metres)||metres<=0)return;const power=Math.pow(10,Math.floor(Math.log10(metres))),normalized=metres/power,nice=(normalized>=5?5:normalized>=2?2:1)*power,width=Math.max(35,Math.min(150,100*nice/metres));scale.replaceChildren();const line=document.createElement("span");line.className="webgis-layout-scale-line";line.style.width=width+"px";const label=document.createElement("span");label.textContent=nice>=1000?(nice/1000)+" km":Math.round(nice)+" m";scale.append(line,label);}catch(_){}
   };
+  const southSafe=value=>Number.isFinite(value)?value:-85;
+  const drawLayoutGraticule=()=>{
+    const grid=$("webgisLayoutGrid",panel),size=map?.getSize?.();
+    if(!grid||grid.hidden||!size?.x||!size?.y)return;
+    const bounds=map.getBounds(),west=bounds.getWest(),east=bounds.getEast(),south=Math.max(-85,southSafe(bounds.getSouth())),north=Math.min(85,bounds.getNorth());
+    const span=Math.max(east-west,north-south),step=span>100?30:span>40?10:span>15?5:span>6?2:span>2?1:span>0.7?0.25:span>0.2?0.1:0.05;
+    const ns="http://www.w3.org/2000/svg",svg=document.createElementNS(ns,"svg");svg.setAttribute("viewBox","0 0 "+size.x+" "+size.y);svg.setAttribute("width",String(size.x));svg.setAttribute("height",String(size.y));svg.setAttribute("aria-label","Geographic graticule in latitude and longitude");svg.style.cssText="position:absolute;inset:0;width:100%;height:100%;overflow:visible";
+    const path=points=>{if(points.length<2)return;const p=document.createElementNS(ns,"path");p.setAttribute("d",points.map((v,i)=>(i?"L":"M")+v.x.toFixed(1)+" "+v.y.toFixed(1)).join(" "));p.setAttribute("fill","none");p.setAttribute("stroke","#286a83");p.setAttribute("stroke-width","0.8");p.setAttribute("stroke-dasharray","4 4");p.setAttribute("opacity",".72");svg.appendChild(p);};
+    const label=(x,y,value)=>{const t=document.createElementNS(ns,"text");t.setAttribute("x",String(x));t.setAttribute("y",String(y));t.setAttribute("fill","#17475b");t.setAttribute("font-size","10");t.setAttribute("paint-order","stroke");t.setAttribute("stroke","#fff");t.setAttribute("stroke-width","3");t.setAttribute("stroke-linejoin","round");t.textContent=value;svg.appendChild(t);};
+    const fmt=(v,axis)=>Math.abs(v).toFixed(step<1?2:0)+"°"+(v<0?(axis==="lat"?"S":"W"):(axis==="lat"?"N":"E"));
+    const firstLon=Math.ceil(west/step)*step,lastLon=Math.floor(east/step)*step;
+    for(let lon=firstLon;lon<=lastLon&&lon-firstLon<80;lon+=step){const pts=[];for(let lat=south;lat<=north;lat+=Math.max((north-south)/40,0.05)){const p=map.latLngToContainerPoint([lat,lon]);pts.push({x:p.x,y:p.y});}path(pts);const p=map.latLngToContainerPoint([north,lon]);label(Math.max(3,Math.min(size.x-55,p.x+3)),12,fmt(lon,"lon"));}
+    const firstLat=Math.ceil(south/step)*step,lastLat=Math.floor(north/step)*step;
+    for(let lat=firstLat;lat<=lastLat&&lat-firstLat<80;lat+=step){const pts=[];for(let lon=west;lon<=east;lon+=Math.max((east-west)/40,0.05)){const p=map.latLngToContainerPoint([lat,lon]);pts.push({x:p.x,y:p.y});}path(pts);const p=map.latLngToContainerPoint([west,lat]);label(4,Math.max(12,Math.min(size.y-4,p.y-3)),fmt(lat,"lat"));}
+    grid.replaceChildren(svg);grid.style.cssText="position:absolute;inset:0;z-index:450;pointer-events:none;background:none;border:0;display:block";
+  };
   panel._updateLayoutScale=updateLayoutScale;
+  panel._drawLayoutGraticule=drawLayoutGraticule;
   panel.querySelector("[data-layout-import]").addEventListener("change",async e=>{
     const file=e.target.files&&e.target.files[0];if(!file)return;
     try{
@@ -8461,7 +8478,7 @@ function openLayoutView(){
     if(a==="legend"){const el=$("webgisLayoutLegend",panel);if(el.hidden)refreshLegend();else el.hidden=true;}
     if(a==="north")$("webgisLayoutNorth",panel).hidden=!$("webgisLayoutNorth",panel).hidden;
     if(a==="scale"){const el=$("webgisLayoutScale",panel);el.hidden=!el.hidden;updateLayoutScale();}
-    if(a==="grid"){const el=$("webgisLayoutGrid",panel);el.hidden=!el.hidden;if(!el.hidden){el.textContent="Graticule preview · not CRS-accurate";status("Grid is a visual print guide, not a projected coordinate graticule.");}}
+    if(a==="grid"){const el=$("webgisLayoutGrid",panel);el.hidden=!el.hidden;if(!el.hidden){drawLayoutGraticule();status("Geographic graticule enabled: latitude/longitude lines follow the map extent. This is not a projected UTM grid.");}else el.replaceChildren();}
     if(a==="footer"){const v=await arcMapDialog.prompt({title:"Layout Footer",message:"Enter footer text:",label:"Footer",value:$("webgisLayoutFooter",panel).textContent});if(v!==null)$("webgisLayoutFooter",panel).textContent=v;}
     if(a==="date"){const el=document.createElement("div");el.className="webgis-layout-added-text webgis-layout-item";el.id="webgisLayoutCustom"+Date.now();el.dataset.layoutItem="date";el.textContent=new Date().toLocaleDateString();sheet.insertBefore(el,$("webgisLayoutFooter",panel));}
     if(a==="move"){panel.classList.toggle("layout-move-mode");b.classList.toggle("active",panel.classList.contains("layout-move-mode"));status(panel.classList.contains("layout-move-mode")?"Move Items: drag layout elements; click Move Items again to finish.":"Layout item positioning finished.");}
@@ -8475,10 +8492,10 @@ function openLayoutView(){
     const move=ev=>{item.style.left=Math.max(0,left+ev.clientX-startX)+"px";item.style.top=Math.max(0,top+ev.clientY-startY)+"px";};
     const done=()=>{window.removeEventListener("pointermove",move);window.removeEventListener("pointerup",done);};window.addEventListener("pointermove",move);window.addEventListener("pointerup",done,{once:true});
   });
-  if(map){panel._scaleListener=updateLayoutScale;map.on("zoomend moveend",updateLayoutScale);}
+  if(map){panel._scaleListener=updateLayoutScale;panel._gridListener=drawLayoutGraticule;map.on("zoomend moveend",updateLayoutScale);map.on("zoomend moveend resize",drawLayoutGraticule);}
   if(window.__sabzSavedLayoutDefinition)applyLayoutDefinition(panel,window.__sabzSavedLayoutDefinition);
   refreshLegend();
-  status("Layout ready: page setup, editable title/subtitle/footer, insert text/date, legend, north arrow, scale bar, movable items and print/PDF.");
+  status("Layout ready: page setup, editable text, legend, north arrow, live scale bar, geographic graticule, movable items, JSON layout and print/PDF.");
 }
 function closeLayoutView(){
   const panel=document.getElementById("webgisLayoutView");if(!panel)return;
@@ -8486,6 +8503,7 @@ function closeLayoutView(){
   // and read-only sharing include the same layout configuration.
   try{captureLayoutDefinition()}catch(error){console.warn("Layout snapshot skipped:",error)}
   if(panel._scaleListener&&map){try{map.off("zoomend moveend",panel._scaleListener)}catch(_){}}
+  if(panel._gridListener&&map){try{map.off("zoomend moveend resize",panel._gridListener)}catch(_){}}
   const restore=panel._mapRestore;
   if(restore?.mapElement&&restore.originalParent){
     if(restore.originalNext&&restore.originalNext.parentNode===restore.originalParent)restore.originalParent.insertBefore(restore.mapElement,restore.originalNext);
