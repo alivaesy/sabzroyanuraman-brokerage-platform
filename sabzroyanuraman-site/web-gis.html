@@ -533,17 +533,17 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 /* Keep Leaflet's normal zoom-aware vector rendering; source symbol metadata wins. */
 
 
-/* Further compress ModelBuilder workspace from the ModelBuilder-title (left) side only. */
+/* Keep ModelBuilder workspace clear of the left TOC by narrowing only from its title side. */
 body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
-  width:calc(100% - 144px)!important;
-  margin-left:144px!important;
+  width:calc(100% - 190px)!important;
+  margin-left:190px!important;
   margin-right:0!important;
   box-sizing:border-box!important;
 }
 @media(max-width:650px){
   body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
-    width:calc(100% - 44px)!important;
-    margin-left:44px!important;
+    width:calc(100% - 56px)!important;
+    margin-left:56px!important;
     margin-right:0!important;
   }
 }
