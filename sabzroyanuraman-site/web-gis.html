@@ -2478,7 +2478,7 @@ function openRasterWorkspace(){
 }
 function rasterExpr(expr,values){
  const t=String(expr).match(/B[1-9]\d*|(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?|[()+*/-]/gi)||[];if(t.join("").replace(/\s/g,"")!==String(expr).replace(/\s/g,""))throw Error("Expression allows only B1…Bn, numbers and + - * / ( ).");let i=0;
- const atom=()=>{let x=t[i++];if(x==="("){let v=sum();if(t[i++]!==")")throw Error("Missing )");return v;}if(x==="-")return-atom();if(x==="+")return atom();if(/^B\d+$/i.test(x||"")){let n=+x.slice(1)-1;if(!values[n])throw Error("Missing "+x);return values[n];}let n=Number(x);if(!Number.isFinite(n))throw Error("Invalid expression");return n;};
+ const atom=()=>{let x=t[i++];if(x==="("){let v=sum();if(t[i++]!==")")throw Error("Missing )");return v;}if(x==="-")return-atom();if(x==="+")return atom();if(/^B\d+$/i.test(x||"")){let n=+x.slice(1)-1;if(n<0||n>=values.length||!Number.isFinite(values[n]))throw Error("Band "+(n+1)+" is unavailable or NoData.");return values[n];}let n=Number(x);if(!Number.isFinite(n))throw Error("Invalid expression");return n;};
  const product=()=>{let v=atom();while(t[i]==="*"||t[i]==="/"){let op=t[i++],b=atom();v=op==="*"?v*b:b===0?NaN:v/b;}return v;};
  const sum=()=>{let v=product();while(t[i]==="+"||t[i]==="-"){let op=t[i++],b=product();v=op==="+"?v+b:v-b;}return v;};
  let v=sum();if(i!==t.length)throw Error("Unexpected token");return v;
@@ -2496,7 +2496,7 @@ function renderSabzRaster(op){
   if(op==="display"&&bands.length>=3){const x=k%ow,y=Math.floor(k/ow);rr=get(0,x,y);gg=get(1,x,y);bb=get(2,x,y);const mx=Math.max(rr,gg,bb,255);if(mx>255){rr=rr/mx*255;gg=gg/mx*255;bb=bb/mx*255;}}
   else{rr=gg=bb=op==="aspect"?Math.round(v/360*255):Math.max(0,Math.min(255,Math.round((v-lo)/span*255)));}
   img.data[p]=rr;img.data[p+1]=gg;img.data[p+2]=bb;img.data[p+3]=255;}
- ctx.putImageData(img,0,0);r.output={op,values,lo,hi};if(r.layer){try{map.removeLayer(r.layer);layerControl.removeLayer(r.layer);}catch(_){}}
+ ctx.putImageData(img,0,0);r.output={op,values,lo,hi};if(r.layer){try{map.removeLayer(r.layer);layerControl.removeLayer(r.layer);}catch(_){}const previous=namedLayers.find(item=>item.layer===r.layer);if(previous)namedLayers.splice(namedLayers.indexOf(previous),1);}
  const layer=L.imageOverlay(canvas.toDataURL("image/png"),L.latLngBounds(r.bounds[0],r.bounds[1]),{opacity:.88,interactive:false});addNamedLayer((document.querySelector("#sabzRasterWorkspace [data-r-name]")?.value||"Raster_Result")+" · "+op,layer,true);r.layer=layer;
 }
 
