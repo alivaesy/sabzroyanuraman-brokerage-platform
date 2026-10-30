@@ -8430,6 +8430,9 @@ function openLayoutView(){
     if(!legend.childElementCount){const empty=document.createElement("span");empty.textContent="No visible layers";legend.append(empty);}
     legend.hidden=false;
   };
+  // Keep the printed legend synchronized with layer visibility and layer creation/removal.
+  panel._legendListener=()=>{const legend=$("webgisLayoutLegend",panel);if(legend&&!legend.hidden)refreshLegend();};
+  map.on("layeradd layerremove",panel._legendListener);
   const updateLayoutScale=()=>{
     const scale=$("webgisLayoutScale",panel);if(!scale||scale.hidden||!map?.getSize||!map.getSize().x)return;
     try{const size=map.getSize(),p1=map.containerPointToLatLng([size.x/2-50,size.y/2]),p2=map.containerPointToLatLng([size.x/2+50,size.y/2]);const metres=map.distance(p1,p2);if(!Number.isFinite(metres)||metres<=0)return;const power=Math.pow(10,Math.floor(Math.log10(metres))),normalized=metres/power,nice=(normalized>=5?5:normalized>=2?2:1)*power,width=Math.max(35,Math.min(150,100*nice/metres));scale.replaceChildren();const line=document.createElement("span");line.className="webgis-layout-scale-line";line.style.width=width+"px";const label=document.createElement("span");label.textContent=nice>=1000?(nice/1000)+" km":Math.round(nice)+" m";scale.append(line,label);}catch(_){}
@@ -8507,6 +8510,7 @@ function closeLayoutView(){
   try{captureLayoutDefinition()}catch(error){console.warn("Layout snapshot skipped:",error)}
   if(panel._scaleListener&&map){try{map.off("zoomend moveend",panel._scaleListener)}catch(_){}}
   if(panel._gridListener&&map){try{map.off("zoomend moveend resize",panel._gridListener)}catch(_){}}
+  if(panel._legendListener&&map){try{map.off("layeradd layerremove",panel._legendListener)}catch(_){}}
   const restore=panel._mapRestore;
   if(restore?.mapElement&&restore.originalParent){
     if(restore.originalNext&&restore.originalNext.parentNode===restore.originalParent)restore.originalParent.insertBefore(restore.mapElement,restore.originalNext);
