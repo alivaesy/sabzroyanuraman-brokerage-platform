@@ -38,7 +38,7 @@
    for(const record of records){
     if(have.has(record.id))continue;
     try{
-     const info=const info=await bridge().installPluginPackage(new Uint8Array(record.bytes),record.approvedPermissions||[]);
+     const info=await bridge().installPluginPackage(new Uint8Array(record.bytes),record.approvedPermissions||[]);
      if(info.sha256!==record.sha256||info.id!==record.id)throw new Error("Saved plugin package hash or identity changed; reinstallation blocked.");
      if(record.enabled===false)await bridge().setPluginEnabled(record.id,false);
     }catch(e){console.warn("Saved plugin not restored:",record.id,e);}
