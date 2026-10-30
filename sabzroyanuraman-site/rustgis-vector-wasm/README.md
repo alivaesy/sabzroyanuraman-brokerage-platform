@@ -18,7 +18,7 @@ the current raster adapter.
 
 ```sh
 rustup target add wasm32-unknown-unknown
-cargo test --locked
+cargo test
 wasm-pack build --target web --release --out-dir ../rustgis-vector-wasm-pkg --out-name sabz_royan_vector_wasm
 ```
 
