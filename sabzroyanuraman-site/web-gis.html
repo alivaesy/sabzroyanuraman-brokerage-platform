@@ -9761,6 +9761,7 @@ function openRasterWorkspace(){
   const bytes=new Uint8Array(await sabzRasterState.sourceBlob.arrayBuffer());
   const result=await SabzGeoLibreBridge.run(tool,args,[{name:"input.tif",bytes}]);
   note.textContent=(result.exitCode===0?"Completed":"Tool returned exit code "+result.exitCode)+"\n"+result.stdout.join("\n");
+  if(result.exitCode!==0)throw Error("GeoLibre tool did not complete successfully; output files were not imported.");
   for(const file of result.files){
     const imported=await addGeoLibreOutputToWebGIS(file);
     const linkBlob=imported.blob||new Blob([file.bytes],{type:"application/octet-stream"}),url=URL.createObjectURL(linkBlob),a=document.createElement("a");
