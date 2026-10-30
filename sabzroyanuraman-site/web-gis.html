@@ -4318,7 +4318,7 @@ $("deleteMultiSelected").onclick=async()=>{
   targets.forEach(layer=>editTarget.removeLayer(layer));
   clearMultiSelection();selectedLayer=null;selectedOverlay=null;
   renderLayerList();refreshAttributeLayers();
-  if(Array.isArray(project.rasterAssets)&&project.rasterAssets.length)restoreSavedRasterAssets(project);refreshEditorTargets();window.__webGisGdbBridge?.save();scheduleAutoSave();
+refreshEditorTargets();window.__webGisGdbBridge?.save();scheduleAutoSave();
   status(targets.length+" feature(s) deleted from the active edit layer.");
 };
 $("clearMultiSelected").onclick=()=>{clearMultiSelection();selectedLayer=null;selectedOverlay=null;renderAttributeEditor();status("Multiple selection cleared.")};
@@ -5520,6 +5520,7 @@ function restoreProject(project,fromHistory=false){
   }else if(activeRef?.source==="drawn"){selectedLayer=drawn;selectedOverlay=null;}
   $("projectName").value=project.name||"Untitled Project";
   renderLayerList();refreshAttributeLayers();
+  if(Array.isArray(project.rasterAssets)&&project.rasterAssets.length)restoreSavedRasterAssets(project);
   // Reapply selection after all restored layers have been registered. Merely
   // restoring selectedFeatures does not recreate the ArcMap-like highlight,
   // attribute-table checks, or selection action states.
