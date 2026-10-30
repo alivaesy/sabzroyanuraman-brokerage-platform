@@ -10,6 +10,8 @@
  async function put(item){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,"readwrite");tx.objectStore(STORE).put(item);tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>{db.close();reject(tx.error);};});}
  async function remove(id){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,"readwrite");tx.objectStore(STORE).delete(id);tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>{db.close();reject(tx.error);};});}
  const labels={edit:"Change the current GIS project and its layers",files:"Read or write user-selected files",network:"Access network addresses chosen by the plugin"};
+ const BLOCKED_PERMISSIONS=new Set(["edit","files","network"]);
+ const MAX_PACKAGE_BYTES=32*1024*1024;
  function attach(panel){
   if(panel.querySelector("[data-r-plugin-manager]"))return;
   const section=document.createElement("section");section.dataset.rPluginManager="1";
@@ -47,11 +49,14 @@
   section.querySelector("[data-r-plugin-install]").onclick=async()=>{
    const file=section.querySelector("[data-r-plugin-file]").files[0];if(!file){status.textContent="Choose a .rgplugin package first.";return;}
    try{
+    if(file.size<1||file.size>MAX_PACKAGE_BYTES)throw new Error("Plugin package must be between 1 byte and 32 MiB.");
     status.textContent="Validating package and manifest with RustGIS…";
     const bytes=new Uint8Array(await file.arrayBuffer()),info=await bridge().inspectPluginPackage(bytes);
     const permissions=info.permissions||[];
-    const detail=permissions.length?permissions.map(p=>"• "+p+": "+(labels[p]||p)).join("\n"):"No elevated permissions declared.";
-    const prompt="Install "+info.name+" "+info.version+"?\nAuthor: "+(info.author||"not specified")+"\nLicense: "+(info.license||"not specified")+"\nSHA-256: "+info.sha256+"\n\nDeclared permissions:\n"+detail+"\n\nOnly WASM is accepted. Commands requiring edit/files/network host capabilities remain blocked in this WebGIS build.";
+    const blocked=permissions.filter(p=>BLOCKED_PERMISSIONS.has(p)||!Object.prototype.hasOwnProperty.call(labels,p));
+    const detail=permissions.length?permissions.map(p=>"• "+p+": "+(labels[p]||"Unknown capability")).join("\n"):"No elevated permissions declared.";
+    if(blocked.length)throw new Error("Installation blocked. This WebGIS host has no reviewed capability adapter for: "+blocked.join(", ")+". Install only a RustGIS WASM package declaring no host permissions.");
+    const prompt="Install "+info.name+" "+info.version+"?\nAuthor: "+(info.author||"not specified")+"\nLicense: "+(info.license||"not specified")+"\nSHA-256: "+info.sha256+"\n\nDeclared permissions:\n"+detail+"\n\nThe package is WASM-only and will execute with NoHost capabilities.";
     if(!confirm(prompt)){status.textContent="Installation cancelled; no permission was granted.";return;}
     const installed=await bridge().installPluginPackage(bytes,permissions);
     await put({id:installed.id,bytes:bytes,sha256:installed.sha256,approvedPermissions:permissions,installedAt:new Date().toISOString()});
