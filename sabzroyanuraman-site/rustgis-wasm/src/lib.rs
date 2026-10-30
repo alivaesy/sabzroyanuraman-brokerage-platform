@@ -278,12 +278,15 @@ pub fn run_raster_tool(tool_id: &str, input_base64: &str, input_name: &str, para
     };
     let output = rustgis_analysis::rasterops::derive(&raster, output_name, vec![values]).map_err(js_error)?;
     let output_bytes = rustgis_data::raster::geotiff::write(&output, 0).map_err(js_error)?;
-    let metadata = json!({"width":output.width,"height":output.height,"bands":output.band_count(),"crs":format!("{:?}",output.crs),
+    let output_layer_name = output.name.clone();
+    let output_file_name = format!("{}.tif", output_layer_name);
+    let (width, height, band_count) = (output.width, output.height, output.band_count());
+    let metadata = json!({"width":width,"height":height,"bands":band_count,"crs":format!("{:?}",output.crs),
         "originX":output.transform.origin_x,"originY":output.transform.origin_y,"pixelWidth":output.transform.pixel_width,
         "pixelHeight":output.transform.pixel_height,"noData":output.nodata});
-    let response = json!({"outputs":[{"kind":"raster-file","name":output.name,"fileName":format!("{}.tif",output.name),
+    let response = json!({"outputs":[{"kind":"raster-file","name":output_layer_name,"fileName":output_file_name,
         "base64":base64::engine::general_purpose::STANDARD.encode(output_bytes),"metadata":metadata}],
-        "messages":[format!("RustGIS Raster operation completed: {} × {} pixels, {} band(s).",output.width,output.height,output.band_count())],
+        "messages":[format!("RustGIS Raster operation completed: {} × {} pixels, {} band(s).",width,height,band_count)],
         "tool":tool_id,"upstream":UPSTREAM_REVISION,"protocol":ADAPTER_PROTOCOL_VERSION});
     serde_json::to_string(&response).map_err(js_error)
 }
