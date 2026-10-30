@@ -2352,161 +2352,7 @@ function createMapViewer(){
   const state={center:[map.getCenter().lat,map.getCenter().lng],zoom:map.getZoom(),basemap:$("basemap").value,wms:customWmsConfig,attribution:currentBase?.options?.attribution||"Map data provider"};
   const serialized=JSON.stringify(state).replace(/</g,"\\u003c"),closeScript="</"+"script>";
   const html="<!doctype html><html><head><meta charset='utf-8'><title>Map Viewer</title><link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'><style>html,body,#map{height:100%;margin:0}#attributeTableWindow{display:none;position:fixed;left:50%;bottom:18px;transform:translateX(-50%);width:min(1120px,calc(100vw - 36px));height:min(390px,58vh);min-width:360px;min-height:180px;resize:both;overflow:hidden;background:#f5f6f7;border:1px solid #7f8d95;box-shadow:0 8px 28px rgba(0,0,0,.28);z-index:4800;direction:ltr;color:#263f50}#attributeTableWindow.open{display:flex;flex-direction:column}#attributeTableWindow.maximized{left:8px;right:8px;top:56px;bottom:8px;width:auto;height:auto;min-width:0;min-height:0;transform:none;resize:none}#attributeTableTitlebar{height:32px;flex:0 0 32px;display:flex;align-items:center;gap:8px;padding:0 7px;background:linear-gradient(#fdfdfd,#e1e6e9);border-bottom:1px solid #a9b4ba;font-size:12px;font-weight:700}#attributeTableWindowTitle{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}#attributeTableWindowActions{display:flex;gap:3px}#attributeTableWindowActions button{width:26px;height:23px;border:1px solid #aeb9bf;background:#f8f9fa;color:#263f50;border-radius:2px;cursor:pointer;padding:0;font-size:13px}#attributeTableWindowActions button:hover{background:#dceaf2}#attributeTableWindowToolbar{display:flex;align-items:center;gap:8px;min-height:31px;padding:4px 8px;background:#f2f4f5;border-bottom:1px solid #c3cdd2;font-size:11px}#attributeTableWindowToolbar .table-layer-label{font-weight:700}#attributeTableWindowToolbar .table-toolbar-note{color:#657984;margin-left:auto}#attributeTableViewport{flex:1;min-height:0;overflow:auto;background:#fff;direction:ltr}#attributeTableViewport #attributeTableWrap{display:block!important;max-height:none!important;overflow:visible!important;font-size:12px!important}#attributeTableWrap table.arc-attribute-grid{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;direction:ltr;font-size:12px;color:#263f50}#attributeTableWrap .arc-attribute-grid th{position:sticky;top:0;z-index:3;height:27px;padding:4px 8px;background:#e7ecef;border-right:1px solid #c4cdd2;border-bottom:1px solid #aebbc2;text-align:left;white-space:nowrap;font-weight:700}#attributeTableWrap .arc-attribute-grid th:first-child{left:0;z-index:5;min-width:30px}#attributeTableWrap .arc-attribute-grid th:nth-child(2){left:30px;z-index:4;min-width:44px}#attributeTableWrap .arc-attribute-grid td{height:29px;padding:2px 5px;border-right:1px solid #e0e5e8;border-bottom:1px solid #e0e5e8;background:#fff;white-space:nowrap}#attributeTableWrap .arc-attribute-grid tbody tr:nth-child(even) td{background:#f7f9fa}#attributeTableWrap .arc-attribute-grid tbody tr:hover td{background:#eaf4fb}#attributeTableWrap .arc-attribute-grid tbody tr td:first-child{position:sticky;left:0;z-index:2;min-width:30px;text-align:center}#attributeTableWrap .arc-attribute-grid tbody tr td:nth-child(2){position:sticky;left:30px;z-index:1;min-width:44px;text-align:right;background:#edf1f3;font-variant-numeric:tabular-nums}#attributeTableWrap .arc-attribute-grid input.cell-edit{width:150px;min-width:100px;height:23px;border:1px solid transparent;border-radius:0;padding:2px 5px;font-size:12px;background:transparent;color:inherit}#attributeTableWrap .arc-attribute-grid input.cell-edit:focus{outline:1px solid #3b83b5;border-color:#3b83b5;background:#fff}#attributeTableWindowFooter{height:25px;flex:0 0 25px;display:flex;align-items:center;gap:14px;padding:0 8px;border-top:1px solid #aeb9bf;background:#edf1f3;color:#526b7a;font-size:10px}@media(max-width:650px){#attributeTableWindow{left:5px;right:5px;bottom:5px;width:auto;min-width:0;height:55vh;transform:none}#attributeTableWindow.maximized{top:48px}}</style></head><body><div id='map'></div><script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'>"+closeScript+"<script>const s="+serialized+";const m=L.map('map').setView(s.center,s.zoom);const u={osm:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',topo:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',sat:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',esriStreet:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',esriTopo:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',esriGray:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'};if(s.basemap==='nasaWms')L.tileLayer.wms('https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi',{layers:'BlueMarble_ShadedRelief',format:'image/png',version:'1.3.0',attribution:'NASA GIBS'}).addTo(m);else if(s.basemap==='customWms'&&s.wms)L.tileLayer.wms(s.wms.url,{layers:s.wms.layers,format:s.wms.format,version:s.wms.version,attribution:s.wms.attribution}).addTo(m);else L.tileLayer(u[s.basemap]||u.osm,{maxZoom:19,attribution:s.attribution}).addTo(m);"+closeScript+"
-<style id="arcmap-modelbuilder-canvas-v2">
-#gisModelBuilder [data-mb-graph]{height:clamp(300px,48vh,560px)!important;min-height:300px!important;overflow:auto!important;position:relative!important;cursor:grab!important;touch-action:none;background-color:#f4f7fa!important;background-image:linear-gradient(#dce4eb 1px,transparent 1px),linear-gradient(90deg,#dce4eb 1px,transparent 1px)!important;background-size:20px 20px!important}
-#gisModelBuilder [data-mb-graph].mb-panning{cursor:grabbing!important}
-#gisModelBuilder .mb-canvas-v2{position:relative;transform-origin:0 0;will-change:transform}
-#gisModelBuilder .mb-node-v2{position:absolute;width:224px;min-height:88px;padding:11px 14px 11px 18px;background:linear-gradient(#fff,#f8fafc);border:1px solid #9eafbb;border-left:5px solid #b17b32;border-radius:5px;box-shadow:0 2px 6px #23374620;z-index:2;cursor:move;user-select:none}
-#gisModelBuilder .mb-node-v2.mb-source{border-left-color:#277da8}
-#gisModelBuilder .mb-node-v2.mb-output{border-left-color:#25834d}
-#gisModelBuilder .mb-node-v2 strong{display:block;font-size:12px;color:#243746;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#gisModelBuilder .mb-node-v2 small{display:block;margin-top:5px;color:#627584;font-size:10px}
-#gisModelBuilder .mb-port-v2{position:absolute;top:50%;width:13px;height:13px;margin-top:-7px;border:2px solid #fff;border-radius:50%;background:#287fa8;box-shadow:0 0 0 1px #287fa8;cursor:crosshair;z-index:4}
-#gisModelBuilder .mb-port-v2.in{left:-7px;background:#b17b32;box-shadow:0 0 0 1px #b17b32}
-#gisModelBuilder .mb-port-v2.out{right:-7px}
-#gisModelBuilder .mb-edge-v2{fill:none;stroke:#66889c;stroke-width:2.4;pointer-events:stroke;cursor:pointer}
-#gisModelBuilder .mb-edge-v2:hover{stroke:#d17b26;stroke-width:4}
-#gisModelBuilder .mb-edge-v2.preview{stroke:#277da8;stroke-dasharray:6 5;pointer-events:none}
-#gisModelBuilder .mb-graph-tools{position:sticky;top:5px;left:5px;z-index:8;display:flex;gap:4px;width:max-content;padding:4px;background:#ffffffed;border:1px solid #bac7cf;border-radius:4px}
-#gisModelBuilder .mb-graph-tools button{min-width:29px;height:27px;border:1px solid #aab8c0;background:#f8fafb;color:#243746;border-radius:3px;cursor:pointer}
-#gisModelBuilder .mb-graph-tools output{min-width:42px;text-align:center;font-size:10px;align-self:center}
-#gisModelBuilder .mb-graph-hint{font-size:10px;color:#647887;padding:4px 7px}
-</style>
-<script id="arcmap-modelbuilder-canvas-v2-js">
-(()=>{
-'use strict';
-const NS='http://www.w3.org/2000/svg';
-function install(){
- const original=window.renderModelBuilderGraph;
- if(typeof original!=='function'||window.__mbCanvasV2)return;
- window.__mbCanvasV2=true;
- window.renderModelBuilderGraph=function(modal){
-  const graph=modal?.querySelector('[data-mb-graph]'),host=modal?.querySelector('[data-mb-steps]');
-  if(!graph||!host)return;
-  const rows=[...host.children],W=224,H=90,GAP=100;
-  graph.replaceChildren();graph.style.position='relative';
-  let state=graph.__mbState||(graph.__mbState={scale:1,panX:0,panY:0,positions:new Map(),drag:null,connect:null});
-  rows.forEach((row,i)=>{if(!state.positions.has(row.dataset.mbNodeId))state.positions.set(row.dataset.mbNodeId,{x:55+i*330,y:100+(i%2)*145});});
-  const ids=new Set(rows.map(r=>r.dataset.mbNodeId));for(const id of state.positions.keys())if(!ids.has(id))state.positions.delete(id);
-  const allPos=[...state.positions.values()],maxX=Math.max(900,...allPos.map(p=>p.x+W+150)),maxY=Math.max(460,...allPos.map(p=>p.y+H+150));
-  const tools=document.createElement('div');tools.className='mb-graph-tools';
-  const mk=(label,title,fn)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.title=title;b.onclick=fn;tools.appendChild(b);return b;};
-  const zoomOut=()=>{state.scale=Math.max(.45,state.scale-.1);paintTransform();};
-  const zoomIn=()=>{state.scale=Math.min(1.8,state.scale+.1);paintTransform();};
-  const zoomLabel=document.createElement('output');tools.appendChild(zoomLabel);
-  const paintTransform=()=>{canvas.style.transform='translate('+state.panX+'px,'+state.panY+'px) scale('+state.scale+')';zoomLabel.textContent=Math.round(state.scale*100)+'%';};
-  mk('−','Zoom out',zoomOut);mk('+','Zoom in',zoomIn);mk('100%','Reset zoom and pan',()=>{state.scale=1;state.panX=0;state.panY=0;paintTransform();});mk('Fit','Fit graph',()=>{const sx=(graph.clientWidth-40)/maxX,sy=(graph.clientHeight-70)/maxY;state.scale=Math.max(.45,Math.min(1.2,sx,sy));state.panX=12;state.panY=36;paintTransform();});
-  const hint=document.createElement('div');hint.className='mb-graph-hint';hint.textContent='اتصال: از پورت آبی خروجی به پورت ورودی گره مقصد بکشید؛ برای حذف اتصال روی خط کلیک کنید. جابه‌جایی بوم: کشیدن فضای خالی؛ بزرگ‌نمایی: چرخ ماوس.';
-  graph.append(tools,hint);
-  const canvas=document.createElement('div');canvas.className='mb-canvas-v2';canvas.style.cssText='position:absolute;left:0;top:38px;width:'+maxX+'px;height:'+maxY+'px';
-  const svg=document.createElementNS(NS,'svg');svg.setAttribute('width',maxX);svg.setAttribute('height',maxY);svg.style.cssText='position:absolute;inset:0;overflow:visible;z-index:1';
-  const defs=document.createElementNS(NS,'defs'),marker=document.createElementNS(NS,'marker');marker.setAttribute('id','mbArrowV2');marker.setAttribute('markerWidth','8');marker.setAttribute('markerHeight','8');marker.setAttribute('refX','7');marker.setAttribute('refY','3');marker.setAttribute('orient','auto');const arrow=document.createElementNS(NS,'path');arrow.setAttribute('d','M0 0 L0 6 L7 3 Z');arrow.setAttribute('fill','#66889c');marker.appendChild(arrow);defs.appendChild(marker);svg.appendChild(defs);
-  const nodeEls=new Map(),edgeEls=[];
-  const portCenter=(id,side)=>{const p=id==='source'?{x:20,y:100}:id==='output'?{x:maxX-260,y:100}:state.positions.get(id);return p?{x:p.x+(side==='out'?W:0),y:p.y+H/2}:null;};
-  const drawEdge=(from,to,preview=false)=>{
-   const a=portCenter(from,'out'),b=portCenter(to,'in');if(!a||!b)return;
-   const path=document.createElementNS(NS,'path'),bend=Math.max(45,Math.abs(b.x-a.x)*.45);
-   path.setAttribute('d','M'+a.x+' '+a.y+' C'+(a.x+bend)+' '+a.y+' '+(b.x-bend)+' '+b.y+' '+b.x+' '+b.y);
-   path.setAttribute('class','mb-edge-v2'+(preview?' preview':''));path.setAttribute('marker-end','url(#mbArrowV2)');
-   if(!preview)path.addEventListener('click',e=>{e.stopPropagation();const target=rows.find(r=>r.dataset.mbNodeId===to);const sel=target?.querySelector('[data-mb-input]');if(sel){sel.value='source';refreshModelBuilderNodeInputs(modal);window.renderModelBuilderGraph(modal);}});
-   svg.appendChild(path);edgeEls.push(path);
-  };
-  const redrawEdges=()=>{svg.querySelectorAll('.mb-edge-v2:not(.preview)').forEach(el=>el.remove());rows.forEach(row=>{const id=row.dataset.mbNodeId,from=row.querySelector('[data-mb-input]')?.value||'source';if(from==='source'||state.positions.has(from))drawEdge(from,id);const second=row.querySelector('[data-mb-overlay-node]')?.value;if(second&&state.positions.has(second))drawEdge(second,id);});const outId=modal.querySelector('[data-mb-output]')?.value||rows[rows.length-1]?.dataset.mbNodeId;if(outId&&state.positions.has(outId))drawEdge(outId,'output');};
-  const makeNode=(id,title,sub,kind,row)=>{
-   const p=id==='source'?{x:20,y:100}:id==='output'?{x:maxX-260,y:100}:state.positions.get(id);
-   const el=document.createElement('div');el.className='mb-node-v2 '+(kind==='source'?'mb-source':kind==='output'?'mb-output':'');el.style.left=p.x+'px';el.style.top=p.y+'px';
-   const h=document.createElement('strong');h.textContent=title;const sm=document.createElement('small');sm.textContent=sub;el.append(h,sm);
-   if(kind!=='source'){const inp=document.createElement('span');inp.className='mb-port-v2 in';inp.title='Input port — drop a connection here';inp.dataset.portIn=id;el.appendChild(inp);}
-   if(kind!=='output'){const out=document.createElement('span');out.className='mb-port-v2 out';out.title='Output port — drag to another node';out.dataset.portOut=id;el.appendChild(out);}
-   if(row){el.addEventListener('dblclick',()=>{row.scrollIntoView({behavior:'smooth',block:'center'});row.style.outline='2px solid #287fa8';setTimeout(()=>row.style.outline='',900);});}
-   el.addEventListener('pointerdown',e=>{
-    if(e.target.classList.contains('mb-port-v2')||!row)return;
-    e.stopPropagation();const start={x:e.clientX,y:e.clientY,px:p.x,py:p.y};
-    el.setPointerCapture(e.pointerId);
-    const move=ev=>{const dx=(ev.clientX-start.x)/state.scale,dy=(ev.clientY-start.y)/state.scale;const np={x:Math.max(0,start.px+dx),y:Math.max(0,start.py+dy)};if(row)state.positions.set(id,np);else{p.x=np.x;p.y=np.y;}el.style.left=np.x+'px';el.style.top=np.y+'px';redrawEdges();};
-    const up=()=>{el.removeEventListener('pointermove',move);el.removeEventListener('pointerup',up);};
-    el.addEventListener('pointermove',move);el.addEventListener('pointerup',up,{once:true});
-   });
-   nodeEls.set(id,el);canvas.appendChild(el);
-  };
-  makeNode('source','Input · '+(modal.querySelector('[data-mb-source] option:checked')?.textContent||'Feature layer'),'Source feature layer','source',null);
-  rows.forEach((row,i)=>{
-   const id=row.dataset.mbNodeId,op=row.querySelector('[data-mb-op] option:checked')?.textContent||'Processing tool';
-   makeNode(id,(i+1)+' · '+op,'Processing · '+id.slice(0,10),'tool',row);
-  });
-  const outputId=modal.querySelector('[data-mb-output]')?.value||rows.at(-1)?.dataset.mbNodeId;
-  makeNode('output','Output · '+(modal.querySelector('[data-mb-name]')?.value||'Model_Output'),'Final model output','output',null);
-  rows.forEach(row=>{const id=row.dataset.mbNodeId,from=row.querySelector('[data-mb-input]')?.value||'source';if(from==='source'||state.positions.has(from))drawEdge(from,id);const second=row.querySelector('[data-mb-overlay-node]')?.value;if(second&&state.positions.has(second))drawEdge(second,id);});
-  if(outputId&&state.positions.has(outputId))drawEdge(outputId,'output');
-  canvas.appendChild(svg);graph.appendChild(canvas);paintTransform();
-  const toGraphPoint=e=>{const r=graph.getBoundingClientRect();return{x:(e.clientX-r.left-state.panX)/state.scale,y:(e.clientY-r.top-38-state.panY)/state.scale};};
-  graph.querySelectorAll('[data-port-out]').forEach(port=>port.addEventListener('pointerdown',e=>{
-   e.preventDefault();e.stopPropagation();const from=port.dataset.portOut,preview=document.createElementNS(NS,'path');preview.setAttribute('class','mb-edge-v2 preview');svg.appendChild(preview);
-   const move=ev=>{const a=portCenter(from,'out'),b=toGraphPoint(ev);const bend=Math.max(45,Math.abs(b.x-a.x)*.4);preview.setAttribute('d','M'+a.x+' '+a.y+' C'+(a.x+bend)+' '+a.y+' '+(b.x-bend)+' '+b.y+' '+b.x+' '+b.y);};
-   const up=ev=>{const target=document.elementFromPoint(ev.clientX,ev.clientY)?.closest('[data-port-in]')?.dataset.portIn;preview.remove();document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);if(!target||target==='source'||target===from)return;if(target==='output'){const output=modal.querySelector('[data-mb-output]');if(output){output.value=from;window.renderModelBuilderGraph(modal);}return;}const row=rows.find(r=>r.dataset.mbNodeId===target),sel=row?.querySelector('[data-mb-input]');if(!sel)return;const adjacency=new Map(rows.map(r=>[r.dataset.mbNodeId,[]]));rows.forEach(r=>{const dest=r.dataset.mbNodeId,src=r.querySelector('[data-mb-input]')?.value;if(src&&src!=='source'&&adjacency.has(src))adjacency.get(src).push(dest);const extra=r.querySelector('[data-mb-overlay-node]')?.value;if(extra&&adjacency.has(extra))adjacency.get(extra).push(dest);});const stack=[target],seen=new Set();let cycle=false;while(stack.length){const current=stack.pop();if(current===from){cycle=true;break;}if(seen.has(current))continue;seen.add(current);stack.push(...(adjacency.get(current)||[]));}if(cycle){const statusEl=modal.querySelector('[data-mb-status]');if(statusEl)statusEl.textContent='Connection rejected: this link would create a circular dependency.';return;}sel.value=from;refreshModelBuilderNodeInputs(modal);window.renderModelBuilderGraph(modal);};
-   document.addEventListener('pointermove',move);document.addEventListener('pointerup',up,{once:true});
-  }));
-  graph.addEventListener('wheel',e=>{if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();state.scale=Math.max(.45,Math.min(1.8,state.scale+(e.deltaY<0?.08:-.08)));paintTransform();},{passive:false});
-  graph.addEventListener('pointerdown',e=>{if(e.target.closest('.mb-node-v2,.mb-graph-tools'))return;const start={x:e.clientX,y:e.clientY,px:state.panX,py:state.panY};graph.classList.add('mb-panning');const move=ev=>{state.panX=start.px+ev.clientX-start.x;state.panY=start.py+ev.clientY-start.y;paintTransform();};const up=()=>{graph.classList.remove('mb-panning');document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);};document.addEventListener('pointermove',move);document.addEventListener('pointerup',up,{once:true});});
- };
-}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
-let sabzRasterState=null;
-function openRasterWorkspace(){
- let p=document.getElementById("sabzRasterWorkspace");if(p){p.hidden=!p.hidden;return;}
- p=document.createElement("section");p.id="sabzRasterWorkspace";p.style.cssText="position:fixed;z-index:10020;right:18px;top:72px;width:min(390px,calc(100vw - 30px));max-height:78vh;overflow:auto;background:#f5f7f9;border:1px solid #9aaab4;box-shadow:0 8px 28px #14253635;border-radius:5px;padding:12px;color:#243746;font:12px Arial,sans-serif";
- p.innerHTML='<header style="display:flex;justify-content:space-between"><strong>Raster Analysis · ArcMap</strong><button data-r-close>×</button></header><label>GeoTIFF / COG<input data-r-file type="file" accept=".tif,.tiff,image/tiff" style="display:block;width:100%;margin:8px 0"></label><div data-r-meta style="padding:7px;background:#e8eef2">No raster loaded</div><label style="display:block;margin:8px 0">Operation<select data-r-op style="display:block;width:100%;padding:7px"><option value="display">Display / Stretch</option><option value="slope">Slope (degrees)</option><option value="aspect">Aspect (degrees)</option><option value="hillshade">Hillshade</option><option value="calculator">Raster Calculator</option></select></label><label data-r-expr-wrap style="display:block;margin:8px 0">Expression<input data-r-expr value="B1" style="display:block;width:100%;padding:7px;box-sizing:border-box"><small>B1, B2, B3; + − × ÷ and parentheses.</small></label><label>Output name<input data-r-name value="Raster_Result" style="display:block;width:100%;padding:7px;box-sizing:border-box"></label><div style="display:flex;gap:6px;margin-top:8px"><button data-r-run>Run</button><button data-r-export>Export PNG</button></div><pre data-r-status style="white-space:pre-wrap;background:#e8eef2;padding:8px">Select a GeoTIFF.</pre>';
- document.body.appendChild(p);const say=t=>p.querySelector('[data-r-status]').textContent=t;
- p.querySelector('[data-r-close]').onclick=()=>p.hidden=true;
- p.querySelector('[data-r-op]').onchange=()=>p.querySelector('[data-r-expr-wrap]').hidden=p.querySelector('[data-r-op]').value!=="calculator";
- p.querySelector('[data-r-file]').onchange=async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;try{
-  if(typeof GeoTIFF==="undefined")throw Error("GeoTIFF reader unavailable.");
-  say("Reading raster…");const tif=await GeoTIFF.fromArrayBuffer(await file.arrayBuffer()),im=await tif.getImage(),w=im.getWidth(),h=im.getHeight();
-  if(w*h>50000000)throw Error("Raster exceeds 50 million pixels; clip or build an overview first.");
-  const bands=(await im.readRasters({interleave:false})).map(a=>Float32Array.from(a)),keys=im.getGeoKeys?im.getGeoKeys():{},epsg=Number(keys.ProjectedCSTypeGeoKey||keys.GeographicTypeGeoKey||4326),bb=im.getBoundingBox();
-  if(!bb||bb.length!==4||!bb.every(Number.isFinite))throw Error("No valid GeoTIFF georeferencing found.");
-  let crs=epsg===4326?"EPSG:4326":epsg===3857?"EPSG:3857":epsg>=32601&&epsg<=32660?"+proj=utm +zone="+(epsg-32600)+" +datum=WGS84 +units=m +no_defs":epsg>=32701&&epsg<=32760?"+proj=utm +zone="+(epsg-32700)+" +south +datum=WGS84 +units=m +no_defs":null;
-  if(!crs)throw Error("EPSG:"+epsg+" not supported in browser. Reproject to EPSG:4326 or UTM WGS84.");
-  const ll=xy=>epsg===4326?xy:epsg===3857?[xy[0]/6378137*180/Math.PI,Math.atan(Math.sinh(xy[1]/6378137))*180/Math.PI]:proj4(crs,"EPSG:4326",xy);
-  const a=ll([bb[0],bb[1]]),b=ll([bb[2],bb[3]]),bounds=[[Math.min(a[1],b[1]),Math.min(a[0],b[0])],[Math.max(a[1],b[1]),Math.max(a[0],b[0])]];
-  const factor=Math.max(1,Math.ceil(Math.max(w,h)/1400)),ow=Math.ceil(w/factor),oh=Math.ceil(h/factor),scale=im.getFileDirectory().ModelPixelScale||[],canvas=document.createElement("canvas");canvas.width=ow;canvas.height=oh;
-  sabzRasterState={fileName:file.name,w,h,bands,epsg,bounds,factor,ow,oh,cellX:Number(scale[0])||Math.abs(bb[2]-bb[0])/w,cellY:Number(scale[1])||Math.abs(bb[3]-bb[1])/h,canvas,layer:null};
-  p.querySelector('[data-r-meta]').textContent=w+" × "+h+" px · "+bands.length+" band(s) · EPSG:"+epsg+" · "+file.name;say("Loaded. Choose operation and Run.");p.querySelector('[data-r-op]').dispatchEvent(new Event("change"));renderSabzRaster("display");
- }catch(err){say("Load failed: "+err.message);}};
- p.querySelector('[data-r-run]').onclick=()=>{try{if(!sabzRasterState)throw Error("Load a GeoTIFF first.");renderSabzRaster(p.querySelector('[data-r-op]').value);say("Completed: "+p.querySelector('[data-r-name]').value);}catch(err){say("Processing failed: "+err.message);}};
- p.querySelector('[data-r-export]').onclick=()=>{if(!sabzRasterState?.output){say("Run an operation first.");return;}sabzRasterState.canvas.toBlob(blob=>{if(!blob)return;const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=(p.querySelector('[data-r-name]').value||"raster-result")+".png";a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);});};
-}
-function rasterExpr(expr,values){
- const t=String(expr).match(/B[1-9]\d*|(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?|[()+*/-]/gi)||[];if(t.join("").replace(/\s/g,"")!==String(expr).replace(/\s/g,""))throw Error("Expression allows only B1…Bn, numbers and + - * / ( ).");let i=0;
- const atom=()=>{let x=t[i++];if(x==="("){let v=sum();if(t[i++]!==")")throw Error("Missing )");return v;}if(x==="-")return-atom();if(x==="+")return atom();if(/^B\d+$/i.test(x||"")){let n=+x.slice(1)-1;if(n<0||n>=values.length||!Number.isFinite(values[n]))throw Error("Band "+(n+1)+" is unavailable or NoData.");return values[n];}let n=Number(x);if(!Number.isFinite(n))throw Error("Invalid expression");return n;};
- const product=()=>{let v=atom();while(t[i]==="*"||t[i]==="/"){let op=t[i++],b=atom();v=op==="*"?v*b:b===0?NaN:v/b;}return v;};
- const sum=()=>{let v=product();while(t[i]==="+"||t[i]==="-"){let op=t[i++],b=product();v=op==="+"?v+b:v-b;}return v;};
- let v=sum();if(i!==t.length)throw Error("Unexpected token");return v;
-}
-function renderSabzRaster(op){
- const r=sabzRasterState;if(!r)throw Error("No raster");const {w,h,bands,factor,ow,oh,canvas}=r,ctx=canvas.getContext("2d"),img=ctx.createImageData(ow,oh),values=new Float32Array(ow*oh);
- const get=(band,x,y)=>bands[band][Math.min(h-1,y*factor)*w+Math.min(w-1,x*factor)],expr=document.querySelector("#sabzRasterWorkspace [data-r-expr]")?.value||"B1";
- for(let y=0;y<oh;y++)for(let x=0;x<ow;x++){const k=y*ow+x;let z=get(0,x,y);
-  if(["slope","aspect","hillshade"].includes(op)){const a=get(0,Math.max(0,x-1),Math.max(0,y-1)),b=get(0,x,Math.max(0,y-1)),c=get(0,Math.min(ow-1,x+1),Math.max(0,y-1)),d=get(0,Math.max(0,x-1),y),f=get(0,Math.min(ow-1,x+1),y),g=get(0,Math.max(0,x-1),Math.min(oh-1,y+1)),hh=get(0,x,Math.min(oh-1,y+1)),j=get(0,Math.min(ow-1,x+1),Math.min(oh-1,y+1));
-   const lat=(r.bounds[0][0]+r.bounds[1][0])/2,sx=r.cellX*factor*(r.epsg===4326?111320*Math.cos(lat*Math.PI/180):1),sy=r.cellY*factor*(r.epsg===4326?111320:1),dx=((c+2*f+j)-(a+2*d+g))/(8*Math.max(.000001,sx)),dy=((g+2*hh+j)-(a+2*b+c))/(8*Math.max(.000001,sy)),sl=Math.atan(Math.hypot(dx,dy)),aspect=(Math.atan2(dy,-dx)+2*Math.PI)%(2*Math.PI);
-   z=op==="slope"?sl*180/Math.PI:op==="aspect"?aspect*180/Math.PI:Math.max(0,255*(Math.cos(Math.PI/4)*Math.cos(sl)+Math.sin(Math.PI/4)*Math.sin(sl)*Math.cos(Math.PI*1.25-aspect)));
-  }else if(op==="calculator")z=rasterExpr(expr,bands.map((_,bi)=>get(bi,x,y)));values[k]=Number.isFinite(z)?z:NaN;}
- const valid=Array.from(values).filter(Number.isFinite).sort((a,b)=>a-b);if(!valid.length)throw Error("No valid output pixels");const lo=valid[Math.floor((valid.length-1)*.02)],hi=valid[Math.floor((valid.length-1)*.98)],span=Math.max(1e-12,hi-lo);
- for(let k=0;k<values.length;k++){const v=values[k],p=k*4;if(!Number.isFinite(v)){img.data[p+3]=0;continue;}let rr,gg,bb;
-  if(op==="display"&&bands.length>=3){const x=k%ow,y=Math.floor(k/ow);rr=get(0,x,y);gg=get(1,x,y);bb=get(2,x,y);const mx=Math.max(rr,gg,bb,255);if(mx>255){rr=rr/mx*255;gg=gg/mx*255;bb=bb/mx*255;}}
-  else{rr=gg=bb=op==="aspect"?Math.round(v/360*255):Math.max(0,Math.min(255,Math.round((v-lo)/span*255)));}
-  img.data[p]=rr;img.data[p+1]=gg;img.data[p+2]=bb;img.data[p+3]=255;}
- ctx.putImageData(img,0,0);r.output={op,values,lo,hi};if(r.layer){try{map.removeLayer(r.layer);layerControl.removeLayer(r.layer);}catch(_){}const previous=namedLayers.find(item=>item.layer===r.layer);if(previous)namedLayers.splice(namedLayers.indexOf(previous),1);}
- const layer=L.imageOverlay(canvas.toDataURL("image/png"),L.latLngBounds(r.bounds[0],r.bounds[1]),{opacity:.88,interactive:false});addNamedLayer((document.querySelector("#sabzRasterWorkspace [data-r-name]")?.value||"Raster_Result")+" · "+op,layer,true);r.layer=layer;
-}
-
-
-document.addEventListener("click",e=>{if(e.target.closest("[data-raster-open]")){e.preventDefault();openRasterWorkspace();}});
-
-})();
-</script>
-
-\n<style id="sabz-layout-free-edit-v2">.layout-resizable-selected{resize:both!important;overflow:auto!important;min-width:36px;min-height:20px;outline:2px solid #2684b7!important;outline-offset:2px}.webgis-layout-added-text{box-sizing:border-box;min-width:40px;min-height:22px;padding:4px;cursor:text}</style>\n</body></html>";
+</body></html>";
    win.document.open();
    win.document.write(html);
    win.document.close();
@@ -9687,6 +9533,145 @@ function runModelBuilder(modal){
   window.__sabzGISMap=map;
   window.__sabzGISNamedLayers=namedLayers;
   window.__sabzGISDrawn=drawn;
+/* ArcMap-like ModelBuilder graph canvas. */
+(()=>{const st=document.createElement('style');st.id='arcmap-modelbuilder-canvas-v2';st.textContent="\n#gisModelBuilder [data-mb-graph]{height:clamp(300px,48vh,560px)!important;min-height:300px!important;overflow:auto!important;position:relative!important;cursor:grab!important;touch-action:none;background-color:#f4f7fa!important;background-image:linear-gradient(#dce4eb 1px,transparent 1px),linear-gradient(90deg,#dce4eb 1px,transparent 1px)!important;background-size:20px 20px!important}\n#gisModelBuilder [data-mb-graph].mb-panning{cursor:grabbing!important}\n#gisModelBuilder .mb-canvas-v2{position:relative;transform-origin:0 0;will-change:transform}\n#gisModelBuilder .mb-node-v2{position:absolute;width:224px;min-height:88px;padding:11px 14px 11px 18px;background:linear-gradient(#fff,#f8fafc);border:1px solid #9eafbb;border-left:5px solid #b17b32;border-radius:5px;box-shadow:0 2px 6px #23374620;z-index:2;cursor:move;user-select:none}\n#gisModelBuilder .mb-node-v2.mb-source{border-left-color:#277da8}\n#gisModelBuilder .mb-node-v2.mb-output{border-left-color:#25834d}\n#gisModelBuilder .mb-node-v2 strong{display:block;font-size:12px;color:#243746;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n#gisModelBuilder .mb-node-v2 small{display:block;margin-top:5px;color:#627584;font-size:10px}\n#gisModelBuilder .mb-port-v2{position:absolute;top:50%;width:13px;height:13px;margin-top:-7px;border:2px solid #fff;border-radius:50%;background:#287fa8;box-shadow:0 0 0 1px #287fa8;cursor:crosshair;z-index:4}\n#gisModelBuilder .mb-port-v2.in{left:-7px;background:#b17b32;box-shadow:0 0 0 1px #b17b32}\n#gisModelBuilder .mb-port-v2.out{right:-7px}\n#gisModelBuilder .mb-edge-v2{fill:none;stroke:#66889c;stroke-width:2.4;pointer-events:stroke;cursor:pointer}\n#gisModelBuilder .mb-edge-v2:hover{stroke:#d17b26;stroke-width:4}\n#gisModelBuilder .mb-edge-v2.preview{stroke:#277da8;stroke-dasharray:6 5;pointer-events:none}\n#gisModelBuilder .mb-graph-tools{position:sticky;top:5px;left:5px;z-index:8;display:flex;gap:4px;width:max-content;padding:4px;background:#ffffffed;border:1px solid #bac7cf;border-radius:4px}\n#gisModelBuilder .mb-graph-tools button{min-width:29px;height:27px;border:1px solid #aab8c0;background:#f8fafb;color:#243746;border-radius:3px;cursor:pointer}\n#gisModelBuilder .mb-graph-tools output{min-width:42px;text-align:center;font-size:10px;align-self:center}\n#gisModelBuilder .mb-graph-hint{font-size:10px;color:#647887;padding:4px 7px}\n";document.head.appendChild(st);})();
+
+(()=>{
+'use strict';
+const NS='http://www.w3.org/2000/svg';
+function install(){
+ const original=renderModelBuilderGraph;
+ if(typeof original!=='function'||window.__mbCanvasV2)return;
+ window.__mbCanvasV2=true;
+ window.renderModelBuilderGraph=function(modal){
+  const graph=modal?.querySelector('[data-mb-graph]'),host=modal?.querySelector('[data-mb-steps]');
+  if(!graph||!host)return;
+  const rows=[...host.children],W=224,H=90,GAP=100;
+  graph.replaceChildren();graph.style.position='relative';
+  let state=graph.__mbState||(graph.__mbState={scale:1,panX:0,panY:0,positions:new Map(),drag:null,connect:null});
+  rows.forEach((row,i)=>{if(!state.positions.has(row.dataset.mbNodeId))state.positions.set(row.dataset.mbNodeId,{x:55+i*330,y:100+(i%2)*145});});
+  const ids=new Set(rows.map(r=>r.dataset.mbNodeId));for(const id of state.positions.keys())if(!ids.has(id))state.positions.delete(id);
+  const allPos=[...state.positions.values()],maxX=Math.max(900,...allPos.map(p=>p.x+W+150)),maxY=Math.max(460,...allPos.map(p=>p.y+H+150));
+  const tools=document.createElement('div');tools.className='mb-graph-tools';
+  const mk=(label,title,fn)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.title=title;b.onclick=fn;tools.appendChild(b);return b;};
+  const zoomOut=()=>{state.scale=Math.max(.45,state.scale-.1);paintTransform();};
+  const zoomIn=()=>{state.scale=Math.min(1.8,state.scale+.1);paintTransform();};
+  const zoomLabel=document.createElement('output');tools.appendChild(zoomLabel);
+  const paintTransform=()=>{canvas.style.transform='translate('+state.panX+'px,'+state.panY+'px) scale('+state.scale+')';zoomLabel.textContent=Math.round(state.scale*100)+'%';};
+  mk('−','Zoom out',zoomOut);mk('+','Zoom in',zoomIn);mk('100%','Reset zoom and pan',()=>{state.scale=1;state.panX=0;state.panY=0;paintTransform();});mk('Fit','Fit graph',()=>{const sx=(graph.clientWidth-40)/maxX,sy=(graph.clientHeight-70)/maxY;state.scale=Math.max(.45,Math.min(1.2,sx,sy));state.panX=12;state.panY=36;paintTransform();});
+  const hint=document.createElement('div');hint.className='mb-graph-hint';hint.textContent='اتصال: از پورت آبی خروجی به پورت ورودی گره مقصد بکشید؛ برای حذف اتصال روی خط کلیک کنید. جابه‌جایی بوم: کشیدن فضای خالی؛ بزرگ‌نمایی: چرخ ماوس.';
+  graph.append(tools,hint);
+  const canvas=document.createElement('div');canvas.className='mb-canvas-v2';canvas.style.cssText='position:absolute;left:0;top:38px;width:'+maxX+'px;height:'+maxY+'px';
+  const svg=document.createElementNS(NS,'svg');svg.setAttribute('width',maxX);svg.setAttribute('height',maxY);svg.style.cssText='position:absolute;inset:0;overflow:visible;z-index:1';
+  const defs=document.createElementNS(NS,'defs'),marker=document.createElementNS(NS,'marker');marker.setAttribute('id','mbArrowV2');marker.setAttribute('markerWidth','8');marker.setAttribute('markerHeight','8');marker.setAttribute('refX','7');marker.setAttribute('refY','3');marker.setAttribute('orient','auto');const arrow=document.createElementNS(NS,'path');arrow.setAttribute('d','M0 0 L0 6 L7 3 Z');arrow.setAttribute('fill','#66889c');marker.appendChild(arrow);defs.appendChild(marker);svg.appendChild(defs);
+  const nodeEls=new Map(),edgeEls=[];
+  const portCenter=(id,side)=>{const p=id==='source'?{x:20,y:100}:id==='output'?{x:maxX-260,y:100}:state.positions.get(id);return p?{x:p.x+(side==='out'?W:0),y:p.y+H/2}:null;};
+  const drawEdge=(from,to,preview=false)=>{
+   const a=portCenter(from,'out'),b=portCenter(to,'in');if(!a||!b)return;
+   const path=document.createElementNS(NS,'path'),bend=Math.max(45,Math.abs(b.x-a.x)*.45);
+   path.setAttribute('d','M'+a.x+' '+a.y+' C'+(a.x+bend)+' '+a.y+' '+(b.x-bend)+' '+b.y+' '+b.x+' '+b.y);
+   path.setAttribute('class','mb-edge-v2'+(preview?' preview':''));path.setAttribute('marker-end','url(#mbArrowV2)');
+   if(!preview)path.addEventListener('click',e=>{e.stopPropagation();const target=rows.find(r=>r.dataset.mbNodeId===to);const sel=target?.querySelector('[data-mb-input]');if(sel){sel.value='source';refreshModelBuilderNodeInputs(modal);window.renderModelBuilderGraph(modal);}});
+   svg.appendChild(path);edgeEls.push(path);
+  };
+  const redrawEdges=()=>{svg.querySelectorAll('.mb-edge-v2:not(.preview)').forEach(el=>el.remove());rows.forEach(row=>{const id=row.dataset.mbNodeId,from=row.querySelector('[data-mb-input]')?.value||'source';if(from==='source'||state.positions.has(from))drawEdge(from,id);const second=row.querySelector('[data-mb-overlay-node]')?.value;if(second&&state.positions.has(second))drawEdge(second,id);});const outId=modal.querySelector('[data-mb-output]')?.value||rows[rows.length-1]?.dataset.mbNodeId;if(outId&&state.positions.has(outId))drawEdge(outId,'output');};
+  const makeNode=(id,title,sub,kind,row)=>{
+   const p=id==='source'?{x:20,y:100}:id==='output'?{x:maxX-260,y:100}:state.positions.get(id);
+   const el=document.createElement('div');el.className='mb-node-v2 '+(kind==='source'?'mb-source':kind==='output'?'mb-output':'');el.style.left=p.x+'px';el.style.top=p.y+'px';
+   const h=document.createElement('strong');h.textContent=title;const sm=document.createElement('small');sm.textContent=sub;el.append(h,sm);
+   if(kind!=='source'){const inp=document.createElement('span');inp.className='mb-port-v2 in';inp.title='Input port — drop a connection here';inp.dataset.portIn=id;el.appendChild(inp);}
+   if(kind!=='output'){const out=document.createElement('span');out.className='mb-port-v2 out';out.title='Output port — drag to another node';out.dataset.portOut=id;el.appendChild(out);}
+   if(row){el.addEventListener('dblclick',()=>{row.scrollIntoView({behavior:'smooth',block:'center'});row.style.outline='2px solid #287fa8';setTimeout(()=>row.style.outline='',900);});}
+   el.addEventListener('pointerdown',e=>{
+    if(e.target.classList.contains('mb-port-v2')||!row)return;
+    e.stopPropagation();const start={x:e.clientX,y:e.clientY,px:p.x,py:p.y};
+    el.setPointerCapture(e.pointerId);
+    const move=ev=>{const dx=(ev.clientX-start.x)/state.scale,dy=(ev.clientY-start.y)/state.scale;const np={x:Math.max(0,start.px+dx),y:Math.max(0,start.py+dy)};if(row)state.positions.set(id,np);else{p.x=np.x;p.y=np.y;}el.style.left=np.x+'px';el.style.top=np.y+'px';redrawEdges();};
+    const up=()=>{el.removeEventListener('pointermove',move);el.removeEventListener('pointerup',up);};
+    el.addEventListener('pointermove',move);el.addEventListener('pointerup',up,{once:true});
+   });
+   nodeEls.set(id,el);canvas.appendChild(el);
+  };
+  makeNode('source','Input · '+(modal.querySelector('[data-mb-source] option:checked')?.textContent||'Feature layer'),'Source feature layer','source',null);
+  rows.forEach((row,i)=>{
+   const id=row.dataset.mbNodeId,op=row.querySelector('[data-mb-op] option:checked')?.textContent||'Processing tool';
+   makeNode(id,(i+1)+' · '+op,'Processing · '+id.slice(0,10),'tool',row);
+  });
+  const outputId=modal.querySelector('[data-mb-output]')?.value||rows.at(-1)?.dataset.mbNodeId;
+  makeNode('output','Output · '+(modal.querySelector('[data-mb-name]')?.value||'Model_Output'),'Final model output','output',null);
+  rows.forEach(row=>{const id=row.dataset.mbNodeId,from=row.querySelector('[data-mb-input]')?.value||'source';if(from==='source'||state.positions.has(from))drawEdge(from,id);const second=row.querySelector('[data-mb-overlay-node]')?.value;if(second&&state.positions.has(second))drawEdge(second,id);});
+  if(outputId&&state.positions.has(outputId))drawEdge(outputId,'output');
+  canvas.appendChild(svg);graph.appendChild(canvas);paintTransform();
+  const toGraphPoint=e=>{const r=graph.getBoundingClientRect();return{x:(e.clientX-r.left-state.panX)/state.scale,y:(e.clientY-r.top-38-state.panY)/state.scale};};
+  graph.querySelectorAll('[data-port-out]').forEach(port=>port.addEventListener('pointerdown',e=>{
+   e.preventDefault();e.stopPropagation();const from=port.dataset.portOut,preview=document.createElementNS(NS,'path');preview.setAttribute('class','mb-edge-v2 preview');svg.appendChild(preview);
+   const move=ev=>{const a=portCenter(from,'out'),b=toGraphPoint(ev);const bend=Math.max(45,Math.abs(b.x-a.x)*.4);preview.setAttribute('d','M'+a.x+' '+a.y+' C'+(a.x+bend)+' '+a.y+' '+(b.x-bend)+' '+b.y+' '+b.x+' '+b.y);};
+   const up=ev=>{const target=document.elementFromPoint(ev.clientX,ev.clientY)?.closest('[data-port-in]')?.dataset.portIn;preview.remove();document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);if(!target||target==='source'||target===from)return;if(target==='output'){const output=modal.querySelector('[data-mb-output]');if(output){output.value=from;window.renderModelBuilderGraph(modal);}return;}const row=rows.find(r=>r.dataset.mbNodeId===target),sel=row?.querySelector('[data-mb-input]');if(!sel)return;const adjacency=new Map(rows.map(r=>[r.dataset.mbNodeId,[]]));rows.forEach(r=>{const dest=r.dataset.mbNodeId,src=r.querySelector('[data-mb-input]')?.value;if(src&&src!=='source'&&adjacency.has(src))adjacency.get(src).push(dest);const extra=r.querySelector('[data-mb-overlay-node]')?.value;if(extra&&adjacency.has(extra))adjacency.get(extra).push(dest);});const stack=[target],seen=new Set();let cycle=false;while(stack.length){const current=stack.pop();if(current===from){cycle=true;break;}if(seen.has(current))continue;seen.add(current);stack.push(...(adjacency.get(current)||[]));}if(cycle){const statusEl=modal.querySelector('[data-mb-status]');if(statusEl)statusEl.textContent='Connection rejected: this link would create a circular dependency.';return;}sel.value=from;refreshModelBuilderNodeInputs(modal);window.renderModelBuilderGraph(modal);};
+   document.addEventListener('pointermove',move);document.addEventListener('pointerup',up,{once:true});
+  }));
+  graph.addEventListener('wheel',e=>{if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();state.scale=Math.max(.45,Math.min(1.8,state.scale+(e.deltaY<0?.08:-.08)));paintTransform();},{passive:false});
+  graph.addEventListener('pointerdown',e=>{if(e.target.closest('.mb-node-v2,.mb-graph-tools'))return;const start={x:e.clientX,y:e.clientY,px:state.panX,py:state.panY};graph.classList.add('mb-panning');const move=ev=>{state.panX=start.px+ev.clientX-start.x;state.panY=start.py+ev.clientY-start.y;paintTransform();};const up=()=>{graph.classList.remove('mb-panning');document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);};document.addEventListener('pointermove',move);document.addEventListener('pointerup',up,{once:true});});
+ };
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
+
+})();
+
+/* Browser GeoTIFF raster tools. */
+let sabzRasterState=null;
+function openRasterWorkspace(){
+ let p=document.getElementById("sabzRasterWorkspace");if(p){p.hidden=!p.hidden;return;}
+ p=document.createElement("section");p.id="sabzRasterWorkspace";p.style.cssText="position:fixed;z-index:10020;right:18px;top:72px;width:min(390px,calc(100vw - 30px));max-height:78vh;overflow:auto;background:#f5f7f9;border:1px solid #9aaab4;box-shadow:0 8px 28px #14253635;border-radius:5px;padding:12px;color:#243746;font:12px Arial,sans-serif";
+ p.innerHTML='<header style="display:flex;justify-content:space-between"><strong>Raster Analysis · ArcMap</strong><button data-r-close>×</button></header><label>GeoTIFF / COG<input data-r-file type="file" accept=".tif,.tiff,image/tiff" style="display:block;width:100%;margin:8px 0"></label><div data-r-meta style="padding:7px;background:#e8eef2">No raster loaded</div><label style="display:block;margin:8px 0">Operation<select data-r-op style="display:block;width:100%;padding:7px"><option value="display">Display / Stretch</option><option value="slope">Slope (degrees)</option><option value="aspect">Aspect (degrees)</option><option value="hillshade">Hillshade</option><option value="calculator">Raster Calculator</option></select></label><label data-r-expr-wrap style="display:block;margin:8px 0">Expression<input data-r-expr value="B1" style="display:block;width:100%;padding:7px;box-sizing:border-box"><small>B1, B2, B3; + − × ÷ and parentheses.</small></label><label>Output name<input data-r-name value="Raster_Result" style="display:block;width:100%;padding:7px;box-sizing:border-box"></label><div style="display:flex;gap:6px;margin-top:8px"><button data-r-run>Run</button><button data-r-export>Export PNG</button></div><pre data-r-status style="white-space:pre-wrap;background:#e8eef2;padding:8px">Select a GeoTIFF.</pre>';
+ document.body.appendChild(p);const say=t=>p.querySelector('[data-r-status]').textContent=t;
+ p.querySelector('[data-r-close]').onclick=()=>p.hidden=true;
+ p.querySelector('[data-r-op]').onchange=()=>p.querySelector('[data-r-expr-wrap]').hidden=p.querySelector('[data-r-op]').value!=="calculator";
+ p.querySelector('[data-r-file]').onchange=async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;try{
+  if(typeof GeoTIFF==="undefined")throw Error("GeoTIFF reader unavailable.");
+  say("Reading raster…");const tif=await GeoTIFF.fromArrayBuffer(await file.arrayBuffer()),im=await tif.getImage(),w=im.getWidth(),h=im.getHeight();
+  if(w*h>50000000)throw Error("Raster exceeds 50 million pixels; clip or build an overview first.");
+  const bands=(await im.readRasters({interleave:false})).map(a=>Float32Array.from(a)),keys=im.getGeoKeys?im.getGeoKeys():{},epsg=Number(keys.ProjectedCSTypeGeoKey||keys.GeographicTypeGeoKey||4326),bb=im.getBoundingBox();
+  if(!bb||bb.length!==4||!bb.every(Number.isFinite))throw Error("No valid GeoTIFF georeferencing found.");
+  let crs=epsg===4326?"EPSG:4326":epsg===3857?"EPSG:3857":epsg>=32601&&epsg<=32660?"+proj=utm +zone="+(epsg-32600)+" +datum=WGS84 +units=m +no_defs":epsg>=32701&&epsg<=32760?"+proj=utm +zone="+(epsg-32700)+" +south +datum=WGS84 +units=m +no_defs":null;
+  if(!crs)throw Error("EPSG:"+epsg+" not supported in browser. Reproject to EPSG:4326 or UTM WGS84.");
+  const ll=xy=>epsg===4326?xy:epsg===3857?[xy[0]/6378137*180/Math.PI,Math.atan(Math.sinh(xy[1]/6378137))*180/Math.PI]:proj4(crs,"EPSG:4326",xy);
+  const a=ll([bb[0],bb[1]]),b=ll([bb[2],bb[3]]),bounds=[[Math.min(a[1],b[1]),Math.min(a[0],b[0])],[Math.max(a[1],b[1]),Math.max(a[0],b[0])]];
+  const factor=Math.max(1,Math.ceil(Math.max(w,h)/1400)),ow=Math.ceil(w/factor),oh=Math.ceil(h/factor),scale=im.getFileDirectory().ModelPixelScale||[],canvas=document.createElement("canvas");canvas.width=ow;canvas.height=oh;
+  sabzRasterState={fileName:file.name,w,h,bands,epsg,bounds,factor,ow,oh,cellX:Number(scale[0])||Math.abs(bb[2]-bb[0])/w,cellY:Number(scale[1])||Math.abs(bb[3]-bb[1])/h,canvas,layer:null};
+  p.querySelector('[data-r-meta]').textContent=w+" × "+h+" px · "+bands.length+" band(s) · EPSG:"+epsg+" · "+file.name;say("Loaded. Choose operation and Run.");p.querySelector('[data-r-op]').dispatchEvent(new Event("change"));renderSabzRaster("display");
+ }catch(err){say("Load failed: "+err.message);}};
+ p.querySelector('[data-r-run]').onclick=()=>{try{if(!sabzRasterState)throw Error("Load a GeoTIFF first.");renderSabzRaster(p.querySelector('[data-r-op]').value);say("Completed: "+p.querySelector('[data-r-name]').value);}catch(err){say("Processing failed: "+err.message);}};
+ p.querySelector('[data-r-export]').onclick=()=>{if(!sabzRasterState?.output){say("Run an operation first.");return;}sabzRasterState.canvas.toBlob(blob=>{if(!blob)return;const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=(p.querySelector('[data-r-name]').value||"raster-result")+".png";a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);});};
+}
+function rasterExpr(expr,values){
+ const t=String(expr).match(/B[1-9]\d*|(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?|[()+*/-]/gi)||[];if(t.join("").replace(/\s/g,"")!==String(expr).replace(/\s/g,""))throw Error("Expression allows only B1…Bn, numbers and + - * / ( ).");let i=0;
+ const atom=()=>{let x=t[i++];if(x==="("){let v=sum();if(t[i++]!==")")throw Error("Missing )");return v;}if(x==="-")return-atom();if(x==="+")return atom();if(/^B\d+$/i.test(x||"")){let n=+x.slice(1)-1;if(n<0||n>=values.length||!Number.isFinite(values[n]))throw Error("Band "+(n+1)+" is unavailable or NoData.");return values[n];}let n=Number(x);if(!Number.isFinite(n))throw Error("Invalid expression");return n;};
+ const product=()=>{let v=atom();while(t[i]==="*"||t[i]==="/"){let op=t[i++],b=atom();v=op==="*"?v*b:b===0?NaN:v/b;}return v;};
+ const sum=()=>{let v=product();while(t[i]==="+"||t[i]==="-"){let op=t[i++],b=product();v=op==="+"?v+b:v-b;}return v;};
+ let v=sum();if(i!==t.length)throw Error("Unexpected token");return v;
+}
+function renderSabzRaster(op){
+ const r=sabzRasterState;if(!r)throw Error("No raster");const {w,h,bands,factor,ow,oh,canvas}=r,ctx=canvas.getContext("2d"),img=ctx.createImageData(ow,oh),values=new Float32Array(ow*oh);
+ const get=(band,x,y)=>bands[band][Math.min(h-1,y*factor)*w+Math.min(w-1,x*factor)],expr=document.querySelector("#sabzRasterWorkspace [data-r-expr]")?.value||"B1";
+ for(let y=0;y<oh;y++)for(let x=0;x<ow;x++){const k=y*ow+x;let z=get(0,x,y);
+  if(["slope","aspect","hillshade"].includes(op)){const a=get(0,Math.max(0,x-1),Math.max(0,y-1)),b=get(0,x,Math.max(0,y-1)),c=get(0,Math.min(ow-1,x+1),Math.max(0,y-1)),d=get(0,Math.max(0,x-1),y),f=get(0,Math.min(ow-1,x+1),y),g=get(0,Math.max(0,x-1),Math.min(oh-1,y+1)),hh=get(0,x,Math.min(oh-1,y+1)),j=get(0,Math.min(ow-1,x+1),Math.min(oh-1,y+1));
+   const lat=(r.bounds[0][0]+r.bounds[1][0])/2,sx=r.cellX*factor*(r.epsg===4326?111320*Math.cos(lat*Math.PI/180):1),sy=r.cellY*factor*(r.epsg===4326?111320:1),dx=((c+2*f+j)-(a+2*d+g))/(8*Math.max(.000001,sx)),dy=((g+2*hh+j)-(a+2*b+c))/(8*Math.max(.000001,sy)),sl=Math.atan(Math.hypot(dx,dy)),aspect=(Math.atan2(dy,-dx)+2*Math.PI)%(2*Math.PI);
+   z=op==="slope"?sl*180/Math.PI:op==="aspect"?aspect*180/Math.PI:Math.max(0,255*(Math.cos(Math.PI/4)*Math.cos(sl)+Math.sin(Math.PI/4)*Math.sin(sl)*Math.cos(Math.PI*1.25-aspect)));
+  }else if(op==="calculator")z=rasterExpr(expr,bands.map((_,bi)=>get(bi,x,y)));values[k]=Number.isFinite(z)?z:NaN;}
+ const valid=Array.from(values).filter(Number.isFinite).sort((a,b)=>a-b);if(!valid.length)throw Error("No valid output pixels");const lo=valid[Math.floor((valid.length-1)*.02)],hi=valid[Math.floor((valid.length-1)*.98)],span=Math.max(1e-12,hi-lo);
+ for(let k=0;k<values.length;k++){const v=values[k],p=k*4;if(!Number.isFinite(v)){img.data[p+3]=0;continue;}let rr,gg,bb;
+  if(op==="display"&&bands.length>=3){const x=k%ow,y=Math.floor(k/ow);rr=get(0,x,y);gg=get(1,x,y);bb=get(2,x,y);const mx=Math.max(rr,gg,bb,255);if(mx>255){rr=rr/mx*255;gg=gg/mx*255;bb=bb/mx*255;}}
+  else{rr=gg=bb=op==="aspect"?Math.round(v/360*255):Math.max(0,Math.min(255,Math.round((v-lo)/span*255)));}
+  img.data[p]=rr;img.data[p+1]=gg;img.data[p+2]=bb;img.data[p+3]=255;}
+ ctx.putImageData(img,0,0);r.output={op,values,lo,hi};if(r.layer){try{map.removeLayer(r.layer);layerControl.removeLayer(r.layer);}catch(_){}const previous=namedLayers.find(item=>item.layer===r.layer);if(previous)namedLayers.splice(namedLayers.indexOf(previous),1);}
+ const layer=L.imageOverlay(canvas.toDataURL("image/png"),L.latLngBounds(r.bounds[0],r.bounds[1]),{opacity:.88,interactive:false});addNamedLayer((document.querySelector("#sabzRasterWorkspace [data-r-name]")?.value||"Raster_Result")+" · "+op,layer,true);r.layer=layer;
+}
+
+
+
+(()=>{const st=document.createElement('style');st.id='sabz-layout-free-edit-v2';st.textContent=".layout-resizable-selected{resize:both!important;overflow:auto!important;min-width:36px;min-height:20px;outline:2px solid #2684b7!important;outline-offset:2px}.webgis-layout-added-text{box-sizing:border-box;min-width:40px;min-height:22px;padding:4px;cursor:text}";document.head.appendChild(st);})();
+document.addEventListener("click",e=>{if(e.target.closest("[data-raster-open]")){e.preventDefault();openRasterWorkspace();}});
+
 })();
 </script>
 <script>
