@@ -44,7 +44,7 @@ if($method==='GET'){
  if(!$org||$org<1||!$project||$project<1)gis_auth_json(400,['ok'=>false,'error'=>'project_and_organization_required']);
  raster_project($pdo,$user,(int)$org,(int)$project,'viewer');
  $action=(string)($_GET['action']??'list');
- [$dir]=$unused=raster_paths($root,(int)$org,(int)$project,'placeholder');
+ [$dir] = raster_paths($root,(int)$org,(int)$project,'placeholder');
  if($action==='list'){
   $items=[];
   if(is_dir($dir))foreach(glob($dir.'/*.json')?:[] as $file){
@@ -57,7 +57,7 @@ if($method==='GET'){
  }
  if($action==='download'){
   $asset=raster_asset_id((string)($_GET['asset_id']??''));
-  [, $file]=$unused=raster_paths($root,(int)$org,(int)$project,$asset);
+  [, $file] = raster_paths($root,(int)$org,(int)$project,$asset);
   if(!is_file($file)||!is_readable($file))gis_auth_json(404,['ok'=>false,'error'=>'raster_asset_not_found']);
   $name=$asset.'.tif';
   $metaFile=raster_paths($root,(int)$org,(int)$project,$asset)[2];
