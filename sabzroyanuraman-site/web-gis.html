@@ -2506,7 +2506,7 @@ document.addEventListener("click",e=>{if(e.target.closest("[data-raster-open]"))
 })();
 </script>
 
-</body></html>";
+\n<style id="sabz-layout-free-edit-v2">.layout-resizable-selected{resize:both!important;overflow:auto!important;min-width:36px;min-height:20px;outline:2px solid #2684b7!important;outline-offset:2px}.webgis-layout-added-text{box-sizing:border-box;min-width:40px;min-height:22px;padding:4px;cursor:text}</style>\n</body></html>";
    win.document.open();
    win.document.write(html);
    win.document.close();
@@ -8646,7 +8646,7 @@ function openLayoutView(){
     if(a==="date"){const el=document.createElement("div");el.className="webgis-layout-added-text webgis-layout-item";el.id="webgisLayoutCustom"+Date.now();el.dataset.layoutItem="date";el.textContent=new Date().toLocaleDateString();sheet.insertBefore(el,$("webgisLayoutFooter",panel));}
     if(a==="move"){panel.classList.toggle("layout-move-mode");b.classList.toggle("active",panel.classList.contains("layout-move-mode"));status(panel.classList.contains("layout-move-mode")?"Move Items: drag layout elements; click Move Items again to finish.":"Layout item positioning finished.");}
   });
-  panel.addEventListener("click",e=>{const item=e.target.closest(".webgis-layout-item,.webgis-layout-added-text");if(!item||!sheet.contains(item)||e.target.closest("[data-layout-action]"))return;if(panel._selectedLayoutItem)panel._selectedLayoutItem.style.outline="";panel._selectedLayoutItem=item;item.style.outline="2px solid #2684b7";item.style.outlineOffset="2px";status("Selected layout element: "+(item.dataset.layoutItem||item.id||"item"));});
+  panel.addEventListener("click",e=>{const item=e.target.closest(".webgis-layout-item,.webgis-layout-added-text");if(!item||!sheet.contains(item)||e.target.closest("[data-layout-action]"))return;if(panel._selectedLayoutItem){panel._selectedLayoutItem.style.outline="";panel._selectedLayoutItem.classList.remove("layout-resizable-selected");}panel._selectedLayoutItem=item;item.classList.add("layout-resizable-selected");item.style.outline="2px solid #2684b7";item.style.outlineOffset="2px";item.style.resize="both";item.style.overflow="auto";item.style.minWidth="36px";item.style.minHeight="20px";status("Selected layout element: "+(item.dataset.layoutItem||item.id||"item")+" · drag to move, resize handle to resize, arrow keys to nudge.");});
   panel.addEventListener("keydown",e=>{if((e.key==="Delete"||e.key==="Backspace")&&panel._selectedLayoutItem&&!/INPUT|TEXTAREA/.test(e.target.tagName)&&!e.target.isContentEditable){const item=panel._selectedLayoutItem;if(item.id==="webgisLayoutTitle"||item.id==="webgisLayoutFooter"||item.id==="webgisLayoutSubtitle"||item.id==="webgisLayoutLegend"||item.id==="webgisLayoutNorth"||item.id==="webgisLayoutScale")item.hidden=true;else item.remove();panel._selectedLayoutItem=null;status("Selected layout element removed or hidden.");}});
   panel.addEventListener("pointerdown",e=>{
     if(!panel.classList.contains("layout-move-mode")||e.button!==0)return;
@@ -8657,6 +8657,7 @@ function openLayoutView(){
     const move=ev=>{item.style.left=Math.max(0,left+ev.clientX-startX)+"px";item.style.top=Math.max(0,top+ev.clientY-startY)+"px";};
     const done=()=>{window.removeEventListener("pointermove",move);window.removeEventListener("pointerup",done);};window.addEventListener("pointermove",move);window.addEventListener("pointerup",done,{once:true});
   });
+  panel.addEventListener("keydown",e=>{const item=panel._selectedLayoutItem;if(!item||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)||e.target.isContentEditable)return;const delta=e.shiftKey?10:1,move={ArrowLeft:[-delta,0],ArrowRight:[delta,0],ArrowUp:[0,-delta],ArrowDown:[0,delta]}[e.key];if(!move)return;e.preventDefault();const sheetRect=sheet.getBoundingClientRect(),itemRect=item.getBoundingClientRect();if(getComputedStyle(item).position!=="absolute"){item.style.position="absolute";item.style.left=(itemRect.left-sheetRect.left+sheet.scrollLeft)+"px";item.style.top=(itemRect.top-sheetRect.top+sheet.scrollTop)+"px";item.style.margin="0";}item.style.left=Math.max(0,(parseFloat(item.style.left)||0)+move[0])+"px";item.style.top=Math.max(0,(parseFloat(item.style.top)||0)+move[1])+"px";});
   if(map){panel._scaleListener=updateLayoutScale;panel._gridListener=drawLayoutGraticule;map.on("zoomend moveend",updateLayoutScale);map.on("zoomend moveend resize",drawLayoutGraticule);}
   if(window.__sabzSavedLayoutDefinition)applyLayoutDefinition(panel,window.__sabzSavedLayoutDefinition);
   refreshLegend();
