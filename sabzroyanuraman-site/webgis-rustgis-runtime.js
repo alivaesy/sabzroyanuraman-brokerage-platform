@@ -143,11 +143,26 @@
     return catalogue.find(tool => tool.id === id) || null;
   }
 
+  function unsupportedReason(tool) {
+    const unsupported = (tool.params || []).find(param =>
+      ["raster-layer","raster-layers","path","save-file"].includes(param.kind?.type)
+    );
+    if (!unsupported) return "";
+    const kind = unsupported.kind?.type;
+    if (kind === "raster-layer" || kind === "raster-layers") return "ورودی Raster هنوز به پل داده‌های مرورگر متصل نشده است.";
+    return "این ابزار به ورودی/خروجی فایل مستقیم نیاز دارد که هنوز به رابط مرورگر متصل نشده است.";
+  }
+
   function renderParams() {
     const container = document.getElementById("rgEngineParams");
     const tool = selectedTool();
     container.replaceChildren();
     if (!tool) return;
+    const unsupported = unsupportedReason(tool);
+    if (unsupported) {
+      container.appendChild($("div", {class:"rg-muted"}, unsupported));
+      return;
+    }
     const layers = availableLayers();
     for (const param of tool.params || []) {
       const row = $("div", {class:"rg-row"});
@@ -237,6 +252,13 @@
     const status = document.getElementById("rgEngineStatus");
     const tool = selectedTool();
     if (!tool) return;
+    const unsupported = unsupportedReason(tool);
+    if (unsupported) {
+      status.textContent = unsupported;
+      messages.textContent = unsupported;
+      messages.hidden = false;
+      return;
+    }
     run.disabled = true;
     messages.hidden = true;
     try {
@@ -288,8 +310,14 @@
       await loadEngine();
       select.replaceChildren();
       for (const tool of catalogue) {
-        select.appendChild($("option", {value:tool.id}, tool.toolbox + " — " + tool.name));
+        const reason = unsupportedReason(tool);
+        const option = $("option", {value:tool.id}, tool.toolbox + " — " + tool.name + (reason ? " (فعلاً غیرفعال)" : ""));
+        option.disabled = Boolean(reason);
+        if (reason) option.title = reason;
+        select.appendChild(option);
       }
+      const firstAvailable = catalogue.find(tool => !unsupportedReason(tool));
+      if (firstAvailable) select.value = firstAvailable.id;
       renderParams();
       status.textContent = "موتور RustGIS آماده است؛ ابزارها از کاتالوگ واقعی RustGIS بارگذاری شده‌اند.";
     } catch (error) {
