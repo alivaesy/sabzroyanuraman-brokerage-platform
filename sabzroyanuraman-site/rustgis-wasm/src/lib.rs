@@ -303,6 +303,13 @@ mod tests {
             GeoTransform {origin_x:47.0,origin_y:34.0,pixel_width:0.001,pixel_height:-0.001},
             Crs::LonLat,Some(-9999.0),ColorHint::Gray,"Float32").expect("test raster should be valid");
         let slope = rustgis_analysis::rasterops::slope(&raster,0,1.0).expect("RustGIS slope should execute");
+        let aspect = rustgis_analysis::rasterops::aspect(&raster,0).expect("RustGIS aspect should execute");
+        let hillshade = rustgis_analysis::rasterops::hillshade(&raster,0,315.0,45.0,1.0).expect("RustGIS hillshade should execute");
+        let calculated = rustgis_analysis::rasterops::band_math(&raster,"b1 * 2 + 1").expect("RustGIS band math should execute");
+        assert_eq!(aspect.len(),25);
+        assert_eq!(hillshade.len(),25);
+        assert_eq!(calculated.len(),25);
+        assert!(calculated.iter().any(|v| raster.is_valid(*v)));
         let output = rustgis_analysis::rasterops::derive(&raster,"slope_test",vec![slope]).expect("derived raster should be valid");
         let bytes = rustgis_data::raster::geotiff::write(&output,0).expect("RustGIS should write GeoTIFF");
         let reopened = rustgis_data::raster::geotiff::read(Cursor::new(bytes),"slope_test.tif").expect("GeoTIFF should reopen");
