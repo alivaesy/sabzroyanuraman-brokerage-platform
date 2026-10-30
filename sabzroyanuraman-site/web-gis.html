@@ -2563,6 +2563,9 @@ async function startDraw(type,button){
   // Never silently throw away an unfinished sketch when switching tools.
   if(activeDrawHandler&&activeDrawPurpose==="draw"&&typeof activeDrawHandler.hasSketchVertices==="function"&&activeDrawHandler.hasSketchVertices()){if(!await arcMapDialog.confirm({title:"Drawing in Progress",message:"The current sketch is unfinished. Discard it and switch tools?",confirmText:"Discard Sketch",danger:true}))return;}
   stopActiveDraw();
+  // A new sketch must not overlap an active reshape or vertex-edit handler.
+  if(window._reshapeDrawHandler)stopReshapeDraw();
+  if(window._vertexEditControl)stopVertexEditing();
   // Drawing tools always route to the matching geometry child of the active set.
   const currentDrawingItem=namedLayers.find(item=>item.layer===editTarget);
   const isDrawingSetTarget=!!currentDrawingItem&&!!currentDrawingItem.drawingSet;
