@@ -9229,15 +9229,20 @@ function validateModelBuilder(modal,show=true){
     const oi=Number(overlayValue),overlayItem=overlayValue!==""?items[oi]:null;
     if(!overlayItem)issues.push("Step "+(i+1)+": choose a valid overlay layer.");
     else if(oi===sourceIndex)issues.push("Step "+(i+1)+": input and overlay layers must be different.");
-    else if(!vectorFeatures(overlayItem.layer).length)issues.push("Step "+(i+1)+": overlay layer is empty.");
+    else {
+     const overlayFeatures=vectorFeatures(overlayItem.layer).map(v=>v.feature).filter(f=>f&&f.geometry);
+     if(!overlayFeatures.length)issues.push("Step "+(i+1)+": overlay layer is empty.");
+     else if(!overlayFeatures.every(f=>["Polygon","MultiPolygon"].includes(f.geometry.type)))issues.push("Step "+(i+1)+": overlay layer must contain only polygon features.");
+    }
    }
    if(["dissolve","dissolveField","union","erase","intersection","identity"].includes(op)&&![...geometryTypes].every(t=>t==="Polygon"||t==="MultiPolygon"))issues.push("Step "+(i+1)+": "+op+" requires polygon input geometry.");
+   if(["dissolve","dissolveField"].includes(op)&&![...geometryTypes].every(t=>t==="Polygon"||t==="MultiPolygon"))issues.push("Step "+(i+1)+": dissolve tools require polygon input geometry.");
    if(op==="dissolveField")fields.add(field);
    if(op==="areaLength"){fields.add("_area_m2");fields.add("_length_km");}
    if(op==="buffer")fields.add("_buffer_m");
    if(["buffer","centroid","pointOnFeature","cleanCoords","simplify","dissolve","dissolveField","selectByAttribute","singlepart","clip","intersection","erase","union","identity","convexHull","boundingBox","areaLength"].includes(op))fields.add("_model_operation");
    if(["centroid","pointOnFeature"].includes(op))geometryTypes=new Set(["Point"]);
-   if(["convexHull","boundingBox","buffer","dissolve","dissolveField","clip","intersection","erase","union","identity"].includes(op))geometryTypes=new Set(["Polygon","MultiPolygon"]);
+   if(["convexHull","boundingBox","buffer","dissolve","dissolveField","intersection","erase","union","identity"].includes(op))geometryTypes=new Set(["Polygon","MultiPolygon"]);
    if(op==="singlepart"){geometryTypes=new Set([...geometryTypes].map(t=>({MultiPoint:"Point",MultiLineString:"LineString",MultiPolygon:"Polygon"}[t]||t)));}
   });
   if(issues.length)throw new Error(issues.join(String.fromCharCode(10)));
