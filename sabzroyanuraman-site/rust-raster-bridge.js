@@ -9,7 +9,7 @@
       modulePromise = (async () => {
         const module = await import("./wasm/rust-raster/sabz_raster_wasm.js");
         await module.default();
-        if (typeof module.run_raster_operation !== "function") throw new Error("RustGIS WASM adapter export is missing.");
+        if (typeof module.run_raster_operation !== "function" || typeof module.output_nodata_value !== "function") throw new Error("RustGIS WASM adapter exports are incomplete.");
         return module;
       })();
       modulePromise.catch(() => { modulePromise = null; });
@@ -19,6 +19,7 @@
   async function processRaster(operation, raster, options) {
     if (!raster || !raster.sourceMetadata || !Array.isArray(raster.bands)) throw new Error("A loaded source raster is required.");
     const m = raster.sourceMetadata;
+    if (!Number.isInteger(m.crs && m.crs.epsg) || m.crs.epsg < 1) throw new Error("Source raster CRS is missing; EPSG will not be guessed.");
     const gt = m.geoTransform;
     if (!Array.isArray(gt) || gt.length < 6) throw new Error("Source GeoTIFF geotransform is missing.");
     if (Math.abs(gt[2]) > 1e-12 || Math.abs(gt[4]) > 1e-12) throw new Error("Rotated/skewed grids must be normalized before RustGIS terrain processing.");
@@ -34,7 +35,7 @@
     return {
       values: result, width: m.width, height: m.height,
       geoTransform: gt.slice(0, 6), extent: { ...m.extent },
-      noData: Math.fround(-3.4e38), crs: m.crs, engine: "RustGIS/WASM"
+      noData: module.output_nodata_value(), crs: m.crs, engine: "RustGIS/WASM"
     };
   }
   async function inspectPluginPackage(fileBytes) {
