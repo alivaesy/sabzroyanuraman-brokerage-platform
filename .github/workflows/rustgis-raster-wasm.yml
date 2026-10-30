@@ -36,6 +36,7 @@ jobs:
           node --check sabzroyanuraman-site/rust-raster-bridge.js
           node --check sabzroyanuraman-site/geolibre-wasi-bridge.js
           node --check sabzroyanuraman-site/plugin-manager.js
+          node --check tests/raster-wasm-browser-smoke.cjs
       - name: Test RustGIS adapter and plugin runtime
         run: cargo test --manifest-path rust-raster-wasm/Cargo.toml
       - name: Build browser WASM
