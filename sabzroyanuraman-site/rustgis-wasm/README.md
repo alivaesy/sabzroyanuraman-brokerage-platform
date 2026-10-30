@@ -1,46 +1,50 @@
 # Sabz Royan RustGIS WASM adapter
 
-This is the Rust/WASM integration boundary for the existing JavaScript/Leaflet WebGIS.
-It is intentionally a separate Cargo package: it does not replace the map renderer or
-the existing ArcMap-like interface.
+This Cargo package is the processing bridge between the existing JavaScript/Leaflet WebGIS and the upstream RustGIS algorithms. It does not replace the ArcMap-like interface or the Leaflet map renderer.
 
 ## Pinned upstream
 
 - Repository: https://github.com/opengeos/RustGIS
-- Commit: `38f24336140d59092a31f964e9ac86aab18fdecd`
-- Workspace baseline at that revision: Rust 1.90+, edition 2024, Apache-2.0.
-- Direct upstream crates: `rustgis-engine`, `rustgis-analysis`, `rustgis-data`.
+- Immutable commit: `38f24336140d59092a31f964e9ac86aab18fdecd`
+- Rust edition: 2024; minimum Rust version: 1.90
+- License: Apache-2.0
+- Direct crates: `rustgis-analysis` and `rustgis-data`
 
-The adapter depends on the upstream crates at an immutable commit rather than copying
-upstream source into this repository. Preserve upstream license and attribution notices
-if any upstream source/assets are ever vendored.
+The adapter calls RustGIS's public `rustgis_analysis::run` API. It does not reimplement Buffer, Clip or other algorithms in JavaScript.
 
-## Current implementation boundary
+## Exported WebAssembly API
 
-The crate currently provides a WASM handshake only:
-- adapter protocol version;
-- exact upstream revision;
-- explicit `bootstrap_only` status.
+- `adapter_protocol_version()`: bridge protocol version.
+- `upstream_revision()`: immutable upstream commit.
+- `adapter_status()`: runtime status.
+- `list_tools()`: actual RustGIS built-in analysis catalogue, including tool ids, parameter definitions, defaults, choices and help.
+- `run_tool(tool_id, layers_json, params_json)`: reads input GeoJSON into RustGIS datasets, executes the named RustGIS analysis tool, and serializes vector outputs back to GeoJSON.
 
-It does **not** yet execute Buffer, Clip, raster analysis, dataset I/O, or GeoTIFF
-writing. The UI must not advertise these operations as RustGIS-backed until those
-commands are implemented and tested.
+The browser panel is opened with the **RG** button beside ArcToolbox. It builds parameter forms from the RustGIS tool catalogue, takes vector layers from the current WebGIS project, executes the tool in WASM, and adds returned vector layers to the map and layer list.
 
-## Build prerequisites
+## Current supported boundary
 
-Install Rust 1.90 or newer and the `wasm32-unknown-unknown` target. RustGIS's data
-crate includes a Zstandard decoder that may require a working Clang toolchain for
-the browser target.
+- Vector GeoJSON inputs in WGS 84 longitude/latitude.
+- Built-in RustGIS vector tools whose parameters can be supplied as layer names, numbers, choices, booleans or text.
+- Vector outputs are added as new map layers; file outputs are downloaded.
+
+The adapter currently does not bridge the browser's existing raster-layer storage into RustGIS RasterInput. Tools requiring raster inputs or direct file/path parameters are visibly disabled in the RustGIS panel rather than falsely offered as executable. Selection outputs are reported but are not yet applied to the WebGIS selection model. GeoLibre and plugin tool suites are not registered in this adapter.
+
+A native Rust unit test exercises RustGIS Buffer against a GeoJSON point and checks that the generated polygon output can be serialized back to GeoJSON.
+
+## Build
+
+Install Rust 1.90+, the `wasm32-unknown-unknown` target, Clang and wasm-pack.
 
 From this directory:
 
 ```sh
 rustup target add wasm32-unknown-unknown
-cargo check --target wasm32-unknown-unknown
-cargo build --release --target wasm32-unknown-unknown
+wasm-pack build --target web --release --out-dir ../rustgis-wasm-pkg --out-name sabzroyan_rustgis_wasm
 ```
 
-The generated `.wasm` and JavaScript glue are build artifacts; they are not committed.
-The next stage is to connect the upstream session/command registry and typed data
-conversion behind a narrow JSON/byte-oriented API, then add vector and raster fixtures
-for end-to-end tests.
+The GitHub Actions workflow runs the native test, builds the WebAssembly package and checks the browser bridge JavaScript. For pull requests it uploads the package as an artifact. After changes reach `master`, it commits the generated package under `sabzroyanuraman-site/rustgis-wasm-pkg/` so the static website can load it from the same origin.
+
+## Data and coordinate handling
+
+RustGIS stores feature geometries in WGS 84 longitude/latitude and its analysis algorithms perform their own projected/geodesic calculations as appropriate. The adapter deliberately transfers GeoJSON rather than Leaflet internals. The existing map stays responsible for display, styling and interaction.
