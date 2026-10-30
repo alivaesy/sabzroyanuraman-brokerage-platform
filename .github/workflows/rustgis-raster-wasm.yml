@@ -39,6 +39,18 @@ jobs:
         run: cargo test --manifest-path rust-raster-wasm/Cargo.toml
       - name: Build browser WASM
         run: wasm-pack build rust-raster-wasm --target web --out-dir ../sabzroyanuraman-site/wasm/rust-raster --out-name sabz_raster_wasm
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright@1.51.0
+          npx playwright install --with-deps chromium
+      - name: Run real RustGIS browser smoke tests
+        run: |
+          python3 -m http.server 4173 --directory sabzroyanuraman-site >/tmp/sabz-webgis-http.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/raster-runtime-tests.html >/dev/null; then break; fi
+            sleep 1
+          done
+          node tests/raster-wasm-browser-smoke.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: sabz-rustgis-raster-wasm
@@ -73,6 +85,7 @@ jobs:
           cp sabzroyanuraman-site/rust-raster-bridge.js deploy-site/
           cp sabzroyanuraman-site/geolibre-wasi-bridge.js deploy-site/
           cp sabzroyanuraman-site/plugin-manager.js deploy-site/
+          cp sabzroyanuraman-site/raster-runtime-tests.html deploy-site/
           cp sabzroyanuraman-site/api/gis/raster-assets.php deploy-site/api/gis/
       - name: Deploy WebGIS, raster API and WASM assets over FTPS
         if: ${{ env.FTP_SERVER != '' && env.FTP_USERNAME != '' && env.FTP_PASSWORD != '' && env.FTP_SERVER_DIR != '' }}
