@@ -9752,7 +9752,6 @@ function renderRustRasterPreview(r,out){
   img.data[p]=img.data[p+1]=img.data[p+2]=c;img.data[p+3]=255;
  }
  ctx.putImageData(img,0,0);
- if(r.outputLayer){try{map.removeLayer(r.outputLayer);layerControl.removeLayer(r.outputLayer);}catch(_){}const previous=namedLayers.find(item=>item.layer===r.outputLayer);if(previous)namedLayers.splice(namedLayers.indexOf(previous),1);}
  const layer=L.imageOverlay(canvas.toDataURL("image/png"),L.latLngBounds(bounds[0],bounds[1]),{opacity:.9,interactive:false});
  addNamedLayer((document.querySelector("#sabzRasterWorkspace [data-r-name]")?.value||"Raster_Result")+" · "+out.engine,layer,true);
  r.outputLayer=layer;
