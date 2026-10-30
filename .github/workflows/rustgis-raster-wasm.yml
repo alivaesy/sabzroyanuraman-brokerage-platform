@@ -3,11 +3,14 @@ on:
   push:
     paths:
       - "rust-raster-wasm/**"
+      - "sabzroyanuraman-site/**"
       - ".github/workflows/rustgis-raster-wasm.yml"
   pull_request:
     paths:
       - "rust-raster-wasm/**"
+      - "sabzroyanuraman-site/**"
       - ".github/workflows/rustgis-raster-wasm.yml"
+  workflow_dispatch:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
@@ -19,7 +22,20 @@ jobs:
       - uses: jetli/wasm-pack-action@v0.4.0
         with:
           version: latest
-      - name: Test adapter
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+      - name: Lint raster storage API
+        run: php -l sabzroyanuraman-site/api/gis/raster-assets.php
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check browser bridge syntax
+        run: |
+          node --check sabzroyanuraman-site/rust-raster-bridge.js
+          node --check sabzroyanuraman-site/geolibre-wasi-bridge.js
+          node --check sabzroyanuraman-site/plugin-manager.js
+      - name: Test RustGIS adapter and plugin runtime
         run: cargo test --manifest-path rust-raster-wasm/Cargo.toml
       - name: Build browser WASM
         run: wasm-pack build rust-raster-wasm --target web --out-dir ../sabzroyanuraman-site/wasm/rust-raster --out-name sabz_raster_wasm
@@ -28,3 +44,32 @@ jobs:
           name: sabz-rustgis-raster-wasm
           path: sabzroyanuraman-site/wasm/rust-raster/
           if-no-files-found: error
+  deploy-host:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    env:
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+      FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+      FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+      FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR }}
+    steps:
+      - name: Skip when hosting deployment secrets are not configured
+        if: ${{ env.FTP_SERVER == '' || env.FTP_USERNAME == '' || env.FTP_PASSWORD == '' || env.FTP_SERVER_DIR == '' }}
+        run: echo "Host deployment skipped. Configure FTP_SERVER, FTP_USERNAME, FTP_PASSWORD and FTP_SERVER_DIR GitHub Actions secrets."
+      - uses: actions/download-artifact@v4
+        if: ${{ env.FTP_SERVER != '' && env.FTP_USERNAME != '' && env.FTP_PASSWORD != '' && env.FTP_SERVER_DIR != '' }}
+        with:
+          name: sabz-rustgis-raster-wasm
+          path: deploy-raster-wasm/
+      - name: Deploy WASM assets over FTPS
+        if: ${{ env.FTP_SERVER != '' && env.FTP_USERNAME != '' && env.FTP_PASSWORD != '' && env.FTP_SERVER_DIR != '' }}
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+        with:
+          server: ${{ env.FTP_SERVER }}
+          username: ${{ env.FTP_USERNAME }}
+          password: ${{ env.FTP_PASSWORD }}
+          protocol: ftps
+          local-dir: deploy-raster-wasm/
+          server-dir: ${{ env.FTP_SERVER_DIR }}
+          dangerous-clean-slate: false
