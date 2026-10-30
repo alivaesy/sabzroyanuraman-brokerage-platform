@@ -1,0 +1,29 @@
+name: WebGIS RustGIS WASM adapter
+
+on:
+  pull_request:
+    paths:
+      - "sabzroyanuraman-site/rustgis-wasm/**"
+      - ".github/workflows/webgis-rustgis-wasm.yml"
+  push:
+    branches: [master]
+    paths:
+      - "sabzroyanuraman-site/rustgis-wasm/**"
+      - ".github/workflows/webgis-rustgis-wasm.yml"
+
+jobs:
+  wasm-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Install Clang for RustGIS raster dependencies
+        run: sudo apt-get update && sudo apt-get install -y clang
+      - name: Check pinned RustGIS adapter for WebAssembly
+        working-directory: sabzroyanuraman-site/rustgis-wasm
+        run: cargo check --target wasm32-unknown-unknown
+      - name: Build optimized WebAssembly adapter
+        working-directory: sabzroyanuraman-site/rustgis-wasm
+        run: cargo build --release --target wasm32-unknown-unknown
