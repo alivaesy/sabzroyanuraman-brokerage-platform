@@ -80,9 +80,12 @@
     if (!box || box.length !== 4 || !box.every(Number.isFinite)) throw new Error("Output GeoTIFF has no valid bounding box.");
     const toLonLat = xy => {
       if (epsg === 4326) return xy;
-      const code = "EPSG:" + epsg;
-      if (typeof proj4 !== "function" || !proj4.defs(code)) throw new Error("Cannot preview " + code + " because its projection definition is unavailable.");
-      return proj4(code, "EPSG:4326", xy);
+      let definition = "EPSG:" + epsg;
+      if (epsg >= 32601 && epsg <= 32660) definition = "+proj=utm +zone=" + (epsg - 32600) + " +datum=WGS84 +units=m +no_defs";
+      else if (epsg >= 32701 && epsg <= 32760) definition = "+proj=utm +zone=" + (epsg - 32700) + " +south +datum=WGS84 +units=m +no_defs";
+      else if (epsg !== 3857) throw new Error("Cannot preview unsupported output CRS EPSG:" + epsg + ".");
+      if (typeof proj4 !== "function") throw new Error("Projection library is unavailable.");
+      return proj4(definition, "EPSG:4326", xy);
     };
     const a = toLonLat([box[0], box[1]]), b = toLonLat([box[2], box[3]]);
     const bounds = [[Math.min(a[1], b[1]), Math.min(a[0], b[0])], [Math.max(a[1], b[1]), Math.max(a[0], b[0])]];
