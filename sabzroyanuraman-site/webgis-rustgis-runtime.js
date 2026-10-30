@@ -180,6 +180,7 @@
       } else if (kind === "choice") {
         control = $("select", {id, "data-param":param.name, "data-kind":kind});
         for (const choice of (param.kind.choices || [])) control.appendChild($("option", {value:choice}, choice));
+        if (param.default !== null && param.default !== undefined) control.value = String(param.default);
       } else if (kind === "boolean") {
         control = $("input", {id, type:"checkbox", "data-param":param.name, "data-kind":kind});
         control.checked = Boolean(param.default);
@@ -273,7 +274,7 @@
           const name = uniqueName(output.name || (tool.name + " Output"));
           const added = bridge()?.addGeoJSONLayer?.(name, output.geojson);
           if (!added) throw new Error("خروجی محاسبه شد، اما رابط نقشه امکان افزودن لایه را فراهم نکرد.");
-          outputMessages.push("لایه خروجی افزوده شد: " + name);
+          outputMessages.push("لایه خروجی افزوده شد: " + added);
         } else if (output.kind === "selection") {
           outputMessages.push("ابزار " + output.name + " تعداد " + (output.rows || []).length + " عارضه را انتخاب کرد. اعمال انتخاب به جدول در مرحله بعدی اتصال انجام می‌شود.");
         } else if (output.base64) {
