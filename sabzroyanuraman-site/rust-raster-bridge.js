@@ -37,5 +37,30 @@
       noData: -3.4e38, crs: m.crs, engine: "RustGIS/WASM"
     };
   }
-  root.SabzRustRasterBridge = Object.freeze({ load, processRaster });
+  async function inspectPluginPackage(fileBytes) {
+    const module = await load();
+    const bytes = fileBytes instanceof Uint8Array ? fileBytes : new Uint8Array(fileBytes);
+    return JSON.parse(module.inspect_plugin_package(bytes));
+  }
+  async function installPluginPackage(fileBytes, approvedPermissions) {
+    const module = await load();
+    const bytes = fileBytes instanceof Uint8Array ? fileBytes : new Uint8Array(fileBytes);
+    return JSON.parse(module.install_plugin_package(bytes, JSON.stringify(approvedPermissions || [])));
+  }
+  async function listPlugins() {
+    return JSON.parse((await load()).list_installed_plugins());
+  }
+  async function setPluginEnabled(id, enabled) {
+    return (await load()).set_installed_plugin_enabled(id, !!enabled);
+  }
+  async function uninstallPlugin(id) {
+    return (await load()).uninstall_plugin(id);
+  }
+  async function runPluginCommand(id, params) {
+    return JSON.parse((await load()).run_installed_plugin_command(id, JSON.stringify(params || {})));
+  }
+  root.SabzRustRasterBridge = Object.freeze({
+    load, processRaster, inspectPluginPackage, installPluginPackage,
+    listPlugins, setPluginEnabled, uninstallPlugin, runPluginCommand
+  });
 })(window);
