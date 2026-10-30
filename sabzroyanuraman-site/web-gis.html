@@ -3703,7 +3703,7 @@ async function runGisOperation(){
           result={type:"FeatureCollection",features};
           name="Union";
         }else if(op==="clip"||op==="intersection"){
-        if(op==="selectByLocation"){\n     next=current.filter(f=>overlays.some(o=>{try{return turf.booleanIntersects(f,o)}catch(_){return false}})).map(f=>({...clone(f),properties:{...(f.properties||{}),_model_step:si+1,_model_operation:"Select By Location",_spatial_relation:"INTERSECTS",_overlay_layer:overlayName}}));\n    }else if(op==="clip"){
+        if(op==="clip"){
           if(!polygonal(f2.geometry)){
             status("Clip overlay must be a Polygon or MultiPolygon. No output was created.");return;
           }
@@ -9328,7 +9328,7 @@ function runModelBuilder(modal){
     current.forEach((f,sourceIndex)=>{const g=f.geometry,partType={MultiPoint:"Point",MultiLineString:"LineString",MultiPolygon:"Polygon"}[g?.type];if(!partType){next.push({...clone(f),properties:{...(f.properties||{}),_model_step:si+1,_model_operation:"Multipart To Singlepart",_part:1}});return;}(g.coordinates||[]).forEach((coordinates,partIndex)=>next.push({type:"Feature",geometry:{type:partType,coordinates:clone(coordinates)},properties:{...(f.properties||{}),_model_step:si+1,_model_operation:"Multipart To Singlepart",_part:partIndex+1,_source_index:sourceIndex+1}}));});
    }else{
     const overlays=modelBuilderLayerFeatures(overlayIndex),overlayName=overlayLabel(overlayIndex);
-    if(op==="clip"){
+    if(op==="selectByLocation"){\n     next=current.filter(f=>overlays.some(o=>{try{return turf.booleanIntersects(f,o)}catch(_){return false}})).map(f=>({...clone(f),properties:{...(f.properties||{}),_model_step:si+1,_model_operation:"Select By Location",_spatial_relation:"INTERSECTS",_overlay_layer:overlayName}}));\n    }else if(op==="clip"){
      let mask=null;for(const f of overlays){if(!["Polygon","MultiPolygon"].includes(f.geometry?.type))throw new Error("Clip overlay must contain polygon features.");mask=mask?turf.union(turf.featureCollection([mask,f])):clone(f);}
      if(!mask)throw new Error("Clip overlay has no usable polygon geometry.");
      current.forEach(f=>clipFeatureToPolygon(f,mask).forEach(out=>next.push({...out,properties:{...(f.properties||{}),...(out.properties||{}),_model_step:si+1,_model_operation:"Clip",_overlay_layer:overlayName}})));
