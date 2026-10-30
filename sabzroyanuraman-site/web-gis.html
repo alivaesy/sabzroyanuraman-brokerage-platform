@@ -9268,16 +9268,18 @@ function validateModelBuilder(modal,show=true){
   const source=modelBuilderLayerFeatures(sourceIndex),steps=modelBuilderTopologicalSteps(modal);
   if(!steps.length)throw new Error("Add at least one processing step.");
   if(!String(modal.querySelector("[data-mb-name]").value||"").trim())throw new Error("Enter an output layer name.");
-  let fields=new Set(source.flatMap(f=>Object.keys(f.properties||{})));
-  let geometryTypes=new Set(source.map(f=>f.geometry?.type).filter(Boolean));
-  const issues=[];
+  const sourceFields=new Set(source.flatMap(f=>Object.keys(f.properties||{}))),sourceGeometryTypes=new Set(source.map(f=>f.geometry?.type).filter(Boolean));
+  const nodeFields=new Map(),nodeGeometryTypes=new Map(),issues=[];
   steps.forEach((row,i)=>{
+   const primaryRef=row.querySelector("[data-mb-input]")?.value||"source",fields=new Set(primaryRef==="source"?sourceFields:nodeFields.get(primaryRef)||[]),geometryTypes=new Set(primaryRef==="source"?sourceGeometryTypes:nodeGeometryTypes.get(primaryRef)||[]);
    const op=row.querySelector("[data-mb-op]").value,raw=Number(row.querySelector("[data-mb-param]").value);
    const field=row.querySelector("[data-mb-field]").value,field2=row.querySelector("[data-mb-field2]").value;
    const overlayValue=row.querySelector("[data-mb-overlay]").value,overlayNodeValue=row.querySelector("[data-mb-overlay-node]")?.value||"";
    if(["buffer","simplify"].includes(op)&&(!Number.isFinite(raw)||raw<=0))issues.push("Step "+(i+1)+": parameter must be greater than zero.");
    if(["dissolveField","selectByAttribute"].includes(op)&&(!field||!fields.has(field)))issues.push("Step "+(i+1)+": choose a field available at this point in the workflow.");
    if(op==="calculateField"){const target=row.querySelector("[data-mb-calc-target]").value.trim(),mode=row.querySelector("[data-mb-relation]").value,sourceField=row.querySelector("[data-mb-field]").value;if(!/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(target))issues.push("Step "+(i+1)+": enter a valid output field name.");if(["copy","add","subtract","multiply","divide","uppercase","lowercase"].includes(mode)&&(!sourceField||!fields.has(sourceField)))issues.push("Step "+(i+1)+": choose a source field.");if(["add","subtract","multiply","divide"].includes(mode)&&!Number.isFinite(Number(row.querySelector("[data-mb-where-value]").value)))issues.push("Step "+(i+1)+": enter a numeric operand.");if(mode==="divide"&&Number(row.querySelector("[data-mb-where-value]").value)===0)issues.push("Step "+(i+1)+": division by zero is not allowed.");fields.add(target);}
+   if(overlayNodeValue&&["spatialJoin","spatialJoinOneToMany"].includes(op))(nodeFields.get(overlayNodeValue)||[]).forEach(name=>fields.add(name));
+   if(overlayNodeValue&&["clip","intersection","erase","union","identity"].includes(op)&&![...(nodeGeometryTypes.get(overlayNodeValue)||[])].every(t=>t==="Polygon"||t==="MultiPolygon"))issues.push("Step "+(i+1)+": secondary node must produce polygon geometry for "+op+".");
    if(op==="selectByLocation"||op==="spatialJoin"||op==="spatialJoinOneToMany"){const rel=row.querySelector("[data-mb-relation]").value,fn={intersects:"booleanIntersects",within:"booleanWithin",contains:"booleanContains",touches:"booleanTouches",overlaps:"booleanOverlap",crosses:"booleanCrosses"}[rel];if(!["intersects","within","contains","touches","overlaps","crosses","disjoint"].includes(rel))issues.push("Step "+(i+1)+": choose a valid spatial relationship.");else if(rel!=="disjoint"&&typeof turf[fn]!=="function")issues.push("Step "+(i+1)+": this Turf build does not support "+rel+".");}
    if(op==="selectByAttribute"&&!["isEmpty","isNotEmpty"].includes(row.querySelector("[data-mb-where-op]").value)&&row.querySelector("[data-mb-where-value]").value==="")issues.push("Step "+(i+1)+": enter a comparison value.");
    if(op==="selectByAttribute"&&field2&&!fields.has(field2))issues.push("Step "+(i+1)+": second condition field is not available.");
@@ -9299,6 +9301,7 @@ function validateModelBuilder(modal,show=true){
    if(["centroid","pointOnFeature"].includes(op))geometryTypes=new Set(["Point"]);
    if(["convexHull","boundingBox","buffer","dissolve","dissolveField","intersection","erase","union","identity"].includes(op))geometryTypes=new Set(["Polygon","MultiPolygon"]);
    if(op==="singlepart"){geometryTypes=new Set([...geometryTypes].map(t=>({MultiPoint:"Point",MultiLineString:"LineString",MultiPolygon:"Polygon"}[t]||t)));}
+   nodeFields.set(row.dataset.mbNodeId,new Set(fields));nodeGeometryTypes.set(row.dataset.mbNodeId,new Set(geometryTypes));
   });
   if(issues.length)throw new Error(issues.join(String.fromCharCode(10)));
   if(show)say("Validation passed ✓\nInput: "+items[sourceIndex].name+" ("+source.length+" features)\nSteps: "+steps.length+" — layer references and parameters are valid.");
