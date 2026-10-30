@@ -26,6 +26,28 @@
     return window.__sabzWebGISSharedBridge || null;
   }
 
+  function ensureRasterBridge() {
+    const shared = bridge();
+    if (!shared || shared.registerRasterSource) return;
+    shared.registerRasterSource = (name, bytes, fileName) => {
+      const finalName = String(name || "RustGIS Raster").trim() || "RustGIS Raster";
+      const sources = shared.rasterSources || [];
+      const record = {name:finalName,fileName:fileName || (finalName + ".tif"),bytes:new Uint8Array(bytes)};
+      const index = sources.findIndex(item => String(item.name || "").toLowerCase() === finalName.toLowerCase());
+      if (index >= 0) sources[index] = record;
+      else sources.push(record);
+      return finalName;
+    };
+    if (typeof shared.addRasterOverlay === "function") {
+      const addOverlay = shared.addRasterOverlay.bind(shared);
+      shared.addRasterOverlay = (name, imageUrl, bounds, bytes, fileName) => {
+        const result = addOverlay(name, imageUrl, bounds, bytes, fileName);
+        shared.registerRasterSource(result || name, bytes, fileName);
+        return result;
+      };
+    }
+  }
+
   function availableLayers() {
     const entries = bridge()?.namedLayers || [];
     return entries.filter(item => item?.name && item?.layer && typeof item.layer.toGeoJSON === "function");
@@ -128,7 +150,10 @@
   }
 
   function uniqueName(name) {
-    const used = new Set(availableLayers().map(item => String(item.name).toLowerCase()));
+    const used = new Set([
+      ...availableLayers().map(item => String(item.name).toLowerCase()),
+      ...availableRasterLayers().map(item => String(item.name || "").toLowerCase())
+    ]);
     const base = String(name || "RustGIS output").trim() || "RustGIS output";
     if (!used.has(base.toLowerCase())) return base;
     let i = 2;
@@ -394,12 +419,19 @@
           const binary = atob(output.base64);
           const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
           const fileName = output.fileName || ((output.name || "rustgis-raster") + ".tif");
+          const outputName = uniqueName(output.name || tool.name);
+          const registered = bridge()?.registerRasterSource?.(outputName, bytes, fileName);
           try {
-            const added = await addGeoTIFFOutput(uniqueName(output.name || tool.name), bytes, fileName);
+            const added = await addGeoTIFFOutput(outputName, bytes, fileName);
             outputMessages.push("لایه Raster با GeoTIFF واقعی به نقشه افزوده شد: " + added);
           } catch (previewError) {
-            outputMessages.push("GeoTIFF تولید شد؛ پیش‌نمایش نقشه ایجاد نشد: " + (previewError?.message || previewError));
+            outputMessages.push("GeoTIFF تولید شد و برای پردازش‌های بعدی ثبت شد" +
+              (registered ? " (" + registered + ")" : "") +
+              "؛ اما پیش‌نمایش نقشه ایجاد نشد: " + (previewError?.message || previewError));
           }
+          if (!registered && bridge()?.rasterSources) bridge().rasterSources.push({name:outputName,fileName,bytes:new Uint8Array(bytes)});
+          if (output.metadata) outputMessages.push("مشخصات خروجی: " + output.metadata.width + "×" + output.metadata.height +
+            " پیکسل، " + output.metadata.bands + " باند، CRS " + output.metadata.crs + "، NoData=" + output.metadata.noData);
           downloadBytes(bytes, fileName, "image/tiff");
           outputMessages.push("فایل GeoTIFF دانلود شد: " + fileName);
         } else if (output.kind === "selection") {
@@ -453,6 +485,7 @@
   }
 
   function start() {
+    ensureRasterBridge();
     createDialog();
     const toolbox = document.getElementById("toolboxToggleBtn");
     if (toolbox && !document.getElementById("rgEngineButton")) {
