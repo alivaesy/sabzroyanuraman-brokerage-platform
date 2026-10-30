@@ -4317,7 +4317,8 @@ $("deleteMultiSelected").onclick=async()=>{
   recordUndoState();
   targets.forEach(layer=>editTarget.removeLayer(layer));
   clearMultiSelection();selectedLayer=null;selectedOverlay=null;
-  renderLayerList();refreshAttributeLayers();refreshEditorTargets();window.__webGisGdbBridge?.save();scheduleAutoSave();
+  renderLayerList();refreshAttributeLayers();
+  if(Array.isArray(project.rasterAssets)&&project.rasterAssets.length)restoreSavedRasterAssets(project);refreshEditorTargets();window.__webGisGdbBridge?.save();scheduleAutoSave();
   status(targets.length+" feature(s) deleted from the active edit layer.");
 };
 $("clearMultiSelected").onclick=()=>{clearMultiSelection();selectedLayer=null;selectedOverlay=null;renderAttributeEditor();status("Multiple selection cleared.")};
@@ -5401,6 +5402,32 @@ function projectFeatureLayer(features,name){
   });
   addNamedLayer(name,layer,false);
   return layer;
+}
+
+async function restoreSavedRasterAssets(project){
+  if(!project||!Array.isArray(project.rasterAssets)||!project.rasterAssets.length||!window.SabzRasterRuntime)return;
+  for(const ref of project.rasterAssets){
+    try{
+      const saved=await SabzRasterRuntime.loadAsset(project.id,ref.assetId);
+      if(!saved||!saved.blob)throw new Error("Saved raster bytes are missing from this browser.");
+      const data=await SabzRasterRuntime.read(new File([saved.blob],ref.fileName||"project-raster.tif",{type:"image/tiff"}));
+      const m=data.metadata,w=m.width,h=m.height,factor=Math.max(1,Math.ceil(Math.max(w,h)/1400)),ow=Math.ceil(w/factor),oh=Math.ceil(h/factor);
+      const epsg=m.crs.epsg||4326;
+      const xyToLL=xy=>epsg===4326?xy:epsg===3857?[xy[0]/6378137*180/Math.PI,Math.atan(Math.sinh(xy[1]/6378137))*180/Math.PI]:proj4("EPSG:"+epsg,"EPSG:4326",xy);
+      const corners=[xyToLL([m.extent.xmin,m.extent.ymin]),xyToLL([m.extent.xmax,m.extent.ymax])];
+      const bounds=[[Math.min(corners[0][1],corners[1][1]),Math.min(corners[0][0],corners[1][0])],[Math.max(corners[0][1],corners[1][1]),Math.max(corners[0][0],corners[1][0])]];
+      const canvas=document.createElement("canvas");canvas.width=ow;canvas.height=oh;
+      const ctx=canvas.getContext("2d"),img=ctx.createImageData(ow,oh),band=data.bands[0],valid=[];
+      for(let y=0;y<oh;y++)for(let x=0;x<ow;x++){const v=band[Math.min(h-1,y*factor)*w+Math.min(w-1,x*factor)];if(Number.isFinite(v)&&(m.noData===null||v!==m.noData))valid.push(v);}
+      valid.sort((a,b)=>a-b);if(!valid.length)throw new Error("Raster has no valid pixels.");
+      const lo=valid[Math.floor((valid.length-1)*.02)],hi=valid[Math.floor((valid.length-1)*.98)],span=Math.max(1e-12,hi-lo);
+      for(let y=0;y<oh;y++)for(let x=0;x<ow;x++){const v=band[Math.min(h-1,y*factor)*w+Math.min(w-1,x*factor)],k=(y*ow+x)*4;if(!Number.isFinite(v)||(m.noData!==null&&v===m.noData)){img.data[k+3]=0;continue;}const c=Math.max(0,Math.min(255,Math.round((v-lo)/span*255)));img.data[k]=img.data[k+1]=img.data[k+2]=c;img.data[k+3]=255;}
+      ctx.putImageData(img,0,0);
+      const layer=L.imageOverlay(canvas.toDataURL("image/png"),L.latLngBounds(bounds[0],bounds[1]),{opacity:.88});
+      addNamedLayer(ref.fileName||"Raster",layer,true);
+      sabzRasterState={fileName:ref.fileName||"Raster",w,h,bands:data.bands.map(a=>Float32Array.from(a)),epsg,noData:m.noData,bounds,factor,ow,oh,cellX:m.pixelScale[0],cellY:m.pixelScale[1],canvas,layer,sourceBlob:saved.blob,sourceMetadata:m,assetId:ref.assetId};
+    }catch(error){console.warn("Raster project restore:",error);status("Raster layer could not be restored: "+(error.message||error));}
+  }
 }
 function restoreProject(project,fromHistory=false){
   const historyEditState=fromHistory&&editSessionActive?{active:true,isDrawnTarget:editTarget===drawn,targetName:namedLayers.find(item=>item.layer===editTarget)?.name||null}:null;
