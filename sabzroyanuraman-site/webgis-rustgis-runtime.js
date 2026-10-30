@@ -92,7 +92,7 @@
     const imageData = ctx.createImageData(outWidth, outHeight);
     const noDataRaw = image.getGDALNoData ? image.getGDALNoData() : null;
     const noData = noDataRaw === null || noDataRaw === undefined ? null : Number(noDataRaw);
-    const valid = value => Number.isFinite(value) && (noData === null || value !== noData);
+    const valid = value => Number.isFinite(value) && (noData === null || Math.fround(value) !== Math.fround(noData));
     const first = bands[0];
     const sample = Array.from(first).filter(valid).sort((x,y)=>x-y);
     if (!sample.length) throw new Error("Output GeoTIFF has no valid pixels to preview.");
