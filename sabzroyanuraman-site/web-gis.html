@@ -2060,7 +2060,14 @@ async function remoteGisRestoreRasterAssets(project,serverProjectId){
     const assetId=String(asset.asset_id),url="/api/gis/raster-assets.php?organization_id="+encodeURIComponent(remoteGisOrganization.id)+"&project_id="+encodeURIComponent(serverProjectId)+"&action=download&asset_id="+encodeURIComponent(assetId);
     const response=await fetch(url,{credentials:"same-origin",cache:"no-store"});
     if(!response.ok)throw new Error("Raster download failed for "+assetId+" (HTTP "+response.status+").");
-    const blob=await response.blob(),file=new File([blob],asset.file_name||"raster.tif",{type:"image/tiff"}),parsed=await SabzRasterRuntime.read(file);
+    const blob=await response.blob();
+    if(asset.size&&blob.size!==Number(asset.size))throw new Error("Raster byte-length verification failed for "+assetId);
+    if(asset.sha256&&window.crypto&&crypto.subtle){
+      const digest=await crypto.subtle.digest("SHA-256",await blob.arrayBuffer());
+      const actualHash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,"0")).join("");
+      if(actualHash.toLowerCase()!==String(asset.sha256).toLowerCase())throw new Error("Raster SHA-256 verification failed for "+assetId);
+    }else if(asset.sha256)throw new Error("This browser cannot verify the server raster SHA-256 hash.");
+    const file=new File([blob],asset.file_name||"raster.tif",{type:"image/tiff"}),parsed=await SabzRasterRuntime.read(file);
     const expected=asset.metadata||{};
     if(expected.width&&parsed.metadata.width!==Number(expected.width))throw new Error("Raster width verification failed for "+assetId);
     if(expected.height&&parsed.metadata.height!==Number(expected.height))throw new Error("Raster height verification failed for "+assetId);
