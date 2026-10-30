@@ -1,0 +1,28 @@
+[package]
+name = "sabzroyan-rustgis-wasm"
+version = "0.1.0"
+edition = "2024"
+publish = false
+license = "Apache-2.0"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde-wasm-bindgen = "0.6"
+
+# Pin the upstream workspace to a reviewed commit. These dependencies deliberately
+# make the RustGIS engine/data/analysis crates part of this adapter's build graph.
+# The command/session API is wired in the next integration stage after API-level
+# compatibility tests are added; this crate currently exposes only a bridge handshake.
+rustgis-engine = { git = "https://github.com/opengeos/RustGIS.git", rev = "38f24336140d59092a31f964e9ac86aab18fdecd", default-features = false }
+rustgis-analysis = { git = "https://github.com/opengeos/RustGIS.git", rev = "38f24336140d59092a31f964e9ac86aab18fdecd", default-features = false }
+rustgis-data = { git = "https://github.com/opengeos/RustGIS.git", rev = "38f24336140d59092a31f964e9ac86aab18fdecd", default-features = false }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
