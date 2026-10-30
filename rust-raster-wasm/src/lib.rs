@@ -10,6 +10,9 @@ use wasm_bindgen::prelude::*;
 const MAX_PIXELS: usize = 16_000_000;
 const OUTPUT_NODATA: f32 = rasterops::NODATA;
 
+#[wasm_bindgen]
+pub fn output_nodata_value() -> f32 { OUTPUT_NODATA }
+
 fn run(
     operation: &str,
     width: u32,
