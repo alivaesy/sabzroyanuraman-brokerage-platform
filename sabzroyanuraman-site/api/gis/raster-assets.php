@@ -38,6 +38,7 @@ function raster_metadata(string $raw): array {
  foreach($m['geoTransform'] as $v)if(!is_numeric($v)||!is_finite((float)$v))gis_auth_json(400,['ok'=>false,'error'=>'invalid_raster_metadata']);
  return $m;
 }
+if($method==='POST'&&(int)($_SERVER['CONTENT_LENGTH']??0)>MAX_RASTER_BYTES+65536)gis_auth_json(413,['ok'=>false,'error'=>'raster_upload_too_large']);
 if($method==='GET'){
  $org=filter_var($_GET['organization_id']??null,FILTER_VALIDATE_INT);
  $project=filter_var($_GET['project_id']??null,FILTER_VALIDATE_INT);
@@ -85,6 +86,8 @@ if($action==='upload'){
  $fileName=preg_replace('/[^a-zA-Z0-9._ -]/','_',basename((string)($_POST['file_name']??'raster.tif')))?:'raster.tif';
  if(!is_dir($dir)&&!mkdir($dir,0700,true)&&!is_dir($dir))gis_auth_json(503,['ok'=>false,'error'=>'raster_storage_unavailable']);
  if(!is_writable($dir))gis_auth_json(503,['ok'=>false,'error'=>'raster_storage_unavailable']);
+ $storedBytes=0;foreach(glob($dir.'/*.tif')?:[] as $existingFile)$storedBytes+=(int)filesize($existingFile);
+ if($storedBytes+$size>1073741824)gis_auth_json(413,['ok'=>false,'error'=>'project_raster_storage_quota_exceeded']);
  $tmpTarget=$file.'.'.bin2hex(random_bytes(8)).'.tmp';
  if(!move_uploaded_file($tmp,$tmpTarget))gis_auth_json(500,['ok'=>false,'error'=>'raster_upload_failed']);
  $meta=['asset_id'=>$asset,'file_name'=>$fileName,'size'=>$size,'metadata'=>$metadata,'sha256'=>hash_file('sha256',$tmpTarget),'uploaded_at'=>gmdate('c')];
