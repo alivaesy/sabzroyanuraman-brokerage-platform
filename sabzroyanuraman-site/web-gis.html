@@ -9119,7 +9119,7 @@ function openModelBuilder(){
     modal.addEventListener("click",e=>{if(e.target===modal||e.target.closest("[data-mb-close]"))closeModelBuilderView();});
     modal.querySelector(".webgis-modelbuilder-workspace").addEventListener("keydown",e=>{if(e.key==="Escape")closeModelBuilderView();});
     modal.querySelector("[data-mb-add]").onclick=()=>addModelBuilderStep(modal);
-    modal.querySelector("[data-mb-clear]").onclick=()=>{modal.querySelector("[data-mb-steps]").replaceChildren();addModelBuilderStep(modal);};
+    modal.querySelector("[data-mb-clear]").onclick=()=>{modal.querySelector("[data-mb-steps]").replaceChildren();addModelBuilderStep(modal);refreshModelBuilderNodeInputs(modal);};
     modal.querySelector("[data-mb-validate]").onclick=()=>validateModelBuilder(modal,true);
     modal.querySelector("[data-mb-run]").onclick=()=>runModelBuilder(modal);
     modal.querySelector("[data-mb-save]").onclick=()=>exportModelBuilder(modal);
@@ -9131,7 +9131,7 @@ function openModelBuilder(){
       if(b.hasAttribute("data-mb-up")&&row.previousElementSibling)host.insertBefore(row,row.previousElementSibling);
       if(b.hasAttribute("data-mb-down")&&row.nextElementSibling)host.insertBefore(row.nextElementSibling,row);
       if(b.hasAttribute("data-mb-remove"))row.remove();
-      refreshModelBuilderStepNumbers(host);renderModelBuilderGraph(modal);
+      refreshModelBuilderNodeInputs(modal);refreshModelBuilderStepNumbers(host);renderModelBuilderGraph(modal);
     });
   }
   const source=modal.querySelector("[data-mb-source]"),old=source.value;
@@ -9147,12 +9147,22 @@ function openModelBuilder(){
 function refreshModelBuilderStepNumbers(host){
   [...host.children].forEach((el,i)=>{const n=el.querySelector("strong");if(n)n.textContent=String(i+1);});
 }
+function refreshModelBuilderNodeInputs(modal){
+ const host=modal.querySelector("[data-mb-steps]");if(!host)return;const rows=[...host.children];
+ rows.forEach((row,index)=>{const select=row.querySelector("[data-mb-input]");if(!select)return;const old=select.value;select.replaceChildren();const source=document.createElement("option");source.value="source";source.textContent="Input layer";select.appendChild(source);rows.forEach((candidate,i)=>{if(candidate===row)return;const option=document.createElement("option");option.value=candidate.dataset.mbNodeId;option.textContent="Node "+(i+1)+" · "+(candidate.querySelector("[data-mb-op] option:checked")?.textContent||"Process");select.appendChild(option);});if([...select.options].some(o=>o.value===old))select.value=old;else select.value=index?rows[index-1].dataset.mbNodeId:"source";});
+}
+function modelBuilderTopologicalSteps(modal){
+ const rows=[...modal.querySelectorAll("[data-mb-step]")],byId=new Map(rows.map(row=>[row.dataset.mbNodeId,row])),state=new Map(),ordered=[];
+ const visit=row=>{const id=row.dataset.mbNodeId,mark=state.get(id)||0;if(mark===1)throw new Error("Model graph contains a cycle at node "+(rows.indexOf(row)+1)+". Reconnect the nodes to remove the circular dependency.");if(mark===2)return;state.set(id,1);const input=row.querySelector("[data-mb-input]")?.value||"source";if(input!=="source"){const parent=byId.get(input);if(!parent)throw new Error("Node "+(rows.indexOf(row)+1)+" references a missing input node.");visit(parent);}state.set(id,2);ordered.push(row);};
+ rows.forEach(visit);return ordered;
+}
 function modelBuilderDefinition(modal){
   const source=modal.querySelector("[data-mb-source]");
   const items=getAllVectorItems();
-  return {format:"sabzroyan-model",version:1,name:modal.querySelector("[data-mb-name]").value||"Model_Output",
+  return {format:"sabzroyan-model",version:2,name:modal.querySelector("[data-mb-name]").value||"Model_Output",
     sourceName:items[Number(source.value)]?.name||"",
     steps:[...modal.querySelectorAll("[data-mb-step]")].map(row=>({
+      nodeId:row.dataset.mbNodeId,input:row.querySelector("[data-mb-input]")?.value||"source",
       op:row.querySelector("[data-mb-op]").value,
       parameter:row.querySelector("[data-mb-param]").value,
       field:row.querySelector("[data-mb-field]").value,
@@ -9179,7 +9189,7 @@ function importModelBuilder(modal,file){
   reader.onload=()=>{
     try{
       const model=JSON.parse(String(reader.result||""));
-      if(model.format!=="sabzroyan-model"||model.version!==1||!Array.isArray(model.steps)||model.steps.length>100)throw new Error("Unsupported model file or invalid step list.");
+      if(model.format!=="sabzroyan-model"||![1,2].includes(model.version)||!Array.isArray(model.steps)||model.steps.length>100)throw new Error("Unsupported model file or invalid step list.");
       const items=getAllVectorItems(),sourceIndex=items.findIndex(x=>x.name===model.sourceName);
       if(sourceIndex<0)throw new Error("The model's input layer is not currently available: "+model.sourceName);
       const source=modal.querySelector("[data-mb-source]");source.value=String(sourceIndex);
@@ -9189,12 +9199,13 @@ function importModelBuilder(modal,file){
       model.steps.forEach(step=>{
         if(!allowed.has(step.op))throw new Error("Unknown model operation: "+step.op);
         addModelBuilderStep(modal,step.op);
-        const row=host.lastElementChild;row.querySelector("[data-mb-param]").value=String(step.parameter??"50");row.querySelector("[data-mb-field]").value=String(step.field||"");row.querySelector("[data-mb-where-op]").value=String(step.whereOperator||"equals");row.querySelector("[data-mb-where-value]").value=String(step.whereValue??"");row.querySelector("[data-mb-logic]").value=step.logic==="OR"?"OR":"AND";row.querySelector("[data-mb-field2]").value=String(step.field2||"");row.querySelector("[data-mb-where-op2]").value=String(step.whereOperator2||"equals");row.querySelector("[data-mb-where-value2]").value=String(step.whereValue2??"");row.querySelector("[data-mb-calc-target]").value=String(step.calcTarget||"");row.querySelector("[data-mb-op]").dispatchEvent(new Event("change"));if(step.relation)row.querySelector("[data-mb-relation]").value=String(step.relation);
+        const row=host.lastElementChild;if(model.version>=2){row.dataset.mbNodeId=String(step.nodeId||row.dataset.mbNodeId);row._pendingMbInput=String(step.input||"source");}row.querySelector("[data-mb-param]").value=String(step.parameter??"50");row.querySelector("[data-mb-field]").value=String(step.field||"");row.querySelector("[data-mb-where-op]").value=String(step.whereOperator||"equals");row.querySelector("[data-mb-where-value]").value=String(step.whereValue??"");row.querySelector("[data-mb-logic]").value=step.logic==="OR"?"OR":"AND";row.querySelector("[data-mb-field2]").value=String(step.field2||"");row.querySelector("[data-mb-where-op2]").value=String(step.whereOperator2||"equals");row.querySelector("[data-mb-where-value2]").value=String(step.whereValue2??"");row.querySelector("[data-mb-calc-target]").value=String(step.calcTarget||"");row.querySelector("[data-mb-op]").dispatchEvent(new Event("change"));if(step.relation)row.querySelector("[data-mb-relation]").value=String(step.relation);
         const overlayIndex=items.findIndex(x=>x.name===step.overlayName);
         if(overlayIndex>=0)row.querySelector("[data-mb-overlay]").value=String(overlayIndex);
       });
-      refreshModelBuilderStepNumbers(host);renderModelBuilderGraph(modal);
-      modal.querySelector("[data-mb-status]").textContent="Model imported. Verify layer references and parameters, then run.";
+      refreshModelBuilderNodeInputs(modal);[...host.children].forEach(row=>{if(row._pendingMbInput){row.querySelector("[data-mb-input]").value=row._pendingMbInput;delete row._pendingMbInput;}});
+      refreshModelBuilderNodeInputs(modal);refreshModelBuilderStepNumbers(host);renderModelBuilderGraph(modal);
+      modal.querySelector("[data-mb-status]").textContent="Model imported. Verify graph connections, layer references and parameters, then run.";
     }catch(err){modal.querySelector("[data-mb-status]").textContent="Import failed: "+err.message;}
     modal.querySelector("[data-mb-file]").value="";
   };
@@ -9202,8 +9213,9 @@ function importModelBuilder(modal,file){
 }
 function addModelBuilderStep(modal,op="buffer"){
   const host=modal.querySelector("[data-mb-steps]"),row=document.createElement("div");
-  row.dataset.mbStep="1";row.style.cssText="display:grid;grid-template-columns:30px minmax(150px,1.35fr) minmax(90px,.65fr) minmax(140px,1fr) minmax(110px,.8fr) minmax(110px,.8fr) minmax(105px,.8fr) minmax(55px,.4fr) minmax(105px,.8fr) minmax(100px,.75fr) minmax(105px,.8fr) 94px;gap:6px;align-items:center;padding:10px;margin:8px 0;border:1px solid #c8d3dd;border-radius:8px;background:#fff;box-shadow:0 1px 3px #24374612;min-width:1050px";
+  row.dataset.mbStep="1";row.dataset.mbNodeId="node-"+(crypto.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random().toString(36).slice(2));row.style.cssText="display:grid;grid-template-columns:30px 150px minmax(150px,1.35fr) minmax(90px,.65fr) minmax(140px,1fr) minmax(110px,.8fr) minmax(110px,.8fr) minmax(105px,.8fr) minmax(55px,.4fr) minmax(105px,.8fr) minmax(100px,.75fr) minmax(105px,.8fr) 94px;gap:6px;align-items:center;padding:10px;margin:8px 0;border:1px solid #c8d3dd;border-radius:8px;background:#fff;box-shadow:0 1px 3px #24374612;min-width:1050px";
   const number=document.createElement("strong");number.textContent=String(host.children.length+1);
+  const inputNode=document.createElement("select");inputNode.dataset.mbInput="1";inputNode.style.cssText="width:100%;padding:7px";inputNode.title="Connect this node to the output of another node";
   const operation=document.createElement("select");operation.dataset.mbOp="1";operation.style.cssText="width:100%;padding:7px";
   [["buffer","Buffer (meters)"],["centroid","Centroid"],["pointOnFeature","Feature To Point"],["convexHull","Convex Hull (all features)"],["boundingBox","Envelope (all features)"],["simplify","Simplify"],["cleanCoords","Clean Coordinates"],["areaLength","Calculate Area / Length"],["dissolve","Dissolve (all)"],["dissolveField","Dissolve by Field"],["selectByAttribute","Select By Attributes"],["singlepart","Multipart To Singlepart"],["clip","Clip"],["intersection","Intersect"],["erase","Erase"],["union","Union"],["identity","Identity"],["selectByLocation","Select By Location"],["calculateField","Calculate Field"],["spatialJoin","Spatial Join (one-to-one)"],["spatialJoinOneToMany","Spatial Join (one-to-many)"]].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;operation.appendChild(o);});operation.value=op;
   const param=document.createElement("input");param.dataset.mbParam="1";param.type="number";param.min="0";param.step="any";param.value="50";param.title="Buffer distance in meters or simplification tolerance in coordinate units";param.style.cssText="width:100%;padding:7px;box-sizing:border-box";
@@ -9222,22 +9234,23 @@ function addModelBuilderStep(modal,op="buffer"){
   const up=document.createElement("button");up.type="button";up.dataset.mbUp="1";up.textContent="↑";up.title="Move step up";
   const down=document.createElement("button");down.type="button";down.dataset.mbDown="1";down.textContent="↓";down.title="Move step down";
   const remove=document.createElement("button");remove.type="button";remove.dataset.mbRemove="1";remove.textContent="−";remove.title="Remove step";
-  controls.append(up,down,remove);row.append(number,operation,param,overlay,relation,calcTarget,field,whereOp,whereValue,logic,field2,whereOp2,whereValue2,controls);host.appendChild(row);
-  refreshModelBuilderStepNumbers(host);renderModelBuilderGraph(modal);
+  controls.append(up,down,remove);row.append(number,inputNode,operation,param,overlay,relation,calcTarget,field,whereOp,whereValue,logic,field2,whereOp2,whereValue2,controls);host.appendChild(row);
+  refreshModelBuilderNodeInputs(modal);refreshModelBuilderNodeInputs(modal);refreshModelBuilderStepNumbers(host);renderModelBuilderGraph(modal);
 }
 function renderModelBuilderGraph(modal){
  const graph=modal.querySelector("[data-mb-graph]"),host=modal.querySelector("[data-mb-steps]");if(!graph||!host)return;
- const rows=[...host.children],nodeW=190,nodeH=78,gapX=74,startX=28,startY=26,stepX=nodeW+gapX,total=rows.length+2,width=Math.max(640,startX*2+total*stepX-gapX),height=150;
- graph.replaceChildren();graph.style.cssText="position:relative;display:block;overflow:auto;min-height:150px;height:180px;padding:0;margin:8px 0 14px;background-color:#f7f9fb;background-image:linear-gradient(#e2e8ef 1px,transparent 1px),linear-gradient(90deg,#e2e8ef 1px,transparent 1px);background-size:20px 20px;border:1px solid #bdc9d4;border-radius:8px";
+ const rows=[...host.children],nodeW=210,nodeH=86,gapX=85,startX=28,startY=30,stepX=nodeW+gapX,total=rows.length+2,width=Math.max(700,startX*2+total*stepX-gapX),height=190;
+ graph.replaceChildren();graph.style.cssText="position:relative;display:block;overflow:auto;min-height:190px;height:230px;padding:0;margin:8px 0 14px;background-color:#f7f9fb;background-image:linear-gradient(#e2e8ef 1px,transparent 1px),linear-gradient(90deg,#e2e8ef 1px,transparent 1px);background-size:20px 20px;border:1px solid #bdc9d4;border-radius:8px";
  const canvas=document.createElement("div");canvas.style.cssText="position:relative;width:"+width+"px;height:"+height+"px";
  const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");svg.setAttribute("width",String(width));svg.setAttribute("height",String(height));svg.style.cssText="position:absolute;inset:0;pointer-events:none;overflow:visible";
  const defs=document.createElementNS(svg.namespaceURI,"defs"),marker=document.createElementNS(svg.namespaceURI,"marker");marker.setAttribute("id","mbArrowHead");marker.setAttribute("markerWidth","8");marker.setAttribute("markerHeight","8");marker.setAttribute("refX","7");marker.setAttribute("refY","3");marker.setAttribute("orient","auto");const arrow=document.createElementNS(svg.namespaceURI,"path");arrow.setAttribute("d","M0,0 L0,6 L7,3 z");arrow.setAttribute("fill","#64849b");marker.appendChild(arrow);defs.appendChild(marker);svg.appendChild(defs);
- const addEdge=(x1,y1,x2,y2)=>{const path=document.createElementNS(svg.namespaceURI,"path");const mid=(x1+x2)/2;path.setAttribute("d","M"+x1+" "+y1+" C"+mid+" "+y1+" "+mid+" "+y2+" "+x2+" "+y2);path.setAttribute("fill","none");path.setAttribute("stroke","#64849b");path.setAttribute("stroke-width","2.5");path.setAttribute("marker-end","url(#mbArrowHead)");svg.appendChild(path);};
- const makeNode=(title,sub,kind,x,index,row)=>{const el=document.createElement("div");el.style.cssText="position:absolute;left:"+x+"px;top:"+startY+"px;width:"+nodeW+"px;min-height:"+nodeH+"px;box-sizing:border-box;padding:10px 12px 10px 18px;background:#fff;border:1px solid #aab9c6;border-left:5px solid "+(kind==="input"?"#277caa":kind==="output"?"#25834d":"#bd842d")+";border-radius:7px;box-shadow:0 2px 5px #17212b18;display:flex;flex-direction:column;justify-content:center;gap:5px;z-index:2;cursor:"+(row?"grab":"default");const h=document.createElement("strong");h.textContent=title;h.style.cssText="font-size:12px;color:#243746;white-space:nowrap;overflow:hidden;text-overflow:ellipsis";const p=document.createElement("small");p.textContent=sub;p.style.cssText="font-size:10px;color:#607080";el.append(h,p);const port=document.createElement("i");port.style.cssText="position:absolute;right:-6px;top:calc(50% - 6px);width:10px;height:10px;border-radius:50%;background:#fff;border:2px solid #64849b";el.append(port);if(kind!=="input"){const input=document.createElement("i");input.style.cssText="position:absolute;left:-6px;top:calc(50% - 6px);width:10px;height:10px;border-radius:50%;background:#fff;border:2px solid #64849b";el.append(input);}if(row){el.draggable=true;el.addEventListener("dragstart",e=>{e.dataTransfer.setData("text/plain",String(index));e.dataTransfer.effectAllowed="move";});el.addEventListener("dragover",e=>{e.preventDefault();el.style.outline="2px solid #4b91bf";});el.addEventListener("dragleave",()=>el.style.outline="");el.addEventListener("drop",e=>{e.preventDefault();el.style.outline="";const from=Number(e.dataTransfer.getData("text/plain")),to=index,items=[...host.children];if(!Number.isInteger(from)||from===to||!items[from]||!items[to])return;const moving=items[from];if(from<to)host.insertBefore(moving,items[to].nextSibling);else host.insertBefore(moving,items[to]);refreshModelBuilderStepNumbers(host);renderModelBuilderGraph(modal);});el.addEventListener("dblclick",()=>{row.scrollIntoView({behavior:"smooth",block:"center"});row.style.outline="2px solid #3b82a0";setTimeout(()=>row.style.outline="",1200);});}canvas.appendChild(el);};
- const names=rows.map(row=>row.querySelector("[data-mb-op] option:checked")?.textContent||"Processing tool");const positions=[...Array(total)].map((_,i)=>startX+i*stepX);for(let i=0;i<total-1;i++)addEdge(positions[i]+nodeW,startY+nodeH/2,positions[i+1],startY+nodeH/2);
- makeNode("Input · "+(modal.querySelector("[data-mb-source] option:checked")?.textContent||"Feature layer"),"Vector feature source","input",positions[0],-1,null);
- rows.forEach((row,i)=>makeNode((i+1)+" · "+names[i],"Geoprocessing · output to next node","tool",positions[i+1],i,row));
- makeNode("Output · "+(modal.querySelector("[data-mb-name]").value||"Model_Output"),"Final feature class","output",positions[total-1],rows.length,null);
+ const pos=new Map(rows.map((row,i)=>[row.dataset.mbNodeId,{x:startX+(i+1)*stepX,y:startY+nodeH/2}]));
+ const addEdge=(x1,y1,x2,y2)=>{const path=document.createElementNS(svg.namespaceURI,"path"),mid=(x1+x2)/2;path.setAttribute("d","M"+x1+" "+y1+" C"+mid+" "+y1+" "+mid+" "+y2+" "+x2+" "+y2);path.setAttribute("fill","none");path.setAttribute("stroke","#64849b");path.setAttribute("stroke-width","2.5");path.setAttribute("marker-end","url(#mbArrowHead)");svg.appendChild(path);};
+ const makeNode=(title,sub,kind,x,y,row)=>{const el=document.createElement("div");el.style.cssText="position:absolute;left:"+x+"px;top:"+y+"px;width:"+nodeW+"px;min-height:"+nodeH+"px;box-sizing:border-box;padding:10px 14px;background:#fff;border:1px solid #aab9c6;border-left:5px solid "+(kind==="input"?"#277caa":kind==="output"?"#25834d":"#bd842d")+";border-radius:7px;box-shadow:0 2px 5px #17212b18;display:flex;flex-direction:column;justify-content:center;gap:5px;z-index:2;cursor:"+(row?"pointer":"default");const h=document.createElement("strong");h.textContent=title;h.style.cssText="font-size:12px;color:#243746;white-space:nowrap;overflow:hidden;text-overflow:ellipsis";const p=document.createElement("small");p.textContent=sub;p.style.cssText="font-size:10px;color:#607080";el.append(h,p);if(row){const c=document.createElement("small");c.textContent="Input: "+(row.querySelector("[data-mb-input] option:checked")?.textContent||"Input layer");c.style.cssText="font-size:9px;color:#277caa";el.append(c);el.addEventListener("click",()=>{row.scrollIntoView({behavior:"smooth",block:"center"});row.style.outline="2px solid #3b82a0";setTimeout(()=>row.style.outline="",1000);});}canvas.appendChild(el);};
+ makeNode("Input · "+(modal.querySelector("[data-mb-source] option:checked")?.textContent||"Feature layer"),"Vector feature source","input",startX,startY,null);
+ rows.forEach((row,i)=>{const p=pos.get(row.dataset.mbNodeId),input=row.querySelector("[data-mb-input]")?.value||"source",from=input==="source"?{x:startX+nodeW,y:startY+nodeH/2}:pos.get(input);if(from)addEdge(from.x,from.y,p.x-nodeW/2,p.y);makeNode((i+1)+" · "+(row.querySelector("[data-mb-op] option:checked")?.textContent||"Processing tool"),"Processing node · "+row.dataset.mbNodeId.slice(0,12),"tool",p.x-nodeW/2,p.y-nodeH/2,row);});
+ const last=rows[rows.length-1],lastPos=last?pos.get(last.dataset.mbNodeId):{x:startX+nodeW,y:startY+nodeH/2};addEdge(lastPos.x+nodeW/2,lastPos.y,startX+(rows.length+1)*stepX,startY+nodeH/2);
+ makeNode("Output · "+(modal.querySelector("[data-mb-name]").value||"Model_Output"),"Final node output","output",startX+(rows.length+1)*stepX,startY,null);
  canvas.appendChild(svg);graph.appendChild(canvas);
 }
 function modelBuilderLayerFeatures(index){
@@ -9252,7 +9265,7 @@ function validateModelBuilder(modal,show=true){
  try{
   const items=getAllVectorItems(),sourceIndex=Number(modal.querySelector("[data-mb-source]").value);
   if(!items[sourceIndex])throw new Error("Choose a valid input feature layer.");
-  const source=modelBuilderLayerFeatures(sourceIndex),steps=[...modal.querySelectorAll("[data-mb-step]")];
+  const source=modelBuilderLayerFeatures(sourceIndex),steps=modelBuilderTopologicalSteps(modal);
   if(!steps.length)throw new Error("Add at least one processing step.");
   if(!String(modal.querySelector("[data-mb-name]").value||"").trim())throw new Error("Enter an output layer name.");
   let fields=new Set(source.flatMap(f=>Object.keys(f.properties||{})));
@@ -9299,7 +9312,7 @@ function runModelBuilder(modal){
  try{
   const validation=validateModelBuilder(modal,false);if(!validation.valid)throw validation.error;
   let current=validation.source.map(f=>JSON.parse(JSON.stringify(f)));
-  const steps=validation.steps,stepLog=[],intermediate=[];
+  const steps=validation.steps,stepLog=[],intermediate=[],nodeOutputs=new Map();
   const clone=f=>JSON.parse(JSON.stringify(f));
   const overlayLabel=index=>getAllVectorItems()[Number(index)]?.name||"Overlay";
   const mergeProperties=(base,overlay)=>{
@@ -9311,7 +9324,8 @@ function runModelBuilder(modal){
    return props;
   };
   for(let si=0;si<steps.length;si++){
-   const inputCount=current.length,row=steps[si],op=row.querySelector("[data-mb-op]").value;
+   const row=steps[si],inputRef=row.querySelector("[data-mb-input]")?.value||"source";current=(inputRef==="source"?validation.source:nodeOutputs.get(inputRef)||[]).map(f=>JSON.parse(JSON.stringify(f)));
+   const inputCount=current.length,op=row.querySelector("[data-mb-op]").value;
    const raw=Number(row.querySelector("[data-mb-param]").value),overlayIndex=row.querySelector("[data-mb-overlay]").value;
    let next=[];
    if(op==="calculateField"){
@@ -9378,9 +9392,10 @@ function runModelBuilder(modal){
     }
    }
    current=next.filter(f=>f&&f.geometry);
-   if(!current.length)throw new Error("Step "+(si+1)+" ("+op+") returned no features; model stopped without creating an output layer.");
+   if(!current.length)throw new Error("Node "+(steps.indexOf(row)+1)+" ("+op+") returned no features; model stopped without creating an output layer.");
+   nodeOutputs.set(row.dataset.mbNodeId,current.map(clone));
    if(current.length>20000)throw new Error("Step "+(si+1)+" produced more than 20,000 features; model stopped for safety.");
-   stepLog.push("Step "+(si+1)+" · "+op+": "+inputCount+" → "+current.length+" features");
+   stepLog.push("Node "+(steps.indexOf(row)+1)+" · "+op+": "+inputCount+" → "+current.length+" features");
    if(modal.querySelector("[data-mb-intermediates]").checked)intermediate.push({name:((modal.querySelector("[data-mb-name]").value||"Model_Output").trim().replace(/[<>]/g,"").slice(0,65)||"Model_Output")+"_Step_"+String(si+1).padStart(2,"0"),features:clone(current)});
    say("Running model…\n"+stepLog.join("\n"));
   }
