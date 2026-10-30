@@ -34,7 +34,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y clang
       - name: Native RustGIS vector tests
         working-directory: sabzroyanuraman-site/rustgis-vector-wasm
-        run: cargo test --locked
+        run: cargo test
       - name: Build browser WASM package
         working-directory: sabzroyanuraman-site/rustgis-vector-wasm
         run: wasm-pack build --target web --release --out-dir ../rustgis-vector-wasm-pkg --out-name sabz_royan_vector_wasm
