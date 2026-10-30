@@ -41,7 +41,7 @@
         svg.appendChild(path);
       };
       const redraw = () => {
-        svg.querySelectorAll("path").forEach(p => p.remove());
+        Array.from(svg.children).filter(p => p.tagName === "path").forEach(p => p.remove());
         rows.forEach(row => {
           drawEdge(lookup(row.querySelector("[data-mb-input]")?.value || "source"), lookup(row.dataset.mbNodeId));
           const secondary = row.querySelector("[data-mb-overlay-node]")?.value || "";
