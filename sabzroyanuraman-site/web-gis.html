@@ -5386,7 +5386,7 @@ function serializeProject(){
     if(drawnIndex>=0){project.selected.push({source:"drawn",index:drawnIndex});return}
     for(const item of namedLayers){const i=vectorFeatures(item.layer).findIndex(x=>x.layer===featureLayer);if(i>=0){project.selected.push({source:"layer",name:item.name,index:i});break}}
   });
-  project.rasterAssets=sabzRasterState&&sabzRasterState.assetId?[{assetId:sabzRasterState.assetId,fileName:sabzRasterState.fileName,metadata:sabzRasterState.sourceMetadata}]:[];
+  project.rasterAssets=sabzRasterAssetRefs.slice();if(!project.rasterAssets.length&&sabzRasterState&&sabzRasterState.assetId)project.rasterAssets=[{assetId:sabzRasterState.assetId,fileName:sabzRasterState.fileName,metadata:sabzRasterState.sourceMetadata}];
   project.integrity={drawnCount:project.drawn.length,layerCount:project.layers.length,featureCount:project.drawn.length+project.layers.reduce((n,x)=>n+x.features.length,0)};
   return project;
 }
@@ -5407,6 +5407,7 @@ function projectFeatureLayer(features,name){
 }
 
 async function restoreSavedRasterAssets(project){
+  sabzRasterAssetRefs=project&&Array.isArray(project.rasterAssets)?project.rasterAssets.slice():[];
   if(!project||!Array.isArray(project.rasterAssets)||!project.rasterAssets.length||!window.SabzRasterRuntime)return;
   for(const ref of project.rasterAssets){
     try{
@@ -9649,6 +9650,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 
 /* Browser GeoTIFF raster tools. */
 let sabzRasterState=null;
+let sabzRasterAssetRefs=[];
 function openRasterWorkspace(){
  let p=document.getElementById("sabzRasterWorkspace");if(p){p.hidden=!p.hidden;return;}
  p=document.createElement("section");p.id="sabzRasterWorkspace";p.style.cssText="position:fixed;z-index:10020;right:18px;top:72px;width:min(390px,calc(100vw - 30px));max-height:78vh;overflow:auto;background:#f5f7f9;border:1px solid #9aaab4;box-shadow:0 8px 28px #14253635;border-radius:5px;padding:12px;color:#243746;font:12px Arial,sans-serif";
@@ -9698,6 +9700,7 @@ function openRasterWorkspace(){
   const a=ll([bb[0],bb[1]]),b=ll([bb[2],bb[3]]),bounds=[[Math.min(a[1],b[1]),Math.min(a[0],b[0])],[Math.max(a[1],b[1]),Math.max(a[0],b[0])]];
   const factor=Math.max(1,Math.ceil(Math.max(w,h)/1400)),ow=Math.ceil(w/factor),oh=Math.ceil(h/factor),scale=im.getFileDirectory().ModelPixelScale||[],canvas=document.createElement("canvas");canvas.width=ow;canvas.height=oh;
   sabzRasterState={fileName:file.name,w,h,bands,epsg,noData:Number.isFinite(noData)?noData:null,bounds,factor,ow,oh,cellX:rasterData.metadata.pixelScale[0]||Math.abs(bb[2]-bb[0])/w,cellY:rasterData.metadata.pixelScale[1]||Math.abs(bb[3]-bb[1])/h,canvas,layer:null,sourceBlob:rasterData.blob,sourceMetadata:rasterData.metadata,assetId:null};const rasterProjectId=currentProjectId||projectId();currentProjectId=rasterProjectId;sabzRasterState.assetId="raster-"+Date.now().toString(36);await SabzRasterRuntime.saveAsset(rasterProjectId,sabzRasterState.assetId,rasterData.blob,rasterData.metadata);
+  sabzRasterAssetRefs=sabzRasterAssetRefs.filter(ref=>ref.assetId!==sabzRasterState.assetId);sabzRasterAssetRefs.push({assetId:sabzRasterState.assetId,fileName:file.name,metadata:rasterData.metadata});
   p.querySelector('[data-r-meta]').textContent=w+" × "+h+" px · "+bands.length+" band(s) · EPSG:"+epsg+" · "+file.name;say("Loaded. Choose operation and Run.");p.querySelector('[data-r-op]').dispatchEvent(new Event("change"));renderSabzRaster("display");
  }catch(err){say("Load failed: "+err.message);}};
  p.querySelector('[data-r-run]').onclick=async()=>{try{
@@ -9710,9 +9713,18 @@ function openRasterWorkspace(){
     expression:p.querySelector("[data-r-expr]").value||"B1",
     azimuth:315,altitude:45,zFactor:1
   });
+  const outputName=(p.querySelector('[data-r-name]').value||"Raster_Result")+".tif";
+  const outputMeta={...sabzRasterState.sourceMetadata,width:result.width,height:result.height,bandCount:1,geoTransform:result.geoTransform,extent:result.extent,noData:result.noData};
+  const outputBlob=await SabzRasterRuntime.writeFloat32(result.values,outputMeta);
+  const outputProjectId=currentProjectId||projectId();currentProjectId=outputProjectId;
+  const outputAssetId="raster-output-"+Date.now().toString(36);
+  await SabzRasterRuntime.saveAsset(outputProjectId,outputAssetId,outputBlob,outputMeta);
+  result.assetId=outputAssetId;result.fileName=outputName;
+  sabzRasterAssetRefs=sabzRasterAssetRefs.filter(ref=>ref.assetId!==outputAssetId);
+  sabzRasterAssetRefs.push({assetId:outputAssetId,fileName:outputName,metadata:outputMeta});
   sabzRasterState.output=result;
   renderRustRasterPreview(sabzRasterState,result);
-  say("RustGIS/WASM completed: "+result.width+" × "+result.height+" pixels · "+p.querySelector('[data-r-name]').value);
+  say("RustGIS/WASM completed and added as a saved raster layer: "+result.width+" × "+result.height+" pixels.");
  }catch(err){say("RustGIS processing failed: "+(err&&err.message||err));}};
  p.querySelector('[data-r-export]').onclick=()=>{if(!sabzRasterState?.output){say("Run an operation first.");return;}sabzRasterState.canvas.toBlob(blob=>{if(!blob)return;const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=(p.querySelector('[data-r-name]').value||"raster-result")+".png";a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);});};
 }
