@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 jobs:
   test-and-build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -60,7 +60,7 @@ jobs:
   deploy-host:
     if: ${{ github.event_name == 'workflow_dispatch' }}
     needs: test-and-build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       FTP_SERVER: ${{ secrets.FTP_SERVER }}
       FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
