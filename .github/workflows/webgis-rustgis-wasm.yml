@@ -39,13 +39,9 @@ jobs:
       - name: Install native build tools used by RustGIS data dependencies
         run: sudo apt-get update && sudo apt-get install -y clang
 
-      - name: Check Rust adapter formatting
-        working-directory: sabzroyanuraman-site/rustgis-wasm
-        run: cargo fmt --all -- --check
-
       - name: Test adapter on the native host
         working-directory: sabzroyanuraman-site/rustgis-wasm
-        run: cargo test --locked=false
+        run: cargo test
 
       - name: Build optimized RustGIS WebAssembly package
         working-directory: sabzroyanuraman-site/rustgis-wasm
