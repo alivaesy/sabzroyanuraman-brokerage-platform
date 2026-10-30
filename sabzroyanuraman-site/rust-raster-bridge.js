@@ -34,7 +34,7 @@
     return {
       values: result, width: m.width, height: m.height,
       geoTransform: gt.slice(0, 6), extent: { ...m.extent },
-      noData: -3.4e38, crs: m.crs, engine: "RustGIS/WASM"
+      noData: Math.fround(-3.4e38), crs: m.crs, engine: "RustGIS/WASM"
     };
   }
   async function inspectPluginPackage(fileBytes) {
