@@ -491,6 +491,11 @@
   function start() {
     ensureRasterBridge();
     createDialog();
+    document.querySelectorAll("[data-rustgis-vector-open]").forEach(button => {
+      if (button.dataset.rustgisBound === "1") return;
+      button.dataset.rustgisBound = "1";
+      button.addEventListener("click", event => { event.preventDefault(); openDialog(); });
+    });
     const toolbox = document.getElementById("toolboxToggleBtn");
     if (toolbox && !document.getElementById("rgEngineButton")) {
       const button = $("button", {type:"button", class:"icon-tool", id:"rgEngineButton", title:"RustGIS Processing Engine", "aria-label":"RustGIS Processing Engine"}, "RG");
