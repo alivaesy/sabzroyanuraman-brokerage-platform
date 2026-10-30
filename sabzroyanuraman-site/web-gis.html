@@ -2026,6 +2026,48 @@ async function remoteGisGetCsrf(){
   const r=await fetch("/api/gis/auth.php?action=csrf",{credentials:"same-origin",cache:"no-store",headers:{Accept:"application/json"}});
   const b=await r.json();if(!r.ok||!b.csrf_token)throw new Error(b.error||"csrf_unavailable");remoteGisCsrf=b.csrf_token;return b;
 }
+async function remoteGisRasterList(projectId){
+  const url="/api/gis/raster-assets.php?organization_id="+encodeURIComponent(remoteGisOrganization.id)+"&project_id="+encodeURIComponent(projectId)+"&action=list";
+  const response=await fetch(url,{credentials:"same-origin",cache:"no-store",headers:{Accept:"application/json"}});
+  const body=await response.json().catch(()=>({}));
+  if(!response.ok||body.ok!==true||!Array.isArray(body.assets))throw new Error(body.error||"raster_asset_list_failed");
+  return body.assets;
+}
+async function remoteGisSyncRasterAssets(localProjectId,serverProjectId){
+  if(!remoteGisUser||!remoteGisOrganization||!serverProjectId)return;
+  if(!window.SabzRasterRuntime)throw new Error("Raster runtime is unavailable.");
+  await remoteGisGetCsrf();
+  const existing=await remoteGisRasterList(serverProjectId),serverIds=new Set(existing.map(a=>String(a.asset_id)));
+  for(const ref of (sabzRasterAssetRefs||[])){
+    const assetId=String(ref.assetId||"");if(!assetId)continue;
+    let saved=await SabzRasterRuntime.loadAsset(String(localProjectId),assetId);
+    if(!saved)saved=await SabzRasterRuntime.loadAsset(String(serverProjectId),assetId);
+    if(!saved||!saved.blob){if(serverIds.has(assetId))continue;throw new Error("Local bytes missing for raster asset "+assetId);}
+    const metadata=saved.metadata||ref.metadata;if(!metadata)throw new Error("Raster metadata missing for "+assetId);
+    const form=new FormData();form.append("action","upload");form.append("organization_id",String(remoteGisOrganization.id));form.append("project_id",String(serverProjectId));form.append("asset_id",assetId);form.append("file_name",ref.fileName||"raster.tif");form.append("metadata",JSON.stringify(metadata));form.append("file",saved.blob,ref.fileName||"raster.tif");
+    const response=await fetch("/api/gis/raster-assets.php",{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"X-CSRF-Token":remoteGisCsrf,Accept:"application/json"},body:form});
+    const body=await response.json().catch(()=>({}));
+    if(!response.ok||body.ok!==true)throw new Error(body.error||("raster_upload_http_"+response.status));
+    await SabzRasterRuntime.saveAsset(String(serverProjectId),assetId,saved.blob,metadata);
+  }
+}
+async function remoteGisRestoreRasterAssets(project,serverProjectId){
+  if(!project||!serverProjectId||!remoteGisOrganization||!window.SabzRasterRuntime)return;
+  const assets=await remoteGisRasterList(serverProjectId);
+  project.id=String(serverProjectId);
+  project.rasterAssets=assets.map(a=>({assetId:String(a.asset_id),fileName:a.file_name||"raster.tif",metadata:a.metadata||null}));
+  for(const asset of assets){
+    const assetId=String(asset.asset_id),url="/api/gis/raster-assets.php?organization_id="+encodeURIComponent(remoteGisOrganization.id)+"&project_id="+encodeURIComponent(serverProjectId)+"&action=download&asset_id="+encodeURIComponent(assetId);
+    const response=await fetch(url,{credentials:"same-origin",cache:"no-store"});
+    if(!response.ok)throw new Error("Raster download failed for "+assetId+" (HTTP "+response.status+").");
+    const blob=await response.blob(),file=new File([blob],asset.file_name||"raster.tif",{type:"image/tiff"}),parsed=await SabzRasterRuntime.read(file);
+    const expected=asset.metadata||{};
+    if(expected.width&&parsed.metadata.width!==Number(expected.width))throw new Error("Raster width verification failed for "+assetId);
+    if(expected.height&&parsed.metadata.height!==Number(expected.height))throw new Error("Raster height verification failed for "+assetId);
+    if(expected.crs?.epsg&&parsed.metadata.crs.epsg!==Number(expected.crs.epsg))throw new Error("Raster CRS verification failed for "+assetId);
+    await SabzRasterRuntime.saveAsset(String(serverProjectId),assetId,blob,parsed.metadata);
+  }
+}
 async function remoteGisLogin(){
   await remoteGisGetCsrf();
   const credentials=await arcMapDialog.form({title:"GIS Online Login",message:"Credentials are sent only to the same-origin GIS API.",fields:[
@@ -2072,7 +2114,10 @@ async function remoteGisSaveProject(project){
   if(remoteGisProjectId)body.id=remoteGisProjectId;
   const result=await remoteGisRequest("projects.php",{method:"POST",body:JSON.stringify(body)});
   if(!result.project_id)throw new Error("server_did_not_return_project_id");
-  remoteGisProjectId=Number(result.project_id);return result;
+  remoteGisProjectId=Number(result.project_id);
+  const localAssetProjectId=String(project.id||currentProjectId||remoteGisProjectId);
+  await remoteGisSyncRasterAssets(localAssetProjectId,remoteGisProjectId);
+  return result;
 }
 async function remoteGisLogout(){
   await remoteGisGetCsrf();
@@ -2091,6 +2136,7 @@ async function remoteGisOpenProject(id){
   const p=remote.project;if(!p)throw new Error("project_not_found");
   let data=p.project_data;if(typeof data==="string")data=JSON.parse(data);
   if(!data||typeof data!=="object")throw new Error("empty_server_project_data");
+  await remoteGisRestoreRasterAssets(data,p.id);
   if(!restoreProject(data))throw new Error("project_restore_failed");
   currentProjectId=String(p.id);remoteGisProjectId=Number(p.id);
   $("projectName").value=p.name||data.name||"Untitled Project";window.currentProjectDescription=p.description||data.description||"";
