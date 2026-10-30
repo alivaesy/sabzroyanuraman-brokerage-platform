@@ -49,7 +49,9 @@
   }
 
   function availableLayers() {
-    const entries = bridge()?.namedLayers || [];
+    const shared = bridge();
+    const entries = [...(shared?.namedLayers || [])];
+    if (shared?.drawn && typeof shared.drawn.toGeoJSON === "function") entries.unshift({name:"My Drawings",layer:shared.drawn});
     return entries.filter(item => item?.name && item?.layer && typeof item.layer.toGeoJSON === "function");
   }
 
