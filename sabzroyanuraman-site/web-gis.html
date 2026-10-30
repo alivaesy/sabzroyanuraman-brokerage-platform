@@ -10337,8 +10337,13 @@ const arcMapDialog=(()=>{
    }catch(error){status("Unable to open shared map: "+(error.message||"link unavailable"));}
  }
  if(query.has("share")){if(shareButton)shareButton.hidden=true;loadSharedProject();}
+
+  // Allow the post-load RustGIS compatibility layer to wrap this IIFE-scoped renderer.
+  window.__sabzInstallModelBuilderRenderer = factory => { renderModelBuilderGraph = factory(renderModelBuilderGraph); };
 })();
 </script>
+<script src="webgis-rustgis-enhancements.js"></script>
+
 <style>
 .shared-project-readonly .leaflet-draw,.shared-project-readonly #editorToolbar,.shared-project-readonly #editToolbar,.shared-project-readonly #attributeTablePanel,
 .shared-project-readonly #attributeEditor,.shared-project-readonly #arcToolbox,.shared-project-readonly #editorToolbarToggleBtn{display:none!important}
