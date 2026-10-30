@@ -111,11 +111,8 @@ mod tests {
 
     fn plane() -> Vec<Vec<f32>> {
         // A 5×5 north-up plane rising 10 m east per 10 m cell.
-        (0..5).flat_map(|row| (0..5).map(move |col| (col * 10 + row * 0) as f32)).collect::<Vec<_>>().into_iter().collect::<Vec<_>>().pipe_one()
+        vec![(0..25).map(|i| ((i % 5) * 10) as f32).collect()]
     }
-
-    trait OneBand { fn pipe_one(self) -> Vec<Vec<f32>>; }
-    impl OneBand for Vec<f32> { fn pipe_one(self) -> Vec<Vec<f32>> { vec![self] } }
 
     #[test]
     fn slope_uses_rustgis_horn_algorithm_on_full_resolution_pixels() {
