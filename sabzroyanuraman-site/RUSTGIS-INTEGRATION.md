@@ -3,7 +3,7 @@
 ## Package contents
 
 - `webgis-rustgis-enhancements.js`: ModelBuilder node movement, dependency-edge redraw, workspace panning/zoom and Layout element selection, keyboard nudging and resize affordances.
-- `webgis-rustgis-runtime.js`: loads the compiled WASM package, reads the RustGIS tool catalogue, creates parameter forms, passes selected WebGIS layers as GeoJSON, executes tools and adds outputs to the project.
+- `webgis-rustgis-runtime.js`: loads the compiled WASM package, reads the RustGIS tool catalogue, creates parameter forms, passes vector layers as GeoJSON and raster layers as GeoTIFF bytes, executes tools and returns vector/raster outputs to the WebGIS.
 - `rustgis-wasm/`: Rust adapter using the upstream RustGIS analysis and data crates.
 - `rustgis-wasm-pkg/`: generated browser package; built and published by GitHub Actions after changes reach master.
 - `.github/workflows/webgis-rustgis-wasm.yml`: native Buffer test, WASM build, JavaScript syntax check and package publication.
@@ -26,28 +26,29 @@ The adapter uses `rustgis-analysis` and `rustgis-data` from the same immutable r
 2. The runtime imports and initializes `rustgis-wasm-pkg/sabzroyan_rustgis_wasm.js`.
 3. `list_tools()` returns the actual RustGIS analysis tool catalogue and parameter schemas.
 4. The **RG** toolbar button opens a parameter form generated from those schemas.
-5. Selected vector layers are converted through Leaflet's `toGeoJSON()` and sent to WASM.
-6. The Rust adapter parses GeoJSON into RustGIS `Dataset` objects and calls `rustgis_analysis::run(tool_id, inputs, params)`.
-7. Vector results are encoded by RustGIS's own data writer and added to the WebGIS map, TOC and project autosave.
+5. Selected vector layers are converted through Leaflet's `toGeoJSON()`; selected Raster sources are transferred as the original GeoTIFF bytes.
+6. The Rust adapter parses vectors into RustGIS `Dataset` objects and rasters into RustGIS `Raster` objects.
+7. Vector tools call `rustgis_analysis::run(tool_id, inputs, params)`; the dedicated Raster tools call the pinned `rustgis_analysis::rasterops` functions.
+8. Vector results are encoded as GeoJSON. Raster results are written as real GeoTIFF bytes with the source grid's CRS and transform, downloaded, and previewed on the map.
 
 ## Supported and deferred capabilities
 
 Currently supported:
-- GeoJSON vector inputs in WGS 84 longitude/latitude.
-- RustGIS built-in vector tools whose parameters use layer, number, choice, boolean or text values.
-- Adding vector results to the map and layer list.
-- Downloading tool outputs that RustGIS returns as files.
-- A native Buffer test that exercises the real upstream analysis function.
+- GeoJSON vector inputs in WGS 84 longitude/latitude and built-in RustGIS vector analysis.
+- GeoTIFF raster inputs from the WebGIS Raster Import workspace, passed as original file bytes.
+- Dedicated RustGIS Raster operations: Slope, Aspect, Hillshade and Raster Calculator.
+- Mixed vector/raster input through the `Inputs::raster` contract for compatible built-in tools such as Zonal Statistics.
+- Real GeoTIFF output written by RustGIS, preserving the input grid's CRS and transform; output bytes are downloaded and registered for subsequent Raster processing.
+- Native tests for RustGIS Buffer and a Raster Slope → GeoTIFF write/read round trip.
 
-Not yet connected:
-- Raster inputs from the existing WebGIS raster layer model and RustGIS `RasterInput`.
-- Raster Calculator, Slope, Aspect, Hillshade and GeoTIFF output through RustGIS.
-- File/path-based tools and external GeoLibre/plugin suites.
+Still deferred:
+- Persisting raster sources and Raster map layers inside saved WebGIS project files; the current source registry is browser-session scoped.
 - Applying RustGIS selection results to the WebGIS selection model.
-- Large-data streaming/windowed transfer; the initial adapter currently transfers GeoJSON through memory with a 128 MiB input cap.
+- Direct path/save-file tools and external GeoLibre/plugin suites.
+- Large-data streaming/windowed transfer; the current adapter has a 128 MiB encoded-input cap and RustGIS applies its WebAssembly sample limit.
 - Browser end-to-end tests and production hosting verification.
 
-Tools that require raster or direct file/path inputs are disabled in the RustGIS panel. This avoids presenting unavailable processing paths as functional.
+The independent browser Raster preview tools remain separate from RustGIS. The RG toolbox runs the actual RustGIS algorithms; its downloaded TIFF is the analytical output, while the Leaflet overlay is only a display preview.
 
 ## Build and deployment
 
