@@ -9675,12 +9675,12 @@ function openRasterWorkspace(){
  p.querySelector('[data-r-gp-run]').onclick=async()=>{const note=p.querySelector('[data-r-gp-status]'),filesBox=p.querySelector('[data-r-gp-files]');try{
   if(!sabzRasterState||!sabzRasterState.sourceBlob)throw Error("Load a source GeoTIFF first.");
   const tool=p.querySelector('[data-r-gp-tool]').value;if(!tool)throw Error("Load and select a GeoLibre tool first.");
-  const raw=p.querySelector('[data-r-gp-args]').value.trim(),args=raw?(raw.match(/(?:[^\\s"]+|"[^"]*")+/g)||[]).map(v=>v.replace(/^"|"$/g,"")):[];
+  const raw=p.querySelector('[data-r-gp-args]').value.trim(),args=raw?(raw.match(/(?:[^\s"]+|"[^"]*")+/g)||[]).map(v=>v.replace(/^"|"$/g,"")):[];
   note.textContent="Running "+tool+" in the GeoLibre WASI runner…";filesBox.replaceChildren();
   const bytes=new Uint8Array(await sabzRasterState.sourceBlob.arrayBuffer());
   const result=await SabzGeoLibreBridge.run(tool,args,[{name:"input.tif",bytes}]);
-  note.textContent=(result.exitCode===0?"Completed":"Tool returned exit code "+result.exitCode)+"\\n"+result.stdout.join("\\n");
-  result.files.forEach(file=>{const blob=new Blob([file.bytes],{type:/\\.(tif|tiff)$/i.test(file.name)?"image/tiff":"application/octet-stream"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=file.name;a.textContent="Download "+file.name;a.style.display="block";a.style.margin="5px 0";filesBox.appendChild(a);});
+  note.textContent=(result.exitCode===0?"Completed":"Tool returned exit code "+result.exitCode)+"\n"+result.stdout.join("\n");
+  result.files.forEach(file=>{const blob=new Blob([file.bytes],{type:/\.(tif|tiff)$/i.test(file.name)?"image/tiff":"application/octet-stream"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=file.name;a.textContent="Download "+file.name;a.style.display="block";a.style.margin="5px 0";filesBox.appendChild(a);});
   if(result.exitCode!==0)throw Error("GeoLibre tool did not complete successfully.");
   if(!result.files.length)note.textContent+="\\nNo output files were returned.";
  }catch(error){note.textContent="GeoLibre run failed: "+(error.message||error);}};
