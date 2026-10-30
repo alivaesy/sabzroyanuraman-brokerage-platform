@@ -48,3 +48,23 @@ The GitHub Actions workflow runs the native test, builds the WebAssembly package
 ## Data and coordinate handling
 
 RustGIS stores feature geometries in WGS 84 longitude/latitude and its analysis algorithms perform their own projected/geodesic calculations as appropriate. The adapter deliberately transfers GeoJSON rather than Leaflet internals. The existing map stays responsible for display, styling and interaction.
+
+
+## Raster and GeoTIFF bridge
+
+The adapter now also accepts GeoTIFF raster inputs and exposes a dedicated `run_raster_tool` WASM entry point. It reads source bytes with `rustgis_data::raster::geotiff::read`, delegates calculations to the pinned `rustgis_analysis::rasterops` module, derives a result raster on the original grid, and writes a real GeoTIFF with `rustgis_data::raster::geotiff::write`.
+
+Initial Raster operations exposed in the RG toolbox:
+
+- `raster.slope` — slope in degrees, with band and Z factor.
+- `raster.aspect` — compass aspect in degrees.
+- `raster.hillshade` — hillshade with azimuth, altitude and Z factor.
+- `raster.calculator` — band arithmetic using RustGIS expressions such as `b1 + b2 * 2`.
+
+The ordinary `run_tool` path also accepts mixed vector and raster layer payloads. This enables built-in RustGIS tools such as Zonal Statistics to receive a raster through the `Inputs::raster` contract when the required vector zone layer is also supplied.
+
+Raster outputs are returned as `kind: raster-file` with base64-encoded GeoTIFF bytes, file name and metadata. The browser runtime downloads the GeoTIFF and creates a map preview from the actual output file. The preview is a Leaflet image overlay; it is not the source raster and is not substituted for the downloaded GeoTIFF.
+
+Input GeoTIFFs loaded through the existing Raster Import workspace are available to the RG toolbox during the current browser session. Raster previews and source bytes are session-scoped in this integration stage; save the downloaded GeoTIFF separately. Raster persistence inside WebGIS project files is not yet implemented.
+
+The adapter is bounded by the existing 128 MiB encoded input limit and the upstream RustGIS WebAssembly raster sample limit. Large rasters may need clipping or overviews before processing.
