@@ -35,7 +35,7 @@ document.getElementById("run").onclick=async()=>{
    ["slope",{zFactor:1},v=>Math.abs(v[12]-45)<0.05],
    ["aspect",{},v=>Number.isFinite(v[12])&&v[12]>=0&&v[12]<=360],
    ["hillshade",{azimuth:315,altitude:45,zFactor:1},v=>Number.isFinite(v[12])&&v[12]>=0&&v[12]<=255],
-   ["calculator",{expression:"B1 * 2 + 1"},v=>v[12]===41&&v[24]===-3.4e38]
+   ["calculator",{expression:"B1 * 2 + 1"},v=>v[12]===41&&v[24]===Math.fround(-3.4e38)]
   ];
   for(const [operation,options,assert] of operations){
    const result=await SabzRustRasterBridge.processRaster(operation,source,options);
