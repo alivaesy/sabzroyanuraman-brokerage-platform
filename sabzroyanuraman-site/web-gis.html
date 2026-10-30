@@ -822,7 +822,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
   <div class="arc-dropdown" id="insertMenu">
     <div class="arc-menu-title">Insert</div>
     <button type="button" data-action="importData">Add Data...</button>
-    <div class="arc-sep"></div><button type="button" data-action="insertDataFrame">Insert Data Frame</button><button type="button" data-action="insertLegend">Insert Legend</button><button type="button" data-action="insertNorthArrow">Insert North Arrow</button><button type="button" data-action="insertScaleBar">Insert Scale Bar</button><button type="button" data-action="insertTitle">Insert Title...</button>
+    <div class="arc-sep"></div><button type="button" data-raster-open>Raster Analysis...</button><button type="button" data-action="insertDataFrame">Insert Data Frame</button><button type="button" data-action="insertLegend">Insert Legend</button><button type="button" data-action="insertNorthArrow">Insert North Arrow</button><button type="button" data-action="insertScaleBar">Insert Scale Bar</button><button type="button" data-action="insertTitle">Insert Title...</button>
   </div>
   <div class="arc-dropdown" id="selectionMenu">
     <div class="arc-menu-title">Selection</div>
@@ -1262,6 +1262,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <script src="https://unpkg.com/shpjs@6.1.0/dist/shp.js"></script>
 <script src="https://unpkg.com/proj4@2.9.2/dist/proj4.js"></script>
 <script src="https://unpkg.com/@turf/turf@7.2.0/turf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/gdal3.js@2.8.1/dist/package/gdal3.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCh3Elxg1P6rxHkNiyvTyFiZ6kBdl1W-Zk"></script>
@@ -10298,6 +10299,58 @@ const arcMapDialog=(()=>{
    }catch(error){status("Unable to open shared map: "+(error.message||"link unavailable"));}
  }
  if(query.has("share")){if(shareButton)shareButton.hidden=true;loadSharedProject();}
+
+let sabzRasterState=null;
+function openRasterWorkspace(){
+ let p=document.getElementById("sabzRasterWorkspace");if(p){p.hidden=!p.hidden;return;}
+ p=document.createElement("section");p.id="sabzRasterWorkspace";p.style.cssText="position:fixed;z-index:10020;right:18px;top:72px;width:min(390px,calc(100vw - 30px));max-height:78vh;overflow:auto;background:#f5f7f9;border:1px solid #9aaab4;box-shadow:0 8px 28px #14253635;border-radius:5px;padding:12px;color:#243746;font:12px Arial,sans-serif";
+ p.innerHTML='<header style="display:flex;justify-content:space-between"><strong>Raster Analysis · ArcMap</strong><button data-r-close>×</button></header><label>GeoTIFF / COG<input data-r-file type="file" accept=".tif,.tiff,image/tiff" style="display:block;width:100%;margin:8px 0"></label><div data-r-meta style="padding:7px;background:#e8eef2">No raster loaded</div><label style="display:block;margin:8px 0">Operation<select data-r-op style="display:block;width:100%;padding:7px"><option value="display">Display / Stretch</option><option value="slope">Slope (degrees)</option><option value="aspect">Aspect (degrees)</option><option value="hillshade">Hillshade</option><option value="calculator">Raster Calculator</option></select></label><label data-r-expr-wrap style="display:block;margin:8px 0">Expression<input data-r-expr value="B1" style="display:block;width:100%;padding:7px;box-sizing:border-box"><small>B1, B2, B3; + − × ÷ and parentheses.</small></label><label>Output name<input data-r-name value="Raster_Result" style="display:block;width:100%;padding:7px;box-sizing:border-box"></label><div style="display:flex;gap:6px;margin-top:8px"><button data-r-run>Run</button><button data-r-export>Export PNG</button></div><pre data-r-status style="white-space:pre-wrap;background:#e8eef2;padding:8px">Select a GeoTIFF.</pre>';
+ document.body.appendChild(p);const say=t=>p.querySelector('[data-r-status]').textContent=t;
+ p.querySelector('[data-r-close]').onclick=()=>p.hidden=true;
+ p.querySelector('[data-r-op]').onchange=()=>p.querySelector('[data-r-expr-wrap]').hidden=p.querySelector('[data-r-op]').value!=="calculator";
+ p.querySelector('[data-r-file]').onchange=async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;try{
+  if(typeof GeoTIFF==="undefined")throw Error("GeoTIFF reader unavailable.");
+  say("Reading raster…");const tif=await GeoTIFF.fromArrayBuffer(await file.arrayBuffer()),im=await tif.getImage(),w=im.getWidth(),h=im.getHeight();
+  if(w*h>50000000)throw Error("Raster exceeds 50 million pixels; clip or build an overview first.");
+  const bands=(await im.readRasters({interleave:false})).map(a=>Float32Array.from(a)),keys=im.getGeoKeys?im.getGeoKeys():{},epsg=Number(keys.ProjectedCSTypeGeoKey||keys.GeographicTypeGeoKey||4326),bb=im.getBoundingBox();
+  if(!bb||bb.length!==4||!bb.every(Number.isFinite))throw Error("No valid GeoTIFF georeferencing found.");
+  let crs=epsg===4326?"EPSG:4326":epsg===3857?"EPSG:3857":epsg>=32601&&epsg<=32660?"+proj=utm +zone="+(epsg-32600)+" +datum=WGS84 +units=m +no_defs":epsg>=32701&&epsg<=32760?"+proj=utm +zone="+(epsg-32700)+" +south +datum=WGS84 +units=m +no_defs":null;
+  if(!crs)throw Error("EPSG:"+epsg+" not supported in browser. Reproject to EPSG:4326 or UTM WGS84.");
+  const ll=xy=>epsg===4326?xy:epsg===3857?[xy[0]/6378137*180/Math.PI,Math.atan(Math.sinh(xy[1]/6378137))*180/Math.PI]:proj4(crs,"EPSG:4326",xy);
+  const a=ll([bb[0],bb[1]]),b=ll([bb[2],bb[3]]),bounds=[[Math.min(a[1],b[1]),Math.min(a[0],b[0])],[Math.max(a[1],b[1]),Math.max(a[0],b[0])]];
+  const factor=Math.max(1,Math.ceil(Math.max(w,h)/1400)),ow=Math.ceil(w/factor),oh=Math.ceil(h/factor),scale=im.getFileDirectory().ModelPixelScale||[],canvas=document.createElement("canvas");canvas.width=ow;canvas.height=oh;
+  sabzRasterState={fileName:file.name,w,h,bands,epsg,bounds,factor,ow,oh,cellX:Number(scale[0])||Math.abs(bb[2]-bb[0])/w,cellY:Number(scale[1])||Math.abs(bb[3]-bb[1])/h,canvas,layer:null};
+  p.querySelector('[data-r-meta]').textContent=w+" × "+h+" px · "+bands.length+" band(s) · EPSG:"+epsg+" · "+file.name;say("Loaded. Choose operation and Run.");p.querySelector('[data-r-op]').dispatchEvent(new Event("change"));renderSabzRaster("display");
+ }catch(err){say("Load failed: "+err.message);}};
+ p.querySelector('[data-r-run]').onclick=()=>{try{if(!sabzRasterState)throw Error("Load a GeoTIFF first.");renderSabzRaster(p.querySelector('[data-r-op]').value);say("Completed: "+p.querySelector('[data-r-name]').value);}catch(err){say("Processing failed: "+err.message);}};
+ p.querySelector('[data-r-export]').onclick=()=>{if(!sabzRasterState?.output){say("Run an operation first.");return;}sabzRasterState.canvas.toBlob(blob=>{if(!blob)return;const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=(p.querySelector('[data-r-name]').value||"raster-result")+".png";a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);});};
+}
+function rasterExpr(expr,values){
+ const t=String(expr).match(/B[1-9]\d*|(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?|[()+*/-]/gi)||[];if(t.join("").replace(/\s/g,"")!==String(expr).replace(/\s/g,""))throw Error("Expression allows only B1…Bn, numbers and + - * / ( ).");let i=0;
+ const atom=()=>{let x=t[i++];if(x==="("){let v=sum();if(t[i++]!==")")throw Error("Missing )");return v;}if(x==="-")return-atom();if(x==="+")return atom();if(/^B\d+$/i.test(x||"")){let n=+x.slice(1)-1;if(!values[n])throw Error("Missing "+x);return values[n];}let n=Number(x);if(!Number.isFinite(n))throw Error("Invalid expression");return n;};
+ const product=()=>{let v=atom();while(t[i]==="*"||t[i]==="/"){let op=t[i++],b=atom();v=op==="*"?v*b:b===0?NaN:v/b;}return v;};
+ const sum=()=>{let v=product();while(t[i]==="+"||t[i]==="-"){let op=t[i++],b=product();v=op==="+"?v+b:v-b;}return v;};
+ let v=sum();if(i!==t.length)throw Error("Unexpected token");return v;
+}
+function renderSabzRaster(op){
+ const r=sabzRasterState;if(!r)throw Error("No raster");const {w,h,bands,factor,ow,oh,canvas}=r,ctx=canvas.getContext("2d"),img=ctx.createImageData(ow,oh),values=new Float32Array(ow*oh);
+ const get=(band,x,y)=>bands[band][Math.min(h-1,y*factor)*w+Math.min(w-1,x*factor)],expr=document.querySelector("#sabzRasterWorkspace [data-r-expr]")?.value||"B1";
+ for(let y=0;y<oh;y++)for(let x=0;x<ow;x++){const k=y*ow+x;let z=get(0,x,y);
+  if(["slope","aspect","hillshade"].includes(op)){const a=get(0,Math.max(0,x-1),Math.max(0,y-1)),b=get(0,x,Math.max(0,y-1)),c=get(0,Math.min(ow-1,x+1),Math.max(0,y-1)),d=get(0,Math.max(0,x-1),y),f=get(0,Math.min(ow-1,x+1),y),g=get(0,Math.max(0,x-1),Math.min(oh-1,y+1)),hh=get(0,x,Math.min(oh-1,y+1)),j=get(0,Math.min(ow-1,x+1),Math.min(oh-1,y+1));
+   const lat=(r.bounds[0][0]+r.bounds[1][0])/2,sx=r.cellX*factor*(r.epsg===4326?111320*Math.cos(lat*Math.PI/180):1),sy=r.cellY*factor*(r.epsg===4326?111320:1),dx=((c+2*f+j)-(a+2*d+g))/(8*Math.max(.000001,sx)),dy=((g+2*hh+j)-(a+2*b+c))/(8*Math.max(.000001,sy)),sl=Math.atan(Math.hypot(dx,dy)),aspect=(Math.atan2(dy,-dx)+2*Math.PI)%(2*Math.PI);
+   z=op==="slope"?sl*180/Math.PI:op==="aspect"?aspect*180/Math.PI:Math.max(0,255*(Math.cos(Math.PI/4)*Math.cos(sl)+Math.sin(Math.PI/4)*Math.sin(sl)*Math.cos(Math.PI*1.25-aspect)));
+  }else if(op==="calculator")z=rasterExpr(expr,bands.map((_,bi)=>get(bi,x,y)));values[k]=Number.isFinite(z)?z:NaN;}
+ const valid=Array.from(values).filter(Number.isFinite).sort((a,b)=>a-b);if(!valid.length)throw Error("No valid output pixels");const lo=valid[Math.floor((valid.length-1)*.02)],hi=valid[Math.floor((valid.length-1)*.98)],span=Math.max(1e-12,hi-lo);
+ for(let k=0;k<values.length;k++){const v=values[k],p=k*4;if(!Number.isFinite(v)){img.data[p+3]=0;continue;}let rr,gg,bb;
+  if(op==="display"&&bands.length>=3){const x=k%ow,y=Math.floor(k/ow);rr=get(0,x,y);gg=get(1,x,y);bb=get(2,x,y);const mx=Math.max(rr,gg,bb,255);if(mx>255){rr=rr/mx*255;gg=gg/mx*255;bb=bb/mx*255;}}
+  else{rr=gg=bb=op==="aspect"?Math.round(v/360*255):Math.max(0,Math.min(255,Math.round((v-lo)/span*255)));}
+  img.data[p]=rr;img.data[p+1]=gg;img.data[p+2]=bb;img.data[p+3]=255;}
+ ctx.putImageData(img,0,0);r.output={op,values,lo,hi};if(r.layer){try{map.removeLayer(r.layer);layerControl.removeLayer(r.layer);}catch(_){}}
+ const layer=L.imageOverlay(canvas.toDataURL("image/png"),L.latLngBounds(r.bounds[0],r.bounds[1]),{opacity:.88,interactive:false});addNamedLayer((document.querySelector("#sabzRasterWorkspace [data-r-name]")?.value||"Raster_Result")+" · "+op,layer,true);r.layer=layer;
+}
+
+document.addEventListener("click",e=>{if(e.target.closest("[data-raster-open]")){e.preventDefault();openRasterWorkspace();}});
+
 })();
 </script>
 <style>
