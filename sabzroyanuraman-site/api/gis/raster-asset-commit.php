@@ -36,7 +36,6 @@ function raster_commit_content_addressed(
         throw new RuntimeException('raster_storage_failed');
     }
 
-    $createdBlob = false;
     if (is_file($storedPath)) {
         @unlink($stagedFile);
     } else {
@@ -45,7 +44,6 @@ function raster_commit_content_addressed(
             @unlink($metadataTemp);
             throw new RuntimeException('raster_storage_failed');
         }
-        $createdBlob = true;
     }
 
     // This same-filesystem rename is the transaction's single commit point.
