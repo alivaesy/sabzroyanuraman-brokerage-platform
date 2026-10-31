@@ -9465,10 +9465,18 @@ function validateModelBuilder(modal,show=true){
    if(["buffer","simplify"].includes(op)&&(!Number.isFinite(raw)||raw<=0))issues.push("Step "+(i+1)+": parameter must be greater than zero.");
    if(["dissolveField","selectByAttribute"].includes(op)&&(!field||!fields.has(field)))issues.push("Step "+(i+1)+": choose a field available at this point in the workflow.");
    if(op==="calculateField"){const target=row.querySelector("[data-mb-calc-target]").value.trim(),mode=row.querySelector("[data-mb-relation]").value,sourceField=row.querySelector("[data-mb-field]").value;if(!/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(target))issues.push("Step "+(i+1)+": enter a valid output field name.");if(["copy","add","subtract","multiply","divide","uppercase","lowercase"].includes(mode)&&(!sourceField||!fields.has(sourceField)))issues.push("Step "+(i+1)+": choose a source field.");if(["add","subtract","multiply","divide"].includes(mode)&&!Number.isFinite(Number(row.querySelector("[data-mb-where-value]").value)))issues.push("Step "+(i+1)+": enter a numeric operand.");if(mode==="divide"&&Number(row.querySelector("[data-mb-where-value]").value)===0)issues.push("Step "+(i+1)+": division by zero is not allowed.");fields.add(target);}
-   if(overlayNodeValue&&["spatialJoin","spatialJoinOneToMany","union","identity","intersection"].includes(op))(nodeFields.get(overlayNodeValue)||[]).forEach(name=>fields.add(name));
-   if(op==="spatialJoin"||op==="spatialJoinOneToMany"){fields.add("Join_Count");if(op==="spatialJoinOneToMany"){fields.add("Join_FID");fields.add("Join_Match");}}
+   if(overlayNodeValue&&["union","identity","intersection"].includes(op))(nodeFields.get(overlayNodeValue)||[]).forEach(name=>fields.add(name));
+   if(op==="spatialJoin"||op==="spatialJoinOneToMany"){
+    const joinFields=overlayNodeValue?(nodeFields.get(overlayNodeValue)||[]):modelBuilderLayerFeatures(Number(overlayValue)).flatMap(feature=>Object.keys(feature.properties||{}));
+    joinFields.forEach(name=>fields.add("join_"+name));fields.add("join_count");
+   }
    if(overlayNodeValue&&["clip","intersection","erase","union","identity"].includes(op)&&![...(nodeGeometryTypes.get(overlayNodeValue)||[])].every(t=>t==="Polygon"||t==="MultiPolygon"))issues.push("Step "+(i+1)+": secondary node must produce polygon geometry for "+op+".");
-   if(op==="selectByLocation"||op==="spatialJoin"||op==="spatialJoinOneToMany"){const rel=row.querySelector("[data-mb-relation]").value,fn={intersects:"booleanIntersects",within:"booleanWithin",contains:"booleanContains",touches:"booleanTouches",overlaps:"booleanOverlap",crosses:"booleanCrosses"}[rel];if(!["intersects","within","contains","touches","overlaps","crosses","disjoint"].includes(rel))issues.push("Step "+(i+1)+": choose a valid spatial relationship.");else if(rel!=="disjoint"&&typeof turf[fn]!=="function")issues.push("Step "+(i+1)+": this Turf build does not support "+rel+".");}
+   if(op==="selectByLocation"){
+    const rel=row.querySelector("[data-mb-relation]").value,fn={intersects:"booleanIntersects",within:"booleanWithin",contains:"booleanContains",touches:"booleanTouches",overlaps:"booleanOverlap",crosses:"booleanCrosses"}[rel];
+    if(!["intersects","within","contains","touches","overlaps","crosses","disjoint"].includes(rel))issues.push("Step "+(i+1)+": choose a valid spatial relationship.");
+    else if(rel!=="disjoint"&&typeof turf[fn]!=="function")issues.push("Step "+(i+1)+": this Turf build does not support "+rel+".");
+   }
+   if((op==="spatialJoin"||op==="spatialJoinOneToMany")&&!["intersects","within","contains"].includes(row.querySelector("[data-mb-relation]").value))issues.push("Step "+(i+1)+": RustGIS Spatial Join supports Intersects, Within and Contains only.");
    if(op==="selectByAttribute"&&!["isEmpty","isNotEmpty"].includes(row.querySelector("[data-mb-where-op]").value)&&row.querySelector("[data-mb-where-value]").value==="")issues.push("Step "+(i+1)+": enter a comparison value.");
    if(op==="selectByAttribute"&&field2&&!fields.has(field2))issues.push("Step "+(i+1)+": second condition field is not available.");
    if(op==="selectByAttribute"&&field2&&!["isEmpty","isNotEmpty"].includes(row.querySelector("[data-mb-where-op2]").value)&&row.querySelector("[data-mb-where-value2]").value==="")issues.push("Step "+(i+1)+": enter a value for the second condition.");
