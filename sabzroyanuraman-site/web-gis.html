@@ -3749,7 +3749,9 @@ const rustCases=[
  {label:'Spatial Join',tool:'spatialJoin',layers:{test_target:[rustPolyA],test_join:[rustPolyB]},params:{target:'test_target',join:'test_join',match:'Intersects',operation:'Join one to one',keepAll:'Keep all',prefix:'join_',output:'selftest_join'}},
  {label:'Calculate Geometry',tool:'calculateGeometry',layers:{test_input:[rustPolyA]},params:{input:'test_input',output:'selftest_geometry'}}
 ];
-for(const item of rustCases){try{const result=await runRustGisVectorTool(item.tool,item.layers,item.params);test('RustGIS WASM '+item.label,result.features.length>0&&result.features.every(f=>f&&f.geometry&&vertexGeometryIsValid(f.geometry)));}catch(error){test('RustGIS WASM '+item.label+' — '+(error.message||error),false);console.warn('RustGIS self-test '+item.label,error);}}
+for(const item of rustCases){try{const result=await runRustGisVectorTool(item.tool,item.layers,item.params);test('RustGIS WASM '+item.label,result.features.length>0&&result.features.every(f=>f&&f.geometry&&vertexGeometryIsValid(f.geometry)));}catch(error){test('RustGIS WASM '+item.label+' — '+(error.message||error),false);console.warn('RustGIS self-test '+item.label,error);}}try{await window.SabzRustGISPluginBridge.load();const installed=await window.SabzRustGISPluginBridge.listPlugins();test('RustGIS Plugin Manager bridge is isolated and callable',Array.isArray(installed));}catch(error){test('RustGIS Plugin Manager bridge — '+(error.message||error),false);}
+test('Raster bridge retains its independent namespace',!!window.SabzRustRasterBridge&&typeof window.SabzRustRasterBridge.processRaster==='function');
+
 const report=checks.join('\n');console.info('Synthetic geometry tests:\n'+report);status('Geometry self-test: '+checks.filter(x=>x.startsWith('PASS')).length+'/'+checks.length+' passed.');await arcMapDialog.alert({title:'Geometry Self-Test — Synthetic Data',message:report+'\n\nSynthetic checks do not replace tests on cadastral data or comparison with ArcMap.'});}
 function mergeFeaturesPreservingGeometry(inputFeature,overlayFeature){
  return [inputFeature,overlayFeature].map((feature,index)=>({
