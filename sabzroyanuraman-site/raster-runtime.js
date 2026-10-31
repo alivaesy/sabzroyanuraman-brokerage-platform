@@ -27,21 +27,30 @@
     } catch (_) { return null; }
   }
 
-  function getGeoTransform(directory, image) {
+  function getGeoTransform(directory) {
     const matrix = readTag(directory, "ModelTransformation");
     if (matrix && matrix.length >= 16) {
-      return [Number(matrix[3]), Number(matrix[0]), Number(matrix[1]), Number(matrix[7]), Number(matrix[4]), Number(matrix[5])];
+      const transform = [Number(matrix[3]), Number(matrix[0]), Number(matrix[1]), Number(matrix[7]), Number(matrix[4]), Number(matrix[5])];
+      return transform.every(Number.isFinite) ? transform : null;
     }
     const scale = readTag(directory, "ModelPixelScale");
     const tie = readTag(directory, "ModelTiepoint");
     if (scale && tie && scale.length >= 2 && tie.length >= 6) {
       const sx = Number(scale[0]), sy = -Math.abs(Number(scale[1]));
       const px = Number(tie[0]), py = Number(tie[1]), gx = Number(tie[3]), gy = Number(tie[4]);
-      return [gx - px * sx, sx, 0, gy - py * sy, 0, sy];
+      const transform = [gx - px * sx, sx, 0, gy - py * sy, 0, sy];
+      return transform.every(Number.isFinite) ? transform : null;
     }
-    const origin = image.getOrigin(), resolution = image.getResolution();
-    if (origin && resolution) return [Number(origin[0]), Number(resolution[0]), 0, Number(origin[1]), 0, -Math.abs(Number(resolution[1]))];
-    throw new Error("GeoTIFF has no supported georeferencing transform.");
+    return null;
+  }
+
+  function extentFromTransform(transform, width, height) {
+    if (!transform) return null;
+    const [x0, a, b, y0, d, e] = transform;
+    const corners = [[0,0],[width,0],[0,height],[width,height]].map(([x,y]) => [x0+a*x+b*y,y0+d*x+e*y]);
+    const xs = corners.map(p=>p[0]), ys = corners.map(p=>p[1]);
+    const extent = { xmin:Math.min(...xs), ymin:Math.min(...ys), xmax:Math.max(...xs), ymax:Math.max(...ys) };
+    return Object.values(extent).every(Number.isFinite) ? extent : null;
   }
 
   function crsFromKeys(keys) {
@@ -74,10 +83,9 @@
     const rawNoData = typeof image.getGDALNoData === "function" ? image.getGDALNoData() : readTag(directory, "GDAL_NODATA");
     const noData = rawNoData === null || rawNoData === undefined || rawNoData === "" ? null : Number(rawNoData);
     const crs = crsFromKeys(keys);
-    if (!crs.epsg) throw new Error("GeoTIFF CRS is missing or has no recognized EPSG code; refusing to assume EPSG:4326.");
-    const transform = getGeoTransform(directory, image);
-    const bounds = image.getBoundingBox();
-    if (!bounds || bounds.length !== 4 || !bounds.every(Number.isFinite)) throw new Error("GeoTIFF extent is invalid.");
+    const transform = getGeoTransform(directory);
+    const extent = extentFromTransform(transform, width, height);
+    const georeferenced = !!transform && !!extent;
     const sampleFormat = readTag(directory, "SampleFormat");
     const bitsPerSample = readTag(directory, "BitsPerSample");
     const meta = {
@@ -86,10 +94,10 @@
       sampleFormat: sampleFormat == null ? null : Array.from(sampleFormat),
       bitsPerSample: bitsPerSample == null ? null : Array.from(bitsPerSample),
       noData: Number.isFinite(noData) ? noData : null,
-      crs, geoKeys: keys,
+      crs, geoKeys: keys, georeferenced,
       geoTransform: transform,
-      extent: { xmin: bounds[0], ymin: bounds[1], xmax: bounds[2], ymax: bounds[3] },
-      pixelScale: [Math.hypot(transform[1], transform[4]), Math.hypot(transform[2], transform[5])],
+      extent,
+      pixelScale: transform ? [Math.hypot(transform[1], transform[4]), Math.hypot(transform[2], transform[5])] : [1, 1],
       sourceName: file.name || "raster.tif",
       byteLength: bytes.byteLength
     };
