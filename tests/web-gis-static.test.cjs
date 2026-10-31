@@ -197,3 +197,14 @@ test('FileGDB import reports missing classes, preserves schema metadata, and fla
   assert.match(html, /raster dataset detected; raster conversion is not yet implemented/);
   assert.match(html, /import-report\.json/);
 });
+
+
+test('ModelBuilder and Layout enhancement is loaded through the renderer bridge', () => {
+  const enhancementPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-rustgis-enhancements.js');
+  const enhancement = fs.readFileSync(enhancementPath, 'utf8');
+  assert.match(html, /__sabzInstallModelBuilderRenderer\s*=\s*factory/);
+  assert.match(html, /<script\s+src=["']webgis-rustgis-enhancements\.js["']><\/script>/);
+  assert.match(enhancement, /data-sabzMbNode/);
+  assert.match(enhancement, /sabzSelectionInstalled/);
+  assert.match(enhancement, /MutationObserver/);
+});
