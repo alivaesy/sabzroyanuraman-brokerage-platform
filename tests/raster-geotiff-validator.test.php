@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../sabzroyanuraman-site/api/gis/raster-geotiff-validator.php';
+require_once __DIR__ . '/../sabzroyanuraman-site/api/gis/raster-asset-commit.php';
 
 function check(bool $condition, string $message): void {
     if (!$condition) {
@@ -87,6 +88,57 @@ try {
     }
     check($rejected, 'truncated GeoTIFF must be rejected');
     echo "PASS: truncated GeoTIFF rejected\n";
+
+    $directory = sys_get_temp_dir() . '/sabz-raster-commit-' . bin2hex(random_bytes(5));
+    mkdir($directory, 0700, true);
+    try {
+        $metadataFile = $directory . '/asset.json';
+        $oldName = 'asset.previous.tif';
+        $oldPath = $directory . '/' . $oldName;
+        file_put_contents($oldPath, 'previous-raster');
+        $oldMetadata = ['asset_id'=>'asset', 'storage_file'=>$oldName, 'sha256'=>'previous'];
+        $oldJson = json_encode($oldMetadata);
+        file_put_contents($metadataFile, $oldJson);
+        $stage = $directory . '/stage-failed.tmp';
+        file_put_contents($stage, 'new-raster-content');
+        $newHash = hash_file('sha256', $stage);
+        $newPath = $directory . '/asset.' . $newHash . '.tif';
+        $failMetadataRename = static function (string $from, string $to) use ($metadataFile): bool {
+            if ($to === $metadataFile) {
+                return false;
+            }
+            return rename($from, $to);
+        };
+        $failed = false;
+        try {
+            raster_commit_content_addressed($directory, 'asset', $stage, $metadataFile,
+                ['asset_id'=>'asset', 'file_name'=>'new.tif', 'size'=>18], $oldMetadata, $failMetadataRename);
+        } catch (RuntimeException $error) {
+            $failed = $error->getMessage() === 'raster_storage_failed';
+        }
+        check($failed, 'metadata rename failure must fail the commit');
+        check(file_get_contents($metadataFile) === $oldJson, 'old metadata pointer must remain unchanged after failure');
+        check(is_file($oldPath), 'old raster must remain available after failed commit');
+        check(!file_exists($newPath), 'new raster blob must be rolled back after failed metadata commit');
+        echo "PASS: metadata commit failure rolls back new blob and preserves old asset\n";
+
+        $stage = $directory . '/stage-success.tmp';
+        file_put_contents($stage, 'replacement-raster');
+        $newMetadata = raster_commit_content_addressed($directory, 'asset', $stage, $metadataFile,
+            ['asset_id'=>'asset', 'file_name'=>'replacement.tif', 'size'=>18], $oldMetadata);
+        check(is_file($directory . '/' . $newMetadata['storage_file']), 'new content-addressed raster must exist after commit');
+        check(!is_file($oldPath), 'old raster must be removed only after metadata commit succeeds');
+        $saved = json_decode((string)file_get_contents($metadataFile), true);
+        check(($saved['storage_file'] ?? '') === $newMetadata['storage_file'], 'metadata pointer must identify committed raster');
+        echo "PASS: successful metadata commit switches pointer and retires old raster\n";
+    } finally {
+        foreach (glob($directory . '/*') ?: [] as $item) {
+            if (is_file($item)) {
+                @unlink($item);
+            }
+        }
+        @rmdir($directory);
+    }
 } finally {
     @unlink($path);
 }
