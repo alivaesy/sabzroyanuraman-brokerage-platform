@@ -37,6 +37,12 @@ document.getElementById("run").onclick=async()=>{
    if(plain.metadata.georeferenced!==false||plain.metadata.crs.epsg!==null||plain.metadata.extent!==null||plain.bands[0].length!==4)
     throw new Error("Plain TIFF did not load as a non-georeferenced image.");
   }
+  GeoTIFF.fromArrayBuffer=async()=>({getImage:async()=>({
+   fileDirectory:{},getGeoKeys:()=>{throw new Error("must not decode a missing GeoKeyDirectory");},
+   readRasters:async()=>[new Uint8Array([1,2,3,4])],getWidth:()=>2,getHeight:()=>2,getGDALNoData:()=>null
+  })});
+  const noKeys=await SabzRasterRuntime.read(file);
+  if(noKeys.metadata.georeferenced!==false||noKeys.metadata.crs.epsg!==null)throw new Error("TIFF without a GeoKeyDirectory was not accepted as preview-only.");
   GeoTIFF.fromArrayBuffer=originalFromArrayBuffer;
   log("PASS: plain TIFF loads without GeoKeys or georeferencing (preview-only mode)");
   const planeMeta={width:5,height:5,bandCount:1,dataType:"Float32Array",noData:-9999,
