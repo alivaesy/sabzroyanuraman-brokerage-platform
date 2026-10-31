@@ -130,7 +130,7 @@
       add(34264, 12, [gt[1], gt[2], 0, gt[0], gt[4], gt[5], 0, gt[3], 0, 0, 1, 0, 0, 0, 0, 1]);
     }
     if (meta.noData !== null && meta.noData !== undefined && Number.isFinite(Number(meta.noData))) {
-      add(42113, 2, String(meta.noData) + "\\0");          // GDAL_NODATA
+      add(42113, 2, String(meta.noData) + "\0");          // GDAL_NODATA
     }
 
     const pixelBytes = width * height * 4;
@@ -162,7 +162,6 @@
     view.setUint16(8, entries.length, true);
 
     let cursor = 10;
-    let dataCursor = (ifdEnd + 1) & ~1;
     for (const entry of entries) {
       view.setUint16(cursor, entry.tag, true);
       view.setUint16(cursor + 2, entry.type, true);
@@ -180,7 +179,6 @@
           else if (entry.type === 12) view.setFloat64(p, entry.data[i], true);
         }
       }
-      if (size > 4) dataCursor = Math.max(dataCursor, target + size + (size & 1));
       cursor += 12;
     }
     view.setUint32(cursor, 0, true);               // no next IFD
