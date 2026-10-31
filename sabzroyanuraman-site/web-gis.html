@@ -9534,13 +9534,21 @@ async function runModelBuilder(modal){
    const inputCount=current.length,op=row.querySelector("[data-mb-op]").value;
    const raw=Number(row.querySelector("[data-mb-param]").value),overlayIndex=row.querySelector("[data-mb-overlay]").value;
    let next=[];
-   if(["buffer","clip","intersection","erase","union","identity"].includes(op)){
+   if(["buffer","clip","intersection","erase","union","identity","dissolve","dissolveField","convexHull","pointOnFeature"].includes(op)){
     const layerInputs={MB_Input:current};
     const params={input:"MB_Input",output:"ModelBuilder_Step_"+String(si+1).padStart(2,"0")};
     if(op==="buffer"){
      if(!Number.isFinite(raw)||raw<=0)throw new Error("Buffer distance must be greater than zero.");
      params.distance=raw;params.units="Meters";params.dissolve="None";
-    }else{
+    }else if(op==="convexHull"){
+     params.group="All";
+    }else if(op==="dissolve"||op==="dissolveField"){
+     if(op==="dissolveField"){
+      const field=row.querySelector("[data-mb-field]").value;
+      if(!field)throw new Error("Choose a dissolve field for this ModelBuilder node.");
+      params.field=field;
+     }
+    }else if(op!=="pointOnFeature"){
      const overlayNodeRef=row.querySelector("[data-mb-overlay-node]")?.value||"";
      const overlays=overlayNodeRef?(nodeOutputs.get(overlayNodeRef)||[]).map(clone):modelBuilderLayerFeatures(overlayIndex);
      const overlayName=overlayNodeRef?"MB_Overlay_Node_"+(steps.findIndex(x=>x.dataset.mbNodeId===overlayNodeRef)+1):"MB_Overlay_"+overlayLabel(overlayIndex);
@@ -9550,9 +9558,9 @@ async function runModelBuilder(modal){
      else if(op==="erase")params.erase=overlayName;
      else params.overlay=overlayName;
     }
-    const rustTool=op==="intersection"?"intersect":op;
+    const rustTool=op==="intersection"?"intersect":op==="pointOnFeature"?"featureToPoint":op;
     const rustResult=await runRustGisVectorTool(rustTool,layerInputs,params);
-    next=rustResult.features.map(feature=>({...clone(feature),properties:{...(feature.properties||{}),_model_step:si+1,_model_operation:op==="intersection"?"Intersect":op[0].toUpperCase()+op.slice(1),_rustgis_tool:rustResult.tool,_rustgis_revision:rustResult.upstream}}));
+    next=rustResult.features.map(feature=>({...clone(feature),properties:{...(feature.properties||{}),_model_step:si+1,_model_operation:op==="intersection"?"Intersect":op==="pointOnFeature"?"Feature To Point":op[0].toUpperCase()+op.slice(1),_rustgis_tool:rustResult.tool,_rustgis_revision:rustResult.upstream}}));
    }else if(op==="calculateField"){
     const target=row.querySelector("[data-mb-calc-target]").value.trim(),mode=row.querySelector("[data-mb-relation]").value,sourceField=row.querySelector("[data-mb-field]").value,operand=Number(row.querySelector("[data-mb-where-value]").value),rawValue=row.querySelector("[data-mb-where-value]").value;
     current.forEach(f=>{const out=clone(f),props={...(out.properties||{})},v=props[sourceField];let result;if(mode==="constant")result=rawValue;else if(mode==="copy")result=v;else if(mode==="uppercase")result=String(v??"").toUpperCase();else if(mode==="lowercase")result=String(v??"").toLowerCase();else if(mode==="area")result=/Polygon/.test(f.geometry?.type||"")?turf.area(f):null;else if(mode==="length")result=/LineString/.test(f.geometry?.type||"")?turf.length(f,{units:"meters"}):null;else{const n=Number(v);if(!Number.isFinite(n))result=null;else if(mode==="add")result=n+operand;else if(mode==="subtract")result=n-operand;else if(mode==="multiply")result=n*operand;else if(mode==="divide")result=n/operand;}props[target]=result;props._model_step=si+1;props._model_operation="Calculate Field";props._calculated_field=target;out.properties=props;next.push(out);});
