@@ -270,7 +270,8 @@ test('ModelBuilder supports cooperative cancellation between processing nodes', 
 test('Raster asset replacement quota accounts for the previous asset size', () => {
   const apiPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'api', 'gis', 'raster-assets.php');
   const api = fs.readFileSync(apiPath, 'utf8');
-  assert.match(api, /\$previousBytes=\(is_file\(\$file\)&&!is_link\(\$file\)\)\?\(int\)filesize\(\$file\):0/);
+  assert.match(api, /\$oldPath=\$dir\.\/\$oldStored/);
+  assert.match(api, /\$previousBytes=is_file\(\$oldPath\)&&!is_link\(\$oldPath\)\?\(int\)filesize\(\$oldPath\):0/);
   assert.match(api, /\$storedBytes-\$previousBytes\+\$size>1073741824/);
   assert.match(api, /is_file\(\$existingFile\)&&!is_link\(\$existingFile\)/);
 });
@@ -282,7 +283,10 @@ test('Raster asset quota writes are serialized per project', () => {
   assert.match(api, /fopen\(\$dir\.'\/\.quota\.lock','c'\)/);
   assert.match(api, /flock\(\$quotaLock,LOCK_EX\)/);
   assert.match(api, /flock\(\$quotaLock,LOCK_UN\)/);
-  assert.match(api, /concurrent uploads cannot exceed the limit/);
+  assert.match(api, /fopen\(\$dir\.'\/\.quota\.lock','c'\)/);
+  assert.match(api, /flock\(\$quotaLock,LOCK_SH\)/);
+  assert.match(api, /fpassthru\(\$handle\)/);
+  assert.match(api, /Serialize raster deletion with uploads and downloads|LOCK_EX/);
 });
 
 
