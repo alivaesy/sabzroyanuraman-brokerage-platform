@@ -216,3 +216,19 @@ test('RustGIS GeoTIFF preview refuses to assume EPSG:4326 when CRS metadata is a
   assert.match(runtime, /Output GeoTIFF has no valid EPSG CRS metadata/);
   assert.doesNotMatch(runtime, /GeographicTypeGeoKey \|\| 4326/);
 });
+
+test('RustGIS browser runtime exposes both vector and raster tool catalogues', () => {
+  const runtimePath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-rustgis-vector-runtime.js');
+  const runtime = fs.readFileSync(runtimePath, 'utf8');
+  assert.match(runtime, /Array\.isArray\(raw\.tools\)[\s\S]*Array\.isArray\(raw\.rasterTools\)/);
+  assert.match(runtime, /runRasterTool\(tool\.id/);
+});
+
+test('RustGIS parameter UI filters geometry-specific layers and offers schema-aware fields', () => {
+  const runtimePath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-rustgis-vector-runtime.js');
+  const runtime = fs.readFileSync(runtimePath, 'utf8');
+  assert.match(runtime, /kind === "polygon-layer"[\s\S]*types\.has\("Polygon"\)/);
+  assert.match(runtime, /kind === "point-layer"[\s\S]*types\.has\("Point"\)/);
+  assert.match(runtime, /\["field","numeric-field","coordinate-field"\]/);
+  assert.match(runtime, /Number\.isFinite\(Number\(value\)\)/);
+});
