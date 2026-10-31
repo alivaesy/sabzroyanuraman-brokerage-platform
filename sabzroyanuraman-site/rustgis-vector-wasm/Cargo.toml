@@ -18,6 +18,7 @@ base64 = "0.23"
 # The UI remains in the Sabz Royan JavaScript application; the processing algorithms execute here.
 rustgis-analysis = { git = "https://github.com/opengeos/RustGIS.git", rev = "38f24336140d59092a31f964e9ac86aab18fdecd", default-features = false }
 rustgis-data = { git = "https://github.com/opengeos/RustGIS.git", rev = "38f24336140d59092a31f964e9ac86aab18fdecd", default-features = false }
+rustgis-plugins = { git = "https://github.com/opengeos/RustGIS.git", rev = "38f24336140d59092a31f964e9ac86aab18fdecd", default-features = false }
 
 [profile.release]
 opt-level = 3
