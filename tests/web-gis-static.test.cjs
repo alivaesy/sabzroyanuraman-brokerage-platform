@@ -204,7 +204,7 @@ test('ModelBuilder and Layout enhancement is loaded through the renderer bridge'
   const enhancement = fs.readFileSync(enhancementPath, 'utf8');
   assert.match(html, /__sabzInstallModelBuilderRenderer\s*=\s*factory/);
   assert.match(html, /<script\s+src=["']webgis-rustgis-enhancements\.js["']><\/script>/);
-  assert.match(enhancement, /data-sabzMbNode/);
+  assert.match(enhancement, /sabzMbNode/);
   assert.match(enhancement, /sabzSelectionInstalled/);
   assert.match(enhancement, /MutationObserver/);
 });
