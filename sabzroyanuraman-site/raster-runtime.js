@@ -87,30 +87,112 @@
     return { bytes, blob: file.slice(0, file.size, "image/tiff"), bands, metadata: meta };
   }
 
-  function writerMetadata(meta) {
+  function buildFloat32GeoTIFF(values, meta) {
+    const width = Number(meta.width), height = Number(meta.height);
+    if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 ||
+        values.length !== width * height) throw new Error("Invalid Float32 GeoTIFF dimensions.");
+
+    // Write a standards-compliant, little-endian, single-band IEEE Float32 TIFF.
+    // geotiff.js 2.1.3's writeArrayBuffer path converts Float32Array through
+    // Uint8Array(values), truncating samples instead of serializing their 4 bytes.
     const gt = meta.geoTransform;
-    const out = {
-      width: meta.width,
-      height: meta.height,
-      BitsPerSample: [32],
-      SampleFormat: [3],
-      GDAL_NODATA: meta.noData == null ? undefined : String(meta.noData)
-    };
-    if (meta.geoKeys && meta.geoKeys.ProjectedCSTypeGeoKey) out.ProjectedCSTypeGeoKey = Number(meta.geoKeys.ProjectedCSTypeGeoKey);
-    else if (meta.geoKeys && meta.geoKeys.GeographicTypeGeoKey) out.GeographicTypeGeoKey = Number(meta.geoKeys.GeographicTypeGeoKey);
-    if (Math.abs(gt[2]) < 1e-12 && Math.abs(gt[4]) < 1e-12) {
-      out.ModelPixelScale = [Math.abs(gt[1]), Math.abs(gt[5]), 0];
-      out.ModelTiepoint = [0, 0, 0, gt[0], gt[3], 0];
-    } else {
-      out.ModelTransformation = [gt[1], gt[2], 0, gt[0], gt[4], gt[5], 0, gt[3], 0, 0, 1, 0, 0, 0, 0, 1];
+    if (!Array.isArray(gt) || gt.length < 6 || !gt.every(Number.isFinite)) {
+      throw new Error("A valid six-parameter geotransform is required.");
     }
-    return out;
+    const epsg = Number(meta.crs && meta.crs.epsg);
+    if (!Number.isInteger(epsg) || epsg <= 0) throw new Error("A valid EPSG code is required.");
+
+    const entries = [];
+    const add = (tag, type, data) => entries.push({ tag, type, data });
+    const short = (v) => ({ type: 3, data: Array.isArray(v) ? v : [v] });
+    const long = (v) => ({ type: 4, data: Array.isArray(v) ? v : [v] });
+    const double = (v) => ({ type: 12, data: v });
+    const ascii = (v) => ({ type: 2, data: String(v) + "\\0" });
+
+    add(256, 4, [width]);                         // ImageWidth
+    add(257, 4, [height]);                        // ImageLength
+    add(258, 3, [32]);                            // BitsPerSample
+    add(259, 3, [1]);                             // Compression: none
+    add(262, 3, [1]);                             // PhotometricInterpretation: BlackIsZero
+    add(277, 3, [1]);                             // SamplesPerPixel
+    add(278, 4, [height]);                        // RowsPerStrip
+    add(284, 3, [1]);                             // PlanarConfiguration
+    add(339, 3, [3]);                             // SampleFormat: IEEE floating point
+
+    const geoKeys = [1, 1, 0, 3, 1024, 0, 1, meta.geoKeys && meta.geoKeys.ProjectedCSTypeGeoKey ? 1 : 2,
+      1025, 0, 1, 1, meta.geoKeys && meta.geoKeys.ProjectedCSTypeGeoKey ? 3072 : 2048, 0, 1, epsg];
+    add(34735, 3, geoKeys);                       // GeoKeyDirectory
+
+    if (Math.abs(gt[2]) < 1e-12 && Math.abs(gt[4]) < 1e-12) {
+      add(33550, 12, [Math.abs(gt[1]), Math.abs(gt[5]), 0]); // ModelPixelScale
+      add(33922, 12, [0, 0, 0, gt[0], gt[3], 0]);            // ModelTiepoint
+    } else {
+      add(34264, 12, [gt[1], gt[2], 0, gt[0], gt[4], gt[5], 0, gt[3], 0, 0, 1, 0, 0, 0, 0, 1]);
+    }
+    if (meta.noData !== null && meta.noData !== undefined && Number.isFinite(Number(meta.noData))) {
+      add(42113, 2, String(meta.noData) + "\\0");          // GDAL_NODATA
+    }
+
+    entries.sort((a, b) => a.tag - b.tag);
+    const typeBytes = { 2: 1, 3: 2, 4: 4, 12: 8 };
+    const ifdEnd = 8 + 2 + entries.length * 12 + 4;
+    let extraOffset = (ifdEnd + 1) & ~1;
+    for (const entry of entries) {
+      const size = typeBytes[entry.type] * entry.data.length;
+      if (size > 4) {
+        entry.offset = extraOffset;
+        extraOffset = (extraOffset + size + 1) & ~1;
+      }
+    }
+    const pixelOffset = extraOffset;
+    const pixelBytes = width * height * 4;
+    add(273, 4, [pixelOffset]);                   // StripOffsets
+    add(279, 4, [pixelBytes]);                    // StripByteCounts
+    entries.sort((a, b) => a.tag - b.tag);
+
+    // StripOffsets is a single LONG and therefore inline; its value was calculated
+    // after sizing all external IFD values, so it does not change IFD layout.
+    const totalBytes = pixelOffset + pixelBytes;
+    const buffer = new ArrayBuffer(totalBytes);
+    const view = new DataView(buffer);
+    const bytes = new Uint8Array(buffer);
+    bytes[0] = 0x49; bytes[1] = 0x49;             // little endian
+    view.setUint16(2, 42, true);
+    view.setUint32(4, 8, true);
+    view.setUint16(8, entries.length, true);
+
+    let cursor = 10;
+    let dataCursor = (ifdEnd + 1) & ~1;
+    for (const entry of entries) {
+      view.setUint16(cursor, entry.tag, true);
+      view.setUint16(cursor + 2, entry.type, true);
+      view.setUint32(cursor + 4, entry.data.length, true);
+      const size = typeBytes[entry.type] * entry.data.length;
+      const target = size <= 4 ? cursor + 8 : entry.offset;
+      if (size > 4) view.setUint32(cursor + 8, target, true);
+      if (entry.type === 2) {
+        for (let i = 0; i < entry.data.length; i++) bytes[target + i] = entry.data.charCodeAt(i) & 255;
+      } else {
+        for (let i = 0; i < entry.data.length; i++) {
+          const p = target + i * typeBytes[entry.type];
+          if (entry.type === 3) view.setUint16(p, entry.data[i], true);
+          else if (entry.type === 4) view.setUint32(p, entry.data[i], true);
+          else if (entry.type === 12) view.setFloat64(p, entry.data[i], true);
+        }
+      }
+      if (size > 4) dataCursor = Math.max(dataCursor, target + size + (size & 1));
+      cursor += 12;
+    }
+    view.setUint32(cursor, 0, true);               // no next IFD
+    for (let i = 0; i < values.length; i++) view.setFloat32(pixelOffset + i * 4, values[i], true);
+    return buffer;
   }
 
   async function writeFloat32(values, metadata) {
-    if (!root.GeoTIFF || typeof root.GeoTIFF.writeArrayBuffer !== "function") throw new Error("GeoTIFF writer is unavailable in this GeoTIFF.js build.");
-    if (!(values instanceof Float32Array) || values.length !== metadata.width * metadata.height) throw new Error("Output pixels do not match the declared raster dimensions.");
-    const buffer = await root.GeoTIFF.writeArrayBuffer(values, writerMetadata(metadata));
+    if (!(values instanceof Float32Array) || values.length !== metadata.width * metadata.height) {
+      throw new Error("Output pixels do not match the declared raster dimensions.");
+    }
+    const buffer = buildFloat32GeoTIFF(values, metadata);
     return new Blob([buffer], { type: "image/tiff" });
   }
 
