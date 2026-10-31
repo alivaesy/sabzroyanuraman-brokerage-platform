@@ -9807,18 +9807,28 @@ function openRasterWorkspace(){
  p.querySelector('[data-r-op]').onchange=()=>p.querySelector('[data-r-expr-wrap]').hidden=p.querySelector('[data-r-op]').value!=="calculator";
  p.querySelector('[data-r-file]').onchange=async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;try{
   if(typeof GeoTIFF==="undefined")throw Error("GeoTIFF reader unavailable.");
-  say("Reading source GeoTIFF…");if(!window.SabzRasterRuntime)throw Error("Raster runtime is not loaded.");const rasterData=await SabzRasterRuntime.read(file),im=await (await GeoTIFF.fromArrayBuffer(rasterData.bytes)).getImage(),w=rasterData.metadata.width,h=rasterData.metadata.height;
+  say("Reading TIFF image…");if(!window.SabzRasterRuntime)throw Error("Raster runtime is not loaded.");const rasterData=await SabzRasterRuntime.read(file),w=rasterData.metadata.width,h=rasterData.metadata.height,m=rasterData.metadata;
   if(w*h>50000000)throw Error("Raster exceeds 50 million pixels; clip or build an overview first.");
-  const bands=rasterData.bands.map(a=>Float32Array.from(a)),keys=rasterData.metadata.geoKeys||{},epsg=rasterData.metadata.crs.epsg,noData=rasterData.metadata.noData,bb=[rasterData.metadata.extent.xmin,rasterData.metadata.extent.ymin,rasterData.metadata.extent.xmax,rasterData.metadata.extent.ymax];
-  if(!bb||bb.length!==4||!bb.every(Number.isFinite))throw Error("No valid GeoTIFF georeferencing found.");if(!Number.isInteger(epsg)||epsg<1)throw Error("GeoTIFF CRS is missing; WebGIS will not assume EPSG:4326.");
-  let crs=epsg===4326?"EPSG:4326":epsg===3857?"EPSG:3857":epsg>=32601&&epsg<=32660?"+proj=utm +zone="+(epsg-32600)+" +datum=WGS84 +units=m +no_defs":epsg>=32701&&epsg<=32760?"+proj=utm +zone="+(epsg-32700)+" +south +datum=WGS84 +units=m +no_defs":null;
-  if(!crs)throw Error("EPSG:"+epsg+" not supported in browser. Reproject to EPSG:4326 or UTM WGS84.");
-  const ll=xy=>epsg===4326?xy:epsg===3857?[xy[0]/6378137*180/Math.PI,Math.atan(Math.sinh(xy[1]/6378137))*180/Math.PI]:proj4(crs,"EPSG:4326",xy);
-  const a=ll([bb[0],bb[1]]),b=ll([bb[2],bb[3]]),bounds=[[Math.min(a[1],b[1]),Math.min(a[0],b[0])],[Math.max(a[1],b[1]),Math.max(a[0],b[0])]];
-  const factor=Math.max(1,Math.ceil(Math.max(w,h)/1400)),ow=Math.ceil(w/factor),oh=Math.ceil(h/factor),scale=im.getFileDirectory().ModelPixelScale||[],canvas=document.createElement("canvas");canvas.width=ow;canvas.height=oh;
-  sabzRasterState={fileName:file.name,w,h,bands,epsg,noData:Number.isFinite(noData)?noData:null,bounds,factor,ow,oh,cellX:rasterData.metadata.pixelScale[0]||Math.abs(bb[2]-bb[0])/w,cellY:rasterData.metadata.pixelScale[1]||Math.abs(bb[3]-bb[1])/h,canvas,layer:null,sourceBlob:rasterData.blob,sourceMetadata:rasterData.metadata,assetId:null};const rasterProjectId=currentProjectId||projectId();currentProjectId=rasterProjectId;sabzRasterState.assetId="raster-"+Date.now().toString(36);await SabzRasterRuntime.saveAsset(rasterProjectId,sabzRasterState.assetId,rasterData.blob,rasterData.metadata);
-  sabzRasterAssetRefs=sabzRasterAssetRefs.filter(ref=>ref.assetId!==sabzRasterState.assetId);sabzRasterAssetRefs.push({assetId:sabzRasterState.assetId,fileName:file.name,metadata:rasterData.metadata});
-  p.querySelector('[data-r-meta]').textContent=w+" × "+h+" px · "+bands.length+" band(s) · EPSG:"+epsg+" · "+file.name;say("Loaded. Choose operation and Run.");p.querySelector('[data-r-op]').dispatchEvent(new Event("change"));renderSabzRaster("display");
+  const bands=rasterData.bands.map(a=>Float32Array.from(a)),epsg=m.crs.epsg,noData=m.noData,canMap=!!m.georeferenced&&Number.isInteger(epsg)&&epsg>0;
+  const factor=Math.max(1,Math.ceil(Math.max(w,h)/1400)),ow=Math.ceil(w/factor),oh=Math.ceil(h/factor),canvas=document.createElement("canvas");canvas.width=ow;canvas.height=oh;
+  let bounds=null,cellX=1,cellY=1;
+  if(canMap){
+   const bb=[m.extent.xmin,m.extent.ymin,m.extent.xmax,m.extent.ymax];
+   let crs=epsg===4326?"EPSG:4326":epsg===3857?"EPSG:3857":epsg>=32601&&epsg<=32660?"+proj=utm +zone="+(epsg-32600)+" +datum=WGS84 +units=m +no_defs":epsg>=32701&&epsg<=32760?"+proj=utm +zone="+(epsg-32700)+" +south +datum=WGS84 +units=m +no_defs":null;
+   if(crs){const ll=xy=>epsg===4326?xy:epsg===3857?[xy[0]/6378137*180/Math.PI,Math.atan(Math.sinh(xy[1]/6378137))*180/Math.PI]:proj4(crs,"EPSG:4326",xy);
+    const a=ll([bb[0],bb[1]]),b=ll([bb[2],bb[3]]);bounds=[[Math.min(a[1],b[1]),Math.min(a[0],b[0])],[Math.max(a[1],b[1]),Math.max(a[0],b[0])]];
+    cellX=m.pixelScale[0]||Math.abs(bb[2]-bb[0])/w;cellY=m.pixelScale[1]||Math.abs(bb[3]-bb[1])/h;
+   }else canMap=false;
+  }
+  sabzRasterState={fileName:file.name,w,h,bands,epsg:canMap?epsg:null,noData:Number.isFinite(noData)?noData:null,bounds,factor,ow,oh,cellX,cellY,canvas,layer:null,sourceBlob:rasterData.blob,sourceMetadata:m,assetId:null,georeferenced:canMap};
+  const opSelect=p.querySelector('[data-r-op]');[...opSelect.options].forEach(option=>{option.disabled=option.value!=="display"&&!canMap;});opSelect.value="display";p.querySelector('[data-r-expr-wrap]').hidden=true;
+  const exportButton=p.querySelector('[data-r-export]');exportButton.disabled=!canMap;const tifExport=exportButton.nextElementSibling;if(tifExport&&tifExport.textContent==="Export GeoTIFF")tifExport.disabled=!canMap;
+  p.querySelector('[data-r-meta]').textContent=w+" × "+h+" px · "+bands.length+" band(s) · "+(canMap?"EPSG:"+epsg:"No map CRS · image preview only")+" · "+file.name;
+  if(canMap){const rasterProjectId=currentProjectId||projectId();currentProjectId=rasterProjectId;sabzRasterState.assetId="raster-"+Date.now().toString(36);await SabzRasterRuntime.saveAsset(rasterProjectId,sabzRasterState.assetId,rasterData.blob,m);
+   sabzRasterAssetRefs=sabzRasterAssetRefs.filter(ref=>ref.assetId!==sabzRasterState.assetId);sabzRasterAssetRefs.push({assetId:sabzRasterState.assetId,fileName:file.name,metadata:m});
+   say("GeoTIFF loaded and georeferenced. Choose an operation and Run.");
+  }else say("TIFF loaded for image preview. Assign a valid CRS/georeferencing before spatial analysis or map placement.");
+  renderSabzRaster("display");
  }catch(err){say("Load failed: "+err.message);}};
  p.querySelector('[data-r-run]').onclick=async()=>{try{
   if(!sabzRasterState)throw Error("Load a GeoTIFF first.");
@@ -9886,7 +9896,8 @@ function renderSabzRaster(op){
   if(op==="display"&&bands.length>=3){const x=k%ow,y=Math.floor(k/ow);rr=get(0,x,y);gg=get(1,x,y);bb=get(2,x,y);const mx=Math.max(rr,gg,bb,255);if(mx>255){rr=rr/mx*255;gg=gg/mx*255;bb=bb/mx*255;}}
   else{rr=gg=bb=op==="aspect"?Math.round(v/360*255):Math.max(0,Math.min(255,Math.round((v-lo)/span*255)));}
   img.data[p]=rr;img.data[p+1]=gg;img.data[p+2]=bb;img.data[p+3]=255;}
- ctx.putImageData(img,0,0);r.output={op,values,lo,hi};if(r.layer){try{map.removeLayer(r.layer);layerControl.removeLayer(r.layer);}catch(_){}const previous=namedLayers.find(item=>item.layer===r.layer);if(previous)namedLayers.splice(namedLayers.indexOf(previous),1);}
+ ctx.putImageData(img,0,0);r.output={op,values,lo,hi};if(r.layer){try{map.removeLayer(r.layer);layerControl.removeLayer(r.layer);}catch(_){}const previous=namedLayers.find(item=>item.layer===r.layer);if(previous)namedLayers.splice(namedLayers.indexOf(previous),1);r.layer=null;}
+ if(!r.georeferenced||!r.bounds){return;}
  const layer=L.imageOverlay(canvas.toDataURL("image/png"),L.latLngBounds(r.bounds[0],r.bounds[1]),{opacity:.88,interactive:false});addNamedLayer((document.querySelector("#sabzRasterWorkspace [data-r-name]")?.value||"Raster_Result")+" · "+op,layer,true);r.layer=layer;
 }
 
