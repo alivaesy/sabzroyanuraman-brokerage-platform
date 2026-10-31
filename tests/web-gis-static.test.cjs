@@ -423,7 +423,7 @@ test('ModelBuilder routes core vector overlay nodes through RustGIS', () => {
   const end = html.indexOf('// Property-form handoff', start);
   assert.ok(start >= 0 && end > start, 'ModelBuilder executor was not found');
   const body = html.slice(start, end);
-  const rustStart = body.indexOf('if(["buffer","clip","intersection","erase","union","identity"].includes(op))');
+  const rustStart = body.indexOf('if(["buffer","clip","intersection","erase","union","identity","dissolve","dissolveField","convexHull","pointOnFeature"].includes(op))');
   const fieldStart = body.indexOf('else if(op==="calculateField")', rustStart);
   assert.ok(rustStart >= 0 && fieldStart > rustStart, 'RustGIS nodes must be dispatched before legacy JS operations');
   const rust = body.slice(rustStart, fieldStart);
