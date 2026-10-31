@@ -9487,6 +9487,11 @@ function validateModelBuilder(modal,show=true){
     const joinFields=overlayNodeValue?(nodeFields.get(overlayNodeValue)||[]):modelBuilderLayerFeatures(Number(overlayValue)).flatMap(feature=>Object.keys(feature.properties||{}));
     joinFields.forEach(name=>fields.add("join_"+name));fields.add("join_count");
    }
+   if(op==="areaLength"){
+    if(geometryTypes.has("Polygon")||geometryTypes.has("MultiPolygon")){fields.add("area_km2");fields.add("perimeter_km");}
+    if(geometryTypes.has("LineString")||geometryTypes.has("MultiLineString"))fields.add("length_km");
+    if(geometryTypes.has("Point")||geometryTypes.has("MultiPoint")){fields.add("point_x");fields.add("point_y");}
+   }
    if(overlayNodeValue&&["clip","intersection","erase","union","identity"].includes(op)&&![...(nodeGeometryTypes.get(overlayNodeValue)||[])].every(t=>t==="Polygon"||t==="MultiPolygon"))issues.push("Step "+(i+1)+": secondary node must produce polygon geometry for "+op+".");
    if(op==="selectByLocation"){
     const rel=row.querySelector("[data-mb-relation]").value,fn={intersects:"booleanIntersects",within:"booleanWithin",contains:"booleanContains",touches:"booleanTouches",overlaps:"booleanOverlap",crosses:"booleanCrosses"}[rel];
