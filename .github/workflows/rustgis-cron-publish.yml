@@ -1,0 +1,16 @@
+name: RustGIS Cron Publish
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch-entry:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Explain branch selection
+        run: |
+          echo "Select feat/rustgis-vector-geoprocessing-phase-3 in the Run workflow branch selector."
+          echo "The feature branch contains the full build-and-commit workflow."
