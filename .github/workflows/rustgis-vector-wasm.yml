@@ -13,7 +13,10 @@ on:
     paths:
       - "sabzroyanuraman-site/web-gis.html"
       - "sabzroyanuraman-site/webgis-rustgis-vector-runtime.js"
+      - "sabzroyanuraman-site/plugin-manager.js"
+      - "sabzroyanuraman-site/rust-raster-bridge.js"
       - "sabzroyanuraman-site/rustgis-vector-wasm/**"
+      - "tests/web-gis-static.test.cjs"
       - ".github/workflows/rustgis-vector-wasm.yml"
 
 permissions:
