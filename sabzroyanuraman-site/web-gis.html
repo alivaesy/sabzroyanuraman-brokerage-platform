@@ -822,7 +822,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
   <div class="arc-dropdown" id="insertMenu">
     <div class="arc-menu-title">Insert</div>
     <button type="button" data-action="importData">Add Data...</button>
-    <div class="arc-sep"></div><button type="button" data-raster-open>Raster Analysis...</button><button type="button" data-action="insertDataFrame">Insert Data Frame</button><button type="button" data-action="insertLegend">Insert Legend</button><button type="button" data-action="insertNorthArrow">Insert North Arrow</button><button type="button" data-action="insertScaleBar">Insert Scale Bar</button><button type="button" data-action="insertTitle">Insert Title...</button>
+    <div class="arc-sep"></div><button type="button" data-rustgis-vector-open>RustGIS Vector Geoprocessing...</button><button type="button" data-raster-open>Raster / GeoLibre / Plugins...</button><button type="button" data-action="insertDataFrame">Insert Data Frame</button><button type="button" data-action="insertLegend">Insert Legend</button><button type="button" data-action="insertNorthArrow">Insert North Arrow</button><button type="button" data-action="insertScaleBar">Insert Scale Bar</button><button type="button" data-action="insertTitle">Insert Title...</button>
   </div>
   <div class="arc-dropdown" id="selectionMenu">
     <div class="arc-menu-title">Selection</div>
@@ -1263,6 +1263,11 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <script src="https://unpkg.com/proj4@2.9.2/dist/proj4.js"></script>
 <script src="https://unpkg.com/@turf/turf@7.2.0/turf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js" crossorigin="anonymous"></script>
+<script src="./raster-runtime.js?v=20261031-plain-tiff"></script>
+<script src="./rust-raster-bridge.js"></script>
+<script src="./webgis-rustgis-vector-runtime.js"></script>
+<script src="./plugin-manager.js"></script>
+<script src="./geolibre-wasi-bridge.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gdal3.js@2.8.1/dist/package/gdal3.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCh3Elxg1P6rxHkNiyvTyFiZ6kBdl1W-Zk"></script>
@@ -1277,7 +1282,9 @@ window.__sabzWebGISSharedBridge={
   get namedLayers(){return window.__sabzGISNamedLayers||[];},
   get drawn(){return window.__sabzGISDrawn||null;},
   restoreProject,
-  status:message=>{const text=String(message??"");const node=document.getElementById("status");if(node)node.textContent=text;const toast=document.getElementById("toolFeedback");if(toast){toast.textContent=text;toast.classList.add("show");try{clearTimeout(window.__sabzSharedStatusTimer);}catch(_){}window.__sabzSharedStatusTimer=setTimeout(()=>toast.classList.remove("show"),4200);}console.info("[Shared WebGIS]",text);}
+  status:message=>{const text=String(message??"");const node=document.getElementById("status");if(node)node.textContent=text;const toast=document.getElementById("toolFeedback");if(toast){toast.textContent=text;toast.classList.add("show");try{clearTimeout(window.__sabzSharedStatusTimer);}catch(_){}window.__sabzSharedStatusTimer=setTimeout(()=>toast.classList.remove("show"),4200);}console.info("[Shared WebGIS]",text);},
+  addGeoJSONLayer:(name,geojson)=>{if(!geojson||!Array.isArray(geojson.features))throw new Error("RustGIS output is not a GeoJSON FeatureCollection.");const layer=L.geoJSON(geojson,{style:{color:"#176b4b",weight:2.5,fillColor:"#56a77e",fillOpacity:.18},pointToLayer:(feature,latlng)=>L.circleMarker(latlng,{radius:5,color:"#176b4b",weight:2,fillColor:"#fff",fillOpacity:.95}),onEachFeature:(feature,child)=>attachFeatureSelection(child)});addNamedLayer(name,layer,true);return name;},
+  applyRustGISSelection:(layerName,rows)=>{const owner=String(layerName).toLowerCase()==="my drawings"?{name:"My Drawings",layer:drawn}:namedLayers.find(item=>String(item.name).toLowerCase()===String(layerName).toLowerCase());if(!owner)return 0;const records=vectorFeatures(owner.layer),indices=new Set((Array.isArray(rows)?rows:[]).map(Number).filter(index=>Number.isInteger(index)&&index>=0&&index<records.length));clearMultiSelection();selectedOverlay=owner.layer;records.forEach((record,index)=>{if(indices.has(index))selectedFeatures.add(record.layer);});const first=records.find(record=>selectedFeatures.has(record.layer));selectedLayer=first?.layer||null;synchronizeFeatureSelection({primary:first?.layer||null,renderEditor:false});if(typeof syncVisibleAttributeTableSelection==="function")syncVisibleAttributeTableSelection();if(typeof updateMultiSelectionUI==="function")updateMultiSelectionUI();return selectedFeatures.size;}
 };
 window.__sabzWebGISCoreError=null;
 window.addEventListener("error",event=>{if(!window.__sabzGISMap)window.__sabzWebGISCoreError=event.message||"WebGIS startup error";});
@@ -2022,6 +2029,55 @@ async function remoteGisGetCsrf(){
   const r=await fetch("/api/gis/auth.php?action=csrf",{credentials:"same-origin",cache:"no-store",headers:{Accept:"application/json"}});
   const b=await r.json();if(!r.ok||!b.csrf_token)throw new Error(b.error||"csrf_unavailable");remoteGisCsrf=b.csrf_token;return b;
 }
+async function remoteGisRasterList(projectId){
+  const url="/api/gis/raster-assets.php?organization_id="+encodeURIComponent(remoteGisOrganization.id)+"&project_id="+encodeURIComponent(projectId)+"&action=list";
+  const response=await fetch(url,{credentials:"same-origin",cache:"no-store",headers:{Accept:"application/json"}});
+  const body=await response.json().catch(()=>({}));
+  if(!response.ok||body.ok!==true||!Array.isArray(body.assets))throw new Error(body.error||"raster_asset_list_failed");
+  return body.assets;
+}
+async function remoteGisSyncRasterAssets(localProjectId,serverProjectId){
+  if(!remoteGisUser||!remoteGisOrganization||!serverProjectId)return;
+  if(!window.SabzRasterRuntime)throw new Error("Raster runtime is unavailable.");
+  await remoteGisGetCsrf();
+  const existing=await remoteGisRasterList(serverProjectId),serverIds=new Set(existing.map(a=>String(a.asset_id)));
+  for(const ref of (sabzRasterAssetRefs||[])){
+    const assetId=String(ref.assetId||"");if(!assetId)continue;
+    let saved=await SabzRasterRuntime.loadAsset(String(localProjectId),assetId);
+    if(!saved)saved=await SabzRasterRuntime.loadAsset(String(serverProjectId),assetId);
+    if(!saved||!saved.blob){if(serverIds.has(assetId))continue;throw new Error("Local bytes missing for raster asset "+assetId);}
+    const metadata=saved.metadata||ref.metadata;if(!metadata)throw new Error("Raster metadata missing for "+assetId);
+    const form=new FormData();form.append("action","upload");form.append("organization_id",String(remoteGisOrganization.id));form.append("project_id",String(serverProjectId));form.append("asset_id",assetId);form.append("file_name",ref.fileName||"raster.tif");form.append("metadata",JSON.stringify(metadata));form.append("file",saved.blob,ref.fileName||"raster.tif");
+    const response=await fetch("/api/gis/raster-assets.php",{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"X-CSRF-Token":remoteGisCsrf,Accept:"application/json"},body:form});
+    const body=await response.json().catch(()=>({}));
+    if(!response.ok||body.ok!==true)throw new Error(body.error||("raster_upload_http_"+response.status));
+    await SabzRasterRuntime.saveAsset(String(serverProjectId),assetId,saved.blob,metadata);
+  }
+}
+async function remoteGisRestoreRasterAssets(project,serverProjectId){
+  if(!project||!serverProjectId||!remoteGisOrganization||!window.SabzRasterRuntime)return;
+  const assets=await remoteGisRasterList(serverProjectId);
+  project.id=String(serverProjectId);
+  project.rasterAssets=assets.map(a=>({assetId:String(a.asset_id),fileName:a.file_name||"raster.tif",metadata:a.metadata||null}));
+  for(const asset of assets){
+    const assetId=String(asset.asset_id),url="/api/gis/raster-assets.php?organization_id="+encodeURIComponent(remoteGisOrganization.id)+"&project_id="+encodeURIComponent(serverProjectId)+"&action=download&asset_id="+encodeURIComponent(assetId);
+    const response=await fetch(url,{credentials:"same-origin",cache:"no-store"});
+    if(!response.ok)throw new Error("Raster download failed for "+assetId+" (HTTP "+response.status+").");
+    const blob=await response.blob();
+    if(asset.size&&blob.size!==Number(asset.size))throw new Error("Raster byte-length verification failed for "+assetId);
+    if(asset.sha256&&window.crypto&&crypto.subtle){
+      const digest=await crypto.subtle.digest("SHA-256",await blob.arrayBuffer());
+      const actualHash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,"0")).join("");
+      if(actualHash.toLowerCase()!==String(asset.sha256).toLowerCase())throw new Error("Raster SHA-256 verification failed for "+assetId);
+    }else if(asset.sha256)throw new Error("This browser cannot verify the server raster SHA-256 hash.");
+    const file=new File([blob],asset.file_name||"raster.tif",{type:"image/tiff"}),parsed=await SabzRasterRuntime.read(file);
+    const expected=asset.metadata||{};
+    if(expected.width&&parsed.metadata.width!==Number(expected.width))throw new Error("Raster width verification failed for "+assetId);
+    if(expected.height&&parsed.metadata.height!==Number(expected.height))throw new Error("Raster height verification failed for "+assetId);
+    if(expected.crs?.epsg&&parsed.metadata.crs.epsg!==Number(expected.crs.epsg))throw new Error("Raster CRS verification failed for "+assetId);
+    await SabzRasterRuntime.saveAsset(String(serverProjectId),assetId,blob,parsed.metadata);
+  }
+}
 async function remoteGisLogin(){
   await remoteGisGetCsrf();
   const credentials=await arcMapDialog.form({title:"GIS Online Login",message:"Credentials are sent only to the same-origin GIS API.",fields:[
@@ -2068,7 +2124,10 @@ async function remoteGisSaveProject(project){
   if(remoteGisProjectId)body.id=remoteGisProjectId;
   const result=await remoteGisRequest("projects.php",{method:"POST",body:JSON.stringify(body)});
   if(!result.project_id)throw new Error("server_did_not_return_project_id");
-  remoteGisProjectId=Number(result.project_id);return result;
+  remoteGisProjectId=Number(result.project_id);
+  const localAssetProjectId=String(project.id||currentProjectId||remoteGisProjectId);
+  await remoteGisSyncRasterAssets(localAssetProjectId,remoteGisProjectId);
+  return result;
 }
 async function remoteGisLogout(){
   await remoteGisGetCsrf();
@@ -2087,6 +2146,7 @@ async function remoteGisOpenProject(id){
   const p=remote.project;if(!p)throw new Error("project_not_found");
   let data=p.project_data;if(typeof data==="string")data=JSON.parse(data);
   if(!data||typeof data!=="object")throw new Error("empty_server_project_data");
+  await remoteGisRestoreRasterAssets(data,p.id);
   if(!restoreProject(data))throw new Error("project_restore_failed");
   currentProjectId=String(p.id);remoteGisProjectId=Number(p.id);
   $("projectName").value=p.name||data.name||"Untitled Project";window.currentProjectDescription=p.description||data.description||"";
@@ -2351,7 +2411,7 @@ function createMapViewer(){
   if(!win){status("Allow pop-ups to open the map viewer.");return;}
   const state={center:[map.getCenter().lat,map.getCenter().lng],zoom:map.getZoom(),basemap:$("basemap").value,wms:customWmsConfig,attribution:currentBase?.options?.attribution||"Map data provider"};
   const serialized=JSON.stringify(state).replace(/</g,"\\u003c"),closeScript="</"+"script>";
-  const html="<!doctype html><html><head><meta charset='utf-8'><title>Map Viewer</title><link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'><style>html,body,#map{height:100%;margin:0}#attributeTableWindow{display:none;position:fixed;left:50%;bottom:18px;transform:translateX(-50%);width:min(1120px,calc(100vw - 36px));height:min(390px,58vh);min-width:360px;min-height:180px;resize:both;overflow:hidden;background:#f5f6f7;border:1px solid #7f8d95;box-shadow:0 8px 28px rgba(0,0,0,.28);z-index:4800;direction:ltr;color:#263f50}#attributeTableWindow.open{display:flex;flex-direction:column}#attributeTableWindow.maximized{left:8px;right:8px;top:56px;bottom:8px;width:auto;height:auto;min-width:0;min-height:0;transform:none;resize:none}#attributeTableTitlebar{height:32px;flex:0 0 32px;display:flex;align-items:center;gap:8px;padding:0 7px;background:linear-gradient(#fdfdfd,#e1e6e9);border-bottom:1px solid #a9b4ba;font-size:12px;font-weight:700}#attributeTableWindowTitle{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}#attributeTableWindowActions{display:flex;gap:3px}#attributeTableWindowActions button{width:26px;height:23px;border:1px solid #aeb9bf;background:#f8f9fa;color:#263f50;border-radius:2px;cursor:pointer;padding:0;font-size:13px}#attributeTableWindowActions button:hover{background:#dceaf2}#attributeTableWindowToolbar{display:flex;align-items:center;gap:8px;min-height:31px;padding:4px 8px;background:#f2f4f5;border-bottom:1px solid #c3cdd2;font-size:11px}#attributeTableWindowToolbar .table-layer-label{font-weight:700}#attributeTableWindowToolbar .table-toolbar-note{color:#657984;margin-left:auto}#attributeTableViewport{flex:1;min-height:0;overflow:auto;background:#fff;direction:ltr}#attributeTableViewport #attributeTableWrap{display:block!important;max-height:none!important;overflow:visible!important;font-size:12px!important}#attributeTableWrap table.arc-attribute-grid{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;direction:ltr;font-size:12px;color:#263f50}#attributeTableWrap .arc-attribute-grid th{position:sticky;top:0;z-index:3;height:27px;padding:4px 8px;background:#e7ecef;border-right:1px solid #c4cdd2;border-bottom:1px solid #aebbc2;text-align:left;white-space:nowrap;font-weight:700}#attributeTableWrap .arc-attribute-grid th:first-child{left:0;z-index:5;min-width:30px}#attributeTableWrap .arc-attribute-grid th:nth-child(2){left:30px;z-index:4;min-width:44px}#attributeTableWrap .arc-attribute-grid td{height:29px;padding:2px 5px;border-right:1px solid #e0e5e8;border-bottom:1px solid #e0e5e8;background:#fff;white-space:nowrap}#attributeTableWrap .arc-attribute-grid tbody tr:nth-child(even) td{background:#f7f9fa}#attributeTableWrap .arc-attribute-grid tbody tr:hover td{background:#eaf4fb}#attributeTableWrap .arc-attribute-grid tbody tr td:first-child{position:sticky;left:0;z-index:2;min-width:30px;text-align:center}#attributeTableWrap .arc-attribute-grid tbody tr td:nth-child(2){position:sticky;left:30px;z-index:1;min-width:44px;text-align:right;background:#edf1f3;font-variant-numeric:tabular-nums}#attributeTableWrap .arc-attribute-grid input.cell-edit{width:150px;min-width:100px;height:23px;border:1px solid transparent;border-radius:0;padding:2px 5px;font-size:12px;background:transparent;color:inherit}#attributeTableWrap .arc-attribute-grid input.cell-edit:focus{outline:1px solid #3b83b5;border-color:#3b83b5;background:#fff}#attributeTableWindowFooter{height:25px;flex:0 0 25px;display:flex;align-items:center;gap:14px;padding:0 8px;border-top:1px solid #aeb9bf;background:#edf1f3;color:#526b7a;font-size:10px}@media(max-width:650px){#attributeTableWindow{left:5px;right:5px;bottom:5px;width:auto;min-width:0;height:55vh;transform:none}#attributeTableWindow.maximized{top:48px}}</style></head><body><div id='map'></div><script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'>"+closeScript+"<script>const s="+serialized+";const m=L.map('map').setView(s.center,s.zoom);const u={osm:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',topo:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',sat:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',esriStreet:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',esriTopo:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',esriGray:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'};if(s.basemap==='nasaWms')L.tileLayer.wms('https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi',{layers:'BlueMarble_ShadedRelief',format:'image/png',version:'1.3.0',attribution:'NASA GIBS'}).addTo(m);else if(s.basemap==='customWms'&&s.wms)L.tileLayer.wms(s.wms.url,{layers:s.wms.layers,format:s.wms.format,version:s.wms.version,attribution:s.wms.attribution}).addTo(m);else L.tileLayer(u[s.basemap]||u.osm,{maxZoom:19,attribution:s.attribution}).addTo(m);"+closeScript+"</body></html>";
+  const html="<!doctype html><html><head><meta charset='utf-8'><title>Map Viewer</title><link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'><style>html,body,#map{height:100%;margin:0}#attributeTableWindow{display:none;position:fixed;left:50%;bottom:18px;transform:translateX(-50%);width:min(1120px,calc(100vw - 36px));height:min(390px,58vh);min-width:360px;min-height:180px;resize:both;overflow:hidden;background:#f5f6f7;border:1px solid #7f8d95;box-shadow:0 8px 28px rgba(0,0,0,.28);z-index:4800;direction:ltr;color:#263f50}#attributeTableWindow.open{display:flex;flex-direction:column}#attributeTableWindow.maximized{left:8px;right:8px;top:56px;bottom:8px;width:auto;height:auto;min-width:0;min-height:0;transform:none;resize:none}#attributeTableTitlebar{height:32px;flex:0 0 32px;display:flex;align-items:center;gap:8px;padding:0 7px;background:linear-gradient(#fdfdfd,#e1e6e9);border-bottom:1px solid #a9b4ba;font-size:12px;font-weight:700}#attributeTableWindowTitle{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}#attributeTableWindowActions{display:flex;gap:3px}#attributeTableWindowActions button{width:26px;height:23px;border:1px solid #aeb9bf;background:#f8f9fa;color:#263f50;border-radius:2px;cursor:pointer;padding:0;font-size:13px}#attributeTableWindowActions button:hover{background:#dceaf2}#attributeTableWindowToolbar{display:flex;align-items:center;gap:8px;min-height:31px;padding:4px 8px;background:#f2f4f5;border-bottom:1px solid #c3cdd2;font-size:11px}#attributeTableWindowToolbar .table-layer-label{font-weight:700}#attributeTableWindowToolbar .table-toolbar-note{color:#657984;margin-left:auto}#attributeTableViewport{flex:1;min-height:0;overflow:auto;background:#fff;direction:ltr}#attributeTableViewport #attributeTableWrap{display:block!important;max-height:none!important;overflow:visible!important;font-size:12px!important}#attributeTableWrap table.arc-attribute-grid{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;direction:ltr;font-size:12px;color:#263f50}#attributeTableWrap .arc-attribute-grid th{position:sticky;top:0;z-index:3;height:27px;padding:4px 8px;background:#e7ecef;border-right:1px solid #c4cdd2;border-bottom:1px solid #aebbc2;text-align:left;white-space:nowrap;font-weight:700}#attributeTableWrap .arc-attribute-grid th:first-child{left:0;z-index:5;min-width:30px}#attributeTableWrap .arc-attribute-grid th:nth-child(2){left:30px;z-index:4;min-width:44px}#attributeTableWrap .arc-attribute-grid td{height:29px;padding:2px 5px;border-right:1px solid #e0e5e8;border-bottom:1px solid #e0e5e8;background:#fff;white-space:nowrap}#attributeTableWrap .arc-attribute-grid tbody tr:nth-child(even) td{background:#f7f9fa}#attributeTableWrap .arc-attribute-grid tbody tr:hover td{background:#eaf4fb}#attributeTableWrap .arc-attribute-grid tbody tr td:first-child{position:sticky;left:0;z-index:2;min-width:30px;text-align:center}#attributeTableWrap .arc-attribute-grid tbody tr td:nth-child(2){position:sticky;left:30px;z-index:1;min-width:44px;text-align:right;background:#edf1f3;font-variant-numeric:tabular-nums}#attributeTableWrap .arc-attribute-grid input.cell-edit{width:150px;min-width:100px;height:23px;border:1px solid transparent;border-radius:0;padding:2px 5px;font-size:12px;background:transparent;color:inherit}#attributeTableWrap .arc-attribute-grid input.cell-edit:focus{outline:1px solid #3b83b5;border-color:#3b83b5;background:#fff}#attributeTableWindowFooter{height:25px;flex:0 0 25px;display:flex;align-items:center;gap:14px;padding:0 8px;border-top:1px solid #aeb9bf;background:#edf1f3;color:#526b7a;font-size:10px}@media(max-width:650px){#attributeTableWindow{left:5px;right:5px;bottom:5px;width:auto;min-width:0;height:55vh;transform:none}#attributeTableWindow.maximized{top:48px}}</style></head><body><div id='map'></div><script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'>"+closeScript+"<script>const s="+serialized+";const m=L.map('map').setView(s.center,s.zoom);const u={osm:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',topo:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',sat:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',esriStreet:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',esriTopo:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',esriGray:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'};if(s.basemap==='nasaWms')L.tileLayer.wms('https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi',{layers:'BlueMarble_ShadedRelief',format:'image/png',version:'1.3.0',attribution:'NASA GIBS'}).addTo(m);else if(s.basemap==='customWms'&&s.wms)L.tileLayer.wms(s.wms.url,{layers:s.wms.layers,format:s.wms.format,version:s.wms.version,attribution:s.wms.attribution}).addTo(m);else L.tileLayer(u[s.basemap]||u.osm,{maxZoom:19,attribution:s.attribution}).addTo(m);"+closeScript+"<script src=\"./webgis-rustgis-vector-runtime.js\">"+closeScript+"\n</body></html>";
    win.document.open();
    win.document.write(html);
    win.document.close();
@@ -4316,7 +4376,8 @@ $("deleteMultiSelected").onclick=async()=>{
   recordUndoState();
   targets.forEach(layer=>editTarget.removeLayer(layer));
   clearMultiSelection();selectedLayer=null;selectedOverlay=null;
-  renderLayerList();refreshAttributeLayers();refreshEditorTargets();window.__webGisGdbBridge?.save();scheduleAutoSave();
+  renderLayerList();refreshAttributeLayers();
+refreshEditorTargets();window.__webGisGdbBridge?.save();scheduleAutoSave();
   status(targets.length+" feature(s) deleted from the active edit layer.");
 };
 $("clearMultiSelected").onclick=()=>{clearMultiSelection();selectedLayer=null;selectedOverlay=null;renderAttributeEditor();status("Multiple selection cleared.")};
@@ -5382,6 +5443,7 @@ function serializeProject(){
     if(drawnIndex>=0){project.selected.push({source:"drawn",index:drawnIndex});return}
     for(const item of namedLayers){const i=vectorFeatures(item.layer).findIndex(x=>x.layer===featureLayer);if(i>=0){project.selected.push({source:"layer",name:item.name,index:i});break}}
   });
+  project.rasterAssets=sabzRasterAssetRefs.slice();if(!project.rasterAssets.length&&sabzRasterState&&sabzRasterState.assetId)project.rasterAssets=[{assetId:sabzRasterState.assetId,fileName:sabzRasterState.fileName,metadata:sabzRasterState.sourceMetadata}];
   project.integrity={drawnCount:project.drawn.length,layerCount:project.layers.length,featureCount:project.drawn.length+project.layers.reduce((n,x)=>n+x.features.length,0)};
   return project;
 }
@@ -5399,6 +5461,65 @@ function projectFeatureLayer(features,name){
   });
   addNamedLayer(name,layer,false);
   return layer;
+}
+
+async function addGeoLibreOutputToWebGIS(output){
+  const name=String(output.name||"GeoLibre_Output"),blob=new Blob([output.bytes],{type:/\.(tif|tiff)$/i.test(name)?"image/tiff":"application/octet-stream"});
+  if(/\.(tif|tiff)$/i.test(name)){
+    const parsed=await SabzRasterRuntime.read(new File([blob],name,{type:"image/tiff"})),m=parsed.metadata;
+    if(Math.abs(m.geoTransform[2])>1e-12||Math.abs(m.geoTransform[4])>1e-12)throw new Error("Rotated GeoTIFF output must be warped to a north-up grid before map preview.");
+    const epsg=m.crs.epsg,xyToLL=xy=>epsg===4326?xy:epsg===3857?[xy[0]/6378137*180/Math.PI,Math.atan(Math.sinh(xy[1]/6378137))*180/Math.PI]:proj4("EPSG:"+epsg,"EPSG:4326",xy);
+    const a=xyToLL([m.extent.xmin,m.extent.ymin]),b=xyToLL([m.extent.xmax,m.extent.ymax]);
+    const bounds=[[Math.min(a[1],b[1]),Math.min(a[0],b[0])],[Math.max(a[1],b[1]),Math.max(a[0],b[0])]];
+    const factor=Math.max(1,Math.ceil(Math.max(m.width,m.height)/1400)),width=Math.ceil(m.width/factor),height=Math.ceil(m.height/factor),canvas=document.createElement("canvas");canvas.width=width;canvas.height=height;
+    const ctx=canvas.getContext("2d"),img=ctx.createImageData(width,height),band=parsed.bands[0];let lo=Infinity,hi=-Infinity;
+    for(let y=0;y<height;y++)for(let x=0;x<width;x++){const v=band[Math.min(m.height-1,y*factor)*m.width+Math.min(m.width-1,x*factor)];if(Number.isFinite(v)&&(m.noData===null||v!==m.noData)){lo=Math.min(lo,v);hi=Math.max(hi,v);}}
+    if(!Number.isFinite(lo)||!Number.isFinite(hi))throw new Error("GeoLibre raster output contains no valid pixels.");
+    const span=Math.max(1e-12,hi-lo);
+    for(let y=0;y<height;y++)for(let x=0;x<width;x++){const v=band[Math.min(m.height-1,y*factor)*m.width+Math.min(m.width-1,x*factor)],k=(y*width+x)*4;if(!Number.isFinite(v)||(m.noData!==null&&v===m.noData)){img.data[k+3]=0;continue;}const c=Math.max(0,Math.min(255,Math.round((v-lo)/span*255)));img.data[k]=img.data[k+1]=img.data[k+2]=c;img.data[k+3]=255;}
+    ctx.putImageData(img,0,0);
+    const assetProjectId=String(currentProjectId||projectId());currentProjectId=assetProjectId;
+    const assetId="geolibre-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7);
+    await SabzRasterRuntime.saveAsset(assetProjectId,assetId,blob,m);
+    sabzRasterAssetRefs=sabzRasterAssetRefs.filter(r=>r.assetId!==assetId);sabzRasterAssetRefs.push({assetId,fileName:name,metadata:m});
+    const layer=L.imageOverlay(canvas.toDataURL("image/png"),L.latLngBounds(bounds[0],bounds[1]),{opacity:.9});
+    layer._sabzRasterAssetId=assetId;layer._sabzRasterMetadata=m;addNamedLayer(name+" · GeoLibre",layer,true);
+    if(remoteGisUser&&remoteGisOrganization&&remoteGisProjectId)await remoteGisSyncRasterAssets(assetProjectId,remoteGisProjectId);
+    scheduleAutoSave();return {type:"raster",name,assetId};
+  }
+  if(/\.(geojson|json)$/i.test(name)){
+    const data=JSON.parse(new TextDecoder().decode(output.bytes));
+    if(!data||!(data.type==="FeatureCollection"||data.type==="Feature"||data.type==="GeometryCollection"))throw new Error("JSON output is not GeoJSON.");
+    const layer=L.geoJSON(data,{style:()=>({color:"#a45a16",weight:2,fillOpacity:.15}),onEachFeature:(feature,featureLayer)=>{featureLayer.bindPopup(Object.entries(feature.properties||{}).map(([k,v])=>esc(k)+": "+esc(v)).join("<br>"));attachFeatureSelection(featureLayer);}});
+    addNamedLayer(name+" · GeoLibre",layer,true);scheduleAutoSave();return {type:"vector",name};
+  }
+  return {type:"download",name,blob};
+}
+async function restoreSavedRasterAssets(project){
+  sabzRasterAssetRefs=project&&Array.isArray(project.rasterAssets)?project.rasterAssets.slice():[];
+  if(!project||!Array.isArray(project.rasterAssets)||!project.rasterAssets.length||!window.SabzRasterRuntime)return;
+  for(const ref of project.rasterAssets){
+    try{
+      const saved=await SabzRasterRuntime.loadAsset(project.id,ref.assetId);
+      if(!saved||!saved.blob)throw new Error("Saved raster bytes are missing from this browser.");
+      const data=await SabzRasterRuntime.read(new File([saved.blob],ref.fileName||"project-raster.tif",{type:"image/tiff"}));
+      const m=data.metadata,w=m.width,h=m.height,factor=Math.max(1,Math.ceil(Math.max(w,h)/1400)),ow=Math.ceil(w/factor),oh=Math.ceil(h/factor);
+      const epsg=m.crs.epsg;if(!Number.isInteger(epsg)||epsg<1)throw new Error("Saved GeoTIFF CRS is missing; refusing to assume EPSG:4326.");
+      const xyToLL=xy=>epsg===4326?xy:epsg===3857?[xy[0]/6378137*180/Math.PI,Math.atan(Math.sinh(xy[1]/6378137))*180/Math.PI]:proj4("EPSG:"+epsg,"EPSG:4326",xy);
+      const corners=[xyToLL([m.extent.xmin,m.extent.ymin]),xyToLL([m.extent.xmax,m.extent.ymax])];
+      const bounds=[[Math.min(corners[0][1],corners[1][1]),Math.min(corners[0][0],corners[1][0])],[Math.max(corners[0][1],corners[1][1]),Math.max(corners[0][0],corners[1][0])]];
+      const canvas=document.createElement("canvas");canvas.width=ow;canvas.height=oh;
+      const ctx=canvas.getContext("2d"),img=ctx.createImageData(ow,oh),band=data.bands[0],valid=[];
+      for(let y=0;y<oh;y++)for(let x=0;x<ow;x++){const v=band[Math.min(h-1,y*factor)*w+Math.min(w-1,x*factor)];if(Number.isFinite(v)&&(m.noData===null||v!==m.noData))valid.push(v);}
+      valid.sort((a,b)=>a-b);if(!valid.length)throw new Error("Raster has no valid pixels.");
+      const lo=valid[Math.floor((valid.length-1)*.02)],hi=valid[Math.floor((valid.length-1)*.98)],span=Math.max(1e-12,hi-lo);
+      for(let y=0;y<oh;y++)for(let x=0;x<ow;x++){const v=band[Math.min(h-1,y*factor)*w+Math.min(w-1,x*factor)],k=(y*ow+x)*4;if(!Number.isFinite(v)||(m.noData!==null&&v===m.noData)){img.data[k+3]=0;continue;}const c=Math.max(0,Math.min(255,Math.round((v-lo)/span*255)));img.data[k]=img.data[k+1]=img.data[k+2]=c;img.data[k+3]=255;}
+      ctx.putImageData(img,0,0);
+      const layer=L.imageOverlay(canvas.toDataURL("image/png"),L.latLngBounds(bounds[0],bounds[1]),{opacity:.88});
+      addNamedLayer(ref.fileName||"Raster",layer,true);
+      sabzRasterState={fileName:ref.fileName||"Raster",w,h,bands:data.bands.map(a=>Float32Array.from(a)),epsg,noData:m.noData,bounds,factor,ow,oh,cellX:m.pixelScale[0],cellY:m.pixelScale[1],canvas,layer,sourceBlob:saved.blob,sourceMetadata:m,assetId:ref.assetId};
+    }catch(error){console.warn("Raster project restore:",error);status("Raster layer could not be restored: "+(error.message||error));}
+  }
 }
 function restoreProject(project,fromHistory=false){
   const historyEditState=fromHistory&&editSessionActive?{active:true,isDrawnTarget:editTarget===drawn,targetName:namedLayers.find(item=>item.layer===editTarget)?.name||null}:null;
@@ -5491,6 +5612,7 @@ function restoreProject(project,fromHistory=false){
   }else if(activeRef?.source==="drawn"){selectedLayer=drawn;selectedOverlay=null;}
   $("projectName").value=project.name||"Untitled Project";
   renderLayerList();refreshAttributeLayers();
+  if(Array.isArray(project.rasterAssets)&&project.rasterAssets.length)restoreSavedRasterAssets(project);
   // Reapply selection after all restored layers have been registered. Merely
   // restoring selectedFeatures does not recreate the ArcMap-like highlight,
   // attribute-table checks, or selection action states.
@@ -9116,7 +9238,7 @@ function openModelBuilder(){
   if(!modal){
     modal=document.createElement("div");modal.id="gisModelBuilder";
     modal.style.cssText="position:absolute;inset:0;z-index:950;background:#d5dbe0;display:flex;align-items:stretch;justify-content:stretch;padding:0;font:13px Arial,sans-serif;color:#243746;min-width:0;min-height:0;overflow:hidden";
-    modal.innerHTML='<section class="webgis-modelbuilder-workspace" style="display:flex;flex-direction:column;background:#f4f6f8;color:#17212b;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;border:0;border-radius:0;box-shadow:none"><header style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex:0 0 auto;background:#dce4eb;padding:8px 12px;border-bottom:1px solid #aab8c5"><strong style="font-size:15px">ModelBuilder</strong><span style="margin-left:auto;color:#536273">Geoprocessing workflow</span><button type="button" data-mb-close style="font-size:18px">✕</button></header><div style="padding:12px;overflow:auto;min-height:0;flex:1 1 auto"><div style="display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:10px"><label>Input feature layer<select data-mb-source style="display:block;width:100%;padding:7px;margin-top:4px"></select></label><label>Final output node<select data-mb-output style="display:block;width:100%;padding:7px;margin-top:4px"></select></label><label>Output layer name<input data-mb-name value="Model_Output" style="display:block;width:100%;padding:7px;margin-top:4px;box-sizing:border-box"></label></div><p style="color:#536273;margin:10px 0">ArcMap-style ModelBuilder: connect each processing node to any earlier or later node output. Branches and two-input tools are supported; circular dependencies are rejected.</p><div data-mb-graph style="display:flex;align-items:stretch;gap:10px;overflow:auto;padding:12px;margin:8px 0 14px;min-height:112px;background:#e8edf2;border:1px solid #c5d0da;border-radius:8px"></div><div data-mb-steps></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"><button type="button" data-mb-add>Add Step</button><button type="button" data-mb-validate>Validate Model</button><label style="display:flex;align-items:center;gap:5px"><input type="checkbox" data-mb-intermediates checked> Save intermediate outputs</label><button type="button" data-mb-run style="background:#176b42;color:white;border:0;padding:8px 14px">Run Model</button><button type="button" data-mb-save>Export Model</button><button type="button" data-mb-load>Import Model</button><input type="file" data-mb-file accept=".json,application/json" style="display:none"><button type="button" data-mb-clear>Clear Steps</button></div><div data-mb-status role="status" style="padding:8px;background:#f2f5f8;border:1px solid #d8e0e8;white-space:pre-wrap">Build a workflow, then run it.</div></div></section>';
+    modal.innerHTML='<section class="webgis-modelbuilder-workspace" style="display:flex;flex-direction:column;background:#f4f6f8;color:#17212b;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;border:0;border-radius:0;box-shadow:none"><header style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex:0 0 auto;background:#dce4eb;padding:8px 12px;border-bottom:1px solid #aab8c5"><strong style="font-size:15px">ModelBuilder</strong><span style="margin-left:auto;color:#536273">Geoprocessing workflow</span><button type="button" data-mb-close style="font-size:18px">✕</button></header><div style="padding:12px;overflow:auto;min-height:0;flex:1 1 auto"><div style="display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:10px"><label>Input feature layer<select data-mb-source style="display:block;width:100%;padding:7px;margin-top:4px"></select></label><label>Final output node<select data-mb-output style="display:block;width:100%;padding:7px;margin-top:4px"></select></label><label>Output layer name<input data-mb-name value="Model_Output" style="display:block;width:100%;padding:7px;margin-top:4px;box-sizing:border-box"></label></div><p style="color:#536273;margin:10px 0">ArcMap-style ModelBuilder: connect each processing node to any earlier or later node output. Branches and two-input tools are supported; circular dependencies are rejected.</p><div data-mb-graph style="display:flex;align-items:stretch;gap:10px;overflow:auto;padding:12px;margin:8px 0 14px;min-height:112px;background:#e8edf2;border:1px solid #c5d0da;border-radius:8px"></div><div data-mb-steps></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"><button type="button" data-mb-add>Add Step</button><button type="button" data-mb-validate>Validate Model</button><label style="display:flex;align-items:center;gap:5px"><input type="checkbox" data-mb-intermediates checked> Save intermediate outputs</label><button type="button" data-mb-run style="background:#176b42;color:white;border:0;padding:8px 14px">Run Model</button><button type="button" data-mb-cancel disabled style="padding:8px 12px">Cancel Run</button><button type="button" data-mb-save>Export Model</button><button type="button" data-mb-load>Import Model</button><input type="file" data-mb-file accept=".json,application/json" style="display:none"><button type="button" data-mb-clear>Clear Steps</button></div><div data-mb-status role="status" style="padding:8px;background:#f2f5f8;border:1px solid #d8e0e8;white-space:pre-wrap">Build a workflow, then run it.</div></div></section>';
     const workspace=document.querySelector(".workspace");
     if(!workspace)throw new Error("Main GIS workspace is unavailable.");
     workspace.appendChild(modal);
@@ -9127,6 +9249,7 @@ function openModelBuilder(){
     modal.querySelector("[data-mb-clear]").onclick=()=>{modal.querySelector("[data-mb-steps]").replaceChildren();addModelBuilderStep(modal);refreshModelBuilderNodeInputs(modal);};
     modal.querySelector("[data-mb-validate]").onclick=()=>validateModelBuilder(modal,true);
     modal.querySelector("[data-mb-run]").onclick=()=>runModelBuilder(modal);
+    modal.querySelector("[data-mb-cancel]").onclick=()=>{if(modal._mbRunState){modal._mbRunState.cancelled=true;modal.querySelector("[data-mb-cancel]").disabled=true;modal.querySelector("[data-mb-status]").textContent+="\nCancellation requested; the current operation will finish before stopping.";}};
     modal.querySelector("[data-mb-save]").onclick=()=>exportModelBuilder(modal);
     modal.querySelector("[data-mb-load]").onclick=()=>modal.querySelector("[data-mb-file]").click();
     modal.querySelector("[data-mb-file]").onchange=event=>importModelBuilder(modal,event.target.files?.[0]);
@@ -9317,12 +9440,25 @@ function validateModelBuilder(modal,show=true){
   return {valid:true,source,sourceIndex,items,steps,outputNodeId};
  }catch(err){if(show)say("Validation failed:\n"+(err.message||String(err)));return {valid:false,error:err};}
 }
-function runModelBuilder(modal){
+async function runModelBuilder(modal){
+ if(modal._mbRunState)return;
+ const runButton=modal.querySelector("[data-mb-run]"),cancelButton=modal.querySelector("[data-mb-cancel]");
+ const runState={cancelled:false};modal._mbRunState=runState;
+ const stepLog=[];
+ runButton.disabled=true;cancelButton.disabled=false;
+ const lockedControls=[...modal.querySelectorAll("[data-mb-step] input,[data-mb-step] select,[data-mb-step] button,[data-mb-source],[data-mb-name],[data-mb-output],[data-mb-intermediates],[data-mb-add],[data-mb-clear],[data-mb-save],[data-mb-load],[data-mb-validate]")].map(control=>({control,disabled:control.disabled}));
+ lockedControls.forEach(item=>{item.control.disabled=true;});
  const say=message=>{modal.querySelector("[data-mb-status]").textContent=message;};
+ const yieldToBrowser=()=>new Promise(resolve=>setTimeout(resolve,0));
+ const checkCancelled=()=>{if(runState.cancelled){const error=new Error("Model run cancelled by user.");error.name="ModelCancelledError";throw error;}};
  try{
   const validation=validateModelBuilder(modal,false);if(!validation.valid)throw validation.error;
   let current=validation.source.map(f=>JSON.parse(JSON.stringify(f)));
-  const steps=validation.steps,stepLog=[],intermediate=[],nodeOutputs=new Map();
+  const steps=validation.steps,intermediate=[],nodeOutputs=new Map();
+  // Bound cumulative work as well as each individual node to prevent a long
+  // chained model from multiplying memory use through saved intermediates.
+  let processedFeatureCount=0;
+  const MAX_NODE_FEATURES=20000,MAX_MODEL_FEATURES=100000;
   const clone=f=>JSON.parse(JSON.stringify(f));
   const overlayLabel=index=>getAllVectorItems()[Number(index)]?.name||"Overlay";
   const mergeProperties=(base,overlay)=>{
@@ -9334,6 +9470,10 @@ function runModelBuilder(modal){
    return props;
   };
   for(let si=0;si<steps.length;si++){
+   checkCancelled();
+   say("Preparing step "+(si+1)+" of "+steps.length+"…\n"+stepLog.join("\n"));
+   await yieldToBrowser();
+   checkCancelled();
    const row=steps[si],inputRef=row.querySelector("[data-mb-input]")?.value||"source";current=(inputRef==="source"?validation.source:nodeOutputs.get(inputRef)||[]).map(f=>JSON.parse(JSON.stringify(f)));
    const inputCount=current.length,op=row.querySelector("[data-mb-op]").value;
    const raw=Number(row.querySelector("[data-mb-param]").value),overlayIndex=row.querySelector("[data-mb-overlay]").value;
@@ -9403,12 +9543,17 @@ function runModelBuilder(modal){
    }
    current=next.filter(f=>f&&f.geometry);
    if(!current.length)throw new Error("Node "+(steps.indexOf(row)+1)+" ("+op+") returned no features; model stopped without creating an output layer.");
+   if(current.length>MAX_NODE_FEATURES)throw new Error("Step "+(si+1)+" produced more than "+MAX_NODE_FEATURES.toLocaleString()+" features; model stopped before copying the oversized result.");
+   processedFeatureCount+=current.length;
+   if(processedFeatureCount>MAX_MODEL_FEATURES)throw new Error("Model exceeded the cumulative processing limit of "+MAX_MODEL_FEATURES.toLocaleString()+" feature-results; disable intermediate outputs or split the workflow.");
    nodeOutputs.set(row.dataset.mbNodeId,current.map(clone));
-   if(current.length>20000)throw new Error("Step "+(si+1)+" produced more than 20,000 features; model stopped for safety.");
    stepLog.push("Node "+(steps.indexOf(row)+1)+" · "+op+": "+inputCount+" → "+current.length+" features");
    if(modal.querySelector("[data-mb-intermediates]").checked)intermediate.push({name:((modal.querySelector("[data-mb-name]").value||"Model_Output").trim().replace(/[<>]/g,"").slice(0,65)||"Model_Output")+"_Step_"+String(si+1).padStart(2,"0"),features:clone(current)});
-   say("Running model…\n"+stepLog.join("\n"));
+   say("Completed step "+(si+1)+" of "+steps.length+"\n"+stepLog.join("\n"));
+   await yieldToBrowser();
+   checkCancelled();
   }
+  checkCancelled();
   current=nodeOutputs.get(validation.outputNodeId)||[];if(!current.length)throw new Error("The selected final output node produced no features.");
   const name=(modal.querySelector("[data-mb-name]").value||"Model_Output").trim().replace(/[<>]/g,"").slice(0,80)||"Model_Output";
   const outputNames=[...(modal.querySelector("[data-mb-intermediates]").checked?intermediate.map(x=>x.name):[]),name];
@@ -9416,7 +9561,7 @@ function runModelBuilder(modal){
   if(modal.querySelector("[data-mb-intermediates]").checked)intermediate.forEach(layer=>geoJsonLayer({type:"FeatureCollection",features:layer.features},layer.name));
   geoJsonLayer({type:"FeatureCollection",features:current},name);
   say("Model completed successfully. Output: "+name+"\n"+stepLog.join("\n")+"\nFinal features: "+current.length+(intermediate.length?"\nIntermediate layers saved: "+intermediate.length:""));
- }catch(err){say("Model failed: "+(err.message||String(err)));status("ModelBuilder: "+(err.message||String(err)));}
+ }catch(err){if(err?.name==="ModelCancelledError"||runState.cancelled){say("Model cancelled. No output layers were added. Completed steps:\n"+(stepLog.join("\n")||"None"));status("ModelBuilder: cancelled");}else{say("Model failed: "+(err.message||String(err)));status("ModelBuilder: "+(err.message||String(err)));}}finally{lockedControls.forEach(item=>{item.control.disabled=item.disabled;});runButton.disabled=false;cancelButton.disabled=true;modal._mbRunState=null;}
 }
 // Property-form handoff must share this script's lexical GIS auth/project state.
   (function(){
@@ -9617,28 +9762,97 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 
 /* Browser GeoTIFF raster tools. */
 let sabzRasterState=null;
+let sabzRasterAssetRefs=[];
 function openRasterWorkspace(){
  let p=document.getElementById("sabzRasterWorkspace");if(p){p.hidden=!p.hidden;return;}
  p=document.createElement("section");p.id="sabzRasterWorkspace";p.style.cssText="position:fixed;z-index:10020;right:18px;top:72px;width:min(390px,calc(100vw - 30px));max-height:78vh;overflow:auto;background:#f5f7f9;border:1px solid #9aaab4;box-shadow:0 8px 28px #14253635;border-radius:5px;padding:12px;color:#243746;font:12px Arial,sans-serif";
- p.innerHTML='<header style="display:flex;justify-content:space-between"><strong>Raster Analysis · ArcMap</strong><button data-r-close>×</button></header><label>GeoTIFF / COG<input data-r-file type="file" accept=".tif,.tiff,image/tiff" style="display:block;width:100%;margin:8px 0"></label><div data-r-meta style="padding:7px;background:#e8eef2">No raster loaded</div><label style="display:block;margin:8px 0">Operation<select data-r-op style="display:block;width:100%;padding:7px"><option value="display">Display / Stretch</option><option value="slope">Slope (degrees)</option><option value="aspect">Aspect (degrees)</option><option value="hillshade">Hillshade</option><option value="calculator">Raster Calculator</option></select></label><label data-r-expr-wrap style="display:block;margin:8px 0">Expression<input data-r-expr value="B1" style="display:block;width:100%;padding:7px;box-sizing:border-box"><small>B1, B2, B3; + − × ÷ and parentheses.</small></label><label>Output name<input data-r-name value="Raster_Result" style="display:block;width:100%;padding:7px;box-sizing:border-box"></label><div style="display:flex;gap:6px;margin-top:8px"><button data-r-run>Run</button><button data-r-export>Export PNG</button></div><pre data-r-status style="white-space:pre-wrap;background:#e8eef2;padding:8px">Select a GeoTIFF.</pre>';
- document.body.appendChild(p);const say=t=>p.querySelector('[data-r-status]').textContent=t;
+ p.innerHTML='<header style="display:flex;justify-content:space-between"><strong>Raster Analysis · ArcMap</strong><button data-r-close>×</button></header><label>GeoTIFF / COG<input data-r-file type="file" accept=".tif,.tiff,image/tiff" style="display:block;width:100%;margin:8px 0"></label><div data-r-meta style="padding:7px;background:#e8eef2">No raster loaded</div><label style="display:block;margin:8px 0">Operation<select data-r-op style="display:block;width:100%;padding:7px"><option value="display">Display / Stretch</option><option value="slope">Slope (degrees)</option><option value="aspect">Aspect (degrees)</option><option value="hillshade">Hillshade</option><option value="calculator">Raster Calculator</option></select></label><label data-r-expr-wrap style="display:block;margin:8px 0">Expression<input data-r-expr value="B1" style="display:block;width:100%;padding:7px;box-sizing:border-box"><small>B1, B2, B3; + − × ÷ and parentheses.</small></label><label>Output name<input data-r-name value="Raster_Result" style="display:block;width:100%;padding:7px;box-sizing:border-box"></label><div style="display:flex;gap:6px;margin-top:8px"><button data-r-run>Run</button><button data-r-export>Export PNG</button></div><pre data-r-status style="white-space:pre-wrap;background:#e8eef2;padding:8px">Select a GeoTIFF.</pre><section style="margin-top:12px;border-top:1px solid #cbd5dc;padding-top:10px"><strong>GeoLibre Toolbox</strong><div style="display:flex;gap:6px;flex-wrap:wrap;margin:7px 0"><button type="button" data-r-gp-load>Load GeoLibre Tools</button><select data-r-gp-tool style="min-width:150px;flex:1"><option value="">Load tools first</option></select></div><input data-r-gp-args placeholder="Arguments: --parameter=value" style="width:100%;padding:7px;box-sizing:border-box"><button type="button" data-r-gp-run style="margin-top:7px">Run GeoLibre Tool</button><pre data-r-gp-status style="white-space:pre-wrap;background:#e8eef2;padding:8px">GeoLibre runner loads only after you request it.</pre><div data-r-gp-files></div></section>';
+ document.body.appendChild(p);if(window.SabzPluginManager)SabzPluginManager.attach(p);const say=t=>p.querySelector('[data-r-status]').textContent=t;
+ const tiffButton=document.createElement("button");tiffButton.type="button";tiffButton.textContent="Export GeoTIFF";tiffButton.style.cssText="margin:6px 0;padding:7px 10px";
+ tiffButton.onclick=async()=>{try{
+  const r=sabzRasterState;if(!r||!r.output)throw Error("Run a raster operation first.");
+  const out=r.output;if(!out||!out.width||!out.height)throw Error("No processed RustGIS raster is available.");
+  const meta={...r.sourceMetadata,width:out.width,height:out.height,bandCount:1,geoTransform:out.geoTransform,extent:out.extent,noData:out.noData};
+  const blob=await SabzRasterRuntime.writeFloat32(r.output.values,meta);
+  const check=await SabzRasterRuntime.verify(blob,meta);if(!check.valid)throw Error("GeoTIFF validation failed: "+JSON.stringify(check.checks));
+  const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=(p.querySelector("[data-r-name]").value||"Raster_Result")+".tif";a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
+  say("GeoTIFF exported; dimensions, CRS, extent and band count verified.");
+ }catch(err){say("GeoTIFF export failed: "+err.message);}};
+ p.querySelector("[data-r-export]").insertAdjacentElement("afterend",tiffButton);
+
+ p.querySelector('[data-r-gp-load]').onclick=async()=>{const note=p.querySelector('[data-r-gp-status]');try{
+  note.textContent="Downloading the pinned GeoLibre WASI runner and tool manifests…";
+  const list=await SabzGeoLibreBridge.manifests(),select=p.querySelector('[data-r-gp-tool]');select.replaceChildren();
+  list.forEach(item=>{const option=document.createElement("option");option.value=item.id;option.textContent=(item.name||item.id)+" — "+item.id;select.appendChild(option);});
+  note.textContent=list.length+" GeoLibre tools loaded (runner v"+SabzGeoLibreBridge.version+").";
+ }catch(error){note.textContent="GeoLibre load failed: "+(error.message||error);}};
+ p.querySelector('[data-r-gp-run]').onclick=async()=>{const note=p.querySelector('[data-r-gp-status]'),filesBox=p.querySelector('[data-r-gp-files]');try{
+  if(!sabzRasterState||!sabzRasterState.sourceBlob)throw Error("Load a source GeoTIFF first.");
+  const tool=p.querySelector('[data-r-gp-tool]').value;if(!tool)throw Error("Load and select a GeoLibre tool first.");
+  const raw=p.querySelector('[data-r-gp-args]').value.trim(),args=raw?(raw.match(/(?:[^\s"]+|"[^"]*")+/g)||[]).map(v=>v.replace(/^"|"$/g,"")):[];
+  note.textContent="Running "+tool+" in the GeoLibre WASI runner…";filesBox.replaceChildren();
+  const bytes=new Uint8Array(await sabzRasterState.sourceBlob.arrayBuffer());
+  const result=await SabzGeoLibreBridge.run(tool,args,[{name:"input.tif",bytes}]);
+  note.textContent=(result.exitCode===0?"Completed":"Tool returned exit code "+result.exitCode)+"\n"+result.stdout.join("\n");
+  if(result.exitCode!==0)throw Error("GeoLibre tool did not complete successfully; output files were not imported.");
+  for(const file of result.files){
+    const imported=await addGeoLibreOutputToWebGIS(file);
+    const linkBlob=imported.blob||new Blob([file.bytes],{type:"application/octet-stream"}),url=URL.createObjectURL(linkBlob),a=document.createElement("a");
+    a.href=url;a.download=file.name;a.textContent=imported.type==="download"?"Download "+file.name:"Added to WebGIS layers: "+file.name;a.style.display="block";a.style.margin="5px 0";filesBox.appendChild(a);
+  }
+  if(result.exitCode!==0)throw Error("GeoLibre tool did not complete successfully.");
+  if(!result.files.length)note.textContent+="\\nNo output files were returned.";
+ }catch(error){note.textContent="GeoLibre run failed: "+(error.message||error);}};
  p.querySelector('[data-r-close]').onclick=()=>p.hidden=true;
  p.querySelector('[data-r-op]').onchange=()=>p.querySelector('[data-r-expr-wrap]').hidden=p.querySelector('[data-r-op]').value!=="calculator";
  p.querySelector('[data-r-file]').onchange=async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;try{
   if(typeof GeoTIFF==="undefined")throw Error("GeoTIFF reader unavailable.");
-  say("Reading raster…");const tif=await GeoTIFF.fromArrayBuffer(await file.arrayBuffer()),im=await tif.getImage(),w=im.getWidth(),h=im.getHeight();
+  say("Reading TIFF image…");if(!window.SabzRasterRuntime)throw Error("Raster runtime is not loaded.");const rasterData=await SabzRasterRuntime.read(file),w=rasterData.metadata.width,h=rasterData.metadata.height,m=rasterData.metadata;
   if(w*h>50000000)throw Error("Raster exceeds 50 million pixels; clip or build an overview first.");
-  const bands=(await im.readRasters({interleave:false})).map(a=>Float32Array.from(a)),keys=im.getGeoKeys?im.getGeoKeys():{},epsg=Number(keys.ProjectedCSTypeGeoKey||keys.GeographicTypeGeoKey||4326),rawNoData=im.getGDALNoData?im.getGDALNoData():null,noData=rawNoData===null||rawNoData===undefined?null:Number(rawNoData),bb=im.getBoundingBox();
-  if(!bb||bb.length!==4||!bb.every(Number.isFinite))throw Error("No valid GeoTIFF georeferencing found.");
-  let crs=epsg===4326?"EPSG:4326":epsg===3857?"EPSG:3857":epsg>=32601&&epsg<=32660?"+proj=utm +zone="+(epsg-32600)+" +datum=WGS84 +units=m +no_defs":epsg>=32701&&epsg<=32760?"+proj=utm +zone="+(epsg-32700)+" +south +datum=WGS84 +units=m +no_defs":null;
-  if(!crs)throw Error("EPSG:"+epsg+" not supported in browser. Reproject to EPSG:4326 or UTM WGS84.");
-  const ll=xy=>epsg===4326?xy:epsg===3857?[xy[0]/6378137*180/Math.PI,Math.atan(Math.sinh(xy[1]/6378137))*180/Math.PI]:proj4(crs,"EPSG:4326",xy);
-  const a=ll([bb[0],bb[1]]),b=ll([bb[2],bb[3]]),bounds=[[Math.min(a[1],b[1]),Math.min(a[0],b[0])],[Math.max(a[1],b[1]),Math.max(a[0],b[0])]];
-  const factor=Math.max(1,Math.ceil(Math.max(w,h)/1400)),ow=Math.ceil(w/factor),oh=Math.ceil(h/factor),scale=im.getFileDirectory().ModelPixelScale||[],canvas=document.createElement("canvas");canvas.width=ow;canvas.height=oh;
-  sabzRasterState={fileName:file.name,w,h,bands,epsg,noData:Number.isFinite(noData)?noData:null,bounds,factor,ow,oh,cellX:Number(scale[0])||Math.abs(bb[2]-bb[0])/w,cellY:Number(scale[1])||Math.abs(bb[3]-bb[1])/h,canvas,layer:null};
-  p.querySelector('[data-r-meta]').textContent=w+" × "+h+" px · "+bands.length+" band(s) · EPSG:"+epsg+" · "+file.name;say("Loaded. Choose operation and Run.");p.querySelector('[data-r-op]').dispatchEvent(new Event("change"));renderSabzRaster("display");
+  const bands=rasterData.bands.map(a=>Float32Array.from(a)),epsg=m.crs.epsg,noData=m.noData,canMap=!!m.georeferenced&&Number.isInteger(epsg)&&epsg>0;
+  const factor=Math.max(1,Math.ceil(Math.max(w,h)/1400)),ow=Math.ceil(w/factor),oh=Math.ceil(h/factor),canvas=document.createElement("canvas");canvas.width=ow;canvas.height=oh;
+  let bounds=null,cellX=1,cellY=1;
+  if(canMap){
+   const bb=[m.extent.xmin,m.extent.ymin,m.extent.xmax,m.extent.ymax];
+   let crs=epsg===4326?"EPSG:4326":epsg===3857?"EPSG:3857":epsg>=32601&&epsg<=32660?"+proj=utm +zone="+(epsg-32600)+" +datum=WGS84 +units=m +no_defs":epsg>=32701&&epsg<=32760?"+proj=utm +zone="+(epsg-32700)+" +south +datum=WGS84 +units=m +no_defs":null;
+   if(crs){const ll=xy=>epsg===4326?xy:epsg===3857?[xy[0]/6378137*180/Math.PI,Math.atan(Math.sinh(xy[1]/6378137))*180/Math.PI]:proj4(crs,"EPSG:4326",xy);
+    const a=ll([bb[0],bb[1]]),b=ll([bb[2],bb[3]]);bounds=[[Math.min(a[1],b[1]),Math.min(a[0],b[0])],[Math.max(a[1],b[1]),Math.max(a[0],b[0])]];
+    cellX=m.pixelScale[0]||Math.abs(bb[2]-bb[0])/w;cellY=m.pixelScale[1]||Math.abs(bb[3]-bb[1])/h;
+   }else canMap=false;
+  }
+  sabzRasterState={fileName:file.name,w,h,bands,epsg:canMap?epsg:null,noData:Number.isFinite(noData)?noData:null,bounds,factor,ow,oh,cellX,cellY,canvas,layer:null,sourceBlob:rasterData.blob,sourceMetadata:m,assetId:null,georeferenced:canMap};
+  const opSelect=p.querySelector('[data-r-op]');[...opSelect.options].forEach(option=>{option.disabled=option.value!=="display"&&!canMap;});opSelect.value="display";p.querySelector('[data-r-expr-wrap]').hidden=true;
+  const exportButton=p.querySelector('[data-r-export]');const tifExport=exportButton.nextElementSibling;if(tifExport&&tifExport.textContent==="Export GeoTIFF")tifExport.disabled=!canMap;
+  p.querySelector('[data-r-meta]').textContent=w+" × "+h+" px · "+bands.length+" band(s) · "+(canMap?"EPSG:"+epsg:"No map CRS · image preview only")+" · "+file.name;
+  if(canMap){const rasterProjectId=currentProjectId||projectId();currentProjectId=rasterProjectId;sabzRasterState.assetId="raster-"+Date.now().toString(36);await SabzRasterRuntime.saveAsset(rasterProjectId,sabzRasterState.assetId,rasterData.blob,m);
+   sabzRasterAssetRefs=sabzRasterAssetRefs.filter(ref=>ref.assetId!==sabzRasterState.assetId);sabzRasterAssetRefs.push({assetId:sabzRasterState.assetId,fileName:file.name,metadata:m});
+   say("GeoTIFF loaded and georeferenced. Choose an operation and Run.");
+  }else say("TIFF loaded for image preview. Assign a valid CRS/georeferencing before spatial analysis or map placement.");
+  renderSabzRaster("display");
  }catch(err){say("Load failed: "+err.message);}};
- p.querySelector('[data-r-run]').onclick=()=>{try{if(!sabzRasterState)throw Error("Load a GeoTIFF first.");renderSabzRaster(p.querySelector('[data-r-op]').value);say("Completed: "+p.querySelector('[data-r-name]').value);}catch(err){say("Processing failed: "+err.message);}};
+ p.querySelector('[data-r-run]').onclick=async()=>{try{
+  if(!sabzRasterState)throw Error("Load a GeoTIFF first.");
+  const op=p.querySelector('[data-r-op]').value;
+  if(op==="display"){renderSabzRaster("display");say("Display stretch preview only; no analysis was run.");return;}
+  if(!window.SabzRustRasterBridge)throw Error("RustGIS bridge is not loaded.");
+  say("Running full-resolution "+op+" with RustGIS/WASM…");
+  const result=await SabzRustRasterBridge.processRaster(op,sabzRasterState,{
+    expression:p.querySelector("[data-r-expr]").value||"B1",
+    azimuth:315,altitude:45,zFactor:1
+  });
+  const outputName=(p.querySelector('[data-r-name]').value||"Raster_Result")+".tif";
+  const outputMeta={...sabzRasterState.sourceMetadata,width:result.width,height:result.height,bandCount:1,geoTransform:result.geoTransform,extent:result.extent,noData:result.noData};
+  const outputBlob=await SabzRasterRuntime.writeFloat32(result.values,outputMeta);
+  const outputProjectId=currentProjectId||projectId();currentProjectId=outputProjectId;
+  const outputAssetId="raster-output-"+Date.now().toString(36);
+  await SabzRasterRuntime.saveAsset(outputProjectId,outputAssetId,outputBlob,outputMeta);
+  result.assetId=outputAssetId;result.fileName=outputName;
+  sabzRasterAssetRefs=sabzRasterAssetRefs.filter(ref=>ref.assetId!==outputAssetId);
+  sabzRasterAssetRefs.push({assetId:outputAssetId,fileName:outputName,metadata:outputMeta});
+  sabzRasterState.output=result;
+  renderRustRasterPreview(sabzRasterState,result);
+  say("RustGIS/WASM completed and added as a saved raster layer: "+result.width+" × "+result.height+" pixels.");
+ }catch(err){say("RustGIS processing failed: "+(err&&err.message||err));}};
  p.querySelector('[data-r-export]').onclick=()=>{if(!sabzRasterState?.output){say("Run an operation first.");return;}sabzRasterState.canvas.toBlob(blob=>{if(!blob)return;const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=(p.querySelector('[data-r-name]').value||"raster-result")+".png";a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);});};
 }
 function rasterExpr(expr,values){
@@ -9647,6 +9861,27 @@ function rasterExpr(expr,values){
  const product=()=>{let v=atom();while(t[i]==="*"||t[i]==="/"){let op=t[i++],b=atom();v=op==="*"?v*b:b===0?NaN:v/b;}return v;};
  const sum=()=>{let v=product();while(t[i]==="+"||t[i]==="-"){let op=t[i++],b=product();v=op==="+"?v+b:v-b;}return v;};
  let v=sum();if(i!==t.length)throw Error("Unexpected token");return v;
+}
+function renderRustRasterPreview(r,out){
+ const {ow,oh,factor,canvas,bounds}=r,ctx=canvas.getContext("2d"),img=ctx.createImageData(ow,oh),sample=new Float32Array(ow*oh);
+ let lo=Infinity,hi=-Infinity;
+ for(let y=0;y<oh;y++)for(let x=0;x<ow;x++){
+  const v=out.values[Math.min(out.height-1,y*factor)*out.width+Math.min(out.width-1,x*factor)];
+  sample[y*ow+x]=v;
+  if(Number.isFinite(v)&&v!==out.noData){lo=Math.min(lo,v);hi=Math.max(hi,v);}
+ }
+ if(!Number.isFinite(lo)||!Number.isFinite(hi))throw Error("RustGIS output contains no valid pixels.");
+ const span=Math.max(1e-12,hi-lo);
+ for(let k=0;k<sample.length;k++){
+  const v=sample[k],p=k*4;
+  if(!Number.isFinite(v)||v===out.noData){img.data[p+3]=0;continue;}
+  const c=Math.max(0,Math.min(255,Math.round((v-lo)/span*255)));
+  img.data[p]=img.data[p+1]=img.data[p+2]=c;img.data[p+3]=255;
+ }
+ ctx.putImageData(img,0,0);
+ const layer=L.imageOverlay(canvas.toDataURL("image/png"),L.latLngBounds(bounds[0],bounds[1]),{opacity:.9,interactive:false});
+ addNamedLayer((document.querySelector("#sabzRasterWorkspace [data-r-name]")?.value||"Raster_Result")+" · "+out.engine,layer,true);
+ r.outputLayer=layer;
 }
 function renderSabzRaster(op){
  const r=sabzRasterState;if(!r)throw Error("No raster");const {w,h,bands,factor,ow,oh,canvas}=r,ctx=canvas.getContext("2d"),img=ctx.createImageData(ow,oh),values=new Float32Array(ow*oh);
@@ -9661,7 +9896,8 @@ function renderSabzRaster(op){
   if(op==="display"&&bands.length>=3){const x=k%ow,y=Math.floor(k/ow);rr=get(0,x,y);gg=get(1,x,y);bb=get(2,x,y);const mx=Math.max(rr,gg,bb,255);if(mx>255){rr=rr/mx*255;gg=gg/mx*255;bb=bb/mx*255;}}
   else{rr=gg=bb=op==="aspect"?Math.round(v/360*255):Math.max(0,Math.min(255,Math.round((v-lo)/span*255)));}
   img.data[p]=rr;img.data[p+1]=gg;img.data[p+2]=bb;img.data[p+3]=255;}
- ctx.putImageData(img,0,0);r.output={op,values,lo,hi};if(r.layer){try{map.removeLayer(r.layer);layerControl.removeLayer(r.layer);}catch(_){}const previous=namedLayers.find(item=>item.layer===r.layer);if(previous)namedLayers.splice(namedLayers.indexOf(previous),1);}
+ ctx.putImageData(img,0,0);r.output={op,values,lo,hi};if(r.layer){try{map.removeLayer(r.layer);layerControl.removeLayer(r.layer);}catch(_){}const previous=namedLayers.find(item=>item.layer===r.layer);if(previous)namedLayers.splice(namedLayers.indexOf(previous),1);r.layer=null;}
+ if(!r.georeferenced||!r.bounds){return;}
  const layer=L.imageOverlay(canvas.toDataURL("image/png"),L.latLngBounds(r.bounds[0],r.bounds[1]),{opacity:.88,interactive:false});addNamedLayer((document.querySelector("#sabzRasterWorkspace [data-r-name]")?.value||"Raster_Result")+" · "+op,layer,true);r.layer=layer;
 }
 
@@ -10337,8 +10573,12 @@ const arcMapDialog=(()=>{
    }catch(error){status("Unable to open shared map: "+(error.message||"link unavailable"));}
  }
  if(query.has("share")){if(shareButton)shareButton.hidden=true;loadSharedProject();}
+
+  // Allow the post-load ModelBuilder enhancement to wrap the existing renderer.
+  window.__sabzInstallModelBuilderRenderer = factory => { renderModelBuilderGraph = factory(renderModelBuilderGraph); };
 })();
 </script>
+<script src="webgis-rustgis-enhancements.js"></script>
 <style>
 .shared-project-readonly .leaflet-draw,.shared-project-readonly #editorToolbar,.shared-project-readonly #editToolbar,.shared-project-readonly #attributeTablePanel,
 .shared-project-readonly #attributeEditor,.shared-project-readonly #arcToolbox,.shared-project-readonly #editorToolbarToggleBtn{display:none!important}

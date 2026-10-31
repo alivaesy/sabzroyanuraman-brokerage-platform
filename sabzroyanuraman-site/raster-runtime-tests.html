@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sabz WebGIS Raster Runtime Tests</title></head>
+<body style="font:14px Arial,sans-serif;max-width:900px;margin:32px auto;padding:0 16px">
+<h1>Raster Runtime — browser smoke tests</h1>
+<p>Browser integration test: real RustGIS/WASM Raster Calculator, Slope, Aspect, Hillshade, GeoTIFF round-trip and IndexedDB persistence. Uses a synthetic 5×5 north-up GeoTIFF in EPSG:32638.</p>
+<button id="run">Run tests</button><pre id="out" style="white-space:pre-wrap;background:#f2f5f7;padding:14px"></pre>
+<script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js" crossorigin="anonymous"></script>
+<script src="./raster-runtime.js"></script>
+<script src="./rust-raster-bridge.js"></script>
+<script>
+document.getElementById("run").onclick=async()=>{
+ const out=document.getElementById("out");out.textContent="Running…";
+ const log=x=>out.textContent+="\n"+x;
+ try{
+  const metadata={width:4,height:3,bandCount:1,dataType:"Float32Array",noData:-9999,
+   crs:{epsg:32638,name:"EPSG:32638"},geoKeys:{ProjectedCSTypeGeoKey:32638},
+   geoTransform:[500000,10,0,3800000,0,-10],extent:{xmin:500000,ymin:3799970,xmax:500040,ymax:3800000},pixelScale:[10,10]};
+  const pixels=new Float32Array([1,2,3,4,5,6,7,8,9,10,11,-9999]);
+  const blob=await SabzRasterRuntime.writeFloat32(pixels,metadata);
+  const check=await SabzRasterRuntime.verify(blob,metadata);
+  if(!check.valid)throw new Error("GeoTIFF round-trip failed: "+JSON.stringify(check.checks));
+  log("PASS: GeoTIFF metadata round-trip "+JSON.stringify(check.checks));
+  const file=new File([blob],"runtime-test.tif",{type:"image/tiff"});
+  const read=await SabzRasterRuntime.read(file);
+  if(read.metadata.width!==4||read.metadata.height!==3||read.metadata.crs.epsg!==32638||read.bands[0][10]!==11||read.bands[0][11]!==-9999)throw new Error("Raster data/NoData read-back mismatch: "+JSON.stringify({width:read.metadata.width,height:read.metadata.height,epsg:read.metadata.crs.epsg,pixel10:read.bands[0][10],pixel11:read.bands[0][11],noData:read.metadata.noData,bandType:read.bands[0].constructor.name}));
+  log("PASS: raster pixels, NoData, dimensions and CRS read-back");
+  // Build a real baseline TIFF (not a mocked parser response): 2×2, 8-bit grayscale, no GeoKeys/CRS.
+  const makePlainTiff=()=>{
+   const entries=[[256,4,2],[257,4,2],[258,3,8],[259,3,1],[262,3,1],[273,4,146],[277,3,1],[278,4,2],[279,4,4],[284,3,1],[339,3,1]];
+   const buffer=new ArrayBuffer(150),view=new DataView(buffer),bytes=new Uint8Array(buffer);
+   bytes[0]=0x49;bytes[1]=0x49;view.setUint16(2,42,true);view.setUint32(4,8,true);view.setUint16(8,entries.length,true);
+   let at=10;
+   for(const [tag,type,value] of entries){view.setUint16(at,tag,true);view.setUint16(at+2,type,true);view.setUint32(at+4,1,true);if(type===3)view.setUint16(at+8,value,true);else view.setUint32(at+8,value,true);at+=12;}
+   view.setUint32(at,0,true);bytes.set([24,72,144,220],146);return buffer;
+  };
+  const actualPlain=await SabzRasterRuntime.read(new File([makePlainTiff()],"plain-no-crs.tif",{type:"image/tiff"}));
+  if(actualPlain.metadata.width!==2||actualPlain.metadata.height!==2||actualPlain.metadata.crs.epsg!==null||actualPlain.metadata.georeferenced!==false||actualPlain.bands[0].length!==4)
+   throw new Error("A real baseline TIFF without CRS failed preview-only loading: "+JSON.stringify(actualPlain.metadata));
+  log("PASS: real 2×2 baseline TIFF loads without CRS or GeoKeys");
+  // Plain TIFFs without georeferencing must still load for image preview.
+  // Null and throwing GeoKey readers are both normal for non-GeoTIFF imagery.
+  const originalFromArrayBuffer=GeoTIFF.fromArrayBuffer;
+  for (const getGeoKeys of [()=>null,()=>{throw new TypeError("missing GeoKeyDirectory");}]) {
+   GeoTIFF.fromArrayBuffer=async()=>({getImage:async()=>({
+    fileDirectory:{GeoKeyDirectory:[1]},getGeoKeys,readRasters:async()=>[new Uint8Array([10,20,30,40])],
+    getWidth:()=>2,getHeight:()=>2,getGDALNoData:()=>null
+   })});
+   const plain=await SabzRasterRuntime.read(file);
+   if(plain.metadata.georeferenced!==false||plain.metadata.crs.epsg!==null||plain.metadata.extent!==null||plain.bands[0].length!==4)
+    throw new Error("Plain TIFF did not load as a non-georeferenced image.");
+  }
+  GeoTIFF.fromArrayBuffer=async()=>({getImage:async()=>({
+   fileDirectory:{},getGeoKeys:()=>{throw new Error("must not decode a missing GeoKeyDirectory");},
+   readRasters:async()=>[new Uint8Array([1,2,3,4])],getWidth:()=>2,getHeight:()=>2,getGDALNoData:()=>null
+  })});
+  const noKeys=await SabzRasterRuntime.read(file);
+  if(noKeys.metadata.georeferenced!==false||noKeys.metadata.crs.epsg!==null)throw new Error("TIFF without a GeoKeyDirectory was not accepted as preview-only.");
+  GeoTIFF.fromArrayBuffer=originalFromArrayBuffer;
+  log("PASS: plain TIFF loads without GeoKeys or georeferencing (preview-only mode)");
+  const planeMeta={width:5,height:5,bandCount:1,dataType:"Float32Array",noData:-9999,
+   crs:{epsg:32638,name:"EPSG:32638"},geoKeys:{ProjectedCSTypeGeoKey:32638},
+   geoTransform:[500000,10,0,3800000,0,-10],extent:{xmin:500000,ymin:3799950,xmax:500050,ymax:3800000},pixelScale:[10,10]};
+  const plane=new Float32Array(Array.from({length:25},(_,i)=>(i%5)*10));
+  plane[24]=-9999;
+  const source={sourceMetadata:planeMeta,bands:[plane]};
+  const operations=[
+   ["slope",{zFactor:1},v=>Math.abs(v[12]-45)<0.05],
+   ["aspect",{},v=>Number.isFinite(v[12])&&v[12]>=0&&v[12]<=360],
+   ["hillshade",{azimuth:315,altitude:45,zFactor:1},v=>Number.isFinite(v[12])&&v[12]>=0&&v[12]<=255],
+   ["calculator",{expression:"B1 * 2 + 1"},v=>v[12]===41&&v[24]===Math.fround(-3.4e38)]
+  ];
+  for(const [operation,options,assert] of operations){
+   const result=await SabzRustRasterBridge.processRaster(operation,source,options);
+   if(result.width!==5||result.height!==5||result.values.length!==25||!assert(result.values))throw new Error("RustGIS "+operation+" returned unexpected dimensions or pixel values.");
+   const outputMeta={...planeMeta,bandCount:1,noData:result.noData,geoTransform:result.geoTransform,extent:result.extent};
+   const outputBlob=await SabzRasterRuntime.writeFloat32(result.values,outputMeta);
+   const verified=await SabzRasterRuntime.verify(outputBlob,outputMeta);
+   if(!verified.valid)throw new Error("RustGIS "+operation+" GeoTIFF metadata round-trip failed: "+JSON.stringify(verified.checks));
+   const outputRead=await SabzRasterRuntime.read(new File([outputBlob],operation+".tif",{type:"image/tiff"}));
+   if(outputRead.metadata.width!==5||outputRead.metadata.crs.epsg!==32638||Math.abs(outputRead.bands[0][12]-result.values[12])>1e-5)throw new Error("RustGIS "+operation+" GeoTIFF pixel read-back failed.");
+   log("PASS: RustGIS/WASM "+operation+" + GeoTIFF output read-back");
+  }
+  const id="raster-runtime-test-"+Date.now(),asset="sample";
+  await SabzRasterRuntime.saveAsset(id,asset,blob,metadata);
+  const saved=await SabzRasterRuntime.loadAsset(id,asset);
+  if(!saved||saved.blob.size!==blob.size)throw new Error("IndexedDB binary asset persistence failed.");
+  log("PASS: binary raster asset persisted to IndexedDB ("+saved.blob.size+" bytes)");
+  await SabzRasterRuntime.removeProjectAssets(id);
+  log("PASS: test assets cleaned up");
+  log("ALL TESTS PASSED");
+ }catch(e){log("FAIL: "+(e.stack||e.message||e));}
+};
+</script>
+</body></html>

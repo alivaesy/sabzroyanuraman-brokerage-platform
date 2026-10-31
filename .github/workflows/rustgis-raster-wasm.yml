@@ -1,0 +1,65 @@
+name: RustGIS raster WASM adapter
+on:
+  push:
+    branches: [master]
+    paths:
+      - "rust-raster-wasm/**"
+      - "tests/**"
+      - "sabzroyanuraman-site/raster-runtime.js"
+      - "sabzroyanuraman-site/rust-raster-bridge.js"
+      - "sabzroyanuraman-site/rustgis-vector-wasm/**"
+      - "sabzroyanuraman-site/webgis-rustgis-vector-runtime.js"
+      - "sabzroyanuraman-site/wasm/rust-raster/**"
+      - "sabzroyanuraman-site/api/gis/raster-assets.php"
+      - ".github/workflows/rustgis-raster-wasm.yml"
+  pull_request:
+    paths:
+      - "rust-raster-wasm/**"
+      - "sabzroyanuraman-site/**"
+      - ".github/workflows/rustgis-raster-wasm.yml"
+  workflow_dispatch:
+jobs:
+  test-and-build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Install wasm-pack without cross-device rename
+        run: cargo install wasm-pack --locked
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+      - name: Lint raster storage API
+        run: php -l sabzroyanuraman-site/api/gis/raster-assets.php
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check browser bridge syntax
+        run: |
+          node --check sabzroyanuraman-site/rust-raster-bridge.js
+          node --check sabzroyanuraman-site/geolibre-wasi-bridge.js
+          node --check sabzroyanuraman-site/plugin-manager.js
+          node --check tests/raster-wasm-browser-smoke.cjs
+      - name: Test RustGIS adapter and plugin runtime
+        run: cargo test --manifest-path rust-raster-wasm/Cargo.toml
+      - name: Build browser WASM
+        run: wasm-pack build rust-raster-wasm --target web --out-dir ../sabzroyanuraman-site/wasm/rust-raster --out-name sabz_raster_wasm
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright@1.51.0
+          npx playwright install --with-deps chromium
+      - name: Run real RustGIS browser smoke tests
+        run: |
+          python3 -m http.server 4173 --directory sabzroyanuraman-site >/tmp/sabz-webgis-http.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/raster-runtime-tests.html >/dev/null; then break; fi
+            sleep 1
+          done
+          node tests/raster-wasm-browser-smoke.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sabz-rustgis-raster-wasm
+          path: sabzroyanuraman-site/wasm/rust-raster/
+          if-no-files-found: error

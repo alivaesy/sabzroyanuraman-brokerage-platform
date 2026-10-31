@@ -1,0 +1,17 @@
+[package]
+name = "sabz-raster-wasm"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+rustgis-data = { git = "https://github.com/opengeos/RustGIS", rev = "8b322b290448e468c8972df9b1f601d3a72f7d53" }
+rustgis-analysis = { git = "https://github.com/opengeos/RustGIS", rev = "8b322b290448e468c8972df9b1f601d3a72f7d53" }
+rustgis-plugins = { git = "https://github.com/opengeos/RustGIS", rev = "8b322b290448e468c8972df9b1f601d3a72f7d53" }
+serde_json = "1"
+wasm-bindgen = "0.2"
+js-sys = "0.3"

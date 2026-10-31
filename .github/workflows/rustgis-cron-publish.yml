@@ -2,6 +2,12 @@ name: RustGIS Cron Publish
 
 on:
   workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - "rust-raster-wasm/**"
+      - "sabzroyanuraman-site/rustgis-vector-wasm/**"
+      - ".github/workflows/rustgis-cron-publish.yml"
 
 permissions:
   contents: write
@@ -12,7 +18,7 @@ concurrency:
 
 jobs:
   build-and-publish:
-    if: github.ref == 'refs/heads/feat/rustgis-vector-geoprocessing-phase-3'
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/feat/webgis-rustgis-unified-package'
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
@@ -66,7 +72,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add sabzroyanuraman-site/wasm/rust-raster/ sabzroyanuraman-site/rustgis-vector-wasm-pkg/
+          git add -f sabzroyanuraman-site/wasm/rust-raster/ sabzroyanuraman-site/rustgis-vector-wasm-pkg/
           if git diff --cached --quiet; then
             echo "WASM packages are already up to date."
           else
