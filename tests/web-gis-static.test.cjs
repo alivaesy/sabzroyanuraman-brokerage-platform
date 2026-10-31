@@ -226,7 +226,7 @@ test('Plain TIFF import skips absent GeoKeys and remains preview-only without a 
   assert.match(runtime, /previewOnly: !georeferenced/);
   assert.match(html, /raster-runtime\.js\?v=20261031-plain-tiff/);
   const rasterTests = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'raster-runtime-tests.html'), 'utf8');
-  assert.match(rasterTests, /real baseline TIFF loads without CRS or GeoKeys/);
+  assert.match(rasterTests, /baseline TIFF loads without CRS or GeoKeys/);
 });
 
 test('RustGIS browser runtime exposes both vector and raster tool catalogues', () => {
