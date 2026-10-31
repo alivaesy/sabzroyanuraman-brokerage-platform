@@ -504,6 +504,6 @@ test('RustGIS Calculate Geometry update outputs are retained as vector features'
 test('RustGIS overlay tools enforce polygon-mask and dissolve geometry requirements', () => {
   assert.match(html, /RustGIS '\+op\+' requires a Polygon or MultiPolygon overlay layer/);
   assert.match(html, /RustGIS Union requires polygon input and overlay layers/);
-  assert.match(html, /overlay input must contain Polygon or MultiPolygon geometry for \+op/);
+  assert.match(html, /overlay input must contain Polygon or MultiPolygon geometry for "\+op/);
   assert.match(html, /Dissolve requires Polygon or MultiPolygon input/);
 });
