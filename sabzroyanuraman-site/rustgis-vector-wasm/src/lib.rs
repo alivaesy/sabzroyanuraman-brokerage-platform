@@ -488,6 +488,47 @@ mod tests {
     }
 
     #[test]
+    fn clip_intersect_and_erase_run_through_the_pinned_rustgis_engine() {
+        let input_geojson = r#"{
+            "type":"FeatureCollection",
+            "features":[
+                {"type":"Feature","id":1,"properties":{"parcel":"A"},"geometry":{"type":"Polygon","coordinates":[[[47.0,33.0],[47.02,33.0],[47.02,33.02],[47.0,33.02],[47.0,33.0]]]}}
+            ]
+        }"#;
+        let overlay_geojson = r#"{
+            "type":"FeatureCollection",
+            "features":[
+                {"type":"Feature","id":2,"properties":{"zone":"Z1"},"geometry":{"type":"Polygon","coordinates":[[[47.01,33.0],[47.03,33.0],[47.03,33.02],[47.01,33.02],[47.01,33.0]]]}}
+            ]
+        }"#;
+        let (input, _) = rustgis_data::io::read_geojson(input_geojson, "parcels")
+            .expect("input GeoJSON should be readable");
+        let (overlay, _) = rustgis_data::io::read_geojson(overlay_geojson, "zones")
+            .expect("overlay GeoJSON should be readable");
+        let mut inputs = LayerInputs::default();
+        inputs.datasets.insert("parcels".into(), input);
+        inputs.datasets.insert("zones".into(), overlay);
+
+        for (tool, params) in [
+            ("clip", json!({"input":"parcels","clip":"zones","output":"clip_result"})),
+            ("intersect", json!({"input":"parcels","overlay":"zones","output":"intersect_result"})),
+            ("erase", json!({"input":"parcels","erase":"zones","output":"erase_result"})),
+        ] {
+            let result = rustgis_analysis::run(tool, &inputs, &params)
+                .unwrap_or_else(|error| panic!("RustGIS {tool} should execute: {error}"));
+            let Output::Layer(output) = result.output else {
+                panic!("RustGIS {tool} should return a vector layer");
+            };
+            assert!(!output.features.is_empty(), "RustGIS {tool} should return non-empty geometry");
+            assert!(output.geometry_type != rustgis_data::GeometryType::None,
+                "RustGIS {tool} should preserve a geometry type");
+            let encoded = dataset_geojson(&output).expect("overlay output should serialize to GeoJSON");
+            assert_eq!(encoded.get("type").and_then(Value::as_str), Some("FeatureCollection"));
+            assert!(encoded.get("features").and_then(Value::as_array).is_some_and(|features| !features.is_empty()));
+        }
+    }
+
+    #[test]
     fn buffer_runs_through_the_pinned_rustgis_analysis_engine() {
         let geojson = r#"{
             "type":"FeatureCollection",
