@@ -292,23 +292,28 @@ test('Raster quota, replacement, download, and delete operations share project l
 
 test('Raster API validates TIFF IFD, GeoTIFF georeferencing, image blocks, and EPSG metadata', () => {
   const apiPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'api', 'gis', 'raster-assets.php');
+  const validatorPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'api', 'gis', 'raster-geotiff-validator.php');
   const api = fs.readFileSync(apiPath, 'utf8');
-  assert.match(api, /function raster_validate_geotiff\(/);
-  assert.match(api, /invalid_geotiff_ifd/);
-  assert.match(api, /geotiff_image_block_out_of_bounds/);
-  assert.match(api, /\$hasTransform/);
-  assert.match(api, /\$hasTieScale/);
-  assert.match(api, /\$tiffEpsg!==\(int\)\$metadata\['crs'\]\['epsg'\]/);
+  const validator = fs.readFileSync(validatorPath, 'utf8');
+  assert.match(validator, /function raster_validate_geotiff\(/);
+  assert.match(validator, /invalid_geotiff_ifd/);
+  assert.match(validator, /geotiff_image_block_out_of_bounds/);
+  assert.match(validator, /\$hasTransform/);
+  assert.match(validator, /\$hasTieScale/);
+  assert.match(validator, /\$tiffEpsg===\(int\)\$metadata\['crs'\]\['epsg'\]/);
   assert.match(api, /raster_validate_geotiff\(\$tmp,\$metadata\)/);
-  assert.match(api, /unsupported_or_invalid_tiff_variant/);
+  assert.match(validator, /unsupported_or_invalid_tiff_variant/);
 });
 
 test('Raster replacement commits through an atomic metadata pointer to an immutable TIFF', () => {
   const apiPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'api', 'gis', 'raster-assets.php');
+  const commitPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'api', 'gis', 'raster-asset-commit.php');
   const api = fs.readFileSync(apiPath, 'utf8');
-  assert.match(api, /\$storedName=\$asset\.'\.'\.\$hash\.'\.tif'/);
-  assert.match(api, /The metadata pointer is the commit record/);
-  assert.match(api, /if\(\$ok\)\$ok=rename\(\$metaTmp,\$metaFile\)/);
+  const commit = fs.readFileSync(commitPath, 'utf8');
+  assert.match(commit, /\$storedName = \$assetId \. '\.' \. \$hash \. '\.tif'/);
+  assert.match(commit, /single commit point/);
+  assert.match(commit, /if \(!\$rename\(\$metadataTemp, \$metadataFile\)\)/);
+  assert.match(api, /raster_commit_content_addressed\(/);
   assert.match(api, /\$meta\['storage_file'\]/);
   assert.match(api, /invalid_raster_storage_reference/);
 });
