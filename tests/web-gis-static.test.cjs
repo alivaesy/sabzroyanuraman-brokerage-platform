@@ -413,7 +413,7 @@ test('Whole-layer Buffer, Clip, Intersect and Erase use RustGIS without Turf fal
   assert.ok(start >= 0 && end > start, 'whole-layer processing dispatcher was not found');
   const body = html.slice(start, end);
   const rustPath = body.slice(0, body.indexOf('let output=[],name=op;'));
-  assert.match(rustPath, /\['buffer','clip','intersection','erase'\]\.includes\(op\)/);
+  assert.match(rustPath, /\['buffer','clip','intersection','erase','union','identity','dissolve','convexHull'\]\.includes\(op\)/);
   assert.match(rustPath, /runRustGisVectorTool\(op==='intersection'\?'intersect':op/);
   assert.doesNotMatch(rustPath, /turf\.buffer|turf\.intersect|buildPartitionedErase/);
 });
@@ -445,4 +445,13 @@ test('RustGIS plugin and raster bridges use separate global namespaces', () => {
   assert.match(plugin, /root\.SabzRustGISPluginBridge/);
   assert.doesNotMatch(plugin, /SabzRustRasterBridge/);
   assert.match(raster, /root\.SabzRustRasterBridge\s*=\s*Object\.freeze/);
+});
+
+test('RustGIS native adapter has integration coverage for Clip, Intersect and Erase', () => {
+  const rustPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'rustgis-vector-wasm', 'src', 'lib.rs');
+  const rust = fs.readFileSync(rustPath, 'utf8');
+  assert.match(rust, /fn clip_intersect_and_erase_run_through_the_pinned_rustgis_engine/);
+  for (const tool of ['clip', 'intersect', 'erase']) {
+    assert.match(rust, new RegExp('\\("' + tool + '", json!'));
+  }
 });
