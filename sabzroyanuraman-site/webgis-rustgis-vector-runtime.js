@@ -201,7 +201,7 @@
       };
       // Official RustGIS plugin ABI: ZIP package parsing, manifest validation, wasmi fuel/memory
       // limits and command execution all live in the pinned RustGIS plugins crate.
-      window.SabzRustRasterBridge = Object.freeze({
+      window.SabzRustGISPluginBridge = Object.freeze({
         load: async () => { await loadEngine(); return true; },
         inspectPluginPackage: async bytes => JSON.parse(engine.inspect_plugin_package(bytes)),
         installPluginPackage: async bytes => JSON.parse(engine.install_plugin_package(bytes)),
@@ -223,7 +223,7 @@
 
   // Publish the bridge before Plugin Manager attaches. Each operation lazy-loads
   // the WASM module, so script ordering cannot disable the manager prematurely.
-  window.SabzRustRasterBridge = Object.freeze({
+  window.SabzRustGISPluginBridge = Object.freeze({
     load: async () => { await loadEngine(); return true; },
     inspectPluginPackage: async bytes => { await loadEngine(); return JSON.parse(engine.inspect_plugin_package(bytes)); },
     installPluginPackage: async bytes => { await loadEngine(); return JSON.parse(engine.install_plugin_package(bytes)); },
