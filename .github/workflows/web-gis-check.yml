@@ -13,6 +13,7 @@ on:
   pull_request:
     paths:
       - "sabzroyanuraman-site/web-gis.html"
+      - "sabzroyanuraman-site/webgis-rustgis-enhancements.js"
       - "tests/web-gis-static.test.cjs"
       - ".github/workflows/web-gis-check.yml"
   workflow_dispatch:
