@@ -57,7 +57,16 @@
     const tiff = await root.GeoTIFF.fromArrayBuffer(bytes);
     const image = await tiff.getImage();
     const directory = image.fileDirectory || {};
-    const keys = typeof image.getGeoKeys === "function" ? image.getGeoKeys() : {};
+    // Plain TIFFs may not contain a GeoKeyDirectory. geotiff.js can throw
+    // while reading that absent directory; normalize it so validation below
+    // reports the missing CRS instead of leaking a null-property TypeError.
+    let keys = {};
+    if (typeof image.getGeoKeys === "function") {
+      try {
+        const parsedKeys = image.getGeoKeys();
+        if (parsedKeys && typeof parsedKeys === "object") keys = parsedKeys;
+      } catch (_) { keys = {}; }
+    }
     const rasters = await image.readRasters({ interleave: false });
     const bands = Array.from(rasters, band => band);
     const width = image.getWidth(), height = image.getHeight();
