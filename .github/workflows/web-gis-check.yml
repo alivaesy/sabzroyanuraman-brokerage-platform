@@ -1,6 +1,13 @@
 name: Web GIS checks
 
 on:
+  push:
+    branches:
+      - "feat/rustgis-vector-geoprocessing-phase-3"
+    paths:
+      - "sabzroyanuraman-site/web-gis.html"
+      - "tests/web-gis-static.test.cjs"
+      - ".github/workflows/web-gis-check.yml"
   pull_request:
     paths:
       - "sabzroyanuraman-site/web-gis.html"
