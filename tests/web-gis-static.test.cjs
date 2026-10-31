@@ -15,9 +15,13 @@ test('all inline JavaScript blocks parse', () => {
       && !/type\s*=\s*["']application\/(?:json|ld\+json)["']/i.test(attrs)
       && body.trim());
   assert.ok(scripts.length > 0, 'expected inline scripts in web-gis.html');
-  for (const [, attrs, body] of scripts) {
+  for (const [index, [, attrs, body]] of scripts.entries()) {
     const label = attrs.match(/\bid\s*=\s*["']([^"']+)["']/i)?.[1] || 'inline script';
-    assert.doesNotThrow(() => new vm.Script(body, { filename: label }), label);
+    try {
+      new vm.Script(body, { filename: label + ' #' + (index + 1) });
+    } catch (error) {
+      assert.fail(label + ' #' + (index + 1) + ': ' + error.message + '\\n' + error.stack);
+    }
   }
 });
 
