@@ -429,7 +429,7 @@ mod tests {
         let wasm = wat::parse_str(r#"(module
             (memory (export "memory") 1)
             (data (i32.const 64) "{\"ok\":null}")
-            (func (export "rustgis_alloc") (param i32) (result i32) (i32.const 0))
+            (func (export "rustgis_alloc") (param i32) (result i32) (i32.const 1024))
             (func (export "rustgis_call") (param i32 i32) (result i64)
                 ;; Packed response: pointer 64 in the high word, JSON byte length 11 in the low word.
                 (i64.const 274877906955))
