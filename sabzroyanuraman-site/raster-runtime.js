@@ -89,7 +89,13 @@
 
   function writerMetadata(meta) {
     const gt = meta.geoTransform;
-    const out = { width: meta.width, height: meta.height, GDAL_NODATA: meta.noData == null ? undefined : String(meta.noData) };
+    const out = {
+      width: meta.width,
+      height: meta.height,
+      BitsPerSample: [32],
+      SampleFormat: [3],
+      GDAL_NODATA: meta.noData == null ? undefined : String(meta.noData)
+    };
     if (meta.geoKeys && meta.geoKeys.ProjectedCSTypeGeoKey) out.ProjectedCSTypeGeoKey = Number(meta.geoKeys.ProjectedCSTypeGeoKey);
     else if (meta.geoKeys && meta.geoKeys.GeographicTypeGeoKey) out.GeographicTypeGeoKey = Number(meta.geoKeys.GeographicTypeGeoKey);
     if (Math.abs(gt[2]) < 1e-12 && Math.abs(gt[4]) < 1e-12) {
