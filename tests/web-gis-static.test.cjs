@@ -234,3 +234,9 @@ test('RustGIS parameter UI filters geometry-specific layers and offers schema-aw
   assert.match(runtime, /\["field","numeric-field","coordinate-field"\]/);
   assert.match(runtime, /Number\.isFinite\(Number\(value\)\)/);
 });
+
+test('RustGIS selection replaces stale selections and synchronizes the active layer and table', () => {
+  assert.match(html, /applyRustGISSelection:\(layerName,rows\)=>\{[\s\S]*?clearMultiSelection\(\);selectedOverlay=owner\.layer/);
+  assert.match(html, /selectedLayer=first\?\.layer\|\|null;synchronizeFeatureSelection/);
+  assert.match(html, /syncVisibleAttributeTableSelection\(\)/);
+});
