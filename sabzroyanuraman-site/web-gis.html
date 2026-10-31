@@ -3637,6 +3637,8 @@ async function runWholeLayerGisOperation(op){
     const overlay=others[Number(overlayChoice)];if(!overlay)return true;
     const overlayFeatures=vectorFeatures(overlay.layer).map(x=>x.feature).filter(f=>f&&f.geometry);
     if(!overlayFeatures.length||overlayFeatures.some(f=>!valid(f))){status('Overlay layer is empty or contains invalid geometry.');return true;}
+    if(['clip','intersection','erase','union','identity'].includes(op)&&overlayFeatures.some(f=>!['Polygon','MultiPolygon'].includes(f.geometry.type))){status('RustGIS '+op+' requires a Polygon or MultiPolygon overlay layer.');return true;}
+    if(op==='union'&&records.some(f=>!['Polygon','MultiPolygon'].includes(f.geometry.type))){status('RustGIS Union requires polygon input and overlay layers.');return true;}
     const overlayKey=op==='clip'?'clip':op==='erase'?'erase':'overlay';
     layerInputs[overlay.name]=overlayFeatures;params[overlayKey]=overlay.name;
     outputName=(op==='clip'?'Clip ':op==='erase'?'Erase ':op==='union'?'Union ':op==='identity'?'Identity ':'Intersect ')+input.name+' by '+overlay.name;
@@ -9492,7 +9494,12 @@ function validateModelBuilder(modal,show=true){
     if(geometryTypes.has("LineString")||geometryTypes.has("MultiLineString"))fields.add("length_km");
     if(geometryTypes.has("Point")||geometryTypes.has("MultiPoint")){fields.add("point_x");fields.add("point_y");}
    }
-   if(overlayNodeValue&&["clip","intersection","erase","union","identity"].includes(op)&&![...(nodeGeometryTypes.get(overlayNodeValue)||[])].every(t=>t==="Polygon"||t==="MultiPolygon"))issues.push("Step "+(i+1)+": secondary node must produce polygon geometry for "+op+".");
+   if(["clip","intersection","erase","union","identity"].includes(op)){
+    const secondaryTypes=overlayNodeValue?(nodeGeometryTypes.get(overlayNodeValue)||[]):new Set(modelBuilderLayerFeatures(Number(overlayValue)).map(f=>f.geometry?.type).filter(Boolean));
+    if(![...secondaryTypes].length||![...secondaryTypes].every(t=>t==="Polygon"||t==="MultiPolygon"))issues.push("Step "+(i+1)+": overlay input must contain Polygon or MultiPolygon geometry for "+op+".");
+    if(op==="union"&&![...geometryTypes].every(t=>t==="Polygon"||t==="MultiPolygon"))issues.push("Step "+(i+1)+": Union input must contain only Polygon or MultiPolygon geometry.");
+   }
+   if(["dissolve","dissolveField"].includes(op)&&![...geometryTypes].every(t=>t==="Polygon"||t==="MultiPolygon"))issues.push("Step "+(i+1)+": Dissolve requires Polygon or MultiPolygon input.");
    if(op==="selectByLocation"){
     const rel=row.querySelector("[data-mb-relation]").value,fn={intersects:"booleanIntersects",within:"booleanWithin",contains:"booleanContains",touches:"booleanTouches",overlaps:"booleanOverlap",crosses:"booleanCrosses"}[rel];
     if(!["intersects","within","contains","touches","overlaps","crosses","disjoint"].includes(rel))issues.push("Step "+(i+1)+": choose a valid spatial relationship.");
