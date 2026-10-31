@@ -177,7 +177,7 @@ test('GIS project API scopes reads and feature retrieval to the selected organiz
 
 test('ArcMap import entry point accepts MXD/MXT/MPK and extracts supported MPK data', () => {
   assert.match(html, /data-action=["']importArcMap["']/);
-  assert.match(html, /id=["']mxdInput["'][^>]*accept=["']\.mxd,\.mpk,\.mxt["']/);
+  assert.match(html, /id=["']mxdInput["'][^>]*accept=["']\.mxd,\.mpk,\.mxt,\.zip["']/);
   assert.match(html, /async function importArcMapDocument\(file\)/);
   assert.match(html, /api\/gis\/import-mxd\.php/);
   assert.match(html, /JSZip\.loadAsync\(await file\.arrayBuffer\(\)\)/);
