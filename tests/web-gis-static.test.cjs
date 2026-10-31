@@ -252,3 +252,13 @@ test('ModelBuilder executes a topological dependency graph with bounded cumulati
   assert.match(html, /MAX_MODEL_FEATURES\)/);
   assert.match(html, /nodeOutputs\.get\(validation\.outputNodeId\)/);
 });
+
+test('ModelBuilder supports cooperative cancellation between processing nodes', () => {
+  assert.match(html, /async function runModelBuilder\(modal\)/);
+  assert.match(html, /data-mb-cancel/);
+  assert.match(html, /runState\.cancelled=true/);
+  assert.match(html, /await yieldToBrowser\(\)/);
+  assert.match(html, /checkCancelled\(\)/);
+  assert.match(html, /Model cancelled\. No output layers were added\./);
+  assert.match(html, /finally\{runButton\.disabled=false;cancelButton\.disabled=true;modal\._mbRunState=null;\}/);
+});
