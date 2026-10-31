@@ -265,3 +265,12 @@ test('ModelBuilder supports cooperative cancellation between processing nodes', 
   assert.match(html, /Model cancelled\. No output layers were added\./);
   assert.match(html, /finally\{lockedControls\.forEach\(item=>\{item\.control\.disabled=item\.disabled;\}\);runButton\.disabled=false;cancelButton\.disabled=true;modal\._mbRunState=null;\}/);
 });
+
+
+test('Raster asset replacement quota accounts for the previous asset size', () => {
+  const apiPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'api', 'gis', 'raster-assets.php');
+  const api = fs.readFileSync(apiPath, 'utf8');
+  assert.match(api, /\$previousBytes=\(is_file\(\$file\)&&!is_link\(\$file\)\)\?\(int\)filesize\(\$file\):0/);
+  assert.match(api, /\$storedBytes-\$previousBytes\+\$size>1073741824/);
+  assert.match(api, /is_file\(\$existingFile\)&&!is_link\(\$existingFile\)/);
+});
