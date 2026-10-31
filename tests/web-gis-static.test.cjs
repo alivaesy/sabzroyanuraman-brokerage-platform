@@ -240,3 +240,15 @@ test('RustGIS selection replaces stale selections and synchronizes the active la
   assert.match(html, /selectedLayer=first\?\.layer\|\|null;synchronizeFeatureSelection/);
   assert.match(html, /syncVisibleAttributeTableSelection\(\)/);
 });
+
+test('ModelBuilder executes a topological dependency graph with bounded cumulative outputs', () => {
+  assert.match(html, /function modelBuilderTopologicalSteps\(modal\)/);
+  assert.match(html, /circular dependency/);
+  assert.match(html, /function runModelBuilder\(modal\)/);
+  assert.match(html, /nodeOutputs\.get\(inputRef\)/);
+  assert.match(html, /nodeOutputs\.get\(overlayNodeRef\)/);
+  assert.match(html, /MAX_NODE_FEATURES=20000,MAX_MODEL_FEATURES=100000/);
+  assert.match(html, /processedFeatureCount\+=current\.length/);
+  assert.match(html, /MAX_MODEL_FEATURES\)/);
+  assert.match(html, /nodeOutputs\.get\(validation\.outputNodeId\)/);
+});
