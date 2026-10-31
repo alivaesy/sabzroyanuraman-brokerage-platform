@@ -4,13 +4,72 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: rustgis-cron-publish-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  dispatch-entry:
+  build-and-publish:
+    if: github.ref == 'refs/heads/feat/rustgis-vector-geoprocessing-phase-3'
     runs-on: ubuntu-24.04
     steps:
-      - name: Explain branch selection
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust and WebAssembly target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack without cross-device rename
+        run: cargo install wasm-pack --locked
+
+      - name: Install vector native build dependency
+        run: sudo apt-get update && sudo apt-get install -y clang
+
+      - name: Test RustGIS raster adapter
+        run: cargo test --manifest-path rust-raster-wasm/Cargo.toml
+
+      - name: Test RustGIS vector adapter
+        working-directory: sabzroyanuraman-site/rustgis-vector-wasm
+        run: cargo test
+
+      - name: Build raster WebAssembly package into the site folder
         run: |
-          echo "Select feat/rustgis-vector-geoprocessing-phase-3 in the Run workflow branch selector."
-          echo "The feature branch contains the full build-and-commit workflow."
+          mkdir -p sabzroyanuraman-site/wasm/rust-raster
+          wasm-pack build rust-raster-wasm --target web --release \
+            --out-dir ../sabzroyanuraman-site/wasm/rust-raster \
+            --out-name sabz_raster_wasm
+
+      - name: Build vector WebAssembly package into the site folder
+        working-directory: sabzroyanuraman-site/rustgis-vector-wasm
+        run: |
+          mkdir -p ../rustgis-vector-wasm-pkg
+          wasm-pack build --target web --release \
+            --out-dir ../rustgis-vector-wasm-pkg \
+            --out-name sabz_royan_vector_wasm
+
+      - name: Verify browser package entry points
+        run: |
+          test -s sabzroyanuraman-site/wasm/rust-raster/sabz_raster_wasm.js
+          test -s sabzroyanuraman-site/wasm/rust-raster/sabz_raster_wasm_bg.wasm
+          test -s sabzroyanuraman-site/rustgis-vector-wasm-pkg/sabz_royan_vector_wasm.js
+          test -s sabzroyanuraman-site/rustgis-vector-wasm-pkg/sabz_royan_vector_wasm_bg.wasm
+          node --check sabzroyanuraman-site/wasm/rust-raster/sabz_raster_wasm.js
+          node --check sabzroyanuraman-site/rustgis-vector-wasm-pkg/sabz_royan_vector_wasm.js
+
+      - name: Commit generated WASM files for cPanel Cron sync
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add sabzroyanuraman-site/wasm/rust-raster/ sabzroyanuraman-site/rustgis-vector-wasm-pkg/
+          if git diff --cached --quiet; then
+            echo "WASM packages are already up to date."
+          else
+            git commit -m "build(webgis): publish RustGIS WASM packages for cron sync"
+            git push origin HEAD
+          fi
