@@ -477,3 +477,15 @@ test('RustGIS native tests cover ModelBuilder Spatial Join and Calculate Geometr
   assert.match(rust, /"spatialJoin", json!\(/);
   assert.match(rust, /"calculateGeometry", json!\(/);
 });
+
+test('Geometry Self-Test exercises real RustGIS WASM tools with synthetic fixtures', () => {
+  const start = html.indexOf('async function runGeometryRegressionTests()');
+  const end = html.indexOf('function mergeFeaturesPreservingGeometry', start);
+  assert.ok(start >= 0 && end > start, 'geometry self-test routine was not found');
+  const body = html.slice(start, end);
+  assert.match(body, /const rustCases=\[/);
+  assert.match(body, /await runRustGisVectorTool\(item\.tool,item\.layers,item\.params\)/);
+  for (const tool of ['buffer', 'clip', 'intersect', 'erase', 'union', 'identity', 'dissolve', 'convexHull', 'featureToPoint', 'spatialJoin', 'calculateGeometry']) {
+    assert.ok(body.includes("tool:'" + tool + "'"), 'missing live WASM smoke fixture for ' + tool);
+  }
+});
