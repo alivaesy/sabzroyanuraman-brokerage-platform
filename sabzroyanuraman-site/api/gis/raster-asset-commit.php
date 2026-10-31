@@ -51,7 +51,7 @@ function raster_commit_content_addressed(
     // This same-filesystem rename is the transaction's single commit point.
     if (!$rename($metadataTemp, $metadataFile)) {
         @unlink($metadataTemp);
-        if ($createdBlob && $previousName !== $storedName) {
+        if ($previousName !== $storedName) {
             @unlink($storedPath);
         }
         throw new RuntimeException('raster_storage_failed');
