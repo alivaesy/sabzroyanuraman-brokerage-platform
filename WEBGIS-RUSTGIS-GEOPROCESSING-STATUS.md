@@ -13,7 +13,7 @@ Updated: 2026-10-31
 ## Tests added
 - Browser adapter fixture test verifies bridge initialization, tool dispatch, layer payload, parameters, and vector output handling.
 - Static regression tests verify whole-layer and ModelBuilder RustGIS routing and isolated plugin/raster namespaces.
-- Native Rust adapter test exercises RustGIS Clip, Intersect, and Erase with two overlapping polygon layers.
+- Native Rust adapter tests exercise RustGIS Clip, Intersect, Erase, Union, Identity, Dissolve, Convex Hull, Feature To Point, Spatial Join, and Calculate Geometry with overlapping polygon fixtures.
 - The vector WASM workflow now also runs when the static WebGIS tests or plugin/raster bridge files change.
 
 ## Important behavior and limitations
@@ -32,5 +32,5 @@ Updated: 2026-10-31
 
 ## Current state
 - Source changes are committed directly to `master` per the repository's continuation instructions.
-- GitHub Actions were still running when this status note was written; final pass/fail must be checked against the latest run, not inferred.
+- GitHub Actions: commit `c73d421` completed successfully (native tests, WebGIS static regression tests, and vector WASM build). Later commits add further native fixtures and Spatial Join/Calculate Geometry routing; their latest workflow is still pending/in progress and must pass before final sign-off.
 - Live browser and ArcMap validation remain outstanding.
