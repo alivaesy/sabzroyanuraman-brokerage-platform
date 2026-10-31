@@ -9444,6 +9444,10 @@ function runModelBuilder(modal){
   const validation=validateModelBuilder(modal,false);if(!validation.valid)throw validation.error;
   let current=validation.source.map(f=>JSON.parse(JSON.stringify(f)));
   const steps=validation.steps,stepLog=[],intermediate=[],nodeOutputs=new Map();
+  // Bound cumulative work as well as each individual node to prevent a long
+  // chained model from multiplying memory use through saved intermediates.
+  let processedFeatureCount=0;
+  const MAX_NODE_FEATURES=20000,MAX_MODEL_FEATURES=100000;
   const clone=f=>JSON.parse(JSON.stringify(f));
   const overlayLabel=index=>getAllVectorItems()[Number(index)]?.name||"Overlay";
   const mergeProperties=(base,overlay)=>{
@@ -9524,8 +9528,10 @@ function runModelBuilder(modal){
    }
    current=next.filter(f=>f&&f.geometry);
    if(!current.length)throw new Error("Node "+(steps.indexOf(row)+1)+" ("+op+") returned no features; model stopped without creating an output layer.");
+   if(current.length>MAX_NODE_FEATURES)throw new Error("Step "+(si+1)+" produced more than "+MAX_NODE_FEATURES.toLocaleString()+" features; model stopped before copying the oversized result.");
+   processedFeatureCount+=current.length;
+   if(processedFeatureCount>MAX_MODEL_FEATURES)throw new Error("Model exceeded the cumulative processing limit of "+MAX_MODEL_FEATURES.toLocaleString()+" feature-results; disable intermediate outputs or split the workflow.");
    nodeOutputs.set(row.dataset.mbNodeId,current.map(clone));
-   if(current.length>20000)throw new Error("Step "+(si+1)+" produced more than 20,000 features; model stopped for safety.");
    stepLog.push("Node "+(steps.indexOf(row)+1)+" · "+op+": "+inputCount+" → "+current.length+" features");
    if(modal.querySelector("[data-mb-intermediates]").checked)intermediate.push({name:((modal.querySelector("[data-mb-name]").value||"Model_Output").trim().replace(/[<>]/g,"").slice(0,65)||"Model_Output")+"_Step_"+String(si+1).padStart(2,"0"),features:clone(current)});
    say("Running model…\n"+stepLog.join("\n"));
