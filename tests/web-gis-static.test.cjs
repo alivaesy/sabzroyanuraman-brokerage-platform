@@ -257,6 +257,9 @@ test('ModelBuilder supports cooperative cancellation between processing nodes', 
   assert.match(html, /async function runModelBuilder\(modal\)/);
   assert.match(html, /data-mb-cancel/);
   assert.match(html, /modal\._mbRunState\.cancelled=true/);
+  assert.match(html, /lockedControls=\[\.\.\.modal\.querySelectorAll/);
+  assert.match(html, /lockedControls\.forEach\(item=>\{item\.control\.disabled=true;\}\)/);
+  assert.match(html, /lockedControls\.forEach\(item=>\{item\.control\.disabled=item\.disabled;\}\)/);
   assert.match(html, /await yieldToBrowser\(\)/);
   assert.match(html, /checkCancelled\(\)/);
   assert.match(html, /Model cancelled\. No output layers were added\./);
