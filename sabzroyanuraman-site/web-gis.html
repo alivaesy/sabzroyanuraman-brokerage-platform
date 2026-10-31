@@ -3614,7 +3614,7 @@ async function runWholeLayerGisOperation(op){
  const layers=allSelectableFeatureLayers();if(!layers.length){status('Add a vector layer first.');return true;}const options=layers.map((x,i)=>({value:String(i),label:x.name}));
  const ir=await arcMapDialog.select({title:'Whole-Layer Geoprocessing',message:'Choose input layer; all features are processed and sources preserved.',label:'Input layer',value:'0',options});if(ir===null)return true;const input=layers[Number(ir)];if(!input)return true;
  const records=vectorFeatures(input.layer).map(x=>x.feature).filter(f=>f&&f.geometry);const valid=f=>f&&f.geometry&&['Point','MultiPoint','LineString','MultiLineString','Polygon','MultiPolygon'].includes(f.geometry.type)&&vertexGeometryIsValid(f.geometry);if(!records.length||records.some(f=>!valid(f))){status('Input layer is empty or contains invalid/unsupported geometry.');return true;}
- if(['buffer','clip','intersection','erase'].includes(op)){
+ if(['buffer','clip','intersection','erase','union','identity','dissolve','convexHull'].includes(op)){
   try{
    const layerInputs={[input.name]:records},params={input:input.name,output:op.toUpperCase()+'_'+Date.now()};
    let outputName='';
@@ -3623,6 +3623,13 @@ async function runWholeLayerGisOperation(op){
     if(raw===null)return true;
     const distance=Number(raw);if(!Number.isFinite(distance)||distance<=0){status('Distance must be greater than zero.');return true;}
     params.distance=distance;params.units='Meters';params.dissolve='None';outputName='Buffer '+distance+' m';
+   }else if(op==='dissolve'){
+    const fields=[...new Set(records.flatMap(f=>Object.keys(f.properties||{}).filter(k=>!isReservedAttributeField(k))))];
+    const field=fields.length?await arcMapDialog.select({title:'Dissolve — RustGIS',message:'Choose a field or dissolve all features.',label:'Dissolve field',value:'(all)',options:[{value:'(all)',label:'(all features)'},...fields.map(value=>({value,label:value}))]}):'(all)';
+    if(field===null)return true;if(field!=='(all)')params.field=field;
+    outputName='Dissolve '+input.name+(field==='(all)'?'':' by '+field);
+   }else if(op==='convexHull'){
+    params.group='All';outputName='Convex Hull '+input.name;
    }else{
     const others=layers.filter((_,i)=>i!==Number(ir));if(!others.length){status(op+' needs a second layer.');return true;}
     const overlayChoice=await arcMapDialog.select({title:op+' — RustGIS Overlay Layer',message:'Choose the overlay layer.',label:'Overlay layer',value:'0',options:others.map((x,i)=>({value:String(i),label:x.name}))});
@@ -3632,14 +3639,13 @@ async function runWholeLayerGisOperation(op){
     if(!overlayFeatures.length||overlayFeatures.some(f=>!valid(f))){status('Overlay layer is empty or contains invalid geometry.');return true;}
     const overlayKey=op==='clip'?'clip':op==='erase'?'erase':'overlay';
     layerInputs[overlay.name]=overlayFeatures;params[overlayKey]=overlay.name;
-    outputName=(op==='clip'?'Clip ':op==='erase'?'Erase ':'Intersect ')+input.name+' by '+overlay.name;
+    outputName=(op==='clip'?'Clip ':op==='erase'?'Erase ':op==='union'?'Union ':op==='identity'?'Identity ':'Intersect ')+input.name+' by '+overlay.name;
    }
    status('Running '+op+' with RustGIS WASM…');
    const result=await runRustGisVectorTool(op==='intersection'?'intersect':op,layerInputs,params);
    const output=result.features.map(feature=>({...feature,properties:{...(feature.properties||{}),_operation:op==='intersection'?'Intersect':op[0].toUpperCase()+op.slice(1),_rustgis_tool:result.tool,_rustgis_revision:result.upstream}}));
-   const outputValid=f=>valid(f)&&f.geometry&&finiteCoords(f.geometry.coordinates);
    const finiteCoords=c=>Array.isArray(c)&&((typeof c[0]==='number')?c.every(Number.isFinite):c.every(finiteCoords));
-   if(output.some(f=>!outputValid(f)))throw new Error('RustGIS output failed geometry/coordinate validation; no layer added.');
+   if(output.some(f=>!valid(f)||!f.geometry||!finiteCoords(f.geometry.coordinates)))throw new Error('RustGIS output failed geometry/coordinate validation; no layer added.');
    resultLayerFromFeature({type:'FeatureCollection',features:output},outputName);scheduleAutoSave();
    status(outputName+' created by RustGIS: '+output.length+' feature(s). '+(result.messages||[]).join(' '));
   }catch(error){console.error(error);status('RustGIS '+op+' failed: '+(error.message||error));}
