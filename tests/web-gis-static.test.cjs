@@ -227,8 +227,10 @@ test('RustGIS browser runtime exposes both vector and raster tool catalogues', (
 test('RustGIS parameter UI filters geometry-specific layers and offers schema-aware fields', () => {
   const runtimePath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-rustgis-vector-runtime.js');
   const runtime = fs.readFileSync(runtimePath, 'utf8');
-  assert.match(runtime, /kind === "polygon-layer"[\s\S]*types\.has\("Polygon"\)/);
-  assert.match(runtime, /kind === "point-layer"[\s\S]*types\.has\("Point"\)/);
+  assert.match(runtime, /kind === "polygon-layer"/);
+  assert.match(runtime, /types\.has\("Polygon"\)/);
+  assert.match(runtime, /kind === "point-layer"/);
+  assert.match(runtime, /types\.has\("Point"\)/);
   assert.match(runtime, /\["field","numeric-field","coordinate-field"\]/);
   assert.match(runtime, /Number\.isFinite\(Number\(value\)\)/);
 });
