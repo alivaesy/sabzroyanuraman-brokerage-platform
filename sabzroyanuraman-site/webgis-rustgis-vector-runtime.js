@@ -221,6 +221,18 @@
     return loading;
   }
 
+  // Publish the bridge before Plugin Manager attaches. Each operation lazy-loads
+  // the WASM module, so script ordering cannot disable the manager prematurely.
+  window.SabzRustRasterBridge = Object.freeze({
+    load: async () => { await loadEngine(); return true; },
+    inspectPluginPackage: async bytes => { await loadEngine(); return JSON.parse(engine.inspect_plugin_package(bytes)); },
+    installPluginPackage: async bytes => { await loadEngine(); return JSON.parse(engine.install_plugin_package(bytes)); },
+    listPlugins: async () => { await loadEngine(); return JSON.parse(engine.list_plugins()); },
+    setPluginEnabled: async (id, enabled) => { await loadEngine(); return engine.set_plugin_enabled(id, Boolean(enabled)); },
+    uninstallPlugin: async id => { await loadEngine(); return engine.uninstall_plugin(id); },
+    runPluginCommand: async (id, params) => { await loadEngine(); return JSON.parse(engine.run_plugin_command(id, JSON.stringify(params || {}))); }
+  });
+
   const style = `
 #rgEngineButton{font-weight:800;letter-spacing:-.4px}
 #rgEngineDialog{position:fixed;inset:0;z-index:100000;background:#102a3b88;display:none;align-items:center;justify-content:center;padding:16px}
