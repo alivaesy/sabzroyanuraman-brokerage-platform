@@ -321,7 +321,7 @@ test('RustGIS plugin manager is connected to the pinned official wasmi plugin ru
   const cargo = fs.readFileSync(cargoPath, 'utf8');
   const rust = fs.readFileSync(rustPath, 'utf8');
   const runtime = fs.readFileSync(runtimePath, 'utf8');
-  assert.match(cargo, /rustgis-plugins\s*=\s*\{\s*git:\s*"https:\/\/github\.com\/opengeos\/RustGIS\.git",\s*rev:\s*"38f24336140d59092a31f964e9ac86aab18fdecd"/);
+  assert.match(cargo, /rustgis-plugins\s*=\s*\{\s*git\\s*=\s*"https:\/\/github\.com\/opengeos\/RustGIS\.git",\s*rev\\s*=\s*"38f24336140d59092a31f964e9ac86aab18fdecd"/);
   for (const symbol of ['inspect_plugin_package', 'install_plugin_package', 'list_plugins', 'set_plugin_enabled', 'uninstall_plugin', 'run_plugin_command']) {
     assert.match(rust, new RegExp('pub fn ' + symbol + '\\b'));
     assert.match(runtime, new RegExp('engine\\.' + symbol + '\\('));
