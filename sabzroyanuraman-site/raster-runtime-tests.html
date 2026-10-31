@@ -30,7 +30,7 @@ document.getElementById("run").onclick=async()=>{
   const originalFromArrayBuffer=GeoTIFF.fromArrayBuffer;
   for (const getGeoKeys of [()=>null,()=>{throw new TypeError("missing GeoKeyDirectory");}]) {
    GeoTIFF.fromArrayBuffer=async()=>({getImage:async()=>({
-    fileDirectory:{},getGeoKeys,readRasters:async()=>[new Uint8Array([10,20,30,40])],
+    fileDirectory:{GeoKeyDirectory:[1]},getGeoKeys,readRasters:async()=>[new Uint8Array([10,20,30,40])],
     getWidth:()=>2,getHeight:()=>2,getGDALNoData:()=>null
    })});
    const plain=await SabzRasterRuntime.read(file);
