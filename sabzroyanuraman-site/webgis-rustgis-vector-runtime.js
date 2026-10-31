@@ -192,7 +192,10 @@
         status: engine.adapter_status(),
         protocol: engine.adapter_protocol_version(),
         upstream: engine.upstream_revision(),
-        listTools: () => catalogue.slice(),
+        listTools: () => {
+          const latest = JSON.parse(engine.list_tools());
+          return [...(Array.isArray(latest.tools) ? latest.tools : []), ...(Array.isArray(latest.rasterTools) ? latest.rasterTools : [])];
+        },
         runTool: (id, layers, params) => JSON.parse(engine.run_tool(id, JSON.stringify(layers), JSON.stringify(params))),
         runRasterTool: (id, base64, fileName, params) => JSON.parse(engine.run_raster_tool(id, base64, fileName, JSON.stringify(params)))
       };
@@ -517,6 +520,8 @@
     const status = document.getElementById("rgEngineStatus");
     try {
       await loadEngine();
+      const latest = JSON.parse(engine.list_tools());
+      catalogue = [...(Array.isArray(latest.tools) ? latest.tools : []), ...(Array.isArray(latest.rasterTools) ? latest.rasterTools : [])];
       select.replaceChildren();
       for (const tool of catalogue) {
         const reason = unsupportedReason(tool);
