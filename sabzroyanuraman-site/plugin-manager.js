@@ -40,8 +40,17 @@
    for(const record of records){
     if(have.has(record.id))continue;
     try{
-     const info=await bridge().installPluginPackage(new Uint8Array(record.bytes),record.approvedPermissions||[]);
-     if(info.sha256!==record.sha256||info.id!==record.id)throw new Error("Saved plugin package hash or identity changed; reinstallation blocked.");
+     if(!record||typeof record.id!=="string"||typeof record.sha256!=="string"||!/^[a-f0-9]{64}$/i.test(record.sha256)||!record.bytes)throw new Error("Saved plugin record is incomplete or malformed.");
+     const bytes=new Uint8Array(record.bytes);
+     if(bytes.byteLength<1||bytes.byteLength>MAX_PACKAGE_BYTES)throw new Error("Saved plugin package exceeds the allowed size.");
+     // Inspect and verify the persisted bytes BEFORE installation: checking the
+     // digest only after install would allow altered IndexedDB content to execute.
+     const inspected=await bridge().inspectPluginPackage(bytes);
+     if(inspected.sha256!==record.sha256||inspected.id!==record.id)throw new Error("Saved plugin package hash or identity changed; reinstallation blocked.");
+     const requested=inspected.permissions||[];
+     if(requested.length||!Array.isArray(record.approvedPermissions)||record.approvedPermissions.length)throw new Error("Saved plugin requests host permissions; restore is denied.");
+     const installed=await bridge().installPluginPackage(bytes,[]);
+     if(installed.sha256!==record.sha256||installed.id!==record.id)throw new Error("Installed plugin identity mismatch; plugin disabled.");
      if(record.enabled===false)await bridge().setPluginEnabled(record.id,false);
     }catch(e){console.warn("Saved plugin not restored:",record.id,e);}
    }
