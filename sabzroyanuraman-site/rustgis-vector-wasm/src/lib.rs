@@ -291,6 +291,89 @@ pub fn run_raster_tool(tool_id: &str, input_base64: &str, input_name: &str, para
     serde_json::to_string(&response).map_err(js_error)
 }
 
+
+fn prepare_web_plugin(bytes: &[u8]) -> Result<rustgis_plugins::Plugin, String> {
+    if bytes.is_empty() || bytes.len() > 64 * 1024 * 1024 {
+        return Err("Plugin package must be between 1 byte and 64 MiB.".into());
+    }
+    let package = rustgis_plugins::Package::from_zip(bytes)
+        .map_err(|error| format!("Invalid .rgplugin package: {error}"))?;
+    if package.manifest.runtime != rustgis_plugins::Runtime::Wasm {
+        return Err("Only sandboxed WebAssembly plugins are supported in the browser; process and skills packages are not executable here.".into());
+    }
+    rustgis_plugins::prepare(package, "web-upload")
+}
+
+fn web_plugin_info(plugin: &rustgis_plugins::Plugin) -> Value {
+    let mut info = plugin.info();
+    if let Some(object) = info.as_object_mut() {
+        object.insert("permissions".into(), json!(plugin.manifest.permissions.iter().map(|p| p.code()).collect::<Vec<_>>()));
+        object.insert("commands".into(), json!(plugin.manifest.commands.iter().map(|command| json!({
+            "id": rustgis_plugins::command_id(&plugin.manifest.id, &command.id),
+            "label": command.label,
+            "help": command.help
+        })).collect::<Vec<_>>()));
+    }
+    info
+}
+
+/// Parses the official RustGIS .rgplugin ZIP format and validates its manifest and WASM ABI.
+#[wasm_bindgen]
+pub fn inspect_plugin_package(bytes: &[u8]) -> Result<String, JsValue> {
+    let plugin = prepare_web_plugin(bytes).map_err(js_error)?;
+    serde_json::to_string(&web_plugin_info(&plugin)).map_err(js_error)
+}
+
+/// Installs a validated plugin. This browser host currently exposes no project, file or network
+/// capabilities, so any manifest permission is rejected rather than silently over-granted.
+#[wasm_bindgen]
+pub fn install_plugin_package(bytes: &[u8]) -> Result<String, JsValue> {
+    let plugin = prepare_web_plugin(bytes).map_err(js_error)?;
+    if !plugin.manifest.permissions.is_empty() {
+        let denied: Vec<&str> = plugin.manifest.permissions.iter().map(|p| p.code()).collect();
+        return Err(js_error(format!("Host permissions are not enabled in this WebGIS build: {}. Install a no-permission plugin.", denied.join(", "))));
+    }
+    let installed = rustgis_plugins::register(plugin);
+    serde_json::to_string(&web_plugin_info(&installed)).map_err(js_error)
+}
+
+/// Returns installed sandboxed plugins.
+#[wasm_bindgen]
+pub fn list_plugins() -> Result<String, JsValue> {
+    let plugins: Vec<Value> = rustgis_plugins::list().iter().map(|plugin| web_plugin_info(plugin)).collect();
+    serde_json::to_string(&plugins).map_err(js_error)
+}
+
+/// Enables or disables an installed plugin by its manifest id.
+#[wasm_bindgen]
+pub fn set_plugin_enabled(id: &str, enabled: bool) -> Result<(), JsValue> {
+    rustgis_plugins::set_enabled(id, enabled).map_err(js_error)
+}
+
+/// Removes an installed plugin by its manifest id.
+#[wasm_bindgen]
+pub fn uninstall_plugin(id: &str) -> bool {
+    rustgis_plugins::unload(id)
+}
+
+/// Executes a plugin command with NoHost. The sandbox has no ambient imports; all host calls
+/// fail closed until a reviewed, permission-aware WebGIS Host implementation is provided.
+#[wasm_bindgen]
+pub fn run_plugin_command(command_id: &str, params_json: &str) -> Result<String, JsValue> {
+    if params_json.len() > 1024 * 1024 {
+        return Err(js_error("Plugin command parameters exceed the 1 MiB limit."));
+    }
+    let params: Value = serde_json::from_str(params_json).map_err(js_error)?;
+    let command = rustgis_plugins::command(command_id)
+        .ok_or_else(|| js_error(format!("No enabled plugin command named '{command_id}'.")))?;
+    if !command.plugin.manifest.permissions.is_empty() {
+        return Err(js_error("This WebGIS host does not grant plugin host permissions."));
+    }
+    let mut host = rustgis_plugins::NoHost;
+    let result = rustgis_plugins::run_command(&command, &mut host, &params).map_err(js_error)?;
+    serde_json::to_string(&result).map_err(js_error)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
