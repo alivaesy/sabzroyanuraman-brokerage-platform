@@ -1,6 +1,6 @@
 # Web GIS Operational Context and Handoff
 
-Last reviewed: 2026-10-25
+Last reviewed: 2026-10-31
 Repository: `alivaesy/sabzroyanuraman-brokerage-platform`
 Working branch/source of truth: `master`
 Primary application: `sabzroyanuraman-site/web-gis.html`
@@ -239,3 +239,15 @@ At the end of each meaningful batch, update this file with the verified date, co
 ## Deployment and RustGIS continuation handoff (2026-10-31)
 - Read `docs/WEBGIS_RUSTGIS_DEPLOYMENT_HANDOFF.md` before changing Cron deployment, RustGIS, Rust/WASM, or GitHub Actions. It records the verified safe cPanel deploy configuration, protected host-only paths, current known RustGIS branch/PR/workflow status, and the next required steps.
 - The handoff is a dated snapshot; re-check live GitHub branch, PR #44, workflow runs, and host state before acting.
+
+## RustGIS vector engine and ModelBuilder integration (2026-10-31)
+- Follow-up to the RustGIS deployment handoff: repository instructions specify working directly on `master` and avoiding new branches/PRs unless explicitly requested. Changes below were committed to `master`; the hosting Cron synchronizes master to `public_html`.
+- Added shared `runRustGisVectorTool()` in `sabzroyanuraman-site/web-gis.html`. It lazy-loads the vector WASM runtime, serializes WebGIS GeoJSON layer inputs, invokes the pinned RustGIS tool catalogue, and returns vector outputs.
+- Whole-layer Geoprocessing now delegates Buffer, Clip, Intersect, Erase, Union, Identity, Dissolve, and Convex Hull to RustGIS. Outputs are validated and added as new WebGIS layers; input layers remain unchanged.
+- ModelBuilder now delegates Buffer, Clip, Intersect, Erase, Union, Identity, Dissolve, Dissolve by Field, Convex Hull, and Feature To Point to RustGIS. Existing model graph format/version 2, topological ordering, node references, cancellation, feature limits, intermediate outputs, and final-layer handling remain.
+- Fixed the global namespace collision: Plugin Manager and the vector runtime use `window.SabzRustGISPluginBridge`; `rust-raster-bridge.js` keeps `window.SabzRustRasterBridge` for Raster only.
+- Added native RustGIS integration coverage for Clip, Intersect, and Erase; added browser adapter/static routing tests; expanded RustGIS vector workflow path filters so relevant test and bridge changes trigger CI.
+- RustGIS upstream remains pinned at `38f24336140d59092a31f964e9ac86aab18fdecd`.
+- Commits: `6657286` (whole-layer core routing), `11ff1fa` (initial ModelBuilder routing), `088fc5c` / `e8d982e` (plugin bridge separation), `f6f1afe` (more whole-layer tools), `f83b5a1` (more ModelBuilder nodes), `0fbe18a` (native overlay tests), `4fab3ce` (routing tests), `c73d421` (CI path filters), `e9de5e8` (status handoff).
+- Important: RustGIS Buffer uses geodesic distance on WGS84 GeoJSON; it is not yet proven numerically equivalent to ArcMap planar Buffer on EPSG:32638. No ArcMap 10.8 parity or live browser E2E is claimed.
+- See `WEBGIS-RUSTGIS-GEOPROCESSING-STATUS.md` for exact operation mappings and acceptance tests. Wait for the latest vector WASM and Cron Publish workflows; verify their final status, generated package commit, live host deployment, and real browser execution before sign-off.
