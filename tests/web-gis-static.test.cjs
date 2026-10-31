@@ -326,4 +326,6 @@ test('Plugin restore verifies persisted bytes and denies host permissions before
   assert.match(restore, /inspected\.id!==record\.id/);
   assert.match(restore, /requested\.length\|\|!Array\.isArray\(record\.approvedPermissions\)/);
   assert.match(plugin, /const BLOCKED_PERMISSIONS=new Set\(\["edit","files","network"\]\)/);
+  assert.match(plugin, /Plugin manager disabled: the RustGIS plugin runtime adapter is not available/);
+  assert.match(plugin, /section\.querySelectorAll\("button,input,select,textarea"\)\.forEach\(control=>\{control\.disabled=true;\}\)/);
 });
