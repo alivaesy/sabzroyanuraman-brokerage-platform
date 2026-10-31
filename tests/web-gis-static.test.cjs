@@ -423,7 +423,7 @@ test('ModelBuilder routes core vector overlay nodes through RustGIS', () => {
   const end = html.indexOf('// Property-form handoff', start);
   assert.ok(start >= 0 && end > start, 'ModelBuilder executor was not found');
   const body = html.slice(start, end);
-  const rustStart = body.indexOf('if(["buffer","clip","intersection","erase","union","identity","dissolve","dissolveField","convexHull","pointOnFeature"].includes(op))');
+  const rustStart = body.indexOf('if(["buffer","clip","intersection","erase","union","identity","dissolve","dissolveField","convexHull","pointOnFeature","spatialJoin","spatialJoinOneToMany","areaLength"].includes(op))');
   const fieldStart = body.indexOf('else if(op==="calculateField")', rustStart);
   assert.ok(rustStart >= 0 && fieldStart > rustStart, 'RustGIS nodes must be dispatched before legacy JS operations');
   const rust = body.slice(rustStart, fieldStart);
@@ -432,6 +432,9 @@ test('ModelBuilder routes core vector overlay nodes through RustGIS', () => {
   assert.match(rust, /params\.clip=overlayName/);
   assert.match(rust, /params\.erase=overlayName/);
   assert.match(rust, /params\.overlay=overlayName/);
+  assert.match(rust, /params\.target="MB_Input";params\.join=overlayName/);
+  assert.match(rust, /params\.operation=op==="spatialJoinOneToMany"\?"Join one to many":"Join one to one"/);
+  assert.match(rust, /"areaLength"\?"calculateGeometry"/);
 });
 
 test('RustGIS plugin and raster bridges use separate global namespaces', () => {
@@ -463,4 +466,12 @@ test('RustGIS native tests cover the additional ModelBuilder geometry tools', ()
   for (const tool of ['union', 'identity', 'dissolve', 'convexHull', 'featureToPoint']) {
     assert.ok(rust.includes('("' + tool + '", json!'), 'missing native fixture for ' + tool);
   }
+});
+
+test('RustGIS native tests cover ModelBuilder Spatial Join and Calculate Geometry', () => {
+  const rustPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'rustgis-vector-wasm', 'src', 'lib.rs');
+  const rust = fs.readFileSync(rustPath, 'utf8');
+  assert.match(rust, /fn modelbuilder_spatial_join_and_geometry_attributes_use_rustgis/);
+  assert.match(rust, /"spatialJoin", json!\(/);
+  assert.match(rust, /"calculateGeometry", json!\(/);
 });
