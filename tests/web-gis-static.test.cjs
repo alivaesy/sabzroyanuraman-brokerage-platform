@@ -498,3 +498,10 @@ test('RustGIS Calculate Geometry update outputs are retained as vector features'
   assert.match(html, /item\.kind==="vector"\|\|item\.kind==="update"/);
   assert.match(html, /fields\.add\("area_km2"\);fields\.add\("perimeter_km"\)/);
 });
+
+test('RustGIS overlay tools enforce polygon-mask and dissolve geometry requirements', () => {
+  assert.match(html, /RustGIS '\+op\+' requires a Polygon or MultiPolygon overlay layer/);
+  assert.match(html, /RustGIS Union requires polygon input and overlay layers/);
+  assert.match(html, /overlay input must contain Polygon or MultiPolygon geometry for \+op/);
+  assert.match(html, /Dissolve requires Polygon or MultiPolygon input/);
+});
