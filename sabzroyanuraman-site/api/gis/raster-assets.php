@@ -81,10 +81,17 @@ function raster_validate_geotiff(string $path,array $metadata): void {
  if(!$offsets||!$lengths){$offsets=$values(324);$lengths=$values(325);}
  $hasTransform=isset($entries[34264])&&$entries[34264]['count']>=16;
  $hasTieScale=isset($entries[33922])&&$entries[33922]['count']>=6&&isset($entries[33550])&&$entries[33550]['count']>=3;
- $hasKeys=isset($entries[34735])&&$entries[34735]['count']>=4;
+ $geoKeys=$values(34735);$tiffEpsg=0;
+ if(count($geoKeys)>=4){
+  $keyCount=min((int)$geoKeys[3],256);
+  for($k=0;$k<$keyCount;$k++){
+   $base=4+$k*4;if(!isset($geoKeys[$base+3]))break;
+   if(in_array($geoKeys[$base], [2048,3072], true)&&$geoKeys[$base+1]===0&&$geoKeys[$base+2]===1){$tiffEpsg=(int)$geoKeys[$base+3];break;}
+  }
+ }
  if($w<1||$hgt<1||$w>1000000||$hgt>1000000||$w*$hgt>100000000||
-    $w!==$metadata['width']||$hgt!==$metadata['height']||!$hasKeys||(!$hasTransform&&!$hasTieScale)||
-    !$offsets||count($offsets)!==count($lengths)){
+    $w!==$metadata['width']||$hgt!==$metadata['height']||$tiffEpsg!==(int)$metadata['crs']['epsg']||
+    !$hasKeys||(!$hasTransform&&!$hasTieScale)||!$offsets||count($offsets)!==count($lengths)){
   fclose($fp);gis_auth_json(415,['ok'=>false,'error'=>'geotiff_metadata_or_image_structure_invalid']);
  }
  foreach($offsets as $i=>$offset)if($lengths[$i]<1||$offset<8||$offset+$lengths[$i]>$size){
