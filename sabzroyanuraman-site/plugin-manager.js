@@ -83,7 +83,10 @@
     section.querySelector("[data-r-plugin-result]").textContent=JSON.stringify(result,null,2);
    }catch(e){section.querySelector("[data-r-plugin-result]").textContent="Plugin command blocked or failed: "+(e.message||e);}
   };
-  (async()=>{try{await bridge().load();await restoreApproved();await refresh();}catch(e){status.textContent="Plugin manager unavailable until the RustGIS WASM build is deployed: "+e.message;}})();
+  (async()=>{try{await bridge().load();await restoreApproved();await refresh();}catch(e){
+   section.querySelectorAll("button,input,select,textarea").forEach(control=>{control.disabled=true;});
+   status.textContent="Plugin manager disabled: the RustGIS plugin runtime adapter is not available. No package can be installed or executed.";
+  }})();
  }
  root.SabzPluginManager=Object.freeze({attach});
 })(window);
