@@ -435,6 +435,8 @@ test('ModelBuilder routes core vector overlay nodes through RustGIS', () => {
   assert.match(rust, /params\.target="MB_Input";params\.join=overlayName/);
   assert.match(rust, /params\.operation=op==="spatialJoinOneToMany"\?"Join one to many":"Join one to one"/);
   assert.match(rust, /"areaLength"\?"calculateGeometry"/);
+  assert.match(body, /joinFields\.forEach\(name=>fields\.add\("join_"\+name\)\);fields\.add\("join_count"\)/);
+  assert.match(body, /RustGIS Spatial Join supports Intersects, Within and Contains only/);
 });
 
 test('RustGIS plugin and raster bridges use separate global namespaces', () => {
