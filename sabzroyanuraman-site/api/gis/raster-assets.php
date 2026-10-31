@@ -182,10 +182,16 @@ if($action==='upload'){
  gis_auth_json(200,['ok'=>true,'asset'=>$meta]);
 }
 if($action==='delete'){
+ if(!is_dir($dir)){raster_audit($pdo,$user,(int)$org,(int)$project,'delete_raster_asset',$asset);gis_auth_json(200,['ok'=>true,'deleted'=>true]);}
+ $quotaLock=fopen($dir.'/.quota.lock','c');
+ if($quotaLock===false||!flock($quotaLock,LOCK_EX)){if(is_resource($quotaLock))fclose($quotaLock);gis_auth_json(503,['ok'=>false,'error'=>'raster_storage_busy']);}
  $deleteMeta=is_file($metaFile)?json_decode((string)file_get_contents($metaFile),true):null;
  $deleteStored=is_array($deleteMeta)&&isset($deleteMeta['storage_file'])?(string)$deleteMeta['storage_file']:basename($file);
+ // Remove the metadata pointer first while holding the project lock, then its
+ // immutable blob. Readers either finish opening the old blob or see not-found.
+ if(is_file($metaFile)&&!unlink($metaFile)){flock($quotaLock,LOCK_UN);fclose($quotaLock);gis_auth_json(500,['ok'=>false,'error'=>'raster_delete_failed']);}
  if($deleteStored===basename($deleteStored)&&preg_match('/^[a-zA-Z0-9._-]+\.tif$/',$deleteStored))@unlink($dir.'/'.$deleteStored);
- if(is_file($metaFile))@unlink($metaFile);
+ flock($quotaLock,LOCK_UN);fclose($quotaLock);
  raster_audit($pdo,$user,(int)$org,(int)$project,'delete_raster_asset',$asset);
  gis_auth_json(200,['ok'=>true,'deleted'=>true]);
 }
