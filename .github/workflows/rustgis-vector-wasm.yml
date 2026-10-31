@@ -6,6 +6,7 @@ on:
       - "sabzroyanuraman-site/web-gis.html"
       - "sabzroyanuraman-site/webgis-rustgis-vector-runtime.js"
       - "sabzroyanuraman-site/rustgis-vector-wasm/**"
+      - "tests/web-gis-static.test.cjs"
       - ".github/workflows/rustgis-vector-wasm.yml"
   push:
     branches: [master]
@@ -36,6 +37,8 @@ jobs:
       - name: Native RustGIS vector tests
         working-directory: sabzroyanuraman-site/rustgis-vector-wasm
         run: cargo test
+      - name: WebGIS runtime and toolbox regression tests
+        run: node --test tests/web-gis-static.test.cjs
       - name: Build browser WASM package
         working-directory: sabzroyanuraman-site/rustgis-vector-wasm
         run: wasm-pack build --target web --release --out-dir ../rustgis-vector-wasm-pkg --out-name sabz_royan_vector_wasm
