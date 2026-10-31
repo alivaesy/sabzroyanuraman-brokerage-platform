@@ -326,15 +326,19 @@ pub fn inspect_plugin_package(bytes: &[u8]) -> Result<String, JsValue> {
 
 /// Installs a validated plugin. This browser host currently exposes no project, file or network
 /// capabilities, so any manifest permission is rejected rather than silently over-granted.
-#[wasm_bindgen]
-pub fn install_plugin_package(bytes: &[u8]) -> Result<String, JsValue> {
-    let plugin = prepare_web_plugin(bytes).map_err(js_error)?;
+fn install_web_plugin(bytes: &[u8]) -> Result<Value, String> {
+    let plugin = prepare_web_plugin(bytes)?;
     if !plugin.manifest.permissions.is_empty() {
         let denied: Vec<&str> = plugin.manifest.permissions.iter().map(|p| p.code()).collect();
-        return Err(js_error(format!("Host permissions are not enabled in this WebGIS build: {}. Install a no-permission plugin.", denied.join(", "))));
+        return Err(format!("Host permissions are not enabled in this WebGIS build: {}. Install a no-permission plugin.", denied.join(", ")));
     }
     let installed = rustgis_plugins::register(plugin);
-    serde_json::to_string(&web_plugin_info(&installed)).map_err(js_error)
+    Ok(web_plugin_info(&installed))
+}
+
+#[wasm_bindgen]
+pub fn install_plugin_package(bytes: &[u8]) -> Result<String, JsValue> {
+    serde_json::to_string(&install_web_plugin(bytes).map_err(js_error)?).map_err(js_error)
 }
 
 /// Returns installed sandboxed plugins.
@@ -400,6 +404,67 @@ mod tests {
         assert_eq!(reopened.transform,raster.transform);
         assert_eq!(reopened.crs,raster.crs);
         assert!(reopened.bands[0].data.iter().any(|v| reopened.is_valid(*v)));
+    }
+
+
+    fn test_plugin_package(permissions: &[&str]) -> Vec<u8> {
+        use std::io::Write;
+        let manifest = json!({
+            "id":"sabz-test-plugin",
+            "name":"Sabz Test Plugin",
+            "version":"1.0.0",
+            "runtime":"wasm",
+            "abi":1,
+            "entry":"plugin.wasm",
+            "permissions":permissions,
+            "commands":[{"id":"hello","label":"Hello"}]
+        }).to_string();
+        let wasm = wat::parse_str(r#"(module
+            (memory (export "memory") 1)
+            (data (i32.const 64) "{""ok"":null}")
+            (func (export "rustgis_alloc") (param i32) (result i32) (i32.const 0))
+            (func (export "rustgis_call") (param i32 i32) (result i64)
+                (i64.const 274877906954))
+        )"#).expect("test module must compile");
+        let cursor = std::io::Cursor::new(Vec::new());
+        let mut archive = zip::ZipWriter::new(cursor);
+        let options = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+        archive.start_file("plugin.json", options).expect("manifest entry should open");
+        archive.write_all(manifest.as_bytes()).expect("manifest should be written");
+        archive.start_file("plugin.wasm", options).expect("module entry should open");
+        archive.write_all(&wasm).expect("module should be written");
+        archive.finish().expect("plugin archive should finish").into_inner()
+    }
+
+    #[test]
+    fn plugin_manager_inspects_installs_lists_and_executes_real_wasmi_commands() {
+        let bytes = test_plugin_package(&[]);
+        let inspected = prepare_web_plugin(&bytes).expect("official RustGIS package should validate");
+        assert_eq!(inspected.manifest.id, "sabz-test-plugin");
+        assert_eq!(inspected.manifest.commands.len(), 1);
+        let installed = install_web_plugin(&bytes).expect("no-permission plugin should install");
+        assert_eq!(installed["id"], "sabz-test-plugin");
+        assert_eq!(installed["enabled"], true);
+        let listed: Vec<Value> = rustgis_plugins::list().iter().map(|plugin| web_plugin_info(plugin)).collect();
+        assert!(listed.iter().any(|plugin| plugin["id"] == "sabz-test-plugin"));
+        let command = rustgis_plugins::command("plugin:sabz-test-plugin/hello")
+            .expect("installed command should be registered");
+        let mut host = rustgis_plugins::NoHost;
+        let result = rustgis_plugins::run_command(&command, &mut host, &json!({}))
+            .expect("wasmi command should execute in the sandbox");
+        assert_eq!(result, Value::Null);
+        assert!(rustgis_plugins::set_enabled("sabz-test-plugin", false).is_ok());
+        assert!(rustgis_plugins::command("plugin:sabz-test-plugin/hello").is_none());
+        assert!(rustgis_plugins::unload("sabz-test-plugin"));
+    }
+
+    #[test]
+    fn plugin_manager_rejects_host_permissions_and_malformed_archives() {
+        let privileged = test_plugin_package(&["edit"]);
+        let error = install_web_plugin(&privileged).expect_err("edit permission must fail closed");
+        assert!(error.contains("Host permissions are not enabled"));
+        assert!(prepare_web_plugin(b"not a zip archive").is_err());
+        assert!(prepare_web_plugin(&[]).is_err());
     }
 
     #[test]
