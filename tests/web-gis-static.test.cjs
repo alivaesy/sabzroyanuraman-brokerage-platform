@@ -485,6 +485,8 @@ test('Geometry Self-Test exercises real RustGIS WASM tools with synthetic fixtur
   const body = html.slice(start, end);
   assert.match(body, /const rustCases=\[/);
   assert.match(body, /await runRustGisVectorTool\(item\.tool,item\.layers,item\.params\)/);
+  assert.match(body, /window\.SabzRustGISPluginBridge\.load\(\)/);
+  assert.match(body, /window\.SabzRustRasterBridge\.processRaster/);
   for (const tool of ['buffer', 'clip', 'intersect', 'erase', 'union', 'identity', 'dissolve', 'convexHull', 'featureToPoint', 'spatialJoin', 'calculateGeometry']) {
     assert.ok(body.includes("tool:'" + tool + "'"), 'missing live WASM smoke fixture for ' + tool);
   }
