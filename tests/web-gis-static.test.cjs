@@ -313,6 +313,28 @@ test('Raster replacement commits through an atomic metadata pointer to an immuta
   assert.match(api, /invalid_raster_storage_reference/);
 });
 
+
+test('RustGIS plugin manager is connected to the pinned official wasmi plugin runtime', () => {
+  const cargoPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'rustgis-vector-wasm', 'Cargo.toml');
+  const rustPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'rustgis-vector-wasm', 'src', 'lib.rs');
+  const runtimePath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-rustgis-vector-runtime.js');
+  const cargo = fs.readFileSync(cargoPath, 'utf8');
+  const rust = fs.readFileSync(rustPath, 'utf8');
+  const runtime = fs.readFileSync(runtimePath, 'utf8');
+  assert.match(cargo, /rustgis-plugins\s*=\s*\{\s*git:\s*"https:\/\/github\.com\/opengeos\/RustGIS\.git",\s*rev:\s*"38f24336140d59092a31f964e9ac86aab18fdecd"/);
+  for (const symbol of ['inspect_plugin_package', 'install_plugin_package', 'list_plugins', 'set_plugin_enabled', 'uninstall_plugin', 'run_plugin_command']) {
+    assert.match(rust, new RegExp('pub fn ' + symbol + '\\b'));
+    assert.match(runtime, new RegExp('engine\\.' + symbol + '\\('));
+  }
+  assert.match(rust, /rustgis_plugins::Package::from_zip/);
+  assert.match(rust, /rustgis_plugins::prepare\(package, "web-upload"\)/);
+  assert.match(rust, /rustgis_plugins::NoHost/);
+  assert.match(rust, /run_command\(&command, &mut host, &params\)/);
+  assert.match(runtime, /window\.SabzRustRasterBridge = Object\.freeze/);
+  assert.match(runtime, /inspectPluginPackage: async bytes/);
+  assert.match(runtime, /runPluginCommand: async/);
+});
+
 test('Plugin restore verifies persisted bytes and denies host permissions before installation', () => {
   const pluginPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'plugin-manager.js');
   const plugin = fs.readFileSync(pluginPath, 'utf8');
@@ -326,6 +348,6 @@ test('Plugin restore verifies persisted bytes and denies host permissions before
   assert.match(restore, /inspected\.id!==record\.id/);
   assert.match(restore, /requested\.length\|\|!Array\.isArray\(record\.approvedPermissions\)/);
   assert.match(plugin, /const BLOCKED_PERMISSIONS=new Set\(\["edit","files","network"\]\)/);
-  assert.match(plugin, /Plugin manager disabled: the RustGIS plugin runtime adapter is not available/);
+  assert.match(plugin, /Plugin manager unavailable: RustGIS WASM plugin runtime failed to load/);
   assert.match(plugin, /section\.querySelectorAll\("button,input,select,textarea"\)\.forEach\(control=>\{control\.disabled=true;\}\)/);
 });
