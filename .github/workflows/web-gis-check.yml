@@ -8,6 +8,7 @@ on:
     paths:
       - "sabzroyanuraman-site/web-gis.html"
       - "sabzroyanuraman-site/webgis-rustgis-enhancements.js"
+      - "sabzroyanuraman-site/webgis-rustgis-vector-runtime.js"
       - "tests/web-gis-static.test.cjs"
       - ".github/workflows/web-gis-check.yml"
   pull_request:
@@ -31,5 +32,7 @@ jobs:
           node-version: 20
       - name: Validate Web GIS source and toolbox registration
         run: node --test tests/web-gis-static.test.cjs
-      - name: Check ModelBuilder and Layout enhancement syntax
-        run: node --check sabzroyanuraman-site/webgis-rustgis-enhancements.js
+      - name: Check ModelBuilder, Layout, and RustGIS runtime syntax
+        run: |
+          node --check sabzroyanuraman-site/webgis-rustgis-enhancements.js
+          node --check sabzroyanuraman-site/webgis-rustgis-vector-runtime.js
