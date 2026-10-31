@@ -15,6 +15,7 @@ on:
     paths:
       - "sabzroyanuraman-site/web-gis.html"
       - "sabzroyanuraman-site/webgis-rustgis-enhancements.js"
+      - "sabzroyanuraman-site/webgis-rustgis-vector-runtime.js"
       - "tests/web-gis-static.test.cjs"
       - ".github/workflows/web-gis-check.yml"
   workflow_dispatch:
