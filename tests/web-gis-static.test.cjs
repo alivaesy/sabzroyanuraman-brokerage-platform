@@ -375,3 +375,74 @@ test('Plugin restore verifies persisted bytes and denies host permissions before
   assert.match(plugin, /Plugin manager unavailable: RustGIS WASM plugin runtime failed to load/);
   assert.match(plugin, /section\.querySelectorAll\("button,input,select,textarea"\)\.forEach\(control=>\{control\.disabled=true;\}\)/);
 });
+
+test('RustGIS vector tool adapter validates inputs and returns vector features', async () => {
+  const start = html.indexOf('async function runRustGisVectorTool(');
+  const end = html.indexOf('async function runWholeLayerGisOperation(', start);
+  assert.ok(start >= 0 && end > start, 'RustGIS vector adapter was not found');
+  const adapter = html.slice(start, end);
+  const calls = [];
+  const feature = { type: 'Feature', properties: { id: 1 }, geometry: { type: 'Point', coordinates: [47, 33] } };
+  const context = {
+    window: {
+      SabzRustGISPluginBridge: { load: async () => { calls.push('load'); } },
+      SabzRoyanRustGIS: {
+        status: 'ready', upstream: 'fixture-revision',
+        runTool: (id, layers, params) => {
+          calls.push({ id, layers, params });
+          return { tool: id, upstream: 'fixture-revision', outputs: [{ kind: 'vector', geojson: { type: 'FeatureCollection', features: [feature] } }] };
+        }
+      }
+    },
+    turf: { featureCollection: features => ({ type: 'FeatureCollection', features }) },
+    JSON, Object, Array, Error
+  };
+  const run = vm.runInNewContext(adapter + '\\nrunRustGisVectorTool', context);
+  const result = await run('buffer', { parcels: [feature] }, { input: 'parcels', distance: 25, units: 'Meters' });
+  assert.equal(calls[0], 'load');
+  assert.equal(calls[1].id, 'buffer');
+  assert.equal(calls[1].layers.parcels.type, 'FeatureCollection');
+  assert.equal(calls[1].params.distance, 25);
+  assert.equal(result.features.length, 1);
+  assert.equal(result.upstream, 'fixture-revision');
+});
+
+test('Whole-layer Buffer, Clip, Intersect and Erase use RustGIS without Turf fallback', () => {
+  const start = html.indexOf('async function runWholeLayerGisOperation(');
+  const end = html.indexOf('async function runGeometryRegressionTests(', start);
+  assert.ok(start >= 0 && end > start, 'whole-layer processing dispatcher was not found');
+  const body = html.slice(start, end);
+  const rustPath = body.slice(0, body.indexOf('let output=[],name=op;'));
+  assert.match(rustPath, /\['buffer','clip','intersection','erase'\]\.includes\(op\)/);
+  assert.match(rustPath, /runRustGisVectorTool\(op==='intersection'\?'intersect':op/);
+  assert.doesNotMatch(rustPath, /turf\.buffer|turf\.intersect|buildPartitionedErase/);
+});
+
+test('ModelBuilder routes core vector overlay nodes through RustGIS', () => {
+  const start = html.indexOf('async function runModelBuilder(modal){');
+  const end = html.indexOf('// Property-form handoff', start);
+  assert.ok(start >= 0 && end > start, 'ModelBuilder executor was not found');
+  const body = html.slice(start, end);
+  const rustStart = body.indexOf('if(["buffer","clip","intersection","erase","union","identity"].includes(op))');
+  const fieldStart = body.indexOf('else if(op==="calculateField")', rustStart);
+  assert.ok(rustStart >= 0 && fieldStart > rustStart, 'RustGIS nodes must be dispatched before legacy JS operations');
+  const rust = body.slice(rustStart, fieldStart);
+  assert.match(rust, /runRustGisVectorTool\(rustTool,layerInputs,params\)/);
+  assert.match(rust, /params\.distance=raw;params\.units="Meters"/);
+  assert.match(rust, /params\.clip=overlayName/);
+  assert.match(rust, /params\.erase=overlayName/);
+  assert.match(rust, /params\.overlay=overlayName/);
+});
+
+test('RustGIS plugin and raster bridges use separate global namespaces', () => {
+  const runtimePath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-rustgis-vector-runtime.js');
+  const pluginPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'plugin-manager.js');
+  const rasterPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'rust-raster-bridge.js');
+  const runtime = fs.readFileSync(runtimePath, 'utf8');
+  const plugin = fs.readFileSync(pluginPath, 'utf8');
+  const raster = fs.readFileSync(rasterPath, 'utf8');
+  assert.match(runtime, /window\.SabzRustGISPluginBridge\s*=\s*Object\.freeze/);
+  assert.match(plugin, /root\.SabzRustGISPluginBridge/);
+  assert.doesNotMatch(plugin, /SabzRustRasterBridge/);
+  assert.match(raster, /root\.SabzRustRasterBridge\s*=\s*Object\.freeze/);
+});
