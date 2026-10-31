@@ -267,28 +267,28 @@ test('ModelBuilder supports cooperative cancellation between processing nodes', 
 });
 
 
-test('Raster asset replacement quota accounts for the previous asset size', () => {
+
+test('Raster asset replacement quota accounts for the previous content-addressed asset', () => {
   const apiPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'api', 'gis', 'raster-assets.php');
   const api = fs.readFileSync(apiPath, 'utf8');
-  assert.match(api, /\$oldPath=\$dir\.\/\$oldStored/);
+  assert.match(api, /\$oldStored=is_array\(\$oldMeta\).*basename\(\$file\)/);
+  assert.match(api, /\$oldPath=\$dir.*\$oldStored/);
   assert.match(api, /\$previousBytes=is_file\(\$oldPath\)&&!is_link\(\$oldPath\)\?\(int\)filesize\(\$oldPath\):0/);
   assert.match(api, /\$storedBytes-\$previousBytes\+\$size>1073741824/);
   assert.match(api, /is_file\(\$existingFile\)&&!is_link\(\$existingFile\)/);
 });
 
-
-test('Raster asset quota writes are serialized per project', () => {
+test('Raster quota, replacement, download, and delete operations share project locking', () => {
   const apiPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'api', 'gis', 'raster-assets.php');
   const api = fs.readFileSync(apiPath, 'utf8');
   assert.match(api, /fopen\(\$dir\.'\/\.quota\.lock','c'\)/);
   assert.match(api, /flock\(\$quotaLock,LOCK_EX\)/);
-  assert.match(api, /flock\(\$quotaLock,LOCK_UN\)/);
-  assert.match(api, /fopen\(\$dir\.'\/\.quota\.lock','c'\)/);
   assert.match(api, /flock\(\$quotaLock,LOCK_SH\)/);
   assert.match(api, /fpassthru\(\$handle\)/);
-  assert.match(api, /if\\(\\$action==='delete'\\)[\\s\\S]*?flock\\(\\$quotaLock,LOCK_EX\\)/);
+  const deletion = api.slice(api.indexOf("if($action==='delete')"));
+  assert.match(deletion, /flock\(\$quotaLock,LOCK_EX\)/);
+  assert.match(deletion, /unlink\(\$metaFile\)/);
 });
-
 
 test('Raster API validates TIFF IFD, GeoTIFF georeferencing, image blocks, and EPSG metadata', () => {
   const apiPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'api', 'gis', 'raster-assets.php');
