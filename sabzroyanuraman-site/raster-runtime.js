@@ -70,7 +70,10 @@
     // while reading that absent directory; normalize it so validation below
     // reports the missing CRS instead of leaking a null-property TypeError.
     let keys = {};
-    if (typeof image.getGeoKeys === "function") {
+    // Do not ask geotiff.js to decode an absent GeoKeyDirectory: some TIFF
+    // readers dereference the missing directory internally before returning null.
+    const geoKeyDirectory = readTag(directory, "GeoKeyDirectory");
+    if (geoKeyDirectory && typeof image.getGeoKeys === "function") {
       try {
         const parsedKeys = image.getGeoKeys();
         if (parsedKeys && typeof parsedKeys === "object") keys = parsedKeys;
@@ -85,7 +88,7 @@
     const crs = crsFromKeys(keys);
     const transform = getGeoTransform(directory);
     const extent = extentFromTransform(transform, width, height);
-    const georeferenced = !!transform && !!extent;
+    const georeferenced = !!transform && !!extent && !!crs.epsg;
     const sampleFormat = readTag(directory, "SampleFormat");
     const bitsPerSample = readTag(directory, "BitsPerSample");
     const meta = {
@@ -94,7 +97,7 @@
       sampleFormat: sampleFormat == null ? null : Array.from(sampleFormat),
       bitsPerSample: bitsPerSample == null ? null : Array.from(bitsPerSample),
       noData: Number.isFinite(noData) ? noData : null,
-      crs, geoKeys: keys, georeferenced,
+      crs, geoKeys: keys, georeferenced, previewOnly: !georeferenced,
       geoTransform: transform,
       extent,
       pixelScale: transform ? [Math.hypot(transform[1], transform[4]), Math.hypot(transform[2], transform[5])] : [1, 1],
