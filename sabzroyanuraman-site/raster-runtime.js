@@ -104,10 +104,6 @@
 
     const entries = [];
     const add = (tag, type, data) => entries.push({ tag, type, data });
-    const short = (v) => ({ type: 3, data: Array.isArray(v) ? v : [v] });
-    const long = (v) => ({ type: 4, data: Array.isArray(v) ? v : [v] });
-    const double = (v) => ({ type: 12, data: v });
-    const ascii = (v) => ({ type: 2, data: String(v) + "\\0" });
 
     add(256, 4, [width]);                         // ImageWidth
     add(257, 4, [height]);                        // ImageLength
