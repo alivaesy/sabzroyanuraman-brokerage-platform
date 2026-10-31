@@ -558,8 +558,10 @@ mod tests {
         ] {
             let result = rustgis_analysis::run(tool, &inputs, &params)
                 .unwrap_or_else(|error| panic!("RustGIS {tool} should execute: {error}"));
-            let Output::Layer(output) = result.output else {
-                panic!("RustGIS {tool} should return a vector layer");
+            let output = match result.output {
+                Output::Layer(output) => output,
+                Output::Update { dataset, .. } => dataset,
+                _ => panic!("RustGIS {tool} should return a vector layer or update"),
             };
             assert!(!output.features.is_empty(), "RustGIS {tool} should return features");
             assert!(output.geometry_type != rustgis_data::GeometryType::None,
