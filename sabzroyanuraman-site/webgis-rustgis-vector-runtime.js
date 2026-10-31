@@ -196,6 +196,17 @@
         runTool: (id, layers, params) => JSON.parse(engine.run_tool(id, JSON.stringify(layers), JSON.stringify(params))),
         runRasterTool: (id, base64, fileName, params) => JSON.parse(engine.run_raster_tool(id, base64, fileName, JSON.stringify(params)))
       };
+      // Official RustGIS plugin ABI: ZIP package parsing, manifest validation, wasmi fuel/memory
+      // limits and command execution all live in the pinned RustGIS plugins crate.
+      window.SabzRustRasterBridge = Object.freeze({
+        load: async () => { await loadEngine(); return true; },
+        inspectPluginPackage: async bytes => JSON.parse(engine.inspect_plugin_package(bytes)),
+        installPluginPackage: async bytes => JSON.parse(engine.install_plugin_package(bytes)),
+        listPlugins: async () => JSON.parse(engine.list_plugins()),
+        setPluginEnabled: async (id, enabled) => engine.set_plugin_enabled(id, Boolean(enabled)),
+        uninstallPlugin: async id => engine.uninstall_plugin(id),
+        runPluginCommand: async (id, params) => JSON.parse(engine.run_plugin_command(id, JSON.stringify(params || {})))
+      });
       setStatus("RustGIS آماده است؛ " + catalogue.length + " ابزار پردازشی شناسایی شد.");
       return engine;
     })().catch(error => {
