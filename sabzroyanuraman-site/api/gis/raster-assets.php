@@ -40,6 +40,7 @@ function raster_metadata(string $raw): array {
 }
 
 require_once __DIR__.'/raster-geotiff-validator.php';
+require_once __DIR__.'/raster-asset-commit.php';
 
 if($method==='POST'&&(int)($_SERVER['CONTENT_LENGTH']??0)>MAX_RASTER_BYTES+65536)gis_auth_json(413,['ok'=>false,'error'=>'raster_upload_too_large']);
 if($method==='GET'){
@@ -105,19 +106,9 @@ if($action==='upload'){
  if($storedBytes-$previousBytes+$size>1073741824){flock($quotaLock,LOCK_UN);fclose($quotaLock);gis_auth_json(413,['ok'=>false,'error'=>'project_raster_storage_quota_exceeded']);}
  $stage=$dir.'/.upload-'.bin2hex(random_bytes(10)).'.tmp';
  if(!move_uploaded_file($tmp,$stage)){flock($quotaLock,LOCK_UN);fclose($quotaLock);gis_auth_json(500,['ok'=>false,'error'=>'raster_upload_failed']);}
- $hash=hash_file('sha256',$stage);$storedName=$asset.'.'.$hash.'.tif';$storedPath=$dir.'/'.$storedName;
- $meta=['asset_id'=>$asset,'file_name'=>$fileName,'storage_file'=>$storedName,'size'=>$size,'metadata'=>$metadata,'sha256'=>$hash,'uploaded_at'=>gmdate('c')];
- $metaTmp=$metaFile.'.'.bin2hex(random_bytes(6)).'.tmp';
- $encoded=json_encode($meta,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
- $ok=$encoded!==false&&file_put_contents($metaTmp,$encoded,LOCK_EX)!==false;
- if($ok&&!is_file($storedPath))$ok=rename($stage,$storedPath);
- else @unlink($stage);
- // The metadata pointer is the commit record: its atomic rename switches the
- // asset to the immutable content-addressed TIFF. A failed commit leaves the
- // previous metadata and raster untouched.
- if($ok)$ok=rename($metaTmp,$metaFile);
- if(!$ok){@unlink($stage);@unlink($metaTmp);if(is_file($storedPath)&&(!is_array($oldMeta)||($oldMeta['storage_file']??'')!==$storedName))@unlink($storedPath);flock($quotaLock,LOCK_UN);fclose($quotaLock);gis_auth_json(500,['ok'=>false,'error'=>'raster_storage_failed']);}
- if($oldStored!==$storedName&&$oldStored===basename($oldStored)&&preg_match('/^[a-zA-Z0-9._-]+\.tif$/',$oldStored))@unlink($oldPath);
+ $meta=['asset_id'=>$asset,'file_name'=>$fileName,'size'=>$size,'metadata'=>$metadata,'uploaded_at'=>gmdate('c')];
+ try{$meta=raster_commit_content_addressed($dir,$asset,$stage,$metaFile,$meta,is_array($oldMeta)?$oldMeta:null);}
+ catch(Throwable $e){flock($quotaLock,LOCK_UN);fclose($quotaLock);gis_auth_json(500,['ok'=>false,'error'=>'raster_storage_failed']);}
  flock($quotaLock,LOCK_UN);fclose($quotaLock);
  raster_audit($pdo,$user,(int)$org,(int)$project,'upload_raster_asset',$asset);
  gis_auth_json(200,['ok'=>true,'asset'=>$meta]);
