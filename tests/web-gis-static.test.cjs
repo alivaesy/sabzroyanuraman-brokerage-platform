@@ -212,7 +212,7 @@ test('ModelBuilder and Layout enhancement is loaded through the renderer bridge'
 test('RustGIS GeoTIFF preview refuses to assume EPSG:4326 when CRS metadata is absent', () => {
   const runtimePath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-rustgis-vector-runtime.js');
   const runtime = fs.readFileSync(runtimePath, 'utf8');
-  assert.match(runtime, /const epsgValue = geoKeys\\.ProjectedCSTypeGeoKey \\|\\| geoKeys\\.GeographicTypeGeoKey/);
+  assert.match(runtime, /const epsgValue = geoKeys\.ProjectedCSTypeGeoKey \|\| geoKeys\.GeographicTypeGeoKey/);
   assert.match(runtime, /Output GeoTIFF has no valid EPSG CRS metadata/);
-  assert.doesNotMatch(runtime, /GeographicTypeGeoKey \\|\\| 4326/);
+  assert.doesNotMatch(runtime, /GeographicTypeGeoKey \|\| 4326/);
 });
