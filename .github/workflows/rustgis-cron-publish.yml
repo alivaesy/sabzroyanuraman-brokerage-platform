@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   build-and-publish:
-    if: github.ref == 'refs/heads/feat/rustgis-vector-geoprocessing-phase-3'
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/feat/webgis-rustgis-unified-package'
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
