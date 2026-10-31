@@ -339,7 +339,10 @@ test('RustGIS plugin manager is connected to the pinned official wasmi plugin ru
   assert.match(rust, /rustgis_plugins::tools::register/);
   assert.match(rust, /rustgis_analysis::run\(tool_id, &inputs, &params\)/);
   assert.match(runtime, /window\.SabzRustRasterBridge = Object\.freeze/);
+  assert.match(runtime, /Publish the bridge before Plugin Manager attaches/);
   assert.match(runtime, /const latest = JSON\.parse\(engine\.list_tools\(\)\)/);
+  assert.ok(html.indexOf('src="./webgis-rustgis-vector-runtime.js"') < html.indexOf('src="./plugin-manager.js"'),
+    'RustGIS plugin bridge must load before Plugin Manager');
   assert.match(runtime, /inspectPluginPackage: async bytes/);
   assert.match(runtime, /runPluginCommand: async/);
 });
