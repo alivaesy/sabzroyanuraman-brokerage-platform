@@ -309,9 +309,8 @@
             const type = feature?.geometry?.type || "";
             if (type) types.add(type.replace(/^Multi/, ""));
           }
-          return kind === "polygon-layer"
-            ? (types.has("Polygon") || types.has("MultiPolygon"))
-            : (types.has("Point") || types.has("MultiPoint"));
+          if (kind === "polygon-layer") return types.has("Polygon") || types.has("MultiPolygon");
+          return kind === "point-layer" && (types.has("Point") || types.has("MultiPoint"));
         });
         for (const item of compatible) control.appendChild($("option", {value:item.name}, item.name));
       } else if (["field","numeric-field","coordinate-field"].includes(kind)) {
