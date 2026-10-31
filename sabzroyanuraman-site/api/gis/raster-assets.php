@@ -120,16 +120,20 @@ if($method==='GET'){
  }
  if($action==='download'){
   $asset=raster_asset_id((string)($_GET['asset_id']??''));
+  $quotaLock=fopen($dir.'/.quota.lock','c');
+  if($quotaLock===false||!flock($quotaLock,LOCK_SH)){if(is_resource($quotaLock))fclose($quotaLock);gis_auth_json(503,['ok'=>false,'error'=>'raster_storage_busy']);}
   [, $legacyFile] = raster_paths($root,(int)$org,(int)$project,$asset);
   $metaFile=raster_paths($root,(int)$org,(int)$project,$asset)[2];
   $meta=is_file($metaFile)?json_decode((string)file_get_contents($metaFile),true):null;
-  $stored= is_array($meta)&&isset($meta['storage_file'])?(string)$meta['storage_file']:basename($legacyFile);
-  if($stored!==basename($stored)||!preg_match('/^[a-zA-Z0-9._-]+\.tif$/',$stored))gis_auth_json(500,['ok'=>false,'error'=>'invalid_raster_storage_reference']);
+  $stored=is_array($meta)&&isset($meta['storage_file'])?(string)$meta['storage_file']:basename($legacyFile);
+  if($stored!==basename($stored)||!preg_match('/^[a-zA-Z0-9._-]+\.tif$/',$stored)){flock($quotaLock,LOCK_UN);fclose($quotaLock);gis_auth_json(500,['ok'=>false,'error'=>'invalid_raster_storage_reference']);}
   $file=dirname($legacyFile).'/'.$stored;
-  if(!is_file($file)||!is_readable($file)||is_link($file))gis_auth_json(404,['ok'=>false,'error'=>'raster_asset_not_found']);
+  $handle=(!is_link($file)&&is_file($file))?fopen($file,'rb'):false;
+  if($handle===false){flock($quotaLock,LOCK_UN);fclose($quotaLock);gis_auth_json(404,['ok'=>false,'error'=>'raster_asset_not_found']);}
+  $fileStat=fstat($handle);flock($quotaLock,LOCK_UN);fclose($quotaLock);
   $name=is_array($meta)&&isset($meta['file_name'])?(string)$meta['file_name']:($asset.'.tif');
   $name=preg_replace('/[^a-zA-Z0-9._ -]/','_',basename($name))?:($asset.'.tif');
-  header('Content-Type: image/tiff');header('Content-Length: '.(string)filesize($file));header('Content-Disposition: attachment; filename="'.$name.'"');header('Cache-Control: private, no-store');readfile($file);exit;
+  header('Content-Type: image/tiff');header('Content-Length: '.(string)$fileStat['size']);header('Content-Disposition: attachment; filename="'.$name.'"');header('Cache-Control: private, no-store');fpassthru($handle);fclose($handle);exit;
  }
  gis_auth_json(400,['ok'=>false,'error'=>'invalid_action']);
 }
