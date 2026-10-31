@@ -217,6 +217,18 @@ test('RustGIS GeoTIFF preview refuses to assume EPSG:4326 when CRS metadata is a
   assert.doesNotMatch(runtime, /GeographicTypeGeoKey \|\| 4326/);
 });
 
+test('Plain TIFF import skips absent GeoKeys and remains preview-only without a CRS', () => {
+  const runtimePath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'raster-runtime.js');
+  const runtime = fs.readFileSync(runtimePath, 'utf8');
+  assert.match(runtime, /const geoKeyDirectory = readTag\(directory, "GeoKeyDirectory"\)/);
+  assert.match(runtime, /if \(geoKeyDirectory && typeof image\.getGeoKeys === "function"\)/);
+  assert.match(runtime, /const georeferenced = !!transform && !!extent && !!crs\.epsg/);
+  assert.match(runtime, /previewOnly: !georeferenced/);
+  assert.match(html, /raster-runtime\.js\?v=20261031-plain-tiff/);
+  const rasterTests = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'raster-runtime-tests.html'), 'utf8');
+  assert.match(rasterTests, /real baseline TIFF loads without CRS or GeoKeys/);
+});
+
 test('RustGIS browser runtime exposes both vector and raster tool catalogues', () => {
   const runtimePath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-rustgis-vector-runtime.js');
   const runtime = fs.readFileSync(runtimePath, 'utf8');
