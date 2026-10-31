@@ -397,7 +397,7 @@ test('RustGIS vector tool adapter validates inputs and returns vector features',
     turf: { featureCollection: features => ({ type: 'FeatureCollection', features }) },
     JSON, Object, Array, Error
   };
-  const run = vm.runInNewContext(adapter + '\\nrunRustGisVectorTool', context);
+  const run = vm.runInNewContext(adapter + '\nrunRustGisVectorTool', context);
   const result = await run('buffer', { parcels: [feature] }, { input: 'parcels', distance: 25, units: 'Meters' });
   assert.equal(calls[0], 'load');
   assert.equal(calls[1].id, 'buffer');
