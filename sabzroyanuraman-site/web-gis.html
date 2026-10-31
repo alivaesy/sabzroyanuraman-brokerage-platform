@@ -9822,7 +9822,7 @@ function openRasterWorkspace(){
   }
   sabzRasterState={fileName:file.name,w,h,bands,epsg:canMap?epsg:null,noData:Number.isFinite(noData)?noData:null,bounds,factor,ow,oh,cellX,cellY,canvas,layer:null,sourceBlob:rasterData.blob,sourceMetadata:m,assetId:null,georeferenced:canMap};
   const opSelect=p.querySelector('[data-r-op]');[...opSelect.options].forEach(option=>{option.disabled=option.value!=="display"&&!canMap;});opSelect.value="display";p.querySelector('[data-r-expr-wrap]').hidden=true;
-  const exportButton=p.querySelector('[data-r-export]');exportButton.disabled=!canMap;const tifExport=exportButton.nextElementSibling;if(tifExport&&tifExport.textContent==="Export GeoTIFF")tifExport.disabled=!canMap;
+  const exportButton=p.querySelector('[data-r-export]');const tifExport=exportButton.nextElementSibling;if(tifExport&&tifExport.textContent==="Export GeoTIFF")tifExport.disabled=!canMap;
   p.querySelector('[data-r-meta]').textContent=w+" × "+h+" px · "+bands.length+" band(s) · "+(canMap?"EPSG:"+epsg:"No map CRS · image preview only")+" · "+file.name;
   if(canMap){const rasterProjectId=currentProjectId||projectId();currentProjectId=rasterProjectId;sabzRasterState.assetId="raster-"+Date.now().toString(36);await SabzRasterRuntime.saveAsset(rasterProjectId,sabzRasterState.assetId,rasterData.blob,m);
    sabzRasterAssetRefs=sabzRasterAssetRefs.filter(ref=>ref.assetId!==sabzRasterState.assetId);sabzRasterAssetRefs.push({assetId:sabzRasterState.assetId,fileName:file.name,metadata:m});
