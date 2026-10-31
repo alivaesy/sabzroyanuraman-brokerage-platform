@@ -428,7 +428,7 @@ mod tests {
         }).to_string();
         let wasm = wat::parse_str(r#"(module
             (memory (export "memory") 1)
-            (data (i32.const 64) "{\\"ok\\":null}")
+            (data (i32.const 64) "{\"ok\":null}")
             (func (export "rustgis_alloc") (param i32) (result i32) (i32.const 0))
             (func (export "rustgis_call") (param i32 i32) (result i64)
                 (i64.const 274877906955))
