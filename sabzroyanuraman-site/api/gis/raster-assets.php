@@ -86,8 +86,11 @@ if($action==='upload'){
  $fileName=preg_replace('/[^a-zA-Z0-9._ -]/','_',basename((string)($_POST['file_name']??'raster.tif')))?:'raster.tif';
  if(!is_dir($dir)&&!mkdir($dir,0700,true)&&!is_dir($dir))gis_auth_json(503,['ok'=>false,'error'=>'raster_storage_unavailable']);
  if(!is_writable($dir))gis_auth_json(503,['ok'=>false,'error'=>'raster_storage_unavailable']);
- $storedBytes=0;foreach(glob($dir.'/*.tif')?:[] as $existingFile)$storedBytes+=(int)filesize($existingFile);
- if($storedBytes+$size>1073741824)gis_auth_json(413,['ok'=>false,'error'=>'project_raster_storage_quota_exceeded']);
+ $storedBytes=0;foreach(glob($dir.'/*.tif')?:[] as $existingFile){if(is_file($existingFile)&&!is_link($existingFile))$storedBytes+=(int)filesize($existingFile);}
+ // Replacing an existing asset consumes only the size delta, not a second copy
+ // of the same asset against the per-project quota.
+ $previousBytes=(is_file($file)&&!is_link($file))?(int)filesize($file):0;
+ if($storedBytes-$previousBytes+$size>1073741824)gis_auth_json(413,['ok'=>false,'error'=>'project_raster_storage_quota_exceeded']);
  $tmpTarget=$file.'.'.bin2hex(random_bytes(8)).'.tmp';
  if(!move_uploaded_file($tmp,$tmpTarget))gis_auth_json(500,['ok'=>false,'error'=>'raster_upload_failed']);
  $meta=['asset_id'=>$asset,'file_name'=>$fileName,'size'=>$size,'metadata'=>$metadata,'sha256'=>hash_file('sha256',$tmpTarget),'uploaded_at'=>gmdate('c')];
