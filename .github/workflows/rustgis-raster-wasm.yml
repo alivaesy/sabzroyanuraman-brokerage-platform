@@ -1,10 +1,16 @@
 name: RustGIS raster WASM adapter
 on:
   push:
+    branches: [master]
     paths:
       - "rust-raster-wasm/**"
       - "tests/**"
-      - "sabzroyanuraman-site/**"
+      - "sabzroyanuraman-site/raster-runtime.js"
+      - "sabzroyanuraman-site/rust-raster-bridge.js"
+      - "sabzroyanuraman-site/rustgis-vector-wasm/**"
+      - "sabzroyanuraman-site/webgis-rustgis-vector-runtime.js"
+      - "sabzroyanuraman-site/wasm/rust-raster/**"
+      - "sabzroyanuraman-site/api/gis/raster-assets.php"
       - ".github/workflows/rustgis-raster-wasm.yml"
   pull_request:
     paths:
@@ -57,45 +63,3 @@ jobs:
           name: sabz-rustgis-raster-wasm
           path: sabzroyanuraman-site/wasm/rust-raster/
           if-no-files-found: error
-  deploy-host:
-    if: ${{ github.event_name == 'workflow_dispatch' }}
-    needs: test-and-build
-    runs-on: ubuntu-24.04
-    env:
-      FTP_SERVER: ${{ secrets.FTP_SERVER }}
-      FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
-      FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
-      FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR }}
-    steps:
-      - uses: actions/checkout@v4
-        if: ${{ env.FTP_SERVER != '' && env.FTP_USERNAME != '' && env.FTP_PASSWORD != '' && env.FTP_SERVER_DIR != '' }}
-      - name: Skip when hosting deployment secrets are not configured
-        if: ${{ env.FTP_SERVER == '' || env.FTP_USERNAME == '' || env.FTP_PASSWORD == '' || env.FTP_SERVER_DIR == '' }}
-        run: echo "Host deployment skipped. Configure FTP_SERVER, FTP_USERNAME, FTP_PASSWORD and FTP_SERVER_DIR GitHub Actions secrets."
-      - uses: actions/download-artifact@v4
-        if: ${{ env.FTP_SERVER != '' && env.FTP_USERNAME != '' && env.FTP_PASSWORD != '' && env.FTP_SERVER_DIR != '' }}
-        with:
-          name: sabz-rustgis-raster-wasm
-          path: deploy-site/wasm/rust-raster/
-      - name: Stage WebGIS and API files
-        if: ${{ env.FTP_SERVER != '' && env.FTP_USERNAME != '' && env.FTP_PASSWORD != '' && env.FTP_SERVER_DIR != '' }}
-        run: |
-          mkdir -p deploy-site/api/gis
-          cp sabzroyanuraman-site/web-gis.html deploy-site/
-          cp sabzroyanuraman-site/raster-runtime.js deploy-site/
-          cp sabzroyanuraman-site/rust-raster-bridge.js deploy-site/
-          cp sabzroyanuraman-site/geolibre-wasi-bridge.js deploy-site/
-          cp sabzroyanuraman-site/plugin-manager.js deploy-site/
-          cp sabzroyanuraman-site/raster-runtime-tests.html deploy-site/
-          cp sabzroyanuraman-site/api/gis/raster-assets.php deploy-site/api/gis/
-      - name: Deploy WebGIS, raster API and WASM assets over FTPS
-        if: ${{ env.FTP_SERVER != '' && env.FTP_USERNAME != '' && env.FTP_PASSWORD != '' && env.FTP_SERVER_DIR != '' }}
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
-        with:
-          server: ${{ env.FTP_SERVER }}
-          username: ${{ env.FTP_USERNAME }}
-          password: ${{ env.FTP_PASSWORD }}
-          protocol: ftps
-          local-dir: deploy-site/
-          server-dir: ${{ env.FTP_SERVER_DIR }}
-          dangerous-clean-slate: false
