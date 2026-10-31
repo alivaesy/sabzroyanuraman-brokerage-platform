@@ -133,6 +133,9 @@
       add(42113, 2, String(meta.noData) + "\\0");          // GDAL_NODATA
     }
 
+    const pixelBytes = width * height * 4;
+    add(273, 4, [0]);                             // StripOffsets (filled after IFD sizing)
+    add(279, 4, [pixelBytes]);                    // StripByteCounts
     entries.sort((a, b) => a.tag - b.tag);
     const typeBytes = { 2: 1, 3: 2, 4: 4, 12: 8 };
     const ifdEnd = 8 + 2 + entries.length * 12 + 4;
@@ -145,10 +148,7 @@
       }
     }
     const pixelOffset = extraOffset;
-    const pixelBytes = width * height * 4;
-    add(273, 4, [pixelOffset]);                   // StripOffsets
-    add(279, 4, [pixelBytes]);                    // StripByteCounts
-    entries.sort((a, b) => a.tag - b.tag);
+    entries.find(entry => entry.tag === 273).data[0] = pixelOffset;
 
     // StripOffsets is a single LONG and therefore inline; its value was calculated
     // after sizing all external IFD values, so it does not change IFD layout.
