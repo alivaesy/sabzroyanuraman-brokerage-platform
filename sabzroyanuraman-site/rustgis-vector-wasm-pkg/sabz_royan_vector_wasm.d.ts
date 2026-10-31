@@ -30,9 +30,27 @@ export function adapter_status(): string;
 export function add_nadgrid(key: string, array: Uint8Array): void;
 
 /**
+ * Parses the official RustGIS .rgplugin ZIP format and validates its manifest and WASM ABI.
+ */
+export function inspect_plugin_package(bytes: Uint8Array | number[]): string;
+
+export function install_plugin_package(bytes: Uint8Array | number[]): string;
+
+/**
+ * Returns installed sandboxed plugins.
+ */
+export function list_plugins(): string;
+
+/**
  * Returns the actual RustGIS analysis tool catalogue and parameter definitions.
  */
 export function list_tools(): string;
+
+/**
+ * Executes a plugin command with NoHost. The sandbox has no ambient imports; all host calls
+ * fail closed until a reviewed, permission-aware WebGIS Host implementation is provided.
+ */
+export function run_plugin_command(command_id: string, params_json: string): string;
 
 /**
  * Runs a RustGIS rasterops algorithm and returns a georeferenced GeoTIFF.
@@ -47,7 +65,17 @@ export function run_raster_tool(tool_id: string, input_base64: string, input_nam
  */
 export function run_tool(tool_id: string, layers_json: string, params_json: string): string;
 
+/**
+ * Enables or disables an installed plugin by its manifest id.
+ */
+export function set_plugin_enabled(id: string, enabled: boolean): void;
+
 export function transform(src: Projection, dst: Projection, point: Point): void;
+
+/**
+ * Removes an installed plugin by its manifest id.
+ */
+export function uninstall_plugin(id: string): boolean;
 
 export function upstream_revision(): string;
 
@@ -66,6 +94,9 @@ export interface InitOutput {
     readonly adapter_protocol_version: () => number;
     readonly adapter_status: () => [number, number];
     readonly add_nadgrid: (a: number, b: number, c: any) => [number, number];
+    readonly inspect_plugin_package: (a: number, b: number) => [number, number, number, number];
+    readonly install_plugin_package: (a: number, b: number) => [number, number, number, number];
+    readonly list_plugins: () => [number, number, number, number];
     readonly list_tools: () => [number, number, number, number];
     readonly point_new: (a: number, b: number, c: number) => number;
     readonly projection_axis: (a: number) => [number, number];
@@ -76,9 +107,12 @@ export interface InitOutput {
     readonly projection_projName: (a: number) => [number, number];
     readonly projection_to_meter: (a: number) => number;
     readonly projection_units: (a: number) => [number, number];
+    readonly run_plugin_command: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly run_raster_tool: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number, number, number];
     readonly run_tool: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number, number];
+    readonly set_plugin_enabled: (a: number, b: number, c: number) => [number, number];
     readonly transform: (a: number, b: number, c: number) => [number, number];
+    readonly uninstall_plugin: (a: number, b: number) => number;
     readonly upstream_revision: () => [number, number];
     readonly rust_zstd_wasm_shim_calloc: (a: number, b: number) => number;
     readonly rust_zstd_wasm_shim_free: (a: number) => void;
