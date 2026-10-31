@@ -23,7 +23,7 @@ document.getElementById("run").onclick=async()=>{
   log("PASS: GeoTIFF metadata round-trip "+JSON.stringify(check.checks));
   const file=new File([blob],"runtime-test.tif",{type:"image/tiff"});
   const read=await SabzRasterRuntime.read(file);
-  if(read.metadata.width!==4||read.metadata.height!==3||read.metadata.crs.epsg!==32638||read.bands[0][10]!==11||read.bands[0][11]!==-9999)throw new Error("Raster data/NoData read-back mismatch.");
+  if(read.metadata.width!==4||read.metadata.height!==3||read.metadata.crs.epsg!==32638||read.bands[0][10]!==11||read.bands[0][11]!==-9999)throw new Error("Raster data/NoData read-back mismatch: "+JSON.stringify({width:read.metadata.width,height:read.metadata.height,epsg:read.metadata.crs.epsg,pixel10:read.bands[0][10],pixel11:read.bands[0][11],noData:read.metadata.noData,bandType:read.bands[0].constructor.name}));
   log("PASS: raster pixels, NoData, dimensions and CRS read-back");
   const planeMeta={width:5,height:5,bandCount:1,dataType:"Float32Array",noData:-9999,
    crs:{epsg:32638,name:"EPSG:32638"},geoKeys:{ProjectedCSTypeGeoKey:32638},
