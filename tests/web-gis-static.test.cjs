@@ -489,3 +489,12 @@ test('Geometry Self-Test exercises real RustGIS WASM tools with synthetic fixtur
     assert.ok(body.includes("tool:'" + tool + "'"), 'missing live WASM smoke fixture for ' + tool);
   }
 });
+
+test('RustGIS Calculate Geometry update outputs are retained as vector features', () => {
+  const rustPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'rustgis-vector-wasm', 'src', 'lib.rs');
+  const rust = fs.readFileSync(rustPath, 'utf8');
+  assert.match(rust, /Output::Update \{ layer, dataset \}/);
+  assert.match(rust, /"kind":"update"[\s\S]*?"geojson":dataset_geojson/);
+  assert.match(html, /item\.kind==="vector"\|\|item\.kind==="update"/);
+  assert.match(html, /fields\.add\("area_km2"\);fields\.add\("perimeter_km"\)/);
+});
