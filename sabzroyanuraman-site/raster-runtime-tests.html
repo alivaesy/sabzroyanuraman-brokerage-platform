@@ -25,6 +25,19 @@ document.getElementById("run").onclick=async()=>{
   const read=await SabzRasterRuntime.read(file);
   if(read.metadata.width!==4||read.metadata.height!==3||read.metadata.crs.epsg!==32638||read.bands[0][10]!==11||read.bands[0][11]!==-9999)throw new Error("Raster data/NoData read-back mismatch: "+JSON.stringify({width:read.metadata.width,height:read.metadata.height,epsg:read.metadata.crs.epsg,pixel10:read.bands[0][10],pixel11:read.bands[0][11],noData:read.metadata.noData,bandType:read.bands[0].constructor.name}));
   log("PASS: raster pixels, NoData, dimensions and CRS read-back");
+  // Build a real baseline TIFF (not a mocked parser response): 2×2, 8-bit grayscale, no GeoKeys/CRS.
+  const makePlainTiff=()=>{
+   const entries=[[256,4,2],[257,4,2],[258,3,8],[259,3,1],[262,3,1],[273,4,146],[277,3,1],[278,4,2],[279,4,4],[284,3,1],[339,3,1]];
+   const buffer=new ArrayBuffer(150),view=new DataView(buffer),bytes=new Uint8Array(buffer);
+   bytes[0]=0x49;bytes[1]=0x49;view.setUint16(2,42,true);view.setUint32(4,8,true);view.setUint16(8,entries.length,true);
+   let at=10;
+   for(const [tag,type,value] of entries){view.setUint16(at,tag,true);view.setUint16(at+2,type,true);view.setUint32(at+4,1,true);if(type===3)view.setUint16(at+8,value,true);else view.setUint32(at+8,value,true);at+=12;}
+   view.setUint32(at,0,true);bytes.set([24,72,144,220],146);return buffer;
+  };
+  const actualPlain=await SabzRasterRuntime.read(new File([makePlainTiff()],"plain-no-crs.tif",{type:"image/tiff"}));
+  if(actualPlain.metadata.width!==2||actualPlain.metadata.height!==2||actualPlain.metadata.crs.epsg!==null||actualPlain.metadata.georeferenced!==false||actualPlain.bands[0].length!==4)
+   throw new Error("A real baseline TIFF without CRS failed preview-only loading: "+JSON.stringify(actualPlain.metadata));
+  log("PASS: real 2×2 baseline TIFF loads without CRS or GeoKeys");
   // Plain TIFFs without georeferencing must still load for image preview.
   // Null and throwing GeoKey readers are both normal for non-GeoTIFF imagery.
   const originalFromArrayBuffer=GeoTIFF.fromArrayBuffer;
