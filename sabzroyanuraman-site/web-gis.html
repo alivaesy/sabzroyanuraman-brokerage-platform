@@ -3731,6 +3731,23 @@ const clippedPolygon=clipFeatureToPolygon(clipPolygon,clipMask);
 test('Clip polygon output stays within input and mask footprints',clippedPolygon.length===1&&turf.area(clippedPolygon[0])<=turf.area(clipPolygon)+1&&turf.area(clippedPolygon[0])<=turf.area(clipMask)+1);
 test('Clip polygon output retains only the intersecting area',clippedPolygon.length===1&&Math.abs(turf.area(clippedPolygon[0])-turf.area(turf.intersect(turf.featureCollection([clipPolygon,clipMask]))))<1);
 test('Bounding-box operation returns polygon geometry',turf.bboxPolygon(turf.bbox(a)).geometry.type==='Polygon');
+const rustPolyA=turf.polygon([[[47,33],[47.002,33],[47.002,33.002],[47,33.002],[47,33]]],{parcel:'A',group:'test'});
+const rustPolyB=turf.polygon([[[47.001,33],[47.003,33],[47.003,33.002],[47.001,33.002],[47.001,33]]],{zone:'B',group:'test'});
+const rustPoint=turf.point([47.0005,33.0005],{sample:1});
+const rustCases=[
+ {label:'Buffer',tool:'buffer',layers:{test_points:[rustPoint]},params:{input:'test_points',distance:50,units:'Meters',dissolve:'None',output:'selftest_buffer'}},
+ {label:'Clip',tool:'clip',layers:{test_input:[rustPolyA],test_mask:[rustPolyB]},params:{input:'test_input',clip:'test_mask',output:'selftest_clip'}},
+ {label:'Intersect',tool:'intersect',layers:{test_input:[rustPolyA],test_overlay:[rustPolyB]},params:{input:'test_input',overlay:'test_overlay',output:'selftest_intersect'}},
+ {label:'Erase',tool:'erase',layers:{test_input:[rustPolyA],test_mask:[rustPolyB]},params:{input:'test_input',erase:'test_mask',output:'selftest_erase'}},
+ {label:'Union',tool:'union',layers:{test_input:[rustPolyA],test_overlay:[rustPolyB]},params:{input:'test_input',overlay:'test_overlay',output:'selftest_union'}},
+ {label:'Identity',tool:'identity',layers:{test_input:[rustPolyA],test_overlay:[rustPolyB]},params:{input:'test_input',overlay:'test_overlay',output:'selftest_identity'}},
+ {label:'Dissolve',tool:'dissolve',layers:{test_input:[rustPolyA,rustPolyB]},params:{input:'test_input',field:'group',output:'selftest_dissolve'}},
+ {label:'Convex Hull',tool:'convexHull',layers:{test_input:[rustPolyA,rustPolyB]},params:{input:'test_input',group:'All',output:'selftest_hull'}},
+ {label:'Feature To Point',tool:'featureToPoint',layers:{test_input:[rustPolyA]},params:{input:'test_input',output:'selftest_point'}},
+ {label:'Spatial Join',tool:'spatialJoin',layers:{test_target:[rustPolyA],test_join:[rustPolyB]},params:{target:'test_target',join:'test_join',match:'Intersects',operation:'Join one to one',keepAll:'Keep all',prefix:'join_',output:'selftest_join'}},
+ {label:'Calculate Geometry',tool:'calculateGeometry',layers:{test_input:[rustPolyA]},params:{input:'test_input',output:'selftest_geometry'}}
+];
+for(const item of rustCases){try{const result=await runRustGisVectorTool(item.tool,item.layers,item.params);test('RustGIS WASM '+item.label,result.features.length>0&&result.features.every(f=>f&&f.geometry&&vertexGeometryIsValid(f.geometry)));}catch(error){test('RustGIS WASM '+item.label+' — '+(error.message||error),false);console.warn('RustGIS self-test '+item.label,error);}}
 const report=checks.join('\n');console.info('Synthetic geometry tests:\n'+report);status('Geometry self-test: '+checks.filter(x=>x.startsWith('PASS')).length+'/'+checks.length+' passed.');await arcMapDialog.alert({title:'Geometry Self-Test — Synthetic Data',message:report+'\n\nSynthetic checks do not replace tests on cadastral data or comparison with ArcMap.'});}
 function mergeFeaturesPreservingGeometry(inputFeature,overlayFeature){
  return [inputFeature,overlayFeature].map((feature,index)=>({
