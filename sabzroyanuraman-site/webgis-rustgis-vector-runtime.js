@@ -182,7 +182,12 @@
       await module.default();
       engine = module;
       const raw = JSON.parse(engine.list_tools());
-      catalogue = Array.isArray(raw.tools) ? raw.tools : [];
+      // Raster tools are published in a separate catalogue section by the adapter.
+      // Omitting it made the entire Raster Analysis toolbox invisible in the UI.
+      catalogue = [
+        ...(Array.isArray(raw.tools) ? raw.tools : []),
+        ...(Array.isArray(raw.rasterTools) ? raw.rasterTools : [])
+      ];
       window.SabzRoyanRustGIS = {
         status: engine.adapter_status(),
         protocol: engine.adapter_protocol_version(),
@@ -297,7 +302,36 @@
       } else if (["layer","polygon-layer","point-layer","vector-layer"].includes(kind)) {
         control = $("select", {id, "data-param":param.name, "data-kind":kind});
         if (!param.required) control.appendChild($("option", {value:""}, "— انتخاب لایه —"));
-        for (const item of layers) control.appendChild($("option", {value:item.name}, item.name));
+        const compatible = layers.filter(item => {
+          if (kind !== "polygon-layer" && kind !== "point-layer") return true;
+          const types = new Set();
+          for (const feature of (layerGeoJSON(item).features || [])) {
+            const type = feature?.geometry?.type || "";
+            if (type) types.add(type.replace(/^Multi/, ""));
+          }
+          return kind === "polygon-layer"
+            ? (types.has("Polygon") || types.has("MultiPolygon"))
+            : (types.has("Point") || types.has("MultiPoint"));
+        });
+        for (const item of compatible) control.appendChild($("option", {value:item.name}, item.name));
+      } else if (["field","numeric-field","coordinate-field"].includes(kind)) {
+        control = $("select", {id, "data-param":param.name, "data-kind":kind});
+        if (!param.required) control.appendChild($("option", {value:""}, "— انتخاب فیلد —"));
+        const fieldMap = new Map();
+        for (const item of layers) {
+          for (const feature of (layerGeoJSON(item).features || [])) {
+            for (const [field, value] of Object.entries(feature?.properties || {})) {
+              if (kind === "numeric-field" && value !== null && value !== "" && !Number.isFinite(Number(value))) continue;
+              if (kind === "numeric-field" && (value === null || value === "")) continue;
+              if (!fieldMap.has(field)) fieldMap.set(field, new Set());
+              fieldMap.get(field).add(item.name);
+            }
+          }
+        }
+        for (const [field, owners] of fieldMap) {
+          const label = owners.size === 1 ? field + " — " + [...owners][0] : field + " — " + [...owners].join(", ");
+          control.appendChild($("option", {value:field}, label));
+        }
       } else if (kind === "vector-layers" || kind === "raster-layers") {
         control = $("select", {id, multiple:"multiple", "data-param":param.name, "data-kind":kind});
         const sourceList = kind === "raster-layers" ? rasters : layers;
