@@ -286,7 +286,7 @@ test('Raster asset quota writes are serialized per project', () => {
   assert.match(api, /fopen\(\$dir\.'\/\.quota\.lock','c'\)/);
   assert.match(api, /flock\(\$quotaLock,LOCK_SH\)/);
   assert.match(api, /fpassthru\(\$handle\)/);
-  assert.match(api, /Serialize raster deletion with uploads and downloads|LOCK_EX/);
+  assert.match(api, /if\\(\\$action==='delete'\\)[\\s\\S]*?flock\\(\\$quotaLock,LOCK_EX\\)/);
 });
 
 
