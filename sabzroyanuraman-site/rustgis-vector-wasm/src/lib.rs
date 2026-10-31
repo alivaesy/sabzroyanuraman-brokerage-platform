@@ -488,6 +488,46 @@ mod tests {
     }
 
     #[test]
+    fn modelbuilder_union_identity_dissolve_hull_and_feature_to_point_use_rustgis() {
+        let input_geojson = r#"{
+            "type":"FeatureCollection",
+            "features":[
+                {"type":"Feature","id":1,"properties":{"parcel":"A"},"geometry":{"type":"Polygon","coordinates":[[[47.0,33.0],[47.02,33.0],[47.02,33.02],[47.0,33.02],[47.0,33.0]]]}}
+            ]
+        }"#;
+        let overlay_geojson = r#"{
+            "type":"FeatureCollection",
+            "features":[
+                {"type":"Feature","id":2,"properties":{"zone":"Z1"},"geometry":{"type":"Polygon","coordinates":[[[47.01,33.0],[47.03,33.0],[47.03,33.02],[47.01,33.02],[47.01,33.0]]]}}
+            ]
+        }"#;
+        let (input, _) = rustgis_data::io::read_geojson(input_geojson, "parcels")
+            .expect("input GeoJSON should be readable");
+        let (overlay, _) = rustgis_data::io::read_geojson(overlay_geojson, "zones")
+            .expect("overlay GeoJSON should be readable");
+        let mut inputs = LayerInputs::default();
+        inputs.datasets.insert("parcels".into(), input);
+        inputs.datasets.insert("zones".into(), overlay);
+
+        for (tool, params) in [
+            ("union", json!({"input":"parcels","overlay":"zones","output":"union_result"})),
+            ("identity", json!({"input":"parcels","overlay":"zones","output":"identity_result"})),
+            ("dissolve", json!({"input":"parcels","field":"parcel","output":"dissolve_result"})),
+            ("convexHull", json!({"input":"parcels","group":"All","output":"hull_result"})),
+            ("featureToPoint", json!({"input":"parcels","output":"point_result"})),
+        ] {
+            let result = rustgis_analysis::run(tool, &inputs, &params)
+                .unwrap_or_else(|error| panic!("RustGIS {tool} should execute: {error}"));
+            let Output::Layer(output) = result.output else {
+                panic!("RustGIS {tool} should return a vector layer");
+            };
+            assert!(!output.features.is_empty(), "RustGIS {tool} should return features");
+            assert!(output.geometry_type != rustgis_data::GeometryType::None,
+                "RustGIS {tool} should return geometry");
+        }
+    }
+
+    #[test]
     fn clip_intersect_and_erase_run_through_the_pinned_rustgis_engine() {
         let input_geojson = r#"{
             "type":"FeatureCollection",
