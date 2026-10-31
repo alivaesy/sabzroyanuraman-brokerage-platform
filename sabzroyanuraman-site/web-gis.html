@@ -9495,7 +9495,7 @@ function validateModelBuilder(modal,show=true){
     if(geometryTypes.has("Point")||geometryTypes.has("MultiPoint")){fields.add("point_x");fields.add("point_y");}
    }
    if(["clip","intersection","erase","union","identity"].includes(op)){
-    const secondaryTypes=overlayNodeValue?(nodeGeometryTypes.get(overlayNodeValue)||[]):new Set(modelBuilderLayerFeatures(Number(overlayValue)).map(f=>f.geometry?.type).filter(Boolean));
+    const secondaryTypes=overlayNodeValue?(nodeGeometryTypes.get(overlayNodeValue)||new Set()):new Set(modelBuilderLayerFeatures(Number(overlayValue)).map(f=>f.geometry?.type).filter(Boolean));
     if(![...secondaryTypes].length||![...secondaryTypes].every(t=>t==="Polygon"||t==="MultiPolygon"))issues.push("Step "+(i+1)+": overlay input must contain Polygon or MultiPolygon geometry for "+op+".");
     if(op==="union"&&![...geometryTypes].every(t=>t==="Polygon"||t==="MultiPolygon"))issues.push("Step "+(i+1)+": Union input must contain only Polygon or MultiPolygon geometry.");
    }
