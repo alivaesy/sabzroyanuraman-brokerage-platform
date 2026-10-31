@@ -99,7 +99,11 @@
     const outHeight = Math.max(1, Math.ceil(height / factor));
     const bands = await image.readRasters({width:outWidth, height:outHeight, interleave:false});
     const geoKeys = image.getGeoKeys ? image.getGeoKeys() : {};
-    const epsg = Number(geoKeys.ProjectedCSTypeGeoKey || geoKeys.GeographicTypeGeoKey || 4326);
+    const epsgValue = geoKeys.ProjectedCSTypeGeoKey || geoKeys.GeographicTypeGeoKey;
+    const epsg = Number(epsgValue);
+    if (!Number.isInteger(epsg) || epsg < 1) {
+      throw new Error("Output GeoTIFF has no valid EPSG CRS metadata; preview was blocked rather than assuming EPSG:4326.");
+    }
     const box = image.getBoundingBox();
     if (!box || box.length !== 4 || !box.every(Number.isFinite)) throw new Error("Output GeoTIFF has no valid bounding box.");
     const toLonLat = xy => {
