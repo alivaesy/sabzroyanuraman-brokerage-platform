@@ -455,3 +455,12 @@ test('RustGIS native adapter has integration coverage for Clip, Intersect and Er
     assert.match(rust, new RegExp('\\("' + tool + '", json!'));
   }
 });
+
+test('RustGIS native tests cover the additional ModelBuilder geometry tools', () => {
+  const rustPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'rustgis-vector-wasm', 'src', 'lib.rs');
+  const rust = fs.readFileSync(rustPath, 'utf8');
+  assert.match(rust, /fn modelbuilder_union_identity_dissolve_hull_and_feature_to_point_use_rustgis/);
+  for (const tool of ['union', 'identity', 'dissolve', 'convexHull', 'featureToPoint']) {
+    assert.ok(rust.includes('("' + tool + '", json!'), 'missing native fixture for ' + tool);
+  }
+});
