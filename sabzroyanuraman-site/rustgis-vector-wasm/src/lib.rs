@@ -62,7 +62,13 @@ fn kind_descriptor(kind: ParamKind) -> Value {
     }
 }
 
+fn ensure_plugin_tools_registered() {
+    static REGISTER: std::sync::Once = std::sync::Once::new();
+    REGISTER.call_once(rustgis_plugins::tools::register);
+}
+
 fn tool_catalogue() -> Value {
+    ensure_plugin_tools_registered();
     let tools: Vec<Value> = rustgis_analysis::tools()
         .map(|tool| {
             let params: Vec<Value> = tool.params.iter().map(|param| {
@@ -417,7 +423,8 @@ mod tests {
             "abi":1,
             "entry":"plugin.wasm",
             "permissions":permissions,
-            "commands":[{"id":"hello","label":"Hello"}]
+            "commands":[{"id":"hello","label":"Hello"}],
+            "tools":[{"id":"empty-tool","name":"Empty Tool","summary":"Sandbox tool test","toolbox":"Tests","params":[]}]
         }).to_string();
         let wasm = wat::parse_str(r#"(module
             (memory (export "memory") 1)
@@ -447,6 +454,14 @@ mod tests {
         assert_eq!(installed["enabled"], true);
         let listed: Vec<Value> = rustgis_plugins::list().iter().map(|plugin| web_plugin_info(plugin)).collect();
         assert!(listed.iter().any(|plugin| plugin["id"] == "sabz-test-plugin"));
+        ensure_plugin_tools_registered();
+        let registered_tools: Vec<String> = rustgis_analysis::tools().map(|tool| tool.id.to_string()).collect();
+        assert!(registered_tools.iter().any(|id| id == "plugin:sabz-test-plugin/empty-tool"),
+            "plugin geoprocessing tools should join the RustGIS toolbox catalogue");
+        let tool_result = rustgis_analysis::run("plugin:sabz-test-plugin/empty-tool", &LayerInputs::default(), &json!({}))
+            .expect("no-host plugin tool should execute through RustGIS analysis");
+        assert!(matches!(tool_result.output, Output::Layers(_)));
+
         let command = rustgis_plugins::command("plugin:sabz-test-plugin/hello")
             .expect("installed command should be registered");
         let mut host = rustgis_plugins::NoHost;
