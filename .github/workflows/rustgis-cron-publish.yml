@@ -1,12 +1,6 @@
-name: Build RustGIS WASM into cron-synced site folder
+name: RustGIS Cron Publish
 
 on:
-  push:
-    branches: [master]
-    paths:
-      - "rust-raster-wasm/**"
-      - "sabzroyanuraman-site/rustgis-vector-wasm/**"
-      - ".github/workflows/rustgis-cron-publish.yml"
   workflow_dispatch:
 
 permissions:
@@ -18,6 +12,7 @@ concurrency:
 
 jobs:
   build-and-publish:
+    if: github.ref == 'refs/heads/feat/rustgis-vector-geoprocessing-phase-3'
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
