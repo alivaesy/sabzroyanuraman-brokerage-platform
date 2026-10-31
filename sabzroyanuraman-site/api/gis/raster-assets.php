@@ -38,6 +38,61 @@ function raster_metadata(string $raw): array {
  foreach($m['geoTransform'] as $v)if(!is_numeric($v)||!is_finite((float)$v))gis_auth_json(400,['ok'=>false,'error'=>'invalid_raster_metadata']);
  return $m;
 }
+
+function raster_u16(string $b,int $o,bool $le): int {
+ if($o<0||$o+2>strlen($b))gis_auth_json(415,['ok'=>false,'error'=>'invalid_geotiff_structure']);
+ $v=unpack($le?'v':'n',substr($b,$o,2));return (int)$v[1];
+}
+function raster_u32(string $b,int $o,bool $le): int {
+ if($o<0||$o+4>strlen($b))gis_auth_json(415,['ok'=>false,'error'=>'invalid_geotiff_structure']);
+ $v=unpack($le?'V':'N',substr($b,$o,4));return (int)$v[1];
+}
+function raster_validate_geotiff(string $path,array $metadata): void {
+ $size=filesize($path);if($size===false||$size<14)gis_auth_json(415,['ok'=>false,'error'=>'invalid_geotiff_structure']);
+ $h=file_get_contents($path,false,null,0,8);
+ if(strlen($h)!==8)gis_auth_json(415,['ok'=>false,'error'=>'invalid_geotiff_structure']);
+ $le=substr($h,0,2)==='II';
+ if(!$le&&substr($h,0,2)!=='MM')gis_auth_json(415,['ok'=>false,'error'=>'invalid_geotiff_structure']);
+ // Classic TIFF only; BigTIFF is rejected until its 64-bit IFD parser is available.
+ if(raster_u16($h,2,$le)!==42)gis_auth_json(415,['ok'=>false,'error'=>'unsupported_or_invalid_tiff_variant']);
+ $ifd=raster_u32($h,4,$le);if($ifd<8||$ifd+2>$size)gis_auth_json(415,['ok'=>false,'error'=>'invalid_geotiff_ifd']);
+ $count=raster_u16(file_get_contents($path,false,null,$ifd,2)?:'',0,$le);
+ if($count<1||$count>4096||$ifd+2+($count*12)+4>$size)gis_auth_json(415,['ok'=>false,'error'=>'invalid_geotiff_ifd']);
+ $fp=fopen($path,'rb');if(!$fp)gis_auth_json(415,['ok'=>false,'error'=>'invalid_geotiff_structure']);
+ $entries=[];$typeSize=[1=>1,2=>1,3=>2,4=>4,5=>8,6=>1,7=>1,8=>2,9=>4,10=>8,11=>4,12=>8];
+ for($i=0;$i<$count;$i++){
+  fseek($fp,$ifd+2+$i*12);$e=fread($fp,12);if(strlen($e)!==12){fclose($fp);gis_auth_json(415,['ok'=>false,'error'=>'invalid_geotiff_ifd']);}
+  $tag=raster_u16($e,0,$le);$type=raster_u16($e,2,$le);$n=raster_u32($e,4,$le);
+  if(!isset($typeSize[$type])||$n<1||$n>100000000){fclose($fp);gis_auth_json(415,['ok'=>false,'error'=>'invalid_geotiff_tag']);}
+  $bytes=$typeSize[$type]*$n;$pos=$bytes<=4?($ifd+2+$i*12+8):raster_u32($e,8,$le);
+  if($pos<0||$pos+$bytes>$size){fclose($fp);gis_auth_json(415,['ok'=>false,'error'=>'invalid_geotiff_tag_offset']);}
+  $entries[$tag]=['type'=>$type,'count'=>$n,'pos'=>$pos,'bytes'=>$bytes];
+ }
+ $values=function(int $tag)use($entries,$fp,$le):array{
+  if(!isset($entries[$tag]))return [];
+  $e=$entries[$tag];fseek($fp,$e['pos']);$raw=fread($fp,$e['bytes']);if(strlen($raw)!==$e['bytes'])return [];
+  $out=[];$step=$e['type']===3?2:($e['type']===4?4:0);
+  if($step===0)return [];
+  for($j=0;$j<$e['count'];$j++)$out[]=$step===2?raster_u16($raw,$j*2,$le):raster_u32($raw,$j*4,$le);
+  return $out;
+ };
+ $w=$values(256)[0]??0;$hgt=$values(257)[0]??0;
+ $offsets=$values(273);$lengths=$values(279);
+ if(!$offsets||!$lengths){$offsets=$values(324);$lengths=$values(325);}
+ $hasTransform=isset($entries[34264])&&$entries[34264]['count']>=16;
+ $hasTieScale=isset($entries[33922])&&$entries[33922]['count']>=6&&isset($entries[33550])&&$entries[33550]['count']>=3;
+ $hasKeys=isset($entries[34735])&&$entries[34735]['count']>=4;
+ if($w<1||$hgt<1||$w>1000000||$hgt>1000000||$w*$hgt>100000000||
+    $w!==$metadata['width']||$hgt!==$metadata['height']||!$hasKeys||(!$hasTransform&&!$hasTieScale)||
+    !$offsets||count($offsets)!==count($lengths)){
+  fclose($fp);gis_auth_json(415,['ok'=>false,'error'=>'geotiff_metadata_or_image_structure_invalid']);
+ }
+ foreach($offsets as $i=>$offset)if($lengths[$i]<1||$offset<8||$offset+$lengths[$i]>$size){
+  fclose($fp);gis_auth_json(415,['ok'=>false,'error'=>'geotiff_image_block_out_of_bounds']);
+ }
+ fclose($fp);
+}
+
 if($method==='POST'&&(int)($_SERVER['CONTENT_LENGTH']??0)>MAX_RASTER_BYTES+65536)gis_auth_json(413,['ok'=>false,'error'=>'raster_upload_too_large']);
 if($method==='GET'){
  $org=filter_var($_GET['organization_id']??null,FILTER_VALIDATE_INT);
@@ -58,11 +113,14 @@ if($method==='GET'){
  }
  if($action==='download'){
   $asset=raster_asset_id((string)($_GET['asset_id']??''));
-  [, $file] = raster_paths($root,(int)$org,(int)$project,$asset);
-  if(!is_file($file)||!is_readable($file))gis_auth_json(404,['ok'=>false,'error'=>'raster_asset_not_found']);
-  $name=$asset.'.tif';
+  [, $legacyFile] = raster_paths($root,(int)$org,(int)$project,$asset);
   $metaFile=raster_paths($root,(int)$org,(int)$project,$asset)[2];
-  if(is_file($metaFile)){$meta=json_decode((string)file_get_contents($metaFile),true);if(is_array($meta)&&isset($meta['file_name']))$name=(string)$meta['file_name'];}
+  $meta=is_file($metaFile)?json_decode((string)file_get_contents($metaFile),true):null;
+  $stored= is_array($meta)&&isset($meta['storage_file'])?(string)$meta['storage_file']:basename($legacyFile);
+  if($stored!==basename($stored)||!preg_match('/^[a-zA-Z0-9._-]+\.tif$/',$stored))gis_auth_json(500,['ok'=>false,'error'=>'invalid_raster_storage_reference']);
+  $file=dirname($legacyFile).'/'.$stored;
+  if(!is_file($file)||!is_readable($file)||is_link($file))gis_auth_json(404,['ok'=>false,'error'=>'raster_asset_not_found']);
+  $name=is_array($meta)&&isset($meta['file_name'])?(string)$meta['file_name']:($asset.'.tif');
   $name=preg_replace('/[^a-zA-Z0-9._ -]/','_',basename($name))?:($asset.'.tif');
   header('Content-Type: image/tiff');header('Content-Length: '.(string)filesize($file));header('Content-Disposition: attachment; filename="'.$name.'"');header('Cache-Control: private, no-store');readfile($file);exit;
  }
@@ -80,31 +138,43 @@ if($action==='upload'){
  if(!isset($_FILES['file'])||!is_array($_FILES['file'])||($_FILES['file']['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK)gis_auth_json(400,['ok'=>false,'error'=>'raster_upload_missing']);
  $tmp=(string)$_FILES['file']['tmp_name'];$size=(int)($_FILES['file']['size']??0);
  if($size<8||$size>MAX_RASTER_BYTES||!is_uploaded_file($tmp))gis_auth_json(413,['ok'=>false,'error'=>'raster_size_or_upload_invalid']);
- $head=file_get_contents($tmp,false,null,0,4);
- if($head!=="II*\0"&&$head!=="MM\0*"&&$head!=="II+\0"&&$head!=="MM\0+")gis_auth_json(415,['ok'=>false,'error'=>'geotiff_required']);
  $metadata=raster_metadata((string)($_POST['metadata']??''));
+ raster_validate_geotiff($tmp,$metadata);
  $fileName=preg_replace('/[^a-zA-Z0-9._ -]/','_',basename((string)($_POST['file_name']??'raster.tif')))?:'raster.tif';
  if(!is_dir($dir)&&!mkdir($dir,0700,true)&&!is_dir($dir))gis_auth_json(503,['ok'=>false,'error'=>'raster_storage_unavailable']);
  if(!is_writable($dir))gis_auth_json(503,['ok'=>false,'error'=>'raster_storage_unavailable']);
  $quotaLock=fopen($dir.'/.quota.lock','c');
  if($quotaLock===false||!flock($quotaLock,LOCK_EX)){if(is_resource($quotaLock))fclose($quotaLock);gis_auth_json(503,['ok'=>false,'error'=>'raster_storage_busy']);}
  $storedBytes=0;foreach(glob($dir.'/*.tif')?:[] as $existingFile){if(is_file($existingFile)&&!is_link($existingFile))$storedBytes+=(int)filesize($existingFile);}
- // Replacing an existing asset consumes only the size delta, not a second copy
- // of the same asset against the per-project quota. The project lock serializes
- // quota checks and writes so concurrent uploads cannot exceed the limit.
- $previousBytes=(is_file($file)&&!is_link($file))?(int)filesize($file):0;
+ $oldMeta=is_file($metaFile)?json_decode((string)file_get_contents($metaFile),true):null;
+ $oldStored=is_array($oldMeta)&&isset($oldMeta['storage_file'])?(string)$oldMeta['storage_file']:basename($file);
+ $oldPath=$dir.'/'.$oldStored;
+ $previousBytes=is_file($oldPath)&&!is_link($oldPath)?(int)filesize($oldPath):0;
  if($storedBytes-$previousBytes+$size>1073741824){flock($quotaLock,LOCK_UN);fclose($quotaLock);gis_auth_json(413,['ok'=>false,'error'=>'project_raster_storage_quota_exceeded']);}
- $tmpTarget=$file.'.'.bin2hex(random_bytes(8)).'.tmp';
- if(!move_uploaded_file($tmp,$tmpTarget)){flock($quotaLock,LOCK_UN);fclose($quotaLock);gis_auth_json(500,['ok'=>false,'error'=>'raster_upload_failed']);}
- $meta=['asset_id'=>$asset,'file_name'=>$fileName,'size'=>$size,'metadata'=>$metadata,'sha256'=>hash_file('sha256',$tmpTarget),'uploaded_at'=>gmdate('c')];
+ $stage=$dir.'/.upload-'.bin2hex(random_bytes(10)).'.tmp';
+ if(!move_uploaded_file($tmp,$stage)){flock($quotaLock,LOCK_UN);fclose($quotaLock);gis_auth_json(500,['ok'=>false,'error'=>'raster_upload_failed']);}
+ $hash=hash_file('sha256',$stage);$storedName=$asset.'.'.$hash.'.tif';$storedPath=$dir.'/'.$storedName;
+ $meta=['asset_id'=>$asset,'file_name'=>$fileName,'storage_file'=>$storedName,'size'=>$size,'metadata'=>$metadata,'sha256'=>$hash,'uploaded_at'=>gmdate('c')];
  $metaTmp=$metaFile.'.'.bin2hex(random_bytes(6)).'.tmp';
- if(file_put_contents($metaTmp,json_encode($meta,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),LOCK_EX)===false||!rename($tmpTarget,$file)||!rename($metaTmp,$metaFile)){@unlink($tmpTarget);@unlink($metaTmp);flock($quotaLock,LOCK_UN);fclose($quotaLock);gis_auth_json(500,['ok'=>false,'error'=>'raster_storage_failed']);}
+ $encoded=json_encode($meta,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+ $ok=$encoded!==false&&file_put_contents($metaTmp,$encoded,LOCK_EX)!==false;
+ if($ok&&!is_file($storedPath))$ok=rename($stage,$storedPath);
+ else @unlink($stage);
+ // The metadata pointer is the commit record: its atomic rename switches the
+ // asset to the immutable content-addressed TIFF. A failed commit leaves the
+ // previous metadata and raster untouched.
+ if($ok)$ok=rename($metaTmp,$metaFile);
+ if(!$ok){@unlink($stage);@unlink($metaTmp);if(is_file($storedPath)&&(!is_array($oldMeta)||($oldMeta['storage_file']??'')!==$storedName))@unlink($storedPath);flock($quotaLock,LOCK_UN);fclose($quotaLock);gis_auth_json(500,['ok'=>false,'error'=>'raster_storage_failed']);}
+ if($oldStored!==$storedName&&$oldStored===basename($oldStored)&&preg_match('/^[a-zA-Z0-9._-]+\.tif$/',$oldStored))@unlink($oldPath);
  flock($quotaLock,LOCK_UN);fclose($quotaLock);
  raster_audit($pdo,$user,(int)$org,(int)$project,'upload_raster_asset',$asset);
  gis_auth_json(200,['ok'=>true,'asset'=>$meta]);
 }
 if($action==='delete'){
- if(is_file($file))@unlink($file);if(is_file($metaFile))@unlink($metaFile);
+ $deleteMeta=is_file($metaFile)?json_decode((string)file_get_contents($metaFile),true):null;
+ $deleteStored=is_array($deleteMeta)&&isset($deleteMeta['storage_file'])?(string)$deleteMeta['storage_file']:basename($file);
+ if($deleteStored===basename($deleteStored)&&preg_match('/^[a-zA-Z0-9._-]+\.tif$/',$deleteStored))@unlink($dir.'/'.$deleteStored);
+ if(is_file($metaFile))@unlink($metaFile);
  raster_audit($pdo,$user,(int)$org,(int)$project,'delete_raster_asset',$asset);
  gis_auth_json(200,['ok'=>true,'deleted'=>true]);
 }
