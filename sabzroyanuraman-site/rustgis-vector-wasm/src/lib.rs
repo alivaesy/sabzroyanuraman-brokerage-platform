@@ -475,9 +475,13 @@ mod tests {
 
     #[test]
     fn plugin_manager_rejects_host_permissions_and_malformed_archives() {
-        let privileged = test_plugin_package(&["edit"]);
-        let error = install_web_plugin(&privileged).expect_err("edit permission must fail closed");
-        assert!(error.contains("Host permissions are not enabled"));
+        for permission in ["edit", "files", "network"] {
+            let privileged = test_plugin_package(&[permission]);
+            let error = install_web_plugin(&privileged).expect_err("host permission must fail closed");
+            assert!(error.contains("Host permissions are not enabled"), "{permission} should be explicitly denied");
+        }
+        let unknown = test_plugin_package(&["shell"]);
+        assert!(prepare_web_plugin(&unknown).is_err(), "unknown manifest permissions must be rejected");
         assert!(prepare_web_plugin(b"not a zip archive").is_err());
         assert!(prepare_web_plugin(&[]).is_err());
     }
