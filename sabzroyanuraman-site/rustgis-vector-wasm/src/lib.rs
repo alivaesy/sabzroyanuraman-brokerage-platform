@@ -526,6 +526,15 @@ mod tests {
             assert!(!output.features.is_empty(), "RustGIS {tool} should return features");
             assert!(output.geometry_type != rustgis_data::GeometryType::None,
                 "RustGIS {tool} should preserve geometry");
+            let field_names: Vec<&str> = output.fields.iter().map(|field| field.name.as_str()).collect();
+            if tool == "spatialJoin" {
+                assert!(field_names.contains(&"join_count"), "Spatial Join should expose join_count");
+                assert!(field_names.contains(&"join_zone"), "Spatial Join should prefix joined attributes");
+            }
+            if tool == "calculateGeometry" {
+                assert!(field_names.contains(&"area_km2"), "Calculate Geometry should expose area_km2");
+                assert!(field_names.contains(&"perimeter_km"), "Calculate Geometry should expose perimeter_km");
+            }
         }
     }
 
