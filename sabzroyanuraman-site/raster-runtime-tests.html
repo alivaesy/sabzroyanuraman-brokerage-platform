@@ -25,6 +25,22 @@ document.getElementById("run").onclick=async()=>{
   const read=await SabzRasterRuntime.read(file);
   if(read.metadata.width!==4||read.metadata.height!==3||read.metadata.crs.epsg!==32638||read.bands[0][10]!==11||read.bands[0][11]!==-9999)throw new Error("Raster data/NoData read-back mismatch: "+JSON.stringify({width:read.metadata.width,height:read.metadata.height,epsg:read.metadata.crs.epsg,pixel10:read.bands[0][10],pixel11:read.bands[0][11],noData:read.metadata.noData,bandType:read.bands[0].constructor.name}));
   log("PASS: raster pixels, NoData, dimensions and CRS read-back");
+  // Plain TIFFs may omit GeoKeyDirectory. Null and throwing readers must both
+  // produce the explicit missing-CRS validation error, not a TypeError.
+  const originalFromArrayBuffer=GeoTIFF.fromArrayBuffer;
+  for (const getGeoKeys of [()=>null,()=>{throw new TypeError("missing GeoKeyDirectory");}]) {
+   GeoTIFF.fromArrayBuffer=async()=>({getImage:async()=>({
+    fileDirectory:{ModelPixelScale:[1,1,0],ModelTiepoint:[0,0,0,0,1,0]},
+    getGeoKeys,readRasters:async()=>[new Float32Array([1])],
+    getWidth:()=>1,getHeight:()=>1,getGDALNoData:()=>null,
+    getOrigin:()=>[0,1],getResolution:()=>[1,1],getBoundingBox:()=>[0,0,1,1]
+   })});
+   let missingCrsError="";
+   try { await SabzRasterRuntime.read(file); } catch(error) { missingCrsError=error.message; }
+   if(!missingCrsError.includes("CRS is missing"))throw new Error("Missing GeoKeyDirectory was not reported as a clear CRS error: "+missingCrsError);
+  }
+  GeoTIFF.fromArrayBuffer=originalFromArrayBuffer;
+  log("PASS: missing/null GeoKeyDirectory is handled with a clear missing-CRS error");
   const planeMeta={width:5,height:5,bandCount:1,dataType:"Float32Array",noData:-9999,
    crs:{epsg:32638,name:"EPSG:32638"},geoKeys:{ProjectedCSTypeGeoKey:32638},
    geoTransform:[500000,10,0,3800000,0,-10],extent:{xmin:500000,ymin:3799950,xmax:500050,ymax:3800000},pixelScale:[10,10]};
