@@ -2,6 +2,12 @@ name: RustGIS Cron Publish
 
 on:
   workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - "rust-raster-wasm/**"
+      - "sabzroyanuraman-site/rustgis-vector-wasm/**"
+      - ".github/workflows/rustgis-cron-publish.yml"
 
 permissions:
   contents: write
