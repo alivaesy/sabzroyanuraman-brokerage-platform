@@ -86,16 +86,20 @@ if($action==='upload'){
  $fileName=preg_replace('/[^a-zA-Z0-9._ -]/','_',basename((string)($_POST['file_name']??'raster.tif')))?:'raster.tif';
  if(!is_dir($dir)&&!mkdir($dir,0700,true)&&!is_dir($dir))gis_auth_json(503,['ok'=>false,'error'=>'raster_storage_unavailable']);
  if(!is_writable($dir))gis_auth_json(503,['ok'=>false,'error'=>'raster_storage_unavailable']);
+ $quotaLock=fopen($dir.'/.quota.lock','c');
+ if($quotaLock===false||!flock($quotaLock,LOCK_EX)){if(is_resource($quotaLock))fclose($quotaLock);gis_auth_json(503,['ok'=>false,'error'=>'raster_storage_busy']);}
  $storedBytes=0;foreach(glob($dir.'/*.tif')?:[] as $existingFile){if(is_file($existingFile)&&!is_link($existingFile))$storedBytes+=(int)filesize($existingFile);}
  // Replacing an existing asset consumes only the size delta, not a second copy
- // of the same asset against the per-project quota.
+ // of the same asset against the per-project quota. The project lock serializes
+ // quota checks and writes so concurrent uploads cannot exceed the limit.
  $previousBytes=(is_file($file)&&!is_link($file))?(int)filesize($file):0;
- if($storedBytes-$previousBytes+$size>1073741824)gis_auth_json(413,['ok'=>false,'error'=>'project_raster_storage_quota_exceeded']);
+ if($storedBytes-$previousBytes+$size>1073741824){flock($quotaLock,LOCK_UN);fclose($quotaLock);gis_auth_json(413,['ok'=>false,'error'=>'project_raster_storage_quota_exceeded']);}
  $tmpTarget=$file.'.'.bin2hex(random_bytes(8)).'.tmp';
- if(!move_uploaded_file($tmp,$tmpTarget))gis_auth_json(500,['ok'=>false,'error'=>'raster_upload_failed']);
+ if(!move_uploaded_file($tmp,$tmpTarget)){flock($quotaLock,LOCK_UN);fclose($quotaLock);gis_auth_json(500,['ok'=>false,'error'=>'raster_upload_failed']);}
  $meta=['asset_id'=>$asset,'file_name'=>$fileName,'size'=>$size,'metadata'=>$metadata,'sha256'=>hash_file('sha256',$tmpTarget),'uploaded_at'=>gmdate('c')];
  $metaTmp=$metaFile.'.'.bin2hex(random_bytes(6)).'.tmp';
- if(file_put_contents($metaTmp,json_encode($meta,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),LOCK_EX)===false||!rename($tmpTarget,$file)||!rename($metaTmp,$metaFile)){@unlink($tmpTarget);@unlink($metaTmp);gis_auth_json(500,['ok'=>false,'error'=>'raster_storage_failed']);}
+ if(file_put_contents($metaTmp,json_encode($meta,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),LOCK_EX)===false||!rename($tmpTarget,$file)||!rename($metaTmp,$metaFile)){@unlink($tmpTarget);@unlink($metaTmp);flock($quotaLock,LOCK_UN);fclose($quotaLock);gis_auth_json(500,['ok'=>false,'error'=>'raster_storage_failed']);}
+ flock($quotaLock,LOCK_UN);fclose($quotaLock);
  raster_audit($pdo,$user,(int)$org,(int)$project,'upload_raster_asset',$asset);
  gis_auth_json(200,['ok'=>true,'asset'=>$meta]);
 }
