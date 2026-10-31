@@ -7,7 +7,7 @@ Workflow زیر پس از ادغام تغییرات به شاخه `master`، ه�
 
 `/.github/workflows/rustgis-cron-publish.yml`
 
-پس از ثبت commit، Cron موجود فایل‌ها را به `public_html` منتقل می‌کند. برای اجرای این روش، FTP/FTPS و Secretهای FTP لازم نیستند.
+پس از ادغام به `master`، تغییر سورس Raster/Vector یا خود Workflow به‌صورت خودکار `push` را فعال می‌کند؛ Workflow هر دو موتور را تست و build کرده و فایل‌های خروجی را commit می‌کند. Cron موجود پس از آن فایل‌ها را به `public_html` منتقل می‌کند. اجرای دستی `workflow_dispatch` نیز برای بازسازی اضطراری باقی است. برای این روش، FTP/FTPS و Secretهای FTP لازم نیستند.
 
 ## مسیر خروجی‌ها
 - Raster: `sabzroyanuraman-site/wasm/rust-raster/`
