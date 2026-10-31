@@ -431,7 +431,7 @@ mod tests {
             (data (i32.const 64) "{\"ok\":null}")
             (func (export "rustgis_alloc") (param i32) (result i32) (i32.const 0))
             (func (export "rustgis_call") (param i32 i32) (result i64)
-                (i64.const 274877906955))
+                (i64.const 47244640320))
         )"#).expect("test module must compile");
         let cursor = std::io::Cursor::new(Vec::new());
         let mut archive = zip::ZipWriter::new(cursor);
