@@ -9443,6 +9443,7 @@ async function runModelBuilder(modal){
  if(modal._mbRunState)return;
  const runButton=modal.querySelector("[data-mb-run]"),cancelButton=modal.querySelector("[data-mb-cancel]");
  const runState={cancelled:false};modal._mbRunState=runState;
+ const stepLog=[];
  runButton.disabled=true;cancelButton.disabled=false;
  const say=message=>{modal.querySelector("[data-mb-status]").textContent=message;};
  const yieldToBrowser=()=>new Promise(resolve=>setTimeout(resolve,0));
@@ -9450,7 +9451,7 @@ async function runModelBuilder(modal){
  try{
   const validation=validateModelBuilder(modal,false);if(!validation.valid)throw validation.error;
   let current=validation.source.map(f=>JSON.parse(JSON.stringify(f)));
-  const steps=validation.steps,stepLog=[],intermediate=[],nodeOutputs=new Map();
+  const steps=validation.steps,intermediate=[],nodeOutputs=new Map();
   // Bound cumulative work as well as each individual node to prevent a long
   // chained model from multiplying memory use through saved intermediates.
   let processedFeatureCount=0;
