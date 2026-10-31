@@ -9534,7 +9534,7 @@ async function runModelBuilder(modal){
    const inputCount=current.length,op=row.querySelector("[data-mb-op]").value;
    const raw=Number(row.querySelector("[data-mb-param]").value),overlayIndex=row.querySelector("[data-mb-overlay]").value;
    let next=[];
-   if(["buffer","clip","intersection","erase","union","identity","dissolve","dissolveField","convexHull","pointOnFeature"].includes(op)){
+   if(["buffer","clip","intersection","erase","union","identity","dissolve","dissolveField","convexHull","pointOnFeature","spatialJoin","spatialJoinOneToMany","areaLength"].includes(op)){
     const layerInputs={MB_Input:current};
     const params={input:"MB_Input",output:"ModelBuilder_Step_"+String(si+1).padStart(2,"0")};
     if(op==="buffer"){
@@ -9548,7 +9548,7 @@ async function runModelBuilder(modal){
       if(!field)throw new Error("Choose a dissolve field for this ModelBuilder node.");
       params.field=field;
      }
-    }else if(op!=="pointOnFeature"){
+    }else if(op!=="pointOnFeature"&&op!=="areaLength"){
      const overlayNodeRef=row.querySelector("[data-mb-overlay-node]")?.value||"";
      const overlays=overlayNodeRef?(nodeOutputs.get(overlayNodeRef)||[]).map(clone):modelBuilderLayerFeatures(overlayIndex);
      const overlayName=overlayNodeRef?"MB_Overlay_Node_"+(steps.findIndex(x=>x.dataset.mbNodeId===overlayNodeRef)+1):"MB_Overlay_"+overlayLabel(overlayIndex);
@@ -9556,9 +9556,16 @@ async function runModelBuilder(modal){
      layerInputs[overlayName]=overlays;
      if(op==="clip")params.clip=overlayName;
      else if(op==="erase")params.erase=overlayName;
-     else params.overlay=overlayName;
+     else if(op==="spatialJoin"||op==="spatialJoinOneToMany"){
+      const relation=row.querySelector("[data-mb-relation]").value;
+      const match={intersects:"Intersects",within:"Within",contains:"Contains"}[relation];
+      if(!match)throw new Error("RustGIS Spatial Join supports Intersects, Within and Contains relationships; choose one of these.");
+      delete params.input;params.target="MB_Input";params.join=overlayName;params.match=match;
+      params.operation=op==="spatialJoinOneToMany"?"Join one to many":"Join one to one";
+      params.keepAll="Keep all";params.prefix="join_";
+     }else params.overlay=overlayName;
     }
-    const rustTool=op==="intersection"?"intersect":op==="pointOnFeature"?"featureToPoint":op;
+    const rustTool=op==="intersection"?"intersect":op==="pointOnFeature"?"featureToPoint":op==="areaLength"?"calculateGeometry":op;
     const rustResult=await runRustGisVectorTool(rustTool,layerInputs,params);
     next=rustResult.features.map(feature=>({...clone(feature),properties:{...(feature.properties||{}),_model_step:si+1,_model_operation:op==="intersection"?"Intersect":op==="pointOnFeature"?"Feature To Point":op[0].toUpperCase()+op.slice(1),_rustgis_tool:rustResult.tool,_rustgis_revision:rustResult.upstream}}));
    }else if(op==="calculateField"){
