@@ -20,7 +20,7 @@
   const gp=panel.querySelector("[data-r-gp-status]")?.parentElement;
   (gp||panel).insertAdjacentElement("afterend",section);
   const status=section.querySelector("[data-r-plugin-status]"),list=section.querySelector("[data-r-plugin-list]"),commands=section.querySelector("[data-r-plugin-command]");
-  const bridge=()=>{if(!root.SabzRustRasterBridge)throw new Error("RustGIS WASM bridge is unavailable.");return root.SabzRustRasterBridge;};
+  const bridge=()=>{if(!root.SabzRustGISPluginBridge)throw new Error("RustGIS WASM bridge is unavailable.");return root.SabzRustGISPluginBridge;};
   async function refresh(){
    const installed=await bridge().listPlugins();list.replaceChildren();commands.replaceChildren();
    const none=document.createElement("option");none.value="";none.textContent="Select command";commands.appendChild(none);
