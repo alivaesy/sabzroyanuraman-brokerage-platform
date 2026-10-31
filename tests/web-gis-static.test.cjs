@@ -274,3 +274,13 @@ test('Raster asset replacement quota accounts for the previous asset size', () =
   assert.match(api, /\$storedBytes-\$previousBytes\+\$size>1073741824/);
   assert.match(api, /is_file\(\$existingFile\)&&!is_link\(\$existingFile\)/);
 });
+
+
+test('Raster asset quota writes are serialized per project', () => {
+  const apiPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'api', 'gis', 'raster-assets.php');
+  const api = fs.readFileSync(apiPath, 'utf8');
+  assert.match(api, /fopen\(\$dir\.'\/\.quota\.lock','c'\)/);
+  assert.match(api, /flock\(\$quotaLock,LOCK_EX\)/);
+  assert.match(api, /flock\(\$quotaLock,LOCK_UN\)/);
+  assert.match(api, /concurrent uploads cannot exceed the limit/);
+});
