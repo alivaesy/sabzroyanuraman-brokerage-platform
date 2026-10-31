@@ -284,3 +284,42 @@ test('Raster asset quota writes are serialized per project', () => {
   assert.match(api, /flock\(\$quotaLock,LOCK_UN\)/);
   assert.match(api, /concurrent uploads cannot exceed the limit/);
 });
+
+
+test('Raster API validates TIFF IFD, GeoTIFF georeferencing, image blocks, and EPSG metadata', () => {
+  const apiPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'api', 'gis', 'raster-assets.php');
+  const api = fs.readFileSync(apiPath, 'utf8');
+  assert.match(api, /function raster_validate_geotiff\(/);
+  assert.match(api, /invalid_geotiff_ifd/);
+  assert.match(api, /geotiff_image_block_out_of_bounds/);
+  assert.match(api, /\$hasTransform/);
+  assert.match(api, /\$hasTieScale/);
+  assert.match(api, /\$tiffEpsg!==\(int\)\$metadata\['crs'\]\['epsg'\]/);
+  assert.match(api, /raster_validate_geotiff\(\$tmp,\$metadata\)/);
+  assert.match(api, /unsupported_or_invalid_tiff_variant/);
+});
+
+test('Raster replacement commits through an atomic metadata pointer to an immutable TIFF', () => {
+  const apiPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'api', 'gis', 'raster-assets.php');
+  const api = fs.readFileSync(apiPath, 'utf8');
+  assert.match(api, /\$storedName=\$asset\.'\.'\.\$hash\.'\.tif'/);
+  assert.match(api, /The metadata pointer is the commit record/);
+  assert.match(api, /if\(\$ok\)\$ok=rename\(\$metaTmp,\$metaFile\)/);
+  assert.match(api, /\$meta\['storage_file'\]/);
+  assert.match(api, /invalid_raster_storage_reference/);
+});
+
+test('Plugin restore verifies persisted bytes and denies host permissions before installation', () => {
+  const pluginPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'plugin-manager.js');
+  const plugin = fs.readFileSync(pluginPath, 'utf8');
+  const start = plugin.indexOf('async function restoreApproved()');
+  const end = plugin.indexOf('section.querySelector("[data-r-plugin-install]")', start);
+  assert.ok(start >= 0 && end > start, 'plugin restore routine was not found');
+  const restore = plugin.slice(start, end);
+  assert.ok(restore.indexOf('inspectPluginPackage(bytes)') < restore.indexOf('installPluginPackage(bytes,[])'),
+    'persisted package must be inspected before it is installed');
+  assert.match(restore, /inspected\.sha256!==record\.sha256/);
+  assert.match(restore, /inspected\.id!==record\.id/);
+  assert.match(restore, /requested\.length\|\|!Array\.isArray\(record\.approvedPermissions\)/);
+  assert.match(plugin, /const BLOCKED_PERMISSIONS=new Set\(\["edit","files","network"\]\)/);
+});
