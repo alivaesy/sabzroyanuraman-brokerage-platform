@@ -9445,6 +9445,8 @@ async function runModelBuilder(modal){
  const runState={cancelled:false};modal._mbRunState=runState;
  const stepLog=[];
  runButton.disabled=true;cancelButton.disabled=false;
+ const lockedControls=[...modal.querySelectorAll("[data-mb-step] input,[data-mb-step] select,[data-mb-step] button,[data-mb-source],[data-mb-name],[data-mb-output],[data-mb-intermediates],[data-mb-add],[data-mb-clear],[data-mb-save],[data-mb-load],[data-mb-validate]")].map(control=>({control,disabled:control.disabled}));
+ lockedControls.forEach(item=>{item.control.disabled=true;});
  const say=message=>{modal.querySelector("[data-mb-status]").textContent=message;};
  const yieldToBrowser=()=>new Promise(resolve=>setTimeout(resolve,0));
  const checkCancelled=()=>{if(runState.cancelled){const error=new Error("Model run cancelled by user.");error.name="ModelCancelledError";throw error;}};
@@ -9558,7 +9560,7 @@ async function runModelBuilder(modal){
   if(modal.querySelector("[data-mb-intermediates]").checked)intermediate.forEach(layer=>geoJsonLayer({type:"FeatureCollection",features:layer.features},layer.name));
   geoJsonLayer({type:"FeatureCollection",features:current},name);
   say("Model completed successfully. Output: "+name+"\n"+stepLog.join("\n")+"\nFinal features: "+current.length+(intermediate.length?"\nIntermediate layers saved: "+intermediate.length:""));
- }catch(err){if(err?.name==="ModelCancelledError"||runState.cancelled){say("Model cancelled. No output layers were added. Completed steps:\n"+(stepLog.join("\n")||"None"));status("ModelBuilder: cancelled");}else{say("Model failed: "+(err.message||String(err)));status("ModelBuilder: "+(err.message||String(err)));}}finally{runButton.disabled=false;cancelButton.disabled=true;modal._mbRunState=null;}
+ }catch(err){if(err?.name==="ModelCancelledError"||runState.cancelled){say("Model cancelled. No output layers were added. Completed steps:\n"+(stepLog.join("\n")||"None"));status("ModelBuilder: cancelled");}else{say("Model failed: "+(err.message||String(err)));status("ModelBuilder: "+(err.message||String(err)));}}finally{lockedControls.forEach(item=>{item.control.disabled=item.disabled;});runButton.disabled=false;cancelButton.disabled=true;modal._mbRunState=null;}
 }
 // Property-form handoff must share this script's lexical GIS auth/project state.
   (function(){
