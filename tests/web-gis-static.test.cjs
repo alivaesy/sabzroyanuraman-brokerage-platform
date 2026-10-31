@@ -300,7 +300,7 @@ test('Raster API validates TIFF IFD, GeoTIFF georeferencing, image blocks, and E
   assert.match(validator, /geotiff_image_block_out_of_bounds/);
   assert.match(validator, /\$hasTransform/);
   assert.match(validator, /\$hasTieScale/);
-  assert.match(validator, /\$tiffEpsg===\(int\)\$metadata\['crs'\]\['epsg'\]/);
+  assert.match(validator, /\\$tiffEpsg\\s*===\\s*\\(int\\)\\$metadata\\['crs'\\]\\['epsg'\\]/);
   assert.match(api, /raster_validate_geotiff\(\$tmp,\$metadata\)/);
   assert.match(validator, /unsupported_or_invalid_tiff_variant/);
 });
