@@ -234,3 +234,8 @@ At the end of each meaningful batch, update this file with the verified date, co
 - Unique-value styling assigns palette colors per attribute value; graduated styling bins numeric values into equal-interval classes. Base outline, width, point size, opacity, and fill opacity remain available.
 - Commits on master: `0fe5e0094aa0f618539c7c8383e982075b2aa19e` (renderer UI and logic), `280f41c695b645147956be3786e65a7ac16aaef5` (safe numeric range calculation for large layers).
 - Static validation after re-fetch: all 12 inline scripts parsed successfully; renderer controls and modes were present. Not browser-tested. Verify symbol rendering on points/lines/polygons, project save/reload persistence of renderer settings, empty/non-numeric fields, and large feature layers. Renderer config is stored on the in-memory layer owner; persistence across reload still needs confirmation.
+
+
+## Deployment and RustGIS continuation handoff (2026-10-31)
+- Read `docs/WEBGIS_RUSTGIS_DEPLOYMENT_HANDOFF.md` before changing Cron deployment, RustGIS, Rust/WASM, or GitHub Actions. It records the verified safe cPanel deploy configuration, protected host-only paths, current known RustGIS branch/PR/workflow status, and the next required steps.
+- The handoff is a dated snapshot; re-check live GitHub branch, PR #44, workflow runs, and host state before acting.
