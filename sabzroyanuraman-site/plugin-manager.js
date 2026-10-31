@@ -67,7 +67,7 @@
     if(blocked.length)throw new Error("Installation blocked. This WebGIS host has no reviewed capability adapter for: "+blocked.join(", ")+". Install only a RustGIS WASM package declaring no host permissions.");
     const prompt="Install "+info.name+" "+info.version+"?\nAuthor: "+(info.author||"not specified")+"\nLicense: "+(info.license||"not specified")+"\nSHA-256: "+info.sha256+"\n\nDeclared permissions:\n"+detail+"\n\nThe package is WASM-only and will execute with NoHost capabilities.";
     if(!confirm(prompt)){status.textContent="Installation cancelled; no permission was granted.";return;}
-    const installed=await bridge().installPluginPackage(bytes,permissions);
+    const installed=await bridge().installPluginPackage(bytes);
     await put({id:installed.id,bytes:bytes,sha256:installed.sha256,approvedPermissions:permissions,installedAt:new Date().toISOString()});
     status.textContent="Installed and validated: "+installed.name+" · "+installed.sha256;
     await refresh();
@@ -85,7 +85,7 @@
   };
   (async()=>{try{await bridge().load();await restoreApproved();await refresh();}catch(e){
    section.querySelectorAll("button,input,select,textarea").forEach(control=>{control.disabled=true;});
-   status.textContent="Plugin manager disabled: the RustGIS plugin runtime adapter is not available. No package can be installed or executed.";
+   status.textContent="Plugin manager unavailable: RustGIS WASM plugin runtime failed to load. Controls remain disabled; no package was installed or executed.";
   }})();
  }
  root.SabzPluginManager=Object.freeze({attach});
