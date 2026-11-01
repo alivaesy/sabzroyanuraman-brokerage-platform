@@ -216,9 +216,12 @@ test('FileGDB catalog filters internal and non-spatial tables and retains datase
   assert.equal(helpers.isGdbSystemLayer('GDB_Items'), true);
   assert.equal(helpers.isGdbSystemLayer('SDE_table_registry'), true);
   assert.equal(helpers.isGdbSystemLayer('Parcels'), false);
-  assert.match(html, /attributes without spatial geometry; table skipped/);
+  assert.match(html, /report\.tables\.push\(\{name:layerName/);
+  assert.match(html, /window\.SabzGdbCatalog\?\.chooseLayers/);
+  assert.match(html, /const discoveredLayers=metadataLayers\.length\?metadataLayers/);
   assert.ok(html.includes('internal/system table skipped'));
-  assert.ok(html.includes('item.drawingSet=root+" / "+featureDataset'));
+  assert.ok(html.includes('item.drawingSet=featureDataset'));
+  assert.match(html, /window\.SabzGdbCatalog\?\.registerTables/);
 });
 
 
