@@ -242,7 +242,7 @@ pub fn run_tool(tool_id: &str, layers_json: &str, params_json: &str) -> Result<S
         .and_then(|value| value.as_str().map(str::to_owned));
     if let Some(label) = processing_crs {
         let code = label.strip_prefix("EPSG:")
-            .and_then(|value| value.parse::<u32>().ok())
+            .and_then(|value| value.parse::<u16>().ok())
             .ok_or_else(|| js_error(format!("Invalid projected processing CRS: {label}")))?;
         let target = Crs::Epsg(code);
         for dataset in inputs.datasets.values_mut() {
