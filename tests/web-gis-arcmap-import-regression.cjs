@@ -43,6 +43,25 @@ const {chromium}=require('playwright');
   await page.waitForTimeout(400);
   const tableText=await page.locator('#attributeTableWrap').innerText().catch(()=> '');
   assert.match(tableText,/P-001/,'Repaired geometry attributes should be available in the attribute table');
+  // Import the real FileGDB fixture, select one feature class, and verify the Feature Dataset group.
+  await page.locator('#gdbArchiveInput').setInputFiles(path.join(__dirname,'fixtures','sample-gdb.zip'));
+  await page.waitForFunction(()=>document.getElementById('sabzGdbPicker')?.classList.contains('show'),null,{timeout:60000});
+  const catalogNames=await page.locator('#sabzGdbLayerList .sabz-gdb-entry').allInnerTexts();
+  assert.ok(catalogNames.some(x=>x.includes('ssdsd')),'Real GDB catalog should expose feature class ssdsd');
+  await page.locator('#sabzGdbSelectNone').click();
+  const selectedEntry=page.locator('#sabzGdbLayerList .sabz-gdb-entry').filter({hasText:'ssdsd'}).first();
+  await selectedEntry.locator('input[type="checkbox"]').check();
+  await page.locator('#sabzGdbImport').click();
+  await page.waitForFunction(()=>window.__sabzWebGISSharedBridge.namedLayers.some(x=>x.name.includes('ssdsd')&&x.layer.getLayers().length>0),null,{timeout:90000});
+  const gdbResult=await page.evaluate(()=>{
+   const b=window.__sabzWebGISSharedBridge;
+   const item=b.namedLayers.find(x=>x.name.includes('ssdsd'));
+   return {name:item?.name,group:item?.drawingSet,displayName:item?.displayName,count:item?.layer?.getLayers?.().length,report:window.__sabzLastGdbImportReport||null};
+  });
+  assert.ok(gdbResult.count>0,'Selected GDB feature class should render real geometries');
+  assert.equal(gdbResult.group,'zone38','Feature Dataset zone38 should be restored as a TOC group');
+  assert.equal(gdbResult.displayName,'ssdsd','Grouped layer should use its short feature-class name');
+
   assert.deepEqual(errors,[],'No uncaught JavaScript errors');
   console.log('PASS — ArcMap manifest creates 3 ordered source placeholders; Repair Data Source loads polygon geometry and attributes; attribute table reads repaired row.');
  }finally{await browser.close();}
