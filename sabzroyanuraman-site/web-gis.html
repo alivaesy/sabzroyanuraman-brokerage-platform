@@ -4898,14 +4898,14 @@ async function getGdalBrowser(){
   if(gdalBrowser)return gdalBrowser;
   if(!gdalLoading){
     if(typeof initGdalJs!=="function")throw new Error("The geodatabase library did not load.");
-    gdalLoading=initGdalJs({path:new URL("./vendor/web-gis/gdal3.js/",location.href).pathname,paths:{wasm:"gdal3WebAssembly.wasm",data:"gdal3WebAssembly.data"},useWorker:false});
+    gdalLoading=initGdalJs({path:new URL("./vendor/web-gis/gdal3.js/",location.href).pathname,paths:{wasm:"gdal3WebAssembly.wasm",data:"gdal3WebAssembly.data"},useWorker:true});
   }
   gdalBrowser=await gdalLoading;
   return gdalBrowser;
 }
 function gdbFeatureDatasetName(layer,detail){
-  const candidates=[layer?.featureDatasetName,layer?.featureDataset,layer?.datasetName,detail?.featureDatasetName,detail?.featureDataset,detail?.datasetName,layer?.group,detail?.group];
-  for(const value of candidates){if(typeof value==="string"&&value.trim())return value.trim()}
+  const candidates=[layer?.featureDatasetName,layer?.featureDataset,layer?.datasetName,detail?.featureDatasetName,detail?.featureDataset,detail?.datasetName,layer?.group,detail?.group,layer?.groupName,detail?.groupName];
+  for(const value of candidates){if(typeof value==="string"&&value.trim())return value.trim().replace(/\\/g,"/")}
   const raw=String(layer?.name||detail?.name||"");
   const parts=raw.split(/[\\/]/).filter(Boolean);
   return parts.length>1?parts.slice(0,-1).join("/"):null;
@@ -4935,7 +4935,7 @@ async function importGDBFiles(fileList){
   const root=(relative[0]||"").split("/")[0]||"selected.gdb";
   if(!/\.gdb$/i.test(root)){status("Select the actual folder ending in .gdb.");return}
   if(typeof JSZip==="undefined")throw new Error("ZIP library is unavailable; cannot preserve the File Geodatabase directory structure.");
-  const report={selectedFiles:files.length,openedDatasets:0,sourceFeatureClasses:0,importedLayers:0,importedFeatures:0,emptyLayers:0,failedLayers:0,openErrors:[],layerErrors:[],unsupported:[],
+  const report={selectedFiles:files.length,openedDatasets:0,sourceFeatureClasses:0,importedLayers:0,importedFeatures:0,emptyLayers:0,failedLayers:0,tables:[],openErrors:[],layerErrors:[],unsupported:[],
     notExtracted:[
       "ArcMap renderer/symbology and label expressions/placement (these belong to MXD/MXT, not raw GDB geometry)",
       "Geodatabase topology definitions and validation errors",
@@ -4990,18 +4990,27 @@ async function importGDBFiles(fileList){
           return true;
         });
         report.sourceFeatureClasses=(report.sourceFeatureClasses||0)+sourceLayers.length;
-        for(let li=0;li<sourceLayers.length;li++){
-          const sourceLayer=sourceLayers[li];
+        const catalogItems=sourceLayers.map(layer=>({
+          name:String(layer?.name||""),
+          geometryType:layer?.geometryType||layer?.geometry||layer?.geomType||"",
+          featureDataset:gdbFeatureDatasetName(layer,metadataLayers.find(x=>String(x.name)===String(layer?.name))||{})
+        }));
+        const selectedNames=window.SabzGdbCatalog?.chooseLayers
+          ? await window.SabzGdbCatalog.chooseLayers(catalogItems,root)
+          : catalogItems.map(item=>item.name);
+        const selectedSet=new Set(selectedNames);
+        const selectedSourceLayers=sourceLayers.filter(layer=>selectedSet.has(String(layer?.name||"")));
+        report.selectedFeatureClasses=(report.selectedFeatureClasses||0)+selectedSourceLayers.length;
+        for(let li=0;li<selectedSourceLayers.length;li++){
+          const sourceLayer=selectedSourceLayers[li];
           const layerName=String(sourceLayer?.name||("FeatureClass_"+(i+1)+"_"+(li+1)));
           const detailedLayer=metadataLayers.find(x=>String(x.name)===layerName)||{};
           const geometryState=gdbLayerGeometryState(sourceLayer,detailedLayer);
-          if(geometryState==="none"){
-            report.unsupported.push(layerName+": non-spatial table skipped.");
-            continue;
-          }
           const featureDataset=gdbFeatureDatasetName(sourceLayer,detailedLayer);
           try{
-            const options=["-f","GeoJSON","-t_srs","EPSG:4326","-preserve_fid"];
+            const options=geometryState==="none"
+              ? ["-f","GeoJSON","-preserve_fid"]
+              : ["-f","GeoJSON","-t_srs","EPSG:4326","-preserve_fid"];
             // A FileGDB is commonly one GDAL dataset containing many feature classes.
             // Explicit SQL prevents ogr2ogr from exporting only the first class.
             if(sourceLayers.length>1){
@@ -5014,12 +5023,11 @@ async function importGDBFiles(fileList){
             if(!fc||fc.type!=="FeatureCollection"||!Array.isArray(fc.features)){
               report.failedLayers++;report.layerErrors.push(layerName+": output was not a GeoJSON FeatureCollection.");continue;
             }
-            if(fc.features.length&&!fc.features.some(feature=>feature?.geometry&&typeof feature.geometry.type==="string")){
-              report.unsupported.push(layerName+": GDAL returned attributes without spatial geometry; table skipped.");
-              continue;
-            }
-            if(!fc.features.length&&geometryState!=="spatial"){
-              report.unsupported.push(layerName+": empty layer has no confirmed geometry metadata; skipped rather than importing a possible non-spatial table.");
+            const hasSpatialGeometry=fc.features.some(feature=>feature?.geometry&&typeof feature.geometry.type==="string");
+            if(!hasSpatialGeometry){
+              const rows=fc.features.map(feature=>feature?.properties||{});
+              const fields=[...new Set([...rows.flatMap(row=>Object.keys(row)),...(Array.isArray(detailedLayer.fields)?detailedLayer.fields.map(field=>typeof field==="string"?field:field?.name).filter(Boolean):[])])];
+              report.tables.push({name:layerName,featureDataset:featureDataset||null,rows,fields,sourceFeatureCount:sourceLayer?.featureCount??rows.length});
               continue;
             }
             if(!fc.features.length){
@@ -5033,7 +5041,7 @@ async function importGDBFiles(fileList){
                 sourceFeatureCount:sourceLayer?.featureCount??0,displayCRS:"EPSG:4326",
                 fields:emptyFields.map(f=>typeof f==="string"?f:f?.name).filter(Boolean),
                 fieldDefinitions:emptyFields,sourceDatasetInfo:info||null,sourceSchemaAndCRS:ogrDetails||null};
-              if(emptyItem){emptyItem.sourceName=root+"/"+layerName;if(featureDataset)emptyItem.drawingSet=root+" / "+featureDataset;}
+              if(emptyItem){emptyItem.sourceName=root+"/"+layerName;if(featureDataset)emptyItem.drawingSet=featureDataset;emptyItem.displayName=layerName.split(/[\\/]/).pop();}
               report.layerErrors.push(layerName+": empty feature class (0 records); schema retained in layer metadata.");
             report.emptyFeatureClasses=(report.emptyFeatureClasses||[]).concat([{name:layerName,fields:emptyLayer._gdbMetadata.fields}]);
               continue;
@@ -5042,7 +5050,8 @@ async function importGDBFiles(fileList){
             const item=namedLayers.find(x=>x.layer===displayLayer);
             if(item){
               item.sourceName=root+"/"+layerName;
-              if(featureDataset)item.drawingSet=root+" / "+featureDataset;
+              if(featureDataset)item.drawingSet=featureDataset;
+              item.displayName=layerName.split(/[\\/]/).pop();
               displayLayer._gdbMetadata={
                 workspace:root,featureClass:layerName,driver:info?.driverName||"OpenFileGDB",
                 sourceFeatureCount:sourceLayer?.featureCount??fc.features.length,
@@ -5080,6 +5089,7 @@ async function importGDBFiles(fileList){
         try{Gdal.close(ds)}catch(_){}
       }
     }
+    if(window.SabzGdbCatalog?.registerTables)window.SabzGdbCatalog.registerTables(report.tables);
     const summary="GDB scan — files: "+report.selectedFiles+
       "; GDAL datasets: "+report.openedDatasets+
       "; layers imported: "+report.importedLayers+
@@ -10778,6 +10788,7 @@ const arcMapDialog=(()=>{
 </script>
 <script src="webgis-rustgis-enhancements.js"></script>
 <script src="./webgis-arcmap-manifest.js" defer></script>
+<script src="./webgis-gdb-catalog.js" defer></script>
 <script>
 (()=>{
  const button=document.getElementById("deployProbeBtn");
