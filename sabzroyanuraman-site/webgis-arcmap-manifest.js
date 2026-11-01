@@ -112,6 +112,8 @@
         try{await window.SabzGdbCatalog.importGdbZip(file);}
         finally{delete window.__sabzGdbRepairTargetName;}
         if(owner.sourceMissing)throw new Error("No compatible feature class was selected from the FileGDB.");
+        if(owner.layer.getBounds?.().isValid()&&bridge().map?.hasLayer(owner.layer))bridge().map.fitBounds(owner.layer.getBounds(),{padding:[24,24],maxZoom:18});
+        if(bridge().saveLocalProject)await bridge().saveLocalProject();
         renderRepairChoices();
         notify("Repaired "+owner.name+" from FileGDB: "+(owner._repairReport?.featureCount||0)+" feature(s).");
         return owner._repairReport;
@@ -170,6 +172,8 @@
         if(typeof bridge().importGDBFiles!=="function")throw new Error("FileGDB importer unavailable.");
         await bridge().importGDBFiles(files);
         if(owner.sourceMissing)throw new Error("No compatible feature class was selected from the GDB folder.");
+        if(owner.layer.getBounds?.().isValid()&&bridge().map?.hasLayer(owner.layer))bridge().map.fitBounds(owner.layer.getBounds(),{padding:[24,24],maxZoom:18});
+        if(bridge().saveLocalProject)await bridge().saveLocalProject();
         renderRepairChoices();
         notify("Repaired "+owner.name+" from FileGDB folder: "+(owner._repairReport?.featureCount||0)+" feature(s).");
       }catch(err){notify("FileGDB repair failed: "+(err.message||err));}
