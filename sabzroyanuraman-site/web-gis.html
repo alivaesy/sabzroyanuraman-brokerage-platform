@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="sabz-webgis-deploy-probe" content="sabz-webgis-pr47-20261101">
 <title>ArcMap Web GIS | Sabz Royan Ooraman</title>
 <link rel="stylesheet" href="./vendor/web-gis/leaflet/leaflet.css" onerror="this.onerror=null;this.href=\'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css\'">
 <link rel="stylesheet" href="./vendor/web-gis/leaflet-draw/leaflet.draw.css" onerror="this.onerror=null;this.href=\'https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css\'">
@@ -145,6 +146,8 @@ body{background:#dfe5e8;color:#173b57}
 .classic-toolbar button,.classic-toolbar select{width:auto;min-width:42px;height:25px;padding:2px 7px;border:1px solid #aab5bb;border-radius:2px;background:linear-gradient(#fff,#e8ecee);color:#263d4b;font:11px Arial,sans-serif;cursor:pointer}
 .classic-toolbar button:hover:not(:disabled){background:#e1edf4;border-color:#738d9a}
 .classic-toolbar button:disabled{opacity:.48;cursor:default}
+.deploy-probe-btn{height:25px;padding:2px 8px;border:1px solid #7899aa;border-radius:2px;background:linear-gradient(#f5fbff,#dcebf3);color:#24495d;font:11px Arial,sans-serif;white-space:nowrap;cursor:pointer}
+.deploy-probe-btn:hover:not(:disabled){background:#cfe3ef}.deploy-probe-btn:disabled{opacity:.65;cursor:wait}
 .classic-toolbar button.active{background:#c9dce8;border-color:#5c8399;box-shadow:inset 0 1px 2px #9caeb7}
 .classic-toolbar select{min-width:130px}
 .toolbar-separator{height:22px;border-left:1px solid #9ba9b1;margin:0 5px}
@@ -662,7 +665,8 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <button type="button" class="icon-tool" id="toolboxToggleBtn" title="ArcToolbox" aria-label="ArcToolbox" data-action="showToolbox"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-toolbox"></use></svg></button>
 <button type="button" class="icon-tool" id="commandLineBtn" title="Command Line" aria-label="Command Line"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-command"></use></svg></button>
 <button type="button" class="icon-tool" id="searchToggleBtn" title="Search" aria-label="Search" ><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-search"></use></svg></button>
-<button type="button" class="icon-tool" id="helpBtn" title="Help" aria-label="Help" data-action="shortcuts"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-help"></use></svg></button></div>
+<button type="button" class="icon-tool" id="helpBtn" title="Help" aria-label="Help" data-action="shortcuts"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-help"></use></svg></button>
+<button type="button" class="deploy-probe-btn" id="deployProbeBtn" title="Compare the hosted WebGIS file with the GitHub development branch">آزمایش اتصال</button></div>
 <div class="classic-toolbar" id="toolsToolbar" role="toolbar" aria-label="Tools"><button type="button" class="icon-tool" id="zoomInBtn" title="Zoom In" aria-label="Zoom In"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-zoomIn"></use></svg></button>
 <button type="button" class="icon-tool" id="zoomOutBtn" title="Zoom Out" aria-label="Zoom Out"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-zoomOut"></use></svg></button>
 <button type="button" class="icon-tool" id="panMapBtn" title="Pan" aria-label="Pan"><svg class="arcmap-icon" aria-hidden="true"><use href="#arc-icon-pan"></use></svg></button>
@@ -10709,6 +10713,38 @@ const arcMapDialog=(()=>{
 })();
 </script>
 <script src="webgis-rustgis-enhancements.js"></script>
+<script>
+(()=>{
+ const button=document.getElementById("deployProbeBtn");
+ if(!button)return;
+ const expected="sabz-webgis-pr47-20261101";
+ const githubUrl="https://raw.githubusercontent.com/alivaesy/sabzroyanuraman-brokerage-platform/feat/webgis-local-vendor-runtime/sabzroyanuraman-site/web-gis.html";
+ const readMarker=html=>{const match=html.match(/<meta[^>]*name="sabz-webgis-deploy-probe"[^>]*content="([^"]+)"/i);return match?match[1]:null;};
+ button.addEventListener("click",async()=>{
+  button.disabled=true;button.textContent="در حال بررسی…";
+  try{
+   const liveUrl=new URL(window.location.href);liveUrl.searchParams.set("__deploy_probe",Date.now().toString());
+   const [githubResponse,liveResponse]=await Promise.all([
+    fetch(githubUrl+"?probe="+Date.now(),{cache:"no-store",mode:"cors"}),
+    fetch(liveUrl.href,{cache:"no-store",credentials:"same-origin"})
+   ]);
+   if(!githubResponse.ok)throw new Error("دریافت نسخه GitHub ناموفق بود (HTTP "+githubResponse.status+").");
+   if(!liveResponse.ok)throw new Error("دریافت فایل از هاست ناموفق بود (HTTP "+liveResponse.status+").");
+   const [githubHtml,liveHtml]=await Promise.all([githubResponse.text(),liveResponse.text()]);
+   const githubMarker=readMarker(githubHtml),liveMarker=readMarker(liveHtml);
+   if(githubMarker!==expected)throw new Error("شناسه نسخه در شاخه GitHub پیدا نشد؛ منبع شاخه تغییر کرده است.");
+   if(liveMarker===expected){
+    button.textContent="هاست تأیید شد ✓";button.title="Hosted WebGIS matches the GitHub development branch";
+    alert("موفق: فایل WebGIS روی هاست با نسخه شاخه GitHub («feat/webgis-local-vendor-runtime») مطابقت دارد.");
+   }else{
+    button.textContent="نسخه متفاوت ✕";button.title="The hosted WebGIS does not match the GitHub branch";
+    alert("اتصال به GitHub برقرار است، اما نسخه روی هاست با شاخه GitHub یکسان نیست.\nشناسه GitHub: "+githubMarker+"\nشناسه هاست: "+(liveMarker||"یافت نشد")+"\nاحتمالاً فایل جدید هنوز روی هاست مستقر نشده است.");
+   }
+  }catch(error){button.textContent="خطای بررسی";button.title=error.message;alert("آزمایش کامل نشد: "+error.message);}
+  finally{button.disabled=false;}
+ });
+})();
+</script>
 <style>
 .shared-project-readonly .leaflet-draw,.shared-project-readonly #editorToolbar,.shared-project-readonly #editToolbar,.shared-project-readonly #attributeTablePanel,
 .shared-project-readonly #attributeEditor,.shared-project-readonly #arcToolbox,.shared-project-readonly #editorToolbarToggleBtn{display:none!important}
