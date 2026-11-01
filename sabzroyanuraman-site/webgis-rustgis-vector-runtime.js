@@ -62,6 +62,75 @@
     throw new Error("Layer '" + item.name + "' did not produce a GeoJSON FeatureCollection.");
   }
 
+  // RustGIS overlay algorithms operate on planar XY coordinates. WebGIS stores
+  // Leaflet GeoJSON in WGS84, so project metric/topological operations into the
+  // map's projected working CRS and transform vector outputs back for display.
+  // Buffer is intentionally excluded: the pinned RustGIS Buffer is geodesic on
+  // WGS84 and must not receive projected metre coordinates.
+  const PLANAR_OPERATION_IDS = new Set([
+    "clip", "intersect", "erase", "union", "identity", "dissolve",
+    "convexhull", "spatialjoin", "spatialjoinonetomany", "selectbylocation"
+  ]);
+
+  function transformGeoJSON(collection, fromCrs, toCrs) {
+    if (!collection || collection.type !== "FeatureCollection" || !Array.isArray(collection.features)) {
+      throw new Error("Projected processing requires a GeoJSON FeatureCollection.");
+    }
+    if (typeof proj4 !== "function") throw new Error("Projection library is unavailable; projected geoprocessing was cancelled.");
+    if (fromCrs === toCrs) return JSON.parse(JSON.stringify(collection));
+    const transformPosition = position => {
+      if (!Array.isArray(position) || position.length < 2 ||
+          !Number.isFinite(Number(position[0])) || !Number.isFinite(Number(position[1]))) {
+        throw new Error("Input geometry contains an invalid coordinate.");
+      }
+      const xy = proj4(fromCrs, toCrs, [Number(position[0]), Number(position[1])]);
+      if (!Array.isArray(xy) || !xy.slice(0, 2).every(Number.isFinite)) {
+        throw new Error("Coordinate transformation failed from " + fromCrs + " to " + toCrs + ".");
+      }
+      return [...xy, ...position.slice(2)];
+    };
+    const transformCoordinates = value => {
+      if (!Array.isArray(value)) return value;
+      if (value.length >= 2 && typeof value[0] === "number" && typeof value[1] === "number") {
+        return transformPosition(value);
+      }
+      return value.map(transformCoordinates);
+    };
+    const transformGeometry = geometry => {
+      if (!geometry || typeof geometry !== "object") return geometry;
+      if (geometry.type === "GeometryCollection") {
+        return {...geometry, geometries:(geometry.geometries || []).map(transformGeometry)};
+      }
+      return geometry.coordinates ? {...geometry, coordinates:transformCoordinates(geometry.coordinates)} : geometry;
+    };
+    const output = JSON.parse(JSON.stringify(collection));
+    output.features = output.features.map((feature, index) => {
+      if (!feature || feature.type !== "Feature" || !feature.geometry) {
+        throw new Error("Feature " + (index + 1) + " has no valid geometry.");
+      }
+      return {...feature, geometry:transformGeometry(feature.geometry)};
+    });
+    output.crs = {type:"name",properties:{name:toCrs}};
+    return output;
+  }
+
+  function preparePlanarProcessing(tool, layerPayload) {
+    const operation = String(tool?.id || "").toLowerCase().replace(/[^a-z]/g, "");
+    if (!PLANAR_OPERATION_IDS.has(operation)) return null;
+    const crs = String(bridge()?.currentCRS || "EPSG:32638").toUpperCase();
+    if (!/^EPSG:\\d+$/.test(crs)) throw new Error("Choose a valid projected processing CRS before running " + tool.name + ".");
+    if (["EPSG:4326", "EPSG:4269", "EPSG:4258"].includes(crs)) {
+      throw new Error(tool.name + " requires a projected CRS. Select a local projected system such as EPSG:32638; no processing was run.");
+    }
+    if (typeof proj4 !== "function") throw new Error("Projection library is unavailable; no geoprocessing was run.");
+    for (const [name, layer] of Object.entries(layerPayload)) {
+      if (layer?.type === "FeatureCollection") {
+        layerPayload[name] = transformGeoJSON(layer, "EPSG:4326", crs);
+      }
+    }
+    return crs;
+  }
+
   function availableRasterLayers() {
     return bridge()?.rasterSources || [];
   }
@@ -463,7 +532,10 @@
     try {
       await loadEngine();
       const {params, layerPayload} = collectParams(tool);
-      status.textContent = "در حال اجرای " + tool.name + " با RustGIS...";
+      const processingCrs = tool.engine === "rasterops" ? null : preparePlanarProcessing(tool, layerPayload);
+      status.textContent = processingCrs
+        ? "در حال اجرای " + tool.name + " در " + processingCrs + " (مختصات مسطح)..."
+        : "در حال اجرای " + tool.name + " با RustGIS...";
       setStatus(status.textContent);
       let result;
       if (tool.engine === "rasterops") {
@@ -475,6 +547,10 @@
       }
       const outputMessages = [];
       for (const output of result.outputs || []) {
+        if ((output.kind === "vector" || output.kind === "update") && processingCrs && output.geojson) {
+          output.geojson = transformGeoJSON(output.geojson, processingCrs, "EPSG:4326");
+          delete output.geojson.crs;
+        }
         if (output.kind === "vector" || output.kind === "update") {
           const name = uniqueName(output.name || (tool.name + " Output"));
           const added = bridge()?.addGeoJSONLayer?.(name, output.geojson);
