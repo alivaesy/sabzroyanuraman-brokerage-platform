@@ -199,6 +199,29 @@ test('FileGDB import reports missing classes, preserves schema metadata, and fla
 });
 
 
+test('FileGDB catalog filters internal and non-spatial tables and retains dataset grouping metadata', () => {
+  const start = html.indexOf('function gdbFeatureDatasetName(');
+  const end = html.indexOf('async function importGDBFiles(', start);
+  assert.ok(start >= 0 && end > start, 'FileGDB catalog helpers were not found');
+  const helpers = vm.runInNewContext(html.slice(start, end) +
+    '\\ngdbFeatureDatasetName; gdbLayerGeometryState; isGdbSystemLayer;');
+  assert.equal(helpers.gdbFeatureDatasetName({name:'Cadastre/Parcels'},{}), 'Cadastre');
+  assert.equal(helpers.gdbFeatureDatasetName({name:'Parcels',featureDatasetName:'Cadastre'},{}), 'Cadastre');
+  assert.equal(helpers.gdbFeatureDatasetName({name:'Parcels'},{}), null);
+  assert.equal(helpers.gdbLayerGeometryState({geometryType:'Polygon'},{}), 'spatial');
+  assert.equal(helpers.gdbLayerGeometryState({geometryType:'None'},{}), 'none');
+  assert.equal(helpers.gdbLayerGeometryState({}, {geometryFields:[]}), 'none');
+  assert.equal(helpers.gdbLayerGeometryState({}, {geometryFields:[{name:'Shape'}]}), 'spatial');
+  assert.equal(helpers.gdbLayerGeometryState({},{}), 'unknown');
+  assert.equal(helpers.isGdbSystemLayer('GDB_Items'), true);
+  assert.equal(helpers.isGdbSystemLayer('SDE_table_registry'), true);
+  assert.equal(helpers.isGdbSystemLayer('Parcels'), false);
+  assert.match(html, /attributes without spatial geometry; table skipped/);
+  assert.match(html, /internal\\/system table skipped/);
+  assert.match(html, /item\\.drawingSet=root\\+" \\/ " \\+featureDataset/);
+});
+
+
 test('ModelBuilder and Layout enhancement is loaded through the renderer bridge', () => {
   const enhancementPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-rustgis-enhancements.js');
   const enhancement = fs.readFileSync(enhancementPath, 'utf8');
