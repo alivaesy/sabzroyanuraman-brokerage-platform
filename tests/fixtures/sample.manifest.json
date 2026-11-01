@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "sourceFile": "sample.mxd",
+  "generatedAt": "2026-11-01T00:00:00Z",
+  "dataFrames": [
+    {
+      "name": "Layers",
+      "spatialReference": 32638,
+      "layers": [
+        {
+          "name": "Parcels",
+          "groupLayer": null,
+          "isGroupLayer": false,
+          "visible": true,
+          "dataSourcePath": "C:/GIS/sample/sample-layer.shp",
+          "dataSourceType": "shapefile",
+          "geometryType": "Polygon",
+          "minScale": 0,
+          "maxScale": 0,
+          "definitionQuery": null,
+          "renderer": {
+            "type": "uniqueValue",
+            "field": "landuse",
+            "classes": [
+              {
+                "value": "Agriculture",
+                "label": "Agriculture",
+                "color": [
+                  120,
+                  170,
+                  90
+                ]
+              }
+            ]
+          },
+          "labeling": {
+            "enabled": true,
+            "expression": "[parcel_id]",
+            "field": "parcel_id"
+          },
+          "extractionWarnings": []
+        },
+        {
+          "name": "National Lands",
+          "groupLayer": "Thematic",
+          "isGroupLayer": false,
+          "visible": true,
+          "dataSourcePath": "Z:/missing/national_lands.gdb/Lands",
+          "dataSourceType": "filegdb_featureclass",
+          "geometryType": "Polygon",
+          "minScale": 0,
+          "maxScale": 0,
+          "definitionQuery": null,
+          "renderer": {
+            "type": "graduatedColor",
+            "field": "area_ha",
+            "classes": [
+              {
+                "range": {
+                  "min": 0,
+                  "max": 10
+                },
+                "label": "0–10",
+                "color": [
+                  240,
+                  230,
+                  150
+                ]
+              }
+            ]
+          },
+          "labeling": {
+            "enabled": false,
+            "expression": null,
+            "field": null
+          },
+          "extractionWarnings": []
+        },
+        {
+          "name": "Roads",
+          "groupLayer": "Thematic",
+          "isGroupLayer": false,
+          "visible": false,
+          "dataSourcePath": "S:/unavailable/roads.shp",
+          "dataSourceType": "shapefile",
+          "geometryType": "Polyline",
+          "minScale": 0,
+          "maxScale": 0,
+          "definitionQuery": null,
+          "renderer": {
+            "type": "simple",
+            "field": null,
+            "classes": [
+              {
+                "label": "Default symbol",
+                "color": [
+                  180,
+                  90,
+                  70
+                ]
+              }
+            ]
+          },
+          "labeling": {
+            "enabled": false,
+            "expression": null,
+            "field": null
+          },
+          "extractionWarnings": []
+        }
+      ]
+    }
+  ]
+}
