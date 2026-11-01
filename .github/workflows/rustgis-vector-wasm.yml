@@ -20,7 +20,7 @@ on:
       - ".github/workflows/rustgis-vector-wasm.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: rustgis-vector-wasm-${{ github.ref }}
@@ -51,6 +51,16 @@ jobs:
         run: wasm-pack build --target web --release --out-dir ../rustgis-vector-wasm-pkg --out-name sabz_royan_vector_wasm
       - name: Check vector runtime syntax
         run: node --check sabzroyanuraman-site/webgis-rustgis-vector-runtime.js
+      - name: Commit rebuilt browser WASM package on master
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f sabzroyanuraman-site/rustgis-vector-wasm-pkg/*.js sabzroyanuraman-site/rustgis-vector-wasm-pkg/*.wasm sabzroyanuraman-site/rustgis-vector-wasm-pkg/*.d.ts
+          if ! git diff --cached --quiet; then
+            git commit -m "build: refresh RustGIS WebAssembly package"
+            git push origin HEAD:master
+          fi
       - name: Upload WASM package for review
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
