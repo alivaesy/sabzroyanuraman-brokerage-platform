@@ -35,7 +35,7 @@ mkdir -p "$TMP/dxf-writer"
 tar -xzf "$DXF_TGZ" -C "$TMP/dxf-writer"
 DXF_ENTRY="$TMP/dxf-writer/package/src/Drawing.js"
 test -s "$DXF_ENTRY" || { echo "DXF Writer Drawing.js entry not found." >&2; exit 1; }
-npx --yes browserify@16.2.3 -r "$DXF_ENTRY:Drawing" -o "$HERE/dxf-writer/dxf-writer.js"
+npx --yes browserify@16.2.3 "$DXF_ENTRY" --standalone Drawing -o "$HERE/dxf-writer/dxf-writer.js"
 test -s "$HERE/dxf-writer/dxf-writer.js"
 
 {
