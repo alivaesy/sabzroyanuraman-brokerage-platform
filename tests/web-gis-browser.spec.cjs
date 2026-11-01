@@ -36,10 +36,10 @@ test.describe('WebGIS real-browser regression', () => {
   test('map navigation controls respond in Chromium', async ({ page }) => {
     await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('#map')).toBeVisible();
-    await expect(page.locator('#map .leaflet-container')).toBeAttached({ timeout: 15000 });
+    await expect(page.locator('#map.leaflet-container')).toBeAttached({ timeout: 15000 });
     const zoomIn = page.getByRole('button', { name: 'Zoom In', exact: true });
     await expect(zoomIn).toBeVisible();
     await zoomIn.click();
-    await expect(page.locator('#map .leaflet-container')).toBeAttached();
+    await expect(page.locator('#map.leaflet-container')).toBeAttached();
   });
 });
