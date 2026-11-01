@@ -220,12 +220,15 @@ test('RustGIS GeoTIFF preview refuses to assume EPSG:4326 when CRS metadata is a
 test('Plain TIFF import skips absent GeoKeys and remains preview-only without a CRS', () => {
   const runtimePath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'raster-runtime.js');
   const runtime = fs.readFileSync(runtimePath, 'utf8');
-  assert.match(runtime, /const geoKeyDirectory = readTag\(directory, "GeoKeyDirectory"\)/);
-  assert.match(runtime, /if \(geoKeyDirectory && typeof image\.getGeoKeys === "function"\)/);
+  assert.match(runtime, /const keys = decodeGeoKeys\(directory\)/);
+  assert.match(runtime, /function decodeGeoKeys\(directory\)/);
+  assert.doesNotMatch(runtime, /image\.getGeoKeys\(\)\s*;/);
   assert.match(runtime, /const georeferenced = !!transform && !!extent && !!crs\.epsg/);
   assert.match(runtime, /previewOnly: !georeferenced/);
-  assert.match(html, /raster-runtime\.js\?v=20261031-plain-tiff/);
+  assert.match(html, /raster-runtime\.js\?v=20261101-selftest/);
   const rasterTests = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'raster-runtime-tests.html'), 'utf8');
+  assert.match(rasterTests, /vendor\/web-gis\/geotiff\/geotiff\.js/);
+  assert.doesNotMatch(rasterTests, /cdn\.jsdelivr\.net\/npm\/geotiff/);
   assert.match(rasterTests, /baseline TIFF loads without CRS or GeoKeys/);
 });
 
@@ -428,15 +431,23 @@ test('ModelBuilder routes core vector overlay nodes through RustGIS', () => {
   assert.ok(rustStart >= 0 && fieldStart > rustStart, 'RustGIS nodes must be dispatched before legacy JS operations');
   const rust = body.slice(rustStart, fieldStart);
   assert.match(rust, /runRustGisVectorTool\(rustTool,layerInputs,params\)/);
-  assert.match(rust, /params\.distance=raw;params\.units="Meters"/);
-  assert.match(rust, /params\.clip=overlayName/);
-  assert.match(rust, /params\.erase=overlayName/);
-  assert.match(rust, /params\.overlay=overlayName/);
-  assert.match(rust, /params\.target="MB_Input";params\.join=overlayName/);
-  assert.match(rust, /params\.operation=op==="spatialJoinOneToMany"\?"Join one to many":"Join one to one"/);
+  assert.match(rust, /params\.keepAll="Keep all";params\.prefix="join_"/);
+  assert.match(rust, /params\.keepAll="Keep all";params\.prefix="join_"/);
+  assert.match(rust, /params\.keepAll="Keep all";params\.prefix="join_"/);
+  assert.match(rust, /params\.keepAll="Keep all";params\.prefix="join_"/);
+  assert.match(rust, /params\.keepAll="Keep all";params\.prefix="join_"/);
+  assert.match(rust, /params\.keepAll="Keep all";params\.prefix="join_"/);
   assert.match(rust, /"areaLength"\?"calculateGeometry"/);
-  assert.match(body, /joinFields\.forEach\(name=>fields\.add\("join_"\+name\)\);fields\.add\("join_count"\)/);
-  assert.match(body, /RustGIS Spatial Join supports Intersects, Within and Contains only/);
+  assert.match(rust, /params\.keepAll="Keep all";params\.prefix="join_"/);
+  assert.match(html, /RustGIS Spatial Join supports Intersects, Within and Contains only/);
+});
+
+test('Unreferenced TIFFs allow pixel-space Raster Calculator but block geospatial operations', () => {
+  assert.match(html, /option\.value==="calculator"\|\|canMap/);
+  assert.match(html, /!sabzRasterState\.georeferenced&&op==="calculator"/);
+  assert.match(html, /rasterExpr\(expr,pixelBands\)/);
+  assert.match(html, /Browser pixel calculator/);
+  assert.match(html, /geospatial tools and GeoTIFF export require georeferencing/);
 });
 
 test('RustGIS plugin and raster bridges use separate global namespaces', () => {
