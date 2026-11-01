@@ -66,7 +66,9 @@
   // Leaflet GeoJSON in WGS84, so project metric/topological operations into the
   // map's projected working CRS and transform vector outputs back for display.
   // Buffer is intentionally excluded: the pinned RustGIS Buffer is geodesic on
-  // WGS84 and must not receive projected metre coordinates.
+  // WGS84 and must not receive projected metre coordinates. RustGIS also honors
+  // legacy GeoJSON `crs` members and reprojects declared inputs to WGS84, so the
+  // projected processing payload must deliberately omit that member.
   const PLANAR_OPERATION_IDS = new Set([
     "clip", "intersect", "erase", "union", "identity", "dissolve",
     "convexhull", "spatialjoin", "spatialjoinonetomany", "selectbylocation"
@@ -110,7 +112,9 @@
       }
       return {...feature, geometry:transformGeometry(feature.geometry)};
     });
-    output.crs = {type:"name",properties:{name:toCrs}};
+    // Do not declare the projected input CRS here: RustGIS's GeoJSON reader
+    // would immediately reproject it to WGS84 and defeat planar processing.
+    delete output.crs;
     return output;
   }
 
