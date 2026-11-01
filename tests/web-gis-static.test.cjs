@@ -220,8 +220,9 @@ test('RustGIS GeoTIFF preview refuses to assume EPSG:4326 when CRS metadata is a
 test('Plain TIFF import skips absent GeoKeys and remains preview-only without a CRS', () => {
   const runtimePath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'raster-runtime.js');
   const runtime = fs.readFileSync(runtimePath, 'utf8');
-  assert.match(runtime, /const geoKeyDirectory = readTag\(directory, "GeoKeyDirectory"\)/);
-  assert.match(runtime, /if \(geoKeyDirectory && typeof image\.getGeoKeys === "function"\)/);
+  assert.match(runtime, /const keys = decodeGeoKeys\\(directory\\)/);
+  assert.match(runtime, /function decodeGeoKeys\\(directory\\)/);
+  assert.doesNotMatch(runtime, /image\\.getGeoKeys\\(\\)/);
   assert.match(runtime, /const georeferenced = !!transform && !!extent && !!crs\.epsg/);
   assert.match(runtime, /previewOnly: !georeferenced/);
   assert.match(html, /raster-runtime\.js\?v=20261031-plain-tiff/);
@@ -435,7 +436,7 @@ test('ModelBuilder routes core vector overlay nodes through RustGIS', () => {
   assert.match(rust, /params\.target="MB_Input";params\.join=overlayName/);
   assert.match(rust, /params\.operation=op==="spatialJoinOneToMany"\?"Join one to many":"Join one to one"/);
   assert.match(rust, /"areaLength"\?"calculateGeometry"/);
-  assert.match(body, /joinFields\.forEach\(name=>fields\.add\("join_"\+name\)\);fields\.add\("join_count"\)/);
+  assert.match(rust, /params\\.keepAll="Keep all";params\\.prefix="join_"/);
   assert.match(body, /RustGIS Spatial Join supports Intersects, Within and Contains only/);
 });
 
