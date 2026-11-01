@@ -99,6 +99,20 @@
     if(!name||!file)throw new Error("Select a missing layer and a replacement file.");
     const owner=b.namedLayers.find(x=>x.name===name&&x.sourceMissing);
     if(!owner)throw new Error("Layer is no longer unresolved.");
+    if(file.name.toLowerCase().endsWith(".zip")&&window.JSZip){
+      const archive=await window.JSZip.loadAsync(await file.arrayBuffer());
+      const containsGdb=Object.values(archive.files).some(entry=>!entry.dir&&/\.gdb\//i.test(entry.name));
+      if(containsGdb){
+        if(!window.SabzGdbCatalog?.importGdbZip)throw new Error("FileGDB repair module is unavailable.");
+        window.__sabzGdbRepairTargetName=name;
+        try{await window.SabzGdbCatalog.importGdbZip(file);}
+        finally{delete window.__sabzGdbRepairTargetName;}
+        if(owner.sourceMissing)throw new Error("No compatible feature class was selected from the FileGDB.");
+        renderRepairChoices();
+        notify("Repaired "+owner.name+" from FileGDB: "+(owner._repairReport?.featureCount||0)+" feature(s).");
+        return owner._repairReport;
+      }
+    }
     let data=await readSource(file);
     if(data?.type==="Feature")data={type:"FeatureCollection",features:[data]};
     if(data?.type!=="FeatureCollection"||!Array.isArray(data.features))throw new Error("File is not a GeoJSON FeatureCollection.");
