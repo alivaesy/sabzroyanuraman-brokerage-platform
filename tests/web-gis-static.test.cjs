@@ -574,3 +574,13 @@ test('Geodatabase Catalog does not reference private bindings from the core GIS 
   assert.ok(block.includes('window.__sabzWebGISSharedBridge?.namedLayers'));
   assert.ok(block.includes('window.__webGisGdbBridge?.featureCount'));
 });
+
+
+test('Browser regression executes a real projected RustGIS Clip operation', () => {
+  const runner = fs.readFileSync(path.join(__dirname, 'web-gis-browser-regression.cjs'), 'utf8');
+  for (const marker of ["listTools().find(tool=>tool.id==='clip')", "data-param=\"input\"", "data-param=\"clip\"", "Projected processing CRS", "EPSG:32638"]) {
+    assert.ok(runner.includes(marker), 'projected Clip browser test is missing ' + marker);
+  }
+  const runtime = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-rustgis-vector-runtime.js'), 'utf8');
+  assert.match(runtime, /Projected processing CRS:/);
+});
