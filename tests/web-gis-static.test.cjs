@@ -559,6 +559,8 @@ test('geo-ported Clip uses the active projected CRS; unported overlays remain on
   const html = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'web-gis.html'), 'utf8');
   assert.match(html, /get currentCRS\(\)\{return currentCRS;\}/);
   assert.match(runtime, /PLANAR_OPERATION_IDS/);
+  assert.match(runtime, /const GEO_PROJECTED_OPERATION_IDS = new Set\(\["clip"\]\)/);
+  assert.match(runtime, /not yet ported to geo/);
   assert.match(runtime, /params\._sabz_processing_crs = crs/);
   assert.match(runtime, /transformGeoJSON\(output\.geojson, processingCrs, "EPSG:4326"\)/);
   assert.match(runtime, /"EPSG:4326", "EPSG:4269", "EPSG:4258"/);
@@ -620,7 +622,7 @@ test('Browser regression executes a real projected RustGIS Clip operation', () =
 });
 
 
-test('Projected RustGIS payload omits legacy CRS metadata to prevent implicit WGS84 reprojection', () => {
+test('Projected GeoJSON output omits legacy CRS metadata to prevent implicit WGS84 reprojection', () => {
   const runtime = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-rustgis-vector-runtime.js'), 'utf8');
   assert.match(runtime, /RustGIS's polygon overlay routines still assume Web Mercator internally/);
   assert.match(runtime, /delete output\.crs/);
@@ -635,5 +637,7 @@ test('Projected geo Clip passes its processing CRS to the WASM adapter after Geo
   assert.match(runtime, /transformGeoJSON\(output\.geojson, processingCrs, "EPSG:4326"\)/);
   assert.match(rust, /object\.remove\("_sabz_processing_crs"\)/);
   assert.match(rust, /rustgis_data::io::project\(dataset, target\)/);
+  assert.match(rust, /fn run_projected_clip/);
+  assert.match(rust, /geo boolean operations in projected coordinates/);
   assert.match(rust, /projected\.crs = Some\(target\)/);
 });
