@@ -96,13 +96,14 @@ const fixture = {
       const geo=item.layer.toGeoJSON();
       const positions=[];
       const walk=value=>{if(Array.isArray(value)){if(value.length>=2&&typeof value[0]==='number'&&typeof value[1]==='number')positions.push(value);else value.forEach(walk)}};
-      (geo.features||[]).forEach(feature=>walk(feature.geometry?.coordinates));
+      const walkGeometry=geometry=>{if(geometry?.coordinates)walk(geometry.coordinates);(geometry?.geometries||[]).forEach(walkGeometry)};
+      (geo.features||[]).forEach(feature=>walkGeometry(feature.geometry));
       return {found:true,count:geo.features?.length||0,minX:Math.min(...positions.map(p=>p[0])),maxX:Math.max(...positions.map(p=>p[0])),minY:Math.min(...positions.map(p=>p[1])),maxY:Math.max(...positions.map(p=>p[1])),message};
     });
-    assert.ok(projectedClip.found && projectedClip.count>0,'RustGIS Clip should add a non-empty result layer: '+projectedClip.message);
+    assert.ok(projectedClip.found && projectedClip.count>0,'RustGIS Clip should add a non-empty result layer: '+JSON.stringify(projectedClip));
+    assert.match(projectedClip.message,/EPSG:32638/,'Processing report should identify the projected processing CRS: '+JSON.stringify(projectedClip));
     assert.ok(projectedClip.minX>46 && projectedClip.maxX<49 && projectedClip.minY>32 && projectedClip.maxY<35,
-      'Clip output must be reprojected to WGS84 before adding it to Leaflet');
-    assert.match(projectedClip.message,/EPSG:32638/,'Processing report should identify the projected processing CRS');
+      'Clip output must be reprojected to WGS84 before adding it to Leaflet: '+JSON.stringify(projectedClip));
     await page.locator('#rgEngineDialog .rg-actions button').nth(1).click();
 
     // Exercise Graduated Colors and permanent labels, then verify their live layer state.
