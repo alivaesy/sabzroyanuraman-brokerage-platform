@@ -547,7 +547,7 @@ test('Browser regression runner covers live map, basemap, selection, symbology, 
   const runnerPath = path.join(__dirname, 'web-gis-browser-regression.cjs');
   assert.ok(fs.existsSync(runnerPath), 'Playwright browser regression runner must exist');
   const runner = fs.readFileSync(runnerPath, 'utf8');
-  for (const marker of ['pageerror', 'selectOption', 'applyRustGISSelection', 'openLayerProperties', 'scheduleAutoSave', 'page.reload']) {
+  for (const marker of ['pageerror', 'selectOption', 'accordion-section[data-accordion=\"display\"]', 'applyRustGISSelection', 'openLayerProperties', 'scheduleAutoSave', 'page.reload']) {
     assert.ok(runner.includes(marker), 'browser regression runner is missing ' + marker);
   }
 });
