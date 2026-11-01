@@ -518,3 +518,36 @@ test('RustGIS overlay tools enforce polygon-mask and dissolve geometry requireme
   assert.match(html, /overlay input must contain Polygon or MultiPolygon geometry for "\+op/);
   assert.match(html, /Dissolve requires Polygon or MultiPolygon input/);
 });
+
+
+test('RustGIS planar overlay operations use the active projected CRS and return WGS84 display geometry', () => {
+  const runtime = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-rustgis-vector-runtime.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'web-gis.html'), 'utf8');
+  assert.match(html, /get currentCRS\(\)\{return currentCRS;\}/);
+  assert.match(runtime, /PLANAR_OPERATION_IDS/);
+  assert.match(runtime, /transformGeoJSON\(layer, "EPSG:4326", crs\)/);
+  assert.match(runtime, /transformGeoJSON\(output\.geojson, processingCrs, "EPSG:4326"\)/);
+  assert.match(runtime, /"EPSG:4326", "EPSG:4269", "EPSG:4258"/);
+  const bufferExcluded = runtime.match(/const PLANAR_OPERATION_IDS = new Set\(\[([\s\S]*?)\]\)/);
+  assert.ok(bufferExcluded);
+  assert.doesNotMatch(bufferExcluded[1], /buffer/i, 'geodesic RustGIS Buffer must not receive projected metre coordinates');
+});
+
+test('Layer renderer and label configuration survive project serialization and restoration', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'web-gis.html'), 'utf8');
+  assert.match(html, /rendererConfig:item\._rendererConfig\?/);
+  assert.match(html, /labels:item\._labelsEnabled\?/);
+  assert.match(html, /restoredItem\._rendererConfig=\{mode:rc\.mode/);
+  assert.match(html, /restoredItem\._labelsEnabled=true/);
+  assert.match(html, /function openLayerProperties\(/);
+  assert.match(html, /function serializeProject\(/);
+});
+
+test('Browser regression runner covers live map, basemap, selection, symbology, and local project restore', () => {
+  const runnerPath = path.join(__dirname, 'web-gis-browser-regression.cjs');
+  assert.ok(fs.existsSync(runnerPath), 'Playwright browser regression runner must exist');
+  const runner = fs.readFileSync(runnerPath, 'utf8');
+  for (const marker of ['pageerror', 'selectOption', 'applyRustGISSelection', 'openLayerProperties', 'scheduleAutoSave', 'page.reload']) {
+    assert.ok(runner.includes(marker), 'browser regression runner is missing ' + marker);
+  }
+});
