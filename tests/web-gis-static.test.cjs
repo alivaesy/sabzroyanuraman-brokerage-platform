@@ -571,6 +571,6 @@ test('Geodatabase Catalog does not reference private bindings from the core GIS 
   assert.doesNotMatch(block, /(?<!\.)\bnamedLayers\s*\./);
   assert.doesNotMatch(block, /(?<![?.])\bcurrentCRS\b/);
   assert.doesNotMatch(block, /\bvectorFeatures\s*\(/);
-  assert.match(block, /window\\.__sabzWebGISSharedBridge\\?\\.namedLayers/);
-  assert.match(block, /window\\.__webGisGdbBridge\\?\\.featureCount/);
+  assert.ok(block.includes('window.__sabzWebGISSharedBridge?.namedLayers'));
+  assert.ok(block.includes('window.__webGisGdbBridge?.featureCount'));
 });
