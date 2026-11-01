@@ -5102,6 +5102,7 @@ async function importGDBFiles(fileList){
     const details=[...report.openErrors,...report.layerErrors,...report.unsupported].slice(0,10).join(" | ");
     status(summary+(details?" Details: "+details:"")+
       " Geometry/attributes are converted to WGS84 for display. NOT EXTRACTED: "+report.notExtracted.join("; ")+". The original folder is unchanged.");
+    window.__sabzLastGdbImportReport=report;
     report.files=relative.map((path,index)=>({path,size:files[index]?.size||0}));
     download(JSON.stringify(report,null,2),root+"-import-report.json","application/json");
     console.info("File Geodatabase import report",report);
