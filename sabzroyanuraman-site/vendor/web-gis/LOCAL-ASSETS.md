@@ -4,9 +4,9 @@ The WebGIS page now prefers same-origin files under this directory. Leaflet,
 Leaflet Draw, Turf, Proj4, shpjs, shp-write, JSZip and GDAL.js/WASM are already
 stored here and are loaded locally.
 
-Two browser distributions are generated from pinned npm versions because the
+Three browser distributions are generated from pinned npm versions because the
 repository contains GeoTIFF's distribution only as a CDN dependency and the
-DXF Writer package source but not its browserified output.
+DXF Writer package source but not its browserified output, and the GoogleMutant plugin distribution.
 
 ## Prepare the two missing bundles
 
@@ -22,9 +22,10 @@ preparation, and writes:
 - `geotiff/geotiff.js` — GeoTIFF 2.1.3 browser bundle
 - `dxf-writer/dxf-writer.js` — DXF Writer 1.18.4 browser bundle, exposing
   the `Drawing` global used by the existing DXF export code
+- `leaflet-google-mutant/Leaflet.GoogleMutant.js` — Leaflet Google basemap plugin 0.15.0
 - `browser-assets-manifest.txt` — versions and SHA-256 checksums
 
-Until these two generated files exist, the page retains a CDN fallback for
+Until these generated files exist, the page retains a CDN fallback for
 GeoTIFF and DXF Writer. Once prepared and deployed, both load locally first
 and no CDN request is needed for these libraries.
 
