@@ -9,6 +9,25 @@
   style.textContent="#sabzGdbPicker,#sabzGdbTableView{position:fixed;inset:0;z-index:12000;background:#172b36aa;display:none;align-items:center;justify-content:center;padding:18px}#sabzGdbPicker.show,#sabzGdbTableView.show{display:flex}.sabz-gdb-card{width:min(720px,96vw);max-height:88vh;overflow:auto;background:#f5f7f8;border:1px solid #8798a1;box-shadow:0 8px 30px #0005;color:#243d4b;padding:14px}.sabz-gdb-card h3{margin:0 0 8px;font-size:15px}.sabz-gdb-list{max-height:55vh;overflow:auto;border:1px solid #bcc8ce;background:#fff}.sabz-gdb-entry{display:flex;gap:8px;align-items:center;padding:7px 9px;border-bottom:1px solid #e2e8eb;font-size:11px}.sabz-gdb-entry small{margin-left:auto;color:#6b7f89}.sabz-gdb-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.sabz-gdb-actions button{border:1px solid #9eafb7;background:#fff;padding:6px 10px;cursor:pointer}.sabz-gdb-actions button.primary{background:#176b4b;color:#fff;border-color:#176b4b}.sabz-gdb-table{width:100%;border-collapse:collapse;font-size:10px}.sabz-gdb-table th,.sabz-gdb-table td{border:1px solid #cbd5da;padding:5px;text-align:left;white-space:nowrap}.sabz-gdb-table th{position:sticky;top:0;background:#e7edf0}";
   document.head.appendChild(style);
  }
+ async function importGdbZip(file){
+  if(!window.JSZip)throw new Error("JSZip is unavailable.");
+  const zip=await JSZip.loadAsync(await file.arrayBuffer());
+  const entries=Object.values(zip.files).filter(entry=>!entry.dir);
+  const root=entries.map(entry=>entry.name.split("/")[0]).find(name=>/\.gdb$/i.test(name));
+  if(!root)throw new Error("ZIP must contain a complete folder ending in .gdb.");
+  const files=[];
+  for(const entry of entries){
+   if(!entry.name.startsWith(root+"/"))continue;
+   const bytes=await entry.async("uint8array");
+   const part=new File([bytes],entry.name.split("/").pop(),{lastModified:Date.now()});
+   Object.defineProperty(part,"webkitRelativePath",{value:entry.name});
+   files.push(part);
+  }
+  if(!files.length)throw new Error("No files were found inside the .gdb folder.");
+  const b=window.__sabzWebGISSharedBridge;
+  if(typeof b?.importGDBFiles!=="function")throw new Error("The WebGIS FileGDB importer is unavailable.");
+  await b.importGDBFiles(files);
+ }
  function buildUi(){
   ensureStyles();
   if(document.getElementById("sabzGdbPicker"))return;
@@ -62,5 +81,19 @@
   document.getElementById("sabzGdbTableContent").innerHTML=html;
   document.getElementById("sabzGdbTableView").classList.add("show");
  }
- window.SabzGdbCatalog={chooseLayers,registerTables,openTable,get tables(){return state.tables.slice();}};
+ function installImportControl(){
+  const layers=document.getElementById("layers"),target=layers?.parentElement||document.getElementById("panel");
+  if(!target||document.getElementById("gdbImportControl"))return;
+  const section=document.createElement("section");section.id="gdbImportControl";section.className="section";
+  section.innerHTML='<h3>File Geodatabase</h3><div class="row"><button type="button" class="action secondary" id="gdbArchiveButton">Import .gdb ZIP</button></div><input id="gdbArchiveInput" type="file" accept=".zip" hidden><div class="small">Select a ZIP containing the complete .gdb folder. Folder import remains available in Add Data.</div>';
+  target.insertBefore(section,layers);
+  document.getElementById("gdbArchiveButton").onclick=()=>document.getElementById("gdbArchiveInput").click();
+  document.getElementById("gdbArchiveInput").onchange=async event=>{
+   const file=event.target.files?.[0];if(!file)return;
+   try{await importGdbZip(file);}catch(error){window.__sabzWebGISSharedBridge?.status?.("FileGDB ZIP import failed: "+(error.message||error));}
+   finally{event.target.value="";}
+  };
+ }
+ window.SabzGdbCatalog={chooseLayers,registerTables,openTable,importGdbZip,installImportControl,get tables(){return state.tables.slice();}};
+ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",installImportControl,{once:true});else installImportControl();
 })();
