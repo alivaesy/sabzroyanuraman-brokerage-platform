@@ -10260,7 +10260,7 @@ function restoreGdbCatalogFromJSON(data){
  gdbCatalog.workspaces.clear();
  (data?.workspaces||[]).forEach(raw=>{const w={name:raw.name,datasets:new Map()};(raw.datasets||[]).forEach(rd=>w.datasets.set(rd.name,{name:rd.name,crs:rd.crs,classes:(rd.classes||[]).map(c=>({...c}))}));gdbCatalog.workspaces.set(w.name,w);});
  // Reconcile catalog counts with actual restored feature layers.
- (window.__sabzWebGISSharedBridge?.namedLayers||[]).forEach(item=>{const m=item.layer?._gdbMetadata;if(!m)return;let w=gdbCatalog.workspaces.get(m.workspace);if(!w){w={name:m.workspace,datasets:new Map()};gdbCatalog.workspaces.set(w.name,w)}let d=w.datasets.get(m.dataset);if(!d){d={name:m.dataset,crs:m.crs||currentCRS,classes:[]};w.datasets.set(d.name,d)}let c=d.classes.find(x=>x.name===m.featureClass);if(!c){c={name:m.featureClass,geometryType:m.geometryType,count:0};d.classes.push(c)}c.count=window.__webGisGdbBridge?.featureCount(item.layer)||0;});
+ (window.__sabzWebGISSharedBridge?.namedLayers||[]).forEach(item=>{const m=item.layer?._gdbMetadata;if(!m)return;let w=gdbCatalog.workspaces.get(m.workspace);if(!w){w={name:m.workspace,datasets:new Map()};gdbCatalog.workspaces.set(w.name,w)}let d=w.datasets.get(m.dataset);if(!d){d={name:m.dataset,crs:m.crs||window.__webGisGdbBridge?.currentCRS||"EPSG:32638",classes:[]};w.datasets.set(d.name,d)}let c=d.classes.find(x=>x.name===m.featureClass);if(!c){c={name:m.featureClass,geometryType:m.geometryType,count:0};d.classes.push(c)}c.count=window.__webGisGdbBridge?.featureCount(item.layer)||0;});
  renderGdbCatalog();
 }
 function openGeodatabaseManager(){
