@@ -4903,6 +4903,31 @@ async function getGdalBrowser(){
   gdalBrowser=await gdalLoading;
   return gdalBrowser;
 }
+function gdbFeatureDatasetName(layer,detail){
+  const candidates=[layer?.featureDatasetName,layer?.featureDataset,layer?.datasetName,detail?.featureDatasetName,detail?.featureDataset,detail?.datasetName,layer?.group,detail?.group];
+  for(const value of candidates){if(typeof value==="string"&&value.trim())return value.trim()}
+  const raw=String(layer?.name||detail?.name||"");
+  const parts=raw.split(/[\\/]/).filter(Boolean);
+  return parts.length>1?parts.slice(0,-1).join("/"):null;
+}
+function gdbLayerGeometryState(layer,detail){
+  const values=[layer?.geometryType,layer?.geometry,layer?.geomType,detail?.geometryType,detail?.geometry,detail?.geomType];
+  for(const value of values){
+    if(typeof value==="string"&&value.trim()){
+      const v=value.trim().toLowerCase();
+      if(/^(none|null|unknown|no geometry|aspatial|attribute only)$/.test(v))return "none";
+      if(/point|line|curve|polygon|surface|multi|geometry/.test(v))return "spatial";
+    }
+  }
+  const fields=detail?.geometryFields||layer?.geometryFields;
+  if(Array.isArray(fields))return fields.length?"spatial":"none";
+  if(fields&&typeof fields==="object")return Object.keys(fields).length?"spatial":"none";
+  return "unknown";
+}
+function isGdbSystemLayer(name){
+  const value=String(name||"").split(/[\\/]/).pop().trim();
+  return /^GDB_/i.test(value)||/^SDE_/i.test(value)||/^a\d+$/i.test(value);
+}
 async function importGDBFiles(fileList){
   const files=Array.from(fileList||[]);
   if(!files.length){status("No geodatabase folder was selected.");return}
@@ -4958,12 +4983,23 @@ async function importGDBFiles(fileList){
         }
         const metadataLayers=Array.isArray(ogrDetails?.layers)?ogrDetails.layers:[];
         const infoLayers=Array.isArray(info?.layers)?info.layers:[];
-        const sourceLayers=infoLayers.length?infoLayers:(metadataLayers.length?metadataLayers:[{name:ds?.info?.name||ds?.info?.layerName||("FeatureClass_"+(i+1)),featureCount:info?.featureCount}]);
+        const discoveredLayers=infoLayers.length?infoLayers:(metadataLayers.length?metadataLayers:[{name:ds?.info?.name||ds?.info?.layerName||("FeatureClass_"+(i+1)),featureCount:info?.featureCount}]);
+        const sourceLayers=discoveredLayers.filter(layer=>{
+          const name=String(layer?.name||"");
+          if(isGdbSystemLayer(name)){report.unsupported.push(name+": internal/system table skipped.");return false}
+          return true;
+        });
         report.sourceFeatureClasses=(report.sourceFeatureClasses||0)+sourceLayers.length;
         for(let li=0;li<sourceLayers.length;li++){
           const sourceLayer=sourceLayers[li];
           const layerName=String(sourceLayer?.name||("FeatureClass_"+(i+1)+"_"+(li+1)));
           const detailedLayer=metadataLayers.find(x=>String(x.name)===layerName)||{};
+          const geometryState=gdbLayerGeometryState(sourceLayer,detailedLayer);
+          if(geometryState==="none"){
+            report.unsupported.push(layerName+": non-spatial table skipped.");
+            continue;
+          }
+          const featureDataset=gdbFeatureDatasetName(sourceLayer,detailedLayer);
           try{
             const options=["-f","GeoJSON","-t_srs","EPSG:4326","-preserve_fid"];
             // A FileGDB is commonly one GDAL dataset containing many feature classes.
@@ -4978,6 +5014,10 @@ async function importGDBFiles(fileList){
             if(!fc||fc.type!=="FeatureCollection"||!Array.isArray(fc.features)){
               report.failedLayers++;report.layerErrors.push(layerName+": output was not a GeoJSON FeatureCollection.");continue;
             }
+            if(fc.features.length&&!fc.features.some(feature=>feature?.geometry&&typeof feature.geometry.type==="string")){
+              report.unsupported.push(layerName+": GDAL returned attributes without spatial geometry; table skipped.");
+              continue;
+            }
             if(!fc.features.length){
               report.emptyLayers++;
               // Keep empty feature classes visible in the catalog and retain schema metadata.
@@ -4989,7 +5029,7 @@ async function importGDBFiles(fileList){
                 sourceFeatureCount:sourceLayer?.featureCount??0,displayCRS:"EPSG:4326",
                 fields:emptyFields.map(f=>typeof f==="string"?f:f?.name).filter(Boolean),
                 fieldDefinitions:emptyFields,sourceDatasetInfo:info||null,sourceSchemaAndCRS:ogrDetails||null};
-              if(emptyItem)emptyItem.sourceName=root+"/"+layerName;
+              if(emptyItem){emptyItem.sourceName=root+"/"+layerName;if(featureDataset)emptyItem.drawingSet=root+" / "+featureDataset;}
               report.layerErrors.push(layerName+": empty feature class (0 records); schema retained in layer metadata.");
             report.emptyFeatureClasses=(report.emptyFeatureClasses||[]).concat([{name:layerName,fields:emptyLayer._gdbMetadata.fields}]);
               continue;
@@ -4998,6 +5038,7 @@ async function importGDBFiles(fileList){
             const item=namedLayers.find(x=>x.layer===displayLayer);
             if(item){
               item.sourceName=root+"/"+layerName;
+              if(featureDataset)item.drawingSet=root+" / "+featureDataset;
               displayLayer._gdbMetadata={
                 workspace:root,featureClass:layerName,driver:info?.driverName||"OpenFileGDB",
                 sourceFeatureCount:sourceLayer?.featureCount??fc.features.length,
