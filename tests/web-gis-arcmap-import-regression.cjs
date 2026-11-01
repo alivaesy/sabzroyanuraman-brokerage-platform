@@ -43,6 +43,22 @@ const {chromium}=require('playwright');
   await page.waitForTimeout(400);
   const tableValues=await page.locator('#attributeTableWrap input.cell-edit').evaluateAll(inputs=>inputs.map(input=>input.value));
   assert.ok(tableValues.includes('P-001'),'Repaired geometry attributes should be available as editable table cell values');
+  // Repair a second unresolved MXD layer directly from a FileGDB feature class.
+  await page.locator('#arcMapRepairLayer').selectOption('Roads');
+  await page.locator('#arcMapRepairFile').setInputFiles(path.join(__dirname,'fixtures','sample-gdb.zip'));
+  await page.locator('#arcMapRepairButton').click();
+  await page.waitForFunction(()=>document.getElementById('sabzGdbPicker')?.classList.contains('show'),null,{timeout:60000});
+  const repairEntry=page.locator('#sabzGdbLayerList .sabz-gdb-entry').filter({hasText:'faramarz2'}).first();
+  await repairEntry.locator('input[type="checkbox"]').check();
+  await page.locator('#sabzGdbImport').click();
+  await page.waitForFunction(()=>window.__sabzWebGISSharedBridge.namedLayers.some(x=>x.name==='Roads'&&!x.sourceMissing&&x.layer.getLayers().length>0),null,{timeout:90000});
+  const repairedFromGdb=await page.evaluate(()=>{
+   const item=window.__sabzWebGISSharedBridge.namedLayers.find(x=>x.name==='Roads');
+   return {missing:item.sourceMissing,group:item.drawingSet,sourceType:item._repairReport?.sourceType,count:item.layer.getLayers().length};
+  });
+  assert.deepEqual(repairedFromGdb,{missing:false,group:'Thematic',sourceType:'FileGDB',count:repairedFromGdb.count});
+  assert.ok(repairedFromGdb.count>0,'FileGDB repair should load real line geometry into the original MXD layer');
+
   // Import the real FileGDB fixture, select one feature class, and verify the Feature Dataset group.
   await page.locator('#gdbArchiveInput').setInputFiles(path.join(__dirname,'fixtures','sample-gdb.zip'));
   await page.waitForFunction(()=>document.getElementById('sabzGdbPicker')?.classList.contains('show'),null,{timeout:60000});
