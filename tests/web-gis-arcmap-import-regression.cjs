@@ -72,12 +72,13 @@ const {chromium}=require('playwright');
   const gdbResult=await page.evaluate(()=>{
    const b=window.__sabzWebGISSharedBridge;
    const item=b.namedLayers.find(x=>x.name.includes('ssdsd'));
-   return {name:item?.name,group:item?.drawingSet,displayName:item?.displayName,count:item?.layer?.getLayers?.().length,report:window.__sabzLastGdbImportReport||null};
+   return {name:item?.name,group:item?.drawingSet,displayName:item?.displayName,count:item?.layer?.getLayers?.().length,sourceCRS:item?.layer?._gdbMetadata?.sourceCRS,report:window.__sabzLastGdbImportReport||null};
   });
   assert.ok(gdbResult.count>0,'Selected GDB feature class should render real geometries');
   assert.equal(gdbResult.group,'zone38','Feature Dataset zone38 should be restored as a TOC group');
   assert.equal(gdbResult.displayName,'ssdsd','Grouped layer should use its short feature-class name');
-  assert.equal(gdbResult.report?.sourceFeatureClasses,16,'GDAL full catalog should include 16 user feature classes, including nested Feature Dataset members');
+  assert.equal(gdbResult.sourceCRS,'EPSG:32638','Original projected GDB CRS should be retained as layer metadata');
+  assert.equal(gdbResult.report?.sourceFeatureClasses,17,'GDAL full catalog should include all 17 user feature classes, including nested Feature Dataset members');
   assert.equal(gdbResult.report?.selectedFeatureClasses,1,'Only the checked feature class should be imported');
   assert.equal(gdbResult.report?.importedLayers,1,'One selected feature class should produce one map layer');
   assert.ok(!(gdbResult.report?.tables||[]).some(table=>/^a[0-9a-f]+$/i.test(table.name)),'Internal GDB tables must not appear in the Tables catalog');
