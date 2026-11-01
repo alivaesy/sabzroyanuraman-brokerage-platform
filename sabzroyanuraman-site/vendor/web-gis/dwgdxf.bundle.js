@@ -1,6 +1,6 @@
 // ../../_temp/web-gis-npm/node_modules/dwgdxf/dist/index.js
-var V = new URL("./wasm", import.meta.url).href;
-var k = "https://cdn.jsdelivr.net/npm/dwgdxf@2.0.1/dist/wasm";
+var V = new URL("./dwgdxf/dist/wasm/", import.meta.url).href;
+var k = V;
 var x = V;
 var I = null;
 function J(q) {
