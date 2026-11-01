@@ -627,7 +627,7 @@ mod tests {
         let line_result = run_projected_clip(&line_inputs, &json!({"input":"roads","clip":"mask"})).unwrap();
         let Output::Layer(line_output) = line_result.output else { panic!("line Clip should return a layer"); };
         assert_eq!(line_output.features.len(), 1);
-        assert!(matches!(line_output.features[0].geometry, Some(Geometry::Line(_))));
+        assert!(matches!(line_output.features[0].geometry.as_ref(), Some(Geometry::Line(_))));
 
         let mut point_inputs = LayerInputs::default();
         let mut projected_point = rustgis_data::io::project(&point, target).unwrap();
@@ -637,7 +637,7 @@ mod tests {
         let point_result = run_projected_clip(&point_inputs, &json!({"input":"sites","clip":"mask"})).unwrap();
         let Output::Layer(point_output) = point_result.output else { panic!("point Clip should return a layer"); };
         assert_eq!(point_output.features.len(), 1);
-        assert!(matches!(point_output.features[0].geometry, Some(Geometry::Point(_))));
+        assert!(matches!(point_output.features[0].geometry.as_ref(), Some(Geometry::Point(_))));
     }
 
     #[test]
