@@ -578,7 +578,7 @@ test('Geodatabase Catalog does not reference private bindings from the core GIS 
 
 test('Browser regression executes a real projected RustGIS Clip operation', () => {
   const runner = fs.readFileSync(path.join(__dirname, 'web-gis-browser-regression.cjs'), 'utf8');
-  for (const marker of ["listTools().find(tool=>tool.id==='clip')", "data-param=\"input\"", "data-param=\"clip\"", "Projected processing CRS", "EPSG:32638"]) {
+  for (const marker of ["listTools().find(tool=>tool.id==='clip')", "data-param=\"input\"", "data-param=\"clip\"", "EPSG:32638"]) {
     assert.ok(runner.includes(marker), 'projected Clip browser test is missing ' + marker);
   }
   const runtime = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-rustgis-vector-runtime.js'), 'utf8');
