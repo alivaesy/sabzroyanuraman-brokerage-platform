@@ -4918,6 +4918,20 @@ function gdbFeatureDatasetName(layer,detail){
   const parts=raw.split(/[\\/]/).filter(Boolean);
   return parts.length>1?parts.slice(0,-1).join("/"):null;
 }
+function gdbFeatureDatasetMap(details){
+  const lookup=new Map();
+  const root=details?.rootGroup;
+  if(!root)return lookup;
+  const visit=(group,path)=>{
+    const current=group?.name?[...path,String(group.name)]:path;
+    (Array.isArray(group?.layerNames)?group.layerNames:[]).forEach(name=>{
+      lookup.set(String(name),current.join(" / ")||null);
+    });
+    (Array.isArray(group?.groups)?group.groups:[]).forEach(child=>visit(child,current));
+  };
+  visit(root,[]);
+  return lookup;
+}
 function gdbLayerGeometryState(layer,detail){
   const values=[layer?.geometryType,layer?.geometry,layer?.geomType,detail?.geometryType,detail?.geometry,detail?.geomType];
   for(const value of values){
@@ -4998,13 +5012,15 @@ async function importGDBFiles(fileList){
           return true;
         });
         const sourceDetails=layer=>metadataLayers.find(x=>String(x.name)===String(layer?.name))||{};
+        const featureDatasetByLayer=gdbFeatureDatasetMap(ogrDetails);
+        const featureDatasetFor=layer=>featureDatasetByLayer.get(String(layer?.name))||gdbFeatureDatasetName(layer,sourceDetails(layer));
         const spatialSourceLayers=sourceLayers.filter(layer=>gdbLayerGeometryState(layer,sourceDetails(layer))!=="none");
         const nonSpatialSourceLayers=sourceLayers.filter(layer=>gdbLayerGeometryState(layer,sourceDetails(layer))==="none");
         report.sourceFeatureClasses=(report.sourceFeatureClasses||0)+spatialSourceLayers.length;
         const catalogItems=spatialSourceLayers.map(layer=>({
           name:String(layer?.name||""),
           geometryType:layer?.geometryType||layer?.geometry||layer?.geomType||sourceDetails(layer)?.geometryFields?.[0]?.type||"",
-          featureDataset:gdbFeatureDatasetName(layer,sourceDetails(layer))
+          featureDataset:featureDatasetFor(layer)
         }));
         const selectedNames=window.SabzGdbCatalog?.chooseLayers
           ? await window.SabzGdbCatalog.chooseLayers(catalogItems,root)
@@ -5019,7 +5035,7 @@ async function importGDBFiles(fileList){
           status("Importing FileGDB class "+(li+1)+"/"+selectedSourceLayers.length+": "+layerName+"...");
           const detailedLayer=metadataLayers.find(x=>String(x.name)===layerName)||{};
           const geometryState=gdbLayerGeometryState(sourceLayer,detailedLayer);
-          const featureDataset=gdbFeatureDatasetName(sourceLayer,detailedLayer);
+          const featureDataset=featureDatasetFor(sourceLayer);
           try{
             const options=geometryState==="none"
               ? ["-f","GeoJSON","-preserve_fid"]
@@ -5095,7 +5111,7 @@ async function importGDBFiles(fileList){
               displayLayer._gdbMetadata={
                 workspace:root,featureClass:layerName,driver:info?.driverName||"OpenFileGDB",
                 sourceFeatureCount:sourceLayer?.featureCount??fc.features.length,
-                displayCRS:"EPSG:4326",geometryType:[...new Set(fc.features.map(f=>f.geometry?.type).filter(Boolean))].join(", "),
+                displayCRS:"EPSG:4326",sourceCRS:detailedLayer?.geometryFields?.[0]?.coordinateSystem?.projjson?.id?.code?"EPSG:"+detailedLayer.geometryFields[0].coordinateSystem.projjson.id.code:null,geometryType:[...new Set(fc.features.map(f=>f.geometry?.type).filter(Boolean))].join(", "),
                 fields:[...new Set([
                   ...fc.features.flatMap(f=>Object.keys(f.properties||{})),
                   ...(Array.isArray(detailedLayer.fields)?detailedLayer.fields.map(f=>typeof f==="string"?f:f?.name).filter(Boolean):[])
