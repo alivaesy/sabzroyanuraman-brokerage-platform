@@ -19,6 +19,7 @@ on:
       - "sabzroyanuraman-site/webgis-rustgis-enhancements.js"
       - "sabzroyanuraman-site/webgis-rustgis-vector-runtime.js"
       - "tests/web-gis-static.test.cjs"
+      - "tests/web-gis-browser-regression.cjs"
       - ".github/workflows/web-gis-check.yml"
   workflow_dispatch:
 
