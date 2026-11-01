@@ -1,14 +1,14 @@
 //! Real RustGIS geoprocessing bridge for the Sabz Royan WebGIS.
 //!
 //! Input and output geometries cross the boundary as GeoJSON (WGS 84 coordinates).
-//! Algorithms are executed by rustgis-analysis; this crate does not reimplement them.
+//! Most algorithms use rustgis-analysis; projected polygon, line and point Clip uses geo directly.
 
 use std::collections::HashMap;
 use std::io::Cursor;
 
 use base64::Engine as _;
 use rustgis_analysis::{Inputs, Output, OutputLayer, ParamKind, RasterInput, ToolResult};
-use rustgis_data::{Coord, Dataset, Feature, Geometry, GeometryType, raster::{Crs, Raster}};
+use rustgis_data::{Coord, Dataset, Feature, Geometry, raster::{Crs, Raster}};
 use geo::{BooleanOps, Coord as GeoCoord, Intersects, LineString, MultiPolygon, Point as GeoPoint, Polygon};
 use serde_json::{Value, json};
 use wasm_bindgen::prelude::*;
@@ -600,6 +600,44 @@ mod tests {
         assert_eq!(output.features.len(), 1, "overlapping projected polygons should produce one clipped feature");
         assert_eq!(output.features[0].attrs.len(), 1, "Clip should preserve input attributes");
         assert_eq!(output.crs, Some(target), "Clip output should retain the projected working CRS");
+    }
+
+    #[test]
+    fn projected_clip_keeps_only_line_segments_and_points_inside_mask() {
+        let mask_json = r#"{"type":"FeatureCollection","features":[
+            {"type":"Feature","id":2,"properties":{},"geometry":{"type":"Polygon","coordinates":[[[47.01,33.0],[47.03,33.0],[47.03,33.02],[47.01,33.02],[47.01,33.0]]]}}
+        ]}"#;
+        let line_json = r#"{"type":"FeatureCollection","features":[
+            {"type":"Feature","id":3,"properties":{"road":"R1"},"geometry":{"type":"LineString","coordinates":[[47.0,33.01],[47.04,33.01]]}}
+        ]}"#;
+        let point_json = r#"{"type":"FeatureCollection","features":[
+            {"type":"Feature","id":4,"properties":{"site":"S1"},"geometry":{"type":"Point","coordinates":[47.02,33.01]}}
+        ]}"#;
+        let (mask, _) = rustgis_data::io::read_geojson(mask_json, "mask").unwrap();
+        let (line, _) = rustgis_data::io::read_geojson(line_json, "roads").unwrap();
+        let (point, _) = rustgis_data::io::read_geojson(point_json, "sites").unwrap();
+        let target = Crs::Epsg(32638);
+        let mut projected_mask = rustgis_data::io::project(&mask, target).unwrap();
+        projected_mask.crs = Some(target);
+        let mut line_inputs = LayerInputs::default();
+        let mut projected_line = rustgis_data::io::project(&line, target).unwrap();
+        projected_line.crs = Some(target);
+        line_inputs.datasets.insert("roads".into(), projected_line);
+        line_inputs.datasets.insert("mask".into(), projected_mask.clone());
+        let line_result = run_projected_clip(&line_inputs, &json!({"input":"roads","clip":"mask"})).unwrap();
+        let Output::Layer(line_output) = line_result.output else { panic!("line Clip should return a layer"); };
+        assert_eq!(line_output.features.len(), 1);
+        assert!(matches!(line_output.features[0].geometry, Some(Geometry::Line(_))));
+
+        let mut point_inputs = LayerInputs::default();
+        let mut projected_point = rustgis_data::io::project(&point, target).unwrap();
+        projected_point.crs = Some(target);
+        point_inputs.datasets.insert("sites".into(), projected_point);
+        point_inputs.datasets.insert("mask".into(), projected_mask);
+        let point_result = run_projected_clip(&point_inputs, &json!({"input":"sites","clip":"mask"})).unwrap();
+        let Output::Layer(point_output) = point_result.output else { panic!("point Clip should return a layer"); };
+        assert_eq!(point_output.features.len(), 1);
+        assert!(matches!(point_output.features[0].geometry, Some(Geometry::Point(_))));
     }
 
     #[test]
