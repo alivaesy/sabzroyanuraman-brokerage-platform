@@ -14,7 +14,7 @@
       if(item.isGroupLayer||Array.isArray(item.layers))visit(item.layers||[],parents.concat(item.name||"Group"));
       else out.push({item,groupPath:item.groupLayer||parents.join(" / ")||null});
     });}
-    (manifest.dataFrames||[]).forEach(frame=>visit(frame.layers,frame.name?[frame.name]:[]));
+    (manifest.dataFrames||[]).forEach(frame=>visit(frame.layers,[]));
     if(!manifest.dataFrames?.length)visit(manifest.layers,[]);
     return out;
   }
