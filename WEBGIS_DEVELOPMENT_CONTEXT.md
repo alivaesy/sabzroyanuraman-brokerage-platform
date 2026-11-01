@@ -265,3 +265,5 @@ At the end of each meaningful batch, update this file with the verified date, co
 - Browser-test finding: the map's Zoom To Selection function was scoped inside the WebGIS core script rather than exposed on `window`. Added a narrow shared-bridge method so other first-party tools and the regression runner can invoke the same existing operation without duplicating selection logic.
 
 - Expanded the shared WebGIS bridge with first-party methods for project serialization, IndexedDB save/list, Layer Properties and Zoom To Selection. These are thin calls into the existing core functions; they avoid creating duplicate logic and allow browser-level integration tests to exercise the same application services.
+
+- Browser regression found and fixed a real restore defect: the separate Geodatabase Catalog script referenced the core script's private `namedLayers`, `vectorFeatures`, and `currentCRS` bindings directly. Project reload therefore threw `ReferenceError: namedLayers is not defined`. The catalog now uses the shared GIS bridges for layer enumeration, feature counts, and the active CRS.
