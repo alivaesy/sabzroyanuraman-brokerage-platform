@@ -1,0 +1,49 @@
+name: FileGDB fixture audit
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "sabzroyanuraman-site/New File Geodatabase.gdb.rar"
+      - ".github/workflows/filegdb-fixture-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-filegdb:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install archive and GDAL readers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unar gdal-bin
+      - name: Extract and inventory the real FileGDB fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/gdb-fixture /tmp/gdb-audit
+          unar -q -o /tmp/gdb-fixture "sabzroyanuraman-site/New File Geodatabase.gdb.rar"
+          find /tmp/gdb-fixture -maxdepth 4 -type f -printf '%P\t%s bytes\n' | sort | tee /tmp/gdb-audit/files.txt
+          GDB="$(find /tmp/gdb-fixture -type d -name '*.gdb' -print -quit)"
+          test -n "$GDB"
+          printf 'GDB_PATH=%s\n' "$GDB" | tee /tmp/gdb-audit/source.txt
+          ogrinfo --version | tee /tmp/gdb-audit/gdal-version.txt
+          ogrinfo -ro -so "$GDB" > /tmp/gdb-audit/dataset-summary.txt
+          ogrinfo -ro "$GDB" > /tmp/gdb-audit/layer-catalog.txt
+          cat /tmp/gdb-audit/dataset-summary.txt
+          cat /tmp/gdb-audit/layer-catalog.txt
+          while IFS= read -r layer; do
+            [ -n "$layer" ] || continue
+            safe="$(printf '%s' "$layer" | tr '/ ' '__' | tr -cd '[:alnum:]_.-')"
+            ogrinfo -ro -so "$GDB" "$layer" > "/tmp/gdb-audit/layer-$safe.txt" || true
+          done < <(sed -n 's/^\([0-9][0-9]*\): //p' /tmp/gdb-audit/layer-catalog.txt)
+      - name: Upload inventory report
+        uses: actions/upload-artifact@v4
+        with:
+          name: filegdb-fixture-audit
+          path: /tmp/gdb-audit/
+          if-no-files-found: error
