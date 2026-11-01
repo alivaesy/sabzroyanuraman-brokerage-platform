@@ -560,3 +560,17 @@ test('Geodatabase catalog restore and render use the shared GIS bridge across sc
   assert.match(html, /window\.__webGisGdbBridge\?\.featureCount\(item\.layer\)/);
   assert.doesNotMatch(html, /function restoreGdbCatalogFromJSON\(data\)\{[\s\S]{0,700}namedLayers\.forEach/);
 });
+
+
+test('Geodatabase Catalog does not reference private bindings from the core GIS script', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'web-gis.html'), 'utf8');
+  const start = html.indexOf('/* Geodatabase Catalog:');
+  const end = html.indexOf('</script>', start);
+  assert.ok(start >= 0 && end > start, 'Geodatabase Catalog script must be present');
+  const block = html.slice(start, end);
+  assert.doesNotMatch(block, /(?<!\\.)\\bnamedLayers\\s*\\./);
+  assert.doesNotMatch(block, /(?<![?.])\\bcurrentCRS\\b/);
+  assert.doesNotMatch(block, /\\bvectorFeatures\\s*\\(/);
+  assert.match(block, /window\\.__sabzWebGISSharedBridge\\?\\.namedLayers/);
+  assert.match(block, /window\\.__webGisGdbBridge\\?\\.featureCount/);
+});
