@@ -592,3 +592,14 @@ test('Projected RustGIS payload omits legacy CRS metadata to prevent implicit WG
   assert.match(runtime, /delete output\.crs/);
   assert.doesNotMatch(runtime, /output\.crs\s*=\s*\{type:"name"/);
 });
+
+
+test('RustGIS projected overlays pass processing CRS to the WASM adapter after GeoJSON parsing', () => {
+  const runtime = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-rustgis-vector-runtime.js'), 'utf8');
+  const rust = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'rustgis-vector-wasm', 'src', 'lib.rs'), 'utf8');
+  assert.match(runtime, /params\._sabz_processing_crs = crs/);
+  assert.match(runtime, /transformGeoJSON\(output\.geojson, processingCrs, "EPSG:4326"\)/);
+  assert.match(rust, /object\.remove\("_sabz_processing_crs"\)/);
+  assert.match(rust, /rustgis_data::io::project\(dataset, target\)/);
+  assert.match(rust, /projected\.crs = Some\(target\)/);
+});
