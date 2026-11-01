@@ -9955,7 +9955,7 @@ function openRasterWorkspace(){
    }else canMap=false;
   }
   sabzRasterState={fileName:file.name,w,h,bands,epsg:canMap?epsg:null,noData:Number.isFinite(noData)?noData:null,bounds,factor,ow,oh,cellX,cellY,canvas,layer:null,sourceBlob:rasterData.blob,sourceMetadata:m,assetId:null,georeferenced:canMap};
-  const opSelect=p.querySelector('[data-r-op]');[...opSelect.options].forEach(option=>{option.disabled=option.value!=="display"&&!canMap;});opSelect.value="display";p.querySelector('[data-r-expr-wrap]').hidden=true;
+  const opSelect=p.querySelector('[data-r-op]');[...opSelect.options].forEach(option=>{option.disabled=option.value!=="display"&&!(option.value==="calculator"||canMap);});opSelect.value="display";p.querySelector('[data-r-expr-wrap]').hidden=true;
   const exportButton=p.querySelector('[data-r-export]');const tifExport=exportButton.nextElementSibling;if(tifExport&&tifExport.textContent==="Export GeoTIFF")tifExport.disabled=!canMap;
   p.querySelector('[data-r-meta]').textContent=w+" × "+h+" px · "+bands.length+" band(s) · "+(canMap?"EPSG:"+epsg:"No map CRS · image preview only")+" · "+file.name;
   if(canMap){const rasterProjectId=currentProjectId||projectId();currentProjectId=rasterProjectId;sabzRasterState.assetId="raster-"+Date.now().toString(36);await SabzRasterRuntime.saveAsset(rasterProjectId,sabzRasterState.assetId,rasterData.blob,m);
@@ -9968,6 +9968,19 @@ function openRasterWorkspace(){
   if(!sabzRasterState)throw Error("Load a GeoTIFF first.");
   const op=p.querySelector('[data-r-op]').value;
   if(op==="display"){renderSabzRaster("display");say("Display stretch preview only; no analysis was run.");return;}
+  if(!sabzRasterState.georeferenced&&op==="calculator"){
+   const r=sabzRasterState,expr=p.querySelector("[data-r-expr]").value||"B1",values=new Float32Array(r.w*r.h);let lo=Infinity,hi=-Infinity;
+   for(let i=0;i<values.length;i++){
+    const pixelBands=r.bands.map(b=>{const v=b[i];return r.noData!==null&&v===r.noData?NaN:v;});
+    const value=rasterExpr(expr,pixelBands);values[i]=Number.isFinite(value)?value:NaN;
+    if(Number.isFinite(values[i])){lo=Math.min(lo,values[i]);hi=Math.max(hi,values[i]);}
+   }
+   if(!Number.isFinite(lo)||!Number.isFinite(hi))throw Error("Raster Calculator produced no valid pixels.");
+   r.output={values,width:r.w,height:r.h,geoTransform:null,extent:null,noData:NaN,engine:"Browser pixel calculator"};
+   const ctx=r.canvas.getContext("2d"),img=ctx.createImageData(r.ow,r.oh),span=Math.max(1e-12,hi-lo);
+   for(let y=0;y<r.oh;y++)for(let x=0;x<r.ow;x++){const v=values[Math.min(r.h-1,y*r.factor)*r.w+Math.min(r.w-1,x*r.factor)],k=(y*r.ow+x)*4;if(!Number.isFinite(v)){img.data[k+3]=0;continue;}const c=Math.max(0,Math.min(255,Math.round((v-lo)/span*255)));img.data[k]=img.data[k+1]=img.data[k+2]=c;img.data[k+3]=255;}
+   ctx.putImageData(img,0,0);say("Raster Calculator completed in pixel space (no CRS). Export PNG is available; geospatial tools and GeoTIFF export require georeferencing.");return;
+  }
   if(!window.SabzRustRasterBridge)throw Error("RustGIS bridge is not loaded.");
   say("Running full-resolution "+op+" with RustGIS/WASM…");
   const result=await SabzRustRasterBridge.processRaster(op,sabzRasterState,{
