@@ -263,3 +263,5 @@ At the end of each meaningful batch, update this file with the verified date, co
 - Browser regression refinement: the basemap selector is intentionally inside the closed ArcToolbox Display accordion. The Playwright test now opens ArcToolbox and the Display accordion before changing basemaps, rather than treating the hidden selector as a failure.
 
 - Browser-test finding: the map's Zoom To Selection function was scoped inside the WebGIS core script rather than exposed on `window`. Added a narrow shared-bridge method so other first-party tools and the regression runner can invoke the same existing operation without duplicating selection logic.
+
+- Expanded the shared WebGIS bridge with first-party methods for project serialization, IndexedDB save/list, Layer Properties and Zoom To Selection. These are thin calls into the existing core functions; they avoid creating duplicate logic and allow browser-level integration tests to exercise the same application services.
