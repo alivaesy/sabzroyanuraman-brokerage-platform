@@ -179,7 +179,8 @@ test('ArcMap import entry point accepts manifests and extracts supported MPK dat
   assert.match(html, /data-action=["']importArcMap["']/);
   assert.match(html, /id=["']mxdInput["'][^>]*accept=["']\.json,\.mpk,\.zip["']/);
   assert.match(html, /async function importArcMapDocument\(file\)/);
-  assert.match(html, /window\.SabzArcMapManifest\?\.importManifest\(manifest\)/);
+  assert.match(html, /window\.SabzArcMapManifest\?\.importManifest/);
+  assert.match(html, /window\.SabzArcMapManifest\.importManifest\(manifest\)/);
   assert.match(html, /tools\/mxd_to_manifest\.py/);
   assert.doesNotMatch(html, /api\/gis\/import-mxd\.php/);
   assert.match(html, /JSZip\.loadAsync\(await file\.arrayBuffer\(\)\)/);
