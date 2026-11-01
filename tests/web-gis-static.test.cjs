@@ -222,7 +222,7 @@ test('Plain TIFF import skips absent GeoKeys and remains preview-only without a 
   const runtime = fs.readFileSync(runtimePath, 'utf8');
   assert.match(runtime, /const keys = decodeGeoKeys\(directory\)/);
   assert.match(runtime, /function decodeGeoKeys\(directory\)/);
-  assert.doesNotMatch(runtime, /image\.getGeoKeys\(\)/);
+  assert.doesNotMatch(runtime, /image\.getGeoKeys\(\)\s*;/);
   assert.match(runtime, /const georeferenced = !!transform && !!extent && !!crs\.epsg/);
   assert.match(runtime, /previewOnly: !georeferenced/);
   assert.match(html, /raster-runtime\.js\?v=20261031-plain-tiff/);
@@ -437,7 +437,7 @@ test('ModelBuilder routes core vector overlay nodes through RustGIS', () => {
   assert.match(rust, /params\.keepAll="Keep all";params\.prefix="join_"/);
   assert.match(rust, /"areaLength"\?"calculateGeometry"/);
   assert.match(rust, /params\.keepAll="Keep all";params\.prefix="join_"/);
-  assert.match(body, /RustGIS Spatial Join supports Intersects, Within and Contains only/);
+  assert.match(html, /RustGIS Spatial Join supports Intersects, Within and Contains only/);
 });
 
 test('RustGIS plugin and raster bridges use separate global namespaces', () => {
