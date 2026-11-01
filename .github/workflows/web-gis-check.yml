@@ -15,6 +15,7 @@ on:
       - "tests/web-gis-arcmap-import-regression.cjs"
       - "sabzroyanuraman-site/webgis-arcmap-manifest.js"
       - "sabzroyanuraman-site/webgis-gdb-catalog.js"
+      - "sabzroyanuraman-site/rustgis-vector-wasm/**"
       - "tests/fixtures/**"
       - "tools/mxd_to_manifest.py"
       - ".github/workflows/web-gis-check.yml"
@@ -67,6 +68,9 @@ jobs:
         run: cargo install wasm-pack --locked
       - name: Install native build tools
         run: sudo apt-get update && sudo apt-get install -y clang
+      - name: Run projected geo Clip unit test
+        working-directory: sabzroyanuraman-site/rustgis-vector-wasm
+        run: cargo test --lib projected_clip_uses_geo_boolean_ops_in_utm
       - name: Build RustGIS WASM from this commit
         working-directory: sabzroyanuraman-site/rustgis-vector-wasm
         run: wasm-pack build --target web --release --out-dir ../rustgis-vector-wasm-pkg --out-name sabz_royan_vector_wasm
