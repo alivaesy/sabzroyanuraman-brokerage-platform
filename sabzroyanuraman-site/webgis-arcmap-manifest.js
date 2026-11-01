@@ -12,7 +12,7 @@
     function visit(items,parents){(Array.isArray(items)?items:[]).forEach(item=>{
       if(!item||typeof item!=="object")return;
       if(item.isGroupLayer||Array.isArray(item.layers))visit(item.layers||[],parents.concat(item.name||"Group"));
-      else out.push({item,groupPath:parents.join(" / ")||item.groupLayer||null});
+      else out.push({item,groupPath:item.groupLayer||parents.join(" / ")||null});
     });}
     (manifest.dataFrames||[]).forEach(frame=>visit(frame.layers,frame.name?[frame.name]:[]));
     if(!manifest.dataFrames?.length)visit(manifest.layers,[]);
