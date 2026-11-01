@@ -764,7 +764,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
     <button data-action="addOnlineData">Add Data from ArcGIS Online...</button>
     <button data-action="wms">Add WMS Layer...</button>
     <button data-action="exportData">Export Data...</button>
-    <button type="button" data-action="importArcMap">Import ArcMap Document (.mxd / .mpk)...</button>
+    <button type="button" data-action="importArcMap">Import ArcMap Package / Manifest (.json / .mpk)...</button>
     <div class="arc-sep"></div>
     <button type="button" data-action="printMap">Print Map...</button>
     <div class="arc-sep"></div><button type="button" data-action="geodatabaseManager">Create / Manage Geodatabase...</button>
@@ -907,7 +907,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 
     <div style="display:none">
       <input id="fileInput" type="file" accept=".geojson,.json,.kml,.kmz,.gpx,.zip,.shp">
-      <input id="mxdInput" type="file" accept=".mxd,.mpk,.mxt,.zip" aria-label="Import ArcMap document or ArcMap export package" hidden>
+      <input id="mxdInput" type="file" accept=".json,.mpk,.zip" aria-label="Import ArcMap document or ArcMap export package" hidden>
       <input id="gdbInput" type="file" webkitdirectory directory multiple>
       <button id="exportGeoJSON" type="button"></button>
       <button id="exportKML" type="button"></button>
@@ -5275,27 +5275,18 @@ async function importArcMapDocument(file){
     return false;
   };
   status("Inspecting ArcMap document: "+file.name+"...");
-  if(ext==="mxd"||ext==="mxt"){
-    // MXD/MXT are ArcGIS Desktop binary documents, not GeoJSON or ZIP archives.
-    // A licensed ArcMap/ArcObjects conversion service can be connected at this endpoint.
-    let response;
-    try{
-      const body=new FormData();body.append("file",file,file.name);
-      response=await fetch("api/gis/import-mxd.php",{method:"POST",body,credentials:"same-origin",headers:{"Accept":"application/json"}});
-    }catch(_){}
-    if(response&&response.ok){
-      const result=await response.json();
-      let count=0;
-      if(addCollection(result.geojson||result.data,file.name))count++;
-      for(const item of (Array.isArray(result.layers)?result.layers:[])){
-        if(addCollection(item.geojson||item.data||item.featureCollection,item.name||file.name))count++;
-      }
-      if(count){status("ArcMap conversion returned "+count+" spatial layer(s). Review symbology, fonts and layout; full ArcMap fidelity is not guaranteed.");return}
-      throw new Error("The MXD converter responded, but returned no supported GeoJSON feature layers.");
-    }
-    throw new Error("This ."+ext+" file is an ArcMap binary document and cannot be decoded by the browser alone. No compatible server converter is installed at api/gis/import-mxd.php. Use this importer with an .mpk package or connect a licensed Windows ArcMap/ArcObjects conversion worker; the original file was not changed.");
+  if(ext==="json"){
+    let manifest;
+    try{manifest=JSON.parse(await file.text())}catch(_){throw new Error("The selected JSON file is not a valid ArcMap manifest.");}
+    if(!window.SabzArcMapManifest?.importManifest)throw new Error("ArcMap manifest importer is not ready.");
+    const count=window.SabzArcMapManifest.importManifest(manifest);
+    status("ArcMap manifest imported: "+count+" layer(s). Repair unresolved sources from the Data Sources panel.");
+    return;
   }
-  if(ext!=="mpk"&&ext!=="zip")throw new Error("Choose an ArcMap .mxd, .mxt, .mpk, or ArcMap worker .zip package.");
+  if(ext==="mxd"||ext==="mxt"){
+    throw new Error("MXD/MXT are ArcGIS Desktop binary documents. Convert them on Windows with tools/mxd_to_manifest.py using ArcMap 10.x, then import the generated JSON manifest. No unsupported server endpoint will be called.");
+  }
+  if(ext!=="mpk"&&ext!=="zip")throw new Error("Choose an ArcMap manifest .json, .mpk package, or supported ArcMap worker .zip.");
   if(typeof JSZip==="undefined")throw new Error("The ZIP library is unavailable; cannot inspect the map package.");
   const archive=await JSZip.loadAsync(await file.arrayBuffer());
   const entries=Object.values(archive.files).filter(entry=>!entry.dir);
