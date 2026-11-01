@@ -147,13 +147,30 @@
       '<label class="compact-label" for="arcMapRepairLayer">Repair Data Source</label>'+
       '<select id="arcMapRepairLayer"><option value="">Select unresolved layer…</option></select>'+
       '<input id="arcMapRepairFile" type="file" accept=".geojson,.json,.kml,.kmz,.zip">'+
-      '<div class="row"><button type="button" class="action" id="arcMapRepairButton">Repair Selected Layer</button></div>'+
+      '<div class="row"><button type="button" class="action" id="arcMapRepairButton">Repair Selected Layer</button><button type="button" class="action secondary" id="arcMapRepairGdbFolderButton">Repair from .gdb Folder</button></div>'+
+      '<input id="arcMapRepairGdbFolder" type="file" webkitdirectory directory multiple hidden>'+
       '<div id="arcMapImportStatus" class="small" role="status">Import a converted MXD manifest, then repair missing sources.</div>';
     const target=$("layers")?.parentElement||$("panel");if(!target)return;
     target.insertBefore(panel,target.firstChild);
     $("arcMapManifestButton").onclick=()=>$("arcMapManifestInput").click();
     $("arcMapManifestInput").onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{importManifest(JSON.parse(await f.text()));}catch(err){notify("Manifest import failed: "+(err.message||err));}finally{e.target.value="";}};
     $("arcMapRepairButton").onclick=async()=>{try{await repairSelectedLayer();}catch(err){notify("Repair failed: "+(err.message||err));}};
+    $("arcMapRepairGdbFolderButton").onclick=()=>$("arcMapRepairGdbFolder").click();
+    $("arcMapRepairGdbFolder").onchange=async event=>{
+      const files=Array.from(event.target.files||[]),name=$("arcMapRepairLayer")?.value;
+      if(!files.length)return;
+      const owner=bridge().namedLayers.find(x=>x.name===name&&x.sourceMissing);
+      if(!owner){notify("Select an unresolved layer before choosing a GDB folder.");event.target.value="";return;}
+      window.__sabzGdbRepairTargetName=name;
+      try{
+        if(typeof bridge().importGDBFiles!=="function")throw new Error("FileGDB importer unavailable.");
+        await bridge().importGDBFiles(files);
+        if(owner.sourceMissing)throw new Error("No compatible feature class was selected from the GDB folder.");
+        renderRepairChoices();
+        notify("Repaired "+owner.name+" from FileGDB folder: "+(owner._repairReport?.featureCount||0)+" feature(s).");
+      }catch(err){notify("FileGDB repair failed: "+(err.message||err));}
+      finally{delete window.__sabzGdbRepairTargetName;event.target.value="";}
+    };
   }
   function start() {
     if(!bridge()?.map||!Array.isArray(bridge().namedLayers))return;
