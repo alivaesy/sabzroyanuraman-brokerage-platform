@@ -1,0 +1,26 @@
+name: WebGIS TOC regression
+on:
+  pull_request:
+    paths:
+      - "sabzroyanuraman-site/web-gis.html"
+      - "sabzroyanuraman-site/js/webgis-toc-enhancements.js"
+      - "tests/web-gis-*.test.cjs"
+      - ".github/workflows/webgis-toc-regression.yml"
+  push:
+    branches:
+      - "feat/arcmap-toc-catalog-enhancements"
+    paths:
+      - "sabzroyanuraman-site/web-gis.html"
+      - "sabzroyanuraman-site/js/webgis-toc-enhancements.js"
+      - "tests/web-gis-*.test.cjs"
+      - ".github/workflows/webgis-toc-regression.yml"
+jobs:
+  node-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run WebGIS static and TOC regression tests
+        run: node --test tests/web-gis-static.test.cjs tests/web-gis-toc-enhancements.test.cjs
