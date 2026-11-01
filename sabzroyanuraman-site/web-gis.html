@@ -4920,12 +4920,14 @@ function gdbFeatureDatasetName(layer,detail){
 }
 function gdbFeatureDatasetMap(details){
   const lookup=new Map();
+  lookup.order=[];
   const root=details?.rootGroup;
   if(!root)return lookup;
   const visit=(group,path)=>{
     const current=group?.name?[...path,String(group.name)]:path;
     (Array.isArray(group?.layerNames)?group.layerNames:[]).forEach(name=>{
       lookup.set(String(name),current.join(" / ")||null);
+      lookup.order.push(String(name));
     });
     (Array.isArray(group?.groups)?group.groups:[]).forEach(child=>visit(child,current));
   };
@@ -5014,6 +5016,8 @@ async function importGDBFiles(fileList){
         const sourceDetails=layer=>metadataLayers.find(x=>String(x.name)===String(layer?.name))||{};
         const featureDatasetByLayer=gdbFeatureDatasetMap(ogrDetails);
         const featureDatasetFor=layer=>featureDatasetByLayer.get(String(layer?.name))||gdbFeatureDatasetName(layer,sourceDetails(layer));
+        const orderIndex=new Map((featureDatasetByLayer.order||[]).map((name,index)=>[name,index]));
+        sourceLayers.sort((left,right)=>(orderIndex.get(String(left?.name))??Number.MAX_SAFE_INTEGER)-(orderIndex.get(String(right?.name))??Number.MAX_SAFE_INTEGER));
         const spatialSourceLayers=sourceLayers.filter(layer=>gdbLayerGeometryState(layer,sourceDetails(layer))!=="none");
         const nonSpatialSourceLayers=sourceLayers.filter(layer=>gdbLayerGeometryState(layer,sourceDetails(layer))==="none");
         report.sourceFeatureClasses=(report.sourceFeatureClasses||0)+spatialSourceLayers.length;
