@@ -64,6 +64,7 @@ const {chromium}=require('playwright');
   await page.waitForFunction(()=>document.getElementById('sabzGdbPicker')?.classList.contains('show'),null,{timeout:60000});
   const catalogNames=await page.locator('#sabzGdbLayerList .sabz-gdb-entry').allInnerTexts();
   assert.ok(catalogNames.some(x=>x.includes('ssdsd')),'Real GDB catalog should expose feature class ssdsd');
+  assert.ok(catalogNames[0].includes('hamidazizi')&&catalogNames[1].includes('sa')&&catalogNames[2].includes('ssdsd'),'GDB catalog should follow root and Feature Dataset order from the original geodatabase');
   await page.locator('#sabzGdbSelectNone').click();
   const selectedEntry=page.locator('#sabzGdbLayerList .sabz-gdb-entry').filter({hasText:'ssdsd'}).first();
   await selectedEntry.locator('input[type="checkbox"]').check();
