@@ -546,6 +546,7 @@
         result = window.SabzRoyanRustGIS.runTool(tool.id, layerPayload, params);
       }
       const outputMessages = [];
+      if (processingCrs) outputMessages.push("Projected processing CRS: " + processingCrs + "; vector output coordinates were transformed back to EPSG:4326 for map display.");
       for (const output of result.outputs || []) {
         if ((output.kind === "vector" || output.kind === "update") && processingCrs && output.geojson) {
           output.geojson = transformGeoJSON(output.geojson, processingCrs, "EPSG:4326");
