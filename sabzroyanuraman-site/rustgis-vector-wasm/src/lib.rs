@@ -267,7 +267,7 @@ fn run_projected_clip(inputs: &LayerInputs, params: &Value) -> Result<ToolResult
     let mut mask = MultiPolygon::<f64>(Vec::new());
     for feature in mask_source.features.iter() {
         if let Some(geometry) = feature.geometry.as_ref().and_then(to_geo_multipolygon) {
-            mask = mask.union(&geometry);
+            mask = if mask.0.is_empty() { geometry } else { mask.union(&geometry) };
         }
     }
     if mask.0.is_empty() { return Err("Clip: the clip layer contains no valid polygon geometry.".into()); }
