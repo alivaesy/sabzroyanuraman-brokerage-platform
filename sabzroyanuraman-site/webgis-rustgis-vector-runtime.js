@@ -62,14 +62,14 @@
     throw new Error("Layer '" + item.name + "' did not produce a GeoJSON FeatureCollection.");
   }
 
-  // RustGIS's GeoJSON reader normalizes all inputs to WGS84. Keep the
-  // uploaded payload geographic, then ask the WASM adapter to project its
-  // parsed datasets into the active working CRS before running planar tools.
-  // Buffer remains geodesic on WGS84 and is intentionally excluded.
+  // RustGIS's polygon overlay routines still assume Web Mercator internally.
+  // Projected local-metre processing is therefore enabled only for operations
+  // already ported to the direct geo engine. Buffer remains geodesic on WGS84.
   const PLANAR_OPERATION_IDS = new Set([
     "clip", "intersect", "erase", "union", "identity", "dissolve",
     "convexhull", "spatialjoin", "spatialjoinonetomany", "selectbylocation"
   ]);
+  const GEO_PROJECTED_OPERATION_IDS = new Set(["clip"]);
 
   function transformGeoJSON(collection, fromCrs, toCrs) {
     if (!collection || collection.type !== "FeatureCollection" || !Array.isArray(collection.features)) {
@@ -110,6 +110,10 @@
   function preparePlanarProcessing(tool, params) {
     const operation = String(tool?.id || "").toLowerCase().replace(/[^a-z]/g, "");
     if (!PLANAR_OPERATION_IDS.has(operation)) return null;
+    if (!GEO_PROJECTED_OPERATION_IDS.has(operation)) {
+      bridge()?.status?.("Notice: EPSG projected processing is not yet ported to geo for " + tool.name + ". The existing RustGIS native path will run; verify results before cadastral use.");
+      return null;
+    }
     const crs = String(bridge()?.currentCRS || "EPSG:32638").toUpperCase();
     if (!/^EPSG:\d+$/.test(crs)) throw new Error("Choose a valid projected processing CRS before running " + tool.name + ".");
     if (["EPSG:4326", "EPSG:4269", "EPSG:4258"].includes(crs)) {
