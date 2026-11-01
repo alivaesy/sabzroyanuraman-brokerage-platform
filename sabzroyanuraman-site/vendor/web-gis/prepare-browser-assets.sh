@@ -22,7 +22,8 @@ mkdir -p "$TMP/geotiff"
 tar -xzf "$GEOTIFF_TGZ" -C "$TMP/geotiff"
 GEOTIFF_SRC="$TMP/geotiff/package/dist-browser/geotiff.js"
 test -s "$GEOTIFF_SRC" || { echo "GeoTIFF browser bundle not found in npm package." >&2; exit 1; }
-install -m 0644 "$GEOTIFF_SRC" "$HERE/geotiff/geotiff.js"
+cp -a "$TMP/geotiff/package/dist-browser/." "$HERE/geotiff/"
+test -s "$HERE/geotiff/geotiff.js"
 
 echo "[2/2] Building dxf-writer 1.18.4 browser bundle..."
 (
