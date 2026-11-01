@@ -584,3 +584,11 @@ test('Browser regression executes a real projected RustGIS Clip operation', () =
   const runtime = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-rustgis-vector-runtime.js'), 'utf8');
   assert.match(runtime, /Projected processing CRS:/);
 });
+
+
+test('Projected RustGIS payload omits legacy CRS metadata to prevent implicit WGS84 reprojection', () => {
+  const runtime = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-rustgis-vector-runtime.js'), 'utf8');
+  assert.match(runtime, /RustGIS's GeoJSON reader/);
+  assert.match(runtime, /delete output\.crs/);
+  assert.doesNotMatch(runtime, /output\.crs\s*=\s*\{type:"name"/);
+});
