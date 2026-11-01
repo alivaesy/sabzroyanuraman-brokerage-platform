@@ -13,6 +13,7 @@ wasm-bindgen = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 base64 = "0.23"
+geo = "0.33"
 
 # Use RustGIS's actual analysis and data crates, pinned to one immutable upstream revision.
 # The UI remains in the Sabz Royan JavaScript application; the processing algorithms execute here.
