@@ -118,7 +118,7 @@
     const operation = String(tool?.id || "").toLowerCase().replace(/[^a-z]/g, "");
     if (!PLANAR_OPERATION_IDS.has(operation)) return null;
     const crs = String(bridge()?.currentCRS || "EPSG:32638").toUpperCase();
-    if (!/^EPSG:\\d+$/.test(crs)) throw new Error("Choose a valid projected processing CRS before running " + tool.name + ".");
+    if (!/^EPSG:\d+$/.test(crs)) throw new Error("Choose a valid projected processing CRS before running " + tool.name + ".");
     if (["EPSG:4326", "EPSG:4269", "EPSG:4258"].includes(crs)) {
       throw new Error(tool.name + " requires a projected CRS. Select a local projected system such as EPSG:32638; no processing was run.");
     }
