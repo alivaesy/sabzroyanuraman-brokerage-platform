@@ -28,6 +28,9 @@ const fixture = {
       'the active projected CRS must be exposed to the processing adapter');
 
     // Basemap switching is exercised through the actual UI control.
+    // ArcToolbox owns the Display accordion; open it before using the basemap control.
+    await page.locator('#toolboxToggleBtn').click();
+    await page.locator('.accordion-section[data-accordion="display"] .accordion-head').click();
     const basemap = page.locator('#basemap');
     assert.ok(await basemap.count(), 'Basemap selector must exist');
     const values = await basemap.locator('option').evaluateAll(options => options.map(option=>option.value));
