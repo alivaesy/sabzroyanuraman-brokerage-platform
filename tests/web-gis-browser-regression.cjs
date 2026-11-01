@@ -62,6 +62,49 @@ const fixture = {
     assert.ok(setup.after >= setup.before,'Zoom To Selection should not zoom out');
     assert.ok(setup.hasProperties,'Layer Properties command must be callable');
 
+    // Run a real RustGIS Clip through the WebAssembly engine. The input coordinates
+    // are WGS84; the adapter must project to EPSG:32638 and return the output to WGS84.
+    const clipInputName='__SabzProjectedClipInput__';
+    const clipMaskName='__SabzProjectedClipMask__';
+    await page.evaluate(({inputName,maskName}) => {
+      const bridge=window.__sabzWebGISSharedBridge;
+      bridge.addGeoJSONLayer(inputName,{type:'FeatureCollection',features:[
+        {type:'Feature',properties:{parcel:'A'},geometry:{type:'Polygon',coordinates:[[[47.0,33.0],[47.02,33.0],[47.02,33.02],[47.0,33.02],[47.0,33.0]]]}}
+      ]});
+      bridge.addGeoJSONLayer(maskName,{type:'FeatureCollection',features:[
+        {type:'Feature',properties:{zone:'Z1'},geometry:{type:'Polygon',coordinates:[[[47.01,33.0],[47.03,33.0],[47.03,33.02],[47.01,33.02],[47.01,33.0]]]}}
+      ]});
+    },{inputName:clipInputName,maskName:clipMaskName});
+    await page.locator('#rgEngineButton').click();
+    await page.waitForFunction(() => !!window.SabzRoyanRustGIS?.listTools, null, {timeout:60000});
+    const clipTool = await page.evaluate(() => window.SabzRoyanRustGIS.listTools().find(tool=>tool.id==='clip'));
+    assert.ok(clipTool,'RustGIS Clip tool must be available in the loaded WASM catalogue');
+    await page.locator('#rgEngineTool').selectOption('clip');
+    await page.locator('[data-param="input"]').selectOption(clipInputName);
+    await page.locator('[data-param="clip"]').selectOption(clipMaskName);
+    await page.locator('[data-param="output"]').fill('UTM Clip Regression Output');
+    await page.locator('#rgEngineRun').click();
+    await page.waitForFunction(() => {
+      const status=document.getElementById('rgEngineStatus')?.textContent||'';
+      return status.includes('پایان یافت') || status.includes('خطا در اجرای پردازش');
+    }, null, {timeout:60000});
+    const projectedClip = await page.evaluate(() => {
+      const bridge=window.__sabzWebGISSharedBridge;
+      const item=bridge.namedLayers.find(layer=>layer.name.includes('UTM Clip Regression Output'));
+      const message=document.getElementById('rgEngineMessages')?.textContent||'';
+      if(!item)return {found:false,message};
+      const geo=item.layer.toGeoJSON();
+      const positions=[];
+      const walk=value=>{if(Array.isArray(value)){if(value.length>=2&&typeof value[0]==='number'&&typeof value[1]==='number')positions.push(value);else value.forEach(walk)}};
+      (geo.features||[]).forEach(feature=>walk(feature.geometry?.coordinates));
+      return {found:true,count:geo.features?.length||0,minX:Math.min(...positions.map(p=>p[0])),maxX:Math.max(...positions.map(p=>p[0])),minY:Math.min(...positions.map(p=>p[1])),maxY:Math.max(...positions.map(p=>p[1])),message};
+    });
+    assert.ok(projectedClip.found && projectedClip.count>0,'RustGIS Clip should add a non-empty result layer: '+projectedClip.message);
+    assert.ok(projectedClip.minX>46 && projectedClip.maxX<49 && projectedClip.minY>32 && projectedClip.maxY<35,
+      'Clip output must be reprojected to WGS84 before adding it to Leaflet');
+    assert.match(projectedClip.message,/EPSG:32638/,'Processing report should identify the projected processing CRS');
+    await page.locator('#rgEngineDialog .rg-actions button').nth(1).click();
+
     // Exercise Graduated Colors and permanent labels, then verify their live layer state.
     const styleResult = await page.evaluate(name => {
       const bridge = window.__sabzWebGISSharedBridge;
