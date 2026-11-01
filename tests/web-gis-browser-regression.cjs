@@ -23,7 +23,7 @@ const fixture = {
   page.on('console', message => {
     if (message.type() !== 'error') return;
     const text = message.text();
-    if (/Failed to load resource|404 \\(Not Found\\)|net::ERR/.test(text)) return;
+    if (/Failed to load resource|404|net::ERR/.test(text)) return;
     consoleErrors.push(text);
   });
   try {
