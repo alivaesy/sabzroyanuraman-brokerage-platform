@@ -9,7 +9,7 @@ use std::io::Cursor;
 use base64::Engine as _;
 use rustgis_analysis::{Inputs, Output, OutputLayer, ParamKind, RasterInput, ToolResult};
 use rustgis_data::{Coord, Dataset, Feature, Geometry, GeometryType, raster::{Crs, Raster}};
-use geo::{BooleanOps, Coord as GeoCoord, LineString, MultiPolygon, Polygon};
+use geo::{BooleanOps, Coord as GeoCoord, Intersects, LineString, MultiPolygon, Point as GeoPoint, Polygon};
 use serde_json::{Value, json};
 use wasm_bindgen::prelude::*;
 
@@ -160,6 +160,98 @@ fn from_geo_multipolygon(multi: MultiPolygon<f64>) -> Geometry {
 /// Planar Clip in the requested projected CRS. Upstream RustGIS's current polygon
 /// overlay implementation assumes Web Mercator internally; use geo directly here
 /// so EPSG:32638 and other projected working CRSs remain meaningful.
+fn cross(ax: f64, ay: f64, bx: f64, by: f64) -> f64 {
+    ax * by - ay * bx
+}
+
+fn segment_boundary_parameters(p: Coord, p2: Coord, q: GeoCoord<f64>, q2: GeoCoord<f64>) -> Vec<f64> {
+    let rx = p2.x - p.x;
+    let ry = p2.y - p.y;
+    let sx = q2.x - q.x;
+    let sy = q2.y - q.y;
+    let qpx = q.x - p.x;
+    let qpy = q.y - p.y;
+    let denominator = cross(rx, ry, sx, sy);
+    let mut values = Vec::new();
+    if denominator.abs() > 1e-12 {
+        let t = cross(qpx, qpy, sx, sy) / denominator;
+        let u = cross(qpx, qpy, rx, ry) / denominator;
+        if (-1e-10..=1.0 + 1e-10).contains(&t) && (-1e-10..=1.0 + 1e-10).contains(&u) {
+            values.push(t.clamp(0.0, 1.0));
+        }
+    } else if cross(qpx, qpy, rx, ry).abs() <= 1e-9 {
+        let length_squared = rx * rx + ry * ry;
+        if length_squared > 1e-20 {
+            for point in [q, q2] {
+                let t = ((point.x - p.x) * rx + (point.y - p.y) * ry) / length_squared;
+                if (-1e-10..=1.0 + 1e-10).contains(&t) { values.push(t.clamp(0.0, 1.0)); }
+            }
+        }
+    }
+    values
+}
+
+fn clip_line_part(line: &[Coord], mask: &MultiPolygon<f64>) -> Vec<Vec<Coord>> {
+    let mut output = Vec::<Vec<Coord>>::new();
+    let mut current = Vec::<Coord>::new();
+    for segment in line.windows(2) {
+        let (start, end) = (segment[0], segment[1]);
+        let mut parameters = vec![0.0, 1.0];
+        for polygon in &mask.0 {
+            for ring in std::iter::once(polygon.exterior()).chain(polygon.interiors()) {
+                for edge in ring.0.windows(2) {
+                    parameters.extend(segment_boundary_parameters(start, end, edge[0], edge[1]));
+                }
+            }
+        }
+        parameters.sort_by(f64::total_cmp);
+        parameters.dedup_by(|a, b| (*a - *b).abs() <= 1e-10);
+        for pair in parameters.windows(2) {
+            let (t0, t1) = (pair[0], pair[1]);
+            if t1 - t0 <= 1e-10 { continue; }
+            let midpoint_t = (t0 + t1) / 2.0;
+            let midpoint = GeoPoint::new(start.x + (end.x - start.x) * midpoint_t,
+                start.y + (end.y - start.y) * midpoint_t);
+            if mask.intersects(&midpoint) {
+                let a = Coord::new(start.x + (end.x - start.x) * t0, start.y + (end.y - start.y) * t0);
+                let b = Coord::new(start.x + (end.x - start.x) * t1, start.y + (end.y - start.y) * t1);
+                if current.last().is_some_and(|last| (last.x-a.x).abs() <= 1e-7 && (last.y-a.y).abs() <= 1e-7) {
+                    current.push(b);
+                } else {
+                    if current.len() >= 2 { output.push(std::mem::take(&mut current)); }
+                    current = vec![a, b];
+                }
+            } else if current.len() >= 2 {
+                output.push(std::mem::take(&mut current));
+            } else {
+                current.clear();
+            }
+        }
+    }
+    if current.len() >= 2 { output.push(current); }
+    output
+}
+
+fn clip_geometry(geometry: &Geometry, mask: &MultiPolygon<f64>) -> Option<Geometry> {
+    match geometry {
+        Geometry::Polygon(_) => {
+            let polygon = to_geo_multipolygon(geometry)?;
+            let clipped = polygon.intersection(mask);
+            (!clipped.0.is_empty()).then(|| from_geo_multipolygon(clipped))
+        }
+        Geometry::Line(parts) => {
+            let clipped: Vec<Vec<Coord>> = parts.iter().flat_map(|part| clip_line_part(part, mask)).collect();
+            (!clipped.is_empty()).then_some(Geometry::Line(clipped))
+        }
+        Geometry::Point(point) => mask.intersects(&GeoPoint::new(point.x, point.y)).then_some(Geometry::Point(*point)),
+        Geometry::MultiPoint(points) => {
+            let kept: Vec<Coord> = points.iter().copied()
+                .filter(|point| mask.intersects(&GeoPoint::new(point.x, point.y))).collect();
+            (!kept.is_empty()).then_some(Geometry::MultiPoint(kept))
+        }
+    }
+}
+
 fn run_projected_clip(inputs: &LayerInputs, params: &Value) -> Result<ToolResult, String> {
     let input_name = params.get("input").and_then(Value::as_str)
         .ok_or_else(|| "Clip: missing input layer".to_owned())?;
@@ -169,8 +261,8 @@ fn run_projected_clip(inputs: &LayerInputs, params: &Value) -> Result<ToolResult
         .ok_or_else(|| format!("Clip: input layer '{input_name}' was not found"))?;
     let mask_source = inputs.datasets.get(clip_name)
         .ok_or_else(|| format!("Clip: clip layer '{clip_name}' was not found"))?;
-    if source.geometry_type != GeometryType::Polygon || mask_source.geometry_type != GeometryType::Polygon {
-        return Err("Projected Clip currently requires polygon input and polygon clip layers.".into());
+    if mask_source.geometry_type != GeometryType::Polygon {
+        return Err("Projected Clip requires a polygon clip layer.".into());
     }
     let mut mask = MultiPolygon::<f64>(Vec::new());
     for feature in mask_source.features.iter() {
@@ -186,15 +278,12 @@ fn run_projected_clip(inputs: &LayerInputs, params: &Value) -> Result<ToolResult
         .unwrap_or_else(|| format!("{}_Clip", source.name));
     output.features.clear();
     for feature in source.features.iter() {
-        let Some(geometry) = feature.geometry.as_ref().and_then(to_geo_multipolygon) else { continue; };
-        let clipped = geometry.intersection(&mask);
-        if !clipped.0.is_empty() {
-            output.features.push(Feature {
-                id: feature.id,
-                geometry: Some(from_geo_multipolygon(clipped)),
-                attrs: feature.attrs.clone(),
-            });
-        }
+        let Some(geometry) = feature.geometry.as_ref().and_then(|geometry| clip_geometry(geometry, &mask)) else { continue; };
+        output.features.push(Feature {
+            id: feature.id,
+            geometry: Some(geometry),
+            attrs: feature.attrs.clone(),
+        });
     }
     let count = output.features.len();
     Ok(ToolResult {
