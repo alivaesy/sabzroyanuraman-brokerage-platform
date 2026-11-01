@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ArcMap Web GIS | Sabz Royan Ooraman</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
+<link rel="stylesheet" href="./vendor/web-gis/leaflet/leaflet.css" onerror="this.onerror=null;this.href=\'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css\'">
+<link rel="stylesheet" href="./vendor/web-gis/leaflet-draw/leaflet.draw.css" onerror="this.onerror=null;this.href=\'https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css\'">
 <style>
 *{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
 html,body{height:100%;margin:0}
@@ -1256,20 +1256,20 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <div class="tool-feedback" id="toolFeedback" role="status" aria-live="polite"></div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="https://unpkg.com/shp-write@0.3.2/shpwrite.js"></script>
-<script src="https://unpkg.com/dxf-writer@1.18.4/dist/dxf-writer.js"></script>
-<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
-<script src="https://unpkg.com/shpjs@6.1.0/dist/shp.js"></script>
-<script src="https://unpkg.com/proj4@2.9.2/dist/proj4.js"></script>
-<script src="https://unpkg.com/@turf/turf@7.2.0/turf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js" crossorigin="anonymous"></script>
+<script src="./vendor/web-gis/leaflet/leaflet.js"></script><script src="./vendor/web-gis/shp-write/shpwrite.js"></script>
+<script src="./vendor/web-gis/dxf-writer/dxf-writer.js" onerror="this.onerror=null;this.src=\'https://unpkg.com/dxf-writer@1.18.4/examples/browser/dxf_bundle.js\'"></script>
+<script src="./vendor/web-gis/leaflet-draw/leaflet.draw.js"></script>
+<script src="./vendor/web-gis/shpjs/shp.js"></script>
+<script src="./vendor/web-gis/proj4/proj4.js"></script>
+<script src="./vendor/web-gis/turf/turf.min.js"></script>
+<script src="./vendor/web-gis/geotiff/geotiff.js" onerror="this.onerror=null;this.src=\'https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js\'"></script>
 <script src="./raster-runtime.js?v=20261031-plain-tiff"></script>
 <script src="./rust-raster-bridge.js"></script>
 <script src="./webgis-rustgis-vector-runtime.js"></script>
 <script src="./plugin-manager.js"></script>
 <script src="./geolibre-wasi-bridge.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/gdal3.js@2.8.1/dist/package/gdal3.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="./vendor/web-gis/gdal3.js/gdal3.js"></script>
+<script src="./vendor/web-gis/jszip/jszip.min.js"></script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCh3Elxg1P6rxHkNiyvTyFiZ6kBdl1W-Zk"></script>
 <script src="https://unpkg.com/leaflet.gridlayer.googlemutant@0.15.0/dist/Leaflet.GoogleMutant.js"></script>
 <script>
@@ -2411,7 +2411,7 @@ function createMapViewer(){
   if(!win){status("Allow pop-ups to open the map viewer.");return;}
   const state={center:[map.getCenter().lat,map.getCenter().lng],zoom:map.getZoom(),basemap:$("basemap").value,wms:customWmsConfig,attribution:currentBase?.options?.attribution||"Map data provider"};
   const serialized=JSON.stringify(state).replace(/</g,"\\u003c"),closeScript="</"+"script>";
-  const html="<!doctype html><html><head><meta charset='utf-8'><title>Map Viewer</title><link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'><style>html,body,#map{height:100%;margin:0}#attributeTableWindow{display:none;position:fixed;left:50%;bottom:18px;transform:translateX(-50%);width:min(1120px,calc(100vw - 36px));height:min(390px,58vh);min-width:360px;min-height:180px;resize:both;overflow:hidden;background:#f5f6f7;border:1px solid #7f8d95;box-shadow:0 8px 28px rgba(0,0,0,.28);z-index:4800;direction:ltr;color:#263f50}#attributeTableWindow.open{display:flex;flex-direction:column}#attributeTableWindow.maximized{left:8px;right:8px;top:56px;bottom:8px;width:auto;height:auto;min-width:0;min-height:0;transform:none;resize:none}#attributeTableTitlebar{height:32px;flex:0 0 32px;display:flex;align-items:center;gap:8px;padding:0 7px;background:linear-gradient(#fdfdfd,#e1e6e9);border-bottom:1px solid #a9b4ba;font-size:12px;font-weight:700}#attributeTableWindowTitle{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}#attributeTableWindowActions{display:flex;gap:3px}#attributeTableWindowActions button{width:26px;height:23px;border:1px solid #aeb9bf;background:#f8f9fa;color:#263f50;border-radius:2px;cursor:pointer;padding:0;font-size:13px}#attributeTableWindowActions button:hover{background:#dceaf2}#attributeTableWindowToolbar{display:flex;align-items:center;gap:8px;min-height:31px;padding:4px 8px;background:#f2f4f5;border-bottom:1px solid #c3cdd2;font-size:11px}#attributeTableWindowToolbar .table-layer-label{font-weight:700}#attributeTableWindowToolbar .table-toolbar-note{color:#657984;margin-left:auto}#attributeTableViewport{flex:1;min-height:0;overflow:auto;background:#fff;direction:ltr}#attributeTableViewport #attributeTableWrap{display:block!important;max-height:none!important;overflow:visible!important;font-size:12px!important}#attributeTableWrap table.arc-attribute-grid{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;direction:ltr;font-size:12px;color:#263f50}#attributeTableWrap .arc-attribute-grid th{position:sticky;top:0;z-index:3;height:27px;padding:4px 8px;background:#e7ecef;border-right:1px solid #c4cdd2;border-bottom:1px solid #aebbc2;text-align:left;white-space:nowrap;font-weight:700}#attributeTableWrap .arc-attribute-grid th:first-child{left:0;z-index:5;min-width:30px}#attributeTableWrap .arc-attribute-grid th:nth-child(2){left:30px;z-index:4;min-width:44px}#attributeTableWrap .arc-attribute-grid td{height:29px;padding:2px 5px;border-right:1px solid #e0e5e8;border-bottom:1px solid #e0e5e8;background:#fff;white-space:nowrap}#attributeTableWrap .arc-attribute-grid tbody tr:nth-child(even) td{background:#f7f9fa}#attributeTableWrap .arc-attribute-grid tbody tr:hover td{background:#eaf4fb}#attributeTableWrap .arc-attribute-grid tbody tr td:first-child{position:sticky;left:0;z-index:2;min-width:30px;text-align:center}#attributeTableWrap .arc-attribute-grid tbody tr td:nth-child(2){position:sticky;left:30px;z-index:1;min-width:44px;text-align:right;background:#edf1f3;font-variant-numeric:tabular-nums}#attributeTableWrap .arc-attribute-grid input.cell-edit{width:150px;min-width:100px;height:23px;border:1px solid transparent;border-radius:0;padding:2px 5px;font-size:12px;background:transparent;color:inherit}#attributeTableWrap .arc-attribute-grid input.cell-edit:focus{outline:1px solid #3b83b5;border-color:#3b83b5;background:#fff}#attributeTableWindowFooter{height:25px;flex:0 0 25px;display:flex;align-items:center;gap:14px;padding:0 8px;border-top:1px solid #aeb9bf;background:#edf1f3;color:#526b7a;font-size:10px}@media(max-width:650px){#attributeTableWindow{left:5px;right:5px;bottom:5px;width:auto;min-width:0;height:55vh;transform:none}#attributeTableWindow.maximized{top:48px}}</style></head><body><div id='map'></div><script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'>"+closeScript+"<script>const s="+serialized+";const m=L.map('map').setView(s.center,s.zoom);const u={osm:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',topo:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',sat:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',esriStreet:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',esriTopo:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',esriGray:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'};if(s.basemap==='nasaWms')L.tileLayer.wms('https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi',{layers:'BlueMarble_ShadedRelief',format:'image/png',version:'1.3.0',attribution:'NASA GIBS'}).addTo(m);else if(s.basemap==='customWms'&&s.wms)L.tileLayer.wms(s.wms.url,{layers:s.wms.layers,format:s.wms.format,version:s.wms.version,attribution:s.wms.attribution}).addTo(m);else L.tileLayer(u[s.basemap]||u.osm,{maxZoom:19,attribution:s.attribution}).addTo(m);"+closeScript+"<script src=\"./webgis-rustgis-vector-runtime.js\">"+closeScript+"\n</body></html>";
+  const html="<!doctype html><html><head><meta charset='utf-8'><title>Map Viewer</title><link rel='stylesheet' href='./vendor/web-gis/leaflet/leaflet.css'><style>html,body,#map{height:100%;margin:0}#attributeTableWindow{display:none;position:fixed;left:50%;bottom:18px;transform:translateX(-50%);width:min(1120px,calc(100vw - 36px));height:min(390px,58vh);min-width:360px;min-height:180px;resize:both;overflow:hidden;background:#f5f6f7;border:1px solid #7f8d95;box-shadow:0 8px 28px rgba(0,0,0,.28);z-index:4800;direction:ltr;color:#263f50}#attributeTableWindow.open{display:flex;flex-direction:column}#attributeTableWindow.maximized{left:8px;right:8px;top:56px;bottom:8px;width:auto;height:auto;min-width:0;min-height:0;transform:none;resize:none}#attributeTableTitlebar{height:32px;flex:0 0 32px;display:flex;align-items:center;gap:8px;padding:0 7px;background:linear-gradient(#fdfdfd,#e1e6e9);border-bottom:1px solid #a9b4ba;font-size:12px;font-weight:700}#attributeTableWindowTitle{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}#attributeTableWindowActions{display:flex;gap:3px}#attributeTableWindowActions button{width:26px;height:23px;border:1px solid #aeb9bf;background:#f8f9fa;color:#263f50;border-radius:2px;cursor:pointer;padding:0;font-size:13px}#attributeTableWindowActions button:hover{background:#dceaf2}#attributeTableWindowToolbar{display:flex;align-items:center;gap:8px;min-height:31px;padding:4px 8px;background:#f2f4f5;border-bottom:1px solid #c3cdd2;font-size:11px}#attributeTableWindowToolbar .table-layer-label{font-weight:700}#attributeTableWindowToolbar .table-toolbar-note{color:#657984;margin-left:auto}#attributeTableViewport{flex:1;min-height:0;overflow:auto;background:#fff;direction:ltr}#attributeTableViewport #attributeTableWrap{display:block!important;max-height:none!important;overflow:visible!important;font-size:12px!important}#attributeTableWrap table.arc-attribute-grid{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;direction:ltr;font-size:12px;color:#263f50}#attributeTableWrap .arc-attribute-grid th{position:sticky;top:0;z-index:3;height:27px;padding:4px 8px;background:#e7ecef;border-right:1px solid #c4cdd2;border-bottom:1px solid #aebbc2;text-align:left;white-space:nowrap;font-weight:700}#attributeTableWrap .arc-attribute-grid th:first-child{left:0;z-index:5;min-width:30px}#attributeTableWrap .arc-attribute-grid th:nth-child(2){left:30px;z-index:4;min-width:44px}#attributeTableWrap .arc-attribute-grid td{height:29px;padding:2px 5px;border-right:1px solid #e0e5e8;border-bottom:1px solid #e0e5e8;background:#fff;white-space:nowrap}#attributeTableWrap .arc-attribute-grid tbody tr:nth-child(even) td{background:#f7f9fa}#attributeTableWrap .arc-attribute-grid tbody tr:hover td{background:#eaf4fb}#attributeTableWrap .arc-attribute-grid tbody tr td:first-child{position:sticky;left:0;z-index:2;min-width:30px;text-align:center}#attributeTableWrap .arc-attribute-grid tbody tr td:nth-child(2){position:sticky;left:30px;z-index:1;min-width:44px;text-align:right;background:#edf1f3;font-variant-numeric:tabular-nums}#attributeTableWrap .arc-attribute-grid input.cell-edit{width:150px;min-width:100px;height:23px;border:1px solid transparent;border-radius:0;padding:2px 5px;font-size:12px;background:transparent;color:inherit}#attributeTableWrap .arc-attribute-grid input.cell-edit:focus{outline:1px solid #3b83b5;border-color:#3b83b5;background:#fff}#attributeTableWindowFooter{height:25px;flex:0 0 25px;display:flex;align-items:center;gap:14px;padding:0 8px;border-top:1px solid #aeb9bf;background:#edf1f3;color:#526b7a;font-size:10px}@media(max-width:650px){#attributeTableWindow{left:5px;right:5px;bottom:5px;width:auto;min-width:0;height:55vh;transform:none}#attributeTableWindow.maximized{top:48px}}</style></head><body><div id='map'></div><script src='./vendor/web-gis/leaflet/leaflet.js'>"+closeScript+"<script>const s="+serialized+";const m=L.map('map').setView(s.center,s.zoom);const u={osm:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',topo:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',sat:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',esriStreet:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',esriTopo:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',esriGray:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'};if(s.basemap==='nasaWms')L.tileLayer.wms('https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi',{layers:'BlueMarble_ShadedRelief',format:'image/png',version:'1.3.0',attribution:'NASA GIBS'}).addTo(m);else if(s.basemap==='customWms'&&s.wms)L.tileLayer.wms(s.wms.url,{layers:s.wms.layers,format:s.wms.format,version:s.wms.version,attribution:s.wms.attribution}).addTo(m);else L.tileLayer(u[s.basemap]||u.osm,{maxZoom:19,attribution:s.attribution}).addTo(m);"+closeScript+"<script src=\"./webgis-rustgis-vector-runtime.js\">"+closeScript+"\n</body></html>";
    win.document.open();
    win.document.write(html);
    win.document.close();
@@ -4888,7 +4888,7 @@ async function getGdalBrowser(){
   if(gdalBrowser)return gdalBrowser;
   if(!gdalLoading){
     if(typeof initGdalJs!=="function")throw new Error("The geodatabase library did not load.");
-    gdalLoading=initGdalJs({path:"https://cdn.jsdelivr.net/npm/gdal3.js@2.8.1/dist/package",useWorker:false});
+    gdalLoading=initGdalJs({path:new URL("./vendor/web-gis/gdal3.js/",location.href).pathname,paths:{wasm:"gdal3WebAssembly.wasm",data:"gdal3WebAssembly.data"},useWorker:false});
   }
   gdalBrowser=await gdalLoading;
   return gdalBrowser;
@@ -5268,12 +5268,12 @@ $("dataDialogContinue").onclick=()=>{
         const file=input.files&&input.files[0];if(!file)return;
         try{
           status("Loading DWG converter (first use may take a while)...");
-          const converter=await import("https://esm.sh/dwgdxf@2.0.1?bundle");
-          if(typeof converter.init!=="function"||typeof converter.convertDwgToDxf!=="function"||!converter.CDN_WASM_BASE){
+          const converter=await import("./vendor/web-gis/dwgdxf.bundle.js");
+          if(typeof converter.init!=="function"||typeof converter.convertDwgToDxf!=="function"||!converter.LOCAL_WASM_BASE){
             throw new Error("The DWG converter module did not expose its expected API.");
           }
           status("Preparing DWG converter WebAssembly...");
-          await converter.init({wasmBase:converter.CDN_WASM_BASE});
+          await converter.init({wasmBase:new URL("./vendor/web-gis/dwgdxf/dist/wasm/",location.href).href});
           const dwgBytes=new Uint8Array(await file.arrayBuffer());
           if(!dwgBytes.length)throw new Error("The selected DWG file is empty.");
           status("Converting DWG to DXF in this browser...");
@@ -5284,7 +5284,7 @@ $("dataDialogContinue").onclick=()=>{
           await importDXFFile(dxfFile);
         }catch(err){
           console.error("DWG conversion failed:",err);
-          status("DWG import failed: "+(err.message||err)+". Check internet access to the converter/WASM CDN and try a DWG version from R13 to R2018.");
+          status("DWG import failed: "+(err.message||err)+". Verify local DWG converter/WASM assets and try a DWG version from R13 to R2018.");
         }
       };
       input.click();return;
