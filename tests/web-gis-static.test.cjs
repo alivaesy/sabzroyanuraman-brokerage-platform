@@ -225,7 +225,7 @@ test('Plain TIFF import skips absent GeoKeys and remains preview-only without a 
   assert.doesNotMatch(runtime, /image\.getGeoKeys\(\)\s*;/);
   assert.match(runtime, /const georeferenced = !!transform && !!extent && !!crs\.epsg/);
   assert.match(runtime, /previewOnly: !georeferenced/);
-  assert.match(html, /raster-runtime\.js\?v=20261031-plain-tiff/);
+  assert.match(html, /raster-runtime\.js\?v=20261101-selftest/);
   const rasterTests = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'raster-runtime-tests.html'), 'utf8');
   assert.match(rasterTests, /baseline TIFF loads without CRS or GeoKeys/);
 });
