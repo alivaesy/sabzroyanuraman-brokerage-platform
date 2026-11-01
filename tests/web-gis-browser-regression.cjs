@@ -55,7 +55,7 @@ const fixture = {
       bridge.addGeoJSONLayer('__SabzBrowserRegressionFixture__',data);
       const selected = bridge.applyRustGISSelection('__SabzBrowserRegressionFixture__',[0]);
       const before = bridge.map.getZoom();
-      window.zoomToSelection();
+      bridge.zoomToSelection();
       return {selected,before,after:bridge.map.getZoom(),hasProperties:typeof window.openLayerProperties==='function'};
     },fixture);
     assert.equal(setup.selected,1,'RustGIS selection bridge should select one feature');
