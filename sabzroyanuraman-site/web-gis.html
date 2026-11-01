@@ -3049,14 +3049,21 @@ const addRow=(x,label,indent)=>{
   }
 
   
-   const drawingSets=[...new Set(namedLayers.filter(x=>x.drawingSet).map(x=>x.drawingSet))];
   if(drawn.getLayers().length)addRow({name:"Legacy drawings",layer:drawn,isDrawn:true},"Legacy drawings",false);
-  drawingSets.forEach(name=>{
-    const children=namedLayers.filter(x=>x.drawingSet===name);groups.set(name,children);
-    addRow({name,isGroup:true},name,false);
-    children.forEach(x=>addRow(x,x.displayName||x._webgisDrawingType||x.name,true));
+  const renderedGroups=new Set();
+  namedLayers.forEach(x=>{
+    if(x.drawingSet){
+      if(!renderedGroups.has(x.drawingSet)){
+        const children=namedLayers.filter(item=>item.drawingSet===x.drawingSet);
+        groups.set(x.drawingSet,children);
+        addRow({name:x.drawingSet,isGroup:true},x.drawingSet,false);
+        renderedGroups.add(x.drawingSet);
+      }
+      addRow(x,x.displayName||x._webgisDrawingType||x.name,true);
+    }else{
+      addRow(x,x.name,false);
+    }
   });
-  namedLayers.filter(x=>!x.drawingSet).forEach((x,i)=>addRow(x,x.name,false));
 }
 // Keep the Table Of Contents empty until the user creates a feature.
 // drawingLayerForType() creates the matching Point/Line/Polygon child on demand.
