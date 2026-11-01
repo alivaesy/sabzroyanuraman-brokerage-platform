@@ -18,7 +18,14 @@ const fixture = {
   const context = await browser.newContext({viewport:{width:1440,height:960},acceptDownloads:true});
   const page = await context.newPage();
   const pageErrors = [];
+  const consoleErrors = [];
   page.on('pageerror', error => pageErrors.push(error.message));
+  page.on('console', message => {
+    if (message.type() !== 'error') return;
+    const text = message.text();
+    if (/Failed to load resource|404 \\(Not Found\\)|net::ERR/.test(text)) return;
+    consoleErrors.push(text);
+  });
   try {
     const response = await page.goto(baseUrl,{waitUntil:'domcontentloaded',timeout:60000});
     assert.ok(response && response.ok(), 'WebGIS page must return HTTP success');
@@ -43,11 +50,19 @@ const fixture = {
     }
 
     // Open and close each visible top-level menu without invoking destructive actions.
-    const menuCount = await page.evaluate(() => {
-      const candidates = [...document.querySelectorAll('button[aria-haspopup="true"],button[data-menu],.arc-menu-btn')];
-      return candidates.filter(button => button.offsetParent !== null).length;
-    });
-    assert.ok(menuCount >= 5, 'Expected the ArcMap-style top-level menus to be present');
+    const visibleMenus = page.locator('.arc-menu-btn[data-menu]:visible');
+    const menuCount = await visibleMenus.count();
+    assert.ok(menuCount >= 8, 'Expected the ArcMap-style top-level menus to be present');
+    for (let index=0; index<menuCount; index++) {
+      const button=visibleMenus.nth(index);
+      const menuId=await button.getAttribute('data-menu');
+      const panel=page.locator('#'+menuId);
+      assert.ok(await panel.count(), 'Menu panel must exist for '+menuId);
+      await button.click();
+      await page.waitForFunction(id => document.getElementById(id)?.classList.contains('show'),menuId);
+      assert.equal(await button.getAttribute('aria-expanded'),'true','Menu should expose expanded state: '+menuId);
+      await page.keyboard.press('Escape');
+    }
 
     // Inject a deterministic test layer through the same bridge used by RustGIS outputs.
     const setup = await page.evaluate(data => {
@@ -118,18 +133,27 @@ const fixture = {
         control.value=String(value);
         control.dispatchEvent(new Event('change',{bubbles:true}));
       };
-      set('lpRenderer','graduated');
-      set('lpStyleField','area_ha');
-      set('lpColorRamp','green');
-      set('lpClassCount','5');
+      const apply = (mode,field) => {
+        bridge.openLayerProperties(item);
+        set('lpRenderer',mode);
+        if(field)set('lpStyleField',field);
+        set('lpColorRamp','green');
+        set('lpClassCount','5');
+        document.getElementById('layerPropertiesForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+      };
+      apply('unique','parcel_id');
+      const uniqueColors=item.layer.getLayers().map(feature=>feature.options?.fillColor).filter(Boolean);
+      apply('graduated','area_ha');
       const labels=document.getElementById('lpLabelsEnabled');
       if(!labels) throw new Error('Layer label toggle is missing');
       labels.checked=true;
       set('lpLabelField','name');
       document.getElementById('layerPropertiesForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
       const first=item.layer.getLayers()[0];
-      return {renderer:item._rendererConfig?.mode,field:item._rendererConfig?.field,labels:item._labelsEnabled,labelField:item._labelField,tooltip:!!first?.getTooltip()};
+      return {uniqueMode:'unique',uniqueColors,renderer:item._rendererConfig?.mode,field:item._rendererConfig?.field,labels:item._labelsEnabled,labelField:item._labelField,tooltip:!!first?.getTooltip()};
     },fixtureName);
+    assert.equal(styleResult.uniqueMode,'unique');
+    assert.ok(new Set(styleResult.uniqueColors).size>=2,'Unique Values renderer should assign distinct category colors');
     assert.equal(styleResult.renderer,'graduated');
     assert.equal(styleResult.field,'area_ha');
     assert.equal(styleResult.labels,true);
@@ -171,6 +195,7 @@ const fixture = {
     await page.keyboard.press('Escape');
 
     assert.deepEqual(pageErrors,[],'No uncaught JavaScript errors should occur during the browser regression');
+    assert.deepEqual(consoleErrors,[],'No unexpected JavaScript console errors should occur during the browser regression');
     console.log('PASS — checked-out WebGIS load, CRS bridge, basemap switch, menu presence, selection/zoom, symbology, labels, IndexedDB save/reload.');
     console.log('SKIP — authenticated GIS sign-in/sign-out: requires dedicated test credentials; no production credentials are embedded in CI.');
   } finally {
