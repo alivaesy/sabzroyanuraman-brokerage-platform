@@ -204,7 +204,7 @@ test('FileGDB catalog filters internal and non-spatial tables and retains datase
   const end = html.indexOf('async function importGDBFiles(', start);
   assert.ok(start >= 0 && end > start, 'FileGDB catalog helpers were not found');
   const helpers = vm.runInNewContext(html.slice(start, end) +
-    '\ngdbFeatureDatasetName; gdbLayerGeometryState; isGdbSystemLayer;');
+    '\n({gdbFeatureDatasetName, gdbLayerGeometryState, isGdbSystemLayer})');
   assert.equal(helpers.gdbFeatureDatasetName({name:'Cadastre/Parcels'},{}), 'Cadastre');
   assert.equal(helpers.gdbFeatureDatasetName({name:'Parcels',featureDatasetName:'Cadastre'},{}), 'Cadastre');
   assert.equal(helpers.gdbFeatureDatasetName({name:'Parcels'},{}), null);
