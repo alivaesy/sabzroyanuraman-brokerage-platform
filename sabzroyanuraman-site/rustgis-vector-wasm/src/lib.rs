@@ -8,7 +8,8 @@ use std::io::Cursor;
 
 use base64::Engine as _;
 use rustgis_analysis::{Inputs, Output, OutputLayer, ParamKind, RasterInput, ToolResult};
-use rustgis_data::{Dataset, raster::{Crs, Raster}};
+use rustgis_data::{Coord, Dataset, Feature, Geometry, GeometryType, raster::{Crs, Raster}};
+use geo::{BooleanOps, Coord as GeoCoord, LineString, MultiPolygon, Polygon};
 use serde_json::{Value, json};
 use wasm_bindgen::prelude::*;
 
@@ -126,6 +127,82 @@ fn dataset_geojson(dataset: &Dataset) -> Result<Value, String> {
     serde_json::from_slice(&bytes).map_err(|error| format!("RustGIS produced invalid GeoJSON: {error}"))
 }
 
+fn to_geo_line(ring: &[Coord]) -> Option<LineString<f64>> {
+    if ring.len() < 3 { return None; }
+    let mut coords: Vec<GeoCoord<f64>> = ring.iter().map(|c| GeoCoord { x: c.x, y: c.y }).collect();
+    if let (Some(first), Some(last)) = (coords.first().copied(), coords.last().copied()) {
+        if first != last { coords.push(first); }
+    }
+    (coords.len() >= 4).then(|| LineString::new(coords))
+}
+
+fn to_geo_multipolygon(geometry: &Geometry) -> Option<MultiPolygon<f64>> {
+    let Geometry::Polygon(polygons) = geometry else { return None; };
+    let converted: Vec<Polygon<f64>> = polygons.iter().filter_map(|rings| {
+        let exterior = to_geo_line(rings.first()?)?;
+        let interiors = rings.iter().skip(1).filter_map(|ring| to_geo_line(ring)).collect();
+        Some(Polygon::new(exterior, interiors))
+    }).collect();
+    (!converted.is_empty()).then_some(MultiPolygon(converted))
+}
+
+fn from_geo_multipolygon(multi: MultiPolygon<f64>) -> Geometry {
+    let polygons = multi.0.into_iter().map(|polygon| {
+        let mut rings = vec![polygon.exterior().0.iter().map(|c| Coord::new(c.x, c.y)).collect()];
+        rings.extend(polygon.interiors().iter().map(|ring| {
+            ring.0.iter().map(|c| Coord::new(c.x, c.y)).collect()
+        }));
+        rings
+    }).collect();
+    Geometry::Polygon(polygons)
+}
+
+/// Planar Clip in the requested projected CRS. Upstream RustGIS's current polygon
+/// overlay implementation assumes Web Mercator internally; use geo directly here
+/// so EPSG:32638 and other projected working CRSs remain meaningful.
+fn run_projected_clip(inputs: &LayerInputs, params: &Value) -> Result<ToolResult, String> {
+    let input_name = params.get("input").and_then(Value::as_str)
+        .ok_or_else(|| "Clip: missing input layer".to_owned())?;
+    let clip_name = params.get("clip").and_then(Value::as_str)
+        .ok_or_else(|| "Clip: missing clip layer".to_owned())?;
+    let source = inputs.datasets.get(input_name)
+        .ok_or_else(|| format!("Clip: input layer '{input_name}' was not found"))?;
+    let mask_source = inputs.datasets.get(clip_name)
+        .ok_or_else(|| format!("Clip: clip layer '{clip_name}' was not found"))?;
+    if source.geometry_type != GeometryType::Polygon || mask_source.geometry_type != GeometryType::Polygon {
+        return Err("Projected Clip currently requires polygon input and polygon clip layers.".into());
+    }
+    let mut mask = MultiPolygon::<f64>(Vec::new());
+    for feature in mask_source.features.iter() {
+        if let Some(geometry) = feature.geometry.as_ref().and_then(to_geo_multipolygon) {
+            mask = mask.union(&geometry);
+        }
+    }
+    if mask.0.is_empty() { return Err("Clip: the clip layer contains no valid polygon geometry.".into()); }
+    let mut output = source.clone();
+    output.name = params.get("output").and_then(Value::as_str)
+        .filter(|name| !name.trim().is_empty())
+        .map(str::to_owned)
+        .unwrap_or_else(|| format!("{}_Clip", source.name));
+    output.features.clear();
+    for feature in source.features.iter() {
+        let Some(geometry) = feature.geometry.as_ref().and_then(to_geo_multipolygon) else { continue; };
+        let clipped = geometry.intersection(&mask);
+        if !clipped.0.is_empty() {
+            output.features.push(Feature {
+                id: feature.id,
+                geometry: Some(from_geo_multipolygon(clipped)),
+                attrs: feature.attrs.clone(),
+            });
+        }
+    }
+    let count = output.features.len();
+    Ok(ToolResult {
+        output: Output::Layer(output),
+        messages: vec![format!("Clip: {count} features kept (geo boolean operations in projected coordinates)")],
+    })
+}
+
 fn result_output(result: ToolResult) -> Result<Value, String> {
     let mut outputs = Vec::<Value>::new();
     match result.output {
@@ -240,6 +317,7 @@ pub fn run_tool(tool_id: &str, layers_json: &str, params_json: &str) -> Result<S
     let processing_crs = params.as_object_mut()
         .and_then(|object| object.remove("_sabz_processing_crs"))
         .and_then(|value| value.as_str().map(str::to_owned));
+    let projected_processing = processing_crs.is_some();
     if let Some(label) = processing_crs {
         let code = label.strip_prefix("EPSG:")
             .and_then(|value| value.parse::<u16>().ok())
@@ -252,8 +330,11 @@ pub fn run_tool(tool_id: &str, layers_json: &str, params_json: &str) -> Result<S
             *dataset = projected;
         }
     }
-    let result = rustgis_analysis::run(tool_id, &inputs, &params)
-        .map_err(js_error)?;
+    let result = if projected_processing && tool_id.eq_ignore_ascii_case("clip") {
+        run_projected_clip(&inputs, &params).map_err(js_error)?
+    } else {
+        rustgis_analysis::run(tool_id, &inputs, &params).map_err(js_error)?
+    };
     let mut output = result_output(result).map_err(js_error)?;
     if let Some(object) = output.as_object_mut() {
         object.insert("inputMessages".into(), json!(read_messages));
