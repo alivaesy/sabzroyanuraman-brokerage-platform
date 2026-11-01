@@ -204,10 +204,14 @@ test('FileGDB catalog filters internal and non-spatial tables and retains datase
   const end = html.indexOf('async function importGDBFiles(', start);
   assert.ok(start >= 0 && end > start, 'FileGDB catalog helpers were not found');
   const helpers = vm.runInNewContext(html.slice(start, end) +
-    '\n({gdbFeatureDatasetName, gdbLayerGeometryState, isGdbSystemLayer})');
+    '\n({gdbFeatureDatasetName, gdbFeatureDatasetMap, gdbLayerGeometryState, isGdbSystemLayer})');
   assert.equal(helpers.gdbFeatureDatasetName({name:'Cadastre/Parcels'},{}), 'Cadastre');
   assert.equal(helpers.gdbFeatureDatasetName({name:'Parcels',featureDatasetName:'Cadastre'},{}), 'Cadastre');
   assert.equal(helpers.gdbFeatureDatasetName({name:'Parcels'},{}), null);
+  const datasetMap = helpers.gdbFeatureDatasetMap({rootGroup:{layerNames:['hamidazizi'],groups:[{name:'zone38',layerNames:['ssdsd'],groups:[]}]}});
+  assert.equal(datasetMap.get('hamidazizi'), null);
+  assert.equal(datasetMap.get('ssdsd'), 'zone38');
+
   assert.equal(helpers.gdbLayerGeometryState({geometryType:'Polygon'},{}), 'spatial');
   assert.equal(helpers.gdbLayerGeometryState({geometryType:'None'},{}), 'none');
   assert.equal(helpers.gdbLayerGeometryState({}, {geometryFields:[]}), 'none');
