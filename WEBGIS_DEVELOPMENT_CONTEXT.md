@@ -261,3 +261,5 @@ At the end of each meaningful batch, update this file with the verified date, co
 - Verification in this commit: source-level assertions were added. GitHub Actions browser execution is the required runtime evidence; this editing session did not control the user's browser or claim an interactive browser test passed. The current public cPanel page's deploy probe still identifies the `feat/webgis-local-vendor-runtime` branch, so it must not be treated as proof that `master` changes are deployed.
 
 - Browser regression refinement: the basemap selector is intentionally inside the closed ArcToolbox Display accordion. The Playwright test now opens ArcToolbox and the Display accordion before changing basemaps, rather than treating the hidden selector as a failure.
+
+- Browser-test finding: the map's Zoom To Selection function was scoped inside the WebGIS core script rather than exposed on `window`. Added a narrow shared-bridge method so other first-party tools and the regression runner can invoke the same existing operation without duplicating selection logic.
