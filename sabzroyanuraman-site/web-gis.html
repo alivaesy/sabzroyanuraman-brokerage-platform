@@ -4997,18 +4997,22 @@ async function importGDBFiles(fileList){
           if(isGdbSystemLayer(name)){report.unsupported.push(name+": internal/system table skipped.");return false}
           return true;
         });
-        report.sourceFeatureClasses=(report.sourceFeatureClasses||0)+sourceLayers.length;
-        const catalogItems=sourceLayers.map(layer=>({
+        const sourceDetails=layer=>metadataLayers.find(x=>String(x.name)===String(layer?.name))||{};
+        const spatialSourceLayers=sourceLayers.filter(layer=>gdbLayerGeometryState(layer,sourceDetails(layer))!=="none");
+        const nonSpatialSourceLayers=sourceLayers.filter(layer=>gdbLayerGeometryState(layer,sourceDetails(layer))==="none");
+        report.sourceFeatureClasses=(report.sourceFeatureClasses||0)+spatialSourceLayers.length;
+        const catalogItems=spatialSourceLayers.map(layer=>({
           name:String(layer?.name||""),
-          geometryType:layer?.geometryType||layer?.geometry||layer?.geomType||"",
-          featureDataset:gdbFeatureDatasetName(layer,metadataLayers.find(x=>String(x.name)===String(layer?.name))||{})
+          geometryType:layer?.geometryType||layer?.geometry||layer?.geomType||sourceDetails(layer)?.geometryFields?.[0]?.type||"",
+          featureDataset:gdbFeatureDatasetName(layer,sourceDetails(layer))
         }));
         const selectedNames=window.SabzGdbCatalog?.chooseLayers
           ? await window.SabzGdbCatalog.chooseLayers(catalogItems,root)
           : catalogItems.map(item=>item.name);
         const selectedSet=new Set(selectedNames);
-        const selectedSourceLayers=sourceLayers.filter(layer=>selectedSet.has(String(layer?.name||"")));
-        report.selectedFeatureClasses=(report.selectedFeatureClasses||0)+selectedSourceLayers.length;
+        const selectedSourceLayers=spatialSourceLayers.filter(layer=>selectedSet.has(String(layer?.name||""))).concat(nonSpatialSourceLayers);
+        report.selectedFeatureClasses=(report.selectedFeatureClasses||0)+selectedNames.length;
+        report.discoveredTables=(report.discoveredTables||0)+nonSpatialSourceLayers.length;
         for(let li=0;li<selectedSourceLayers.length;li++){
           const sourceLayer=selectedSourceLayers[li];
           const layerName=String(sourceLayer?.name||("FeatureClass_"+(i+1)+"_"+(li+1)));
