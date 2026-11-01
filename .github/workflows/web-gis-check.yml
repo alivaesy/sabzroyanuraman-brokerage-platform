@@ -12,6 +12,10 @@ on:
       - "sabzroyanuraman-site/webgis-rustgis-vector-runtime.js"
       - "tests/web-gis-static.test.cjs"
       - "tests/web-gis-browser-regression.cjs"
+      - "tests/web-gis-arcmap-import-regression.cjs"
+      - "sabzroyanuraman-site/webgis-arcmap-manifest.js"
+      - "tests/fixtures/**"
+      - "tools/mxd_to_manifest.py"
       - ".github/workflows/web-gis-check.yml"
   pull_request:
     paths:
@@ -77,4 +81,6 @@ jobs:
       - name: Run browser regression against this commit
         env:
           WEBGIS_BASE_URL: http://127.0.0.1:4173/web-gis.html
-        run: node tests/web-gis-browser-regression.cjs
+        run: |
+          node tests/web-gis-browser-regression.cjs
+          node tests/web-gis-arcmap-import-regression.cjs
