@@ -1,0 +1,41 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "parcel-1",
+      "properties": {
+        "parcel_id": "P-001",
+        "landuse": "Agriculture",
+        "area_ha": 2.4
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              47.75,
+              33.62
+            ],
+            [
+              47.751,
+              33.62
+            ],
+            [
+              47.751,
+              33.621
+            ],
+            [
+              47.75,
+              33.621
+            ],
+            [
+              47.75,
+              33.62
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}
