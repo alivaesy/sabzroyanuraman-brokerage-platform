@@ -211,7 +211,7 @@ test('FileGDB catalog filters internal and non-spatial tables and retains datase
   const datasetMap = helpers.gdbFeatureDatasetMap({rootGroup:{layerNames:['hamidazizi'],groups:[{name:'zone38',layerNames:['ssdsd'],groups:[]}]}});
   assert.equal(datasetMap.get('hamidazizi'), null);
   assert.equal(datasetMap.get('ssdsd'), 'zone38');
-  assert.deepEqual(Array.from(datasetMap.order), ['hamidazizi','ssdsd']);
+  assert.equal(Array.from(datasetMap.order).join('|'), 'hamidazizi|ssdsd');
 
   assert.equal(helpers.gdbLayerGeometryState({geometryType:'Polygon'},{}), 'spatial');
   assert.equal(helpers.gdbLayerGeometryState({geometryType:'None'},{}), 'none');
