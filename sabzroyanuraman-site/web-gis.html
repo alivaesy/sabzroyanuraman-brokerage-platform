@@ -5018,6 +5018,10 @@ async function importGDBFiles(fileList){
               report.unsupported.push(layerName+": GDAL returned attributes without spatial geometry; table skipped.");
               continue;
             }
+            if(!fc.features.length&&geometryState!=="spatial"){
+              report.unsupported.push(layerName+": empty layer has no confirmed geometry metadata; skipped rather than importing a possible non-spatial table.");
+              continue;
+            }
             if(!fc.features.length){
               report.emptyLayers++;
               // Keep empty feature classes visible in the catalog and retain schema metadata.
