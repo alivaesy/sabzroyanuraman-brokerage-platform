@@ -8,7 +8,7 @@ use std::io::Cursor;
 
 use base64::Engine as _;
 use rustgis_analysis::{Inputs, Output, OutputLayer, ParamKind, RasterInput, ToolResult};
-use rustgis_data::{Dataset, raster::Raster};
+use rustgis_data::{Dataset, raster::{Crs, Raster}};
 use serde_json::{Value, json};
 use wasm_bindgen::prelude::*;
 
@@ -235,8 +235,23 @@ pub fn run_tool(tool_id: &str, layers_json: &str, params_json: &str) -> Result<S
         inputs.datasets.insert(name.clone(), dataset);
     }
 
-    let params: Value = serde_json::from_str(params_json)
+    let mut params: Value = serde_json::from_str(params_json)
         .map_err(|error| js_error(format!("Invalid tool parameters: {error}")))?;
+    let processing_crs = params.as_object_mut()
+        .and_then(|object| object.remove("_sabz_processing_crs"))
+        .and_then(|value| value.as_str().map(str::to_owned));
+    if let Some(label) = processing_crs {
+        let code = label.strip_prefix("EPSG:")
+            .and_then(|value| value.parse::<u32>().ok())
+            .ok_or_else(|| js_error(format!("Invalid projected processing CRS: {label}")))?;
+        let target = Crs::Epsg(code);
+        for dataset in inputs.datasets.values_mut() {
+            let mut projected = rustgis_data::io::project(dataset, target)
+                .map_err(|error| js_error(format!("Could not project input layer '{}' to {label}: {error}", dataset.name)))?;
+            projected.crs = Some(target);
+            *dataset = projected;
+        }
+    }
     let result = rustgis_analysis::run(tool_id, &inputs, &params)
         .map_err(js_error)?;
     let mut output = result_output(result).map_err(js_error)?;
