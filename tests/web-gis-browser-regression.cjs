@@ -41,7 +41,7 @@ const fixture = {
 
     // Open and close each visible top-level menu without invoking destructive actions.
     const menuCount = await page.evaluate(() => {
-      const candidates = [...document.querySelectorAll('button[aria-haspopup="true"],button[data-menu],.arc-menu-button')];
+      const candidates = [...document.querySelectorAll('button[aria-haspopup="true"],button[data-menu],.arc-menu-btn')];
       return candidates.filter(button => button.offsetParent !== null).length;
     });
     assert.ok(menuCount >= 5, 'Expected the ArcMap-style top-level menus to be present');
@@ -91,19 +91,20 @@ const fixture = {
 
     // Persist locally to IndexedDB, reload the page, and verify geometry + symbology + labels.
     const saved = await page.evaluate(async () => {
+      document.getElementById('projectName').value='WebGIS Browser Regression Project';
       const ok = await window.scheduleAutoSave();
       const snapshot = window.serializeProject();
-      return {ok,features:snapshot.integrity?.featureCount,crs:snapshot.crs};
+      return {ok,features:snapshot.integrity?.featureCount,crs:snapshot.crs,name:snapshot.name};
     });
     assert.equal(saved.ok,true,'IndexedDB project autosave must complete');
     assert.ok(saved.features >= 2,'Project snapshot should include fixture geometries');
     await page.reload({waitUntil:'domcontentloaded',timeout:60000});
     await page.waitForFunction(() => !!window.__sabzGISMap && !!window.__sabzWebGISSharedBridge, null, {timeout:45000});
-    await page.waitForFunction(name => {
-      const item=window.__sabzWebGISSharedBridge.namedLayers.find(layer=>layer.name===name);
-      return !!item && item.layer.getLayers().length===2;
-    },fixtureName,{timeout:30000});
-    const restored = await page.evaluate(name => {
+    const restored = await page.evaluate(async name => {
+      const projects=await window.listProjects();
+      const project=projects.find(item=>item.name==='WebGIS Browser Regression Project');
+      if(!project) throw new Error('Saved browser regression project was not found in IndexedDB after reload');
+      if(!window.restoreProject(project)) throw new Error('Saved browser regression project could not be restored');
       const item=window.__sabzWebGISSharedBridge.namedLayers.find(layer=>layer.name===name);
       return {renderer:item?._rendererConfig?.mode,field:item?._rendererConfig?.field,labels:item?._labelsEnabled,labelField:item?._labelField,count:item?.layer?.getLayers?.().length};
     },fixtureName);
