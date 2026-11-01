@@ -485,6 +485,35 @@ mod tests {
     use super::*;
 
     #[test]
+    fn projected_clip_uses_geo_boolean_ops_in_utm() {
+        let input_geojson = r#"{"type":"FeatureCollection","features":[
+            {"type":"Feature","id":1,"properties":{"parcel":"A"},"geometry":{"type":"Polygon","coordinates":[[[47.0,33.0],[47.02,33.0],[47.02,33.02],[47.0,33.02],[47.0,33.0]]]}}
+        ]}"#;
+        let mask_geojson = r#"{"type":"FeatureCollection","features":[
+            {"type":"Feature","id":2,"properties":{"zone":"Z1"},"geometry":{"type":"Polygon","coordinates":[[[47.01,33.0],[47.03,33.0],[47.03,33.02],[47.01,33.02],[47.01,33.0]]]}}
+        ]}"#;
+        let (input, _) = rustgis_data::io::read_geojson(input_geojson, "parcels").unwrap();
+        let (mask, _) = rustgis_data::io::read_geojson(mask_geojson, "zones").unwrap();
+        let target = Crs::Epsg(32638);
+        let mut inputs = LayerInputs::default();
+        let mut projected_input = rustgis_data::io::project(&input, target).unwrap();
+        projected_input.crs = Some(target);
+        let mut projected_mask = rustgis_data::io::project(&mask, target).unwrap();
+        projected_mask.crs = Some(target);
+        inputs.datasets.insert("parcels".into(), projected_input);
+        inputs.datasets.insert("zones".into(), projected_mask);
+        let result = run_projected_clip(&inputs, &json!({
+            "input":"parcels","clip":"zones","output":"utm_clip"
+        })).unwrap();
+        let Output::Layer(output) = result.output else {
+            panic!("projected Clip should return a vector layer");
+        };
+        assert_eq!(output.features.len(), 1, "overlapping projected polygons should produce one clipped feature");
+        assert_eq!(output.features[0].attrs.len(), 1, "Clip should preserve input attributes");
+        assert_eq!(output.crs, Some(target), "Clip output should retain the projected working CRS");
+    }
+
+    #[test]
     fn raster_slope_roundtrips_as_georeferenced_geotiff() {
         use rustgis_data::raster::{ColorHint, Crs, GeoTransform, Raster};
         let values: Vec<f32> = (0..25).map(|i| (i % 5) as f32 + (i / 5) as f32).collect();
