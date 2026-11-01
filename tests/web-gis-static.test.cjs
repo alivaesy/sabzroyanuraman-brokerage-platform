@@ -568,9 +568,9 @@ test('Geodatabase Catalog does not reference private bindings from the core GIS 
   const end = html.indexOf('</script>', start);
   assert.ok(start >= 0 && end > start, 'Geodatabase Catalog script must be present');
   const block = html.slice(start, end);
-  assert.doesNotMatch(block, /(?<!\\.)\\bnamedLayers\\s*\\./);
-  assert.doesNotMatch(block, /(?<![?.])\\bcurrentCRS\\b/);
-  assert.doesNotMatch(block, /\\bvectorFeatures\\s*\\(/);
+  assert.doesNotMatch(block, /(?<!\.)\bnamedLayers\s*\./);
+  assert.doesNotMatch(block, /(?<![?.])\bcurrentCRS\b/);
+  assert.doesNotMatch(block, /\bvectorFeatures\s*\(/);
   assert.match(block, /window\\.__sabzWebGISSharedBridge\\?\\.namedLayers/);
   assert.match(block, /window\\.__webGisGdbBridge\\?\\.featureCount/);
 });
