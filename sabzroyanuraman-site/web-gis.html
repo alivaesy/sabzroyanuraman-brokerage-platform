@@ -5059,12 +5059,39 @@ async function importGDBFiles(fileList){
             report.emptyFeatureClasses=(report.emptyFeatureClasses||[]).concat([{name:layerName,fields:emptyLayer._gdbMetadata.fields}]);
               continue;
             }
-            const displayLayer=geoJsonLayer(fc,layerName);
-            const item=namedLayers.find(x=>x.layer===displayLayer);
+            const repairTarget=window.__sabzGdbRepairTargetName
+              ? namedLayers.find(x=>x.name===window.__sabzGdbRepairTargetName&&x.sourceMissing)
+              : null;
+            let displayLayer,item;
+            if(repairTarget){
+              const geometryTypes=[...new Set(fc.features.map(feature=>feature.geometry?.type).filter(Boolean))];
+              const expected=String(repairTarget._arcMapManifest?.geometryType||"").toLowerCase();
+              const compatible=!expected||geometryTypes.some(type=>expected.includes(type.toLowerCase())||
+                (expected.includes("polyline")&&type.toLowerCase().includes("line"))||
+                (expected.includes("polygon")&&type.toLowerCase().includes("polygon")));
+              if(!compatible){
+                report.layerErrors.push(layerName+": cannot repair "+repairTarget.name+"; expected "+expected+", got "+geometryTypes.join(", ")+".");
+                continue;
+              }
+              repairTarget.layer.clearLayers();
+              repairTarget.layer.addData(fc);
+              repairTarget.layer.eachLayer(child=>attachFeatureSelection(child));
+              repairTarget.sourceMissing=false;
+              repairTarget.sourceMissingReason=null;
+              repairTarget.sourceName=root+"/"+layerName;
+              repairTarget._repairReport={file:root+"/"+layerName,sourceType:"FileGDB",featureCount:fc.features.length,geometryTypes};
+              displayLayer=repairTarget.layer;
+              item=repairTarget;
+            }else{
+              displayLayer=geoJsonLayer(fc,layerName);
+              item=namedLayers.find(x=>x.layer===displayLayer);
+            }
             if(item){
-              item.sourceName=root+"/"+layerName;
-              if(featureDataset)item.drawingSet=featureDataset;
-              item.displayName=layerName.split(/[\\/]/).pop();
+              if(!repairTarget){
+                item.sourceName=root+"/"+layerName;
+                if(featureDataset)item.drawingSet=featureDataset;
+                item.displayName=layerName.split(/[\\/]/).pop();
+              }
               displayLayer._gdbMetadata={
                 workspace:root,featureClass:layerName,driver:info?.driverName||"OpenFileGDB",
                 sourceFeatureCount:sourceLayer?.featureCount??fc.features.length,
