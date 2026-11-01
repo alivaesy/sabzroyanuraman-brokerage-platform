@@ -217,8 +217,8 @@ test('FileGDB catalog filters internal and non-spatial tables and retains datase
   assert.equal(helpers.isGdbSystemLayer('SDE_table_registry'), true);
   assert.equal(helpers.isGdbSystemLayer('Parcels'), false);
   assert.match(html, /attributes without spatial geometry; table skipped/);
-  assert.match(html, /internal\\/system table skipped/);
-  assert.match(html, /item\\.drawingSet=root\\+" \\/ " \\+featureDataset/);
+  assert.ok(html.includes('internal/system table skipped'));
+  assert.ok(html.includes('item.drawingSet=root+" / "+featureDataset'));
 });
 
 
