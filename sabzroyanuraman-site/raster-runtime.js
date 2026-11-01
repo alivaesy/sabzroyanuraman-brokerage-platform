@@ -194,6 +194,29 @@
   }
 
   async function selfTest() {
+    // A tiny baseline TIFF with no GeoKeyDirectory must load as preview-only,
+    // never throw while trying to dereference a missing ProjectedCSTypeGeoKey.
+    const tags = [
+      [256,4,2],[257,4,2],[258,3,8],[259,3,1],[262,3,1],
+      [273,4,0],[277,3,1],[278,4,2],[279,4,4],[284,3,1]
+    ].sort((a,b)=>a[0]-b[0]);
+    const plainOffset = 8 + 2 + tags.length * 12 + 4;
+    const plainBuffer = new ArrayBuffer(plainOffset + 4), plainView = new DataView(plainBuffer);
+    const plainBytes = new Uint8Array(plainBuffer);
+    plainBytes[0]=0x49;plainBytes[1]=0x49;plainView.setUint16(2,42,true);plainView.setUint32(4,8,true);
+    plainView.setUint16(8,tags.length,true);
+    let p=10;
+    for(const tag of tags){
+      plainView.setUint16(p,tag[0],true);plainView.setUint16(p+2,tag[1],true);plainView.setUint32(p+4,1,true);
+      plainView.setUint32(p+8,tag[0]===273?plainOffset:tag[2],true);p+=12;
+    }
+    plainView.setUint32(p,0,true);plainBytes.set([10,80,160,240],plainOffset);
+    const plain = await read(new Blob([plainBuffer],{type:"image/tiff"}));
+    const plainOk = plain.metadata.width===2 && plain.metadata.height===2 &&
+      plain.metadata.previewOnly===true && plain.metadata.crs.epsg===null &&
+      Number(plain.bands[0][3])===240;
+    if(!plainOk)throw new Error("Plain TIFF preview self-test failed.");
+
     const values = new Float32Array([1.25,2.5,-3.75,4.125]);
     const metadata = {
       width:2,height:2,bandCount:1,crs:{epsg:32638},
@@ -204,7 +227,8 @@
     const blob = await writeFloat32(values,metadata);
     const result = await verify(blob,{...metadata,firstPixel:1.25});
     if (!result.valid) throw new Error("GeoTIFF self-test failed: "+JSON.stringify(result.checks));
-    return {ok:true,bytes:blob.size,checks:result.checks,metadata:result.metadata};
+    return {ok:true,plainTiff:{ok:plainOk,width:plain.metadata.width,height:plain.metadata.height,previewOnly:plain.metadata.previewOnly},
+      geoTiff:{bytes:blob.size,checks:result.checks,crs:result.metadata.crs,extent:result.metadata.extent}};
   }
 
   async function saveAsset(projectId, layerId, blob, metadata) {
