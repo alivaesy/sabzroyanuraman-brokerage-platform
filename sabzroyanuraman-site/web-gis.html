@@ -765,10 +765,19 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
     <button data-action="addOnlineData">Add Data from ArcGIS Online...</button>
     <button data-action="wms">Add WMS Layer...</button>
     <button data-action="exportData">Export Data...</button>
-    <button type="button" data-action="importArcMap">Import ArcMap Package / Manifest (.json / .mpk)...</button>
+    <div class="arc-sep"></div>
+    <div class="arc-menu-title">ArcMap Document / Data Sources</div>
+    <button type="button" data-action="importArcMap">Import ArcMap Manifest (.json)...</button>
+    <button type="button" disabled title="Data-source repair is not implemented yet">Repair Data Source...</button>
+    <button type="button" disabled title="Data-source repair is not implemented yet">Repair Selected Layer...</button>
+    <button type="button" disabled title="Data-source repair is not implemented yet">Repair from .gdb Folder...</button>
+    <div class="arc-sep"></div>
+    <div class="arc-menu-title">File Geodatabase</div>
+    <button type="button" data-action="importGdbZip">Import .gdb ZIP...</button>
+    <button type="button" data-action="importGdbFolder">Import .gdb Folder...</button>
+    <button type="button" data-action="geodatabaseManager">Create / Manage Geodatabase...</button>
     <div class="arc-sep"></div>
     <button type="button" data-action="printMap">Print Map...</button>
-    <div class="arc-sep"></div><button type="button" data-action="geodatabaseManager">Create / Manage Geodatabase...</button>
   </div>
   <div class="arc-dropdown" id="publishMenu">
     <div class="arc-menu-title">Publish / Share</div>
@@ -910,6 +919,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
       <input id="fileInput" type="file" accept=".geojson,.json,.kml,.kmz,.gpx,.zip,.shp">
       <input id="mxdInput" type="file" accept=".json,.mpk,.zip" aria-label="Import ArcMap document or ArcMap export package" hidden>
       <input id="gdbInput" type="file" webkitdirectory directory multiple>
+      <input id="gdbZipInput" type="file" accept=".zip,application/zip" hidden>
       <button id="exportGeoJSON" type="button"></button>
       <button id="exportKML" type="button"></button>
       <button id="exportGPX" type="button"></button>
@@ -5180,6 +5190,24 @@ $("gdbInput").onchange=async e=>{
   await importGDBFiles(e.target.files);
   e.target.value="";
 };
+$("gdbZipInput").onchange=async e=>{
+  const archive=e.target.files&&e.target.files[0];if(!archive)return;
+  try{
+    if(typeof JSZip==="undefined")throw new Error("ZIP library is unavailable.");
+    status("Extracting File Geodatabase ZIP...");
+    const zip=await JSZip.loadAsync(archive),files=[];
+    const entries=Object.values(zip.files).filter(entry=>!entry.dir&&/\.gdb\//i.test(entry.name));
+    if(!entries.length)throw new Error("ZIP does not contain a .gdb folder.");
+    for(const entry of entries){
+      const blob=await entry.async("blob"),name=entry.name.split("/").pop();
+      const file=new File([blob],name);
+      Object.defineProperty(file,"webkitRelativePath",{value:entry.name,configurable:true});
+      files.push(file);
+    }
+    await importGDBFiles(files);
+  }catch(error){console.error("File Geodatabase ZIP import failed:",error);status("File Geodatabase ZIP import failed: "+(error?.message||String(error)));}
+  finally{e.target.value="";}
+};
 
 async function importDXFFile(file){
   const enteredCrs=await arcMapDialog.prompt({title:"Import CAD Drawing",message:"Enter the CAD drawing source CRS. CAD files often do not store a reliable CRS; use the default only if the drawing really uses "+currentCRS+".",label:"Source CRS (EPSG)",value:currentCRS});
@@ -8991,6 +9019,8 @@ document.querySelectorAll(".arc-dropdown button[data-action], .classic-toolbar b
       shortcuts:()=>gisNotify("Drawing: Enter or double-click finishes a line or polygon; Backspace/Delete removes the last sketch vertex; Escape cancels the active tool. Selection: Ctrl-click or Shift-click adds/removes features. Editing: use Undo/Redo in the Edit menu to reverse/restore recorded map edits."),
       importData:()=>openDataFormatDialog("import"),
       importArcMap:()=>document.getElementById("mxdInput")?.click(),
+      importGdbZip:()=>document.getElementById("gdbZipInput")?.click(),
+      importGdbFolder:()=>document.getElementById("gdbInput")?.click(),
       exportData:()=>openDataFormatDialog("export"),
       geodatabaseManager:()=>openGeodatabaseManager(),
       openProjectManager:()=>openProjectManager(),
