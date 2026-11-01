@@ -39,7 +39,9 @@ jobs:
         with:
           node-version: 20
       - name: Validate Web GIS source and toolbox registration
-        run: node --test tests/web-gis-static.test.cjs
+        run: |
+          node --test tests/web-gis-static.test.cjs
+          python -m py_compile tools/mxd_to_manifest.py
       - name: Check ModelBuilder, Layout, and RustGIS runtime syntax
         run: |
           node --check sabzroyanuraman-site/webgis-rustgis-enhancements.js
@@ -78,9 +80,11 @@ jobs:
           done
           cat /tmp/webgis-http.log
           exit 1
-      - name: Run browser regression against this commit
+      - name: Run ArcMap manifest and Repair Data Source browser regression
         env:
           WEBGIS_BASE_URL: http://127.0.0.1:4173/web-gis.html
-        run: |
-          node tests/web-gis-browser-regression.cjs
-          node tests/web-gis-arcmap-import-regression.cjs
+        run: node tests/web-gis-arcmap-import-regression.cjs
+      - name: Run existing WebGIS browser regression
+        env:
+          WEBGIS_BASE_URL: http://127.0.0.1:4173/web-gis.html
+        run: node tests/web-gis-browser-regression.cjs
