@@ -9,12 +9,12 @@
   }
   function flattenLayers(manifest) {
     const out=[];
-    function visit(items,parents){(Array.isArray(items)?items:[]).forEach(item=>{
+    function visit(items,parents,frame){(Array.isArray(items)?items:[]).forEach(item=>{
       if(!item||typeof item!=="object")return;
-      if(item.isGroupLayer||Array.isArray(item.layers))visit(item.layers||[],parents.concat(item.name||"Group"));
-      else out.push({item,groupPath:item.groupLayer||parents.join(" / ")||null});
+      if(item.isGroupLayer||Array.isArray(item.layers))visit(item.layers||[],parents.concat(item.name||"Group"),frame);
+      else out.push({item,groupPath:item.groupLayer||parents.join(" / ")||null,frame});
     });}
-    (manifest.dataFrames||[]).forEach(frame=>visit(frame.layers,[]));
+    (manifest.dataFrames||[]).forEach(frame=>visit(frame.layers,[],frame));
     if(!manifest.dataFrames?.length)visit(manifest.layers,[]);
     return out;
   }
@@ -24,7 +24,7 @@
       throw new Error("Unsupported ArcMap manifest schema.");
     const b=bridge(),entries=flattenLayers(manifest);
     if(!entries.length)throw new Error("Manifest contains no feature layers.");
-    entries.forEach(({item,groupPath})=>{
+    entries.forEach(({item,groupPath,frame})=>{
       const name=String(item.name||"Unnamed layer");
       b.addGeoJSONLayer(name,{type:"FeatureCollection",features:[]});
       const owner=b.namedLayers[b.namedLayers.length-1];
@@ -39,7 +39,11 @@
         minScale:item.minScale??null,maxScale:item.maxScale??null,
         definitionQuery:item.definitionQuery||null,renderer:item.renderer||null,
         labeling:item.labeling||null,
-        extractionWarnings:Array.isArray(item.extractionWarnings)?item.extractionWarnings.slice():[]
+        extractionWarnings:Array.isArray(item.extractionWarnings)?item.extractionWarnings.slice():[],
+        frameName:frame?.name||null,
+        frameSpatialReference:typeof frame?.spatialReference==="number"?"EPSG:"+frame.spatialReference:
+          (frame?.spatialReference?.latestWkid?"EPSG:"+frame.spatialReference.latestWkid:
+          (frame?.spatialReference?.wkid?"EPSG:"+frame.spatialReference.wkid:frame?.spatialReference||null))
       };
       owner._rendererConfig=owner._arcMapManifest.renderer;
       if(item.visible===false)b.map.removeLayer(owner.layer);
