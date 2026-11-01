@@ -41,8 +41,8 @@ const {chromium}=require('playwright');
   });
   assert.ok(table.available,'Attribute table selector must be available');
   await page.waitForTimeout(400);
-  const tableText=await page.locator('#attributeTableWrap').innerText().catch(()=> '');
-  assert.match(tableText,/P-001/,'Repaired geometry attributes should be available in the attribute table');
+  const tableValues=await page.locator('#attributeTableWrap input.cell-edit').evaluateAll(inputs=>inputs.map(input=>input.value));
+  assert.ok(tableValues.includes('P-001'),'Repaired geometry attributes should be available as editable table cell values');
   // Import the real FileGDB fixture, select one feature class, and verify the Feature Dataset group.
   await page.locator('#gdbArchiveInput').setInputFiles(path.join(__dirname,'fixtures','sample-gdb.zip'));
   await page.waitForFunction(()=>document.getElementById('sabzGdbPicker')?.classList.contains('show'),null,{timeout:60000});
