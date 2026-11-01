@@ -20,13 +20,15 @@ jobs:
       - name: Install archive and GDAL readers
         run: |
           sudo apt-get update
-          sudo apt-get install -y unar gdal-bin
+          sudo apt-get install -y unar p7zip-full gdal-bin
       - name: Extract and inventory the real FileGDB fixture
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p /tmp/gdb-fixture /tmp/gdb-audit
-          unar -q -o /tmp/gdb-fixture "sabzroyanuraman-site/New File Geodatabase.gdb.rar"
+          7z t "sabzroyanuraman-site/New File Geodatabase.gdb.rar" | tee /tmp/gdb-audit/archive-test.txt || true
+          7z l "sabzroyanuraman-site/New File Geodatabase.gdb.rar" | tee /tmp/gdb-audit/archive-list.txt
+          7z x -y -o/tmp/gdb-fixture "sabzroyanuraman-site/New File Geodatabase.gdb.rar" | tee /tmp/gdb-audit/extract.txt || unar -q -o /tmp/gdb-fixture "sabzroyanuraman-site/New File Geodatabase.gdb.rar"
           find /tmp/gdb-fixture -maxdepth 4 -type f -printf '%P\t%s bytes\n' | sort | tee /tmp/gdb-audit/files.txt
           GDB="$(find /tmp/gdb-fixture -type d -name '*.gdb' -print -quit)"
           test -n "$GDB"
@@ -42,6 +44,7 @@ jobs:
             ogrinfo -ro -so "$GDB" "$layer" > "/tmp/gdb-audit/layer-$safe.txt" || true
           done < <(sed -n 's/^\([0-9][0-9]*\): //p' /tmp/gdb-audit/layer-catalog.txt)
       - name: Upload inventory report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: filegdb-fixture-audit
