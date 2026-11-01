@@ -35,6 +35,7 @@ jobs:
           printf 'GDB_PATH=%s\n' "$GDB" | tee /tmp/gdb-audit/source.txt
           ogrinfo --version | tee /tmp/gdb-audit/gdal-version.txt
           ogrinfo -ro -so "$GDB" > /tmp/gdb-audit/dataset-summary.txt
+          ogrinfo -json -ro "$GDB" > /tmp/gdb-audit/ogrinfo.json
           ogrinfo -ro "$GDB" > /tmp/gdb-audit/layer-catalog.txt
           cat /tmp/gdb-audit/dataset-summary.txt
           cat /tmp/gdb-audit/layer-catalog.txt
