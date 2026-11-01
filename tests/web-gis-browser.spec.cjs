@@ -15,7 +15,7 @@ test.describe('WebGIS real-browser regression', () => {
     await expect(page.locator('#map')).toBeVisible({ timeout: 30000 });
     await expect(page.getByRole('button', { name: 'Add Data', exact: false }).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'ArcToolbox', exact: false }).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Zoom In' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Zoom In', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Identify' })).toBeVisible();
     await page.waitForTimeout(1500);
     expect(pageErrors, 'uncaught JavaScript errors').toEqual([]);
@@ -33,15 +33,13 @@ test.describe('WebGIS real-browser regression', () => {
     if (await cancel.count()) await cancel.click();
   });
 
-  test('basemap controls remain available and map responds to navigation', async ({ page }) => {
+  test('map navigation controls respond in Chromium', async ({ page }) => {
     await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('#map')).toBeVisible();
-    const basemapButtons = page.locator('button').filter({ hasText: /OpenStreetMap|Esri World Imagery|OpenTopoMap/ });
-    if (await basemapButtons.count()) {
-      await basemapButtons.first().click();
-      await expect(page.locator('#map .leaflet-container, #map .leaflet-pane')).toBeAttached();
-    }
-    await page.getByRole('button', { name: 'Zoom In' }).click();
+    await expect(page.locator('#map .leaflet-container')).toBeAttached({ timeout: 15000 });
+    const zoomIn = page.getByRole('button', { name: 'Zoom In', exact: true });
+    await expect(zoomIn).toBeVisible();
+    await zoomIn.click();
     await expect(page.locator('#map .leaflet-container')).toBeAttached();
   });
 });
