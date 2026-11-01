@@ -1,67 +1,111 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build the two browser distributions missing from the checked-in vendor tree.
-# Run from any directory; output paths are resolved relative to this script.
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-mkdir -p "$HERE/geotiff" "$HERE/dxf-writer" "$HERE/leaflet-google-mutant"
 
-command -v npm >/dev/null 2>&1 || { echo "npm is required (Node.js LTS)." >&2; exit 1; }
-command -v tar >/dev/null 2>&1 || { echo "tar is required." >&2; exit 1; }
+for cmd in curl tar python3 webpack sha256sum; do
+  command -v "$cmd" >/dev/null 2>&1 || {
+    echo "Required command not found: $cmd" >&2
+    exit 1
+  }
+done
 
-echo "[1/2] Fetching GeoTIFF 2.1.3 browser distribution..."
-(
-  cd "$TMP"
-  npm pack geotiff@2.1.3 --silent
-)
-GEOTIFF_TGZ="$(find "$TMP" -maxdepth 1 -name 'geotiff-2.1.3.tgz' -print -quit)"
-test -n "$GEOTIFF_TGZ"
+fetch_npm() {
+  local name="$1" version="$2" prefix="$3"
+  local meta="$TMP/${prefix}-metadata.json"
+  local archive="$TMP/${prefix}.tgz"
+  local url
+
+  echo "Fetching ${name}@${version}..." >&2
+  curl -fLsS --connect-timeout 20 --max-time 120 \
+    --retry 3 --retry-delay 3 \
+    "https://registry.npmjs.org/${name}/${version}" -o "$meta"
+
+  url="$(python3 -c \
+    'import json,sys; print(json.load(open(sys.argv[1]))["dist"]["tarball"])' \
+    "$meta")"
+
+  test -n "$url"
+  curl -fLsS --connect-timeout 20 --max-time 300 \
+    --retry 3 --retry-delay 5 "$url" -o "$archive"
+
+  tar -tzf "$archive" >/dev/null
+  echo "$archive"
+}
+
+echo "[1/3] GeoTIFF"
+GEOTIFF_TGZ="$(fetch_npm geotiff 2.1.3 geotiff)"
 mkdir -p "$TMP/geotiff"
 tar -xzf "$GEOTIFF_TGZ" -C "$TMP/geotiff"
-GEOTIFF_SRC="$TMP/geotiff/package/dist-browser/geotiff.js"
-test -s "$GEOTIFF_SRC" || { echo "GeoTIFF browser bundle not found in npm package." >&2; exit 1; }
-cp -a "$TMP/geotiff/package/dist-browser/." "$HERE/geotiff/"
-test -s "$HERE/geotiff/geotiff.js"
+test -s "$TMP/geotiff/package/dist-browser/geotiff.js"
 
-echo "[2/2] Building dxf-writer 1.18.4 browser bundle..."
-(
-  cd "$TMP"
-  npm pack dxf-writer@1.18.4 --silent
-)
-DXF_TGZ="$(find "$TMP" -maxdepth 1 -name 'dxf-writer-1.18.4.tgz' -print -quit)"
-test -n "$DXF_TGZ"
-mkdir -p "$TMP/dxf-writer"
-tar -xzf "$DXF_TGZ" -C "$TMP/dxf-writer"
-DXF_ENTRY="$TMP/dxf-writer/package/src/Drawing.js"
-test -s "$DXF_ENTRY" || { echo "DXF Writer Drawing.js entry not found." >&2; exit 1; }
-npx --yes browserify@16.2.3 "$DXF_ENTRY" --standalone Drawing -o "$HERE/dxf-writer/dxf-writer.js"
+rm -rf "$HERE/geotiff"
+mkdir -p "$HERE/geotiff"
+cp -a "$TMP/geotiff/package/dist-browser/." "$HERE/geotiff/"
+
+echo "[2/3] DXF Writer"
+DXF_TGZ="$(fetch_npm dxf-writer 1.18.4 dxf-writer)"
+mkdir -p "$TMP/dxf"
+tar -xzf "$DXF_TGZ" -C "$TMP/dxf"
+DXF_ENTRY="$TMP/dxf/package/src/Drawing.js"
+test -s "$DXF_ENTRY"
+
+cat > "$TMP/webpack.config.cjs" <<'WEBPACK'
+const path = require("path");
+
+module.exports = {
+  mode: "production",
+  target: "web",
+  entry: process.env.WEBGIS_DXF_ENTRY,
+  devtool: false,
+  output: {
+    path: process.env.WEBGIS_VENDOR_DIR + "/dxf-writer",
+    filename: "dxf-writer.js",
+    library: { name: "Drawing", type: "umd" },
+    globalObject: "this",
+    clean: false
+  },
+  optimization: { minimize: true }
+};
+WEBPACK
+
+mkdir -p "$HERE/dxf-writer"
+WEBGIS_VENDOR_DIR="$HERE" \
+WEBGIS_DXF_ENTRY="$DXF_ENTRY" \
+webpack --config "$TMP/webpack.config.cjs"
+
 test -s "$HERE/dxf-writer/dxf-writer.js"
 
-{
-  echo "geotiff 2.1.3 dist-browser/geotiff.js"
-  echo "dxf-writer 1.18.4 browserify@16.2.3 (Drawing global)"
-  sha256sum "$HERE/geotiff/geotiff.js" "$HERE/dxf-writer/dxf-writer.js"
-} > "$HERE/browser-assets-manifest.txt"
-
-echo "[3/3] Fetching Leaflet.GoogleMutant 0.15.0..."
-(
-  cd "$TMP"
-  npm pack leaflet.gridlayer.googlemutant@0.15.0 --silent
-)
-GM_TGZ="$(find "$TMP" -maxdepth 1 -name 'leaflet.gridlayer.googlemutant-0.15.0.tgz' -print -quit)"
-test -n "$GM_TGZ"
+echo "[3/3] Leaflet GoogleMutant"
+GM_TGZ="$(fetch_npm leaflet.gridlayer.googlemutant 0.15.0 google-mutant)"
 mkdir -p "$TMP/google-mutant"
 tar -xzf "$GM_TGZ" -C "$TMP/google-mutant"
 GM_SRC="$TMP/google-mutant/package/dist/Leaflet.GoogleMutant.js"
-test -s "$GM_SRC" || { echo "Leaflet.GoogleMutant distribution not found." >&2; exit 1; }
-install -m 0644 "$GM_SRC" "$HERE/leaflet-google-mutant/Leaflet.GoogleMutant.js"
+test -s "$GM_SRC"
 
-{
-  echo "leaflet.gridlayer.googlemutant 0.15.0"
-  sha256sum "$HERE/leaflet-google-mutant/Leaflet.GoogleMutant.js"
-} >> "$HERE/browser-assets-manifest.txt"
+mkdir -p "$HERE/leaflet-google-mutant"
+install -m 0644 "$GM_SRC" \
+  "$HERE/leaflet-google-mutant/Leaflet.GoogleMutant.js"
 
-echo "Browser assets prepared:"
-ls -lh "$HERE/geotiff/geotiff.js" "$HERE/dxf-writer/dxf-writer.js" "$HERE/leaflet-google-mutant/Leaflet.GoogleMutant.js"
+(
+  cd "$HERE"
+  {
+    echo "geotiff 2.1.3 dist-browser"
+    sha256sum geotiff/geotiff.js
+    echo "dxf-writer 1.18.4 webpack browser bundle (Drawing global)"
+    sha256sum dxf-writer/dxf-writer.js
+    echo "leaflet.gridlayer.googlemutant 0.15.0"
+    sha256sum leaflet-google-mutant/Leaflet.GoogleMutant.js
+  }
+) > "$HERE/browser-assets-manifest.txt"
+
+echo "Browser assets prepared successfully:"
+ls -lh \
+  "$HERE/geotiff/geotiff.js" \
+  "$HERE/dxf-writer/dxf-writer.js" \
+  "$HERE/leaflet-google-mutant/Leaflet.GoogleMutant.js"
+
+echo "Manifest:"
+cat "$HERE/browser-assets-manifest.txt"
