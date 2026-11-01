@@ -117,7 +117,7 @@ const fixture = {
     assert.ok(loginEntry > 0,'GIS account login entry point should be available');
 
     assert.deepEqual(pageErrors,[],'No uncaught JavaScript errors should occur during the browser regression');
-    console.log('PASS — live WebGIS load, CRS bridge, basemap switch, menu presence, selection/zoom, symbology, labels, IndexedDB save/reload.');
+    console.log('PASS — checked-out WebGIS load, CRS bridge, basemap switch, menu presence, selection/zoom, symbology, labels, IndexedDB save/reload.');
     console.log('SKIP — authenticated GIS sign-in/sign-out: requires dedicated test credentials; no production credentials are embedded in CI.');
   } finally {
     await browser.close();
