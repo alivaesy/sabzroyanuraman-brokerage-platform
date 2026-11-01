@@ -131,7 +131,9 @@ def labeling_info(layer, warnings):
         return result
     first = classes[0]
     result["expression"] = safe(first, "expression")
-    result["field"] = safe(first, "expression")
+    expression = safe(first, "expression")
+    match = __import__("re").match(r"^\s*\[([A-Za-z_][A-Za-z0-9_]*)\]\s*$", str(expression or ""))
+    result["field"] = match.group(1) if match else None
     if result["expression"] is None:
         warnings.append("Label expression could not be extracted.")
     return result
@@ -189,33 +191,47 @@ def build_layer_tree(flat_layers):
     nodes = {}
     for layer in flat_layers:
         long_name = safe(layer, "longName", safe(layer, "name", "Unnamed layer"))
-        parts = [p for p in str(long_name).replace("/", "\\\\").split("\\\\") if p]
+        parts = [p for p in str(long_name).replace("/", "\\").split("\\") if p]
         if not parts:
             parts = [safe(layer, "name", "Unnamed layer")]
-        parent = None
+        parent_parts = []
         target = roots
         for part in parts[:-1]:
-            key = (parent or "") + "\\\\" + part
+            parent_parts.append(part)
+            key = tuple(parent_parts)
             if key not in nodes:
                 group = {
-                    "name": part, "groupLayer": parent, "isGroupLayer": True,
-                    "visible": True, "dataSourcePath": None, "dataSourceType": "other",
-                    "geometryType": None, "minScale": None, "maxScale": None,
-                    "definitionQuery": None,
+                    "name": part, "groupLayer": " / ".join(parent_parts[:-1]) or None,
+                    "isGroupLayer": True, "visible": True, "dataSourcePath": None,
+                    "dataSourceType": "other", "geometryType": None, "minScale": None,
+                    "maxScale": None, "definitionQuery": None,
                     "renderer": {"type": "unsupported", "field": None, "classes": []},
                     "labeling": {"enabled": False, "expression": None, "field": None},
                     "extractionWarnings": [], "layers": []
                 }
                 nodes[key] = group
                 target.append(group)
-            parent = part if parent is None else parent + " / " + part
             target = nodes[key]["layers"]
-        item = layer_object(layer, parent)
-        item["name"] = parts[-1]
-        if item["isGroupLayer"]:
-            item["layers"] = item.get("layers", [])
-            key = (parent or "") + "\\\\" + parts[-1]
-            nodes[key] = item
+        name = parts[-1]
+        if bool(safe(layer, "isGroupLayer", False)):
+            key = tuple(parent_parts + [name])
+            if key not in nodes:
+                group = {
+                    "name": name, "groupLayer": " / ".join(parent_parts) or None,
+                    "isGroupLayer": True, "visible": bool(safe(layer, "visible", True)),
+                    "dataSourcePath": None, "dataSourceType": "other", "geometryType": None,
+                    "minScale": None, "maxScale": None, "definitionQuery": None,
+                    "renderer": {"type": "unsupported", "field": None, "classes": []},
+                    "labeling": {"enabled": False, "expression": None, "field": None},
+                    "extractionWarnings": [], "layers": []
+                }
+                nodes[key] = group
+                target.append(group)
+            else:
+                nodes[key]["visible"] = bool(safe(layer, "visible", True))
+            continue
+        item = layer_object(layer, " / ".join(parent_parts) or None)
+        item["name"] = name
         target.append(item)
     return roots
 
