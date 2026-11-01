@@ -271,3 +271,5 @@ At the end of each meaningful batch, update this file with the verified date, co
 - Follow-up hardening: removed the remaining unscoped `currentCRS` fallback in Geodatabase Catalog metadata reconciliation; it now reads the active CRS from the shared bridge and falls back explicitly to EPSG:32638 only if the bridge is unavailable.
 
 - Extended the Playwright suite to load the actual RustGIS WASM module and run Clip with WGS84 test polygons. It checks that the adapter reports EPSG:32638 and that the generated layer has been reprojected back to longitude/latitude before insertion into Leaflet. This is the first end-to-end browser exercise of the new projected overlay path, not just a static code assertion.
+
+- Projection test diagnosis: RustGIS's GeoJSON reader honors legacy `crs` metadata and automatically converts declared projected GeoJSON back to WGS84. The adapter was unintentionally causing a double reprojection. Projected processing payloads now omit the legacy `crs` member so RustGIS keeps their UTM metre coordinates for planar overlay operations; output geometry is then converted once back to WGS84 for Leaflet.
