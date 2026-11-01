@@ -442,6 +442,14 @@ test('ModelBuilder routes core vector overlay nodes through RustGIS', () => {
   assert.match(html, /RustGIS Spatial Join supports Intersects, Within and Contains only/);
 });
 
+test('Unreferenced TIFFs allow pixel-space Raster Calculator but block geospatial operations', () => {
+  assert.match(html, /option\.value==="calculator"\|\|canMap/);
+  assert.match(html, /!sabzRasterState\.georeferenced&&op==="calculator"/);
+  assert.match(html, /rasterExpr\(expr,pixelBands\)/);
+  assert.match(html, /Browser pixel calculator/);
+  assert.match(html, /geospatial tools and GeoTIFF export require georeferencing/);
+});
+
 test('RustGIS plugin and raster bridges use separate global namespaces', () => {
   const runtimePath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-rustgis-vector-runtime.js');
   const pluginPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'plugin-manager.js');
