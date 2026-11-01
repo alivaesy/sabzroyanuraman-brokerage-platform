@@ -525,7 +525,7 @@ test('RustGIS planar overlay operations use the active projected CRS and return 
   const html = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'web-gis.html'), 'utf8');
   assert.match(html, /get currentCRS\(\)\{return currentCRS;\}/);
   assert.match(runtime, /PLANAR_OPERATION_IDS/);
-  assert.match(runtime, /transformGeoJSON\(layer, "EPSG:4326", crs\)/);
+  assert.match(runtime, /params\._sabz_processing_crs = crs/);
   assert.match(runtime, /transformGeoJSON\(output\.geojson, processingCrs, "EPSG:4326"\)/);
   assert.match(runtime, /"EPSG:4326", "EPSG:4269", "EPSG:4258"/);
   const bufferExcluded = runtime.match(/const PLANAR_OPERATION_IDS = new Set\(\[([\s\S]*?)\]\)/);
