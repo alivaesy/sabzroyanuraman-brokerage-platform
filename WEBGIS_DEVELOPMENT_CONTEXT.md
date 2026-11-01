@@ -267,3 +267,5 @@ At the end of each meaningful batch, update this file with the verified date, co
 - Expanded the shared WebGIS bridge with first-party methods for project serialization, IndexedDB save/list, Layer Properties and Zoom To Selection. These are thin calls into the existing core functions; they avoid creating duplicate logic and allow browser-level integration tests to exercise the same application services.
 
 - Browser regression found and fixed a real restore defect: the separate Geodatabase Catalog script referenced the core script's private `namedLayers`, `vectorFeatures`, and `currentCRS` bindings directly. Project reload therefore threw `ReferenceError: namedLayers is not defined`. The catalog now uses the shared GIS bridges for layer enumeration, feature counts, and the active CRS.
+
+- Follow-up hardening: removed the remaining unscoped `currentCRS` fallback in Geodatabase Catalog metadata reconciliation; it now reads the active CRS from the shared bridge and falls back explicitly to EPSG:32638 only if the bridge is unavailable.
