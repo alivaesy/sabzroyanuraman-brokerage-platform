@@ -554,7 +554,7 @@ test('RustGIS overlay tools enforce polygon-mask and dissolve geometry requireme
 });
 
 
-test('RustGIS planar overlay operations use the active projected CRS and return WGS84 display geometry', () => {
+test('geo-ported Clip uses the active projected CRS; unported overlays remain on the native RustGIS path', () => {
   const runtime = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-rustgis-vector-runtime.js'), 'utf8');
   const html = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'web-gis.html'), 'utf8');
   assert.match(html, /get currentCRS\(\)\{return currentCRS;\}/);
@@ -622,13 +622,13 @@ test('Browser regression executes a real projected RustGIS Clip operation', () =
 
 test('Projected RustGIS payload omits legacy CRS metadata to prevent implicit WGS84 reprojection', () => {
   const runtime = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-rustgis-vector-runtime.js'), 'utf8');
-  assert.match(runtime, /RustGIS's GeoJSON reader/);
+  assert.match(runtime, /RustGIS's polygon overlay routines still assume Web Mercator internally/);
   assert.match(runtime, /delete output\.crs/);
   assert.doesNotMatch(runtime, /output\.crs\s*=\s*\{type:"name"/);
 });
 
 
-test('RustGIS projected overlays pass processing CRS to the WASM adapter after GeoJSON parsing', () => {
+test('Projected geo Clip passes its processing CRS to the WASM adapter after GeoJSON parsing', () => {
   const runtime = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-rustgis-vector-runtime.js'), 'utf8');
   const rust = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'rustgis-vector-wasm', 'src', 'lib.rs'), 'utf8');
   assert.match(runtime, /params\._sabz_processing_crs = crs/);
