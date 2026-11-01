@@ -5012,6 +5012,7 @@ async function importGDBFiles(fileList){
         for(let li=0;li<selectedSourceLayers.length;li++){
           const sourceLayer=selectedSourceLayers[li];
           const layerName=String(sourceLayer?.name||("FeatureClass_"+(i+1)+"_"+(li+1)));
+          status("Importing FileGDB class "+(li+1)+"/"+selectedSourceLayers.length+": "+layerName+"...");
           const detailedLayer=metadataLayers.find(x=>String(x.name)===layerName)||{};
           const geometryState=gdbLayerGeometryState(sourceLayer,detailedLayer);
           const featureDataset=gdbFeatureDatasetName(sourceLayer,detailedLayer);
