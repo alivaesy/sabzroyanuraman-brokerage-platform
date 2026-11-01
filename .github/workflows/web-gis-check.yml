@@ -3,6 +3,7 @@ name: Web GIS checks
 on:
   push:
     branches:
+      - "master"
       - "feat/rustgis-vector-geoprocessing-phase-3"
       - "feat/webgis-rustgis-unified-package"
     paths:
@@ -10,6 +11,7 @@ on:
       - "sabzroyanuraman-site/webgis-rustgis-enhancements.js"
       - "sabzroyanuraman-site/webgis-rustgis-vector-runtime.js"
       - "tests/web-gis-static.test.cjs"
+      - "tests/web-gis-browser-regression.cjs"
       - ".github/workflows/web-gis-check.yml"
   pull_request:
     paths:
@@ -37,3 +39,22 @@ jobs:
         run: |
           node --check sabzroyanuraman-site/webgis-rustgis-enhancements.js
           node --check sabzroyanuraman-site/webgis-rustgis-vector-runtime.js
+
+
+  browser-regression:
+    needs: static-checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Playwright
+        run: npm install --no-save playwright
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run live WebGIS browser regression
+        env:
+          WEBGIS_BASE_URL: https://sabzroyanuraman.com/web-gis.html
+        run: node tests/web-gis-browser-regression.cjs
