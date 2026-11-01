@@ -117,6 +117,7 @@ const fixture = {
     });
     assert.ok(projectedClip.found && projectedClip.count>0,'RustGIS Clip should add a non-empty result layer: '+JSON.stringify(projectedClip));
     assert.match(projectedClip.message,/EPSG:32638/,'Processing report should identify the projected processing CRS: '+JSON.stringify(projectedClip));
+    assert.match(projectedClip.message,/geo boolean operations in projected coordinates/,'Projected Clip should use the geo engine in the active CRS: '+JSON.stringify(projectedClip));
     assert.ok(projectedClip.minX>46 && projectedClip.maxX<49 && projectedClip.minY>32 && projectedClip.maxY<35,
       'Clip output must be reprojected to WGS84 before adding it to Leaflet: '+JSON.stringify(projectedClip));
     await page.locator('#rgEngineDialog .rg-actions button').nth(1).click();
