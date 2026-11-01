@@ -41,13 +41,18 @@
  function chooseLayers(layers,workspace){
   buildUi();
   const picker=document.getElementById("sabzGdbPicker"),list=document.getElementById("sabzGdbLayerList");
-  document.getElementById("sabzGdbPickerInfo").textContent=workspace+": "+layers.length+" discovered source layers. Choose which spatial feature classes to add to the map.";
+  const repairTarget=window.__sabzGdbRepairTargetName||null;
+  document.getElementById("sabzGdbPickerInfo").textContent=workspace+": "+layers.length+" discovered feature classes. "+
+   (repairTarget?"Choose exactly one compatible feature class to repair "+repairTarget+".":"Choose which spatial feature classes to add to the map.");
   list.innerHTML=layers.map((item,index)=>{
    const name=String(item.name||"Layer "+(index+1));
    const group=item.featureDataset||"Root";
    const geometry=item.geometryType||"geometry not reported";
-   return '<label class="sabz-gdb-entry"><input type="checkbox" checked data-layer-index="'+index+'"><span>'+esc(name)+'</span><small>'+esc(group)+' · '+esc(geometry)+'</small></label>';
+   return '<label class="sabz-gdb-entry"><input type="checkbox" '+(repairTarget?"":"checked ")+'data-layer-index="'+index+'"><span>'+esc(name)+'</span><small>'+esc(group)+' · '+esc(geometry)+'</small></label>';
   }).join("");
+  if(repairTarget)list.querySelectorAll('input[type="checkbox"]').forEach(input=>input.addEventListener("change",()=>{
+   if(input.checked)list.querySelectorAll('input[type="checkbox"]').forEach(other=>{if(other!==input)other.checked=false;});
+  }));
   picker.classList.add("show");
   return new Promise(resolve=>{
    let settled=false;
