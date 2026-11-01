@@ -6,7 +6,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-mkdir -p "$HERE/geotiff" "$HERE/dxf-writer"
+mkdir -p "$HERE/geotiff" "$HERE/dxf-writer" "$HERE/leaflet-google-mutant"
 
 command -v npm >/dev/null 2>&1 || { echo "npm is required (Node.js LTS)." >&2; exit 1; }
 command -v tar >/dev/null 2>&1 || { echo "tar is required." >&2; exit 1; }
@@ -44,5 +44,23 @@ test -s "$HERE/dxf-writer/dxf-writer.js"
   sha256sum "$HERE/geotiff/geotiff.js" "$HERE/dxf-writer/dxf-writer.js"
 } > "$HERE/browser-assets-manifest.txt"
 
+echo "[3/3] Fetching Leaflet.GoogleMutant 0.15.0..."
+(
+  cd "$TMP"
+  npm pack leaflet.gridlayer.googlemutant@0.15.0 --silent
+)
+GM_TGZ="$(find "$TMP" -maxdepth 1 -name 'leaflet.gridlayer.googlemutant-0.15.0.tgz' -print -quit)"
+test -n "$GM_TGZ"
+mkdir -p "$TMP/google-mutant"
+tar -xzf "$GM_TGZ" -C "$TMP/google-mutant"
+GM_SRC="$TMP/google-mutant/package/dist/Leaflet.GoogleMutant.js"
+test -s "$GM_SRC" || { echo "Leaflet.GoogleMutant distribution not found." >&2; exit 1; }
+install -m 0644 "$GM_SRC" "$HERE/leaflet-google-mutant/Leaflet.GoogleMutant.js"
+
+{
+  echo "leaflet.gridlayer.googlemutant 0.15.0"
+  sha256sum "$HERE/leaflet-google-mutant/Leaflet.GoogleMutant.js"
+} >> "$HERE/browser-assets-manifest.txt"
+
 echo "Browser assets prepared:"
-ls -lh "$HERE/geotiff/geotiff.js" "$HERE/dxf-writer/dxf-writer.js"
+ls -lh "$HERE/geotiff/geotiff.js" "$HERE/dxf-writer/dxf-writer.js" "$HERE/leaflet-google-mutant/Leaflet.GoogleMutant.js"
