@@ -8,7 +8,7 @@ use std::io::Cursor;
 
 use base64::Engine as _;
 use rustgis_analysis::{Inputs, Output, OutputLayer, ParamKind, RasterInput, ToolResult};
-use rustgis_data::{Coord, Dataset, Feature, Geometry, raster::{Crs, Raster}};
+use rustgis_data::{Coord, Dataset, Feature, Geometry, GeometryType, raster::{Crs, Raster}};
 use geo::{BooleanOps, Coord as GeoCoord, Intersects, LineString, MultiPolygon, Point as GeoPoint, Polygon};
 use serde_json::{Value, json};
 use wasm_bindgen::prelude::*;
