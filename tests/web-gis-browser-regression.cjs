@@ -118,8 +118,13 @@ const fixture = {
 
     // The login entry point must be present. Actual account sign-in/out is intentionally
     // not automated without dedicated non-production credentials supplied as CI secrets.
-    const loginEntry = await page.getByText(/GIS Online Login|ورود به حساب GIS/i).count();
-    assert.ok(loginEntry > 0,'GIS account login entry point should be available');
+    const onlineDataEntry = page.locator('#addOnlineDataBtn');
+    assert.ok(await onlineDataEntry.count() && await onlineDataEntry.isVisible(),
+      'Add Online Data entry point for GIS account projects should be available');
+    await onlineDataEntry.click();
+    assert.ok(await page.locator('option[value="account"]').count(),
+      'Online Data dialog should offer the GIS account project source');
+    await page.keyboard.press('Escape');
 
     assert.deepEqual(pageErrors,[],'No uncaught JavaScript errors should occur during the browser regression');
     console.log('PASS — checked-out WebGIS load, CRS bridge, basemap switch, menu presence, selection/zoom, symbology, labels, IndexedDB save/reload.');
