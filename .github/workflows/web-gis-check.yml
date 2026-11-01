@@ -51,6 +51,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --locked
+      - name: Install native build tools
+        run: sudo apt-get update && sudo apt-get install -y clang
+      - name: Build RustGIS WASM from this commit
+        working-directory: sabzroyanuraman-site/rustgis-vector-wasm
+        run: wasm-pack build --target web --release --out-dir ../rustgis-vector-wasm-pkg --out-name sabz_royan_vector_wasm
       - name: Install Playwright
         run: npm install --no-save playwright
       - name: Install Chromium
