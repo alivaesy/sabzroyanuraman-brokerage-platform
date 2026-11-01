@@ -62,13 +62,10 @@
     throw new Error("Layer '" + item.name + "' did not produce a GeoJSON FeatureCollection.");
   }
 
-  // RustGIS overlay algorithms operate on planar XY coordinates. WebGIS stores
-  // Leaflet GeoJSON in WGS84, so project metric/topological operations into the
-  // map's projected working CRS and transform vector outputs back for display.
-  // Buffer is intentionally excluded: the pinned RustGIS Buffer is geodesic on
-  // WGS84 and must not receive projected metre coordinates. RustGIS also honors
-  // legacy GeoJSON `crs` members and reprojects declared inputs to WGS84, so the
-  // projected processing payload must deliberately omit that member.
+  // RustGIS's GeoJSON reader normalizes all inputs to WGS84. Keep the
+  // uploaded payload geographic, then ask the WASM adapter to project its
+  // parsed datasets into the active working CRS before running planar tools.
+  // Buffer remains geodesic on WGS84 and is intentionally excluded.
   const PLANAR_OPERATION_IDS = new Set([
     "clip", "intersect", "erase", "union", "identity", "dissolve",
     "convexhull", "spatialjoin", "spatialjoinonetomany", "selectbylocation"
@@ -76,62 +73,49 @@
 
   function transformGeoJSON(collection, fromCrs, toCrs) {
     if (!collection || collection.type !== "FeatureCollection" || !Array.isArray(collection.features)) {
-      throw new Error("Projected processing requires a GeoJSON FeatureCollection.");
+      throw new Error("Projected processing output is not a GeoJSON FeatureCollection.");
     }
-    if (typeof proj4 !== "function") throw new Error("Projection library is unavailable; projected geoprocessing was cancelled.");
+    if (typeof proj4 !== "function") throw new Error("Projection library is unavailable; projected output was not added.");
     if (fromCrs === toCrs) return JSON.parse(JSON.stringify(collection));
     const transformPosition = position => {
       if (!Array.isArray(position) || position.length < 2 ||
           !Number.isFinite(Number(position[0])) || !Number.isFinite(Number(position[1]))) {
-        throw new Error("Input geometry contains an invalid coordinate.");
+        throw new Error("Output geometry contains an invalid coordinate.");
       }
       const xy = proj4(fromCrs, toCrs, [Number(position[0]), Number(position[1])]);
       if (!Array.isArray(xy) || !xy.slice(0, 2).every(Number.isFinite)) {
-        throw new Error("Coordinate transformation failed from " + fromCrs + " to " + toCrs + ".");
+        throw new Error("Output coordinate transformation failed from " + fromCrs + " to " + toCrs + ".");
       }
       return [...xy, ...position.slice(2)];
     };
     const transformCoordinates = value => {
       if (!Array.isArray(value)) return value;
-      if (value.length >= 2 && typeof value[0] === "number" && typeof value[1] === "number") {
-        return transformPosition(value);
-      }
+      if (value.length >= 2 && typeof value[0] === "number" && typeof value[1] === "number") return transformPosition(value);
       return value.map(transformCoordinates);
     };
     const transformGeometry = geometry => {
       if (!geometry || typeof geometry !== "object") return geometry;
-      if (geometry.type === "GeometryCollection") {
-        return {...geometry, geometries:(geometry.geometries || []).map(transformGeometry)};
-      }
-      return geometry.coordinates ? {...geometry, coordinates:transformCoordinates(geometry.coordinates)} : geometry;
+      if (geometry.type === "GeometryCollection") return {...geometry,geometries:(geometry.geometries||[]).map(transformGeometry)};
+      return geometry.coordinates ? {...geometry,coordinates:transformCoordinates(geometry.coordinates)} : geometry;
     };
     const output = JSON.parse(JSON.stringify(collection));
-    output.features = output.features.map((feature, index) => {
-      if (!feature || feature.type !== "Feature" || !feature.geometry) {
-        throw new Error("Feature " + (index + 1) + " has no valid geometry.");
-      }
-      return {...feature, geometry:transformGeometry(feature.geometry)};
+    output.features = output.features.map((feature,index) => {
+      if (!feature || feature.type !== "Feature" || !feature.geometry) throw new Error("Output feature " + (index+1) + " has no geometry.");
+      return {...feature,geometry:transformGeometry(feature.geometry)};
     });
-    // Do not declare the projected input CRS here: RustGIS's GeoJSON reader
-    // would immediately reproject it to WGS84 and defeat planar processing.
     delete output.crs;
     return output;
   }
 
-  function preparePlanarProcessing(tool, layerPayload) {
+  function preparePlanarProcessing(tool, params) {
     const operation = String(tool?.id || "").toLowerCase().replace(/[^a-z]/g, "");
     if (!PLANAR_OPERATION_IDS.has(operation)) return null;
     const crs = String(bridge()?.currentCRS || "EPSG:32638").toUpperCase();
-    if (!/^EPSG:\d+$/.test(crs)) throw new Error("Choose a valid projected processing CRS before running " + tool.name + ".");
+    if (!/^EPSG:\\d+$/.test(crs)) throw new Error("Choose a valid projected processing CRS before running " + tool.name + ".");
     if (["EPSG:4326", "EPSG:4269", "EPSG:4258"].includes(crs)) {
       throw new Error(tool.name + " requires a projected CRS. Select a local projected system such as EPSG:32638; no processing was run.");
     }
-    if (typeof proj4 !== "function") throw new Error("Projection library is unavailable; no geoprocessing was run.");
-    for (const [name, layer] of Object.entries(layerPayload)) {
-      if (layer?.type === "FeatureCollection") {
-        layerPayload[name] = transformGeoJSON(layer, "EPSG:4326", crs);
-      }
-    }
+    params._sabz_processing_crs = crs;
     return crs;
   }
 
@@ -536,7 +520,7 @@
     try {
       await loadEngine();
       const {params, layerPayload} = collectParams(tool);
-      const processingCrs = tool.engine === "rasterops" ? null : preparePlanarProcessing(tool, layerPayload);
+      const processingCrs = tool.engine === "rasterops" ? null : preparePlanarProcessing(tool, params);
       status.textContent = processingCrs
         ? "در حال اجرای " + tool.name + " در " + processingCrs + " (مختصات مسطح)..."
         : "در حال اجرای " + tool.name + " با RustGIS...";
@@ -550,7 +534,7 @@
         result = window.SabzRoyanRustGIS.runTool(tool.id, layerPayload, params);
       }
       const outputMessages = [];
-      if (processingCrs) outputMessages.push("Projected processing CRS: " + processingCrs + "; vector output coordinates were transformed back to EPSG:4326 for map display.");
+      if (processingCrs) outputMessages.push("Projected processing CRS: " + processingCrs + "; RustGIS returned WGS84 GeoJSON for map display.");
       for (const output of result.outputs || []) {
         if ((output.kind === "vector" || output.kind === "update") && processingCrs && output.geojson) {
           output.geojson = transformGeoJSON(output.geojson, processingCrs, "EPSG:4326");
