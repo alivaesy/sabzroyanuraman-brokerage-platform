@@ -4984,7 +4984,7 @@ async function importGDBFiles(fileList){
         }
         const metadataLayers=Array.isArray(ogrDetails?.layers)?ogrDetails.layers:[];
         const infoLayers=Array.isArray(info?.layers)?info.layers:[];
-        const discoveredLayers=infoLayers.length?infoLayers:(metadataLayers.length?metadataLayers:[{name:ds?.info?.name||ds?.info?.layerName||("FeatureClass_"+(i+1)),featureCount:info?.featureCount}]);
+        const discoveredLayers=metadataLayers.length?metadataLayers:(infoLayers.length?infoLayers:[{name:ds?.info?.name||ds?.info?.layerName||("FeatureClass_"+(i+1)),featureCount:info?.featureCount}]);
         const sourceLayers=discoveredLayers.filter(layer=>{
           const name=String(layer?.name||"");
           if(isGdbSystemLayer(name)){report.unsupported.push(name+": internal/system table skipped.");return false}
