@@ -551,3 +551,12 @@ test('Browser regression runner covers live map, basemap, selection, symbology, 
     assert.ok(runner.includes(marker), 'browser regression runner is missing ' + marker);
   }
 });
+
+
+test('Geodatabase catalog restore and render use the shared GIS bridge across script scopes', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'web-gis.html'), 'utf8');
+  assert.match(html, /featureCount\(layer\)\{return vectorFeatures\(layer\)\.length\}/);
+  assert.match(html, /window\.__sabzWebGISSharedBridge\?\.namedLayers\|\|\[\]/);
+  assert.match(html, /window\.__webGisGdbBridge\?\.featureCount\(item\.layer\)/);
+  assert.doesNotMatch(html, /function restoreGdbCatalogFromJSON\(data\)\{[\s\S]{0,700}namedLayers\.forEach/);
+});
