@@ -56,7 +56,7 @@ const fixture = {
       const selected = bridge.applyRustGISSelection('__SabzBrowserRegressionFixture__',[0]);
       const before = bridge.map.getZoom();
       bridge.zoomToSelection();
-      return {selected,before,after:bridge.map.getZoom(),hasProperties:typeof window.openLayerProperties==='function'};
+      return {selected,before,after:bridge.map.getZoom(),hasProperties:typeof bridge.openLayerProperties==='function'};
     },fixture);
     assert.equal(setup.selected,1,'RustGIS selection bridge should select one feature');
     assert.ok(setup.after >= setup.before,'Zoom To Selection should not zoom out');
@@ -67,7 +67,7 @@ const fixture = {
       const bridge = window.__sabzWebGISSharedBridge;
       const item = bridge.namedLayers.find(layer=>layer.name===name);
       if (!item) throw new Error('Regression fixture layer was not registered');
-      window.openLayerProperties(item);
+      bridge.openLayerProperties(item);
       const set = (id,value) => {
         const control=document.getElementById(id);
         if(!control) throw new Error('Missing Layer Properties control: '+id);
@@ -95,8 +95,9 @@ const fixture = {
     // Persist locally to IndexedDB, reload the page, and verify geometry + symbology + labels.
     const saved = await page.evaluate(async () => {
       document.getElementById('projectName').value='WebGIS Browser Regression Project';
-      const ok = await window.scheduleAutoSave();
-      const snapshot = window.serializeProject();
+      const bridge=window.__sabzWebGISSharedBridge;
+      const ok = await bridge.saveLocalProject();
+      const snapshot = bridge.serializeProject();
       return {ok,features:snapshot.integrity?.featureCount,crs:snapshot.crs,name:snapshot.name};
     });
     assert.equal(saved.ok,true,'IndexedDB project autosave must complete');
@@ -104,10 +105,11 @@ const fixture = {
     await page.reload({waitUntil:'domcontentloaded',timeout:60000});
     await page.waitForFunction(() => !!window.__sabzGISMap && !!window.__sabzWebGISSharedBridge, null, {timeout:45000});
     const restored = await page.evaluate(async name => {
-      const projects=await window.listProjects();
+      const bridge=window.__sabzWebGISSharedBridge;
+      const projects=await bridge.listLocalProjects();
       const project=projects.find(item=>item.name==='WebGIS Browser Regression Project');
       if(!project) throw new Error('Saved browser regression project was not found in IndexedDB after reload');
-      if(!window.restoreProject(project)) throw new Error('Saved browser regression project could not be restored');
+      if(!bridge.restoreProject(project)) throw new Error('Saved browser regression project could not be restored');
       const item=window.__sabzWebGISSharedBridge.namedLayers.find(layer=>layer.name===name);
       return {renderer:item?._rendererConfig?.mode,field:item?._rendererConfig?.field,labels:item?._labelsEnabled,labelField:item?._labelField,count:item?.layer?.getLayers?.().length};
     },fixtureName);
