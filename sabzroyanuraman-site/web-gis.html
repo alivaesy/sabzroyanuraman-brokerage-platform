@@ -451,8 +451,7 @@ body.layout-view-active .webgis-layout-sheet{min-height:calc(100% - 30px)}
 #catalogPanel .action:disabled{opacity:.78;cursor:not-allowed;color:#52636d;border-color:#b9c3c8;background:#e7eaec}
 #catalogPanel .small{font-size:10px;line-height:1.55}
 #catalogPanel .gis-dock-title{position:sticky;top:-4px;z-index:4}
-#catalogPanel.open~#catalogTab{right:min(360px,78vw)}
-@media(max-width:700px){#catalogPanel.open~#catalogTab{right:min(78vw,360px)}}
+#searchDock.catalog-open #catalogTab{right:min(360px,78vw)}
 
 .map-insert-title{padding:7px 13px;background:rgba(255,255,255,.94);border:1px solid #73838b;font:bold 15px Arial;color:#243e50}.map-insert-legend{padding:7px 10px;max-height:180px;overflow:auto;background:rgba(255,255,255,.94);border:1px solid #73838b;color:#243e50;font:11px Arial}.map-insert-legend strong{display:block;margin-bottom:4px}.map-insert-north{padding:5px 9px;text-align:center;background:rgba(255,255,255,.94);border:1px solid #73838b;font:13px Arial;color:#243e50}.map-insert-frame{width:190px;height:145px;padding:3px;background:#fff;border:1px solid #73838b;box-shadow:0 1px 4px #777}.map-insert-frame-map{width:182px;height:120px}.map-insert-frame-label{text-align:center;font:bold 10px Arial;color:#243e50}
 
@@ -3021,7 +3020,7 @@ function showLayerContextMenu(item,x,y){
 }
 function openCatalogDock(){
   const dock=$("catalogPanel");if(!dock)return;
-  $("searchDock")?.classList.remove("open");
+  const searchDock=$("searchDock");searchDock?.classList.remove("open");searchDock?.classList.add("catalog-open");
   dock.classList.add("open");
   dock.querySelectorAll(".accordion-section").forEach(section=>section.classList.add("open"));
 }
@@ -3226,12 +3225,12 @@ document.querySelectorAll("[data-editor-draw]").forEach(b=>b.onclick=()=>startDr
 $("finishSketchBtn").onclick=()=>{if(activeDrawHandler&&activeDrawPurpose==="draw"&&typeof activeDrawHandler.completeShape==="function")activeDrawHandler.completeShape();else stopActiveDraw(true)};
 $("goToXYBtn").onclick=goToXY;
 document.getElementById("closeGisDock")?.addEventListener("click",()=>document.getElementById("gisDock")?.classList.remove("show"));
-document.getElementById("closeCatalogDock")?.addEventListener("click",()=>document.getElementById("catalogPanel")?.classList.remove("open"));
-document.getElementById("catalogTab")?.addEventListener("click",()=>{const d=document.getElementById("catalogPanel");if(!d)return;d.classList.toggle("open");if(d.classList.contains("open"))document.getElementById("searchDock")?.classList.remove("open")});
-document.addEventListener("keydown",e=>{const tag=(e.target&&e.target.tagName||"").toLowerCase();if(e.key==="Escape"&&!e.defaultPrevented&&!activeDrawHandler&&!["input","textarea","select"].includes(tag)&&!e.target?.isContentEditable)document.getElementById("gisDock")?.classList.remove("show");document.getElementById("catalogPanel")?.classList.remove("open");document.getElementById("searchDock")?.classList.remove("open")});
+document.getElementById("closeCatalogDock")?.addEventListener("click",()=>{document.getElementById("catalogPanel")?.classList.remove("open");document.getElementById("searchDock")?.classList.remove("catalog-open")});
+document.getElementById("catalogTab")?.addEventListener("click",()=>{const d=document.getElementById("catalogPanel");if(!d)return;d.classList.toggle("open");if(d.classList.contains("open")){document.getElementById("searchDock")?.classList.add("catalog-open");document.getElementById("searchDock")?.classList.remove("open")}else document.getElementById("searchDock")?.classList.remove("catalog-open")});
+document.addEventListener("keydown",e=>{const tag=(e.target&&e.target.tagName||"").toLowerCase();if(e.key==="Escape"&&!e.defaultPrevented&&!activeDrawHandler&&!["input","textarea","select"].includes(tag)&&!e.target?.isContentEditable)document.getElementById("gisDock")?.classList.remove("show");document.getElementById("catalogPanel")?.classList.remove("open");document.getElementById("searchDock")?.classList.remove("open","catalog-open")});
 document.getElementById("zoomInBtn")?.addEventListener("click",()=>map.zoomIn());
 document.getElementById("zoomOutBtn")?.addEventListener("click",()=>map.zoomOut());
-document.getElementById("searchTab")?.addEventListener("click",()=>{const d=document.getElementById("searchDock");d?.classList.toggle("open");if(d?.classList.contains("open")){document.getElementById("catalogPanel")?.classList.remove("open");document.getElementById("topToolSearch")?.focus()}});
+document.getElementById("searchTab")?.addEventListener("click",()=>{const d=document.getElementById("searchDock");d?.classList.toggle("open");if(d?.classList.contains("open")){document.getElementById("catalogPanel")?.classList.remove("open");d.classList.remove("catalog-open");document.getElementById("topToolSearch")?.focus()}});
 const mapScaleInput=document.getElementById("mapScale");
 const formatMapScale=n=>"1:"+Math.max(1,Math.round(n)).toLocaleString("en-US");
 function currentMapScaleDenominator(){return 156543.03392804097*Math.cos(map.getCenter().lat*Math.PI/180)/Math.pow(2,map.getZoom())*96/0.0254}
