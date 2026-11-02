@@ -942,19 +942,19 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
       <div id="layers"></div>
     </div>
 
-    <div style="display:none">
-      <input id="fileInput" type="file" accept=".geojson,.json,.kml,.kmz,.gpx,.zip,.shp">
-      <input id="mxdInput" type="file" accept=".json,.mpk,.zip" aria-label="Import ArcMap document or ArcMap export package" hidden>
-      <input id="gdbInput" type="file" webkitdirectory directory multiple>
-      <input id="gdbZipInput" type="file" accept=".zip,application/zip" hidden>
-      <button id="exportGeoJSON" type="button"></button>
-      <button id="exportKML" type="button"></button>
-      <button id="exportGPX" type="button"></button>
-      <button id="exportSHP" type="button"></button>
-      <button id="exportGDB" type="button"></button>
-      <button id="exportDXF" type="button"></button>
-    </div>
   </aside>
+  <div id="webGisFileControls" hidden aria-hidden="true">
+    <input id="fileInput" type="file" accept=".geojson,.json,.kml,.kmz,.gpx,.zip,.shp">
+    <input id="mxdInput" type="file" accept=".json,.mpk,.zip" aria-label="Import ArcMap document or ArcMap export package">
+    <input id="gdbInput" type="file" webkitdirectory directory multiple>
+    <input id="gdbZipInput" type="file" accept=".zip,application/zip">
+    <button id="exportGeoJSON" type="button"></button>
+    <button id="exportKML" type="button"></button>
+    <button id="exportGPX" type="button"></button>
+    <button id="exportSHP" type="button"></button>
+    <button id="exportGDB" type="button"></button>
+    <button id="exportDXF" type="button"></button>
+  </div>
 <div id="gisDock" class="gis-dock" aria-label="ArcToolbox and GIS panels">
   <div class="gis-dock-title"><strong id="gisDockTitle">ArcToolbox</strong><button type="button" id="closeGisDock" title="Close" aria-label="Close">×</button></div>
       <div class="accordion-section" data-accordion="display">
