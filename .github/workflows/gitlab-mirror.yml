@@ -20,11 +20,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Push to GitLab
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
         run: |
           git remote add gitlab "https://oauth2:${GITLAB_TOKEN}@gitlab.com/sabz-group1/sabzroyanuraman-github-mirror.git"
-          git push gitlab --all
+          git push gitlab 'refs/remotes/origin/*:refs/heads/*'
           git push gitlab --tags
