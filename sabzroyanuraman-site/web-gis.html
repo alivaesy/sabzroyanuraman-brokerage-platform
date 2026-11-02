@@ -766,16 +766,6 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
     <button data-action="wms">Add WMS Layer...</button>
     <button data-action="exportData">Export Data...</button>
     <div class="arc-sep"></div>
-    <div class="arc-menu-title">ArcMap Document / Data Sources</div>
-    <button type="button" data-action="importArcMap">Import ArcMap Manifest (.json)...</button>
-    <button type="button" disabled title="Data-source repair is not implemented yet">Repair Data Source...</button>
-    <button type="button" disabled title="Data-source repair is not implemented yet">Repair Selected Layer...</button>
-    <button type="button" disabled title="Data-source repair is not implemented yet">Repair from .gdb Folder...</button>
-    <div class="arc-sep"></div>
-    <div class="arc-menu-title">File Geodatabase</div>
-    <button type="button" data-action="importGdbZip">Import .gdb ZIP...</button>
-    <button type="button" data-action="importGdbFolder">Import .gdb Folder...</button>
-    <button type="button" data-action="geodatabaseManager">Create / Manage Geodatabase...</button>
     <div class="arc-sep"></div>
     <button type="button" data-action="printMap">Print Map...</button>
   </div>
@@ -898,6 +888,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
   </div>
   <div class="arc-dropdown" id="windowsMenu">
     <div class="arc-menu-title">Windows</div><button data-action="showLayers">Table Of Contents</button>
+    <button data-action="showCatalog">Catalog</button>
     <button data-action="showToolbox">ArcToolbox</button>
   </div>
   <div class="arc-dropdown" id="helpMenu">
@@ -1165,6 +1156,33 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 
 
 </div>
+<div id="catalogDock" class="gis-dock catalog-dock" aria-label="Catalog and data sources">
+  <div class="gis-dock-title"><strong>Catalog</strong><button type="button" id="closeCatalogDock" title="Close" aria-label="Close Catalog">×</button></div>
+  <div class="accordion-section open" data-catalog-section="documents">
+    <div class="accordion-head"><span>ArcMap Document / Data Sources</span></div>
+    <div class="accordion-body">
+      <div class="compact-block">
+        <div class="small">Import a WebGIS ArcMap manifest or inspect and repair broken layer sources. Native .mxd conversion is not implemented yet.</div>
+        <button type="button" class="action" data-action="importArcMap" style="width:100%;margin-top:8px">Import ArcMap Manifest (.json)...</button>
+        <button type="button" class="action secondary" disabled title="در مرحله توسعه؛ فعلاً منبع داده قابل تعمیر نیست" style="width:100%;margin-top:6px">Repair Data Source... <span class="small">(در دست توسعه)</span></button>
+        <button type="button" class="action secondary" disabled title="در مرحله توسعه؛ فعلاً منبع لایه انتخاب‌شده قابل تعمیر نیست" style="width:100%;margin-top:6px">Repair Selected Layer... <span class="small">(در دست توسعه)</span></button>
+        <button type="button" class="action secondary" disabled title="در مرحله توسعه؛ تعمیر از پوشه GDB هنوز پیاده‌سازی نشده است" style="width:100%;margin-top:6px">Repair from .gdb Folder... <span class="small">(در دست توسعه)</span></button>
+      </div>
+    </div>
+  </div>
+  <div class="accordion-section open" data-catalog-section="geodatabase">
+    <div class="accordion-head"><span>File Geodatabase</span></div>
+    <div class="accordion-body">
+      <div class="compact-block">
+        <button type="button" class="action" data-action="importGdbZip" style="width:100%">Import .gdb ZIP...</button>
+        <button type="button" class="action secondary" data-action="importGdbFolder" style="width:100%;margin-top:6px">Import .gdb Folder...</button>
+        <button type="button" class="action secondary" data-action="geodatabaseManager" style="width:100%;margin-top:6px">Create / Manage Geodatabase...</button>
+        <div class="small" style="margin-top:8px">Import and geodatabase management commands remain available here. Repair commands are visible but disabled until implemented.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 </div>
 <div id="layerContextMenu" class="arc-context-menu">
@@ -2990,6 +3008,11 @@ function showLayerContextMenu(item,x,y){
   m.style.left=Math.max(4,Math.min(x,window.innerWidth-menuWidth-4))+"px";
   m.style.top=Math.max(4,Math.min(y,window.innerHeight-menuHeight-4))+"px";
 }
+function openCatalogDock(){
+  const dock=$("catalogDock");if(!dock)return;
+  dock.classList.add("show");
+  dock.querySelectorAll(".accordion-section").forEach(section=>section.classList.add("open"));
+}
 function openGisDock(section){
   const dock=$("gisDock");if(!dock)return;
   dock.classList.add("show");
@@ -3024,7 +3047,7 @@ function openLayerAttributeTable(item,layout="horizontal"){
 function displayLayerName(name,index){return /[\u0600-\u06FF]/.test(String(name||""))?"Layer "+(index+1):String(name||("Layer "+(index+1)))}
 function renderLayerList(){
   const el=$("layers");if(!el)return;el.innerHTML="";
-  if(tocViewMode==="option"){el.innerHTML='<div style="padding:12px 10px;font-size:11px;line-height:1.55;color:#354b59"><div style="font-weight:700;margin-bottom:8px">HOST DEPLOYMENT CHECK</div><div style="padding:7px;border:1px solid #9ba9b1;background:#f3f6f8;font-family:monospace;font-weight:700;overflow-wrap:anywhere">WEBGIS-MASTER-OPTION-20261102-A</div><p style="margin:10px 0 0">If this marker is visible, the hosted WebGIS is serving the updated master file.</p></div>';return;}
+  if(tocViewMode==="option"){el.innerHTML='<div style="padding:12px 10px;font-size:11px;line-height:1.6;color:#354b59"><strong>Table Of Contents Options</strong><p>Manage layer visibility from Drawing Order or Visibility. Use Source to inspect layer sources and Selection to review selected layers.</p><p>Layer ordering, grouping, and display preferences will be expanded in this panel.</p><div style="padding:7px;border:1px solid #c5d0d5;background:#f4f7f8">Catalog and data-source management are available from Windows → Catalog.</div></div>';return;}
   const selectedOwnerLayers=new Set(selectedRecords().map(record=>record.owner?.layer).filter(Boolean));
   const groups=new Map();
 const addRow=(x,label,indent)=>{
@@ -3191,6 +3214,7 @@ document.querySelectorAll("[data-editor-draw]").forEach(b=>b.onclick=()=>startDr
 $("finishSketchBtn").onclick=()=>{if(activeDrawHandler&&activeDrawPurpose==="draw"&&typeof activeDrawHandler.completeShape==="function")activeDrawHandler.completeShape();else stopActiveDraw(true)};
 $("goToXYBtn").onclick=goToXY;
 document.getElementById("closeGisDock")?.addEventListener("click",()=>document.getElementById("gisDock")?.classList.remove("show"));
+document.getElementById("closeCatalogDock")?.addEventListener("click",()=>document.getElementById("catalogDock")?.classList.remove("show"));
 document.addEventListener("keydown",e=>{const tag=(e.target&&e.target.tagName||"").toLowerCase();if(e.key==="Escape"&&!e.defaultPrevented&&!activeDrawHandler&&!["input","textarea","select"].includes(tag)&&!e.target?.isContentEditable)document.getElementById("gisDock")?.classList.remove("show")});
 document.getElementById("zoomInBtn")?.addEventListener("click",()=>map.zoomIn());
 document.getElementById("zoomOutBtn")?.addEventListener("click",()=>map.zoomOut());
@@ -8968,7 +8992,7 @@ window.__shareCurrentProject=async function(){
     else{window.prompt("Shared map link",result.url);}
   }catch(error){console.error("Share Project failed:",error);status("Share Project failed: "+(error&&error.message?error.message:"unknown error"));}
 };
-document.querySelectorAll(".arc-dropdown button[data-action], .classic-toolbar button[data-action]").forEach(b=>b.onclick=()=>{
+document.querySelectorAll(".arc-dropdown button[data-action], .classic-toolbar button[data-action], #catalogDock button[data-action]").forEach(b=>b.onclick=()=>{
     const a=b.dataset.action;
     const mapActions={
       shareProject:()=>{if(typeof window.__shareCurrentProject==="function")window.__shareCurrentProject();else status("Share Project is not ready. Reload the page and try again.");},
@@ -9006,6 +9030,7 @@ document.querySelectorAll(".arc-dropdown button[data-action], .classic-toolbar b
         openLayerAttributeTable({layer},"vertical");
       },
       showToolbox:()=>{openGisDock("analysis");document.getElementById("gisToolSearch")?.focus()},
+      showCatalog:()=>openCatalogDock(),
       editorOptions:()=>openGisDock("edit"),
       topologyOptions:()=>openTopologyDialog("options"),
       topologyValidate:()=>{let target=topologyLayerValue(editTarget),boundary=topologyLayerValue(selectedLayer||selectedOverlay||drawn);try{target=localStorage.getItem("sabzRoyWebGisTopologyTarget")||target;boundary=localStorage.getItem("sabzRoyWebGisTopologyBoundary")||boundary}catch(_){}checkEditTopology(true,topologyLayerFromValue(target),topologyLayerFromValue(boundary))},
@@ -10740,6 +10765,50 @@ const arcMapDialog=(()=>{
     flex-wrap:nowrap!important;min-width:0!important;
   }
 }
+
+/* TOC layout stabilization: one pane, fixed tab strip, independently scrolling layer tree. */
+.workspace{min-height:0;overflow:hidden}
+#panel.panel{
+  box-sizing:border-box!important;display:flex!important;flex:0 0 310px!important;
+  flex-direction:column!important;align-self:stretch!important;min-width:250px;
+  min-height:0!important;height:100%!important;max-height:100%!important;
+  padding:6px!important;overflow:hidden!important;gap:0!important;
+  background:#f1f1f1!important;border:1px solid #9ba9b1!important;
+  box-shadow:inset 1px 0 #fff!important;
+}
+#panel>.layer-section{
+  display:flex!important;flex:1 1 auto!important;flex-direction:column!important;
+  min-height:0!important;height:100%!important;margin:0!important;padding:0!important;
+  overflow:hidden!important;border:1px solid #9ba9b1!important;border-radius:2px!important;
+  background:#f8f9fa!important;
+}
+#panel>.layer-section>h3{
+  flex:0 0 27px!important;height:27px!important;box-sizing:border-box!important;
+  margin:0!important;padding:6px 8px 5px 27px!important;
+  border:0!important;border-bottom:1px solid #aeb9bf!important;
+  background:linear-gradient(#fafafa,#e4e7e9)!important;
+}
+#panel .toc-tabs{
+  position:relative;z-index:2;flex:0 0 auto!important;
+  display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;
+  width:100%;box-sizing:border-box;border:0!important;border-bottom:1px solid #9ba9b1!important;
+}
+#panel .toc-tab{min-height:32px!important;padding:5px 2px!important;font-size:10px!important;line-height:1.2!important;overflow-wrap:anywhere}
+#panel #layers{
+  display:block!important;flex:1 1 auto!important;min-height:0!important;
+  height:auto!important;max-height:none!important;width:100%;box-sizing:border-box;
+  overflow:auto!important;overscroll-behavior:contain;background:#fff!important;
+  border:0!important;border-top:0!important;
+}
+#panel #layers:focus{outline:1px solid #6d9bb5;outline-offset:-1px}
+#panel #layers .layer-row{min-height:27px!important;padding:4px 5px!important;font-size:11px!important}
+.catalog-dock{left:0;right:auto;width:min(360px,92vw)}
+.catalog-dock .accordion-head{display:flex;align-items:center;width:100%;padding:6px 8px;border:0;text-align:left;font-weight:700;color:#263f50}
+.catalog-dock .accordion-body{padding:7px}
+.catalog-dock .action:disabled{opacity:.78;cursor:not-allowed;color:#52636d;border-color:#b9c3c8;background:#e7eaec}
+.catalog-dock .small{font-size:10px;line-height:1.55}
+@media(max-width:850px){#panel.panel{flex-basis:240px!important;min-width:220px!important}}
+@media(max-width:650px){#panel.panel{flex-basis:220px!important;min-width:200px!important}.catalog-dock{width:min(330px,94vw)}}
 </style>
 
 
