@@ -740,7 +740,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <button type="button" class="icon-tool" data-tool="repairSelectedGeometry" title="Repair Selected Geometry" aria-label="Repair Selected Geometry" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-reshape"></use></svg></button>
 <button type="button" class="icon-tool" data-tool="snapTool" title="Snap Points to Lines — select point features in the edit layer first" aria-label="Snap Points to Lines" data-edit-only="true"><svg class="arcmap-icon"><use href="#arc-icon-snap"></use></svg></button></div>
 
-<div id="geodatabaseManagerDialog" aria-hidden="true"><div class="gdb-panel" role="dialog" aria-modal="true" aria-label="Geodatabase Manager"><div class="gdb-title">Catalog — Create Geodatabase / Feature Dataset / Feature Class <button type="button" id="gdbManagerClose">×</button></div><div class="gdb-body"><p class="gdb-note">Create a workspace structure and empty editable feature classes. To create a portable Esri File Geodatabase on disk, use Export Data → File Geodatabase (.gdb.zip) after adding features.</p><div class="gdb-grid"><label>Geodatabase name<input id="gdbWorkspaceName" value="MyGeodatabase"></label><label>Feature Dataset name<input id="gdbDatasetName" value="Dataset1"></label><label>Feature Class name<input id="gdbFeatureClassName" value="NewFeatureClass"></label><label>Geometry type<select id="gdbGeometryType"><option value="Point">Point</option><option value="LineString">Polyline</option><option value="Polygon">Polygon</option></select></label><label>Coordinate system<select id="gdbCrs"><option value="current">Current map CRS</option><option value="EPSG:4326">WGS 84 (EPSG:4326)</option></select></label></div><div class="gdb-actions"><button type="button" id="gdbCreateDataset">Create Dataset</button><button type="button" id="gdbCreateFeatureClass">Create Feature Class</button><button type="button" id="gdbExportNow">Export Geodatabase</button></div><div id="geodatabaseManagerList"></div><div id="gdbManagerStatus" class="gdb-note" role="status"></div></div></div></div>
+
 <div id="editorTaskMenu" role="menu" aria-label="Editor tasks">
  <div class="menu-caption">EDITOR — ARCMAP TASKS</div>
  <button type="button" data-editor-task="start"><span class="task-icon">▶</span>Start Editing</button>
@@ -929,8 +929,26 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
       <div class="compact-block">
         <button type="button" class="action" data-action="importGdbZip" style="width:100%">Import .gdb ZIP...</button>
         <button type="button" class="action secondary" data-action="importGdbFolder" style="width:100%;margin-top:6px">Import .gdb Folder...</button>
-        <button type="button" class="action secondary" data-action="geodatabaseManager" style="width:100%;margin-top:6px">Create / Manage Geodatabase...</button>
-        <div class="small" style="margin-top:8px">Import and geodatabase management commands remain available here. Repair commands are visible but disabled until implemented.</div>
+        
+        <div class="small" style="margin-top:8px">Import geodatabases or create and manage their workspace structure below.</div>
+      <div id="geodatabaseManagerDialog" class="gdb-manager-inline">
+        <div class="gdb-panel">
+          <div class="gdb-title">Create Geodatabase / Feature Dataset / Feature Class</div>
+          <div class="gdb-body">
+            <p class="gdb-note">Create a workspace structure and empty editable feature classes. To create a portable Esri File Geodatabase on disk, use Export Data → File Geodatabase (.gdb.zip) after adding features.</p>
+            <div class="gdb-grid">
+              <label>Geodatabase name<input id="gdbWorkspaceName" value="MyGeodatabase"></label>
+              <label>Feature Dataset name<input id="gdbDatasetName" value="Dataset1"></label>
+              <label>Feature Class name<input id="gdbFeatureClassName" value="NewFeatureClass"></label>
+              <label>Geometry type<select id="gdbGeometryType"><option value="Point">Point</option><option value="LineString">Polyline</option><option value="Polygon">Polygon</option></select></label>
+              <label>Coordinate system<select id="gdbCrs"><option value="current">Current map CRS</option><option value="EPSG:4326">WGS 84 (EPSG:4326)</option></select></label>
+            </div>
+            <div class="gdb-actions"><button type="button" id="gdbCreateDataset">Create Dataset</button><button type="button" id="gdbCreateFeatureClass">Create Feature Class</button><button type="button" id="gdbExportNow">Export Geodatabase</button></div>
+            <div id="geodatabaseManagerList"></div>
+            <div id="gdbManagerStatus" class="gdb-note" role="status"></div>
+          </div>
+        </div>
+      </div>
       </div>
     </div>
   </div>
@@ -2503,15 +2521,30 @@ function createMapViewer(){
   #map>#geodatabaseManagerDialog .gdb-panel{width:calc(100% - 20px)!important;max-width:calc(100% - 20px)!important}
 }
 </style>
-</head><body><div id='map'></div><script src='./vendor/web-gis/leaflet/leaflet.js'>"+closeScript+"<script>const s="+serialized+";const m=L.map('map').setView(s.center,s.zoom);const u={osm:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',topo:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',sat:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',esriStreet:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',esriTopo:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',esriGray:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'};if(s.basemap==='nasaWms')L.tileLayer.wms('https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi',{layers:'BlueMarble_ShadedRelief',format:'image/png',version:'1.3.0',attribution:'NASA GIBS'}).addTo(m);else if(s.basemap==='customWms'&&s.wms)L.tileLayer.wms(s.wms.url,{layers:s.wms.layers,format:s.wms.format,version:s.wms.version,attribution:s.wms.attribution}).addTo(m);else L.tileLayer(u[s.basemap]||u.osm,{maxZoom:19,attribution:s.attribution}).addTo(m);"+closeScript+"<script src=\"./webgis-rustgis-vector-runtime.js\">"+closeScript+"\n
+<style id="catalog-inline-geodatabase-manager">
+/* Geodatabase Manager is now part of Catalog, not a floating modal. */
+#catalogPanel #geodatabaseManagerDialog,
+#catalogPanel #geodatabaseManagerDialog.open{
+ position:static!important;inset:auto!important;z-index:auto!important;
+ display:block!important;align-items:initial!important;justify-content:initial!important;
+ width:100%!important;height:auto!important;max-width:none!important;max-height:none!important;
+ overflow:visible!important;padding:0!important;margin-top:8px!important;
+ background:transparent!important;box-shadow:none!important
+}
+#catalogPanel #geodatabaseManagerDialog .gdb-panel{
+ width:100%!important;max-width:none!important;max-height:none!important;
+ overflow:visible!important;background:#f2f3f4;border:1px solid #aeb9bf;
+ box-shadow:none!important;box-sizing:border-box
+}
+#catalogPanel #geodatabaseManagerDialog .gdb-grid{grid-template-columns:1fr}
+#catalogPanel #geodatabaseManagerDialog .gdb-body{padding:8px}
+#catalogPanel #geodatabaseManagerDialog .gdb-title{font-size:11px;padding:7px}
+</style></head><body><div id='map'></div><script src='./vendor/web-gis/leaflet/leaflet.js'>"+closeScript+"<script>const s="+serialized+";const m=L.map('map').setView(s.center,s.zoom);const u={osm:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',topo:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',sat:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',esriStreet:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',esriTopo:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',esriGray:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'};if(s.basemap==='nasaWms')L.tileLayer.wms('https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi',{layers:'BlueMarble_ShadedRelief',format:'image/png',version:'1.3.0',attribution:'NASA GIBS'}).addTo(m);else if(s.basemap==='customWms'&&s.wms)L.tileLayer.wms(s.wms.url,{layers:s.wms.layers,format:s.wms.format,version:s.wms.version,attribution:s.wms.attribution}).addTo(m);else L.tileLayer(u[s.basemap]||u.osm,{maxZoom:19,attribution:s.attribution}).addTo(m);"+closeScript+"<script src=\"./webgis-rustgis-vector-runtime.js\">"+closeScript+"\n
 <script id="map-centered-panels-preview-init">
 (()=> {
  const map=document.getElementById("map");
- if(!map)return;
- ["gisDock","geodatabaseManagerDialog"].forEach(id=>{
-   const node=document.getElementById(id);
-   if(node&&node.parentElement!==map)map.appendChild(node);
- });
+ const node=document.getElementById("gisDock");
+ if(map&&node&&node.parentElement!==map)map.appendChild(node);
 })();
 </script>
 </body></html>";
@@ -10494,9 +10527,17 @@ function restoreGdbCatalogFromJSON(data){
  renderGdbCatalog();
 }
 function openGeodatabaseManager(){
- const dlg=$("geodatabaseManagerDialog");dlg.classList.add("open");dlg.setAttribute("aria-hidden","false");renderGdbCatalog();
+ const section=document.querySelector('[data-catalog-section="geodatabase"]');
+ if(section){section.classList.add("open");}
+ const panel=$("catalogPanel"),dock=$("searchDock");
+ if(panel&&!panel.classList.contains("open")){panel.classList.add("open");dock?.classList.add("catalog-open");}
+ renderGdbCatalog();
+ $("geodatabaseManagerDialog")?.scrollIntoView({block:"nearest",behavior:"smooth"});
 }
-function closeGeodatabaseManager(){const dlg=$("geodatabaseManagerDialog");dlg.classList.remove("open");dlg.setAttribute("aria-hidden","true")}
+function closeGeodatabaseManager(){
+ const section=document.querySelector('[data-catalog-section="geodatabase"]');
+ section?.classList.remove("open");
+}
 function gdbWorkspace(){
  const name=$("gdbWorkspaceName").value.trim();if(!name)throw new Error("Enter a geodatabase name.");
  if(!gdbCatalog.workspaces.has(name))gdbCatalog.workspaces.set(name,{name,datasets:new Map()});
@@ -10513,8 +10554,6 @@ function renderGdbCatalog(){
  });
  list.innerHTML=rows.join("")||'<div class="gdb-row">No geodatabases created in this session.</div>';
 }
-$("gdbManagerClose").onclick=closeGeodatabaseManager;
-$("geodatabaseManagerDialog").addEventListener("click",e=>{if(e.target===$("geodatabaseManagerDialog"))closeGeodatabaseManager()});
 $("gdbCreateDataset").onclick=()=>{
  try{const w=gdbWorkspace(),name=$("gdbDatasetName").value.trim();if(!name)throw new Error("Enter a feature dataset name.");
  if(!w.datasets.has(name))w.datasets.set(name,{name,crs:$("gdbCrs").value==="current"?window.__webGisGdbBridge.currentCRS:$("gdbCrs").value,classes:[]});
