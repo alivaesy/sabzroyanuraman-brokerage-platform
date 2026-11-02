@@ -1339,7 +1339,7 @@ window.__sabzWebGISSharedBridge={
   applySelectionVisual:()=>applySelectionVisual(),
   hideLayerContextMenu:()=>hideLayerContextMenu(),
   addNamedLayer:(name,layer,zoom)=>addNamedLayer(name,layer,zoom),
-  status:message=>{const text=String(message??"");const node=document.getElementById("status");if(node)node.textContent=text;const toast=document.getElementById("toolFeedback");if(toast){toast.textContent=text;toast.classList.add("show");try{clearTimeout(window.__sabzSharedStatusTimer);}catch(_){}window.__sabzSharedStatusTimer=setTimeout(()=>toast.classList.remove("show"),4200);}console.info("[Shared WebGIS]",text);},
+
   get drawn(){return window.__sabzGISDrawn||null;},
   restoreProject,
   serializeProject:()=>serializeProject(),
