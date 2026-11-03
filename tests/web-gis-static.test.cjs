@@ -603,7 +603,7 @@ test('Catalog tools are wired to their existing dock controls and never inject p
   assert.match(documents, /id="arcMapRepairButton"/);
   assert.match(documents, /id="arcMapRepairGdbFolderButton"/);
   assert.match(geodatabase, /id="gdbCatalogImportZipButton"/);
-  assert.match(geodatabase, /id="gdbCatalogZipInput"/);
+  assert.match(geodatabase, /id="gdbArchiveInput"/);
   assert.match(geodatabase, /id="gdbTablesCatalog"/);
   assert.match(manifest, /function wireCatalogControls\(\)/);
   assert.doesNotMatch(manifest, /function installUi\(|insertBefore\(panel/);
