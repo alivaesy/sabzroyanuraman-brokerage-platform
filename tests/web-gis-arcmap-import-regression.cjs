@@ -100,6 +100,8 @@ const {chromium}=require('playwright');
   assert.equal(gdbResult.group,'zone38','Feature Dataset zone38 should be restored as a TOC group');
   assert.equal(gdbResult.displayName,'ssdsd','Grouped layer should use its short feature-class name');
   assert.equal(gdbResult.sourceCRS,'EPSG:32638','Original projected GDB CRS should be retained as layer metadata');
+  const catalogTree=await page.evaluate(()=>{const entries=[...window.__sabzGdbCatalogState.workspaces.values()].map(w=>({name:w.name,datasets:[...w.datasets.values()].map(d=>({name:d.name,classes:d.classes.map(c=>c.name)}))}));return entries});
+  assert.ok(catalogTree.some(w=>w.name==='New File Geodatabase'&&w.datasets.some(d=>d.name==='zone38'&&d.classes.includes('ssdsd'))),'Imported FileGDB feature classes must be nested under their source workspace and feature dataset');
   assert.equal(gdbResult.report?.sourceFeatureClasses,17,'GDAL full catalog should include all 17 user feature classes, including nested Feature Dataset members');
   assert.equal(gdbResult.report?.selectedFeatureClasses,1,'Only the checked feature class should be imported');
   assert.equal(gdbResult.report?.importedLayers,1,'One selected feature class should produce one map layer');
