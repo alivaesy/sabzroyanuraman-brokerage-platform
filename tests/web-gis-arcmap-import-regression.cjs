@@ -7,11 +7,30 @@ const {chromium}=require('playwright');
  const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
  const page=await browser.newPage({viewport:{width:1440,height:960}});
  const errors=[];
+ const consoleErrors=[];
  page.on('pageerror',e=>errors.push(e.message));
+ page.on('console',message=>{if(message.type()==='error')consoleErrors.push(message.text());});
  try{
   const response=await page.goto(process.env.WEBGIS_BASE_URL||'http://127.0.0.1:4173/web-gis.html',{waitUntil:'domcontentloaded',timeout:60000});
   assert.ok(response&&response.ok(),'WebGIS should load');
   await page.waitForFunction(()=>!!window.SabzArcMapManifest&&!!document.getElementById('arcMapManifestInput'),null,{timeout:45000});
+  const catalogLayout=await page.evaluate(()=>{
+   const toc=document.querySelector('#panel .layer-section');
+   return {
+    tocTitle:toc?.querySelector(':scope > h3')?.textContent?.trim()||null,
+    tocSectionCount:document.querySelectorAll('#panel > .layer-section').length,
+    injectedPanels:document.querySelectorAll('#panel #arcMapImportPanel,#panel #gdbImportControl,#panel #gdbTablesCatalog').length,
+    manifestInCatalog:!!document.querySelector('[data-catalog-section="documents"] #arcMapManifestButton'),
+    repairInCatalog:!!document.querySelector('[data-catalog-section="documents"] #arcMapRepairButton'),
+    gdbZipInCatalog:!!document.querySelector('[data-catalog-section="geodatabase"] #gdbCatalogImportZipButton'),
+    tablesInCatalog:!!document.querySelector('[data-catalog-section="geodatabase"] #gdbTablesCatalog')
+   };
+  });
+  assert.equal(catalogLayout.tocTitle,'Table Of Contents','TOC should contain only its own title');
+  assert.equal(catalogLayout.tocSectionCount,1,'TOC should have one single layer section');
+  assert.equal(catalogLayout.injectedPanels,0,'Catalog modules must not inject panels into the TOC');
+  assert.ok(catalogLayout.manifestInCatalog&&catalogLayout.repairInCatalog&&catalogLayout.gdbZipInCatalog&&catalogLayout.tablesInCatalog,
+    'ArcMap and FileGDB controls must live in the Catalog dock');
   await page.locator('#arcMapManifestInput').setInputFiles(path.join(__dirname,'fixtures','sample.manifest.json'));
   await page.waitForFunction(()=>window.__sabzWebGISSharedBridge.namedLayers.filter(x=>x.sourceMissing).length===3,null,{timeout:15000});
   const initial=await page.evaluate(()=>window.__sabzWebGISSharedBridge.namedLayers.slice(-3).map(x=>({name:x.name,missing:x.sourceMissing,group:x.drawingSet,features:x.layer.getLayers().length,frameCrs:x._arcMapManifest.frameSpatialReference})));
@@ -87,6 +106,8 @@ const {chromium}=require('playwright');
 
 
   assert.deepEqual(errors,[],'No uncaught JavaScript errors');
-  console.log('PASS — ArcMap manifest creates 3 ordered source placeholders; Repair Data Source loads polygon geometry and attributes; attribute table reads repaired row.');
+  console.log('Catalog/TOC DOM:',JSON.stringify(catalogLayout));
+  console.log('Browser console errors:',JSON.stringify(consoleErrors));
+  console.log('PASS — TOC stays clean; Catalog owns ArcMap and FileGDB controls; manifest import, source repair, FileGDB repair and table import complete in Chromium.');
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
