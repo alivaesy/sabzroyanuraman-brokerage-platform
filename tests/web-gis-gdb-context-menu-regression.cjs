@@ -12,8 +12,14 @@ const {chromium}=require('playwright');
  try{
   const response=await page.goto(process.env.WEBGIS_BASE_URL||'http://127.0.0.1:4173/web-gis.html',{waitUntil:'domcontentloaded',timeout:60000});
   assert.ok(response?.ok(),'WebGIS should load');
-  await page.waitForFunction(()=>!!window.__sabzGdbCatalogState&&!!window.SabzGdbCatalogTree&&!!window.__sabzWebGISSharedBridge?.map&&!!window.arcMapDialog,null,{timeout:60000}).catch(()=>{});
-  await page.evaluate(()=>{document.querySelector('[data-catalog-section="geodatabase"]')?.classList.add('open');document.getElementById('searchDock')?.classList.add('catalog-open');document.getElementById('catalogPanel')?.classList.add('open');window.__sabzGdbCatalogState.render()});
+  await page.waitForFunction(()=>!!window.__sabzGdbCatalogState&&!!window.SabzGdbCatalogTree&&!!window.__sabzWebGISSharedBridge?.map&&!!window.arcMapDialog,null,{timeout:60000});
+  await page.locator('#catalogTab').click();
+  await page.locator('#catalogPanel').waitFor({state:'visible',timeout:15000});
+  const gdbSection=page.locator('[data-catalog-section="geodatabase"]');
+  if(!(await gdbSection.evaluate(el=>el.classList.contains('open'))))await gdbSection.locator('.accordion-head').click();
+  await page.locator('#gdbWorkspaceName').waitFor({state:'visible',timeout:15000});
+  await page.locator('#geodatabaseManagerList').waitFor({state:'visible',timeout:15000});
+  await page.evaluate(()=>window.__sabzGdbCatalogState.render());
   const list=page.locator('#geodatabaseManagerList');
   await list.dispatchEvent('contextmenu',{bubbles:true,cancelable:true,clientX:220,clientY:220});
   await clickNew('File Geodatabase');
