@@ -664,3 +664,18 @@ test('Projected geo Clip passes its processing CRS to the WASM adapter after Geo
   assert.match(rust, /geo boolean operations in projected coordinates/);
   assert.match(rust, /projected\.crs = Some\(target\)/);
 });
+
+
+test('ArcCatalog tree module reuses the persisted geodatabase catalog and is loaded after its state owner', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'web-gis.html'), 'utf8');
+  const tree = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-gdb-catalog-tree.js'), 'utf8');
+  assert.match(html, /window\.__sabzGdbCatalogState=\{get workspaces\(\)\{return gdbCatalog\.workspaces;\}/);
+  assert.match(html, /gdbCatalog:typeof gdbCatalogToJSON==="function"\?gdbCatalogToJSON\(\):null/);
+  assert.match(html, /restoreGdbCatalogFromJSON\(project\.gdbCatalog\|\|null\)/);
+  assert.ok(html.indexOf('webgis-gdb-catalog.js') < html.indexOf('webgis-gdb-catalog-tree.js'));
+  assert.match(tree, /window\.__sabzGdbCatalogState/);
+  assert.match(tree, /window\.__sabzWebGISSharedBridge/);
+  assert.match(tree, /gdbTreeDetails/);
+  assert.match(tree, /ondblclick/);
+  assert.match(tree, /expanded=new Set/);
+});
