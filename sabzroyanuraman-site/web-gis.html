@@ -6156,9 +6156,15 @@ function exportRealDXF(){
     status("DXF exported in "+currentCRS+".");
   }catch(e){console.error(e);status("DXF export failed: "+e.message)}
 }
-async function exportRealGDB(){
+async function exportRealGDB(workspaceName=null){
   const layers=[];
-  if(exportSourceLayer){
+  if(workspaceName){
+    namedLayers.forEach((item,index)=>{
+      const metadata=item.layer?._gdbMetadata;if(metadata?.workspace!==workspaceName)return;
+      const features=vectorFeatures(item.layer).map(record=>record.feature);
+      if(features.length)layers.push({name:[metadata.dataset,metadata.featureClass].filter(Boolean).join("_")||item.name||("layer_"+(index+1)),fc:{type:"FeatureCollection",features}});
+    });
+  }else if(exportSourceLayer){
     const item=exportSourceLayer===drawn?{name:"drawings",layer:drawn}:namedLayers.find(x=>x.layer===exportSourceLayer);
     const fs=vectorFeatures(exportSourceLayer).map(v=>v.feature);
     if(item&&fs.length)layers.push({name:item.name||"layer",fc:{type:"FeatureCollection",features:fs}});
@@ -6191,14 +6197,16 @@ async function exportRealGDB(){
         if(!path)continue;
         const bytes=await gdal.getFileBytes(path);
         const rel=path.split("/output/").pop()||path.split("/").pop();
-        zip.file("sabz-royan-webgis.gdb/"+rel,new Uint8Array(bytes));
+        const outputRoot=(workspaceName?String(workspaceName).replace(/[^A-Za-z0-9_-]+/g,"_"):"sabz-royan-webgis")+".gdb";
+        zip.file(outputRoot+"/"+rel,new Uint8Array(bytes));
         added++;
       }
     }
     if(!added)throw new Error("The browser GDAL build could not write an OpenFileGDB archive.");
     const blob=await zip.generateAsync({type:"blob",compression:"DEFLATE"});
-    download(blob,"sabz-royan-webgis.gdb.zip","application/zip");
-    status("File geodatabase exported. Extract the ZIP archive to access the .gdb folder.");
+    const outputName=(workspaceName?String(workspaceName).replace(/[^A-Za-z0-9_-]+/g,"_"):"sabz-royan-webgis")+".gdb.zip";
+    download(blob,outputName,"application/zip");
+    status("File geodatabase exported"+(workspaceName?" for "+workspaceName:"")+". Extract the ZIP archive to access the .gdb folder.");
   }catch(e){
     console.error(e);
     status("File Geodatabase export failed: "+(e.message||e));
@@ -9534,7 +9542,7 @@ $("applyCrs").onclick=()=>{
   const v=$("customEpsg").value.trim();
   try{setCRS("EPSG:"+v.replace(/^EPSG:/i,""))}catch(e){status(e.message)}
 };
-window.__webGisGdbBridge={get currentCRS(){return currentCRS},addLayer(name,layer){addNamedLayer(name,layer,false)},refreshEditorTargets,layerIndex(layer){return namedLayers.findIndex(x=>x.layer===layer)},featureCount(layer){return vectorFeatures(layer).length},save(){scheduleAutoSave()},openExport(){openDataFormatDialog("export")},cancelActiveTool(){if(!activeDrawHandler)return false;stopActiveDraw(true);return true}};
+window.__webGisGdbBridge={get currentCRS(){return currentCRS},addLayer(name,layer){addNamedLayer(name,layer,false)},refreshEditorTargets,layerIndex(layer){return namedLayers.findIndex(x=>x.layer===layer)},featureCount(layer){return vectorFeatures(layer).length},save(){scheduleAutoSave()},openExport(){openDataFormatDialog("export")},exportWorkspace(workspace){return exportRealGDB(workspace)},cancelActiveTool(){if(!activeDrawHandler)return false;stopActiveDraw(true);return true}};
 
 /* ArcMap-like ModelBuilder: chained, in-memory geoprocessing steps. */
 function closeModelBuilderView(){
