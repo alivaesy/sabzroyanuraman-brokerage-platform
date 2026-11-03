@@ -73,6 +73,7 @@
   section.querySelectorAll("[data-gdb-table]").forEach(button=>button.addEventListener("click",()=>openTable(Number(button.dataset.gdbTable))));
   window.SabzGdbCatalogTree?.render();
  }
+ function removeTablesForWorkspace(workspace,dataset){state.tables=state.tables.filter(table=>!(table.workspace===workspace&&(!dataset||table.featureDataset===dataset)));registerTables(state.tables);}
  function openTable(index){
   const table=state.tables[index];if(!table)return;
   buildUi();
@@ -102,6 +103,6 @@
   }
   if(folderButton&&folderInput)folderButton.onclick=event=>{event.preventDefault();event.stopPropagation();folderInput.click();};
  }
- window.SabzGdbCatalog={chooseLayers,registerTables,openTable,importGdbZip,installImportControl,get tables(){return state.tables.slice();}};
+ window.SabzGdbCatalog={chooseLayers,registerTables,openTable,removeTablesForWorkspace,importGdbZip,installImportControl,get tables(){return state.tables.slice();}};
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",installImportControl,{once:true});else installImportControl();
 })();
