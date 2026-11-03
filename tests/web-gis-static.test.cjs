@@ -679,3 +679,21 @@ test('ArcCatalog tree module reuses the persisted geodatabase catalog and is loa
   assert.match(tree, /ondblclick/);
   assert.match(tree, /expanded=new Set/);
 });
+
+
+test('ArcCatalog geodatabase context menu exposes create, rename, delete and layer actions', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'web-gis.html'), 'utf8');
+  const tree = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-gdb-catalog-tree.js'), 'utf8');
+  assert.match(tree, /showContextMenu/);
+  assert.match(tree, /createWorkspace/);
+  assert.match(tree, /createDataset/);
+  assert.match(tree, /createFeatureClass/);
+  assert.match(tree, /renameNode/);
+  assert.match(tree, /deleteNode/);
+  assert.match(tree, /arcMapDialog\.confirm/);
+  assert.match(tree, /openAttributeTableForLayer/);
+  assert.match(html, /renameNamedLayer:/);
+  assert.match(html, /removeNamedLayer:/);
+  assert.match(html, /openAttributeTableForLayer:/);
+  assert.match(tree, /Export as \.gdb\.zip/);
+});
