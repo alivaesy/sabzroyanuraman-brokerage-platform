@@ -1366,6 +1366,9 @@ window.__sabzWebGISSharedBridge={
   applySelectionVisual:()=>applySelectionVisual(),
   hideLayerContextMenu:()=>hideLayerContextMenu(),
   addNamedLayer:(name,layer,zoom)=>addNamedLayer(name,layer,zoom),
+  renameNamedLayer:(layer,newName)=>{const item=namedLayers.find(x=>x.layer===layer);if(!item)return false;const old=item.name;layerControl.removeLayer(layer);item.name=String(newName);layerControl.addOverlay(layer,item.name);renderLayerList();refreshAttributeLayers();refreshEditorTargets();scheduleAutoSave();status("Layer renamed: "+old+" → "+item.name);return true;},
+  removeNamedLayer:(layer)=>{const index=namedLayers.findIndex(x=>x.layer===layer);if(index<0)return false;if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){status("Save Table Edits before deleting this feature class.");return false;}recordUndoState();const item=namedLayers[index];map.removeLayer(item.layer);layerControl.removeLayer(item.layer);namedLayers.splice(index,1);refreshEditorTargets();refreshAttributeLayers();renderLayerList();scheduleAutoSave();status("Geodatabase feature class layer removed: "+item.name);return true;},
+  openAttributeTableForLayer:(layer)=>{const item=namedLayers.find(x=>x.layer===layer);if(!item)return false;openLayerAttributeTable(item);return true;},
 
   get drawn(){return window.__sabzGISDrawn||null;},
   restoreProject,
