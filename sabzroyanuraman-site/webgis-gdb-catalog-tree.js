@@ -28,14 +28,14 @@
  function escapeMenu(e){if(e.key==="Escape")hideContextMenu()}
  function addMenuItem(menu,label,action,danger=false){const b=document.createElement("button");b.type="button";b.className="sabz-gdb-menu-item"+(danger?" danger":"");b.textContent=label;b.onclick=async e=>{e.stopPropagation();hideContextMenu();try{await action()}catch(err){status(err.message||String(err))}};menu.append(b)}
  function showContextMenu(node,x,y){
-  hideContextMenu();const menu=document.createElement("div");menu.id=menuId;menu.className="sabz-gdb-context-menu";
+  hideContextMenu();const menu=document.createElement("div");menu.id=menuId;menu.className="arc-context-menu show sabz-gdb-context-menu";
   if(!node||node.type==="workspace"||node.type==="dataset"){
    const holder=document.createElement("div");holder.className="sabz-gdb-menu-parent";const newButton=document.createElement("button");newButton.type="button";newButton.className="sabz-gdb-menu-item";newButton.textContent="New  ▸";const sub=document.createElement("div");sub.className="sabz-gdb-submenu";newButton.onclick=e=>{e.stopPropagation();sub.classList.toggle("open")};holder.append(newButton,sub);menu.append(holder);
    if(!node)addMenuItem(sub,"File Geodatabase...",async()=>{const name=await arcMapDialog.prompt({title:"New File Geodatabase",message:"Create a geodatabase in this project catalog.",label:"Geodatabase name",value:"NewGeodatabase"});if(name!==null)createWorkspace(name)});
    else if(node.type==="workspace"){addMenuItem(sub,"Feature Dataset...",()=>createDataset(node.workspace));addMenuItem(sub,"Feature Class...",()=>createFeatureClass(node.workspace,""))}
    else addMenuItem(sub,"Feature Class...",()=>createFeatureClass(node.workspace,node.dataset));
   }
-  if(node){const sep=document.createElement("div");sep.className="sabz-gdb-menu-separator";menu.append(sep);
+  if(node){const sep=document.createElement("div");sep.className="arc-context-sep sabz-gdb-menu-separator";menu.append(sep);
    if(node.type==="class"){const existing=findLayer(node.workspace,node.dataset,node.featureClass),alreadyOnMap=!!(existing&&bridge()?.map?.hasLayer(existing.layer));addMenuItem(menu,alreadyOnMap?"Zoom To Layer":"Add To Map",()=>{const layer=ensureLayer(node.workspace,node.dataset,node.featureClass);try{const bounds=layer.getBounds?.();if(bounds?.isValid())bridge().map.fitBounds(bounds,{padding:[24,24],maxZoom:17})}catch(_){}status(alreadyOnMap?"Zoomed to feature class.":"Feature class added to the map.")});addMenuItem(menu,"Open Attribute Table",()=>bridge()?.openAttributeTableForLayer?.(ensureLayer(node.workspace,node.dataset,node.featureClass)))}
    addMenuItem(menu,"Rename...",()=>renameNode(node));
    addMenuItem(menu,node.type==="workspace"?"Delete Geodatabase...":node.type==="dataset"?"Delete Feature Dataset...":"Delete Feature Class...",()=>deleteNode(node),true);
