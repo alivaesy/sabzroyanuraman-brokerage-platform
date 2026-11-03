@@ -29,6 +29,8 @@ on:
   pull_request:
     paths:
       - "sabzroyanuraman-site/web-gis.html"
+      - "sabzroyanuraman-site/webgis-core-bridge.js"
+      - "tests/web-gis-bridge-contract.test.cjs"
       - "sabzroyanuraman-site/webgis-rustgis-enhancements.js"
       - "sabzroyanuraman-site/webgis-rustgis-vector-runtime.js"
       - "sabzroyanuraman-site/webgis-arcmap-manifest.js"
