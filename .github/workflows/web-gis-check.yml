@@ -13,8 +13,10 @@ on:
       - "tests/web-gis-static.test.cjs"
       - "tests/web-gis-browser-regression.cjs"
       - "tests/web-gis-arcmap-import-regression.cjs"
+      - "tests/web-gis-gdb-catalog-tree-regression.cjs"
       - "sabzroyanuraman-site/webgis-arcmap-manifest.js"
       - "sabzroyanuraman-site/webgis-gdb-catalog.js"
+      - "sabzroyanuraman-site/webgis-gdb-catalog-tree.js"
       - "sabzroyanuraman-site/rustgis-vector-wasm/**"
       - "tests/fixtures/**"
       - "tools/mxd_to_manifest.py"
@@ -55,6 +57,7 @@ jobs:
           node --check sabzroyanuraman-site/webgis-rustgis-vector-runtime.js
           node --check sabzroyanuraman-site/webgis-arcmap-manifest.js
           node --check sabzroyanuraman-site/webgis-gdb-catalog.js
+          node --check sabzroyanuraman-site/webgis-gdb-catalog-tree.js
 
 
   browser-regression:
@@ -103,6 +106,10 @@ jobs:
         env:
           WEBGIS_BASE_URL: http://127.0.0.1:4173/web-gis.html
         run: node tests/web-gis-arcmap-import-regression.cjs
+      - name: Run ArcCatalog geodatabase tree browser regression
+        env:
+          WEBGIS_BASE_URL: http://127.0.0.1:4173/web-gis.html
+        run: node tests/web-gis-gdb-catalog-tree-regression.cjs
       - name: Run existing WebGIS browser regression
         env:
           WEBGIS_BASE_URL: http://127.0.0.1:4173/web-gis.html
