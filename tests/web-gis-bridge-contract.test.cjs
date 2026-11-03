@@ -14,3 +14,12 @@ for(const key of ['map','currentCRS','namedLayers','addNamedLayer','status','sch
 assert.match(moduleSource,/version:1/);
 assert.match(moduleSource,/Object\.freeze\(api\)/);
 console.log('PASS — versioned WebGIS bridge facade and legacy script load order.');
+
+const vectorRuntime=fs.readFileSync(path.join(root,'webgis-rustgis-vector-runtime.js'),'utf8');
+assert.match(moduleSource,/core\.rasterSources\)\)core\.rasterSources=\[\]/);
+assert.match(moduleSource,/core\.registerRasterSource=/);
+assert.match(moduleSource,/core\.addRasterOverlay=/);
+assert.match(moduleSource,/window\.L\.imageOverlay/);
+assert.match(moduleSource,/core\.registerRasterSource\(layer\._sabzRasterMetadata\.name,bytes,fileName\)/);
+assert.match(vectorRuntime,/return bridge\(\)\?\.rasterSources \|\| \[\]/);
+console.log('PASS — persistent raster registry and Leaflet overlay bridge are provided to RustGIS.');
