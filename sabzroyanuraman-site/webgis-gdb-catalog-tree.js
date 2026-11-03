@@ -39,7 +39,7 @@
    if(node.type==="class"){const existing=findLayer(node.workspace,node.dataset,node.featureClass),alreadyOnMap=!!(existing&&bridge()?.map?.hasLayer(existing.layer));addMenuItem(menu,alreadyOnMap?"Zoom To Layer":"Add To Map",()=>{const layer=ensureLayer(node.workspace,node.dataset,node.featureClass);try{const bounds=layer.getBounds?.();if(bounds?.isValid())bridge().map.fitBounds(bounds,{padding:[24,24],maxZoom:17})}catch(_){}status(alreadyOnMap?"Zoomed to feature class.":"Feature class added to the map.")});addMenuItem(menu,"Open Attribute Table",()=>bridge()?.openAttributeTableForLayer?.(ensureLayer(node.workspace,node.dataset,node.featureClass)))}
    addMenuItem(menu,"Rename...",()=>renameNode(node));
    addMenuItem(menu,node.type==="workspace"?"Delete Geodatabase...":node.type==="dataset"?"Delete Feature Dataset...":"Delete Feature Class...",()=>deleteNode(node),true);
-   if(node.type==="workspace")addMenuItem(menu,"Export as .gdb.zip",()=>{document.getElementById("gdbExportNow")?.click();status("The existing exporter handles the current project; exporting only one selected workspace is not supported yet.")});
+   if(node.type==="workspace")addMenuItem(menu,"Export as .gdb.zip",()=>{const exporter=window.__webGisGdbBridge?.exportWorkspace;if(typeof exporter!=="function")throw new Error("The File Geodatabase exporter is unavailable.");return exporter(node.workspace)});
   }
   document.body.append(menu);menu.style.left=Math.max(4,Math.min(x,window.innerWidth-menu.offsetWidth-4))+"px";menu.style.top=Math.max(4,Math.min(y,window.innerHeight-menu.offsetHeight-4))+"px";document.addEventListener("pointerdown",outsideMenu,true);document.addEventListener("keydown",escapeMenu,true);
  }
