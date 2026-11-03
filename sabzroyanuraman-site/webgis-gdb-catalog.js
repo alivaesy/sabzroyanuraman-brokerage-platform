@@ -66,11 +66,9 @@
  }
  function registerTables(tables){
   state.tables=Array.isArray(tables)?tables:[];
-  const panel=document.getElementById("layers")?.parentElement;
-  if(!panel)return;
-  let section=document.getElementById("gdbTablesCatalog");
-  if(!section){section=document.createElement("section");section.id="gdbTablesCatalog";section.className="section";panel.appendChild(section);}
-  section.innerHTML='<h3>Tables ('+state.tables.length+')</h3>'+
+  const section=document.querySelector('[data-catalog-section="geodatabase"] #gdbTablesCatalog');
+  if(!section)return;
+  section.innerHTML='<div class="small" style="font-weight:700;margin-bottom:5px">Tables ('+state.tables.length+')</div>'+
    (state.tables.length?state.tables.map((table,index)=>'<div class="layer-row"><span class="layer-icon">▤</span><span class="layer-name">'+esc(table.name)+'</span><button type="button" data-gdb-table="'+index+'">Open</button><span class="small">'+Number(table.rows?.length||0)+' rows</span></div>').join(""):'<div class="small">No non-spatial user tables were discovered. Internal GDB catalog tables are hidden.</div>');
   section.querySelectorAll("[data-gdb-table]").forEach(button=>button.addEventListener("click",()=>openTable(Number(button.dataset.gdbTable))));
  }
@@ -87,17 +85,21 @@
   document.getElementById("sabzGdbTableView").classList.add("show");
  }
  function installImportControl(){
-  const layers=document.getElementById("layers"),target=layers?.parentElement||document.getElementById("panel");
-  if(!target||document.getElementById("gdbImportControl"))return;
-  const section=document.createElement("section");section.id="gdbImportControl";section.className="section";
-  section.innerHTML='<h3>File Geodatabase</h3><div class="row"><button type="button" class="action secondary" id="gdbArchiveButton">Import .gdb ZIP</button></div><input id="gdbArchiveInput" type="file" accept=".zip" hidden><div class="small">Select a ZIP containing the complete .gdb folder. Folder import remains available in Add Data.</div>';
-  target.insertBefore(section,layers);
-  document.getElementById("gdbArchiveButton").onclick=()=>document.getElementById("gdbArchiveInput").click();
-  document.getElementById("gdbArchiveInput").onchange=async event=>{
-   const file=event.target.files?.[0];if(!file)return;
-   try{await importGdbZip(file);}catch(error){window.__sabzWebGISSharedBridge?.status?.("FileGDB ZIP import failed: "+(error.message||error));}
-   finally{event.target.value="";}
-  };
+  const section=document.querySelector('[data-catalog-section="geodatabase"] .accordion-body');
+  const zipButton=section?.querySelector("#gdbCatalogImportZipButton");
+  const zipInput=section?.querySelector("#gdbCatalogZipInput");
+  const folderButton=section?.querySelector("#gdbCatalogImportFolderButton");
+  const folderInput=document.getElementById("gdbInput");
+  if(zipButton&&zipInput){
+   zipButton.onclick=event=>{event.preventDefault();event.stopPropagation();zipInput.click();};
+   zipInput.onchange=async event=>{
+    const file=event.target.files?.[0];if(!file)return;
+    try{await importGdbZip(file);}
+    catch(error){window.__sabzWebGISSharedBridge?.status?.("FileGDB ZIP import failed: "+(error.message||error));}
+    finally{event.target.value="";}
+   };
+  }
+  if(folderButton&&folderInput)folderButton.onclick=event=>{event.preventDefault();event.stopPropagation();folderInput.click();};
  }
  window.SabzGdbCatalog={chooseLayers,registerTables,openTable,importGdbZip,installImportControl,get tables(){return state.tables.slice();}};
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",installImportControl,{once:true});else installImportControl();
