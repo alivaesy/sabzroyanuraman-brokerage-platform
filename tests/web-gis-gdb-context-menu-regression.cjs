@@ -65,6 +65,8 @@ const {chromium}=require('playwright');
   await page.waitForSelector('#geodatabaseManagerList [data-node-key="w:Context_GDB_Renamed/d:Land_Parcels/c:Parcels_Final"]');
   layerInfo=await page.evaluate(()=>{const x=window.__sabzWebGISSharedBridge.namedLayers.find(i=>i.layer?._gdbMetadata?.featureClass==='Parcels_Final');return {name:x?.name,displayName:x?.displayName,metadata:x?.layer?._gdbMetadata}});
   assert.equal(layerInfo.name,'Context_GDB_Renamed / Land_Parcels / Parcels_Final','Catalog rename should update the map layer name');
+  assert.equal(layerInfo.metadata.dataset,'Land_Parcels','Dataset rename should update feature-class metadata');
+  assert.equal(layerInfo.metadata.workspace,'Context_GDB_Renamed','Workspace rename should update feature-class metadata');
   assert.equal(layerInfo.displayName,'Parcels_Final','Feature class rename should update its TOC display name');
   const finalClass=page.locator('#geodatabaseManagerList [data-node-key="w:Context_GDB_Renamed/d:Land_Parcels/c:Parcels_Final"]');
   await finalClass.dispatchEvent('contextmenu',{bubbles:true,cancelable:true,clientX:250,clientY:250});
