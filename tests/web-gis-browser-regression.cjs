@@ -15,8 +15,14 @@ const fixture = {
 
 (async()=>{
   const browser = await chromium.launch({headless:true,args:['--no-sandbox']});
-  const context = await browser.newContext({viewport:{width:1440,height:960},acceptDownloads:true});
+  const context = await browser.newContext({viewport:{width:1440,height:960},acceptDownloads:true,geolocation:{latitude:33.63,longitude:47.75},permissions:['geolocation']});
   const page = await context.newPage();
+  const gpsActions = [];
+  await page.route('**/api/location/track.php', async route => {
+    const payload = route.request().postDataJSON();
+    gpsActions.push(payload.action);
+    await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true})});
+  });
   const pageErrors = [];
   const consoleErrors = [];
   page.on('pageerror', error => pageErrors.push(error.message));
@@ -63,6 +69,24 @@ const fixture = {
       assert.equal(await button.getAttribute('aria-expanded'),'true','Menu should expose expanded state: '+menuId);
       await page.keyboard.press('Escape');
     }
+
+    // Exercise the extracted GPS module with browser geolocation and a mocked tracking API.
+    assert.equal(await page.evaluate(() => typeof window.SabzGpsTrack?.start), 'function',
+      'GPS tracking module must be loaded and expose its public API');
+    await page.locator('#goToXYBtn').click();
+    assert.ok(await page.locator('#goToXYDialog').isVisible(), 'Go To XY dialog must open');
+    page.once('dialog', dialog => dialog.accept());
+    await page.locator('#goToXYTrackStart').click();
+    await page.waitForFunction(() => window.SabzGpsTrack?.pointCount > 0, null, {timeout:15000});
+    assert.equal(await page.evaluate(() => window.SabzGpsTrack.active), true,
+      'GPS tracker should remain active after receiving a browser position');
+    await page.locator('#goToXYTrackStop').click();
+    await page.waitForFunction(() => window.SabzGpsTrack?.active === false, null, {timeout:5000});
+    await page.waitForTimeout(250);
+    assert.ok(gpsActions.includes('start') && gpsActions.includes('point') && gpsActions.includes('stop'),
+      'GPS module should send start, point and stop actions to the tracking API: '+JSON.stringify(gpsActions));
+    await page.locator('#goToXYTrackClear').click();
+    await page.locator('#goToXYClose').click();
 
     // Inject a deterministic test layer through the same bridge used by RustGIS outputs.
     const setup = await page.evaluate(data => {
