@@ -7,7 +7,7 @@ const {chromium}=require('playwright');
  const pageErrors=[],consoleErrors=[];
  page.on('pageerror',e=>pageErrors.push(e.message));
  page.on('console',m=>{if(m.type()==='error')consoleErrors.push(m.text())});
- const clickNew=async(label)=>{const parent=page.locator('#sabzGdbTreeContextMenu .sabz-gdb-menu-item').filter({hasText:/^New/});await parent.click({force:true});const child=page.locator('#sabzGdbTreeContextMenu .sabz-gdb-submenu.open .sabz-gdb-menu-item').filter({hasText:label});await child.click({force:true})};
+ const clickNew=async(label)=>{const parent=page.locator('#sabzGdbTreeContextMenu .sabz-gdb-menu-item').filter({hasText:/^New/});await parent.evaluate(el=>el.click());const child=page.locator('#sabzGdbTreeContextMenu .sabz-gdb-submenu.open .sabz-gdb-menu-item').filter({hasText:label});await child.waitFor({state:'visible'});await child.evaluate(el=>el.click())};
  const confirmDialog=async()=>page.locator('#arcToolDialogOk').click();
  try{
   const response=await page.goto(process.env.WEBGIS_BASE_URL||'http://127.0.0.1:4173/web-gis.html',{waitUntil:'domcontentloaded',timeout:60000});
