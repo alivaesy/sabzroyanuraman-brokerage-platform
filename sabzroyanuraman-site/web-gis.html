@@ -10489,12 +10489,13 @@ document.addEventListener("click",e=>{if(e.target.closest("[data-raster-open]"))
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??"").replace(/[&<>"\']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","\'":"&#39;"}[ch]));
 const gdbCatalog={workspaces:new Map()};
-function gdbCatalogToJSON(){return {workspaces:[...gdbCatalog.workspaces.values()].map(w=>({name:w.name,datasets:[...w.datasets.values()].map(d=>({name:d.name,crs:d.crs,classes:d.classes.map(c=>({...c}))}))}))};}
+function gdbCatalogToJSON(){return {workspaces:[...gdbCatalog.workspaces.values()].map(w=>({name:w.name,datasets:[...w.datasets.values()].map(d=>({name:d.name,crs:d.crs,classes:d.classes.map(c=>({...c}))}))})),tables:window.SabzGdbCatalog?.tables||[]};}
 function restoreGdbCatalogFromJSON(data){
  gdbCatalog.workspaces.clear();
  (data?.workspaces||[]).forEach(raw=>{const name=String(raw.name||"").replace(/\.gdb$/i,""),w={name,datasets:new Map()};(raw.datasets||[]).forEach(rd=>w.datasets.set(rd.name,{name:rd.name,crs:rd.crs,classes:(rd.classes||[]).map(c=>({...c}))}));gdbCatalog.workspaces.set(w.name,w);});
  // Reconcile catalog counts with actual restored feature layers.
  (window.__sabzWebGISSharedBridge?.namedLayers||[]).forEach(item=>{const m=item.layer?._gdbMetadata;if(!m?.workspace||!m.featureClass)return;const workspace=String(m.workspace).replace(/\.gdb$/i,""),dataset=String(m.dataset||m.featureDataset||item.drawingSet||"Default");m.workspace=workspace;m.dataset=dataset;let w=gdbCatalog.workspaces.get(workspace);if(!w){w={name:workspace,datasets:new Map()};gdbCatalog.workspaces.set(workspace,w)}let d=w.datasets.get(dataset);if(!d){d={name:dataset,crs:m.crs||m.sourceCRS||m.displayCRS||window.__webGisGdbBridge?.currentCRS||"EPSG:32638",classes:[]};w.datasets.set(dataset,d)}let c=d.classes.find(x=>x.name===m.featureClass);if(!c){c={name:m.featureClass,geometryType:m.geometryType,count:0};d.classes.push(c)}c.count=window.__webGisGdbBridge?.featureCount(item.layer)||0;});
+ if(Array.isArray(data?.tables))window.SabzGdbCatalog?.registerTables(data.tables);
  renderGdbCatalog();
 }
 function openGeodatabaseManager(){
