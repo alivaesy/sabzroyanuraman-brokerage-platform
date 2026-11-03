@@ -144,26 +144,32 @@
     notify("Repaired "+owner.name+": "+data.features.length+" feature(s)."+fieldWarning);
     return owner._repairReport;
   }
-  function installUi() {
-    if($("arcMapImportPanel"))return;
-    const panel=document.createElement("section");panel.id="arcMapImportPanel";panel.className="section";
-    panel.innerHTML='<h3>ArcMap Document / Data Sources</h3>'+
-      '<div class="row"><button type="button" class="action secondary" id="arcMapManifestButton">Import ArcMap Manifest (.json)</button></div>'+
-      '<input id="arcMapManifestInput" type="file" accept=".json" hidden>'+
-      '<label class="compact-label" for="arcMapRepairLayer">Repair Data Source</label>'+
-      '<select id="arcMapRepairLayer"><option value="">Select unresolved layer…</option></select>'+
-      '<input id="arcMapRepairFile" type="file" accept=".geojson,.json,.kml,.kmz,.zip">'+
-      '<div class="row"><button type="button" class="action" id="arcMapRepairButton">Repair Selected Layer</button><button type="button" class="action secondary" id="arcMapRepairGdbFolderButton">Repair from .gdb Folder</button></div>'+
-      '<input id="arcMapRepairGdbFolder" type="file" webkitdirectory directory multiple hidden>'+
-      '<div id="arcMapImportStatus" class="small" role="status">Import a converted MXD manifest, then repair missing sources.</div>';
-    const target=$("layers")?.parentElement||$("panel");if(!target)return;
-    target.insertBefore(panel,target.firstChild);
-    $("arcMapManifestButton").onclick=()=>$("arcMapManifestInput").click();
-    $("arcMapManifestInput").onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{importManifest(JSON.parse(await f.text()));}catch(err){notify("Manifest import failed: "+(err.message||err));}finally{e.target.value="";}};
-    $("arcMapRepairButton").onclick=async()=>{try{await repairSelectedLayer();}catch(err){notify("Repair failed: "+(err.message||err));}};
-    $("arcMapRepairGdbFolderButton").onclick=()=>$("arcMapRepairGdbFolder").click();
-    $("arcMapRepairGdbFolder").onchange=async event=>{
-      const files=Array.from(event.target.files||[]),name=$("arcMapRepairLayer")?.value;
+  function wireCatalogControls() {
+    const docs=document.querySelector('[data-catalog-section="documents"] .accordion-body');
+    if(!docs)return;
+    const get=id=>docs.querySelector("#"+id);
+    const manifestButton=get("arcMapManifestButton");
+    const manifestInput=get("arcMapManifestInput");
+    const repairSourceButton=get("arcMapRepairSourceButton");
+    const repairFile=get("arcMapRepairFile");
+    const repairButton=get("arcMapRepairButton");
+    const repairFolderButton=get("arcMapRepairGdbFolderButton");
+    const repairFolderInput=get("arcMapRepairGdbFolder");
+    if(manifestButton&&manifestInput)manifestButton.onclick=()=>manifestInput.click();
+    if(manifestInput)manifestInput.onchange=async event=>{
+      const file=event.target.files?.[0];if(!file)return;
+      try{importManifest(JSON.parse(await file.text()));}
+      catch(error){notify("Manifest import failed: "+(error.message||error));}
+      finally{event.target.value="";}
+    };
+    if(repairSourceButton&&repairFile)repairSourceButton.onclick=()=>repairFile.click();
+    if(repairButton)repairButton.onclick=async()=>{
+      try{await repairSelectedLayer();}
+      catch(error){notify("Repair failed: "+(error.message||error));}
+    };
+    if(repairFolderButton&&repairFolderInput)repairFolderButton.onclick=()=>repairFolderInput.click();
+    if(repairFolderInput)repairFolderInput.onchange=async event=>{
+      const files=Array.from(event.target.files||[]),name=get("arcMapRepairLayer")?.value;
       if(!files.length)return;
       const owner=bridge().namedLayers.find(x=>x.name===name&&x.sourceMissing);
       if(!owner){notify("Select an unresolved layer before choosing a GDB folder.");event.target.value="";return;}
@@ -176,13 +182,13 @@
         if(bridge().saveLocalProject)await bridge().saveLocalProject();
         renderRepairChoices();
         notify("Repaired "+owner.name+" from FileGDB folder: "+(owner._repairReport?.featureCount||0)+" feature(s).");
-      }catch(err){notify("FileGDB repair failed: "+(err.message||err));}
+      }catch(error){notify("FileGDB repair failed: "+(error.message||error));}
       finally{delete window.__sabzGdbRepairTargetName;event.target.value="";}
     };
   }
   function start() {
     if(!bridge()?.map||!Array.isArray(bridge().namedLayers))return;
-    installUi();renderRepairChoices();
+    wireCatalogControls();renderRepairChoices();
     const original=bridge().addGeoJSONLayer;
     bridge().addGeoJSONLayer=function(name,data){const result=original.call(this,name,data);renderRepairChoices();return result;};
     window.SabzArcMapManifest={importManifest,repairSelectedLayer,renderRepairChoices,version:"1.0.0"};
