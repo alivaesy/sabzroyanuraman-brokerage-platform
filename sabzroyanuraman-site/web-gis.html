@@ -5152,7 +5152,7 @@ async function importGDBFiles(fileList){
             if(!hasSpatialGeometry){
               const rows=fc.features.map(feature=>feature?.properties||{});
               const fields=[...new Set([...rows.flatMap(row=>Object.keys(row)),...(Array.isArray(detailedLayer.fields)?detailedLayer.fields.map(field=>typeof field==="string"?field:field?.name).filter(Boolean):[])])];
-              report.tables.push({name:layerName,featureDataset:featureDataset||null,rows,fields,sourceFeatureCount:sourceLayer?.featureCount??rows.length});
+              report.tables.push({name:layerName,workspace:root,featureDataset:featureDataset||null,rows,fields,sourceFeatureCount:sourceLayer?.featureCount??rows.length});
               continue;
             }
             if(!fc.features.length){
