@@ -31,7 +31,7 @@ const {chromium}=require('playwright');
   assert.equal(catalogLayout.injectedPanels,0,'Catalog modules must not inject panels into the TOC');
   assert.ok(catalogLayout.manifestInCatalog&&catalogLayout.repairInCatalog&&catalogLayout.gdbZipInCatalog&&catalogLayout.tablesInCatalog,
     'ArcMap and FileGDB controls must live in the Catalog dock');
-  await page.locator('[data-catalog-section="documents"] .accordion-head').click();
+  await page.evaluate(()=>{const section=document.querySelector('[data-catalog-section="documents"]');if(section&&!section.classList.contains("open"))section.querySelector(".accordion-head")?.click();});
   await page.locator('#arcMapManifestInput').setInputFiles(path.join(__dirname,'fixtures','sample.manifest.json'));
   await page.waitForFunction(()=>window.__sabzWebGISSharedBridge.namedLayers.filter(x=>x.sourceMissing).length===3,null,{timeout:15000});
   const initial=await page.evaluate(()=>window.__sabzWebGISSharedBridge.namedLayers.slice(-3).map(x=>({name:x.name,missing:x.sourceMissing,group:x.drawingSet,features:x.layer.getLayers().length,frameCrs:x._arcMapManifest.frameSpatialReference})));
