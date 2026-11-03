@@ -73,6 +73,14 @@ const {chromium}=require('playwright');
   await page.locator('#sabzGdbTreeContextMenu .sabz-gdb-menu-item').filter({hasText:'Open Attribute Table'}).click();
   await page.waitForFunction(()=>document.getElementById('attributeTableWrap')?.textContent?.length>0||document.getElementById('gisDock')?.classList.contains('show'),null,{timeout:15000});
   await page.evaluate(()=>{const x=window.__sabzWebGISSharedBridge.namedLayers.find(i=>i.layer?._gdbMetadata?.featureClass==='Parcels_Final');x.layer.addData({type:'Feature',properties:{parcel_id:1},geometry:{type:'Polygon',coordinates:[[[47,34],[47.001,34],[47.001,34.001],[47,34.001],[47,34]]]}})});
+  const workspaceRoot=page.locator('#geodatabaseManagerList [data-node-key="w:Context_GDB_Renamed"]');
+  const gdbDownload=page.waitForEvent('download',async()=>{
+   await workspaceRoot.dispatchEvent('contextmenu',{bubbles:true,cancelable:true,clientX:230,clientY:230});
+   await page.locator('#sabzGdbTreeContextMenu .sabz-gdb-menu-item').filter({hasText:'Export as .gdb.zip'}).click();
+  });
+  const exported=await gdbDownload;
+  assert.equal(exported.suggestedFilename(),'Context_GDB_Renamed.gdb.zip','Workspace export should use the selected geodatabase name');
+  assert.equal(await exported.failure(),null,'Workspace FileGDB export should complete');
   await finalClass.dispatchEvent('contextmenu',{bubbles:true,cancelable:true,clientX:250,clientY:250});
   await page.locator('#sabzGdbTreeContextMenu .sabz-gdb-menu-item').filter({hasText:'Delete Feature Class'}).click();
   assert.match(await page.locator('#arcToolDialogMessage').innerText(),/1 map feature/,'Delete warning should report existing map features');
