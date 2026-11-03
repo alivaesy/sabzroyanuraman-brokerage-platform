@@ -10501,6 +10501,7 @@ function gdbWorkspace(){
  return gdbCatalog.workspaces.get(name);
 }
 function renderGdbCatalog(){
+ if(window.SabzGdbCatalogTree?.render){window.SabzGdbCatalogTree.render();return;}
  const list=$("geodatabaseManagerList");if(!list)return;
  const rows=[];
  (window.__sabzWebGISSharedBridge?.namedLayers||[]).forEach(item=>{const m=item.layer?._gdbMetadata;if(!m)return;const w=gdbCatalog.workspaces.get(m.workspace),d=w?.datasets.get(m.dataset),c=d?.classes.find(x=>x.name===m.featureClass);if(c)c.count=window.__webGisGdbBridge?.featureCount(item.layer)||0;});
@@ -10533,6 +10534,7 @@ $("gdbCreateFeatureClass").onclick=()=>{
  }catch(e){$("gdbManagerStatus").textContent=e.message}
 };
 $("gdbExportNow").onclick=()=>{closeGeodatabaseManager();window.__webGisGdbBridge.openExport()};
+window.__sabzGdbCatalogState={get workspaces(){return gdbCatalog.workspaces;},toJSON:gdbCatalogToJSON,restore:restoreGdbCatalogFromJSON,render:renderGdbCatalog};
 </script>
 <script>
 /* ArcMap-style guard against losing pending Attribute Table edits on navigation. */
@@ -11028,6 +11030,7 @@ const arcMapDialog=(()=>{
 <script src="webgis-rustgis-enhancements.js"></script>
 <script src="./webgis-arcmap-manifest.js" defer></script>
 <script src="./webgis-gdb-catalog.js" defer></script>
+<script src="./webgis-gdb-catalog-tree.js" defer></script>
 <script>
 (()=>{
  const button=document.getElementById("deployProbeBtn");
