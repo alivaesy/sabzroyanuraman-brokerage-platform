@@ -5247,6 +5247,7 @@ async function importGDBFiles(fileList){
       }
     }
     if(window.SabzGdbCatalog?.registerTables)window.SabzGdbCatalog.registerTables(report.tables);
+    if(typeof scheduleAutoSave==="function")await scheduleAutoSave();
     const summary="GDB scan — files: "+report.selectedFiles+
       "; GDAL datasets: "+report.openedDatasets+
       "; layers imported: "+report.importedLayers+
