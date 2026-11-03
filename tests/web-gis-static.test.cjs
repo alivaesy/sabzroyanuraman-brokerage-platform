@@ -589,6 +589,29 @@ test('Browser regression runner covers live map, basemap, selection, symbology, 
 });
 
 
+test('Catalog tools are wired to their existing dock controls and never inject panels into the TOC', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'web-gis.html'), 'utf8');
+  const manifest = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-arcmap-manifest.js'), 'utf8');
+  const gdb = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-gdb-catalog.js'), 'utf8');
+  const documents = html.slice(html.indexOf('data-catalog-section="documents"'), html.indexOf('data-catalog-section="geodatabase"'));
+  const geodatabaseStart = html.indexOf('data-catalog-section="geodatabase"');
+  const geodatabase = html.slice(geodatabaseStart, html.indexOf('<aside class="panel" id="panel">', geodatabaseStart));
+  assert.match(documents, /id="arcMapManifestButton"/);
+  assert.match(documents, /id="arcMapManifestInput"/);
+  assert.match(documents, /id="arcMapRepairLayer"/);
+  assert.match(documents, /id="arcMapRepairFile"/);
+  assert.match(documents, /id="arcMapRepairButton"/);
+  assert.match(documents, /id="arcMapRepairGdbFolderButton"/);
+  assert.match(geodatabase, /id="gdbCatalogImportZipButton"/);
+  assert.match(geodatabase, /id="gdbCatalogZipInput"/);
+  assert.match(geodatabase, /id="gdbTablesCatalog"/);
+  assert.match(manifest, /function wireCatalogControls\(\)/);
+  assert.doesNotMatch(manifest, /function installUi\(|insertBefore\(panel/);
+  assert.match(gdb, /querySelector\('\[data-catalog-section="geodatabase"\] #gdbTablesCatalog'\)/);
+  assert.doesNotMatch(gdb, /function installImportControl\(\)[\s\S]{0,1200}insertBefore\(/);
+  assert.doesNotMatch(gdb, /createElement\("section"\)/);
+});
+
 test('Geodatabase catalog restore and render use the shared GIS bridge across script scopes', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'web-gis.html'), 'utf8');
   assert.match(html, /featureCount\(layer\)\{return vectorFeatures\(layer\)\.length\}/);
