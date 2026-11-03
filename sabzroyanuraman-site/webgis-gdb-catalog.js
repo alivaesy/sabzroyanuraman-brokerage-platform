@@ -87,7 +87,7 @@
  function installImportControl(){
   const section=document.querySelector('[data-catalog-section="geodatabase"] .accordion-body');
   const zipButton=section?.querySelector("#gdbCatalogImportZipButton");
-  const zipInput=section?.querySelector("#gdbCatalogZipInput");
+  const zipInput=section?.querySelector("#gdbArchiveInput");
   const folderButton=section?.querySelector("#gdbCatalogImportFolderButton");
   const folderInput=document.getElementById("gdbInput");
   if(zipButton&&zipInput){
