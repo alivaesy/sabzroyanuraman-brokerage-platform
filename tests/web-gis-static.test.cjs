@@ -696,4 +696,6 @@ test('ArcCatalog geodatabase context menu exposes create, rename, delete and lay
   assert.match(html, /removeNamedLayer:/);
   assert.match(html, /openAttributeTableForLayer:/);
   assert.match(tree, /Export as \.gdb\.zip/);
+  assert.match(html, /async function exportRealGDB\(workspaceName=null\)/);
+  assert.match(html, /exportWorkspace\(workspace\)\{return exportRealGDB\(workspace\)\}/);
 });
