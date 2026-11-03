@@ -43,7 +43,7 @@ const {chromium}=require('playwright');
   const classSelector='#geodatabaseManagerList [data-node-key="w:Context_GDB/d:Parcels/c:Parcels_FC"]';
   await page.evaluate(()=>{const item=window.__sabzWebGISSharedBridge.namedLayers.find(i=>i.layer?._gdbMetadata?.featureClass==='Parcels_FC');window.__sabzWebGISSharedBridge.map.removeLayer(item.layer)});
   await page.locator(classSelector).dispatchEvent('contextmenu',{bubbles:true,cancelable:true,clientX:250,clientY:250});
-  await page.locator('#sabzGdbTreeContextMenu .sabz-gdb-menu-item').filter({hasText:'Add To Map'}).click();
+  const addToMap=page.locator('#sabzGdbTreeContextMenu .sabz-gdb-menu-item').filter({hasText:'Add To Map'});await addToMap.waitFor({state:'visible'});await addToMap.evaluate(el=>el.click());
   assert.equal(await page.evaluate(()=>{const item=window.__sabzWebGISSharedBridge.namedLayers.find(i=>i.layer?._gdbMetadata?.featureClass==='Parcels_FC');return window.__sabzWebGISSharedBridge.map.hasLayer(item.layer)}),true,'Add To Map should restore a hidden catalog layer');
   assert.ok(await page.locator('#editTargetLayer').inputValue()!=='','New feature class should be available as an Editor target');
   await page.locator('#startEditingBtn').click();
