@@ -10778,7 +10778,9 @@ const arcMapDialog=(()=>{
   });
  }
  return {prompt:opts=>show(opts),select:opts=>show({...opts,options:opts.options||[]}),confirm:opts=>show({...opts,confirm:true}),form:opts=>show(opts)};
-})();</script>
+})();
+window.arcMapDialog=arcMapDialog;
+</script>
 
 <script>
 /* ArcMap-style keyboard shortcuts, routed through existing toolbar actions. */
