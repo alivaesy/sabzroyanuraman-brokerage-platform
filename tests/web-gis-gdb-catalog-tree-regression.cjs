@@ -27,7 +27,8 @@ const {chromium}=require('playwright');
     for(const c of ['FC_One','FC_Two'])await create(w,d,c);
    }
   }
-  await page.evaluate(()=>window.__sabzGdbCatalogState.render());
+  await page.evaluate(()=>{window.SabzGdbCatalog.registerTables([{name:'Lookup_Table',workspace:'CatalogRegression_A',featureDataset:null,rows:[{id:1}],fields:['id']}]);window.__sabzGdbCatalogState.render()});
+  assert.equal(await page.locator('#geodatabaseManagerList [data-node-key="w:CatalogRegression_A/t:0"] .sabz-gdb-tree-name').textContent(),'Lookup_Table','Standalone table should appear under its source geodatabase');
   const before=await page.evaluate(()=>({roots:[...document.querySelectorAll('#geodatabaseManagerList > div > .sabz-gdb-tree-node')].map(x=>x.querySelector('.sabz-gdb-tree-name')?.textContent),workspaces:window.__sabzGdbCatalogState.toJSON().workspaces.map(w=>({name:w.name,datasets:w.datasets.map(d=>({name:d.name,classes:d.classes.map(c=>c.name)}))})),details:!!document.getElementById('gdbTreeDetails')}));
   assert.deepEqual(before.workspaces.filter(w=>w.name.startsWith('CatalogRegression_')).map(w=>[w.name,w.datasets.length,w.datasets.reduce((n,d)=>n+d.classes.length,0)]),[['CatalogRegression_A',2,4],['CatalogRegression_B',2,4]]);
   const firstRoot=page.locator('#geodatabaseManagerList .sabz-gdb-tree-node[data-node-key="w:CatalogRegression_A"]');
