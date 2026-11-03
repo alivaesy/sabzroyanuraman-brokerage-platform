@@ -11,7 +11,7 @@ const {chromium}=require('playwright');
   const response=await page.goto(process.env.WEBGIS_BASE_URL||'http://127.0.0.1:4173/web-gis.html',{waitUntil:'domcontentloaded',timeout:60000});
   assert.ok(response?.ok(),'WebGIS should load');
   await page.waitForFunction(()=>!!window.__sabzGdbCatalogState&&!!window.SabzGdbCatalogTree&&!!window.__sabzWebGISSharedBridge?.map,null,{timeout:60000});
-  await page.evaluate(()=>{document.querySelector('[data-catalog-section="geodatabase"]')?.classList.add('open');document.getElementById('catalogPanel')?.classList.add('open');window.__sabzGdbCatalogState.render()});
+  await page.evaluate(()=>{document.querySelector('[data-catalog-section="geodatabase"]')?.classList.add('open');document.getElementById('searchDock')?.classList.add('catalog-open');document.getElementById('catalogPanel')?.classList.add('open');window.__sabzGdbCatalogState.render()});
   const create=async(workspace,dataset,featureClass)=>{
    await page.locator('#gdbWorkspaceName').fill(workspace);
    await page.locator('#gdbDatasetName').fill(dataset);
