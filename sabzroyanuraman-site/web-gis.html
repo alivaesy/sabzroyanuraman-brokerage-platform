@@ -582,6 +582,8 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <style>
 #geodatabaseManagerDialog{position:fixed;inset:0;z-index:10040;display:none;align-items:center;justify-content:center;background:#0005;font:12px Arial,sans-serif;direction:ltr;color:#253746}
 #geodatabaseManagerDialog.open{display:flex}
+/* The geodatabase manager now lives inline inside the Catalog accordion, not in a hidden modal overlay. */
+#geodatabaseManagerDialog.gdb-manager-inline{position:static;inset:auto;z-index:auto;display:block;align-items:initial;justify-content:initial;background:transparent;font:inherit;color:inherit}
 #geodatabaseManagerDialog .gdb-panel{width:min(620px,94vw);max-height:85vh;overflow:auto;background:#f2f3f4;border:1px solid #71818b;box-shadow:0 8px 28px #0004}
 #geodatabaseManagerDialog .gdb-title{display:flex;align-items:center;padding:8px 12px;background:linear-gradient(#fff,#dce2e5);border-bottom:1px solid #aeb9bf;font-weight:bold}
 #geodatabaseManagerDialog .gdb-title button{margin-left:auto;border:1px solid #adb7bd;background:#f8f8f8;font-size:18px}
