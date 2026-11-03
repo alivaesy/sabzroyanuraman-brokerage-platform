@@ -14,6 +14,7 @@ on:
       - "tests/web-gis-browser-regression.cjs"
       - "tests/web-gis-arcmap-import-regression.cjs"
       - "tests/web-gis-gdb-catalog-tree-regression.cjs"
+      - "tests/web-gis-gdb-context-menu-regression.cjs"
       - "sabzroyanuraman-site/webgis-arcmap-manifest.js"
       - "sabzroyanuraman-site/webgis-gdb-catalog.js"
       - "sabzroyanuraman-site/webgis-gdb-catalog-tree.js"
@@ -112,6 +113,10 @@ jobs:
         env:
           WEBGIS_BASE_URL: http://127.0.0.1:4173/web-gis.html
         run: node tests/web-gis-gdb-catalog-tree-regression.cjs
+      - name: Run ArcCatalog geodatabase context-menu browser regression
+        env:
+          WEBGIS_BASE_URL: http://127.0.0.1:4173/web-gis.html
+        run: node tests/web-gis-gdb-context-menu-regression.cjs
       - name: Run existing WebGIS browser regression
         env:
           WEBGIS_BASE_URL: http://127.0.0.1:4173/web-gis.html
