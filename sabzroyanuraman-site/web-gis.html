@@ -916,10 +916,16 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
     <div class="accordion-body">
       <div class="compact-block">
         <div class="small">Import a WebGIS ArcMap manifest or inspect and repair broken layer sources. Native .mxd conversion is not implemented yet.</div>
-        <button type="button" class="action" data-action="importArcMap" style="width:100%;margin-top:8px">Import ArcMap Manifest (.json)...</button>
-        <button type="button" class="action secondary" disabled title="در مرحله توسعه؛ فعلاً منبع داده قابل تعمیر نیست" style="width:100%;margin-top:6px">Repair Data Source... <span class="small">(در دست توسعه)</span></button>
-        <button type="button" class="action secondary" disabled title="در مرحله توسعه؛ فعلاً منبع لایه انتخاب‌شده قابل تعمیر نیست" style="width:100%;margin-top:6px">Repair Selected Layer... <span class="small">(در دست توسعه)</span></button>
-        <button type="button" class="action secondary" disabled title="در مرحله توسعه؛ تعمیر از پوشه GDB هنوز پیاده‌سازی نشده است" style="width:100%;margin-top:6px">Repair from .gdb Folder... <span class="small">(در دست توسعه)</span></button>
+        <button type="button" id="arcMapManifestButton" class="action" data-action="importArcMap" style="width:100%;margin-top:8px">Import ArcMap Manifest (.json)...</button>
+        <input id="arcMapManifestInput" type="file" accept=".json" hidden>
+        <label class="compact-label" for="arcMapRepairLayer" style="display:block;margin-top:8px">Repair Data Source</label>
+        <select id="arcMapRepairLayer" style="width:100%"><option value="">Select unresolved layer…</option></select>
+        <input id="arcMapRepairFile" type="file" accept=".geojson,.json,.kml,.kmz,.zip" hidden>
+        <button type="button" id="arcMapRepairSourceButton" class="action secondary" style="width:100%;margin-top:6px">Choose replacement data source...</button>
+        <button type="button" id="arcMapRepairButton" class="action" style="width:100%;margin-top:6px">Repair Selected Layer</button>
+        <button type="button" id="arcMapRepairGdbFolderButton" class="action secondary" style="width:100%;margin-top:6px">Repair from .gdb Folder...</button>
+        <input id="arcMapRepairGdbFolder" type="file" webkitdirectory directory multiple hidden>
+        <div id="arcMapImportStatus" class="small" role="status" style="margin-top:7px">Import a converted MXD manifest, then repair missing sources.</div>
       </div>
     </div>
   </div>
@@ -927,9 +933,11 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
     <div class="accordion-head"><span>File Geodatabase</span></div>
     <div class="accordion-body">
       <div class="compact-block">
-        <button type="button" class="action" data-action="importGdbZip" style="width:100%">Import .gdb ZIP...</button>
-        <button type="button" class="action secondary" data-action="importGdbFolder" style="width:100%;margin-top:6px">Import .gdb Folder...</button>
+        <button type="button" id="gdbCatalogImportZipButton" class="action" data-action="importGdbZip" style="width:100%">Import .gdb ZIP...</button>
+        <input id="gdbCatalogZipInput" type="file" accept=".zip,application/zip" hidden>
+        <button type="button" id="gdbCatalogImportFolderButton" class="action secondary" data-action="importGdbFolder" style="width:100%;margin-top:6px">Import .gdb Folder...</button>
         
+        <div id="gdbTablesCatalog" class="compact-block" aria-live="polite" style="margin-top:8px"><div class="small">No non-spatial user tables have been discovered.</div></div>
         <div class="small" style="margin-top:8px">Import geodatabases or create and manage their workspace structure below.</div>
       <div id="geodatabaseManagerDialog" class="gdb-manager-inline">
         <div class="gdb-panel">
