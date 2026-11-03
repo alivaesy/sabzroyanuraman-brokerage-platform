@@ -1,0 +1,14 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const root=path.join(__dirname,'..','sabzroyanuraman-site');
+const html=fs.readFileSync(path.join(root,'web-gis.html'),'utf8');
+const moduleSource=fs.readFileSync(path.join(root,'webgis-core-bridge.js'),'utf8');
+assert.match(html,/webgis-core-bridge\.js\?v=20261103-bridge-v1/);
+assert.ok(html.indexOf('</script>')<html.indexOf('webgis-core-bridge.js'));
+assert.ok(html.indexOf('webgis-core-bridge.js')<html.indexOf('webgis-gps-tracking.js'));
+for(const key of ['map','currentCRS','namedLayers','addNamedLayer','status','scheduleAutoSave','serializeProject','restoreProject'])assert.ok(moduleSource.includes('"'+key+'"'), 'bridge contract key '+key);
+assert.match(moduleSource,/version:1/);
+assert.match(moduleSource,/Object\.freeze\(api\)/);
+console.log('PASS — versioned WebGIS bridge facade and legacy script load order.');
