@@ -5052,6 +5052,7 @@ async function importGDBFiles(fileList){
   if(!files.length){status("No geodatabase folder was selected.");return}
   const relative=files.map(f=>f.webkitRelativePath||f.name);
   const root=(relative[0]||"").split("/")[0]||"selected.gdb";
+  const catalogWorkspace=root.replace(/\.gdb$/i,"");
   if(!/\.gdb$/i.test(root)){status("Select the actual folder ending in .gdb.");return}
   if(typeof JSZip==="undefined")throw new Error("ZIP library is unavailable; cannot preserve the File Geodatabase directory structure.");
   const report={selectedFiles:files.length,openedDatasets:0,sourceFeatureClasses:0,importedLayers:0,importedFeatures:0,emptyLayers:0,failedLayers:0,tables:[],openErrors:[],layerErrors:[],unsupported:[],
@@ -5155,7 +5156,7 @@ async function importGDBFiles(fileList){
             if(!hasSpatialGeometry){
               const rows=fc.features.map(feature=>feature?.properties||{});
               const fields=[...new Set([...rows.flatMap(row=>Object.keys(row)),...(Array.isArray(detailedLayer.fields)?detailedLayer.fields.map(field=>typeof field==="string"?field:field?.name).filter(Boolean):[])])];
-              report.tables.push({name:layerName,workspace:root,featureDataset:featureDataset||null,rows,fields,sourceFeatureCount:sourceLayer?.featureCount??rows.length});
+              report.tables.push({name:layerName,workspace:catalogWorkspace,featureDataset:featureDataset||null,rows,fields,sourceFeatureCount:sourceLayer?.featureCount??rows.length});
               continue;
             }
             if(!fc.features.length){
@@ -5165,8 +5166,8 @@ async function importGDBFiles(fileList){
               addNamedLayer(layerName,emptyLayer,false);
               const emptyItem=namedLayers.find(x=>x.layer===emptyLayer);
               const emptyFields=Array.isArray(detailedLayer.fields)?detailedLayer.fields:[];
-              emptyLayer._gdbMetadata={workspace:root,featureClass:layerName,driver:info?.driverName||"OpenFileGDB",
-                sourceFeatureCount:sourceLayer?.featureCount??0,displayCRS:"EPSG:4326",
+              emptyLayer._gdbMetadata={workspace:catalogWorkspace,dataset:featureDataset||"Default",featureClass:layerName,driver:info?.driverName||"OpenFileGDB",
+                sourceFeatureCount:sourceLayer?.featureCount??0,displayCRS:"EPSG:4326",crs:detailedLayer?.geometryFields?.[0]?.coordinateSystem?.projjson?.id?.code?"EPSG:"+detailedLayer.geometryFields[0].coordinateSystem.projjson.id.code:"EPSG:4326",
                 fields:emptyFields.map(f=>typeof f==="string"?f:f?.name).filter(Boolean),
                 fieldDefinitions:emptyFields,sourceDatasetInfo:info||null,sourceSchemaAndCRS:ogrDetails||null};
               if(emptyItem){emptyItem.sourceName=root+"/"+layerName;if(featureDataset)emptyItem.drawingSet=featureDataset;emptyItem.displayName=layerName.split(/[\\/]/).pop();}
@@ -5208,9 +5209,9 @@ async function importGDBFiles(fileList){
                 item.displayName=layerName.split(/[\\/]/).pop();
               }
               displayLayer._gdbMetadata={
-                workspace:root,featureClass:layerName,driver:info?.driverName||"OpenFileGDB",
+                workspace:catalogWorkspace,dataset:featureDataset||"Default",featureClass:layerName,driver:info?.driverName||"OpenFileGDB",
                 sourceFeatureCount:sourceLayer?.featureCount??fc.features.length,
-                displayCRS:"EPSG:4326",sourceCRS:detailedLayer?.geometryFields?.[0]?.coordinateSystem?.projjson?.id?.code?"EPSG:"+detailedLayer.geometryFields[0].coordinateSystem.projjson.id.code:null,geometryType:[...new Set(fc.features.map(f=>f.geometry?.type).filter(Boolean))].join(", "),
+                displayCRS:"EPSG:4326",crs:detailedLayer?.geometryFields?.[0]?.coordinateSystem?.projjson?.id?.code?"EPSG:"+detailedLayer.geometryFields[0].coordinateSystem.projjson.id.code:"EPSG:4326",sourceCRS:detailedLayer?.geometryFields?.[0]?.coordinateSystem?.projjson?.id?.code?"EPSG:"+detailedLayer.geometryFields[0].coordinateSystem.projjson.id.code:null,geometryType:[...new Set(fc.features.map(f=>f.geometry?.type).filter(Boolean))].join(", "),
                 fields:[...new Set([
                   ...fc.features.flatMap(f=>Object.keys(f.properties||{})),
                   ...(Array.isArray(detailedLayer.fields)?detailedLayer.fields.map(f=>typeof f==="string"?f:f?.name).filter(Boolean):[])
