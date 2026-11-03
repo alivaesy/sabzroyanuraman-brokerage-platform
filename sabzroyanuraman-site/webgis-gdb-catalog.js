@@ -71,6 +71,7 @@
   section.innerHTML='<div class="small" style="font-weight:700;margin-bottom:5px">Tables ('+state.tables.length+')</div>'+
    (state.tables.length?state.tables.map((table,index)=>'<div class="layer-row"><span class="layer-icon">▤</span><span class="layer-name">'+esc(table.name)+'</span><button type="button" data-gdb-table="'+index+'">Open</button><span class="small">'+Number(table.rows?.length||0)+' rows</span></div>').join(""):'<div class="small">No non-spatial user tables were discovered. Internal GDB catalog tables are hidden.</div>');
   section.querySelectorAll("[data-gdb-table]").forEach(button=>button.addEventListener("click",()=>openTable(Number(button.dataset.gdbTable))));
+  window.SabzGdbCatalogTree?.render();
  }
  function openTable(index){
   const table=state.tables[index];if(!table)return;
