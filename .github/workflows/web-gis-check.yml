@@ -9,6 +9,8 @@ on:
     paths:
       - "sabzroyanuraman-site/web-gis.html"
       - "sabzroyanuraman-site/webgis-gps-tracking.js"
+      - "sabzroyanuraman-site/webgis-core-bridge.js"
+      - "tests/web-gis-bridge-contract.test.cjs"
       - "sabzroyanuraman-site/webgis-rustgis-enhancements.js"
       - "sabzroyanuraman-site/webgis-rustgis-vector-runtime.js"
       - "tests/web-gis-static.test.cjs"
@@ -55,8 +57,9 @@ jobs:
           node-version: 20
       - name: Validate Web GIS source and toolbox registration
         run: |
-          node --test tests/web-gis-static.test.cjs tests/web-gis-gps-module.test.cjs
+          node --test tests/web-gis-static.test.cjs tests/web-gis-gps-module.test.cjs tests/web-gis-bridge-contract.test.cjs
           node --check sabzroyanuraman-site/webgis-gps-tracking.js
+          node --check sabzroyanuraman-site/webgis-core-bridge.js
           python -m py_compile tools/mxd_to_manifest.py
       - name: Check ModelBuilder, Layout, and RustGIS runtime syntax
         run: |
