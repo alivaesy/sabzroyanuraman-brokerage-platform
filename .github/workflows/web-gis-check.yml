@@ -34,6 +34,7 @@ on:
       - "tests/web-gis-browser-regression.cjs"
       - "tests/web-gis-arcmap-import-regression.cjs"
       - "tests/web-gis-gdb-catalog-tree-regression.cjs"
+      - "tests/web-gis-gdb-context-menu-regression.cjs"
       - "tests/fixtures/**"
       - "tools/mxd_to_manifest.py"
       - ".github/workflows/web-gis-check.yml"
