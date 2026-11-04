@@ -158,17 +158,18 @@ const fixture = {
         control.value=String(value);
         control.dispatchEvent(new Event('change',{bubbles:true}));
       };
-      const apply = (mode,field) => {
+      const apply = (mode,field,method) => {
         bridge.openLayerProperties(item);
         set('lpRenderer',mode);
         if(field)set('lpStyleField',field);
         set('lpColorRamp','green');
         set('lpClassCount','5');
+        if(method)set('lpClassificationMethod',method);
         document.getElementById('layerPropertiesForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
       };
       apply('unique','parcel_id');
       const uniqueColors=item.layer.getLayers().map(feature=>feature.options?.fillColor).filter(Boolean);
-      apply('graduated','area_ha');
+      apply('graduated','area_ha','quantile');
       const labels=document.getElementById('lpLabelsEnabled');
       if(!labels) throw new Error('Layer label toggle is missing');
       labels.checked=true;
@@ -178,12 +179,13 @@ const fixture = {
       document.getElementById('layerPropertiesForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
       const first=item.layer.getLayers()[0];
       const tooltip=first?.getTooltip();
-      return {uniqueMode:'unique',uniqueColors,renderer:item._rendererConfig?.mode,field:item._rendererConfig?.field,labels:item._labelsEnabled,labelField:item._labelField,tooltip:!!tooltip,tooltipContent:tooltip?.getContent(),tooltipPermanent:tooltip?.options?.permanent,tooltipClassName:tooltip?.options?.className,labelSize:item._labelSize,labelColor:item._labelColor,labelCss:document.getElementById(item._labelClass+'-style')?.textContent||''};
+      return {uniqueMode:'unique',uniqueColors,renderer:item._rendererConfig?.mode,field:item._rendererConfig?.field,method:item._rendererConfig?.method,labels:item._labelsEnabled,labelField:item._labelField,tooltip:!!tooltip,tooltipContent:tooltip?.getContent(),tooltipPermanent:tooltip?.options?.permanent,tooltipClassName:tooltip?.options?.className,labelSize:item._labelSize,labelColor:item._labelColor,labelCss:document.getElementById(item._labelClass+'-style')?.textContent||''};
     },fixtureName);
     assert.equal(styleResult.uniqueMode,'unique');
     assert.ok(new Set(styleResult.uniqueColors).size>=2,'Unique Values renderer should assign distinct category colors');
     assert.equal(styleResult.renderer,'graduated');
     assert.equal(styleResult.field,'area_ha');
+    assert.equal(styleResult.method,'quantile','Graduated Colors should apply the selected Quantile method');
     assert.equal(styleResult.labels,true);
     assert.equal(styleResult.labelField,'name');
     assert.equal(styleResult.tooltip,true,'Labels should be bound to the rendered feature');
@@ -216,9 +218,9 @@ const fixture = {
       const item=window.__sabzWebGISSharedBridge.namedLayers.find(layer=>layer.name===name);
       const featureLayers=item?.layer?.getLayers?.()||[];
       const tooltip=featureLayers[0]?.getTooltip?.();
-      return {renderer:item?._rendererConfig?.mode,field:item?._rendererConfig?.field,labels:item?._labelsEnabled,labelField:item?._labelField,labelSize:item?._labelSize,labelColor:item?._labelColor,count:featureLayers.length,tooltipContent:tooltip?.getContent(),tooltipPermanent:tooltip?.options?.permanent};
+      return {renderer:item?._rendererConfig?.mode,field:item?._rendererConfig?.field,method:item?._rendererConfig?.method,labels:item?._labelsEnabled,labelField:item?._labelField,labelSize:item?._labelSize,labelColor:item?._labelColor,count:featureLayers.length,tooltipContent:tooltip?.getContent(),tooltipPermanent:tooltip?.options?.permanent};
     },fixtureName);
-    assert.deepEqual(restored,{renderer:'graduated',field:'area_ha',labels:true,labelField:'name',labelSize:16,labelColor:'#123456',count:2,tooltipContent:'Regression parcel A',tooltipPermanent:true},
+    assert.deepEqual(restored,{renderer:'graduated',field:'area_ha',method:'quantile',labels:true,labelField:'name',labelSize:16,labelColor:'#123456',count:2,tooltipContent:'Regression parcel A',tooltipPermanent:true},
       'Saved project must restore features, renderer and visible label text after a browser reload');
 
     // The login entry point must be present. Actual account sign-in/out is intentionally
