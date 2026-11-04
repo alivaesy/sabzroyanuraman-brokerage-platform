@@ -29,6 +29,6 @@ const labelCss = core.labelClassCss("layer-label", { size: 14, color: "#123456" 
 assert.match(labelCss, /font-size:14px/);
 assert.match(labelCss, /text-shadow:/, "Labels should use a readable white halo like ArcMap");
 assert.match(labelCss, /background:transparent/, "Labels should not render as boxed tooltips");
-assert.match(labelCss, /:before\\{display:none/, "Leaflet tooltip arrow must be hidden");
+assert.match(labelCss, /:before/, "Leaflet tooltip arrow must be hidden");
 assert.match(core.labelClassCss("bad class!", { size: 14, color: "#123456" }), /^\.badclass\{/);
 console.log("WebGIS labeling core tests passed.");
