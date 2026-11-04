@@ -95,6 +95,20 @@ The current `master` source contains a separate authenticated server-storage pat
 - `web-gis.html` contains `remoteGisSyncRasterAssets()` and `remoteGisRestoreRasterAssets()`: saving an authenticated organization project uploads referenced raster bytes; opening it lists and downloads server assets, verifies byte length/hash and key GeoTIFF metadata, then caches the bytes in IndexedDB for the existing raster renderer.
 - `raster-runtime.js` IndexedDB is therefore a browser cache/local working copy in this flow; the server asset endpoint is the cross-browser source for authenticated organization projects.
 
+**Automated two-browser acceptance test added (opt-in):**
+- Test: `tests/raster-server-cross-browser.e2e.cjs`.
+- It creates two independent Chromium browser contexts (separate cookies and IndexedDB), signs both into the same GIS account, uploads a generated 4×3 GeoTIFF from browser A to the configured dedicated test project, and downloads it from browser B.
+- Browser B must initially have no local copy. The test checks exact byte length, SHA-256, EPSG:32638, dimensions and a known pixel, then confirms the restored bytes can be cached in browser B's IndexedDB. It deletes the uniquely named test asset afterward.
+- This exercises the deployed authenticated API, not a mocked endpoint, when enabled. It does not alter or delete the project itself.
+
+**Enable only with a dedicated, non-production test project:**
+1. Add repository variables: `GIS_RASTER_E2E_ENABLED=true`, `GIS_RASTER_E2E_BASE_URL=https://sabzroyanuraman.com`, `GIS_RASTER_E2E_ORGANIZATION_ID`, and `GIS_RASTER_E2E_PROJECT_ID`.
+2. Add repository secrets: `GIS_RASTER_E2E_USERNAME` and `GIS_RASTER_E2E_PASSWORD`. The account needs an active organization subscription and editor access to that dedicated project.
+3. Ensure the deployed site includes `/raster-runtime-tests.html`, `/raster-runtime.js`, the local GeoTIFF dependency and the current `/api/gis/raster-assets.php` implementation.
+4. Trigger the `RustGIS raster WASM adapter` workflow. If the enable variable is absent or not `true`, the live acceptance step is skipped; ordinary CI remains independent of production credentials.
+
+The test logs only non-secret result metadata. Never use a project containing customer or business data. If cleanup fails, the test prints the unique asset ID so an authorized administrator can remove that one test asset.
+
 **Evidence boundary:** this is source inspection, not proof that the production server path, filesystem permissions, PHP upload limits, session/CSRF flow, or database audit insert have passed a live end-to-end test. The existing Playwright raster smoke test verifies GeoTIFF operations and IndexedDB only; it does not authenticate to the production GIS API or prove a second browser can restore a server asset.
 
 **Next required live acceptance test (use a dedicated non-sensitive test project and small GeoTIFF):**
