@@ -84,6 +84,28 @@ The current master source includes browser-side project persistence/autosave and
 - Browser-local save is not a server backup and does not publish edits to WFS, GeoServer, FeatureServer, PostgreSQL, or PostGIS.
 - Important projects should be exported/backed up using a supported export path before clearing browser data or changing storage code.
 
+### 3.2.1 Raster assets — server persistence implemented, live cross-browser proof pending
+
+The current `master` source contains a separate authenticated server-storage path for GeoTIFF raster bytes. This is distinct from the general project/features database and from the GeoServer/PostGIS WFS layer.
+
+**Source-inspected implementation:**
+- `sabzroyanuraman-site/api/gis/raster-assets.php`: authenticated list, download, upload and delete actions; organization subscription and project-role checks; CSRF on writes; 100 MiB per-file limit and 1 GiB per-project quota.
+- Raster bytes are stored outside the public document root under `/home/sabzroyanuraman/private/gis-raster-assets`, partitioned by organization and project.
+- `raster-geotiff-validator.php` validates TIFF structure and supplied dimensions/CRS; `raster-asset-commit.php` stores content-addressed SHA-256 blobs and switches the JSON metadata pointer atomically.
+- `web-gis.html` contains `remoteGisSyncRasterAssets()` and `remoteGisRestoreRasterAssets()`: saving an authenticated organization project uploads referenced raster bytes; opening it lists and downloads server assets, verifies byte length/hash and key GeoTIFF metadata, then caches the bytes in IndexedDB for the existing raster renderer.
+- `raster-runtime.js` IndexedDB is therefore a browser cache/local working copy in this flow; the server asset endpoint is the cross-browser source for authenticated organization projects.
+
+**Evidence boundary:** this is source inspection, not proof that the production server path, filesystem permissions, PHP upload limits, session/CSRF flow, or database audit insert have passed a live end-to-end test. The existing Playwright raster smoke test verifies GeoTIFF operations and IndexedDB only; it does not authenticate to the production GIS API or prove a second browser can restore a server asset.
+
+**Next required live acceptance test (use a dedicated non-sensitive test project and small GeoTIFF):**
+1. In browser A, sign in, upload/add a GeoTIFF with a known EPSG code, save the organization project, and confirm the raster upload response and server asset-list entry.
+2. In a clean browser context B (no shared IndexedDB), sign in to the same organization and open that project.
+3. Confirm the raster is downloaded, SHA-256/size/CRS checks pass, and the layer renders at the expected extent.
+4. Confirm an unauthorized user cannot list/download/upload/delete the asset; test delete and re-open behavior.
+5. Inspect sanitized server audit evidence and filesystem usage; do not expose session cookies, CSRF tokens, credentials, or private file paths in public logs.
+
+Do not mark raster server persistence as production-verified until this acceptance test passes against the deployed API.
+
 ### 3.2 localStorage — preferences, not a shared database
 
 Some UI settings/preferences are stored in `localStorage`. This is also scoped to the browser profile and origin. Do not treat it as authoritative shared project storage or a database.
