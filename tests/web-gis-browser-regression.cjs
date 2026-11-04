@@ -175,7 +175,8 @@ const fixture = {
       set('lpLabelField','name');
       document.getElementById('layerPropertiesForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
       const first=item.layer.getLayers()[0];
-      return {uniqueMode:'unique',uniqueColors,renderer:item._rendererConfig?.mode,field:item._rendererConfig?.field,labels:item._labelsEnabled,labelField:item._labelField,tooltip:!!first?.getTooltip()};
+      const tooltip=first?.getTooltip();
+      return {uniqueMode:'unique',uniqueColors,renderer:item._rendererConfig?.mode,field:item._rendererConfig?.field,labels:item._labelsEnabled,labelField:item._labelField,tooltip:!!tooltip,tooltipContent:tooltip?.getContent(),tooltipPermanent:tooltip?.options?.permanent,tooltipClassName:tooltip?.options?.className};
     },fixtureName);
     assert.equal(styleResult.uniqueMode,'unique');
     assert.ok(new Set(styleResult.uniqueColors).size>=2,'Unique Values renderer should assign distinct category colors');
@@ -184,6 +185,9 @@ const fixture = {
     assert.equal(styleResult.labels,true);
     assert.equal(styleResult.labelField,'name');
     assert.equal(styleResult.tooltip,true,'Labels should be bound to the rendered feature');
+    assert.equal(styleResult.tooltipContent,'Regression parcel A','Label renderer should display the selected attribute value');
+    assert.equal(styleResult.tooltipPermanent,true,'ArcMap-style labels should remain visible without hover');
+    assert.match(styleResult.tooltipClassName,/^gis-feature-label-/,'Layer labels should use their own generated CSS class');
 
     // Persist locally to IndexedDB, reload the page, and verify geometry + symbology + labels.
     const saved = await page.evaluate(async () => {
@@ -204,10 +208,12 @@ const fixture = {
       if(!project) throw new Error('Saved browser regression project was not found in IndexedDB after reload');
       if(!bridge.restoreProject(project)) throw new Error('Saved browser regression project could not be restored');
       const item=window.__sabzWebGISSharedBridge.namedLayers.find(layer=>layer.name===name);
-      return {renderer:item?._rendererConfig?.mode,field:item?._rendererConfig?.field,labels:item?._labelsEnabled,labelField:item?._labelField,count:item?.layer?.getLayers?.().length};
+      const featureLayers=item?.layer?.getLayers?.()||[];
+      const tooltip=featureLayers[0]?.getTooltip?.();
+      return {renderer:item?._rendererConfig?.mode,field:item?._rendererConfig?.field,labels:item?._labelsEnabled,labelField:item?._labelField,count:featureLayers.length,tooltipContent:tooltip?.getContent(),tooltipPermanent:tooltip?.options?.permanent};
     },fixtureName);
-    assert.deepEqual(restored,{renderer:'graduated',field:'area_ha',labels:true,labelField:'name',count:2},
-      'Saved project must restore features, renderer and labels after a browser reload');
+    assert.deepEqual(restored,{renderer:'graduated',field:'area_ha',labels:true,labelField:'name',count:2,tooltipContent:'Regression parcel A',tooltipPermanent:true},
+      'Saved project must restore features, renderer and visible label text after a browser reload');
 
     // The login entry point must be present. Actual account sign-in/out is intentionally
     // not automated without dedicated non-production credentials supplied as CI secrets.
