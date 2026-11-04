@@ -55,3 +55,21 @@ assert.deepEqual(Array.from(core.selectVisibleLabels([
 assert.equal(core.normalizeLabelConfig({minZoom:30,density:"sparse"}).minZoom,22);
 assert.equal(core.normalizeLabelConfig({minZoom:-2,density:"invalid"}).minZoom,0);
 assert.equal(core.normalizeLabelConfig({density:"invalid"}).density,"balanced");
+
+
+const stressCandidates = Array.from({length:10000}, (_, index) => {
+  const column = index % 100;
+  const row = Math.floor(index / 100);
+  const left = column * 48;
+  const top = row * 24;
+  return {left, top, right:left + 32, bottom:top + 12};
+});
+const stressStart = Date.now();
+const stressVisible = core.selectVisibleLabels(stressCandidates, {density:"balanced"});
+const stressElapsed = Date.now() - stressStart;
+assert.equal(stressVisible.length, 10000, "Separated labels in a 10,000-feature layer should remain visible");
+assert.ok(stressElapsed < 5000, "10,000-label spatial-grid pass should complete within five seconds (actual "+stressElapsed+"ms)");
+const crowdedCandidates = Array.from({length:1500}, () => ({left:10,top:10,right:90,bottom:30}));
+assert.equal(core.selectVisibleLabels(crowdedCandidates).length, 1,
+  "A dense cluster of identical label boxes should retain only one label");
+console.log("Label decluttering stress: 10,000 dispersed + 1,500 coincident labels in "+stressElapsed+"ms.");
