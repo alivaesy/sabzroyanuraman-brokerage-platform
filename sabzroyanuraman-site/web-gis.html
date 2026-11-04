@@ -8245,6 +8245,7 @@ async function labelLayer(){
       }
     }catch(e){console.debug("Could not label feature",e);}
   });
+  if(owner)scheduleAutoSave();
   status("Labels enabled for "+count+" feature(s) using field '"+field+"'.");
 }
 async function groupLayers(){
