@@ -19,5 +19,70 @@
     );
   }
 
-  root.SabzWebGISSymbologyCore = Object.freeze({ layerStyleRamp });
+  function numericValues(values) {
+    return (Array.isArray(values) ? values : []).filter(value =>
+      value !== null && value !== undefined &&
+      !(typeof value === "string" && value.trim() === "") &&
+      (typeof value === "number" || typeof value === "string") &&
+      Number.isFinite(Number(value))
+    ).map(Number);
+  }
+
+  function uniqueValueClasses(values, rampName) {
+    const counts = new Map();
+    (Array.isArray(values) ? values : []).forEach(value => {
+      if (value === null || value === undefined || String(value).trim() === "") return;
+      const key = String(value);
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    const keys = Array.from(counts.keys()).sort((a, b) =>
+      a.localeCompare(b, undefined, { numeric: true })
+    );
+    const colors = layerStyleRamp(rampName, Math.max(1, keys.length));
+    return keys.map((value, index) => ({
+      value,
+      count: counts.get(value),
+      color: colors[index % colors.length]
+    }));
+  }
+
+  function graduatedClasses(values, count, rampName, method = "equal-interval") {
+    const numbers = numericValues(values).sort((a, b) => a - b);
+    if (!numbers.length) return [];
+    const size = Math.max(2, Math.min(7, Math.floor(Number(count) || 5)));
+    const min = numbers[0], max = numbers[numbers.length - 1];
+    const colors = layerStyleRamp(rampName, size);
+    const classes = [];
+    for (let index = 0; index < size; index++) {
+      let upper;
+      if (method === "quantile") {
+        upper = numbers[Math.min(numbers.length - 1,
+          Math.max(0, Math.ceil((index + 1) * numbers.length / size) - 1))];
+      } else {
+        upper = index === size - 1 ? max : min + (max - min) * (index + 1) / size;
+      }
+      const lower = index === 0 ? min : classes[index - 1].max;
+      classes.push({ min: lower, max: upper, color: colors[index] });
+    }
+    return classes;
+  }
+
+  function classifyGraduatedValue(value, classes) {
+    if (value === null || value === undefined ||
+        (typeof value === "string" && value.trim() === "") ||
+        !Number.isFinite(Number(value)) || !Array.isArray(classes) || !classes.length) return -1;
+    const number = Number(value);
+    const index = classes.findIndex((item, i) =>
+      number <= item.max || i === classes.length - 1
+    );
+    return index;
+  }
+
+  root.SabzWebGISSymbologyCore = Object.freeze({
+    layerStyleRamp,
+    numericValues,
+    uniqueValueClasses,
+    graduatedClasses,
+    classifyGraduatedValue
+  });
 })(typeof window !== "undefined" ? window : globalThis);
