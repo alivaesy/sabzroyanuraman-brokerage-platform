@@ -10,7 +10,9 @@
       field: typeof source.field === "string" ? source.field : "",
       size: Math.max(8, Math.min(32, Number(source.size) || 12)),
       color,
-      placement: ["auto", "center", "top", "right", "bottom", "left"].includes(source.placement) ? source.placement : "auto"
+      placement: ["auto", "center", "top", "right", "bottom", "left"].includes(source.placement) ? source.placement : "auto",
+      minZoom: Math.max(0, Math.min(22, Number.isFinite(Number(source.minZoom)) ? Number(source.minZoom) : 0)),
+      density: ["sparse", "balanced", "dense"].includes(source.density) ? source.density : "balanced"
     });
   }
 
@@ -39,10 +41,28 @@
       "." + id + ":before{display:none!important;border:0!important}"
   }
 
+
+  function selectVisibleLabels(candidates, options = {}) {
+    const density = ["sparse", "balanced", "dense"].includes(options.density) ? options.density : "balanced";
+    const padding = density === "sparse" ? 12 : density === "dense" ? 2 : 6;
+    const accepted = [];
+    const visible = [];
+    (Array.isArray(candidates) ? candidates : []).forEach((candidate, index) => {
+      if (!candidate || ![candidate.left, candidate.top, candidate.right, candidate.bottom].every(Number.isFinite)) return;
+      const box = { left: candidate.left - padding, top: candidate.top - padding,
+        right: candidate.right + padding, bottom: candidate.bottom + padding };
+      const overlaps = accepted.some(other => box.left < other.right && box.right > other.left &&
+        box.top < other.bottom && box.bottom > other.top);
+      if (!overlaps) { accepted.push(box); visible.push(index); }
+    });
+    return visible;
+  }
+
   root.SabzWebGISLabelingCore = Object.freeze({
     normalizeLabelConfig,
     labelText,
     labelPlacement,
-    labelClassCss
+    labelClassCss,
+    selectVisibleLabels
   });
 })(typeof window !== "undefined" ? window : globalThis);
