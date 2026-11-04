@@ -41,3 +41,17 @@ const polygonPlacement = core.labelPlacement("Polygon");
 assert.deepEqual({ direction: polygonPlacement.direction, offset: Array.from(polygonPlacement.offset) }, { direction: "center", offset: [0, 0] });
 const linePlacement = core.labelPlacement("LineString", "left");
 assert.deepEqual({ direction: linePlacement.direction, offset: Array.from(linePlacement.offset) }, { direction: "left", offset: [-8, 0] });
+
+const visibleLabels = core.selectVisibleLabels([
+  {left:0,top:0,right:40,bottom:12},
+  {left:10,top:2,right:50,bottom:14},
+  {left:100,top:0,right:140,bottom:12}
+]);
+assert.deepEqual(Array.from(visibleLabels), [0, 2], "Overlapping labels should be decluttered while separated labels remain visible");
+assert.deepEqual(Array.from(core.selectVisibleLabels([
+  {left:0,top:0,right:40,bottom:12},
+  {left:10,top:2,right:50,bottom:14}
+], {density:"dense"})), [0], "Dense mode should still prevent direct label overlap");
+assert.equal(core.normalizeLabelConfig({minZoom:30,density:"sparse"}).minZoom,22);
+assert.equal(core.normalizeLabelConfig({minZoom:-2,density:"invalid"}).minZoom,0);
+assert.equal(core.normalizeLabelConfig({density:"invalid"}).density,"balanced");
