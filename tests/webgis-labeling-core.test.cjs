@@ -13,7 +13,7 @@ vm.runInNewContext(source, context, { filename: "webgis-labeling-core.js" });
 const core = context.window.SabzWebGISLabelingCore;
 
 assert.deepEqual({ ...core.normalizeLabelConfig({ enabled: true, field: "name", size: 18, color: "#abcdef" }) },
-  { enabled: true, field: "name", size: 18, color: "#abcdef", placement: "auto" });
+  { enabled: true, field: "name", size: 18, color: "#abcdef", placement: "auto", minZoom: 0, density: "balanced" });
 assert.equal(core.normalizeLabelConfig({ size: 2 }).size, 8);
 assert.equal(core.normalizeLabelConfig({ size: 90 }).size, 32);
 assert.equal(core.normalizeLabelConfig({ size: "invalid" }).size, 12);
