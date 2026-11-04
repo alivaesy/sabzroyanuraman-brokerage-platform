@@ -35,6 +35,9 @@ console.log("WebGIS labeling core tests passed.");
 
 assert.equal(core.normalizeLabelConfig({ placement: "right" }).placement, "right");
 assert.equal(core.normalizeLabelConfig({ placement: "invalid" }).placement, "auto");
-assert.deepEqual({ ...core.labelPlacement("Point") }, { direction: "top", offset: [0, -8] });
-assert.deepEqual({ ...core.labelPlacement("Polygon") }, { direction: "center", offset: [0, 0] });
-assert.deepEqual({ ...core.labelPlacement("LineString", "left") }, { direction: "left", offset: [-8, 0] });
+const pointPlacement = core.labelPlacement("Point");
+assert.deepEqual({ direction: pointPlacement.direction, offset: Array.from(pointPlacement.offset) }, { direction: "top", offset: [0, -8] });
+const polygonPlacement = core.labelPlacement("Polygon");
+assert.deepEqual({ direction: polygonPlacement.direction, offset: Array.from(polygonPlacement.offset) }, { direction: "center", offset: [0, 0] });
+const linePlacement = core.labelPlacement("LineString", "left");
+assert.deepEqual({ direction: linePlacement.direction, offset: Array.from(linePlacement.offset) }, { direction: "left", offset: [-8, 0] });
