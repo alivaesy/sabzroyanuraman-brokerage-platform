@@ -196,7 +196,7 @@ const fixture = {
     assert.equal(styleResult.labelSize,16,'Layer Properties should apply the requested label size');
     assert.equal(styleResult.labelColor,'#123456','Layer Properties should apply the requested label color');
     assert.equal(styleResult.labelPlacement,'top','Layer Properties should apply the requested label placement');
-    assert.equal(styleResult.tooltipDirection,'top','Point labels should use the requested placement');
+    assert.equal(styleResult.tooltipDirection,'top','Labels should use the requested placement');
     assert.match(styleResult.labelCss,/text-shadow:/,'Rendered labels should use a white halo rather than a tooltip box');
     assert.match(styleResult.labelCss,/background:transparent/,'Rendered labels should not have a tooltip background');
 
