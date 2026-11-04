@@ -20,3 +20,19 @@ assert.equal(ramp("spectral", 3)[1], "#fdae61");
 assert.equal(ramp("purple", 0).length, 1);
 assert.equal(ramp("green", 4.9).length, 4);
 console.log("WebGIS symbology core tests passed.");
+
+const core = context.window.SabzWebGISSymbologyCore;
+assert.deepEqual(Array.from(core.numericValues([null, "", " ", "2", 3, "x"])), [2, 3]);
+assert.deepEqual(Array.from(core.uniqueValueClasses(["A", null, "B", "A", ""], "blue")), [
+  { value: "A", count: 2, color: "#eff3ff" },
+  { value: "B", count: 1, color: "#08306b" }
+]);
+const equal = core.graduatedClasses([null, "", "10", 20, 30, "bad"], 2, "green");
+assert.deepEqual(Array.from(equal, x => [x.min, x.max]), [[10, 20], [20, 30]]);
+const quantile = core.graduatedClasses([1, 2, 3, 4, 5, 6], 3, "blue", "quantile");
+assert.deepEqual(Array.from(quantile, x => [x.min, x.max]), [[1, 2], [2, 4], [4, 6]]);
+assert.equal(core.classifyGraduatedValue(null, equal), -1);
+assert.equal(core.classifyGraduatedValue("", equal), -1);
+assert.equal(core.classifyGraduatedValue("bad", equal), -1);
+assert.equal(core.classifyGraduatedValue(20, equal), 0);
+assert.equal(core.classifyGraduatedValue(30, equal), 1);
