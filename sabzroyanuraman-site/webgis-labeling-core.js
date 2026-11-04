@@ -24,8 +24,10 @@
     const normalized = normalizeLabelConfig({ enabled: true, ...config });
     return "." + id + "{color:" + normalized.color +
       "!important;font-size:" + normalized.size +
-      "px!important;font-weight:500;background:rgba(255,255,255,.86);" +
-      "border:1px solid #9aa8af;border-radius:2px;padding:1px 3px;box-shadow:none}";
+      "px!important;font-weight:600;background:transparent!important;" +
+      "border:0!important;border-radius:0;padding:0;box-shadow:none;" +
+      "text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff}" +
+      "." + id + ":before{display:none!important;border:0!important}"
   }
 
   root.SabzWebGISLabelingCore = Object.freeze({
