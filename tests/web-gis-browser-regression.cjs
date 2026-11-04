@@ -204,6 +204,48 @@ const fixture = {
     assert.match(styleResult.labelCss,/text-shadow:/,'Rendered labels should use a white halo rather than a tooltip box');
     assert.match(styleResult.labelCss,/background:transparent/,'Rendered labels should not have a tooltip background');
 
+    // Dense-layer E2E: exercise real Leaflet tooltip elements at several zoom levels.
+    const denseLabelResult = await page.evaluate(() => {
+      const bridge=window.__sabzWebGISSharedBridge;
+      const name='__SabzDenseLabelRegression__';
+      const features=[];
+      for(let row=0;row<15;row++)for(let column=0;column<20;column++){
+        const lon=47.759+(column-10)*0.000018;
+        const lat=33.629+(row-7)*0.000018;
+        features.push({type:'Feature',id:'dense-'+row+'-'+column,properties:{name:'Dense '+row+'-'+column},
+          geometry:{type:'Point',coordinates:[lon,lat]}});
+      }
+      bridge.addGeoJSONLayer(name,{type:'FeatureCollection',features});
+      const item=bridge.namedLayers.find(layer=>layer.name===name);
+      if(!item)throw new Error('Dense test layer was not registered');
+      bridge.map.setView([33.629,47.759],15);
+      bridge.openLayerProperties(item);
+      const set=(id,value)=>{const el=document.getElementById(id);if(!el)throw new Error('Missing '+id);el.value=String(value);el.dispatchEvent(new Event('change',{bubbles:true}));};
+      const toggle=document.getElementById('lpLabelsEnabled');
+      toggle.checked=true;
+      set('lpLabelField','name');
+      set('lpLabelMinZoom','12');
+      set('lpLabelDensity','balanced');
+      document.getElementById('layerPropertiesForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+      const count=()=>Array.from(document.querySelectorAll('.'+item._labelClass)).filter(el=>el.getBoundingClientRect().width>0).length;
+      const visible=()=>Array.from(document.querySelectorAll('.'+item._labelClass)).filter(el=>el.getBoundingClientRect().width>0&&getComputedStyle(el).visibility!=='hidden').length;
+      bridge.map.setZoom(11);
+      window.refreshLabelDecluttering?.();
+      const belowMinimum=visible();
+      bridge.map.setZoom(15);
+      window.refreshLabelDecluttering?.();
+      const mediumVisible=visible();
+      bridge.map.setZoom(18);
+      window.refreshLabelDecluttering?.();
+      const closeVisible=visible();
+      return {featureCount:features.length,domLabels:count(),belowMinimum,mediumVisible,closeVisible};
+    });
+    assert.equal(denseLabelResult.featureCount,300,'Dense regression fixture should contain 300 point features');
+    assert.equal(denseLabelResult.belowMinimum,0,'Labels must be hidden below the configured minimum zoom');
+    assert.ok(denseLabelResult.mediumVisible>0,'Some labels should be visible at the medium zoom');
+    assert.ok(denseLabelResult.closeVisible>=denseLabelResult.mediumVisible,
+      'Zooming in should not reduce the number of decluttered labels');
+
     // Persist locally to IndexedDB, reload the page, and verify geometry + symbology + labels.
     const saved = await page.evaluate(async () => {
       document.getElementById('projectName').value='WebGIS Browser Regression Project';
