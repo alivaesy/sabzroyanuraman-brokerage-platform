@@ -45,15 +45,34 @@
   function selectVisibleLabels(candidates, options = {}) {
     const density = ["sparse", "balanced", "dense"].includes(options.density) ? options.density : "balanced";
     const padding = density === "sparse" ? 12 : density === "dense" ? 2 : 6;
-    const accepted = [];
+    const cellSize = Math.max(32, Number(options.cellSize) || 64);
+    const occupied = new Map();
     const visible = [];
     (Array.isArray(candidates) ? candidates : []).forEach((candidate, index) => {
       if (!candidate || ![candidate.left, candidate.top, candidate.right, candidate.bottom].every(Number.isFinite)) return;
-      const box = { left: candidate.left - padding, top: candidate.top - padding,
-        right: candidate.right + padding, bottom: candidate.bottom + padding };
-      const overlaps = accepted.some(other => box.left < other.right && box.right > other.left &&
-        box.top < other.bottom && box.bottom > other.top);
-      if (!overlaps) { accepted.push(box); visible.push(index); }
+      if (candidate.right <= candidate.left || candidate.bottom <= candidate.top) return;
+      const left = candidate.left - padding, top = candidate.top - padding;
+      const right = candidate.right + padding, bottom = candidate.bottom + padding;
+      const minX = Math.floor(left / cellSize), maxX = Math.floor(right / cellSize);
+      const minY = Math.floor(top / cellSize), maxY = Math.floor(bottom / cellSize);
+      let overlaps = false;
+      for (let x = minX; x <= maxX && !overlaps; x++) {
+        for (let y = minY; y <= maxY && !overlaps; y++) {
+          const bucket = occupied.get(x + ":" + y);
+          if (bucket && bucket.some(other => left < other.right && right > other.left &&
+            top < other.bottom && bottom > other.top)) overlaps = true;
+        }
+      }
+      if (overlaps) return;
+      const accepted = {left, top, right, bottom};
+      for (let x = minX; x <= maxX; x++) {
+        for (let y = minY; y <= maxY; y++) {
+          const key = x + ":" + y;
+          if (!occupied.has(key)) occupied.set(key, []);
+          occupied.get(key).push(accepted);
+        }
+      }
+      visible.push(index);
     });
     return visible;
   }
