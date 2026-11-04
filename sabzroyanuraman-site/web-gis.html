@@ -1336,6 +1336,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <script src="./vendor/web-gis/proj4/proj4.js"></script>
 <script src="./vendor/web-gis/turf/turf.min.js"></script>
 <script src="./vendor/web-gis/geotiff/geotiff.js" onerror="this.onerror=null;this.src=\'https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js\'"></script>
+<script src="./webgis-labeling-core.js?v=20261104-labeling-core"></script>
 <script src="./webgis-symbology-core.js?v=20261104-symbology-core"></script>
 <script src="./raster-runtime.js?v=20261101-selftest"></script>
 <script src="./rust-raster-bridge.js"></script>
@@ -5644,7 +5645,7 @@ function layerToProjectItem(item){
     transparent:layer.options.transparent!==false,
     version:layer.options.version||"1.3.0"
   }:null;
-  return {name:item.name,type:wms?"wms":"vector",features,styles,wms,visible:!!(layer&&map.hasLayer(layer)),opacity:Number.isFinite(Number(layer?.options?.opacity))?Number(layer.options.opacity):1,gdb:layer?._gdbMetadata||null,drawingSet:item.drawingSet||null,drawingType:item._webgisDrawingType||null,displayName:item.displayName||null,definitionQuery:item._definitionQuery?{field:item._definitionQuery.field,operator:item._definitionQuery.operator,value:item._definitionQuery.value??""}:null,rendererConfig:item._rendererConfig?{mode:item._rendererConfig.mode,field:item._rendererConfig.field,ramp:item._rendererConfig.ramp,classes:item._rendererConfig.classes}:null,labels:item._labelsEnabled?{enabled:true,field:item._labelField||"",size:Math.max(8,Math.min(32,Number(item._labelSize)||12)),color:/^#[0-9a-f]{6}$/i.test(item._labelColor||"")?item._labelColor:"#202020"}:{enabled:false}};
+  return {name:item.name,type:wms?"wms":"vector",features,styles,wms,visible:!!(layer&&map.hasLayer(layer)),opacity:Number.isFinite(Number(layer?.options?.opacity))?Number(layer.options.opacity):1,gdb:layer?._gdbMetadata||null,drawingSet:item.drawingSet||null,drawingType:item._webgisDrawingType||null,displayName:item.displayName||null,definitionQuery:item._definitionQuery?{field:item._definitionQuery.field,operator:item._definitionQuery.operator,value:item._definitionQuery.value??""}:null,rendererConfig:item._rendererConfig?{mode:item._rendererConfig.mode,field:item._rendererConfig.field,ramp:item._rendererConfig.ramp,classes:item._rendererConfig.classes}:null,labels:window.SabzWebGISLabelingCore.normalizeLabelConfig({enabled:!!item._labelsEnabled,field:item._labelField||"",size:item._labelSize,color:item._labelColor})};
 }
 function captureLayoutDefinition(){
   const panel=document.getElementById("webgisLayoutView");
@@ -5861,7 +5862,7 @@ function restoreProject(project,fromHistory=false){
       addNamedLayer(item.name||"Layer",layer,false);
       if(item.visible===false)map.removeLayer(layer);
       const restoredItem=namedLayers.find(x=>x.layer===layer);
-      if(restoredItem){restoredItem.drawingSet=item.drawingSet||null;restoredItem._webgisDrawingType=item.drawingType||null;restoredItem.displayName=item.displayName||null;restoredItem._definitionQuery=item.definitionQuery&&typeof item.definitionQuery.field==="string"&&typeof item.definitionQuery.operator==="string"?{field:item.definitionQuery.field,operator:item.definitionQuery.operator,value:String(item.definitionQuery.value??"")}:null;const rc=item.rendererConfig;if(rc&&["single","unique","graduated"].includes(rc.mode)&&typeof rc.field==="string"&&["green","blue","red","purple","spectral"].includes(rc.ramp)){restoredItem._rendererConfig={mode:rc.mode,field:rc.field,ramp:rc.ramp,classes:Math.max(2,Math.min(7,Number(rc.classes)||5))};}const labels=item.labels;if(labels?.enabled===true&&typeof labels.field==="string"&&features.some(f=>Object.prototype.hasOwnProperty.call(f.properties||{},labels.field))){restoredItem._labelsEnabled=true;restoredItem._labelField=labels.field;restoredItem._labelSize=Math.max(8,Math.min(32,Number(labels.size)||12));restoredItem._labelColor=/^#[0-9a-f]{6}$/i.test(labels.color||"")?labels.color:"#202020";const labelClass=layerLabelClass(restoredItem);layer.eachLayer(featureLayer=>{const value=featureLayer.feature?.properties?.[restoredItem._labelField];if(value!==null&&value!==undefined&&String(value).trim()!==""&&typeof featureLayer.bindTooltip==="function")featureLayer.bindTooltip(String(typeof value==="object"?JSON.stringify(value):value),{permanent:true,direction:"center",className:labelClass,interactive:false});});}}
+      if(restoredItem){restoredItem.drawingSet=item.drawingSet||null;restoredItem._webgisDrawingType=item.drawingType||null;restoredItem.displayName=item.displayName||null;restoredItem._definitionQuery=item.definitionQuery&&typeof item.definitionQuery.field==="string"&&typeof item.definitionQuery.operator==="string"?{field:item.definitionQuery.field,operator:item.definitionQuery.operator,value:String(item.definitionQuery.value??"")}:null;const rc=item.rendererConfig;if(rc&&["single","unique","graduated"].includes(rc.mode)&&typeof rc.field==="string"&&["green","blue","red","purple","spectral"].includes(rc.ramp)){restoredItem._rendererConfig={mode:rc.mode,field:rc.field,ramp:rc.ramp,classes:Math.max(2,Math.min(7,Number(rc.classes)||5))};}const labels=window.SabzWebGISLabelingCore.normalizeLabelConfig(item.labels);if(labels.enabled&&labels.field&&features.some(f=>Object.prototype.hasOwnProperty.call(f.properties||{},labels.field))){restoredItem._labelsEnabled=true;restoredItem._labelField=labels.field;restoredItem._labelSize=labels.size;restoredItem._labelColor=labels.color;const labelClass=layerLabelClass(restoredItem);layer.eachLayer(featureLayer=>{const value=window.SabzWebGISLabelingCore.labelText(featureLayer.feature?.properties?.[restoredItem._labelField]);if(value!==null&&typeof featureLayer.bindTooltip==="function")featureLayer.bindTooltip(value,{permanent:true,direction:"center",className:labelClass,interactive:false});});}}
     }
   });
   // Restore saved Definition Queries only after all vector layers have been registered.
@@ -8125,11 +8126,11 @@ function layerLabelClass(owner){
   if(!owner)return "gis-feature-label";
   if(!owner._labelClass)owner._labelClass="gis-feature-label-"+Math.random().toString(36).slice(2,10);
   const id=owner._labelClass.replace(/[^a-z0-9_-]/gi,"");
-  const color=/^#[0-9a-f]{6}$/i.test(owner._labelColor||"")?owner._labelColor:"#202020";
-  const size=Math.max(8,Math.min(32,Number(owner._labelSize)||12));
+  const config=window.SabzWebGISLabelingCore.normalizeLabelConfig({enabled:owner._labelsEnabled,field:owner._labelField,size:owner._labelSize,color:owner._labelColor});
+  owner._labelSize=config.size;owner._labelColor=config.color;
   let style=document.getElementById(id+"-style");
   if(!style){style=document.createElement("style");style.id=id+"-style";document.head.appendChild(style);}
-  style.textContent="."+id+"{color:"+color+"!important;font-size:"+size+"px!important;font-weight:500;background:rgba(255,255,255,.86);border:1px solid #9aa8af;border-radius:2px;padding:1px 3px;box-shadow:none}";
+  style.textContent=window.SabzWebGISLabelingCore.labelClassCss(id,config);
   return id;
 }
 function openLayerProperties(item=null){
@@ -8184,7 +8185,7 @@ $("layerPropertiesForm").addEventListener("submit",e=>{
   const name=$("lpLayerName").value.trim();if(!name){status("Layer name cannot be empty.");return;}
   const width=Number($("lpLineWidth").value),radius=Number($("lpPointSize").value),opacity=Number($("lpOpacity").value),fillOpacity=Number($("lpFillOpacity").value);
   if(!Number.isFinite(width)||width<0||width>20||!Number.isFinite(radius)||radius<1||radius>40){status("Check the symbol width and point size.");return;}
-  if(owner){owner.name=name;owner._labelsEnabled=$("lpLabelsEnabled").checked;owner._labelField=$("lpLabelField").value;owner._labelSize=Math.max(8,Math.min(32,Number($("lpLabelSize").value)||12));owner._labelColor=$("lpLabelColor").value;layerLabelClass(owner);}
+  if(owner){const labelConfig=window.SabzWebGISLabelingCore.normalizeLabelConfig({enabled:$("lpLabelsEnabled").checked,field:$("lpLabelField").value,size:$("lpLabelSize").value,color:$("lpLabelColor").value});owner.name=name;owner._labelsEnabled=labelConfig.enabled;owner._labelField=labelConfig.field;owner._labelSize=labelConfig.size;owner._labelColor=labelConfig.color;layerLabelClass(owner);}
   const visible=$("lpLayerVisible").checked;
   if(visible&&!map.hasLayer(target))map.addLayer(target);else if(!visible&&map.hasLayer(target))map.removeLayer(target);
   const baseStyle={color:$("lpOutlineColor").value,fillColor:$("lpFillColor").value,weight:width,opacity,fillOpacity,radius};
@@ -8209,8 +8210,8 @@ $("layerPropertiesForm").addEventListener("submit",e=>{
       if(typeof r.layer.setStyle==="function"){r.layer.setStyle(style);styled++;}
       if(typeof r.layer.setRadius==="function")r.layer.setRadius(radius);
       if(owner?._labelsEnabled&&owner._labelField&&typeof r.layer.bindTooltip==="function"){
-        const v=r.feature.properties?.[owner._labelField];r.layer.unbindTooltip();
-        if(v!==null&&v!==undefined&&String(v).trim()!=="")r.layer.bindTooltip(String(typeof v==="object"?JSON.stringify(v):v),{permanent:true,direction:"center",className:layerLabelClass(owner),interactive:false});
+        const labelText=window.SabzWebGISLabelingCore.labelText(r.feature.properties?.[owner._labelField]);r.layer.unbindTooltip();
+        if(labelText!==null)r.layer.bindTooltip(labelText,{permanent:true,direction:"center",className:layerLabelClass(owner),interactive:false});
       }else if(typeof r.layer.unbindTooltip==="function")r.layer.unbindTooltip();
     }catch(err){console.debug("Layer Properties style skipped",err);}
   });
@@ -8230,18 +8231,20 @@ async function labelLayer(){
   if(fieldInput===null)return;
   const field=fieldInput.trim();
   if(!fields.includes(field)){status("Unknown label field. Choose one of the listed fields.");return;}
+  const owner=target?(namedLayers.find(x=>x.layer===target)||contextLayerItem):null;
+  if(owner){const config=window.SabzWebGISLabelingCore.normalizeLabelConfig({enabled:true,field,size:12,color:"#202020"});owner._labelsEnabled=config.enabled;owner._labelField=config.field;owner._labelSize=config.size;owner._labelColor=config.color;}
+  const labelClass=owner?layerLabelClass(owner):"gis-feature-label";
   let count=0;
   rs.forEach(r=>{
     try{
       if(typeof r.layer.unbindTooltip==="function")r.layer.unbindTooltip();
-      const v=r.feature.properties?.[field];
-      if(v!==null&&v!==undefined&&String(v).trim()!==""&&typeof r.layer.bindTooltip==="function"){
-        r.layer.bindTooltip(String(typeof v==="object"?JSON.stringify(v):v),{permanent:true,direction:"center",className:"gis-feature-label",interactive:false});
+      const value=window.SabzWebGISLabelingCore.labelText(r.feature.properties?.[field]);
+      if(value!==null&&typeof r.layer.bindTooltip==="function"){
+        r.layer.bindTooltip(value,{permanent:true,direction:"center",className:labelClass,interactive:false});
         count++;
       }
     }catch(e){console.debug("Could not label feature",e);}
   });
-  const owner=target?(namedLayers.find(x=>x.layer===target)||contextLayerItem):null;if(owner){owner._labelsEnabled=true;owner._labelField=field;owner._labelSize=12;owner._labelColor="#202020";}
   status("Labels enabled for "+count+" feature(s) using field '"+field+"'.");
 }
 async function groupLayers(){
