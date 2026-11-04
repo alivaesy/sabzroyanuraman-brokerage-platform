@@ -82,20 +82,12 @@ async function listAssets(page) {
   try {
     pageA = await openRuntimePage(contextA);
     const sessionA = await login(pageA);
-    csrfA = sessionA.csrfToken;
-    const prepared = await pageA.evaluate(async ({ metadata, pixels, projectId, assetId, fileName }) => {
-      const blob = await SabzRasterRuntime.writeFloat32(new Float32Array(pixels), metadata);
-      const form = new FormData();
-      form.append("action", "upload");
-      form.append("organization_id", window.__e2eOrganizationId);
-      form.append("project_id", projectId);
-      form.append("asset_id", assetId);
-      form.append("file_name", fileName);
-      form.append("metadata", JSON.stringify(metadata));
-      form.append("file", blob, fileName);
-      return { blob, size: blob.size };
-    }, { metadata, pixels, projectId, assetId, fileName }).catch(async error => { throw error; });
-
+    csrfA = await pageA.evaluate(async () => {
+      const response = await fetch("/api/gis/auth.php?action=csrf", { credentials: "same-origin", cache: "no-store" });
+      const body = await response.json();
+      if (!response.ok || !body.csrf_token) throw new Error(body.error || "csrf_unavailable_after_login");
+      return body.csrf_token;
+    });
     // Upload using the authenticated first browser context. The test project must be dedicated to E2E.
     const uploadResult = await pageA.evaluate(async ({ organizationId, projectId, assetId, fileName, metadata, csrfToken }) => {
       const blob = await SabzRasterRuntime.writeFloat32(new Float32Array([11,12,13,14,21,22,23,24,31,32,33,-9999]), metadata);
