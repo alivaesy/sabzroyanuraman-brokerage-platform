@@ -8220,7 +8220,10 @@ $("layerPropertiesForm").addEventListener("submit",e=>{
   });
   if(typeof target.setStyle==="function"){try{target.setStyle(style);styled=Math.max(1,styled)}catch(_){}}
   if(owner&&owner.layerControl&&owner.layerControl.removeLayer){}
-  renderLayerList();scheduleAutoSave();
+  renderLayerList();
+  const layoutPanel=document.getElementById("webgisLayoutView");
+  if(layoutPanel?._legendListener)layoutPanel._legendListener();
+  scheduleAutoSave();
   status("Layer Properties applied to "+(owner?.name||name)+" ("+styled+" feature symbol(s)).");
   if(e.submitter?.id==="layerPropertiesOk")closeLayerProperties();
 });
@@ -8816,25 +8819,31 @@ function openLayoutView(){
     const visible=(namedLayers||[]).filter(x=>x.visible!==false&&x.layer&&map?.hasLayer(x.layer));
     visible.forEach(item=>{
       const cfg=item._rendererConfig||item.renderer||item.layer?._rendererConfig||{};
-      const classes=Array.isArray(cfg.classes)?cfg.classes:Array.isArray(cfg.categories)?cfg.categories:Array.isArray(cfg.uniqueValues)?cfg.uniqueValues:[];
-      if(classes.length){
-        classes.forEach((entry,i)=>{
-          const row=document.createElement("div");row.className="webgis-layout-legend-item";
-          const swatch=document.createElement("span");swatch.className="webgis-layout-legend-swatch";
-          const color=entry.color||entry.symbol?.color||entry.style?.color||cfg.color||item.color||"#4b8065";
-          swatch.style.background=color;swatch.style.borderColor=entry.outlineColor||cfg.outlineColor||"#52616a";
-          if(item.layer instanceof L.Polyline&&!(item.layer instanceof L.Polygon)){swatch.style.height="0";swatch.style.border="0";swatch.style.borderTop="3px solid "+color;}
-          const label=document.createElement("span");label.textContent=String(entry.label??entry.name??entry.value??("Class "+(i+1)));
-          row.append(swatch,label);legend.append(row);
-        });
-      }else{
+      const records=typeof vectorFeatures==="function"?vectorFeatures(item.layer):[];
+      const values=records.map(record=>record.feature?.properties?.[cfg.field]);
+      const core=window.SabzWebGISSymbologyCore;
+      let entries=[];
+      if(core&&cfg.mode==="unique"&&cfg.field){
+        entries=core.uniqueValueClasses(values,cfg.ramp||"green").map(entry=>({label:entry.value+" ("+entry.count+")",color:entry.color}));
+      }else if(core&&cfg.mode==="graduated"&&cfg.field){
+        entries=core.graduatedClasses(values,cfg.classes||5,cfg.ramp||"green",cfg.method||"equal-interval").map(entry=>({label:entry.min.toLocaleString()+" – "+entry.max.toLocaleString(),color:entry.color}));
+      }
+      const addRow=(labelText,color)=>{
         const row=document.createElement("div");row.className="webgis-layout-legend-item";
         const swatch=document.createElement("span");swatch.className="webgis-layout-legend-swatch";
-        const color=cfg.color||item.color||item.layer?.options?.fillColor||item.layer?.options?.color||item.layer?.options?.style?.color||"#4b8065";
-        swatch.style.background=item.layer instanceof L.Polyline&&!(item.layer instanceof L.Polygon)?"transparent":color;
-        swatch.style.borderColor=item.layer?.options?.color||cfg.outlineColor||"#52616a";
-        if(item.layer instanceof L.Polyline&&!(item.layer instanceof L.Polygon)){swatch.style.height="0";swatch.style.border="0";swatch.style.borderTop="3px solid "+color;}
-        const label=document.createElement("span");label.textContent=item.name||"Layer";row.append(swatch,label);legend.append(row);
+        const line=item.layer instanceof L.Polyline&&!(item.layer instanceof L.Polygon);
+        swatch.style.background=line?"transparent":color;
+        swatch.style.borderColor=item.layer?.options?.color||"#52616a";
+        if(line){swatch.style.height="0";swatch.style.border="0";swatch.style.borderTop="3px solid "+color;}
+        const label=document.createElement("span");label.textContent=labelText;
+        row.append(swatch,label);legend.append(row);
+      };
+      if(entries.length){
+        const heading=document.createElement("div");heading.className="webgis-layout-legend-layer";heading.textContent=item.name||"Layer";legend.append(heading);
+        entries.forEach(entry=>addRow(entry.label,entry.color));
+      }else{
+        const color=item.layer?.options?.fillColor||item.layer?.options?.color||item.color||"#4b8065";
+        addRow(item.name||"Layer",color);
       }
     });
     if(!legend.childElementCount){const empty=document.createElement("span");empty.textContent="No visible layers";legend.append(empty);}
