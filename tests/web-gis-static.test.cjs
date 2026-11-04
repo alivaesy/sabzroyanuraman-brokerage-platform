@@ -571,10 +571,15 @@ test('geo-ported Clip uses the active projected CRS; unported overlays remain on
 
 test('Layer renderer and label configuration survive project serialization and restoration', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'web-gis.html'), 'utf8');
+  const labeling = fs.readFileSync(path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-labeling-core.js'), 'utf8');
   assert.match(html, /rendererConfig:item\._rendererConfig\?/);
-  assert.match(html, /labels:item\._labelsEnabled\?/);
+  assert.match(html, /SabzWebGISLabelingCore\.normalizeLabelConfig/);
+  assert.match(html, /SabzWebGISLabelingCore\.labelText/);
   assert.match(html, /restoredItem\._rendererConfig=\{mode:rc\.mode/);
   assert.match(html, /restoredItem\._labelsEnabled=true/);
+  assert.match(html, /webgis-labeling-core\.js/);
+  assert.match(labeling, /function normalizeLabelConfig/);
+  assert.match(labeling, /function labelText/);
   assert.match(html, /function openLayerProperties\(/);
   assert.match(html, /function serializeProject\(/);
 });
