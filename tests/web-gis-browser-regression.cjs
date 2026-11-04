@@ -173,10 +173,12 @@ const fixture = {
       if(!labels) throw new Error('Layer label toggle is missing');
       labels.checked=true;
       set('lpLabelField','name');
+      set('lpLabelSize','16');
+      set('lpLabelColor','#123456');
       document.getElementById('layerPropertiesForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
       const first=item.layer.getLayers()[0];
       const tooltip=first?.getTooltip();
-      return {uniqueMode:'unique',uniqueColors,renderer:item._rendererConfig?.mode,field:item._rendererConfig?.field,labels:item._labelsEnabled,labelField:item._labelField,tooltip:!!tooltip,tooltipContent:tooltip?.getContent(),tooltipPermanent:tooltip?.options?.permanent,tooltipClassName:tooltip?.options?.className};
+      return {uniqueMode:'unique',uniqueColors,renderer:item._rendererConfig?.mode,field:item._rendererConfig?.field,labels:item._labelsEnabled,labelField:item._labelField,tooltip:!!tooltip,tooltipContent:tooltip?.getContent(),tooltipPermanent:tooltip?.options?.permanent,tooltipClassName:tooltip?.options?.className,labelSize:item._labelSize,labelColor:item._labelColor,labelCss:document.getElementById(item._labelClass+'-style')?.textContent||''};
     },fixtureName);
     assert.equal(styleResult.uniqueMode,'unique');
     assert.ok(new Set(styleResult.uniqueColors).size>=2,'Unique Values renderer should assign distinct category colors');
@@ -188,6 +190,10 @@ const fixture = {
     assert.equal(styleResult.tooltipContent,'Regression parcel A','Label renderer should display the selected attribute value');
     assert.equal(styleResult.tooltipPermanent,true,'ArcMap-style labels should remain visible without hover');
     assert.match(styleResult.tooltipClassName,/^gis-feature-label-/,'Layer labels should use their own generated CSS class');
+    assert.equal(styleResult.labelSize,16,'Layer Properties should apply the requested label size');
+    assert.equal(styleResult.labelColor,'#123456','Layer Properties should apply the requested label color');
+    assert.match(styleResult.labelCss,/text-shadow:/,'Rendered labels should use a white halo rather than a tooltip box');
+    assert.match(styleResult.labelCss,/background:transparent/,'Rendered labels should not have a tooltip background');
 
     // Persist locally to IndexedDB, reload the page, and verify geometry + symbology + labels.
     const saved = await page.evaluate(async () => {
@@ -210,9 +216,9 @@ const fixture = {
       const item=window.__sabzWebGISSharedBridge.namedLayers.find(layer=>layer.name===name);
       const featureLayers=item?.layer?.getLayers?.()||[];
       const tooltip=featureLayers[0]?.getTooltip?.();
-      return {renderer:item?._rendererConfig?.mode,field:item?._rendererConfig?.field,labels:item?._labelsEnabled,labelField:item?._labelField,count:featureLayers.length,tooltipContent:tooltip?.getContent(),tooltipPermanent:tooltip?.options?.permanent};
+      return {renderer:item?._rendererConfig?.mode,field:item?._rendererConfig?.field,labels:item?._labelsEnabled,labelField:item?._labelField,labelSize:item?._labelSize,labelColor:item?._labelColor,count:featureLayers.length,tooltipContent:tooltip?.getContent(),tooltipPermanent:tooltip?.options?.permanent};
     },fixtureName);
-    assert.deepEqual(restored,{renderer:'graduated',field:'area_ha',labels:true,labelField:'name',count:2,tooltipContent:'Regression parcel A',tooltipPermanent:true},
+    assert.deepEqual(restored,{renderer:'graduated',field:'area_ha',labels:true,labelField:'name',labelSize:16,labelColor:'#123456',count:2,tooltipContent:'Regression parcel A',tooltipPermanent:true},
       'Saved project must restore features, renderer and visible label text after a browser reload');
 
     // The login entry point must be present. Actual account sign-in/out is intentionally
