@@ -78,7 +78,7 @@ async function listAssets(page) {
   const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
   const contextA = await browser.newContext();
   const contextB = await browser.newContext();
-  let pageA, pageB, csrfA, uploaded = false;
+  let pageA, pageB, csrfA, csrfB, uploaded = false;
   try {
     pageA = await openRuntimePage(contextA);
     const sessionA = await login(pageA);
@@ -116,6 +116,12 @@ async function listAssets(page) {
     // A fresh browser context has an independent cookie jar and an empty IndexedDB.
     pageB = await openRuntimePage(contextB);
     const sessionB = await login(pageB);
+    csrfB = await pageB.evaluate(async () => {
+      const response = await fetch("/api/gis/auth.php?action=csrf", { credentials: "same-origin", cache: "no-store" });
+      const body = await response.json();
+      if (!response.ok || !body.csrf_token) throw new Error(body.error || "csrf_unavailable_after_login");
+      return body.csrf_token;
+    });
     if (sessionB.userId !== sessionA.userId) throw new Error("The two browser contexts authenticated as different GIS users.");
     const before = await pageB.evaluate(({ projectId, assetId }) =>
       SabzRasterRuntime.loadAsset(projectId, assetId), { projectId, assetId });
@@ -159,9 +165,11 @@ async function listAssets(page) {
       secondBrowserCacheBytes: resultB.cachedBytes
     }, null, 2) + "\n");
   } finally {
-    if (uploaded && pageA && csrfA) {
+    const cleanupPage = pageB || pageA;
+    const cleanupCsrf = (pageB && csrfB) ? csrfB : csrfA;
+    if (uploaded && cleanupPage && cleanupCsrf) {
       try {
-        await pageA.evaluate(async ({ organizationId, projectId, assetId, csrfToken }) => {
+        await cleanupPage.evaluate(async ({ organizationId, projectId, assetId, csrfToken }) => {
           const form = new FormData();
           form.append("action", "delete");
           form.append("organization_id", organizationId);
@@ -171,7 +179,7 @@ async function listAssets(page) {
             method: "POST", credentials: "same-origin", cache: "no-store",
             headers: { "X-CSRF-Token": csrfToken, Accept: "application/json" }, body: form
           });
-        }, { organizationId, projectId, assetId, csrfToken: csrfA });
+        }, { organizationId, projectId, assetId, csrfToken: cleanupCsrf });
       } catch (error) {
         process.stderr.write("WARNING: E2E asset cleanup failed; remove test asset " + assetId + " manually. " +
           (error.message || error) + "\n");
