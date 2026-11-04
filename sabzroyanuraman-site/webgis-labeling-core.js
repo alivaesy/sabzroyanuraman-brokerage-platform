@@ -9,8 +9,17 @@
       enabled: source.enabled === true,
       field: typeof source.field === "string" ? source.field : "",
       size: Math.max(8, Math.min(32, Number(source.size) || 12)),
-      color
+      color,
+      placement: ["auto", "center", "top", "right", "bottom", "left"].includes(source.placement) ? source.placement : "auto"
     });
+  }
+
+  function labelPlacement(geometryType, preference = "auto") {
+    const allowed = ["center", "top", "right", "bottom", "left"];
+    const direction = allowed.includes(preference) ? preference :
+      (geometryType === "Point" || geometryType === "MultiPoint" ? "top" : "center");
+    const offsets = { center: [0, 0], top: [0, -8], right: [8, 0], bottom: [0, 8], left: [-8, 0] };
+    return Object.freeze({ direction, offset: offsets[direction] });
   }
 
   function labelText(value) {
@@ -33,6 +42,7 @@
   root.SabzWebGISLabelingCore = Object.freeze({
     normalizeLabelConfig,
     labelText,
+    labelPlacement,
     labelClassCss
   });
 })(typeof window !== "undefined" ? window : globalThis);
