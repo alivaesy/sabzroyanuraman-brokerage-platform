@@ -32,3 +32,9 @@ assert.match(labelCss, /background:transparent/, "Labels should not render as bo
 assert.match(labelCss, /:before/, "Leaflet tooltip arrow must be hidden");
 assert.match(core.labelClassCss("bad class!", { size: 14, color: "#123456" }), /^\.badclass\{/);
 console.log("WebGIS labeling core tests passed.");
+
+assert.equal(core.normalizeLabelConfig({ placement: "right" }).placement, "right");
+assert.equal(core.normalizeLabelConfig({ placement: "invalid" }).placement, "auto");
+assert.deepEqual({ ...core.labelPlacement("Point") }, { direction: "top", offset: [0, -8] });
+assert.deepEqual({ ...core.labelPlacement("Polygon") }, { direction: "center", offset: [0, 0] });
+assert.deepEqual({ ...core.labelPlacement("LineString", "left") }, { direction: "left", offset: [-8, 0] });
