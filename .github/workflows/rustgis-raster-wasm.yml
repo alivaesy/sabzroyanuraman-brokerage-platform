@@ -5,6 +5,7 @@ on:
     paths:
       - "rust-raster-wasm/**"
       - "tests/**"
+      - "tests/raster-server-cross-browser.e2e.cjs"
       - "sabzroyanuraman-site/raster-runtime.js"
       - "sabzroyanuraman-site/rust-raster-bridge.js"
       - "sabzroyanuraman-site/rustgis-vector-wasm/**"
@@ -52,6 +53,7 @@ jobs:
           node --check sabzroyanuraman-site/geolibre-wasi-bridge.js
           node --check sabzroyanuraman-site/plugin-manager.js
           node --check tests/raster-wasm-browser-smoke.cjs
+          node --check tests/raster-server-cross-browser.e2e.cjs
       - name: Test RustGIS adapter and plugin runtime
         run: cargo test --manifest-path rust-raster-wasm/Cargo.toml
       - name: Build browser WASM
@@ -68,6 +70,15 @@ jobs:
             sleep 1
           done
           node tests/raster-wasm-browser-smoke.cjs
+      - name: Verify authenticated raster persistence across isolated browsers
+        if: ${{ vars.GIS_RASTER_E2E_ENABLED == 'true' }}
+        env:
+          SABZ_GIS_E2E_BASE_URL: ${{ vars.GIS_RASTER_E2E_BASE_URL }}
+          SABZ_GIS_E2E_ORGANIZATION_ID: ${{ vars.GIS_RASTER_E2E_ORGANIZATION_ID }}
+          SABZ_GIS_E2E_PROJECT_ID: ${{ vars.GIS_RASTER_E2E_PROJECT_ID }}
+          SABZ_GIS_E2E_USERNAME: ${{ secrets.GIS_RASTER_E2E_USERNAME }}
+          SABZ_GIS_E2E_PASSWORD: ${{ secrets.GIS_RASTER_E2E_PASSWORD }}
+        run: node tests/raster-server-cross-browser.e2e.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: sabz-rustgis-raster-wasm
