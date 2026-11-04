@@ -11,6 +11,11 @@ on:
       - "sabzroyanuraman-site/webgis-rustgis-vector-runtime.js"
       - "sabzroyanuraman-site/wasm/rust-raster/**"
       - "sabzroyanuraman-site/api/gis/raster-assets.php"
+      - "sabzroyanuraman-site/api/gis/raster-asset-commit.php"
+      - "sabzroyanuraman-site/api/gis/raster-geotiff-validator.php"
+      - "sabzroyanuraman-site/web-gis.html"
+      - "sabzroyanuraman-site/raster-runtime-tests.html"
+      - "docs/WEBGIS_STORAGE_SERVER_ACCESS.md"
       - ".github/workflows/rustgis-raster-wasm.yml"
   pull_request:
     paths:
@@ -31,8 +36,13 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.2"
-      - name: Lint raster storage API
-        run: php -l sabzroyanuraman-site/api/gis/raster-assets.php
+      - name: Lint raster storage API and helpers
+        run: |
+          php -l sabzroyanuraman-site/api/gis/raster-assets.php
+          php -l sabzroyanuraman-site/api/gis/raster-asset-commit.php
+          php -l sabzroyanuraman-site/api/gis/raster-geotiff-validator.php
+      - name: Test GeoTIFF validation and atomic server-storage commit
+        run: php tests/raster-geotiff-validator.test.php
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
