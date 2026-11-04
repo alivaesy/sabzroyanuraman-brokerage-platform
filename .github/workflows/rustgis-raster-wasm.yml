@@ -15,6 +15,8 @@ on:
       - "sabzroyanuraman-site/api/gis/raster-asset-commit.php"
       - "sabzroyanuraman-site/api/gis/raster-geotiff-validator.php"
       - "sabzroyanuraman-site/web-gis.html"
+      - "sabzroyanuraman-site/webgis-symbology-core.js"
+      - "tests/webgis-symbology-core.test.cjs"
       - "sabzroyanuraman-site/raster-runtime-tests.html"
       - "docs/WEBGIS_STORAGE_SERVER_ACCESS.md"
       - ".github/workflows/rustgis-raster-wasm.yml"
@@ -54,6 +56,9 @@ jobs:
           node --check sabzroyanuraman-site/plugin-manager.js
           node --check tests/raster-wasm-browser-smoke.cjs
           node --check tests/raster-server-cross-browser.e2e.cjs
+          node --check sabzroyanuraman-site/webgis-symbology-core.js
+          node --check tests/webgis-symbology-core.test.cjs
+          node tests/webgis-symbology-core.test.cjs
       - name: Test RustGIS adapter and plugin runtime
         run: cargo test --manifest-path rust-raster-wasm/Cargo.toml
       - name: Build browser WASM
