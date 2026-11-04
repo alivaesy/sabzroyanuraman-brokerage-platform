@@ -23,7 +23,7 @@ console.log("WebGIS symbology core tests passed.");
 
 const core = context.window.SabzWebGISSymbologyCore;
 assert.deepEqual(Array.from(core.numericValues([null, "", " ", "2", 3, "x"])), [2, 3]);
-assert.deepEqual(Array.from(core.uniqueValueClasses(["A", null, "B", "A", ""], "blue")), [
+assert.deepEqual(Array.from(core.uniqueValueClasses(["A", null, "B", "A", ""], "blue"), item => ({ value: item.value, count: item.count, color: item.color })), [
   { value: "A", count: 2, color: "#eff3ff" },
   { value: "B", count: 1, color: "#08306b" }
 ]);
