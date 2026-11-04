@@ -8241,6 +8241,7 @@ $("layerPropertiesForm").addEventListener("submit",e=>{
     }catch(err){console.debug("Layer Properties style skipped",err);}
   });
   if(typeof target.setStyle==="function"){try{target.setStyle(style);styled=Math.max(1,styled)}catch(_){}}
+  refreshLabelDecluttering();
   if(owner&&owner.layerControl&&owner.layerControl.removeLayer){}
   renderLayerList();
   const layoutPanel=document.getElementById("webgisLayoutView");
