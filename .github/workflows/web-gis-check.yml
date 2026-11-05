@@ -11,9 +11,6 @@ on:
       - "sabzroyanuraman-site/webgis-*.js"
       - "tests/webgis-*.test.cjs"
       - "tests/web-gis-*.cjs"
-      - "sabzroyanuraman-site/webgis-*.js"
-      - "tests/webgis-*.test.cjs"
-      - "tests/web-gis-*.cjs"
       - "sabzroyanuraman-site/webgis-gps-tracking.js"
       - "sabzroyanuraman-site/webgis-core-bridge.js"
       - "sabzroyanuraman-site/webgis-symbology-core.js"
@@ -45,6 +42,9 @@ on:
   pull_request:
     paths:
       - "sabzroyanuraman-site/web-gis.html"
+      - "sabzroyanuraman-site/webgis-*.js"
+      - "tests/webgis-*.test.cjs"
+      - "tests/web-gis-*.cjs"
       - "sabzroyanuraman-site/webgis-attribute-table-render.js"
       - "sabzroyanuraman-site/webgis-core-bridge.js"
       - "tests/web-gis-bridge-contract.test.cjs"
