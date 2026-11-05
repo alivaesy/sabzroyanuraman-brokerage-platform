@@ -179,7 +179,7 @@ const fixture = {
       set('lpLabelPlacement','top');
       set('lpLabelMinZoom','0');
       set('lpLabelDensity','sparse');
-      document.getElementById('layerPropertiesForm').dispatchEvent(new SubmitEvent('submit',{bubbles:true,cancelable:true,submitter:document.getElementById('layerPropertiesOk')}));
+      document.getElementById('layerPropertiesForm').dispatchEvent(new SubmitEvent('submit',{bubbles:true,cancelable:true,submitter:document.querySelector('#layerPropertiesForm button[type="submit"]:not(#layerPropertiesOk)')}));
       const first=item.layer.getLayers()[0];
       const tooltip=first?.getTooltip();
       return {uniqueMode:'unique',uniqueColors,renderer:item._rendererConfig?.mode,field:item._rendererConfig?.field,method:item._rendererConfig?.method,labels:item._labelsEnabled,labelField:item._labelField,tooltip:!!tooltip,tooltipContent:tooltip?.getContent(),tooltipPermanent:tooltip?.options?.permanent,tooltipClassName:tooltip?.options?.className,labelSize:item._labelSize,labelColor:item._labelColor,labelPlacement:item._labelPlacement,labelMinZoom:item._labelMinZoom,labelDensity:item._labelDensity,tooltipDirection:tooltip?.options?.direction,labelCss:document.getElementById(item._labelClass+'-style')?.textContent||''};
@@ -221,6 +221,7 @@ const fixture = {
     assert.equal(styleResult.tooltipDirection,'top','Labels should use the requested placement');
     assert.match(styleResult.labelCss,/text-shadow:/,'Rendered labels should use a white halo rather than a tooltip box');
     assert.match(styleResult.labelCss,/background:transparent/,'Rendered labels should not have a tooltip background');
+    await page.locator('#layerPropertiesCancel').click();
     // Layout Legend must mirror the active renderer, show unambiguous class ranges,
     // and use a symbol shape matching the layer geometry.
     await page.locator('#layoutModeToggle').click();
