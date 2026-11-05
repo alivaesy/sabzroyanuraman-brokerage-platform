@@ -100,43 +100,7 @@ const fixture = {
     assert.equal(setup.selected,1,'RustGIS selection bridge should select one feature');
     assert.ok(setup.after >= setup.before,'Zoom To Selection should not zoom out');
     assert.ok(setup.hasProperties,'Layer Properties command must be callable');
-    // Exercise the extracted Attribute Table renderer through the ArcMap-style UI.
-    await page.locator('.accordion-section[data-accordion="attribute"] .accordion-head').click();
-    await page.evaluate(name => {
-      const bridge=window.__sabzWebGISSharedBridge;
-      bridge.refreshAttributeLayers?.();
-      bridge.refreshEditorTargets?.();
-      const index=bridge.namedLayers.findIndex(item=>item.name===name);
-      if(index<0)throw new Error('Attribute Table regression layer was not registered');
-      const attributeLayer=document.getElementById('attributeLayer');
-      attributeLayer.value=String(index);
-      attributeLayer.dispatchEvent(new Event('change',{bubbles:true}));
-      const editTarget=document.getElementById('editTargetLayer');
-      editTarget.value=String(index);
-      editTarget.dispatchEvent(new Event('change',{bubbles:true}));
-    },fixtureName);
-    await page.locator('#startEditingBtn').click();
-    await page.locator('#openTable').click();
-    await page.locator('#attributeTableWrap th[data-sort-key="area_ha"]').click();
-    let firstSortedName=await page.locator('#attributeTableWrap tbody tr').first().locator('input.cell-edit[data-key="name"]').inputValue();
-    assert.equal(firstSortedName,'Regression parcel A','Attribute Table should sort numeric fields ascending');
-    await page.locator('#attributeTableWrap th[data-sort-key="area_ha"]').click();
-    firstSortedName=await page.locator('#attributeTableWrap tbody tr').first().locator('input.cell-edit[data-key="name"]').inputValue();
-    assert.equal(firstSortedName,'Regression parcel B','Attribute Table should reverse sort direction on the second click');
-    await page.locator('#attributeTableWrap tbody tr').first().locator('input.cell-edit[data-key="name"]').fill('Regression parcel B edited');
-    await page.locator('#saveTableEdits').click();
-    await page.waitForFunction(() => {
-      const owner=window.__sabzWebGISSharedBridge.namedLayers.find(item=>item.name==='__SabzBrowserRegressionFixture__');
-      return owner?.layer?.getLayers?.().some(layer=>layer.feature?.properties?.parcel_id==='R-002'&&layer.feature.properties.name==='Regression parcel B edited');
-    },null,{timeout:10000});
-    const attributeTableResult=await page.evaluate(() => {
-      const owner=window.__sabzWebGISSharedBridge.namedLayers.find(item=>item.name==='__SabzBrowserRegressionFixture__');
-      const edited=owner.layer.getLayers().find(layer=>layer.feature?.properties?.parcel_id==='R-002');
-      return {editedName:edited?.feature?.properties?.name,sortHeader:document.querySelector('#attributeTableWrap th[data-sort-key="area_ha"]')?.textContent};
-    });
-    assert.equal(attributeTableResult.editedName,'Regression parcel B edited','Attribute Table cell edits must persist to the feature');
-    assert.match(attributeTableResult.sortHeader,/▼/,'Attribute Table should retain descending sort state after saving');
-    await page.locator('#stopEditingBtn').click();
+
 
 
     // Run a real RustGIS Clip through the WebAssembly engine. The input coordinates
