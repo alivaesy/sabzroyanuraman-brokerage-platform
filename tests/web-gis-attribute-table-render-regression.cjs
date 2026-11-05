@@ -76,6 +76,8 @@ const fixture = {
     await rows.nth(1).locator('td').nth(1).click({modifiers:['Control']});
     assert.equal(await rows.nth(0).getAttribute('aria-selected'),'true','Ctrl-click must preserve the first selected record');
     assert.equal(await rows.nth(1).getAttribute('aria-selected'),'true','Ctrl-click must add the second record to selection');
+    const tableOptions=page.locator('#attributeTableWrap details.attribute-grid-menu');
+    if(!(await tableOptions.evaluate(node=>node.open)))await tableOptions.locator('summary').click();
     await page.locator('#attributeClearSelection').click();
     assert.equal(await rows.nth(0).getAttribute('aria-selected'),'false','Clear Selection must clear the first row');
     assert.equal(await rows.nth(1).getAttribute('aria-selected'),'false','Clear Selection must clear the second row');
