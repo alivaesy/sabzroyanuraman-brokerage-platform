@@ -15,7 +15,7 @@ function renderAttributeEditor(ctx){
       (ctx.isComputedAttributeField(k)?"<span class='small' title='Calculated field'>Auto</span>":"<button class='action danger attr-delete' type='button' title='Delete Field'>×</button>")+"</div>";
   });
   if(!keys.length)html+="<div class='small'>This feature has no editable attributes.</div>";
-  html+="</div><div class='row'><button class='action secondary' id='addAttributeField' type='button'>+ Add Field</button><button class='action' id='ctx.saveAttributes' type='button'>Save Attribute</button></div>";
+  html+="</div><div class='row'><button class='action secondary' id='addAttributeField' type='button'>+ Add Field</button><button class='action' id='saveAttributes' type='button'>Save Attribute</button></div>";
   box.innerHTML=html;box.style.display="block";
   box.querySelectorAll(".attr-delete").forEach(btn=>btn.onclick=()=>btn.closest(".attr-edit-row").remove());
   ctx.$("addAttributeField").onclick=()=>{
@@ -23,7 +23,7 @@ function renderAttributeEditor(ctx){
     row.innerHTML="<input class='attr-key' placeholder='Field Name' style='width:42%'><input class='attr-value' placeholder='Value' style='width:48%'><button class='action danger attr-delete' type='button'>×</button>";
     row.querySelector(".attr-delete").onclick=()=>row.remove();ctx.$("attributeRows").appendChild(row);
   };
-  ctx.$("ctx.saveAttributes").onclick=ctx.saveAttributes;
+  ctx.$("saveAttributes").onclick=ctx.saveAttributes;
 }
 root.SabzAttributeEditor={renderAttributeEditor};
 })(window);
