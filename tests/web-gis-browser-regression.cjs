@@ -284,9 +284,11 @@ const fixture = {
       window.refreshLabelDecluttering?.();
       const closeVisible=visible();
       const closeOverlaps=overlapCount();
-      return {featureCount:features.length,domLabels:count(),belowMinimum,mediumVisible,closeVisible,mediumOverlaps,closeOverlaps};
+      const belowMinimumDetails={zoom:bridge.map.getZoom(),configuredMinZoom:item._labelMinZoom,ownerEnabled:item._labelsEnabled,featureLayerCount:item.layer.getLayers().length,unhiddenTooltips:item.layer.getLayers().map((featureLayer,index)=>{const tooltip=featureLayer.getTooltip&&featureLayer.getTooltip();const element=tooltip&&(tooltip.getElement?tooltip.getElement():tooltip._container);return element&&getComputedStyle(element).visibility!=='hidden'?{index,visibility:getComputedStyle(element).visibility,className:element.className,text:element.textContent}:null;}).filter(Boolean)};
+      return {featureCount:features.length,domLabels:count(),belowMinimum,belowMinimumDetails,mediumVisible,closeVisible,mediumOverlaps,closeOverlaps};
     });
     assert.equal(denseLabelResult.featureCount,300,'Dense regression fixture should contain 300 point features');
+    console.log('Dense label minimum-zoom diagnostics:',JSON.stringify(denseLabelResult.belowMinimumDetails));
     assert.equal(denseLabelResult.belowMinimum,0,'Labels must be hidden below the configured minimum zoom');
     assert.ok(denseLabelResult.mediumVisible>0,'Some labels should be visible at the medium zoom');
     assert.equal(denseLabelResult.mediumOverlaps,0,'Visible labels must not overlap at medium zoom');
