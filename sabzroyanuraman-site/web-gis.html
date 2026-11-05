@@ -7955,7 +7955,7 @@ function refreshLabelDecluttering(){
     const minZoom=Math.max(0,Math.min(22,Number(owner._labelMinZoom)||0));
     if(zoom<minZoom){
       const className=String(owner._labelClass||"").replace(/[^a-z0-9_-]/gi,"");
-      if(className)map.getContainer().querySelectorAll("."+className).forEach(element=>{element.style.visibility="hidden";});
+      if(className)document.querySelectorAll("."+className).forEach(element=>{element.style.visibility="hidden";});
       return;
     }
     owner.layer.eachLayer(featureLayer=>{
