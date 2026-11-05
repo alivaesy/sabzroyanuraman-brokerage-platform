@@ -49,7 +49,8 @@ test('Attribute Table renderer uses a live compatibility delegate', () => {
   const renderIndex = html.indexOf('webgis-attribute-table-render.js');
   assert.ok(coreIndex >= 0 && renderIndex > coreIndex, 'attribute table renderer must load after its core');
   assert.ok(html.includes('function renderEditableTable(){return window.SabzAttributeTableRender.renderEditableTable({'));
-  assert.ok(html.includes('get attributeSort(){return attributeSort},set attributeSort(value){attributeSort=value}'));
+  assert.ok(html.includes('get attributeSort(){return attributeSort}'));
+  assert.ok(html.includes('set attributeSort(value){attributeSort=value}'));
   assert.ok(attributeTableRender.includes('function render(ctx)'));
   assert.ok(attributeTableRender.includes('ctx.attributeSort'));
   assert.ok(attributeTableRender.includes('ctx.selectedLayer='));
