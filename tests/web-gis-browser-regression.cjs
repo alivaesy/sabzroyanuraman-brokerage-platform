@@ -165,7 +165,7 @@ const fixture = {
         set('lpColorRamp','green');
         set('lpClassCount','5');
         if(method)set('lpClassificationMethod',method);
-        document.getElementById('layerPropertiesForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+        document.getElementById('layerPropertiesForm').dispatchEvent(new SubmitEvent('submit',{bubbles:true,cancelable:true,submitter:document.getElementById('layerPropertiesOk')}));
       };
       apply('unique','parcel_id');
       const uniqueColors=item.layer.getLayers().map(feature=>feature.options?.fillColor).filter(Boolean);
@@ -179,7 +179,7 @@ const fixture = {
       set('lpLabelPlacement','top');
       set('lpLabelMinZoom','0');
       set('lpLabelDensity','sparse');
-      document.getElementById('layerPropertiesForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+      document.getElementById('layerPropertiesForm').dispatchEvent(new SubmitEvent('submit',{bubbles:true,cancelable:true,submitter:document.getElementById('layerPropertiesOk')}));
       const first=item.layer.getLayers()[0];
       const tooltip=first?.getTooltip();
       return {uniqueMode:'unique',uniqueColors,renderer:item._rendererConfig?.mode,field:item._rendererConfig?.field,method:item._rendererConfig?.method,labels:item._labelsEnabled,labelField:item._labelField,tooltip:!!tooltip,tooltipContent:tooltip?.getContent(),tooltipPermanent:tooltip?.options?.permanent,tooltipClassName:tooltip?.options?.className,labelSize:item._labelSize,labelColor:item._labelColor,labelPlacement:item._labelPlacement,labelMinZoom:item._labelMinZoom,labelDensity:item._labelDensity,tooltipDirection:tooltip?.options?.direction,labelCss:document.getElementById(item._labelClass+'-style')?.textContent||''};
@@ -197,7 +197,7 @@ const fixture = {
       bridge.openLayerProperties(item);
       const set=(id,value)=>{const control=document.getElementById(id);control.value=String(value);control.dispatchEvent(new Event('change',{bubbles:true}));};
       set('lpRenderer','unique');set('lpStyleField','road_type');set('lpColorRamp','blue');
-      document.getElementById('layerPropertiesForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+      document.getElementById('layerPropertiesForm').dispatchEvent(new SubmitEvent('submit',{bubbles:true,cancelable:true,submitter:document.getElementById('layerPropertiesOk')}));
       return item.layer.getLayers().map(layer=>({color:layer.options.color,fillColor:layer.options.fillColor}));
     });
     assert.equal(lineStyleResult.length,2,'Both line features should be styled');
@@ -259,7 +259,7 @@ const fixture = {
       set('lpLabelField','name');
       set('lpLabelMinZoom','12');
       set('lpLabelDensity','balanced');
-      document.getElementById('layerPropertiesForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+      document.getElementById('layerPropertiesForm').dispatchEvent(new SubmitEvent('submit',{bubbles:true,cancelable:true,submitter:document.getElementById('layerPropertiesOk')}));
       const settleMap=async()=>{await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));};
       const count=()=>Array.from(document.querySelectorAll('.'+item._labelClass)).filter(el=>el.getBoundingClientRect().width>0).length;
       const visibleElements=()=>Array.from(document.querySelectorAll('.'+item._labelClass)).filter(el=>el.getBoundingClientRect().width>0&&getComputedStyle(el).visibility!=='hidden');
