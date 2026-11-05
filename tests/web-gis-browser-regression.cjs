@@ -203,6 +203,21 @@ const fixture = {
     assert.equal(styleResult.tooltipDirection,'top','Labels should use the requested placement');
     assert.match(styleResult.labelCss,/text-shadow:/,'Rendered labels should use a white halo rather than a tooltip box');
     assert.match(styleResult.labelCss,/background:transparent/,'Rendered labels should not have a tooltip background');
+    // Layout Legend must mirror the active renderer, show unambiguous class ranges,
+    // and use a symbol shape matching the layer geometry.
+    await page.locator('#layoutModeToggle').click();
+    await page.locator('#webgisLayoutView [data-layout-action="legend"]').click();
+    const layoutLegend = await page.locator('#webgisLayoutLegend').evaluate(element => ({
+      text:element.innerText,
+      headings:[...element.querySelectorAll('.webgis-layout-legend-layer')].map(node=>node.textContent),
+      geometryTypes:[...element.querySelectorAll('.webgis-layout-legend-swatch')].map(node=>node.dataset.geometryType)
+    }));
+    assert.ok(layoutLegend.headings.includes(fixtureName),'Layout Legend should include the styled layer heading: '+JSON.stringify(layoutLegend));
+    assert.match(layoutLegend.text,/12\.5/,'Graduated Legend should display the first class boundary');
+    assert.match(layoutLegend.text,/27/,'Graduated Legend should display the final class boundary');
+    assert.ok(layoutLegend.geometryTypes.includes('Polygon'),'Polygon layers should use polygon-shaped legend swatches');
+    await page.locator('#webgisLayoutView [data-layout-action="close"]').click();
+
 
     // Dense-layer E2E: exercise real Leaflet tooltip elements at several zoom levels.
     const denseLabelResult = await page.evaluate(async () => {

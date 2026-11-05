@@ -8836,26 +8836,42 @@ function openLayoutView(){
   const modeButton=document.getElementById("layoutModeToggle");if(modeButton){modeButton.classList.add("active");modeButton.setAttribute("aria-pressed","true");modeButton.title="Switch back to Map View";modeButton.textContent="Map View";}
   if(mapElement){panel._mapRestore={mapElement,originalParent,originalNext,oldStyle:mapElement.getAttribute("style")};mapElement.style.width="100%";mapElement.style.height="100%";mapElement.style.minHeight="420px";$("webgisLayoutMapSlot",panel).appendChild(mapElement);requestAnimationFrame(()=>{try{map.invalidateSize({pan:false});updateLayoutScale()}catch(_){}});}
   const refreshLegend=()=>{
-    const legend=$("webgisLayoutLegend",panel);legend.replaceChildren();
+    const legend=$("webgisLayoutLegend",panel);
+    if(!legend)return;
+    legend.replaceChildren();
     const visible=(namedLayers||[]).filter(x=>x.visible!==false&&x.layer&&map?.hasLayer(x.layer));
     visible.forEach(item=>{
       const cfg=item._rendererConfig||item.renderer||item.layer?._rendererConfig||{};
       const records=typeof vectorFeatures==="function"?vectorFeatures(item.layer):[];
       const values=records.map(record=>record.feature?.properties?.[cfg.field]);
+      const geometryType=records.find(record=>record.feature?.geometry?.type)?.feature.geometry.type||"Polygon";
       const core=window.SabzWebGISSymbologyCore;
       let entries=[];
       if(core&&cfg.mode==="unique"&&cfg.field){
         entries=core.uniqueValueClasses(values,cfg.ramp||"green").map(entry=>({label:entry.value+" ("+entry.count+")",color:entry.color}));
       }else if(core&&cfg.mode==="graduated"&&cfg.field){
-        entries=core.graduatedClasses(values,cfg.classes||5,cfg.ramp||"green",cfg.method||"equal-interval").map(entry=>({label:entry.min.toLocaleString()+" – "+entry.max.toLocaleString(),color:entry.color}));
+        entries=core.graduatedClasses(values,cfg.classes||5,cfg.ramp||"green",cfg.method||"equal-interval").map((entry,index)=>{
+          const format=value=>Number(value).toLocaleString(undefined,{maximumFractionDigits:3});
+          const label=entry.min===entry.max?format(entry.max):
+            (index===0?format(entry.min):">"+format(entry.min))+" – "+format(entry.max);
+          return {label,color:entry.color};
+        });
       }
       const addRow=(labelText,color)=>{
         const row=document.createElement("div");row.className="webgis-layout-legend-item";
         const swatch=document.createElement("span");swatch.className="webgis-layout-legend-swatch";
-        const line=item.layer instanceof L.Polyline&&!(item.layer instanceof L.Polygon);
-        swatch.style.background=line?"transparent":color;
-        swatch.style.borderColor=item.layer?.options?.color||"#52616a";
-        if(line){swatch.style.height="0";swatch.style.border="0";swatch.style.borderTop="3px solid "+color;}
+        swatch.dataset.geometryType=geometryType;
+        swatch.style.borderColor=records[0]?.layer?.options?.color||item.layer?.options?.color||"#52616a";
+        if(/Line/.test(geometryType)){
+          swatch.style.width="16px";swatch.style.height="0";swatch.style.border="0";
+          swatch.style.borderTop="3px solid "+color;swatch.style.background="transparent";
+        }else if(/Point/.test(geometryType)){
+          swatch.style.width="10px";swatch.style.height="10px";swatch.style.borderRadius="50%";
+          swatch.style.background=color;
+        }else{
+          swatch.style.width="13px";swatch.style.height="13px";swatch.style.borderRadius="1px";
+          swatch.style.background=color;
+        }
         const label=document.createElement("span");label.textContent=labelText;
         row.append(swatch,label);legend.append(row);
       };
@@ -8863,8 +8879,9 @@ function openLayoutView(){
         const heading=document.createElement("div");heading.className="webgis-layout-legend-layer";heading.textContent=item.name||"Layer";legend.append(heading);
         entries.forEach(entry=>addRow(entry.label,entry.color));
       }else{
-        const color=item.layer?.options?.fillColor||item.layer?.options?.color||item.color||"#4b8065";
-        addRow(item.name||"Layer",color);
+        const color=records[0]?.layer?.options?.fillColor||records[0]?.layer?.options?.color||
+          item.layer?.options?.fillColor||item.layer?.options?.color||item.color||"#4b8065";
+        addRow(cfg.mode==="graduated"?"No numeric values":(item.name||"Layer"),color);
       }
     });
     if(!legend.childElementCount){const empty=document.createElement("span");empty.textContent="No visible layers";legend.append(empty);}
