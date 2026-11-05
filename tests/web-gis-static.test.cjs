@@ -56,11 +56,9 @@ test('Attribute Table renderer uses a live compatibility delegate', () => {
   assert.ok(attributeTableRender.includes('ctx.selectedLayer='));
 });
 
-test('single-feature attribute editor is bundled with the attribute-table runtime and uses an injected delegate', () => {
-  assert.ok(html.includes('webgis-attribute-table-render.js'));
-  assert.ok(html.includes('function renderAttributeEditor(){return window.SabzAttributeEditor.renderAttributeEditor({'));
-  assert.match(attributeTableRender, /root\.SabzAttributeEditor\s*=\s*\{renderAttributeEditor\}/);
-  for (const dependency of ['ensureFeatureProperties', 'selectedLayer', 'isComputedAttributeField', 'saveAttributes']) assert.ok(attributeTableRender.includes('ctx.' + dependency), 'missing injected dependency: ' + dependency);
+test('single-feature attribute editor remains inline and independent from the table renderer extraction', () => {
+  assert.match(html, /function renderAttributeEditor\(\)\{/);
+  assert.doesNotMatch(attributeTableRender, /SabzAttributeEditor/);
 });
 
 test('ArcToolbox renderer retains search and empty-state feedback', () => {
