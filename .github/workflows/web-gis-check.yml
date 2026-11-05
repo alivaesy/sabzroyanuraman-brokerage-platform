@@ -10,8 +10,12 @@ on:
       - "sabzroyanuraman-site/web-gis.html"
       - "sabzroyanuraman-site/webgis-gps-tracking.js"
       - "sabzroyanuraman-site/webgis-core-bridge.js"
+      - "sabzroyanuraman-site/webgis-symbology-core.js"
+      - "tests/webgis-symbology-core.test.cjs"
       - "sabzroyanuraman-site/webgis-labeling-core.js"
       - "sabzroyanuraman-site/webgis-attribute-table-core.js"
+      - "sabzroyanuraman-site/webgis-symbology-core.js"
+      - "tests/webgis-symbology-core.test.cjs"
       - "tests/webgis-attribute-table-core.test.cjs"
       - "tests/webgis-labeling-core.test.cjs"
       - "tests/web-gis-bridge-contract.test.cjs"
@@ -69,6 +73,8 @@ jobs:
           node --check sabzroyanuraman-site/webgis-labeling-core.js
           node --check sabzroyanuraman-site/webgis-attribute-table-core.js
           node tests/webgis-attribute-table-core.test.cjs
+          node --check sabzroyanuraman-site/webgis-symbology-core.js
+          node tests/webgis-symbology-core.test.cjs
           node --check tests/webgis-labeling-core.test.cjs
           node tests/webgis-labeling-core.test.cjs
           python -m py_compile tools/mxd_to_manifest.py
