@@ -49,18 +49,55 @@
   function graduatedClasses(values, count, rampName, method = "equal-interval") {
     const numbers = numericValues(values).sort((a, b) => a - b);
     if (!numbers.length) return [];
-    const size = Math.max(2, Math.min(7, Math.floor(Number(count) || 5)));
+    const requestedSize = Math.max(2, Math.min(7, Math.floor(Number(count) || 5)));
     const min = numbers[0], max = numbers[numbers.length - 1];
-    const colors = layerStyleRamp(rampName, size);
     const classes = [];
-    for (let index = 0; index < size; index++) {
-      let upper;
-      if (method === "quantile") {
-        upper = numbers[Math.min(numbers.length - 1,
-          Math.max(0, Math.ceil((index + 1) * numbers.length / size) - 1))];
-      } else {
-        upper = index === size - 1 ? max : min + (max - min) * (index + 1) / size;
+
+    if (method === "quantile") {
+      const distinctValues = Array.from(new Set(numbers));
+      const classCount = Math.min(requestedSize, distinctValues.length);
+      const colors = layerStyleRamp(rampName, classCount);
+      const frequencies = new Map();
+      numbers.forEach(value => frequencies.set(value, (frequencies.get(value) || 0) + 1));
+
+      const breaks = [];
+      let previousGroup = -1;
+      for (let boundary = 1; boundary < classCount; boundary++) {
+        const targetRank = Math.ceil(boundary * numbers.length / classCount);
+        let cumulative = 0;
+        let candidateGroup = 0;
+        for (let group = 0; group < distinctValues.length; group++) {
+          cumulative += frequencies.get(distinctValues[group]);
+          if (cumulative >= targetRank) {
+            candidateGroup = group;
+            break;
+          }
+        }
+
+        // Reserve at least one distinct value for each remaining class.
+        const latestAllowedGroup = distinctValues.length - classCount + boundary - 1;
+        candidateGroup = Math.min(
+          latestAllowedGroup,
+          Math.max(previousGroup + 1, candidateGroup)
+        );
+        breaks.push(distinctValues[candidateGroup]);
+        previousGroup = candidateGroup;
       }
+      breaks.push(max);
+
+      let lower = min;
+      breaks.forEach((upper, index) => {
+        classes.push({ min: lower, max: upper, color: colors[index] });
+        lower = upper;
+      });
+      return classes;
+    }
+
+    const colors = layerStyleRamp(rampName, requestedSize);
+    for (let index = 0; index < requestedSize; index++) {
+      const upper = index === requestedSize - 1
+        ? max
+        : min + (max - min) * (index + 1) / requestedSize;
       const lower = index === 0 ? min : classes[index - 1].max;
       classes.push({ min: lower, max: upper, color: colors[index] });
     }
