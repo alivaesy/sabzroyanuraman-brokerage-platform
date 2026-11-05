@@ -270,8 +270,12 @@ const fixture = {
       const visible=()=>visibleElements().length;
       const overlapCount=()=>{const boxes=visibleElements().map(el=>el.getBoundingClientRect());let overlaps=0;for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++){const a=boxes[i],b=boxes[j];if(a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top)overlaps++;}return overlaps;};
       await settleMap();
+      // The browser regression starts with a base layer that can clamp the map's
+      // minimum zoom. Lower the map-level floor so the label minZoom gate is truly tested.
+      bridge.map.setMinZoom(0);
       bridge.map.setZoom(11,{animate:false});
       await settleMap();
+      if(bridge.map.getZoom()!==11)throw new Error("Label minimum-zoom regression did not reach zoom 11; actual zoom: "+bridge.map.getZoom());
       window.refreshLabelDecluttering?.();
       const belowMinimum=visible();
       const belowMinimumDetails={zoom:bridge.map.getZoom(),configuredMinZoom:item._labelMinZoom,ownerEnabled:item._labelsEnabled,featureLayerCount:item.layer.getLayers().length,tooltipStates:item.layer.getLayers().map((featureLayer,index)=>{const tooltip=featureLayer.getTooltip&&featureLayer.getTooltip();const element=tooltip&&(tooltip.getElement?tooltip.getElement():tooltip._container);return {index,hasTooltip:!!tooltip,hasElement:!!element,visibility:element?getComputedStyle(element).visibility:'missing',className:element?.className||'',text:element?.textContent||''};})};
