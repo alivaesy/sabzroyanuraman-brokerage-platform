@@ -1336,6 +1336,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <script src="./vendor/web-gis/proj4/proj4.js"></script>
 <script src="./vendor/web-gis/turf/turf.min.js"></script>
 <script src="./vendor/web-gis/geotiff/geotiff.js" onerror="this.onerror=null;this.src=\'https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js\'"></script>
+<script src="./webgis-attribute-table-core.js?v=20261105-attribute-core"></script>
 <script src="./webgis-labeling-core.js?v=20261104-labeling-core"></script>
 <script src="./webgis-symbology-core.js?v=20261104-symbology-core"></script>
 <script src="./raster-runtime.js?v=20261101-selftest"></script>
@@ -4126,13 +4127,15 @@ function currentAttributeItems(){
  const owner=namedLayers.find(x=>x.layer===layer);
  return owner?._definitionQuery?items.filter(x=>definitionQueryMatches(owner._definitionQuery,x.feature.properties||{})):items;
 }
-function isReservedAttributeField(key){return typeof key!=="string"||key.startsWith("_")||key.toLowerCase()==="geometry"}
-function isComputedAttributeField(key){return typeof key==="string"&&["area_m2","length_m","x","y"].includes(key.toLowerCase())}
-function isProtectedAttributeValueField(key){return isReservedAttributeField(key)||isComputedAttributeField(key)}
+const attributeTableCore=window.SabzWebGISAttributeTableCore;
+if(!attributeTableCore)throw new Error("SabzWebGISAttributeTableCore must load before the WebGIS application.");
+function isReservedAttributeField(key){return attributeTableCore.isReservedField(key)}
+function isComputedAttributeField(key){return attributeTableCore.isComputedField(key)}
+function isProtectedAttributeValueField(key){return attributeTableCore.isProtectedField(key)}
 function tableKeys(items){
  // Include declared schema fields even when a feature class contains zero rows.
  const layer=currentAttributeLayer(),schema=layer?._gdbMetadata?.fields||[];
- return [...new Set([...schema.map(f=>typeof f==="string"?f:f.name),...items.flatMap(x=>Object.keys(x.feature.properties||{}).filter(k=>!isReservedAttributeField(k)))].filter(k=>k&&!isReservedAttributeField(k)))];
+ return attributeTableCore.collectFields(schema,items.map(x=>x.feature.properties||{}));
 }
 let attributeSort={key:null,direction:1};
 function renderEditableTable(){
@@ -4147,12 +4150,7 @@ function renderEditableTable(){
   const key=attributeSort.key,dir=attributeSort.direction;
   rows.sort((a,b)=>{
    const av=a.x.feature.properties?.[key],bv=b.x.feature.properties?.[key];
-   const aEmpty=av===null||av===undefined||av==="",bEmpty=bv===null||bv===undefined||bv==="";
-   if(aEmpty||bEmpty)return aEmpty===bEmpty?a.i-b.i:(aEmpty?1:-1);
-   let cmp;
-   if(typeof av==="number"&&typeof bv==="number")cmp=av-bv;
-   else if(typeof av==="boolean"&&typeof bv==="boolean")cmp=Number(av)-Number(bv);
-   else cmp=String(typeof av==="object"?JSON.stringify(av):av).localeCompare(String(typeof bv==="object"?JSON.stringify(bv):bv),undefined,{numeric:true,sensitivity:"base"});
+   const cmp=attributeTableCore.compareValues(av,bv);
    return cmp===0?a.i-b.i:cmp*dir;
   });
  }
