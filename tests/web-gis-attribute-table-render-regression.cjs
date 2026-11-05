@@ -71,9 +71,9 @@ const fixture = {
 
     // ArcMap-style record selection: single click, Ctrl-toggle, and clear.
     const rows=page.locator('#attributeTableWrap tbody tr[data-index]');
-    await rows.nth(0).click();
-    assert.equal(await rows.nth(0).getAttribute('aria-selected'),'true','Clicking a record must select it');
-    await rows.nth(1).click({modifiers:['Control']});
+    await rows.nth(0).locator('td').nth(1).click();
+    assert.equal(await rows.nth(0).getAttribute('aria-selected'),'true','Clicking a record selector cell must select it');
+    await rows.nth(1).locator('td').nth(1).click({modifiers:['Control']});
     assert.equal(await rows.nth(0).getAttribute('aria-selected'),'true','Ctrl-click must preserve the first selected record');
     assert.equal(await rows.nth(1).getAttribute('aria-selected'),'true','Ctrl-click must add the second record to selection');
     await page.locator('#attributeClearSelection').click();
