@@ -274,6 +274,7 @@ const fixture = {
       await settleMap();
       window.refreshLabelDecluttering?.();
       const belowMinimum=visible();
+      const belowMinimumDetails={zoom:bridge.map.getZoom(),configuredMinZoom:item._labelMinZoom,ownerEnabled:item._labelsEnabled,featureLayerCount:item.layer.getLayers().length,tooltipStates:item.layer.getLayers().map((featureLayer,index)=>{const tooltip=featureLayer.getTooltip&&featureLayer.getTooltip();const element=tooltip&&(tooltip.getElement?tooltip.getElement():tooltip._container);return {index,hasTooltip:!!tooltip,hasElement:!!element,visibility:element?getComputedStyle(element).visibility:'missing',className:element?.className||'',text:element?.textContent||''};})};
       bridge.map.setZoom(15,{animate:false});
       await settleMap();
       window.refreshLabelDecluttering?.();
@@ -284,7 +285,6 @@ const fixture = {
       window.refreshLabelDecluttering?.();
       const closeVisible=visible();
       const closeOverlaps=overlapCount();
-      const belowMinimumDetails={zoom:bridge.map.getZoom(),configuredMinZoom:item._labelMinZoom,ownerEnabled:item._labelsEnabled,featureLayerCount:item.layer.getLayers().length,unhiddenTooltips:item.layer.getLayers().map((featureLayer,index)=>{const tooltip=featureLayer.getTooltip&&featureLayer.getTooltip();const element=tooltip&&(tooltip.getElement?tooltip.getElement():tooltip._container);return element&&getComputedStyle(element).visibility!=='hidden'?{index,visibility:getComputedStyle(element).visibility,className:element.className,text:element.textContent}:null;}).filter(Boolean)};
       return {featureCount:features.length,domLabels:count(),belowMinimum,belowMinimumDetails,mediumVisible,closeVisible,mediumOverlaps,closeOverlaps};
     });
     assert.equal(denseLabelResult.featureCount,300,'Dense regression fixture should contain 300 point features');
