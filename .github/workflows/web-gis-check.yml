@@ -15,7 +15,6 @@ on:
       - "sabzroyanuraman-site/webgis-labeling-core.js"
       - "sabzroyanuraman-site/webgis-attribute-table-core.js"
       - "sabzroyanuraman-site/webgis-attribute-table-render.js"
-      - "sabzroyanuraman-site/webgis-attribute-editor.js"
       - "sabzroyanuraman-site/webgis-symbology-core.js"
       - "tests/webgis-symbology-core.test.cjs"
       - "tests/webgis-attribute-table-core.test.cjs"
@@ -78,7 +77,6 @@ jobs:
           node --check sabzroyanuraman-site/webgis-labeling-core.js
           node --check sabzroyanuraman-site/webgis-attribute-table-core.js
           node --check sabzroyanuraman-site/webgis-attribute-table-render.js
-          node --check sabzroyanuraman-site/webgis-attribute-editor.js
           node tests/webgis-attribute-table-core.test.cjs
           node --check sabzroyanuraman-site/webgis-symbology-core.js
           node tests/webgis-symbology-core.test.cjs
