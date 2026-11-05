@@ -8223,12 +8223,19 @@ $("layerPropertiesForm").addEventListener("submit",e=>{
   let styled=0;
   records.forEach(r=>{
     try{
-      let style={...baseStyle};
+      let style={...baseStyle},symbolColor=null;
       const raw=r.feature?.properties?.[styleField];
       if(rendererMode==="unique"){
-        const item=uniqueClasses.find(entry=>entry.value===String(raw));if(item)style.fillColor=item.color;
+        const item=uniqueClasses.find(entry=>entry.value===String(raw));
+        if(item)symbolColor=item.color;
       }else if(rendererMode==="graduated"){
-        const index=core.classifyGraduatedValue(raw,graduated);if(index>=0)style.fillColor=graduated[index].color;
+        const index=core.classifyGraduatedValue(raw,graduated);
+        if(index>=0)symbolColor=graduated[index].color;
+      }
+      if(symbolColor){
+        const isLine=r.layer instanceof L.Polyline&&!(r.layer instanceof L.Polygon);
+        if(isLine)style.color=symbolColor;
+        else style.fillColor=symbolColor;
       }
       if(typeof r.layer.setStyle==="function"){r.layer.setStyle(style);styled++;}
       if(typeof r.layer.setRadius==="function")r.layer.setRadius(radius);
@@ -8238,7 +8245,7 @@ $("layerPropertiesForm").addEventListener("submit",e=>{
       }else if(typeof r.layer.unbindTooltip==="function")r.layer.unbindTooltip();
     }catch(err){console.debug("Layer Properties style skipped",err);}
   });
-  if(typeof target.setStyle==="function"){try{target.setStyle(style);styled=Math.max(1,styled)}catch(_){}}
+  if(!records.length&&typeof target.setStyle==="function"){try{target.setStyle(baseStyle);styled=1}catch(_){}}
   refreshLabelDecluttering();
   if(owner&&owner.layerControl&&owner.layerControl.removeLayer){}
   renderLayerList();

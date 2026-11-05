@@ -186,6 +186,24 @@ const fixture = {
     },fixtureName);
     assert.equal(styleResult.uniqueMode,'unique');
     assert.ok(new Set(styleResult.uniqueColors).size>=2,'Unique Values renderer should assign distinct category colors');
+    const lineStyleResult = await page.evaluate(() => {
+      const bridge=window.__sabzWebGISSharedBridge;
+      const name='__SabzLineSymbologyRegression__';
+      bridge.addGeoJSONLayer(name,{type:'FeatureCollection',features:[
+        {type:'Feature',properties:{road_type:'primary'},geometry:{type:'LineString',coordinates:[[47.757,33.628],[47.758,33.629]]}},
+        {type:'Feature',properties:{road_type:'secondary'},geometry:{type:'LineString',coordinates:[[47.759,33.628],[47.760,33.629]]}}
+      ]});
+      const item=bridge.namedLayers.find(layer=>layer.name===name);
+      bridge.openLayerProperties(item);
+      const set=(id,value)=>{const control=document.getElementById(id);control.value=String(value);control.dispatchEvent(new Event('change',{bubbles:true}));};
+      set('lpRenderer','unique');set('lpStyleField','road_type');set('lpColorRamp','blue');
+      document.getElementById('layerPropertiesForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+      return item.layer.getLayers().map(layer=>({color:layer.options.color,fillColor:layer.options.fillColor}));
+    });
+    assert.equal(lineStyleResult.length,2,'Both line features should be styled');
+    assert.notEqual(lineStyleResult[0].color,lineStyleResult[1].color,
+      'Unique Values must change stroke colors for line geometries, not only polygon fill colors');
+
     assert.equal(styleResult.renderer,'graduated');
     assert.equal(styleResult.field,'area_ha');
     assert.equal(styleResult.method,'quantile','Graduated Colors should apply the selected Quantile method');
