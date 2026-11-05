@@ -170,6 +170,9 @@ const fixture = {
       apply('unique','parcel_id');
       const uniqueColors=item.layer.getLayers().map(feature=>feature.options?.fillColor).filter(Boolean);
       apply('graduated','area_ha','quantile');
+      // Applying with the OK submitter closes Layer Properties. Reopen it before
+      // configuring labels, matching the real desktop-style user workflow.
+      bridge.openLayerProperties(item);
       const labels=document.getElementById('lpLabelsEnabled');
       if(!labels) throw new Error('Layer label toggle is missing');
       labels.checked=true;
