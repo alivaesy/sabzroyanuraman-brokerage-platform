@@ -229,7 +229,9 @@ const fixture = {
       document.getElementById('layerPropertiesForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
       const settleMap=async()=>{await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));};
       const count=()=>Array.from(document.querySelectorAll('.'+item._labelClass)).filter(el=>el.getBoundingClientRect().width>0).length;
-      const visible=()=>Array.from(document.querySelectorAll('.'+item._labelClass)).filter(el=>el.getBoundingClientRect().width>0&&getComputedStyle(el).visibility!=='hidden').length;
+      const visibleElements=()=>Array.from(document.querySelectorAll('.'+item._labelClass)).filter(el=>el.getBoundingClientRect().width>0&&getComputedStyle(el).visibility!=='hidden');
+      const visible=()=>visibleElements().length;
+      const overlapCount=()=>{const boxes=visibleElements().map(el=>el.getBoundingClientRect());let overlaps=0;for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++){const a=boxes[i],b=boxes[j];if(a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top)overlaps++;}return overlaps;};
       await settleMap();
       bridge.map.setZoom(11,{animate:false});
       await settleMap();
@@ -239,15 +241,19 @@ const fixture = {
       await settleMap();
       window.refreshLabelDecluttering?.();
       const mediumVisible=visible();
+      const mediumOverlaps=overlapCount();
       bridge.map.setZoom(18,{animate:false});
       await settleMap();
       window.refreshLabelDecluttering?.();
       const closeVisible=visible();
-      return {featureCount:features.length,domLabels:count(),belowMinimum,mediumVisible,closeVisible};
+      const closeOverlaps=overlapCount();
+      return {featureCount:features.length,domLabels:count(),belowMinimum,mediumVisible,closeVisible,mediumOverlaps,closeOverlaps};
     });
     assert.equal(denseLabelResult.featureCount,300,'Dense regression fixture should contain 300 point features');
     assert.equal(denseLabelResult.belowMinimum,0,'Labels must be hidden below the configured minimum zoom');
     assert.ok(denseLabelResult.mediumVisible>0,'Some labels should be visible at the medium zoom');
+    assert.equal(denseLabelResult.mediumOverlaps,0,'Visible labels must not overlap at medium zoom');
+    assert.equal(denseLabelResult.closeOverlaps,0,'Visible labels must not overlap at close zoom');
     assert.ok(denseLabelResult.closeVisible>=denseLabelResult.mediumVisible,
       'Zooming in should not reduce the number of decluttered labels');
 
