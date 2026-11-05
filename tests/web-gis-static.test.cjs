@@ -10,8 +10,6 @@ const htmlPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'web-gis.htm
 const html = fs.readFileSync(htmlPath, 'utf8');
 const attributeTableRenderPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-attribute-table-render.js');
 const attributeTableRender = fs.readFileSync(attributeTableRenderPath, 'utf8');
-const attributeEditorPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-attribute-editor.js');
-const attributeEditor = fs.readFileSync(attributeEditorPath, 'utf8');
 
 test('all inline JavaScript blocks parse', () => {
   const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)]
@@ -58,13 +56,11 @@ test('Attribute Table renderer uses a live compatibility delegate', () => {
   assert.ok(attributeTableRender.includes('ctx.selectedLayer='));
 });
 
-test('single-feature attribute editor is loaded through an injected compatibility delegate', () => {
-  const renderIndex = html.indexOf('webgis-attribute-table-render.js');
-  const editorIndex = html.indexOf('webgis-attribute-editor.js');
-  assert.ok(renderIndex >= 0 && editorIndex > renderIndex, 'attribute editor must load after the table renderer');
+test('single-feature attribute editor is bundled with the attribute-table runtime and uses an injected delegate', () => {
+  assert.ok(html.includes('webgis-attribute-table-render.js'));
   assert.ok(html.includes('function renderAttributeEditor(){return window.SabzAttributeEditor.renderAttributeEditor({'));
-  assert.match(attributeEditor, /root\.SabzAttributeEditor\s*=\s*\{renderAttributeEditor\}/);
-  for (const dependency of ['ensureFeatureProperties', 'selectedLayer', 'isComputedAttributeField', 'saveAttributes']) assert.ok(attributeEditor.includes('ctx.' + dependency), 'missing injected dependency: ' + dependency);
+  assert.match(attributeTableRender, /root\.SabzAttributeEditor\s*=\s*\{renderAttributeEditor\}/);
+  for (const dependency of ['ensureFeatureProperties', 'selectedLayer', 'isComputedAttributeField', 'saveAttributes']) assert.ok(attributeTableRender.includes('ctx.' + dependency), 'missing injected dependency: ' + dependency);
 });
 
 test('ArcToolbox renderer retains search and empty-state feedback', () => {
