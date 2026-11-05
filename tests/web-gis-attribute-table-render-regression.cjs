@@ -29,7 +29,10 @@ const fixture = {
     const response=await page.goto(baseUrl,{waitUntil:'domcontentloaded',timeout:60000});
     assert.ok(response&&response.ok(),'WebGIS page must return HTTP success');
     await page.waitForFunction(()=>!!window.__sabzGISMap&&!!window.__sabzWebGISSharedBridge,null,{timeout:45000});
-    await page.locator('.accordion-section[data-accordion="attribute"] .accordion-head').click();
+    await page.locator("#toolboxToggleBtn").click();
+    const attributeAccordion=page.locator('.accordion-section[data-accordion="attribute"] .accordion-head');
+    await attributeAccordion.waitFor({state:"visible",timeout:10000});
+    await attributeAccordion.click();
     await page.evaluate(({name,data})=>{
       const bridge=window.__sabzWebGISSharedBridge;
       bridge.addGeoJSONLayer(name,data);
