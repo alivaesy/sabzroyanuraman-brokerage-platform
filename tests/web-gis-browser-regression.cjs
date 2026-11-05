@@ -205,7 +205,7 @@ const fixture = {
     assert.match(styleResult.labelCss,/background:transparent/,'Rendered labels should not have a tooltip background');
 
     // Dense-layer E2E: exercise real Leaflet tooltip elements at several zoom levels.
-    const denseLabelResult = await page.evaluate(() => {
+    const denseLabelResult = await page.evaluate(async () => {
       const bridge=window.__sabzWebGISSharedBridge;
       const name='__SabzDenseLabelRegression__';
       const features=[];
