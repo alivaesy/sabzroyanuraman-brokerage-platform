@@ -52,6 +52,14 @@ assert.deepEqual(Array.from(core.selectVisibleLabels([
   {left:0,top:0,right:40,bottom:12},
   {left:10,top:2,right:50,bottom:14}
 ], {density:"dense"})), [0], "Dense mode should still prevent direct label overlap");
+assert.deepEqual(Array.from(core.selectVisibleLabels([
+  {left:0,top:0,right:40,bottom:12,density:"dense"},
+  {left:50,top:0,right:90,bottom:12,density:"sparse"}
+])), [0], "Per-layer sparse padding must be respected in a shared collision pass");
+assert.deepEqual(Array.from(core.selectVisibleLabels([
+  {left:0,top:0,right:40,bottom:12,density:"dense"},
+  {left:50,top:0,right:90,bottom:12,density:"dense"}
+])), [0, 1], "Dense labels in different layers may remain visible when their boxes do not overlap");
 assert.equal(core.normalizeLabelConfig({minZoom:30,density:"sparse"}).minZoom,22);
 assert.equal(core.normalizeLabelConfig({minZoom:-2,density:"invalid"}).minZoom,0);
 assert.equal(core.normalizeLabelConfig({density:"invalid"}).density,"balanced");

@@ -289,6 +289,37 @@ const fixture = {
     assert.equal(denseLabelResult.closeOverlaps,0,'Visible labels must not overlap at close zoom');
     assert.ok(denseLabelResult.closeVisible>=denseLabelResult.mediumVisible,
       'Zooming in should not reduce the number of decluttered labels');
+    // Labels from separate layers must share one collision space.
+    const crossLayerLabels = await page.evaluate(async () => {
+      const bridge=window.__sabzWebGISSharedBridge;
+      const makeLayer=(name,label)=>({
+        type:'FeatureCollection',
+        features:[{type:'Feature',properties:{name:label},
+          geometry:{type:'Point',coordinates:[47.759,33.629]}}]
+      });
+      const firstName='__SabzCrossLayerLabelA__',secondName='__SabzCrossLayerLabelB__';
+      bridge.namedLayers.forEach(owner=>{owner._labelsEnabled=false;});
+      bridge.addGeoJSONLayer(firstName,makeLayer(firstName,'Cross layer A'));
+      bridge.addGeoJSONLayer(secondName,makeLayer(secondName,'Cross layer B'));
+      const owners=[firstName,secondName].map(name=>bridge.namedLayers.find(item=>item.name===name));
+      owners.forEach(owner=>{
+        owner._labelsEnabled=true;owner._labelField='name';owner._labelMinZoom=0;owner._labelDensity='balanced';
+        owner.layer.eachLayer(featureLayer=>featureLayer.bindTooltip(
+          featureLayer.feature.properties.name,{permanent:true,className:'gis-feature-label',interactive:false}
+        ));
+      });
+      bridge.map.setView([33.629,47.759],17,{animate:false});
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      window.refreshLabelDecluttering?.();
+      const states=owners.map(owner=>owner.layer.getLayers().map(featureLayer=>{
+        const element=featureLayer.getTooltip()?.getElement();
+        return {content:featureLayer.getTooltip()?.getContent(),visibility:element?getComputedStyle(element).visibility:'missing'};
+      }));
+      return {states,visible:states.flat().filter(item=>item.visibility!=='hidden'&&item.visibility!=='missing').length};
+    });
+    assert.equal(crossLayerLabels.visible,1,
+      'Overlapping labels belonging to two different visible layers must not both be displayed');
+
 
     // Persist locally to IndexedDB, reload the page, and verify geometry + symbology + labels.
     const saved = await page.evaluate(async () => {

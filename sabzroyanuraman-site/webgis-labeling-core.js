@@ -43,14 +43,16 @@
 
 
   function selectVisibleLabels(candidates, options = {}) {
-    const density = ["sparse", "balanced", "dense"].includes(options.density) ? options.density : "balanced";
-    const padding = density === "sparse" ? 12 : density === "dense" ? 2 : 6;
+    const defaultDensity = ["sparse", "balanced", "dense"].includes(options.density) ? options.density : "balanced";
+    const paddingFor = density => density === "sparse" ? 12 : density === "dense" ? 2 : 6;
     const cellSize = Math.max(32, Number(options.cellSize) || 64);
     const occupied = new Map();
     const visible = [];
     (Array.isArray(candidates) ? candidates : []).forEach((candidate, index) => {
       if (!candidate || ![candidate.left, candidate.top, candidate.right, candidate.bottom].every(Number.isFinite)) return;
       if (candidate.right <= candidate.left || candidate.bottom <= candidate.top) return;
+      const density = ["sparse", "balanced", "dense"].includes(candidate.density) ? candidate.density : defaultDensity;
+      const padding = paddingFor(density);
       const left = candidate.left - padding, top = candidate.top - padding;
       const right = candidate.right + padding, bottom = candidate.bottom + padding;
       const minX = Math.floor(left / cellSize), maxX = Math.floor(right / cellSize);
