@@ -8,6 +8,8 @@ const assert = require('node:assert/strict');
 
 const htmlPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'web-gis.html');
 const html = fs.readFileSync(htmlPath, 'utf8');
+const attributeTableRenderPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-attribute-table-render.js');
+const attributeTableRender = fs.readFileSync(attributeTableRenderPath, 'utf8');
 
 test('all inline JavaScript blocks parse', () => {
   const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)]
@@ -40,6 +42,17 @@ test('Geoprocessing options have valid unique values and registered handlers', (
   const registered = new Set(toolEntries.flatMap(([, id, op]) => [id, op].filter(Boolean)));
   const missing = options.filter(value => !core.has(value) && !registered.has(value));
   assert.deepEqual(missing, [], 'unregistered operation(s): ' + missing.join(', '));
+});
+
+test('Attribute Table renderer uses a live compatibility delegate', () => {
+  const coreIndex = html.indexOf('webgis-attribute-table-core.js');
+  const renderIndex = html.indexOf('webgis-attribute-table-render.js');
+  assert.ok(coreIndex >= 0 && renderIndex > coreIndex, 'attribute table renderer must load after its core');
+  assert.ok(html.includes('function renderEditableTable(){return window.SabzAttributeTableRender.renderEditableTable({'));
+  assert.ok(html.includes('get attributeSort(){return attributeSort},set attributeSort(value){attributeSort=value}'));
+  assert.ok(attributeTableRender.includes('function render(ctx)'));
+  assert.ok(attributeTableRender.includes('ctx.attributeSort'));
+  assert.ok(attributeTableRender.includes('ctx.selectedLayer='));
 });
 
 test('ArcToolbox renderer retains search and empty-state feedback', () => {
