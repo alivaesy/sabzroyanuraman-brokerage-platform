@@ -101,8 +101,6 @@ const fixture = {
     assert.ok(setup.after >= setup.before,'Zoom To Selection should not zoom out');
     assert.ok(setup.hasProperties,'Layer Properties command must be callable');
 
-
-
     // Run a real RustGIS Clip through the WebAssembly engine. The input coordinates
     // are WGS84; the adapter must project to EPSG:32638 and return the output to WGS84.
     const clipInputName='__SabzProjectedClipInput__';

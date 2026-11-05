@@ -25,7 +25,7 @@ function render(ctx){
  keys.map(k=>{const v=(o.x.feature.properties||{})[k],shown=v===null||v===undefined?"":typeof v==="object"?JSON.stringify(v):String(v),computed=ctx.isComputedAttributeField(k);return "<td style='padding:2px'><input class='cell-edit"+(computed?" computed-field-readonly":"")+"' data-key='"+ctx.esc(k)+"' data-original='"+ctx.esc(shown)+"' value='"+ctx.esc(shown)+"' "+(computed?"readonly aria-readonly='true' title='Calculated field — read only'":"")+"></td>"}).join("")+"</tr>"});
  ctx.$("attributeTableWrap").innerHTML=html+"</tbody></table>";ctx.$("attributeTableWrap").style.display="block";
  // Resizable field columns, similar to the desktop ArcMap attribute grid.
- $("attributeTableWrap").querySelectorAll("th[data-sort-key]").forEach(th=>{
+ ctx.$("attributeTableWrap").querySelectorAll("th[data-sort-key]").forEach(th=>{
   th.style.position="sticky";th.style.minWidth="90px";
   const grip=document.createElement("span");
   grip.setAttribute("role","separator");grip.setAttribute("aria-label","Resize column "+th.dataset.sortKey);
@@ -91,7 +91,7 @@ function render(ctx){
  };
  const switchSelectionBtn=ctx.$("attributeSwitchSelection");if(switchSelectionBtn)switchSelectionBtn.onclick=()=>{
   if(ctx.hasUnsavedTableEdits()){ctx.status("Save Table Edits before changing selection.");return}
-  const visibleRows=[...$("attributeTableWrap").querySelectorAll("tbody tr[data-index]")];
+  const visibleRows=[...ctx.$("attributeTableWrap").querySelectorAll("tbody tr[data-index]")];
   if(!visibleRows.length){ctx.status("There are no displayed records to switch.");return}
   visibleRows.forEach(row=>{const item=items[Number(row.dataset.index)];if(item){if(ctx.selectedFeatures.has(item.layer))ctx.selectedFeatures.delete(item.layer);else ctx.selectedFeatures.add(item.layer)}});
   const first=ctx.getFeatureRecords().find(item=>ctx.selectedFeatures.has(item.layer));
@@ -102,7 +102,7 @@ function render(ctx){
  const exportCsvBtn=ctx.$("attributeExportCsv");
  if(exportCsvBtn)exportCsvBtn.onclick=()=>{
   if(ctx.hasUnsavedTableEdits()){ctx.status("Save Table Edits before exporting; unsaved cell values have been preserved.");return}
-  const visible=[...$("attributeTableWrap").querySelectorAll("tbody tr[data-index]")];
+  const visible=[...ctx.$("attributeTableWrap").querySelectorAll("tbody tr[data-index]")];
   const selected=visible.filter(row=>{const item=items[Number(row.dataset.index)];return item&&ctx.selectedFeatures.has(item.layer)});
   const sourceRows=selected.length?selected:visible;
   const csvCell=value=>{const text=String(value===null||value===undefined?"":typeof value==="object"?JSON.stringify(value):value);return '"'+text.replace(/"/g,'""')+'"';};
@@ -125,7 +125,7 @@ function render(ctx){
   if(bounds&&bounds.isValid()){ctx.map.fitBounds(bounds.pad(0.12),{maxZoom:18});ctx.status("Zoomed to "+chosen.length+" selected feature(s).");}
   else ctx.status("The selected features have no usable map bounds.");
  };
- const all=ctx.$("checkAllRows"),rowChecks=[...$("attributeTableWrap").querySelectorAll(".row-check")];
+ const all=ctx.$("checkAllRows"),rowChecks=[...ctx.$("attributeTableWrap").querySelectorAll(".row-check")];
  const syncCheckAll=()=>{
   if(all){
    const checked=rowChecks.filter(ch=>ch.checked).length;

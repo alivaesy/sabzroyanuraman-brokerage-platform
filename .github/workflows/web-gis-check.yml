@@ -39,6 +39,7 @@ on:
   pull_request:
     paths:
       - "sabzroyanuraman-site/web-gis.html"
+      - "sabzroyanuraman-site/webgis-attribute-table-render.js"
       - "sabzroyanuraman-site/webgis-core-bridge.js"
       - "tests/web-gis-bridge-contract.test.cjs"
       - "sabzroyanuraman-site/webgis-rustgis-enhancements.js"
@@ -48,6 +49,7 @@ on:
       - "sabzroyanuraman-site/webgis-gdb-catalog-tree.js"
       - "tests/web-gis-static.test.cjs"
       - "tests/web-gis-browser-regression.cjs"
+      - "tests/web-gis-attribute-table-render-regression.cjs"
       - "tests/web-gis-arcmap-import-regression.cjs"
       - "tests/web-gis-gdb-catalog-tree-regression.cjs"
       - "tests/web-gis-gdb-context-menu-regression.cjs"
