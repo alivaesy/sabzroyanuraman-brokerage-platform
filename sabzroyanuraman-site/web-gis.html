@@ -3281,30 +3281,7 @@ function ensureFeatureProperties(layer){
   if(!layer.feature.properties)layer.feature.properties={};
   return layer.feature.properties;
 }
-function renderAttributeEditor(){
-  const box=$("attributeEditor");
-  if(!box)return;
-  if(!selectedLayer){box.style.display="none";status("Select the first input feature.");return}
-  const props=ensureFeatureProperties(selectedLayer);
-  const keys=Object.keys(props).filter(k=>k!=="_attachments");
-  let html="<div id='attributeRows'>";
-  keys.forEach(k=>{
-    html+="<div class='row attr-edit-row' data-key='"+esc(k)+"' style='align-items:flex-start'>"+
-      "<input class='attr-key' value='"+esc(k)+"' title='Field Name' style='width:42%' "+(isComputedAttributeField(k)?"readonly aria-readonly='true' title='Calculated field name — read only'":"")+">"+
-      "<input class='attr-value"+(isComputedAttributeField(k)?" computed-field-readonly":"")+"' value='"+esc(typeof props[k]==="object"&&props[k]!==null?JSON.stringify(props[k]):props[k])+"' title='"+(isComputedAttributeField(k)?"Calculated field — read only":"Value")+"' style='width:48%' "+(isComputedAttributeField(k)?"readonly aria-readonly='true'":"")+">"+
-      (isComputedAttributeField(k)?"<span class='small' title='Calculated field'>Auto</span>":"<button class='action danger attr-delete' type='button' title='Delete Field'>×</button>")+"</div>";
-  });
-  if(!keys.length)html+="<div class='small'>This feature has no editable attributes.</div>";
-  html+="</div><div class='row'><button class='action secondary' id='addAttributeField' type='button'>+ Add Field</button><button class='action' id='saveAttributes' type='button'>Save Attribute</button></div>";
-  box.innerHTML=html;box.style.display="block";
-  box.querySelectorAll(".attr-delete").forEach(btn=>btn.onclick=()=>btn.closest(".attr-edit-row").remove());
-  $("addAttributeField").onclick=()=>{
-    const row=document.createElement("div");row.className="row attr-edit-row";row.style.alignItems="flex-start";
-    row.innerHTML="<input class='attr-key' placeholder='Field Name' style='width:42%'><input class='attr-value' placeholder='Value' style='width:48%'><button class='action danger attr-delete' type='button'>×</button>";
-    row.querySelector(".attr-delete").onclick=()=>row.remove();$("attributeRows").appendChild(row);
-  };
-  $("saveAttributes").onclick=saveAttributes;
-}
+function renderAttributeEditor(){return window.SabzAttributeEditor.renderAttributeEditor({$ ,get selectedLayer(){return selectedLayer},ensureFeatureProperties,status,esc,isComputedAttributeField,saveAttributes});}
 function saveAttributes(){
   if(!selectedLayer){status("Select a feature before editing attributes.");return}
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("saving feature attributes"))return;
