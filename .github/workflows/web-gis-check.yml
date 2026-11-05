@@ -8,6 +8,12 @@ on:
       - "feat/webgis-rustgis-unified-package"
     paths:
       - "sabzroyanuraman-site/web-gis.html"
+      - "sabzroyanuraman-site/webgis-*.js"
+      - "tests/webgis-*.test.cjs"
+      - "tests/web-gis-*.cjs"
+      - "sabzroyanuraman-site/webgis-*.js"
+      - "tests/webgis-*.test.cjs"
+      - "tests/web-gis-*.cjs"
       - "sabzroyanuraman-site/webgis-gps-tracking.js"
       - "sabzroyanuraman-site/webgis-core-bridge.js"
       - "sabzroyanuraman-site/webgis-symbology-core.js"
