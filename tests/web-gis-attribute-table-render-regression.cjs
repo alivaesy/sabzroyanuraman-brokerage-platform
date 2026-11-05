@@ -68,6 +68,18 @@ const fixture = {
     },layerName);
     assert.equal(result.editedName,'Regression parcel B edited','Saving a cell edit must update the feature properties');
     assert.match(result.sortHeader,/▼/,'The table must retain descending sort state after saving');
+
+    // ArcMap-style record selection: single click, Ctrl-toggle, and clear.
+    const rows=page.locator('#attributeTableWrap tbody tr[data-index]');
+    await rows.nth(0).click();
+    assert.equal(await rows.nth(0).getAttribute('aria-selected'),'true','Clicking a record must select it');
+    await rows.nth(1).click({modifiers:['Control']});
+    assert.equal(await rows.nth(0).getAttribute('aria-selected'),'true','Ctrl-click must preserve the first selected record');
+    assert.equal(await rows.nth(1).getAttribute('aria-selected'),'true','Ctrl-click must add the second record to selection');
+    await page.locator('#attributeClearSelection').click();
+    assert.equal(await rows.nth(0).getAttribute('aria-selected'),'false','Clear Selection must clear the first row');
+    assert.equal(await rows.nth(1).getAttribute('aria-selected'),'false','Clear Selection must clear the second row');
+
     await page.locator('#stopEditingBtn').click();
     assert.deepEqual(pageErrors,[],'Attribute Table actions must not cause uncaught browser errors');
     assert.deepEqual(consoleErrors,[],'Attribute Table actions must not cause unexpected console errors');
