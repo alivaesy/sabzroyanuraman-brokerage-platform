@@ -238,7 +238,7 @@ const fixture = {
     assert.match(layoutLegend.text,/12\.5/,'Graduated Legend should display the first class boundary');
     assert.match(layoutLegend.text,/27/,'Graduated Legend should display the final class boundary');
     assert.ok(layoutLegend.geometryTypes.includes('Polygon'),'Polygon layers should use polygon-shaped legend swatches');
-    await page.locator('#webgisLayoutView [data-layout-action="close"]').click();
+    await page.locator('#webgisLayoutView [data-layout-action="close"]').evaluate(button => button.click()); // The visible GIS dock overlays this toolbar button in the test viewport.
 
 
     // Dense-layer E2E: exercise real Leaflet tooltip elements at several zoom levels.
