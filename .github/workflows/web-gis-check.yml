@@ -121,7 +121,7 @@ jobs:
         working-directory: sabzroyanuraman-site/rustgis-vector-wasm
         run: wasm-pack build --target web --release --out-dir ../rustgis-vector-wasm-pkg --out-name sabz_royan_vector_wasm
       - name: Install Playwright
-        run: npm install --no-save playwright
+        run: npm install --no-save playwright@1.64.1
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Prepare real FileGDB browser fixture
