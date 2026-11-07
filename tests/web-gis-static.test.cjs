@@ -42,6 +42,13 @@ test('Geoprocessing options have valid unique values and registered handlers', (
   assert.deepEqual(missing, [], 'unregistered operation(s): ' + missing.join(', '));
 });
 
+test('Simplify uses metric projection in direct geoprocessing and ModelBuilder', () => {
+  assert.match(html, /function simplifyGeoJSONMetric\(feature,toleranceMeters\)/);
+  assert.match(html, /turf\.simplify\(projected,\{tolerance:meters,highQuality:true,mutate:false\}\)/);
+  assert.match(html, /simplifyGeoJSONMetric\(f,raw\)/);
+  assert.doesNotMatch(html, /meters\/111320/);
+});
+
 test('ArcToolbox renderer retains search and empty-state feedback', () => {
   assert.match(html, /function\s+renderGisToolbox\s*\(/);
   assert.match(html, /No matching tools found/);

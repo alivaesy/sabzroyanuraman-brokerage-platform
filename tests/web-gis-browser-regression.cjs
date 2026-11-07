@@ -146,6 +146,25 @@ const fixture = {
       'Clip output must be reprojected to WGS84 before adding it to Leaflet: '+JSON.stringify(projectedClip));
     await page.locator('#rgEngineDialog .rg-actions button').nth(1).click();
 
+    // Metric Simplify must use meters consistently at different latitudes and preserve source geometry.
+    const metricSimplify = await page.evaluate(() => {
+      const simplify=window.SabzWebGISMetricSimplify;
+      if(typeof simplify!=="function")throw new Error("Metric Simplify adapter is not exposed");
+      const R=6371008.8,makeLine=lat=>{
+        const dLon=100/(R*Math.cos(lat*Math.PI/180))*180/Math.PI,dLat=2/R*180/Math.PI;
+        return {type:"Feature",properties:{id:"metric-"+lat},geometry:{type:"LineString",coordinates:[[10,lat],[10+dLon/2,lat+dLat],[10+dLon,lat]]}};
+      };
+      const equator=makeLine(0),highLatitude=makeLine(60);
+      const before=[equator.geometry.coordinates.length,highLatitude.geometry.coordinates.length];
+      const a=simplify(equator,5),b=simplify(highLatitude,5);
+      return {before,after:[a.geometry.coordinates.length,b.geometry.coordinates.length],metadata:[a.properties._simplify_projection,b.properties._simplify_projection],sourceUnchanged:equator.geometry.coordinates.length===before[0]&&highLatitude.geometry.coordinates.length===before[1],finite:[a,b].every(f=>f.geometry.coordinates.flat().every(Number.isFinite))};
+    });
+    assert.deepEqual(metricSimplify.before,[3,3],'Test lines should each begin with three vertices');
+    assert.deepEqual(metricSimplify.after,[2,2],'A 2 m deviation should be removed by a 5 m tolerance at both equator and 60° latitude');
+    assert.deepEqual(metricSimplify.metadata,['local-azimuthal-equidistant','local-azimuthal-equidistant']);
+    assert.equal(metricSimplify.sourceUnchanged,true,'Metric Simplify must not mutate source features');
+    assert.equal(metricSimplify.finite,true,'Reprojected output coordinates must remain finite');
+
     // Exercise Graduated Colors and permanent labels, then verify their live layer state.
     const styleResult = await page.evaluate(name => {
       const bridge = window.__sabzWebGISSharedBridge;
@@ -176,7 +195,7 @@ const fixture = {
       set('lpLabelField','name');
       set('lpLabelSize','16');
       set('lpLabelColor','#123456');
-      set('lpLabelPlacement','top');
+      set('lpLabelPlacement','above');
       set('lpLabelMinZoom','0');
       set('lpLabelDensity','sparse');
       document.getElementById('layerPropertiesForm').dispatchEvent(new SubmitEvent('submit',{bubbles:true,cancelable:true,submitter:document.querySelector('#layerPropertiesForm button[type="submit"]:not(#layerPropertiesOk)')}));
@@ -215,7 +234,7 @@ const fixture = {
     assert.match(styleResult.tooltipClassName,/^gis-feature-label-/,'Layer labels should use their own generated CSS class');
     assert.equal(styleResult.labelSize,16,'Layer Properties should apply the requested label size');
     assert.equal(styleResult.labelColor,'#123456','Layer Properties should apply the requested label color');
-    assert.equal(styleResult.labelPlacement,'top','Layer Properties should apply the requested label placement');
+    assert.equal(styleResult.labelPlacement,'above','Layer Properties should apply the requested label placement');
     assert.equal(styleResult.labelMinZoom,0,'Layer Properties should persist the minimum label zoom');
     assert.equal(styleResult.labelDensity,'sparse','Layer Properties should apply sparse label density');
     assert.equal(styleResult.tooltipDirection,'top','Labels should use the requested placement');

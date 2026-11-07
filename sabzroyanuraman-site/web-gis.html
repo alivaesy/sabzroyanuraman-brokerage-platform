@@ -8593,6 +8593,49 @@ async function featureTemplates(){
   }
   status("Choose 1, 2, 3, or 4.");
 }
+/* ArcMap-style metric simplification: project each feature to a local azimuthal-equidistant metre plane. */
+function simplifyGeoJSONMetric(feature,toleranceMeters){
+  const meters=Number(toleranceMeters);
+  if(!feature?.geometry||!Number.isFinite(meters)||meters<=0)throw new Error("Simplify requires a geometry and a positive tolerance in meters.");
+  const clone=value=>JSON.parse(JSON.stringify(value));
+  const type=feature.geometry.type;
+  if(["Point","MultiPoint"].includes(type))return {...clone(feature),properties:{...(feature.properties||{}),_simplify_meters:meters,_simplify_projection:"local-azimuthal-equidistant"}};
+  if(!["LineString","MultiLineString","Polygon","MultiPolygon"].includes(type))throw new Error("Metric Simplify does not support "+type+".");
+  const center=turf.center(feature)?.geometry?.coordinates;
+  if(!center||!Number.isFinite(center[0])||!Number.isFinite(center[1]))throw new Error("Could not determine a projection center for this feature.");
+  const R=6371008.8,lon0=center[0]*Math.PI/180,lat0=center[1]*Math.PI/180,sin0=Math.sin(lat0),cos0=Math.cos(lat0);
+  const forward=position=>{
+    const lon=Number(position[0])*Math.PI/180,lat=Number(position[1])*Math.PI/180,dlon=lon-lon0;
+    const sin=Math.sin(lat),cos=Math.cos(lat),cosC=Math.max(-1,Math.min(1,sin0*sin+cos0*cos*Math.cos(dlon))),c=Math.acos(cosC),s=Math.sin(c);
+    if(Math.PI-c<1e-8)throw new Error("Feature is too geographically extensive for a local metric simplification.");
+    const k=c<1e-12?1:c/Math.max(1e-15,s);
+    const x=R*k*cos*Math.sin(dlon),y=R*k*(cos0*sin-sin0*cos*Math.cos(dlon));
+    return [x,y,...position.slice(2)];
+  };
+  const inverse=position=>{
+    const x=Number(position[0]),y=Number(position[1]),rho=Math.hypot(x,y);
+    if(rho<1e-9)return [center[0],center[1],...position.slice(2)];
+    const c=rho/R,sinC=Math.sin(c),cosC=Math.cos(c);
+    const lat=Math.asin(Math.max(-1,Math.min(1,cosC*sin0+(y*sinC*cos0/rho))));
+    const lon=lon0+Math.atan2(x*sinC,rho*cos0*cosC-y*sin0*sinC);
+    return [lon*180/Math.PI,lat*180/Math.PI,...position.slice(2)];
+  };
+  const mapCoordinates=(value,transform)=>{
+    if(!Array.isArray(value))return value;
+    if(value.length>=2&&typeof value[0]==="number"&&typeof value[1]==="number")return transform(value);
+    return value.map(item=>mapCoordinates(item,transform));
+  };
+  const projectGeometry=geometry=>({...geometry,coordinates:mapCoordinates(geometry.coordinates,forward)});
+  const unprojectGeometry=geometry=>({...geometry,coordinates:mapCoordinates(geometry.coordinates,inverse)});
+  const projected={...clone(feature),geometry:projectGeometry(feature.geometry)};
+  const simplified=turf.simplify(projected,{tolerance:meters,highQuality:true,mutate:false});
+  if(!simplified?.geometry)throw new Error("Metric simplification returned no geometry.");
+  const result={...simplified,geometry:unprojectGeometry(simplified.geometry),properties:{...(feature.properties||{}),_simplify_meters:meters,_simplify_projection:"local-azimuthal-equidistant"}};
+  if(!vertexGeometryIsValid(result.geometry))throw new Error("Simplification would create an invalid or collapsed geometry; the source feature was preserved.");
+  return result;
+}
+window.SabzWebGISMetricSimplify=simplifyGeoJSONMetric;
+
 async function runVectorAnalysis(mode){
   const chosenRecords=selectedRecords();
   const records=chosenRecords.length?chosenRecords:getFeatureRecords();
@@ -8664,16 +8707,15 @@ async function runVectorAnalysis(mode){
     if(mode==="simplify"){
       const raw=await arcMapDialog.prompt({title:"Simplify Geometry",message:"Simplification tolerance in meters (approximate; larger values remove more vertices):",label:"Tolerance (meters)",value:"2"});if(raw===null)return;
       const meters=Number(raw);if(!Number.isFinite(meters)||meters<=0){status("Tolerance must be greater than zero.");return;}
-      const tolerance=meters/111320;
       const features=valid.map((r,i)=>{
-        const f=JSON.parse(JSON.stringify(r.feature));
-        if(["Point","MultiPoint"].includes(f.geometry.type))return {...f,properties:{...(f.properties||{}),_analysis:"Simplify",_simplify_meters:meters}};
-        const out=turf.simplify(f,{tolerance,highQuality:true,mutate:false});
-        if(!out||!out.geometry||!vertexGeometryIsValid(out.geometry))throw new Error("Simplification produced invalid geometry for feature "+(i+1));
-        out.properties={...(f.properties||{}),_analysis:"Simplify",_simplify_meters:meters};return out;
+        try{
+          const out=simplifyGeoJSONMetric(r.feature,meters);
+          out.properties={...(out.properties||{}),_analysis:"Simplify",_simplify_meters:meters};
+          return out;
+        }catch(error){throw new Error("Feature "+(i+1)+": "+(error.message||"metric simplification failed"));}
       });
       resultLayerFromFeature({type:"FeatureCollection",features},"Simplified ("+meters+" m)");
-      status("Simplified "+features.length+" feature(s); tolerance is an approximate degree conversion. Original features were preserved.");scheduleAutoSave();return;
+      status("Simplified "+features.length+" feature(s) with a local metric projection ("+meters+" m). Original features were preserved.");scheduleAutoSave();return;
     }
     if(mode==="geometry"){
       const features=valid.map((r)=>{
@@ -9717,7 +9759,7 @@ function addModelBuilderStep(modal,op="buffer"){
   const whereValue2=document.createElement("input");whereValue2.dataset.mbWhereValue2="1";whereValue2.type="text";whereValue2.placeholder="Second value";whereValue2.style.cssText="width:100%;padding:7px;box-sizing:border-box";
   const overlay=document.createElement("select");overlay.dataset.mbOverlay="1";overlay.style.cssText="width:100%;padding:7px";const overlayNode=document.createElement("select");overlayNode.dataset.mbOverlayNode="1";overlayNode.style.cssText="width:100%;padding:7px";overlayNode.title="Optional second input from another processing node";
   const relation=document.createElement("select");relation.dataset.mbRelation="1";relation.style.cssText="width:100%;padding:7px";relation.title="Spatial relationship or Calculate Field operation";[["intersects","Intersects"],["within","Within"],["contains","Contains"],["touches","Touches"],["overlaps","Overlaps"],["crosses","Crosses"],["disjoint","Disjoint"]].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;relation.appendChild(o);});const calcTarget=document.createElement("input");calcTarget.dataset.mbCalcTarget="1";calcTarget.placeholder="New field name";calcTarget.maxLength=64;calcTarget.style.cssText="width:100%;padding:7px;box-sizing:border-box";calcTarget.title="Output field name for Calculate Field";
-  const refreshOverlay=()=>{overlay.replaceChildren();const none=document.createElement("option");none.value="";none.textContent="Overlay layer (if needed)";overlay.appendChild(none);getAllVectorItems().forEach((item,i)=>{const o=document.createElement("option");o.value=String(i);o.textContent=item.name;overlay.appendChild(o);});const rows=[...modal.querySelectorAll("[data-mb-step]")],foundPosition=rows.indexOf(row),position=foundPosition<0?rows.length:foundPosition,base=modelBuilderLayerFeatures(modal.querySelector("[data-mb-source]").value),fields=new Set(base.flatMap(f=>Object.keys(f.properties||{})));rows.forEach(prev=>{const p=prev.querySelector("[data-mb-op]").value;if(p==="areaLength"){fields.add("_area_m2");fields.add("_length_km");}if(p==="buffer")fields.add("_buffer_m");if(["centroid","pointOnFeature","cleanCoords","simplify","dissolve","dissolveField","selectByAttribute","singlepart","clip","intersection","erase","union","convexHull","boundingBox"].includes(p))fields.add("_model_operation");if(p==="dissolveField")fields.add(prev.querySelector("[data-mb-field]").value);if(p==="spatialJoin"||p==="spatialJoinOneToMany"){fields.add("Join_Count");if(p==="spatialJoinOneToMany"){fields.add("Join_FID");fields.add("Join_Match");}}});const old=field.value,old2=field2.value;field.replaceChildren();field2.replaceChildren();const noSecondField=document.createElement("option");noSecondField.value="";noSecondField.textContent="— optional second condition —";field2.appendChild(noSecondField);[...fields].filter(Boolean).forEach(k=>{[field,field2].forEach(sel=>{const o=document.createElement("option");o.value=k;o.textContent=k;sel.appendChild(o);});});if(fields.has(old))field.value=old;if(fields.has(old2))field2.value=old2;else field2.value="";overlay.style.display=["clip","intersection","erase","union","identity","selectByLocation","spatialJoin","spatialJoinOneToMany"].includes(operation.value)?"block":"none";overlayNode.style.display=overlay.style.display;relation.style.display=["selectByLocation","calculateField","spatialJoin","spatialJoinOneToMany"].includes(operation.value)?"block":"none";calcTarget.style.display=operation.value==="calculateField"?"block":"none";if(operation.value==="calculateField"&&relation.options[0]?.value!=="constant"){relation.replaceChildren();[["constant","Set constant"],["copy","Copy field"],["add","Add number"],["subtract","Subtract number"],["multiply","Multiply number"],["divide","Divide number"],["uppercase","Uppercase"],["lowercase","Lowercase"],["area","Geometry area (m²)"],["length","Geometry length (m)"]].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;relation.appendChild(o);});}else if(["selectByLocation","spatialJoin","spatialJoinOneToMany"].includes(operation.value)&&relation.options[0]?.value!=="intersects"){relation.replaceChildren();[["intersects","Intersects"],["within","Within"],["contains","Contains"],["touches","Touches"],["overlaps","Overlaps"],["crosses","Crosses"],["disjoint","Disjoint"]].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;relation.appendChild(o);});}param.style.display=["buffer","simplify"].includes(operation.value)?"block":"none";field.style.display=["dissolveField","selectByAttribute","calculateField"].includes(operation.value)?"block":"none";whereOp.style.display=operation.value==="selectByAttribute"?"block":"none";whereValue.style.display=(operation.value==="selectByAttribute"&&!["isEmpty","isNotEmpty"].includes(whereOp.value))||(operation.value==="calculateField"&&["constant","add","subtract","multiply","divide"].includes(relation.value))?"block":"none";logic.style.display=field2.style.display=whereOp2.style.display=whereValue2.style.display=operation.value==="selectByAttribute"?"block":"none";whereValue2.style.display=operation.value==="selectByAttribute"&&!["isEmpty","isNotEmpty"].includes(whereOp2.value)?"block":"none";param.placeholder=operation.value==="buffer"?"Distance (m)":operation.value==="simplify"?"Tolerance":"—";whereValue.placeholder=operation.value==="calculateField"?"Constant / numeric operand":"Value";param.title=operation.value==="buffer"?"Buffer distance in meters":operation.value==="simplify"?"Simplification tolerance in coordinate units":"No parameter required";};
+  const refreshOverlay=()=>{overlay.replaceChildren();const none=document.createElement("option");none.value="";none.textContent="Overlay layer (if needed)";overlay.appendChild(none);getAllVectorItems().forEach((item,i)=>{const o=document.createElement("option");o.value=String(i);o.textContent=item.name;overlay.appendChild(o);});const rows=[...modal.querySelectorAll("[data-mb-step]")],foundPosition=rows.indexOf(row),position=foundPosition<0?rows.length:foundPosition,base=modelBuilderLayerFeatures(modal.querySelector("[data-mb-source]").value),fields=new Set(base.flatMap(f=>Object.keys(f.properties||{})));rows.forEach(prev=>{const p=prev.querySelector("[data-mb-op]").value;if(p==="areaLength"){fields.add("_area_m2");fields.add("_length_km");}if(p==="buffer")fields.add("_buffer_m");if(["centroid","pointOnFeature","cleanCoords","simplify","dissolve","dissolveField","selectByAttribute","singlepart","clip","intersection","erase","union","convexHull","boundingBox"].includes(p))fields.add("_model_operation");if(p==="dissolveField")fields.add(prev.querySelector("[data-mb-field]").value);if(p==="spatialJoin"||p==="spatialJoinOneToMany"){fields.add("Join_Count");if(p==="spatialJoinOneToMany"){fields.add("Join_FID");fields.add("Join_Match");}}});const old=field.value,old2=field2.value;field.replaceChildren();field2.replaceChildren();const noSecondField=document.createElement("option");noSecondField.value="";noSecondField.textContent="— optional second condition —";field2.appendChild(noSecondField);[...fields].filter(Boolean).forEach(k=>{[field,field2].forEach(sel=>{const o=document.createElement("option");o.value=k;o.textContent=k;sel.appendChild(o);});});if(fields.has(old))field.value=old;if(fields.has(old2))field2.value=old2;else field2.value="";overlay.style.display=["clip","intersection","erase","union","identity","selectByLocation","spatialJoin","spatialJoinOneToMany"].includes(operation.value)?"block":"none";overlayNode.style.display=overlay.style.display;relation.style.display=["selectByLocation","calculateField","spatialJoin","spatialJoinOneToMany"].includes(operation.value)?"block":"none";calcTarget.style.display=operation.value==="calculateField"?"block":"none";if(operation.value==="calculateField"&&relation.options[0]?.value!=="constant"){relation.replaceChildren();[["constant","Set constant"],["copy","Copy field"],["add","Add number"],["subtract","Subtract number"],["multiply","Multiply number"],["divide","Divide number"],["uppercase","Uppercase"],["lowercase","Lowercase"],["area","Geometry area (m²)"],["length","Geometry length (m)"]].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;relation.appendChild(o);});}else if(["selectByLocation","spatialJoin","spatialJoinOneToMany"].includes(operation.value)&&relation.options[0]?.value!=="intersects"){relation.replaceChildren();[["intersects","Intersects"],["within","Within"],["contains","Contains"],["touches","Touches"],["overlaps","Overlaps"],["crosses","Crosses"],["disjoint","Disjoint"]].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;relation.appendChild(o);});}param.style.display=["buffer","simplify"].includes(operation.value)?"block":"none";field.style.display=["dissolveField","selectByAttribute","calculateField"].includes(operation.value)?"block":"none";whereOp.style.display=operation.value==="selectByAttribute"?"block":"none";whereValue.style.display=(operation.value==="selectByAttribute"&&!["isEmpty","isNotEmpty"].includes(whereOp.value))||(operation.value==="calculateField"&&["constant","add","subtract","multiply","divide"].includes(relation.value))?"block":"none";logic.style.display=field2.style.display=whereOp2.style.display=whereValue2.style.display=operation.value==="selectByAttribute"?"block":"none";whereValue2.style.display=operation.value==="selectByAttribute"&&!["isEmpty","isNotEmpty"].includes(whereOp2.value)?"block":"none";param.placeholder=operation.value==="buffer"?"Distance (m)":operation.value==="simplify"?"Tolerance (m)":"—";whereValue.placeholder=operation.value==="calculateField"?"Constant / numeric operand":"Value";param.title=operation.value==="buffer"?"Buffer distance in meters":operation.value==="simplify"?"Simplification tolerance in meters":"No parameter required";};
   operation.onchange=()=>{refreshOverlay();window.renderModelBuilderGraph(modal);};inputNode.onchange=()=>window.renderModelBuilderGraph(modal);overlayNode.onchange=()=>window.renderModelBuilderGraph(modal);relation.onchange=refreshOverlay;whereOp.onchange=refreshOverlay;whereOp2.onchange=refreshOverlay;refreshOverlay();
   const controls=document.createElement("div");controls.style.cssText="display:flex;gap:3px";
   const up=document.createElement("button");up.type="button";up.dataset.mbUp="1";up.textContent="↑";up.title="Move step up";
@@ -9898,7 +9940,7 @@ async function runModelBuilder(modal){
    }else if(op==="centroid"||op==="pointOnFeature"){
     current.forEach(f=>{const out=op==="centroid"?turf.centroid(f):turf.pointOnFeature(f);if(out){out.properties={...(f.properties||{}),_model_step:si+1,_model_operation:op==="centroid"?"Centroid":"Feature To Point"};next.push(out);}});
    }else if(op==="cleanCoords"||op==="simplify"){
-    current.forEach(f=>{const out=op==="cleanCoords"?turf.cleanCoords(f):(["LineString","MultiLineString","Polygon","MultiPolygon"].includes(f.geometry?.type)?turf.simplify(f,{tolerance:raw,highQuality:true,mutate:false}):clone(f));if(out){out.properties={...(f.properties||{}),_model_step:si+1,_model_operation:op==="cleanCoords"?"Clean Coordinates":"Simplify"};next.push(out);}});
+    current.forEach(f=>{const out=op==="cleanCoords"?turf.cleanCoords(f):simplifyGeoJSONMetric(f,raw);if(out){out.properties={...(f.properties||{}),_model_step:si+1,_model_operation:op==="cleanCoords"?"Clean Coordinates":"Simplify"};next.push(out);}});
    }else if(op==="areaLength"){
     current.forEach(f=>{const out=clone(f),g=out.geometry?.type||"";out.properties={...(out.properties||{}),_model_step:si+1,_model_operation:"Calculate Area / Length"};if(/Polygon/.test(g))out.properties._area_m2=turf.area(out);if(/LineString/.test(g))out.properties._length_km=turf.length(out,{units:"kilometers"});next.push(out);});
    }else if(op==="convexHull"||op==="boundingBox"){
