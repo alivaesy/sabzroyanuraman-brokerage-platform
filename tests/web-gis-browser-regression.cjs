@@ -322,6 +322,38 @@ const fixture = {
       'Overlapping labels belonging to two different visible layers must not both be displayed');
 
 
+    // Feature To Point (Inside) must return a point on a concave polygon, unlike its centroid.
+    const pointOnFeatureName='__SabzFeatureToPointInsideRegression__';
+    await page.evaluate(name=>{
+      const bridge=window.__sabzWebGISSharedBridge;
+      bridge.addGeoJSONLayer(name,{type:'FeatureCollection',features:[
+        {type:'Feature',properties:{parcel:'L-shaped test',preserve:'source-value'},geometry:{type:'Polygon',coordinates:[[
+          [47.75,33.63],[47.76,33.63],[47.76,33.632],[47.7525,33.632],
+          [47.7525,33.64],[47.75,33.64],[47.75,33.63]
+        ]]}}
+      ]});
+    },pointOnFeatureName);
+    await page.locator('#gisOperation').selectOption('pointOnFeature');
+    await page.locator('#runGisOperation').click();
+    await page.locator('#arcMapToolDialog.open').waitFor({state:'visible'});
+    await page.locator('#arcToolDialogInput').selectOption('layers');
+    await page.locator('#arcToolDialogOk').click();
+    await page.locator('#arcMapToolDialog.open').waitFor({state:'visible'});
+    await page.locator('#arcToolDialogInput').selectOption({label:pointOnFeatureName});
+    await page.locator('#arcToolDialogOk').click();
+    await page.waitForFunction(name=>window.__sabzWebGISSharedBridge.namedLayers.some(item=>item.name==='Feature To Point (Inside) '+name),pointOnFeatureName);
+    const pointOnFeatureResult=await page.evaluate(name=>{
+      const bridge=window.__sabzWebGISSharedBridge;
+      const source=bridge.namedLayers.find(item=>item.name===name)?.layer?.toGeoJSON?.().features?.[0];
+      const output=bridge.namedLayers.find(item=>item.name==='Feature To Point (Inside) '+name)?.layer?.toGeoJSON?.().features?.[0];
+      const centroid=window.turf.centroid(source);
+      return {source,output,centroidInside:window.turf.booleanPointInPolygon(centroid,source),pointInside:window.turf.booleanPointInPolygon(output,source)};
+    },pointOnFeatureName);
+    assert.equal(pointOnFeatureResult.centroidInside,false,'The concave fixture centroid should lie outside its polygon');
+    assert.equal(pointOnFeatureResult.pointInside,true,'Feature To Point (Inside) must return a point within the polygon');
+    assert.equal(pointOnFeatureResult.output.properties.preserve,'source-value','Feature attributes must be preserved');
+    assert.equal(pointOnFeatureResult.output.properties._point_method,'pointOnFeature');
+
     // Persist locally to IndexedDB, reload the page, and verify geometry + symbology + labels.
     const saved = await page.evaluate(async () => {
       document.getElementById('projectName').value='WebGIS Browser Regression Project';

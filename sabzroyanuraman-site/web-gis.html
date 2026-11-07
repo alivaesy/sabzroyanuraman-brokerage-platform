@@ -1053,7 +1053,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
               <option value="merge">Merge</option><option value="append">Append</option><option value="split">Split</option><option value="vectorSinglepart">Multipart To Singlepart</option><option value="vectorDissolve">Dissolve</option>
             </optgroup>
             <optgroup label="Geometry">
-              <option value="centroid">Feature To Point (Centroid)</option><option value="convexHull">Minimum Bounding Geometry (Convex Hull)</option><option value="boundingBox">Minimum Bounding Geometry (Envelope)</option><option value="vectorSimplify">Simplify Features</option><option value="repairSelectedGeometry">Repair Geometry</option><option value="vectorGeometry">Calculate Geometry Attributes</option>
+              <option value="centroid">Feature To Point (Centroid)</option><option value="pointOnFeature">Feature To Point (Inside)</option><option value="convexHull">Minimum Bounding Geometry (Convex Hull)</option><option value="boundingBox">Minimum Bounding Geometry (Envelope)</option><option value="vectorSimplify">Simplify Features</option><option value="repairSelectedGeometry">Repair Geometry</option><option value="vectorGeometry">Calculate Geometry Attributes</option>
             </optgroup>
             <optgroup label="Analysis">
               <option value="vectorSpatialJoin">Spatial Join</option><option value="vectorSummarize">Summarize Within</option><option value="chartStats">Statistics</option><option value="spatialFilter">Spatial Filter</option><option value="geometrySelfTest">Geometry Self-Test</option><option value="modelBuilder">ModelBuilder</option>
@@ -3733,6 +3733,8 @@ async function runWholeLayerGisOperation(op){
  try{if(op==='buffer'){const raw=await arcMapDialog.prompt({title:'Buffer — Whole Layer',message:'Distance in meters:',label:'Meters',value:$('bufferDistance').value||'5'});if(raw===null)return true;const d=Number(raw);if(!Number.isFinite(d)||d<=0){status('Distance must be greater than zero.');return true;}output=records.map(f=>{const g=turf.buffer(f,d,{units:'meters'});if(g)g.properties={...(f.properties||{}),_operation:'Buffer',buffer_meters:d};return g;}).filter(Boolean);name='Buffer '+d+' m';}
  else if(op==='centroid'){
    output=records.map(f=>{const g=turf.centroid(f);return {...g,properties:{...(f.properties||{}),_operation:'Centroid'}};});name='Centroids '+input.name;
+ }else if(op==='pointOnFeature'){
+   output=records.map(f=>{const g=turf.pointOnFeature(f);if(!g?.geometry||g.geometry.type!=='Point')throw new Error('Feature To Point failed for an input feature.');return {...g,properties:{...(f.properties||{}),_operation:'Feature To Point (Inside)',_point_method:'pointOnFeature'}};});name='Feature To Point (Inside) '+input.name;
  }else if(op==='convexHull'){
    const hull=turf.convex({type:'FeatureCollection',features:records});
    if(hull)output=[{...hull,properties:{_operation:'Convex Hull',_source_layer:input.name,_source_count:records.length}}];
@@ -3854,6 +3856,11 @@ async function runGisOperation(){
     }else if(op==="centroid"){
       result=turf.centroid(f1,{properties:{...(f1.properties||{}),_operation:"Centroid"}});
       name="Centroid";
+    }else if(op==="pointOnFeature"){
+      result=turf.pointOnFeature(f1);
+      if(!result?.geometry||result.geometry.type!=="Point")throw new Error("Feature To Point could not produce a point on the input geometry.");
+      result.properties={...(f1.properties||{}),_operation:"Feature To Point (Inside)",_point_method:"pointOnFeature"};
+      name="Feature To Point (Inside)";
     }else if(op==="convexHull"){
       result=turf.convex(f1);
       if(result)result.properties={...(f1.properties||{}),_operation:"Convex Hull"};
@@ -4533,7 +4540,7 @@ refreshEditorTargets();window.__webGisGdbBridge?.save();scheduleAutoSave();
 $("clearMultiSelected").onclick=()=>{clearMultiSelection();selectedLayer=null;selectedOverlay=null;renderAttributeEditor();status("Multiple selection cleared.")};
 $("runGisOperation").onclick=()=>{
   const selected=$("gisOperation")?.value||"buffer";
-  const core=new Set(["buffer","clip","intersection","merge","union","erase","identity","append","split","centroid","convexHull","boundingBox"]);
+  const core=new Set(["buffer","clip","intersection","merge","union","erase","identity","append","split","centroid","pointOnFeature","convexHull","boundingBox"]);
   if(core.has(selected)){runGisOperation();return;}
   const tool=(typeof GIS_TOOLS!=="undefined"?GIS_TOOLS:[]).find(t=>t.id===selected);
   if(tool){runGisTool(tool);return;}
@@ -6612,6 +6619,7 @@ const GIS_TOOLS=[
  {id:"vectorGeometry",title:"Calculate Geometry Attributes",category:"Geoprocessing",keys:"geometry area perimeter length coordinates calculate geometry"},
  {id:"repairSelectedGeometry",title:"Repair Geometry",category:"Geoprocessing",keys:"repair geometry fix invalid geometry"},
  {id:"runGisOperation",op:"centroid",title:"Feature To Point (Centroid)",category:"Geoprocessing",keys:"feature to point centroid polygon"},
+ {id:"runGisOperation",op:"pointOnFeature",title:"Feature To Point (Inside)",category:"Geoprocessing",keys:"point inside polygon feature to point interior"},
  {id:"modelBuilder",title:"ModelBuilder",category:"Geoprocessing",keys:"workflow model chain automate geoprocessing"},
  {id:"fieldCalculatorTool",title:"Field Calculator",category:"Data Management",keys:"calculate field expression attributes table"},
  {id:"definitionQueryTool",title:"Definition Query",category:"Data Management",keys:"filter features attribute query layer"},
