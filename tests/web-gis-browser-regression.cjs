@@ -269,8 +269,11 @@ const fixture = {
       // Base layers may impose a minimum zoom (for example, 15). Test the label
       // visibility threshold relative to the actual map zoom instead of forcing
       // an impossible zoom below the active basemap's supported range.
+      // Give the label test a zoom range even when the active basemap caps tile zoom.
+      // This tests label visibility, not tile-provider maximum zoom.
+      bridge.map.setMaxZoom(22);
       const belowZoom=bridge.map.getZoom();
-      const minLabelZoom=Math.min(22,Math.round((belowZoom+0.25)*4)/4);
+      const minLabelZoom=Math.min(21,Math.round((belowZoom+0.25)*4)/4);
       if(!(minLabelZoom>belowZoom))throw new Error('Could not establish a label minimum zoom above the active map zoom.');
       set('lpLabelMinZoom',minLabelZoom);
       set('lpLabelDensity','balanced');
