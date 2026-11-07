@@ -8600,7 +8600,7 @@ function simplifyGeoJSONMetric(feature,toleranceMeters){
   const clone=value=>JSON.parse(JSON.stringify(value));
   const type=feature.geometry.type;
   if(["Point","MultiPoint"].includes(type))return {...clone(feature),properties:{...(feature.properties||{}),_simplify_meters:meters,_simplify_projection:"local-azimuthal-equidistant"}};
-  if(!["LineString","MultiLineString","Polygon","MultiPolygon","GeometryCollection"].includes(type))throw new Error("Metric Simplify does not support "+type+".");
+  if(!["LineString","MultiLineString","Polygon","MultiPolygon"].includes(type))throw new Error("Metric Simplify does not support "+type+".");
   const center=turf.center(feature)?.geometry?.coordinates;
   if(!center||!Number.isFinite(center[0])||!Number.isFinite(center[1]))throw new Error("Could not determine a projection center for this feature.");
   const R=6371008.8,lon0=center[0]*Math.PI/180,lat0=center[1]*Math.PI/180,sin0=Math.sin(lat0),cos0=Math.cos(lat0);
@@ -8625,14 +8625,8 @@ function simplifyGeoJSONMetric(feature,toleranceMeters){
     if(value.length>=2&&typeof value[0]==="number"&&typeof value[1]==="number")return transform(value);
     return value.map(item=>mapCoordinates(item,transform));
   };
-  const projectGeometry=geometry=>{
-    if(geometry.type==="GeometryCollection")return {...geometry,geometries:geometry.geometries.map(projectGeometry)};
-    return {...geometry,coordinates:mapCoordinates(geometry.coordinates,forward)};
-  };
-  const unprojectGeometry=geometry=>{
-    if(geometry.type==="GeometryCollection")return {...geometry,geometries:geometry.geometries.map(unprojectGeometry)};
-    return {...geometry,coordinates:mapCoordinates(geometry.coordinates,inverse)};
-  };
+  const projectGeometry=geometry=>({...geometry,coordinates:mapCoordinates(geometry.coordinates,forward)});
+  const unprojectGeometry=geometry=>({...geometry,coordinates:mapCoordinates(geometry.coordinates,inverse)});
   const projected={...clone(feature),geometry:projectGeometry(feature.geometry)};
   const simplified=turf.simplify(projected,{tolerance:meters,highQuality:true,mutate:false});
   if(!simplified?.geometry)throw new Error("Metric simplification returned no geometry.");
