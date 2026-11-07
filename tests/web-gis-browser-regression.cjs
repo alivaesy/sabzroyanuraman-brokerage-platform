@@ -154,7 +154,8 @@ const fixture = {
         {type:'Feature',properties:{parcel_id:'T-1'},geometry:{type:'Polygon',coordinates:[[[47.0,33.0],[47.01,33.0],[47.01,33.01],[47.0,33.01],[47.0,33.0]]]}}
       ]});
       bridge.addGeoJSONLayer(names.join,{type:'FeatureCollection',features:[
-        {type:'Feature',properties:{zone_code:'Z-TOUCH'},geometry:{type:'Polygon',coordinates:[[[47.01,33.0],[47.02,33.0],[47.02,33.01],[47.01,33.01],[47.01,33.0]]]}}
+        {type:'Feature',properties:{zone_code:'Z-TOUCH'},geometry:{type:'Polygon',coordinates:[[[47.01,33.0],[47.02,33.0],[47.02,33.01],[47.01,33.01],[47.01,33.0]]]}},
+        {type:'Feature',properties:{zone_code:'Z-TOUCH-2'},geometry:{type:'Polygon',coordinates:[[[47.0,33.01],[47.01,33.01],[47.01,33.02],[47.0,33.02],[47.0,33.01]]]}}
       ]});
       const selected=bridge.applyRustGISSelection(names.target,[0]);
       if(selected!==1)throw new Error('Spatial Join target fixture could not be selected');
@@ -179,7 +180,7 @@ const fixture = {
     });
     assert.equal(spatialJoinResult.count,1,'Touches Spatial Join should return the touching join feature');
     assert.equal(spatialJoinResult.properties?._spatial_join_rule,'touches');
-    assert.equal(spatialJoinResult.properties?._spatial_join_count,1);
+    assert.equal(spatialJoinResult.properties?._spatial_join_count,2,'One-to-one output should retain the total number of matching join features');
     assert.equal(spatialJoinResult.properties?._spatial_join_operation,'oneToOne');
     assert.equal(spatialJoinResult.properties?.join_zone_code,'Z-TOUCH');
     await page.evaluate(()=>document.getElementById('clearGisSelection')?.click());
