@@ -161,8 +161,8 @@ const fixture = {
       if(selected!==1)throw new Error('Spatial Join target fixture could not be selected');
       const command=document.getElementById('runSpatialJoinDirect');
       if(!command)throw new Error('Spatial Join toolbar command is missing');
-      command.click();
     },spatialJoinNames);
+    await page.locator('#runSpatialJoinDirect').click();
     await page.locator('#arcMapToolDialog.open').waitFor({state:'visible'});
     await page.locator('#arcToolDialogInput').selectOption({label:spatialJoinNames.join});
     await page.locator('#arcToolDialogOk').click();
