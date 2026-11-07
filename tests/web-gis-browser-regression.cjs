@@ -261,35 +261,38 @@ const fixture = {
       const toggle=document.getElementById('lpLabelsEnabled');
       toggle.checked=true;
       set('lpLabelField','name');
-      set('lpLabelMinZoom','12');
-      set('lpLabelDensity','balanced');
-      document.getElementById('layerPropertiesForm').dispatchEvent(new SubmitEvent('submit',{bubbles:true,cancelable:true,submitter:document.getElementById('layerPropertiesOk')}));
       const settleMap=async()=>{await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));};
       const count=()=>Array.from(document.querySelectorAll('.'+item._labelClass)).filter(el=>el.getBoundingClientRect().width>0).length;
       const visibleElements=()=>Array.from(document.querySelectorAll('.'+item._labelClass)).filter(el=>el.getBoundingClientRect().width>0&&getComputedStyle(el).visibility!=='hidden');
       const visible=()=>visibleElements().length;
       const overlapCount=()=>{const boxes=visibleElements().map(el=>el.getBoundingClientRect());let overlaps=0;for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++){const a=boxes[i],b=boxes[j];if(a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top)overlaps++;}return overlaps;};
+      // Base layers may impose a minimum zoom (for example, 15). Test the label
+      // visibility threshold relative to the actual map zoom instead of forcing
+      // an impossible zoom below the active basemap's supported range.
+      const belowZoom=bridge.map.getZoom();
+      const minLabelZoom=Math.min(22,Math.round((belowZoom+0.25)*4)/4);
+      if(!(minLabelZoom>belowZoom))throw new Error('Could not establish a label minimum zoom above the active map zoom.');
+      set('lpLabelMinZoom',minLabelZoom);
+      set('lpLabelDensity','balanced');
+      document.getElementById('layerPropertiesForm').dispatchEvent(new SubmitEvent('submit',{bubbles:true,cancelable:true,submitter:document.getElementById('layerPropertiesOk')}));
       await settleMap();
-      // The browser regression starts with a base layer that can clamp the map's
-      // minimum zoom. Lower the map-level floor so the label minZoom gate is truly tested.
-      bridge.map.setMinZoom(0);
-      bridge.map.setZoom(11,{animate:false});
-      await settleMap();
-      if(bridge.map.getZoom()!==11)throw new Error("Label minimum-zoom regression did not reach zoom 11; actual zoom: "+bridge.map.getZoom());
+      if(bridge.map.getZoom()>=item._labelMinZoom)throw new Error('Label minimum-zoom fixture is not below its configured threshold.');
       window.refreshLabelDecluttering?.();
       const belowMinimum=visible();
       const belowMinimumDetails={zoom:bridge.map.getZoom(),configuredMinZoom:item._labelMinZoom,ownerEnabled:item._labelsEnabled,featureLayerCount:item.layer.getLayers().length,tooltipStates:item.layer.getLayers().map((featureLayer,index)=>{const tooltip=featureLayer.getTooltip&&featureLayer.getTooltip();const element=tooltip&&(tooltip.getElement?tooltip.getElement():tooltip._container);return {index,hasTooltip:!!tooltip,hasElement:!!element,visibility:element?getComputedStyle(element).visibility:'missing',className:element?.className||'',text:element?.textContent||''};})};
-      bridge.map.setZoom(15,{animate:false});
+      const mediumZoom=Math.min(bridge.map.getMaxZoom(),item._labelMinZoom+1);
+      bridge.map.setZoom(mediumZoom,{animate:false});
       await settleMap();
       window.refreshLabelDecluttering?.();
       const mediumVisible=visible();
       const mediumOverlaps=overlapCount();
-      bridge.map.setZoom(18,{animate:false});
+      const closeZoom=Math.min(bridge.map.getMaxZoom(),item._labelMinZoom+3);
+      bridge.map.setZoom(closeZoom,{animate:false});
       await settleMap();
       window.refreshLabelDecluttering?.();
       const closeVisible=visible();
       const closeOverlaps=overlapCount();
-      return {featureCount:features.length,domLabels:count(),belowMinimum,belowMinimumDetails,mediumVisible,closeVisible,mediumOverlaps,closeOverlaps};
+      return {featureCount:features.length,domLabels:count(),belowMinimum,belowMinimumDetails,mediumZoom,closeZoom,mediumVisible,closeVisible,mediumOverlaps,closeOverlaps};
     });
     assert.equal(denseLabelResult.featureCount,300,'Dense regression fixture should contain 300 point features');
     console.log('Dense label minimum-zoom diagnostics:',JSON.stringify(denseLabelResult.belowMinimumDetails));
