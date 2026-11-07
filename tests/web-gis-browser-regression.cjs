@@ -165,7 +165,7 @@ const fixture = {
         set('lpColorRamp','green');
         set('lpClassCount','5');
         if(method)set('lpClassificationMethod',method);
-        document.getElementById('layerPropertiesForm').dispatchEvent(new SubmitEvent('submit',{bubbles:true,cancelable:true,submitter:document.getElementById('layerPropertiesOk')}));
+        document.getElementById('layerPropertiesForm').dispatchEvent(new SubmitEvent('submit',{bubbles:true,cancelable:true,submitter:document.querySelector('#layerPropertiesForm button[type="submit"]:not(#layerPropertiesOk)')}));
       };
       apply('unique','parcel_id');
       const uniqueColors=item.layer.getLayers().map(feature=>feature.options?.fillColor).filter(Boolean);
