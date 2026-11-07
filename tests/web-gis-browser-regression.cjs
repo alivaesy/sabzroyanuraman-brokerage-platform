@@ -195,7 +195,7 @@ const fixture = {
       set('lpLabelField','name');
       set('lpLabelSize','16');
       set('lpLabelColor','#123456');
-      set('lpLabelPlacement','top');
+      set('lpLabelPlacement','above');
       set('lpLabelMinZoom','0');
       set('lpLabelDensity','sparse');
       document.getElementById('layerPropertiesForm').dispatchEvent(new SubmitEvent('submit',{bubbles:true,cancelable:true,submitter:document.querySelector('#layerPropertiesForm button[type="submit"]:not(#layerPropertiesOk)')}));
@@ -234,7 +234,7 @@ const fixture = {
     assert.match(styleResult.tooltipClassName,/^gis-feature-label-/,'Layer labels should use their own generated CSS class');
     assert.equal(styleResult.labelSize,16,'Layer Properties should apply the requested label size');
     assert.equal(styleResult.labelColor,'#123456','Layer Properties should apply the requested label color');
-    assert.equal(styleResult.labelPlacement,'top','Layer Properties should apply the requested label placement');
+    assert.equal(styleResult.labelPlacement,'above','Layer Properties should apply the requested label placement');
     assert.equal(styleResult.labelMinZoom,0,'Layer Properties should persist the minimum label zoom');
     assert.equal(styleResult.labelDensity,'sparse','Layer Properties should apply sparse label density');
     assert.equal(styleResult.tooltipDirection,'top','Labels should use the requested placement');
