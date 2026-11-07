@@ -168,6 +168,9 @@ const fixture = {
     await page.locator('#arcMapToolDialog.open').waitFor({state:'visible'});
     await page.locator('#arcToolDialogInput').selectOption({label:'Touches'});
     await page.locator('#arcToolDialogOk').click();
+    await page.locator('#arcMapToolDialog.open').waitFor({state:'visible'});
+    await page.locator('#arcToolDialogInput').selectOption({label:'Join one to one (first match)'});
+    await page.locator('#arcToolDialogOk').click();
     await page.waitForFunction(name=>window.__sabzWebGISSharedBridge.namedLayers.some(item=>item.name===name),'Spatial Join');
     const spatialJoinResult=await page.evaluate(()=>{
       const item=window.__sabzWebGISSharedBridge.namedLayers.find(layer=>layer.name==='Spatial Join');
@@ -177,6 +180,7 @@ const fixture = {
     assert.equal(spatialJoinResult.count,1,'Touches Spatial Join should return the touching join feature');
     assert.equal(spatialJoinResult.properties?._spatial_join_rule,'touches');
     assert.equal(spatialJoinResult.properties?._spatial_join_count,1);
+    assert.equal(spatialJoinResult.properties?._spatial_join_operation,'oneToOne');
     assert.equal(spatialJoinResult.properties?.join_zone_code,'Z-TOUCH');
     await page.evaluate(()=>document.getElementById('clearGisSelection')?.click());
 
