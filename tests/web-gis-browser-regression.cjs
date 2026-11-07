@@ -322,6 +322,57 @@ const fixture = {
       'Overlapping labels belonging to two different visible layers must not both be displayed');
 
 
+    // ArcMap-style Calculate Geometry Attributes: verify metric measures and coordinate fields.
+    const geometryAttributes = await page.evaluate(() => {
+      const bridge=window.__sabzWebGISSharedBridge;
+      const name='__SabzGeometryAttributesRegression__';
+      const source={
+        type:'FeatureCollection',
+        features:[
+          {type:'Feature',id:'point',properties:{name:'Control point',keep:'point-value'},geometry:{type:'Point',coordinates:[47.75,33.63]}},
+          {type:'Feature',id:'line',properties:{name:'Test line',keep:'line-value'},geometry:{type:'LineString',coordinates:[[47.75,33.63],[47.751,33.63]]}},
+          {type:'Feature',id:'polygon',properties:{name:'Test polygon',keep:'polygon-value'},geometry:{type:'Polygon',coordinates:[[[47.75,33.63],[47.751,33.63],[47.751,33.631],[47.75,33.631],[47.75,33.63]]]}}
+        ]
+      };
+      bridge.addGeoJSONLayer(name,source);
+      const owner=bridge.namedLayers.find(layer=>layer.name===name);
+      if(!owner)throw new Error('Geometry Attributes fixture layer was not registered');
+      bridge.applyRustGISSelection(name,[0,1,2]);
+      return {name,source:owner.layer.toGeoJSON()};
+    });
+    await page.locator('#gisOperation').selectOption('vectorGeometry');
+    await page.locator('#runGisOperation').click();
+    await page.waitForFunction(() => {
+      const status=document.getElementById('gisStatus')?.textContent||'';
+      return /Calculated length, polygon perimeter and area/.test(status);
+    },null,{timeout:15000});
+    const geometryResults=await page.evaluate(name=>{
+      const bridge=window.__sabzWebGISSharedBridge;
+      const owner=bridge.namedLayers.find(layer=>layer.name===name);
+      const output=bridge.namedLayers.filter(layer=>layer.name.includes('Geometry Attributes')).at(-1);
+      const source=owner?.layer?.toGeoJSON?.();
+      const result=output?.layer?.toGeoJSON?.();
+      return {source,result};
+    },geometryAttributes.name);
+    assert.ok(geometryResults.result?.features?.length===3,'Calculate Geometry Attributes should create three output features');
+    const [pointGeometry,lineGeometry,polygonGeometry]=geometryResults.result.features;
+    assert.equal(pointGeometry.properties._geom_point_x,47.75,'Point X should be calculated from the source coordinate');
+    assert.equal(pointGeometry.properties._geom_point_y,33.63,'Point Y should be calculated from the source coordinate');
+    assert.equal(pointGeometry.properties._geom_length_m,null,'Point features must not receive a line length');
+    assert.ok(lineGeometry.properties._geom_length_m>90&&lineGeometry.properties._geom_length_m<100,
+      'Line length should be reported in meters');
+    assert.ok(lineGeometry.properties._geom_centroid_x>47.75&&lineGeometry.properties._geom_centroid_x<47.751,
+      'Line centroid X should be calculated');
+    assert.ok(polygonGeometry.properties._geom_area_m2>9000&&polygonGeometry.properties._geom_area_m2<11000,
+      'Polygon area should be reported in square meters');
+    assert.ok(polygonGeometry.properties._geom_perimeter_m>400&&polygonGeometry.properties._geom_perimeter_m<500,
+      'Polygon perimeter should be reported in meters');
+    assert.ok(polygonGeometry.properties._geom_area_ha>0,'Polygon area should also be available in hectares');
+    assert.deepEqual(geometryResults.source.features.map(feature=>feature.properties.keep),
+      ['point-value','line-value','polygon-value'],'Source attributes must remain unchanged');
+    assert.equal(geometryResults.source.features[1].geometry.coordinates.length,2,
+      'Source geometry must remain unchanged after calculating attributes');
+
     // Persist locally to IndexedDB, reload the page, and verify geometry + symbology + labels.
     const saved = await page.evaluate(async () => {
       document.getElementById('projectName').value='WebGIS Browser Regression Project';
