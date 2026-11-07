@@ -343,7 +343,7 @@ const fixture = {
     await page.locator('#gisOperation').selectOption('vectorGeometry');
     await page.locator('#runGisOperation').click();
     await page.waitForFunction(() => {
-      const status=document.getElementById('gisStatus')?.textContent||'';
+      const status=document.getElementById('status')?.textContent||'';
       return /Calculated length, polygon perimeter and area/.test(status);
     },null,{timeout:15000});
     const geometryResults=await page.evaluate(name=>{
