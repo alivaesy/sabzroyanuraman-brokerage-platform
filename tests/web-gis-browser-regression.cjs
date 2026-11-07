@@ -266,12 +266,17 @@ const fixture = {
       const visibleElements=()=>Array.from(document.querySelectorAll('.'+item._labelClass)).filter(el=>el.getBoundingClientRect().width>0&&getComputedStyle(el).visibility!=='hidden');
       const visible=()=>visibleElements().length;
       const overlapCount=()=>{const boxes=visibleElements().map(el=>el.getBoundingClientRect());let overlaps=0;for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++){const a=boxes[i],b=boxes[j];if(a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top)overlaps++;}return overlaps;};
-      // Base layers may impose a minimum zoom (for example, 15). Test the label
-      // visibility threshold relative to the actual map zoom instead of forcing
-      // an impossible zoom below the active basemap's supported range.
-      // Give the label test a zoom range even when the active basemap caps tile zoom.
-      // This tests label visibility, not tile-provider maximum zoom.
+      // Tile providers can cap the map's effective zoom and make the label
+      // threshold unreachable. Temporarily detach basemap tiles so this test
+      // isolates label visibility from provider zoom limits, then restore them.
+      const detachedBasemaps=[];
+      bridge.map.eachLayer(layer=>{
+        if(layer instanceof L.TileLayer){detachedBasemaps.push(layer);bridge.map.removeLayer(layer);}
+      });
+      bridge.map.setMinZoom(0);
       bridge.map.setMaxZoom(22);
+      bridge.map.setView([33.629,47.759],15,{animate:false});
+      await settleMap();
       const belowZoom=bridge.map.getZoom();
       const minLabelZoom=Math.min(21,Math.round((belowZoom+0.25)*4)/4);
       if(!(minLabelZoom>belowZoom))throw new Error('Could not establish a label minimum zoom above the active map zoom.');
@@ -295,6 +300,9 @@ const fixture = {
       window.refreshLabelDecluttering?.();
       const closeVisible=visible();
       const closeOverlaps=overlapCount();
+      bridge.map.setZoom(15,{animate:false});
+      await settleMap();
+      detachedBasemaps.forEach(layer=>layer.addTo(bridge.map));
       return {featureCount:features.length,domLabels:count(),belowMinimum,belowMinimumDetails,mediumZoom,closeZoom,mediumVisible,closeVisible,mediumOverlaps,closeOverlaps};
     });
     assert.equal(denseLabelResult.featureCount,300,'Dense regression fixture should contain 300 point features');
