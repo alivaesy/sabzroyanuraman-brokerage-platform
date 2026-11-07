@@ -8696,7 +8696,12 @@ async function runVectorAnalysis(mode){
         if(!Array.isArray(xy)||!Number.isFinite(xy[0])||!Number.isFinite(xy[1])){
           throw new Error("Could not calculate centroid coordinates for feature "+(featureIndex+1));
         }
+        const projectedXY=projectCoords("EPSG:4326",currentCRS,xy);
+        if(!Array.isArray(projectedXY)||!Number.isFinite(projectedXY[0])||!Number.isFinite(projectedXY[1])){
+          throw new Error("Could not project centroid coordinates to "+currentCRS+" for feature "+(featureIndex+1));
+        }
         const pointXY=g.type==="Point"&&Array.isArray(g.coordinates)?g.coordinates:null;
+        const projectedPointXY=pointXY?projectCoords("EPSG:4326",currentCRS,pointXY):null;
         const props={
           ...(f.properties||{}),
           _geom_length_km:lengthKm,
@@ -8704,12 +8709,15 @@ async function runVectorAnalysis(mode){
           _geom_perimeter_m:isPolygon&&lengthKm!==null?lengthKm*1000:null,
           _geom_area_m2:areaM2,
           _geom_area_ha:areaM2===null?null:areaM2/10000,
-          _geom_centroid_x:xy[0],
-          _geom_centroid_y:xy[1],
+          _geom_centroid_x:projectedXY[0],
+          _geom_centroid_y:projectedXY[1],
           _geom_centroid_lon:xy[0],
           _geom_centroid_lat:xy[1],
-          _geom_point_x:pointXY&&Number.isFinite(pointXY[0])?pointXY[0]:null,
-          _geom_point_y:pointXY&&Number.isFinite(pointXY[1])?pointXY[1]:null,
+          _geom_point_x:projectedPointXY?projectedPointXY[0]:null,
+          _geom_point_y:projectedPointXY?projectedPointXY[1]:null,
+          _geom_point_lon:pointXY?pointXY[0]:null,
+          _geom_point_lat:pointXY?pointXY[1]:null,
+          _geom_coordinate_crs:currentCRS,
           _geom_type:g.type,
           _geom_vertex_count:countGeometryVertices(g)
         };
