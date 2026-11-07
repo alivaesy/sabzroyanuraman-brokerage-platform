@@ -146,6 +146,39 @@ const fixture = {
       'Clip output must be reprojected to WGS84 before adding it to Leaflet: '+JSON.stringify(projectedClip));
     await page.locator('#rgEngineDialog .rg-actions button').nth(1).click();
 
+    // Spatial Join should support the same topological match family as Select By Location.
+    const spatialJoinNames={target:'__SabzSpatialJoinTarget__',join:'__SabzSpatialJoinTouching__'};
+    await page.evaluate(names=>{
+      const bridge=window.__sabzWebGISSharedBridge;
+      bridge.addGeoJSONLayer(names.target,{type:'FeatureCollection',features:[
+        {type:'Feature',properties:{parcel_id:'T-1'},geometry:{type:'Polygon',coordinates:[[[47.0,33.0],[47.01,33.0],[47.01,33.01],[47.0,33.01],[47.0,33.0]]]}}
+      ]});
+      bridge.addGeoJSONLayer(names.join,{type:'FeatureCollection',features:[
+        {type:'Feature',properties:{zone_code:'Z-TOUCH'},geometry:{type:'Polygon',coordinates:[[[47.01,33.0],[47.02,33.0],[47.02,33.01],[47.01,33.01],[47.01,33.0]]]}}
+      ]});
+      const selected=bridge.applyRustGISSelection(names.target,[0]);
+      if(selected!==1)throw new Error('Spatial Join target fixture could not be selected');
+      if(typeof runVectorAnalysis!=='function')throw new Error('Spatial Join command is not exposed to the toolbox');
+      runVectorAnalysis('spatialJoin');
+    },spatialJoinNames);
+    await page.locator('#arcMapToolDialog.open').waitFor({state:'visible'});
+    await page.locator('#arcToolDialogInput').selectOption({label:spatialJoinNames.join});
+    await page.locator('#arcToolDialogOk').click();
+    await page.locator('#arcMapToolDialog.open').waitFor({state:'visible'});
+    await page.locator('#arcToolDialogInput').selectOption({label:'Touches'});
+    await page.locator('#arcToolDialogOk').click();
+    await page.waitForFunction(name=>window.__sabzWebGISSharedBridge.namedLayers.some(item=>item.name===name),'Spatial Join');
+    const spatialJoinResult=await page.evaluate(()=>{
+      const item=window.__sabzWebGISSharedBridge.namedLayers.find(layer=>layer.name==='Spatial Join');
+      const features=item?.layer?.toGeoJSON?.().features||[];
+      return {count:features.length,properties:features[0]?.properties||null};
+    });
+    assert.equal(spatialJoinResult.count,1,'Touches Spatial Join should return the touching join feature');
+    assert.equal(spatialJoinResult.properties?._spatial_join_rule,'touches');
+    assert.equal(spatialJoinResult.properties?._spatial_join_count,1);
+    assert.equal(spatialJoinResult.properties?.join_zone_code,'Z-TOUCH');
+    await page.evaluate(()=>document.getElementById('clearGisSelection')?.click());
+
     // Exercise Graduated Colors and permanent labels, then verify their live layer state.
     const styleResult = await page.evaluate(name => {
       const bridge = window.__sabzWebGISSharedBridge;
