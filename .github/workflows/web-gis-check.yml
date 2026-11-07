@@ -8,12 +8,16 @@ on:
       - "feat/webgis-rustgis-unified-package"
     paths:
       - "sabzroyanuraman-site/web-gis.html"
+      - "sabzroyanuraman-site/webgis-*.js"
+      - "tests/webgis-*.test.cjs"
+      - "tests/web-gis-*.cjs"
       - "sabzroyanuraman-site/webgis-gps-tracking.js"
       - "sabzroyanuraman-site/webgis-core-bridge.js"
       - "sabzroyanuraman-site/webgis-symbology-core.js"
       - "tests/webgis-symbology-core.test.cjs"
       - "sabzroyanuraman-site/webgis-labeling-core.js"
       - "sabzroyanuraman-site/webgis-attribute-table-core.js"
+      - "sabzroyanuraman-site/webgis-attribute-table-render.js"
       - "sabzroyanuraman-site/webgis-symbology-core.js"
       - "tests/webgis-symbology-core.test.cjs"
       - "tests/webgis-attribute-table-core.test.cjs"
@@ -24,6 +28,7 @@ on:
       - "tests/web-gis-static.test.cjs"
       - "tests/web-gis-gps-module.test.cjs"
       - "tests/web-gis-browser-regression.cjs"
+      - "tests/web-gis-attribute-table-render-regression.cjs"
       - "tests/web-gis-arcmap-import-regression.cjs"
       - "tests/web-gis-gdb-catalog-tree-regression.cjs"
       - "tests/web-gis-gdb-context-menu-regression.cjs"
@@ -37,6 +42,10 @@ on:
   pull_request:
     paths:
       - "sabzroyanuraman-site/web-gis.html"
+      - "sabzroyanuraman-site/webgis-*.js"
+      - "tests/webgis-*.test.cjs"
+      - "tests/web-gis-*.cjs"
+      - "sabzroyanuraman-site/webgis-attribute-table-render.js"
       - "sabzroyanuraman-site/webgis-core-bridge.js"
       - "tests/web-gis-bridge-contract.test.cjs"
       - "sabzroyanuraman-site/webgis-rustgis-enhancements.js"
@@ -46,6 +55,7 @@ on:
       - "sabzroyanuraman-site/webgis-gdb-catalog-tree.js"
       - "tests/web-gis-static.test.cjs"
       - "tests/web-gis-browser-regression.cjs"
+      - "tests/web-gis-attribute-table-render-regression.cjs"
       - "tests/web-gis-arcmap-import-regression.cjs"
       - "tests/web-gis-gdb-catalog-tree-regression.cjs"
       - "tests/web-gis-gdb-context-menu-regression.cjs"
@@ -72,6 +82,7 @@ jobs:
           node --check sabzroyanuraman-site/webgis-core-bridge.js
           node --check sabzroyanuraman-site/webgis-labeling-core.js
           node --check sabzroyanuraman-site/webgis-attribute-table-core.js
+          node --check sabzroyanuraman-site/webgis-attribute-table-render.js
           node tests/webgis-attribute-table-core.test.cjs
           node --check sabzroyanuraman-site/webgis-symbology-core.js
           node tests/webgis-symbology-core.test.cjs
@@ -110,7 +121,7 @@ jobs:
         working-directory: sabzroyanuraman-site/rustgis-vector-wasm
         run: wasm-pack build --target web --release --out-dir ../rustgis-vector-wasm-pkg --out-name sabz_royan_vector_wasm
       - name: Install Playwright
-        run: npm install --no-save playwright
+        run: npm install --no-save playwright@1.64.1
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Prepare real FileGDB browser fixture
@@ -129,6 +140,10 @@ jobs:
           done
           cat /tmp/webgis-http.log
           exit 1
+      - name: Run Attribute Table renderer browser regression
+        env:
+          WEBGIS_BASE_URL: http://127.0.0.1:4173/web-gis.html
+        run: node tests/web-gis-attribute-table-render-regression.cjs
       - name: Run ArcMap manifest and Repair Data Source browser regression
         env:
           WEBGIS_BASE_URL: http://127.0.0.1:4173/web-gis.html
