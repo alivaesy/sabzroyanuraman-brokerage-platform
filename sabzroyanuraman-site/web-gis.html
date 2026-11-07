@@ -8676,16 +8676,55 @@ async function runVectorAnalysis(mode){
       status("Simplified "+features.length+" feature(s); tolerance is an approximate degree conversion. Original features were preserved.");scheduleAutoSave();return;
     }
     if(mode==="geometry"){
-      const features=valid.map((r)=>{
+      const features=valid.map((r,featureIndex)=>{
         const f=JSON.parse(JSON.stringify(r.feature)),g=f.geometry;
-        let length=null,area=null;
-        try{if(["LineString","MultiLineString","Polygon","MultiPolygon"].includes(g.type))length=turf.length(f,{units:"kilometers"});}catch(_){}
-        try{if(["Polygon","MultiPolygon"].includes(g.type))area=turf.area(f)/10000;}catch(_){}
-        const props={...(f.properties||{}),_geom_length_km:length,_geom_area_ha:area,_geom_type:g.type,_geom_vertex_count:countGeometryVertices(g)};
+        if(!g||!g.type)throw new Error("Geometry is missing for feature "+(featureIndex+1));
+        const isLine=["LineString","MultiLineString","Polygon","MultiPolygon"].includes(g.type);
+        const isPolygon=["Polygon","MultiPolygon"].includes(g.type);
+        const isPoint=["Point","MultiPoint"].includes(g.type);
+        let lengthKm=null,areaM2=null,centroid=null;
+        if(isLine){
+          const measured=turf.length(f,{units:"kilometers"});
+          if(Number.isFinite(measured))lengthKm=measured;
+        }
+        if(isPolygon){
+          const measured=turf.area(f);
+          if(Number.isFinite(measured))areaM2=measured;
+        }
+        centroid=turf.centroid(f);
+        const xy=centroid?.geometry?.coordinates;
+        if(!Array.isArray(xy)||!Number.isFinite(xy[0])||!Number.isFinite(xy[1])){
+          throw new Error("Could not calculate centroid coordinates for feature "+(featureIndex+1));
+        }
+        const projectedXY=projectCoords("EPSG:4326",currentCRS,xy);
+        if(!Array.isArray(projectedXY)||!Number.isFinite(projectedXY[0])||!Number.isFinite(projectedXY[1])){
+          throw new Error("Could not project centroid coordinates to "+currentCRS+" for feature "+(featureIndex+1));
+        }
+        const pointXY=g.type==="Point"&&Array.isArray(g.coordinates)?g.coordinates:null;
+        const projectedPointXY=pointXY?projectCoords("EPSG:4326",currentCRS,pointXY):null;
+        const props={
+          ...(f.properties||{}),
+          _geom_length_km:lengthKm,
+          _geom_length_m:lengthKm===null?null:lengthKm*1000,
+          _geom_perimeter_m:isPolygon&&lengthKm!==null?lengthKm*1000:null,
+          _geom_area_m2:areaM2,
+          _geom_area_ha:areaM2===null?null:areaM2/10000,
+          _geom_centroid_x:projectedXY[0],
+          _geom_centroid_y:projectedXY[1],
+          _geom_centroid_lon:xy[0],
+          _geom_centroid_lat:xy[1],
+          _geom_point_x:projectedPointXY?projectedPointXY[0]:null,
+          _geom_point_y:projectedPointXY?projectedPointXY[1]:null,
+          _geom_point_lon:pointXY?pointXY[0]:null,
+          _geom_point_lat:pointXY?pointXY[1]:null,
+          _geom_coordinate_crs:currentCRS,
+          _geom_type:g.type,
+          _geom_vertex_count:countGeometryVertices(g)
+        };
         return {...f,properties:props};
       });
       resultLayerFromFeature({type:"FeatureCollection",features},"Geometry Attributes");
-      status("Calculated length (km), area (ha), geometry type and vertex count for "+features.length+" feature(s). Source attributes were preserved.");scheduleAutoSave();return;
+      status("Calculated length, polygon perimeter and area in metric units, centroid X/Y, point X/Y, geometry type and vertex count for "+features.length+" feature(s). Source attributes and geometries were preserved.");scheduleAutoSave();return;
     }
     if(mode==="singlepart"){
       const features=[];
