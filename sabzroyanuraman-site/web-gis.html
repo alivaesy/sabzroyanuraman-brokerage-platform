@@ -8620,16 +8620,27 @@ async function runVectorAnalysis(mode){
        const joinOwner=joinOptions[Number(joinPick)];if(!joinOwner){status("Choose a valid join layer.");return;}
        const joins=vectorFeatures(joinOwner.layer).map(v=>({feature:v.feature,layer:v.layer,owner:joinOwner})).filter(r=>r.feature?.geometry&&vertexGeometryIsValid(r.feature.geometry));
        if(!joins.length){status("The selected join layer is empty or has invalid geometries.");return;}
-       const method=await arcMapDialog.select({title:"Spatial Join",message:"Choose the spatial relationship:",label:"Match rule",value:"intersects",options:[{value:"intersects",label:"Intersects"},{value:"within",label:"Target within join feature"},{value:"contains",label:"Target contains join feature"}]});
+       const relationships=[
+         {value:"intersects",label:"Intersects"},
+         {value:"within",label:"Target within join feature"},
+         {value:"contains",label:"Target contains join feature"},
+         {value:"touches",label:"Touches"},
+         {value:"overlaps",label:"Overlaps"},
+         {value:"crosses",label:"Crosses"},
+         {value:"disjoint",label:"Disjoint"}
+       ];
+       const method=await arcMapDialog.select({title:"Spatial Join",message:"Choose the spatial relationship:",label:"Match rule",value:"intersects",options:relationships});
        if(method===null)return;
-       if(!["intersects","within","contains"].includes(method)){status("Choose a supported spatial relationship.");return;}
+       const relationFunctions={intersects:"booleanIntersects",within:"booleanWithin",contains:"booleanContains",touches:"booleanTouches",overlaps:"booleanOverlap",crosses:"booleanCrosses"};
+       if(!relationships.some(option=>option.value===method)){status("Choose a supported spatial relationship.");return;}
+       if(method!=="disjoint"&&typeof turf[relationFunctions[method]]!=="function"){status("Spatial Join unavailable: Turf does not provide the "+method+" relationship.");return;}
+       if(method==="disjoint"&&typeof turf.booleanIntersects!=="function"){status("Spatial Join unavailable: Turf booleanIntersects is missing.");return;}
        const joinFields=[...new Set(joins.flatMap(r=>Object.keys(r.feature.properties||{}).filter(k=>!isReservedAttributeField(k))))];
        const features=[];
        targets.forEach((target,index)=>{
          const matches=joins.filter(join=>{try{
-           if(method==="intersects")return turf.booleanIntersects(target.feature,join.feature);
-           if(method==="within")return typeof turf.booleanWithin==="function"&&turf.booleanWithin(target.feature,join.feature);
-           return typeof turf.booleanContains==="function"&&turf.booleanContains(target.feature,join.feature);
+           if(method==="disjoint")return !turf.booleanIntersects(target.feature,join.feature);
+           return turf[relationFunctions[method]](target.feature,join.feature);
          }catch(_){return false}});
          const base=JSON.parse(JSON.stringify(target.feature));
          if(!matches.length){features.push({...base,properties:{...(base.properties||{}),_spatial_join_count:0,_spatial_join_rule:method}});return;}
