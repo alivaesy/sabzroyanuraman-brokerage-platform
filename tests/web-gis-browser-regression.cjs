@@ -356,13 +356,16 @@ const fixture = {
     },geometryAttributes.name);
     assert.ok(geometryResults.result?.features?.length===3,'Calculate Geometry Attributes should create three output features');
     const [pointGeometry,lineGeometry,polygonGeometry]=geometryResults.result.features;
-    assert.equal(pointGeometry.properties._geom_point_x,47.75,'Point X should be calculated from the source coordinate');
-    assert.equal(pointGeometry.properties._geom_point_y,33.63,'Point Y should be calculated from the source coordinate');
+    assert.ok(pointGeometry.properties._geom_point_x>100000&&pointGeometry.properties._geom_point_x<900000,'Point X should use the active projected CRS');
+    assert.ok(pointGeometry.properties._geom_point_y>1000000&&pointGeometry.properties._geom_point_y<9000000,'Point Y should use the active projected CRS');
+    assert.equal(pointGeometry.properties._geom_coordinate_crs,'EPSG:32638','Coordinate attributes should record the active map CRS');
+    assert.equal(pointGeometry.properties._geom_point_lon,47.75,'Point longitude should remain available separately');
+    assert.equal(pointGeometry.properties._geom_point_lat,33.63,'Point latitude should remain available separately');
     assert.equal(pointGeometry.properties._geom_length_m,null,'Point features must not receive a line length');
     assert.ok(lineGeometry.properties._geom_length_m>90&&lineGeometry.properties._geom_length_m<100,
       'Line length should be reported in meters');
-    assert.ok(lineGeometry.properties._geom_centroid_x>47.75&&lineGeometry.properties._geom_centroid_x<47.751,
-      'Line centroid X should be calculated');
+    assert.ok(lineGeometry.properties._geom_centroid_x>100000&&lineGeometry.properties._geom_centroid_x<900000,
+      'Line centroid X should be calculated in the active projected CRS');
     assert.ok(polygonGeometry.properties._geom_area_m2>9000&&polygonGeometry.properties._geom_area_m2<11000,
       'Polygon area should be reported in square meters');
     assert.ok(polygonGeometry.properties._geom_perimeter_m>400&&polygonGeometry.properties._geom_perimeter_m<500,
