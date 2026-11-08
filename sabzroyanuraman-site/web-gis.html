@@ -4797,9 +4797,13 @@ $("fillSelected").onclick=async()=>{
  if(hasUnsavedTableEdits()){status("Save Table Edits before calculating fields; unsaved cell values have been preserved.");return}
  const layer=currentAttributeLayer();
  if(!editSessionActive||!layer||layer!==editTarget||!isLayerInEditTarget(layer)){status("Start Editing this layer before calculating fields.");return}
- const items=currentAttributeItems(),inds=[...new Set(selectedTableIndexes())];
- if(!inds.length){status("Select one or more rows before calculating a field.");return}
- const keys=tableKeys(items),requested=await arcMapDialog.select({title:"Calculate Field",message:"Choose the field to calculate:",label:"Field",value:keys[0]||"",options:keys.map(field=>({value:field,label:field}))});
+ const items=currentAttributeItems(),selectedIndexes=[...new Set(selectedTableIndexes())];
+ if(!items.length){status("The active layer view contains no records to calculate.");return}
+ // ArcMap semantics: a table selection scopes Calculate Field; with no selected
+ // rows, the operation targets every record in the current definition-query view.
+ const calculateAll=selectedIndexes.length===0;
+ const inds=calculateAll?items.map((_,index)=>index):selectedIndexes;
+ const keys=tableKeys(items),requested=await arcMapDialog.select({title:"Calculate Field",message:"Choose the field to calculate ("+(calculateAll?"all records in the current layer view":"selected records")+ "):",label:"Field",value:keys[0]||"",options:keys.map(field=>({value:field,label:field}))});
  if(requested===null)return;
  const key=keys.find(k=>k.toLowerCase()===requested.trim().toLowerCase());
  if(!key){status("Choose an existing field from the list.");return}
@@ -4844,7 +4848,7 @@ $("fillSelected").onclick=async()=>{
  }catch(err){status("Field calculation cancelled; no records changed. "+err.message);return}
  const changed=staged.filter(({item,value})=>JSON.stringify((item.feature.properties||{})[key])!==JSON.stringify(value));
  if(!changed.length){status("The selected features already have these values.");return}
- if(!await arcMapDialog.confirm({title:"Calculate Field",message:"Calculate field '"+key+"' for "+changed.length+" selected feature(s)?",confirmText:"Calculate"}))return;
+ if(!await arcMapDialog.confirm({title:"Calculate Field",message:"Calculate field '"+key+"' for "+changed.length+(calculateAll?" record(s) in the current layer view?":" selected feature(s)?"),confirmText:"Calculate"}))return;
  recordUndoState();
  changed.forEach(({item,value})=>{ensureFeatureProperties(item.layer)[key]=value;updateFeaturePopup(item.layer)});
  renderEditableTable();
