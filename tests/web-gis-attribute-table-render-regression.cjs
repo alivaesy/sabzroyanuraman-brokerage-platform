@@ -64,10 +64,10 @@ const fixture = {
     await windowMenu.locator('[data-table-action="layout"]').click();
     assert.ok(await tableWindow.evaluate(node=>node.classList.contains('vertical-table-mode')),
       'The layout command must switch the window to docked vertical mode');
-    await windowMenu.locator('summary').click();
     await windowMenu.locator('[data-table-action="layout"]').click();
     assert.equal(await tableWindow.evaluate(node=>node.classList.contains('vertical-table-mode')),false,
       'The layout command must restore horizontal mode');
+    await windowMenu.locator('summary').click();
     await tableWindow.locator('#attributeTableWindowActions button[title="Minimize table"]').click();
     assert.equal(await tableWindow.evaluate(node=>node.classList.contains('open')),false,
       'Minimize must hide the window without destroying the table');
