@@ -59,7 +59,7 @@ test('Expression evaluator supports field references, arithmetic, and safe funct
 });
 test('Expression evaluator rejects unknown fields, arbitrary property access, and non-finite results',()=>{
  assert.throws(()=>api.evaluateAttributeFieldExpression('!missing! + 1',{area:1}),/Unknown field/);
- assert.throws(()=>api.evaluateAttributeFieldExpression('window.alert(1)',{}),/Only field references/);
+ assert.throws(()=>api.evaluateAttributeFieldExpression('!name! + window.location',{name:'x'}),/Only field references/);
  assert.throws(()=>api.evaluateAttributeFieldExpression('!area! / 0',{area:1}),/invalid number/i);
 });
 test('No selected rows calculates every record in the current layer view and records one undo state',async()=>{
