@@ -200,7 +200,7 @@ const fixture = {
       set('lpLabelField','name');
       set('lpLabelSize','16');
       set('lpLabelColor','#123456');
-      set('lpLabelPlacement','above');
+      set('lpLabelPlacement','top');
       set('lpLabelMinZoom','0');
       set('lpLabelDensity','sparse');
       document.getElementById('layerPropertiesForm').dispatchEvent(new SubmitEvent('submit',{bubbles:true,cancelable:true,submitter:document.querySelector('#layerPropertiesForm button[type="submit"]:not(#layerPropertiesOk)')}));
@@ -245,7 +245,7 @@ const fixture = {
     assert.equal(styleResult.tooltipDirection,'top','Labels should use the requested placement');
     assert.match(styleResult.labelCss,/text-shadow:/,'Rendered labels should use a white halo rather than a tooltip box');
     assert.match(styleResult.labelCss,/background:transparent/,'Rendered labels should not have a tooltip background');
-    await page.locator('#layerPropertiesCancel').click();
+    // The line-symbology check submits with OK and has already closed Layer Properties.
     // Layout Legend must mirror the active renderer, show unambiguous class ranges,
     // and use a symbol shape matching the layer geometry.
     await page.locator('#layoutModeToggle').click();
