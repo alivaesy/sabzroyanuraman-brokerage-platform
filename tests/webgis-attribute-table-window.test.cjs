@@ -10,7 +10,7 @@ const source=fs.readFileSync(path.join(root,'webgis-attribute-table-window.js'),
 test('Attribute Table window module parses and is loaded before the legacy core',()=>{
  assert.doesNotThrow(()=>new vm.Script(source));
  assert.match(html,/<script src="\.\/webgis-attribute-table-window\.js\?v=20261109-attribute-window"><\/script>/);
- assert.ok(html.indexOf('webgis-attribute-table-window.js')<html.indexOf('Main ArcMap-style dockable attribute table'));
+ assert.ok(html.indexOf('webgis-attribute-table-window.js')<html.indexOf('const attributeTableWindowModule=window.SabzAttributeTableWindow.create('),'The extracted module script must load before the legacy delegate initializes.');
 });
 test('Legacy Attribute Table window entry points delegate to the extracted module',()=>{
  assert.match(html,/window\.SabzAttributeTableWindow\.create\(/);
