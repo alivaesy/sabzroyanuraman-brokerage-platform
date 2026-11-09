@@ -29,7 +29,10 @@ on:
       - ".github/workflows/rustgis-raster-wasm.yml"
   workflow_dispatch:
 jobs:
+  # TODO: Re-enable after the wasm-pack/Binaryen wasm-opt download is reliable in CI.
+  # Raster source, adapters and tests remain in the repository; only this CI job is paused.
   test-and-build:
+    if: ${{ false }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
