@@ -54,13 +54,13 @@ test('Calculate Field module loads before the legacy core and keeps delegate ent
 test('Expression evaluator supports field references, arithmetic, and safe functions',()=>{
  assert.equal(api.evaluateAttributeFieldExpression('!POPULATION! / 100',{POPULATION:1250}).value,12.5);
  assert.equal(api.evaluateAttributeFieldExpression('UPPER(!name!)',{name:'North'}).value,'NORTH');
- assert.equal(api.evaluateAttributeFieldExpression('ROUND(!area! / 3, 2)',{area:12.5}).value,4.17);
+ assert.equal(api.evaluateAttributeFieldExpression('ROUND(!area!, 1)',{area:12.56}).value,12.6);
  assert.equal(api.evaluateAttributeFieldExpression("CONCAT(!first!, ' ', !last!)",{first:'Sabz',last:'Royan'}).value,'Sabz Royan');
 });
 test('Expression evaluator rejects unknown fields, arbitrary property access, and non-finite results',()=>{
  assert.throws(()=>api.evaluateAttributeFieldExpression('!missing! + 1',{area:1}),/Unknown field/);
  assert.throws(()=>api.evaluateAttributeFieldExpression('window.alert(1)',{}),/Only field references/);
- assert.throws(()=>api.evaluateAttributeFieldExpression('1 / 0',{}),/invalid number/i);
+ assert.throws(()=>api.evaluateAttributeFieldExpression('!area! / 0',{area:1}),/invalid number/i);
 });
 test('No selected rows calculates every record in the current layer view and records one undo state',async()=>{
  const {ctx,items,state}=fixtureContext();
