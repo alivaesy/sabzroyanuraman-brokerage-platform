@@ -169,6 +169,14 @@ const fixture = {
       await geoprocessingSection.locator('.accordion-head').click();
     }
     await page.locator('#runSpatialJoinDirect').click();
+    await page.waitForTimeout(250);
+    const spatialJoinDialogState=await page.evaluate(()=>({
+      open:!!document.getElementById('arcMapToolDialog')?.classList.contains('open'),
+      status:document.getElementById('status')?.textContent||'',
+      layerNames:window.__sabzWebGISSharedBridge?.namedLayers?.map(item=>item.name)||[],
+      selected:window.__sabzWebGISSharedBridge?.selectedRecords?.().length||0
+    }));
+    if(!spatialJoinDialogState.open)throw new Error('Spatial Join dialog did not open: '+JSON.stringify(spatialJoinDialogState));
     await page.locator('#arcMapToolDialog.open').waitFor({state:'visible'});
     await page.locator('#arcToolDialogInput').selectOption({label:spatialJoinNames.join});
     await page.locator('#arcToolDialogOk').click();
