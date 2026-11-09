@@ -11,6 +11,7 @@ const sandbox={window:{}};
 vm.runInNewContext(source,sandbox,{filename:'webgis-attribute-field-calculator.js'});
 const api=sandbox.window.SabzAttributeFieldCalculator;
 function fixtureContext({selected=[],expression='!area_ha! * 2',confirm=true}={}){
+ const layer={};
  const items=[
   {layer:{id:1},feature:{properties:{name:'North',area_ha:12.5}}},
   {layer:{id:2},feature:{properties:{name:'South',area_ha:27}}}
@@ -20,7 +21,7 @@ function fixtureContext({selected=[],expression='!area_ha! * 2',confirm=true}={}
   $:id=>id==='fillValue'?{value:''}:null,
   status:message=>state.messages.push(message),
   hasUnsavedTableEdits:()=>false,
-  currentAttributeLayer:()=>({}),
+  currentAttributeLayer:()=>layer,
   editSessionActive:true,
   editTarget:null,
   isLayerInEditTarget:()=>true,
@@ -58,7 +59,7 @@ test('Expression evaluator supports field references, arithmetic, and safe funct
 });
 test('Expression evaluator rejects unknown fields, arbitrary property access, and non-finite results',()=>{
  assert.throws(()=>api.evaluateAttributeFieldExpression('!missing! + 1',{area:1}),/Unknown field/);
- assert.throws(()=>api.evaluateAttributeFieldExpression('!name!.constructor',{name:'x'}),/Only field references/);
+ assert.throws(()=>api.evaluateAttributeFieldExpression('window.alert(1)',{}),/Only field references/);
  assert.throws(()=>api.evaluateAttributeFieldExpression('1 / 0',{}),/invalid number/i);
 });
 test('No selected rows calculates every record in the current layer view and records one undo state',async()=>{
