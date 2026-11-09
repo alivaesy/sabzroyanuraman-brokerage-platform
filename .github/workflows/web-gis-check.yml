@@ -77,13 +77,14 @@ jobs:
           node-version: 20
       - name: Validate Web GIS source and toolbox registration
         run: |
-          node --test tests/web-gis-static.test.cjs tests/web-gis-gps-module.test.cjs tests/web-gis-bridge-contract.test.cjs tests/webgis-attribute-table-window.test.cjs
+          node --test tests/web-gis-static.test.cjs tests/web-gis-gps-module.test.cjs tests/web-gis-bridge-contract.test.cjs tests/webgis-attribute-table-window.test.cjs tests/webgis-attribute-field-calculator.test.cjs
           node --check sabzroyanuraman-site/webgis-gps-tracking.js
           node --check sabzroyanuraman-site/webgis-core-bridge.js
           node --check sabzroyanuraman-site/webgis-labeling-core.js
           node --check sabzroyanuraman-site/webgis-attribute-table-core.js
           node --check sabzroyanuraman-site/webgis-attribute-table-render.js
           node --check sabzroyanuraman-site/webgis-attribute-table-window.js
+          node --check sabzroyanuraman-site/webgis-attribute-field-calculator.js
           node tests/webgis-attribute-table-core.test.cjs
           node --check sabzroyanuraman-site/webgis-symbology-core.js
           node tests/webgis-symbology-core.test.cjs
@@ -145,6 +146,10 @@ jobs:
         env:
           WEBGIS_BASE_URL: http://127.0.0.1:4173/web-gis.html
         run: node tests/web-gis-attribute-table-render-regression.cjs
+      - name: Run Calculate Field browser regression
+        env:
+          WEBGIS_BASE_URL: http://127.0.0.1:4173/web-gis.html
+        run: node tests/web-gis-field-calculator-regression.cjs
       - name: Run ArcMap manifest and Repair Data Source browser regression
         env:
           WEBGIS_BASE_URL: http://127.0.0.1:4173/web-gis.html
