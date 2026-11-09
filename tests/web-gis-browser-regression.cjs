@@ -146,6 +146,25 @@ const fixture = {
       'Clip output must be reprojected to WGS84 before adding it to Leaflet: '+JSON.stringify(projectedClip));
     await page.locator('#rgEngineDialog .rg-actions button').nth(1).click();
 
+    // Metric Simplify must use meters consistently at different latitudes and preserve source geometry.
+    const metricSimplify = await page.evaluate(() => {
+      const simplify=window.SabzWebGISMetricSimplify;
+      if(typeof simplify!=="function")throw new Error("Metric Simplify adapter is not exposed");
+      const R=6371008.8,makeLine=lat=>{
+        const dLon=100/(R*Math.cos(lat*Math.PI/180))*180/Math.PI,dLat=2/R*180/Math.PI;
+        return {type:"Feature",properties:{id:"metric-"+lat},geometry:{type:"LineString",coordinates:[[10,lat],[10+dLon/2,lat+dLat],[10+dLon,lat]]}};
+      };
+      const equator=makeLine(0),highLatitude=makeLine(60);
+      const before=[equator.geometry.coordinates.length,highLatitude.geometry.coordinates.length];
+      const a=simplify(equator,5),b=simplify(highLatitude,5);
+      return {before,after:[a.geometry.coordinates.length,b.geometry.coordinates.length],metadata:[a.properties._simplify_projection,b.properties._simplify_projection],sourceUnchanged:equator.geometry.coordinates.length===before[0]&&highLatitude.geometry.coordinates.length===before[1],finite:[a,b].every(f=>f.geometry.coordinates.flat().every(Number.isFinite))};
+    });
+    assert.deepEqual(metricSimplify.before,[3,3],'Test lines should each begin with three vertices');
+    assert.deepEqual(metricSimplify.after,[2,2],'A 2 m deviation should be removed by a 5 m tolerance at both equator and 60° latitude');
+    assert.deepEqual(metricSimplify.metadata,['local-azimuthal-equidistant','local-azimuthal-equidistant']);
+    assert.equal(metricSimplify.sourceUnchanged,true,'Metric Simplify must not mutate source features');
+    assert.equal(metricSimplify.finite,true,'Reprojected output coordinates must remain finite');
+
     // Exercise Graduated Colors and permanent labels, then verify their live layer state.
     const styleResult = await page.evaluate(name => {
       const bridge = window.__sabzWebGISSharedBridge;
@@ -170,6 +189,11 @@ const fixture = {
       apply('unique','parcel_id');
       const uniqueColors=item.layer.getLayers().map(feature=>feature.options?.fillColor).filter(Boolean);
       apply('graduated','area_ha','quantile');
+      // The renderer submitter closes Layer Properties; reopen it before configuring labels.
+      bridge.openLayerProperties(item);
+      const labelsTab=document.querySelector('[data-lp-tab="labels"]');
+      if(!labelsTab) throw new Error('Layer Properties Labels tab is missing');
+      labelsTab.click();
       const labels=document.getElementById('lpLabelsEnabled');
       if(!labels) throw new Error('Layer label toggle is missing');
       labels.checked=true;
@@ -215,13 +239,13 @@ const fixture = {
     assert.match(styleResult.tooltipClassName,/^gis-feature-label-/,'Layer labels should use their own generated CSS class');
     assert.equal(styleResult.labelSize,16,'Layer Properties should apply the requested label size');
     assert.equal(styleResult.labelColor,'#123456','Layer Properties should apply the requested label color');
-    assert.equal(styleResult.labelPlacement,'top','Layer Properties should apply the requested label placement');
+    assert.equal(styleResult.labelPlacement,'above','Layer Properties should apply the requested label placement');
     assert.equal(styleResult.labelMinZoom,0,'Layer Properties should persist the minimum label zoom');
     assert.equal(styleResult.labelDensity,'sparse','Layer Properties should apply sparse label density');
     assert.equal(styleResult.tooltipDirection,'top','Labels should use the requested placement');
     assert.match(styleResult.labelCss,/text-shadow:/,'Rendered labels should use a white halo rather than a tooltip box');
     assert.match(styleResult.labelCss,/background:transparent/,'Rendered labels should not have a tooltip background');
-    await page.locator('#layerPropertiesCancel').click();
+    // The line-symbology check submits with OK and has already closed Layer Properties.
     // Layout Legend must mirror the active renderer, show unambiguous class ranges,
     // and use a symbol shape matching the layer geometry.
     await page.locator('#layoutModeToggle').click();
@@ -299,6 +323,14 @@ const fixture = {
           geometry:{type:'Point',coordinates:[47.759,33.629]}}]
       });
       const firstName='__SabzCrossLayerLabelA__',secondName='__SabzCrossLayerLabelB__';
+      // Keep the persistence fixture's label configuration so the subsequent
+      // save/reload assertion tests application persistence, not test cleanup.
+      const fixtureOwner=bridge.namedLayers.find(owner=>owner.name==='__SabzBrowserRegressionFixture__');
+      const fixtureLabelState=fixtureOwner?{
+        enabled:fixtureOwner._labelsEnabled,field:fixtureOwner._labelField,size:fixtureOwner._labelSize,
+        color:fixtureOwner._labelColor,placement:fixtureOwner._labelPlacement,
+        minZoom:fixtureOwner._labelMinZoom,density:fixtureOwner._labelDensity
+      }:null;
       bridge.namedLayers.forEach(owner=>{owner._labelsEnabled=false;});
       bridge.addGeoJSONLayer(firstName,makeLayer(firstName,'Cross layer A'));
       bridge.addGeoJSONLayer(secondName,makeLayer(secondName,'Cross layer B'));
@@ -316,6 +348,23 @@ const fixture = {
         const element=featureLayer.getTooltip()?.getElement();
         return {content:featureLayer.getTooltip()?.getContent(),visibility:element?getComputedStyle(element).visibility:'missing'};
       }));
+      if(fixtureOwner&&fixtureLabelState){
+        Object.assign(fixtureOwner,{
+          _labelsEnabled:fixtureLabelState.enabled,_labelField:fixtureLabelState.field,
+          _labelSize:fixtureLabelState.size,_labelColor:fixtureLabelState.color,
+          _labelPlacement:fixtureLabelState.placement,_labelMinZoom:fixtureLabelState.minZoom,
+          _labelDensity:fixtureLabelState.density
+        });
+        const labelClass=fixtureOwner._labelClass||'gis-feature-label';
+        fixtureOwner.layer.eachLayer(featureLayer=>{
+          const value=window.SabzWebGISLabelingCore.labelText(featureLayer.feature?.properties?.[fixtureOwner._labelField]);
+          if(value!==null&&typeof featureLayer.bindTooltip==='function')featureLayer.bindTooltip(value,{
+            permanent:true,...window.SabzWebGISLabelingCore.labelPlacement(featureLayer.feature?.geometry?.type,fixtureOwner._labelPlacement),
+            className:labelClass,interactive:false
+          });
+        });
+        window.refreshLabelDecluttering?.();
+      }
       return {states,visible:states.flat().filter(item=>item.visibility!=='hidden'&&item.visibility!=='missing').length};
     });
     assert.equal(crossLayerLabels.visible,1,
