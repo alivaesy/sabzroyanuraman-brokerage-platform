@@ -189,6 +189,9 @@ const fixture = {
       apply('unique','parcel_id');
       const uniqueColors=item.layer.getLayers().map(feature=>feature.options?.fillColor).filter(Boolean);
       apply('graduated','area_ha','quantile');
+      const labelsTab=document.querySelector('[data-lp-tab="labels"]');
+      if(!labelsTab) throw new Error('Layer Properties Labels tab is missing');
+      labelsTab.click();
       const labels=document.getElementById('lpLabelsEnabled');
       if(!labels) throw new Error('Layer label toggle is missing');
       labels.checked=true;
