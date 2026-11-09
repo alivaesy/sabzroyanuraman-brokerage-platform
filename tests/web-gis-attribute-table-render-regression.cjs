@@ -49,6 +49,42 @@ const fixture = {
     },{name:layerName,data:fixture});
     await page.locator('#startEditingBtn').click();
     await page.locator('#openTable').click();
+
+    // Validate the extracted dockable window in a real browser, not only by source matching.
+    const tableWindow=page.locator('#attributeTableWindow');
+    const tableToolbar=page.locator('#attributeTableWindowToolbar');
+    assert.ok(await tableWindow.isVisible(),'Opening the Attribute Table must show its dockable window');
+    assert.ok(await tableToolbar.isVisible(),'The Attribute Table toolbar must remain visible');
+    assert.equal(await page.locator('#attributeTableWindowLayer').textContent(),layerName,
+      'The window toolbar must identify the active layer');
+    const windowMenu=page.locator('#attributeTableWindow .attribute-window-menu');
+    await windowMenu.locator('summary').click();
+    assert.ok(await windowMenu.locator('[data-table-action="layout"]').isVisible(),
+      'The window menu must expose its layout command');
+    await windowMenu.locator('[data-table-action="layout"]').click();
+    assert.ok(await tableWindow.evaluate(node=>node.classList.contains('vertical-table-mode')),
+      'The layout command must switch the window to docked vertical mode');
+    await windowMenu.locator('[data-table-action="layout"]').click();
+    assert.equal(await tableWindow.evaluate(node=>node.classList.contains('vertical-table-mode')),false,
+      'The layout command must restore horizontal mode');
+    await windowMenu.locator('summary').click();
+    await tableWindow.locator('#attributeTableWindowActions button[title="Minimize table"]').click();
+    assert.equal(await tableWindow.evaluate(node=>node.classList.contains('open')),false,
+      'Minimize must hide the window without destroying the table');
+    await page.locator('#openTable').click();
+    assert.ok(await tableWindow.isVisible(),'The Attribute Table command must reopen a minimized window');
+    await tableWindow.locator('#attributeTableWindowActions button[title="Maximize/restore table"]').click();
+    assert.ok(await tableWindow.evaluate(node=>node.classList.contains('maximized')),
+      'Maximize must expand the window');
+    await tableWindow.locator('#attributeTableWindowActions button[title="Maximize/restore table"]').click();
+    assert.equal(await tableWindow.evaluate(node=>node.classList.contains('maximized')),false,
+      'Maximize control must restore the previous window size');
+    await tableWindow.locator('#attributeTableWindowActions button[title="Close table"]').click();
+    assert.equal(await tableWindow.evaluate(node=>node.classList.contains('open')),false,
+      'Close must hide the dockable window');
+    await page.locator('#openTable').click();
+    assert.ok(await tableWindow.isVisible(),'The Attribute Table command must reopen a closed window');
+
     await page.locator('#attributeTableWrap th[data-sort-key="area_ha"]').click();
     let firstName=await page.locator('#attributeTableWrap tbody tr').first().locator('input.cell-edit[data-key="name"]').inputValue();
     assert.equal(firstName,'Regression parcel A','Attribute Table must sort numeric values ascending');

@@ -469,7 +469,7 @@ body.layout-view-active .webgis-layout-sheet{min-height:calc(100% - 30px)}
 #attributeTableWindowTitle{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #attributeTableWindowActions{display:flex;gap:3px}
 #attributeTableWindowActions button{width:25px;height:22px;padding:0;border:1px solid #aeb9bf;background:#f8f9fa;color:#263f50;border-radius:1px;cursor:pointer}
-#attributeTableWindowToolbar{display:flex;align-items:center;gap:6px;min-height:30px;flex:0 0 30px;padding:3px 7px;background:#edf0f2;border-bottom:1px solid #c1cbd0;font-size:10px} #attributeTableWindowToolbar{display:none!important;height:0!important;min-height:0!important;flex:0 0 0!important;padding:0!important;margin:0!important;border:0!important;overflow:hidden!important}
+#attributeTableWindowToolbar{display:flex;align-items:center;gap:6px;min-height:30px;flex:0 0 30px;padding:3px 7px;background:#edf0f2;border-bottom:1px solid #c1cbd0;font-size:10px}
 #attributeTableWindowToolbar{flex-wrap:wrap;min-height:34px;height:auto;flex:0 0 auto}
 #attributeTableWindowToolbar button[data-table-action="layout"]{font-weight:700;background:linear-gradient(#fdfefe,#d9e6ed);border-color:#879da9}
 #attributeTableWindow.vertical-table-mode #attributeTableWindowToolbar{gap:4px;padding:5px;min-height:0}
@@ -1338,6 +1338,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <script src="./vendor/web-gis/geotiff/geotiff.js" onerror="this.onerror=null;this.src=\'https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js\'"></script>
 <script src="./webgis-attribute-table-core.js?v=20261105-attribute-core"></script>
 <script src="./webgis-attribute-table-render.js?v=20261105-attribute-render"></script>
+<script src="./webgis-attribute-table-window.js?v=20261109-attribute-window"></script>
 <script src="./webgis-labeling-core.js?v=20261104-labeling-core"></script>
 <script src="./webgis-symbology-core.js?v=20261104-symbology-core"></script>
 <script src="./raster-runtime.js?v=20261101-selftest"></script>
@@ -4043,58 +4044,17 @@ map.on("click",e=>{
 
 /* Main ArcMap-style dockable attribute table */
 let attributeTableHome=null,attributeTableWindow=null,attributeTableViewport=null,attributeTableLayoutMode="horizontal";
-function ensureAttributeTableWindow(){
- const wrap=$("attributeTableWrap");if(!wrap)return null;
- if(attributeTableWindow)return attributeTableWindow;
- attributeTableHome={parent:wrap.parentElement,next:wrap.nextSibling};
- const win=document.createElement("section");win.id="attributeTableWindow";win.setAttribute("aria-label","Attribute Table");
- win.innerHTML='<div id="attributeTableWindowTitlebar"><span>▦</span><span id="attributeTableWindowTitle">Attribute Table</span><div id="attributeTableWindowActions"><button type="button" title="Minimize table">_</button><button type="button" title="Maximize/restore table">□</button><button type="button" title="Close table">×</button></div></div><div id="attributeTableWindowToolbar"><span class="table-layer-label" id="attributeTableWindowLayer">Layer</span><details class="attribute-window-menu" aria-hidden="true" style="display:none"><summary>Table Menu ▾</summary><div class="attribute-window-menu-items"><button type="button" data-table-action="layout">Dock / Horizontal</button><button type="button" data-table-action="start-edit">Start Editing</button><button type="button" data-table-action="save">Save Cell Edits</button><button type="button" data-table-action="add">Add Field</button><button type="button" data-table-action="delete-field">Delete Field</button><button type="button" data-table-action="delete">Delete Selected Rows</button><button type="button" data-table-action="copy">Copy Rows</button><button type="button" data-table-action="paste">Paste Rows</button><button type="button" data-table-action="calculate">Calculate Field</button><button type="button" data-table-action="refresh">Refresh</button></div></details><span class="table-count" id="attributeTableWindowCount">0 records</span></div><div id="attributeTableViewport"></div><div id="attributeTableWindowFooter"><span id="attributeTableWindowStatus">Ready</span></div>';
- document.body.appendChild(win);attributeTableWindow=win;attributeTableViewport=win.querySelector("#attributeTableViewport");attributeTableViewport.appendChild(wrap);
- const buttons=win.querySelectorAll("#attributeTableWindowActions button");
- buttons[0].onclick=()=>win.classList.remove("open");
- buttons[1].onclick=()=>win.classList.toggle("maximized");
- buttons[2].onclick=()=>{win.classList.remove("open","maximized");if(attributeTableHome?.parent){attributeTableHome.parent.insertBefore(wrap,attributeTableHome.next&&attributeTableHome.next.parentNode===attributeTableHome.parent?attributeTableHome.next:null);wrap.style.display="none";}};
- win.querySelector('[data-table-action="layout"]').onclick=()=>{
-  attributeTableLayoutMode=attributeTableLayoutMode==="vertical"?"horizontal":"vertical";
-  win.classList.toggle("vertical-table-mode",attributeTableLayoutMode==="vertical");
-  win.classList.remove("maximized");
-  const toggle=win.querySelector('[data-table-action="layout"]');
-  toggle.textContent=attributeTableLayoutMode==="vertical"?"Docked Table":"Horizontal Table";
-  toggle.title=attributeTableLayoutMode==="vertical"?"Switch to the wide horizontal table":"Switch to the narrow docked table";
- };
- win.querySelector('[data-table-action="start-edit"]').onclick=()=>{const layer=currentAttributeLayer();if(!layer){status("Select a feature layer first.");return;}startEditing({layer});};
- win.querySelector('[data-table-action="save"]').onclick=()=>$("saveTableEdits").click();
- win.querySelector('[data-table-action="add"]').onclick=()=>{const button=$("attributeAddField");if(button)button.click();else status("Add Field is unavailable until the table is rendered.");};
- win.querySelector('[data-table-action="delete-field"]').onclick=()=>{const button=$("attributeDeleteField");if(button)button.click();else status("Delete Field is unavailable until the table is rendered.");};
- win.querySelector('[data-table-action="delete"]').onclick=()=>$("deleteSelectedRows").click();
- win.querySelector('[data-table-action="copy"]').onclick=()=>$("copySelectedRows").click();
- win.querySelector('[data-table-action="paste"]').onclick=()=>$("pasteRows").click();
- win.querySelector('[data-table-action="calculate"]').onclick=()=>$("fillSelected").click();
- win.querySelector('[data-table-action="refresh"]').onclick=()=>{if(!hasUnsavedTableEdits())renderEditableTable();else status("Save table edits before refreshing.");};
- win.querySelector("#attributeTableWindowTitlebar").ondblclick=()=>win.classList.toggle("maximized");
- let drag=null;const bar=win.querySelector("#attributeTableWindowTitlebar");
- bar.addEventListener("pointerdown",e=>{if(e.target.closest("button")||win.classList.contains("maximized"))return;drag={x:e.clientX,y:e.clientY,left:win.offsetLeft,top:win.offsetTop};});
- bar.addEventListener("pointermove",e=>{if(!drag)return;win.style.left=Math.max(0,Math.min(window.innerWidth-win.offsetWidth,drag.left+e.clientX-drag.x))+"px";win.style.top=Math.max(48,Math.min(window.innerHeight-100,drag.top+e.clientY-drag.y))+"px";win.style.bottom="auto";});
- bar.addEventListener("pointerup",()=>drag=null);bar.addEventListener("pointercancel",()=>drag=null);
- return win;
-}
-function showAttributeTableWindow(){
- const win=ensureAttributeTableWindow();if(!win)return;
- const wrap=$("attributeTableWrap");if(wrap&&attributeTableViewport&&wrap.parentElement!==attributeTableViewport)attributeTableViewport.appendChild(wrap);
- win.classList.toggle("vertical-table-mode",attributeTableLayoutMode==="vertical");
- win.classList.remove("maximized");
- const layoutButton=win.querySelector('[data-table-action="layout"]');
- if(layoutButton){layoutButton.textContent=attributeTableLayoutMode==="vertical"?"Docked Table":"Horizontal Table";layoutButton.title=attributeTableLayoutMode==="vertical"?"Switch to the wide horizontal table":"Switch to the narrow docked table";}
- win.classList.add("open");
- const label=$("attributeLayer")?.selectedOptions?.[0]?.textContent||"Attribute Table";
- win.querySelector("#attributeTableWindowTitle").textContent="Table — "+label;
- win.querySelector("#attributeTableWindowLayer").textContent="";
-}
-function updateAttributeTableWindowInfo(){
- if(!attributeTableWindow)return;
- attributeTableWindow.querySelector("#attributeTableWindowCount").textContent=attributeTableWindow.querySelectorAll("#attributeTableWrap tbody tr").length+" records";
- attributeTableWindow.querySelector("#attributeTableWindowStatus").textContent=hasUnsavedTableEdits()?"Edits pending — Save Table Edits":"Ready";
-}
+const attributeTableWindowModule=window.SabzAttributeTableWindow.create({
+ $,
+ get attributeTableHome(){return attributeTableHome;},set attributeTableHome(value){attributeTableHome=value;},
+ get attributeTableWindow(){return attributeTableWindow;},set attributeTableWindow(value){attributeTableWindow=value;},
+ get attributeTableViewport(){return attributeTableViewport;},set attributeTableViewport(value){attributeTableViewport=value;},
+ get attributeTableLayoutMode(){return attributeTableLayoutMode;},set attributeTableLayoutMode(value){attributeTableLayoutMode=value;},
+ currentAttributeLayer,status,startEditing,hasUnsavedTableEdits,renderEditableTable
+});
+function ensureAttributeTableWindow(){return attributeTableWindowModule.ensureAttributeTableWindow();}
+function showAttributeTableWindow(){return attributeTableWindowModule.showAttributeTableWindow();}
+function updateAttributeTableWindowInfo(){return attributeTableWindowModule.updateAttributeTableWindowInfo();}
 
 let lastAttributeLayerValue=$("attributeLayer").value;
 function hasUnsavedTableEdits(){return [...$("attributeTableWrap").querySelectorAll(".cell-edit")].some(input=>input.value!==input.dataset.original)}
