@@ -162,6 +162,12 @@ const fixture = {
       const command=document.getElementById('runSpatialJoinDirect');
       if(!command)throw new Error('Spatial Join toolbar command is missing');
     },spatialJoinNames);
+    // Opening the Display accordion above may collapse Geoprocessing because
+    // the toolbox uses a single-open accordion. Reopen it before clicking the tool.
+    const geoprocessingSection=page.locator('.accordion-section[data-accordion="analysis"]');
+    if(!(await geoprocessingSection.locator('.accordion-body').isVisible())){
+      await geoprocessingSection.locator('.accordion-head').click();
+    }
     await page.locator('#runSpatialJoinDirect').click();
     await page.locator('#arcMapToolDialog.open').waitFor({state:'visible'});
     await page.locator('#arcToolDialogInput').selectOption({label:spatialJoinNames.join});
