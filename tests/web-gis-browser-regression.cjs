@@ -155,6 +155,59 @@ const fixture = {
       'Clip output must be reprojected to WGS84 before adding it to Leaflet: '+JSON.stringify(projectedClip));
     await page.locator('#rgEngineDialog .rg-actions button').nth(1).click();
 
+    // Spatial Join should support the same topological match family as Select By Location.
+    const spatialJoinNames={target:'__SabzSpatialJoinTarget__',join:'__SabzSpatialJoinTouching__'};
+    await page.evaluate(names=>{
+      const bridge=window.__sabzWebGISSharedBridge;
+      bridge.addGeoJSONLayer(names.target,{type:'FeatureCollection',features:[
+        {type:'Feature',properties:{parcel_id:'T-1'},geometry:{type:'Polygon',coordinates:[[[47.0,33.0],[47.01,33.0],[47.01,33.01],[47.0,33.01],[47.0,33.0]]]}}
+      ]});
+      bridge.addGeoJSONLayer(names.join,{type:'FeatureCollection',features:[
+        {type:'Feature',properties:{zone_code:'Z-TOUCH'},geometry:{type:'Polygon',coordinates:[[[47.01,33.0],[47.02,33.0],[47.02,33.01],[47.01,33.01],[47.01,33.0]]]}},
+        {type:'Feature',properties:{zone_code:'Z-TOUCH-2'},geometry:{type:'Polygon',coordinates:[[[47.0,33.01],[47.01,33.01],[47.01,33.02],[47.0,33.02],[47.0,33.01]]]}}
+      ]});
+      const selected=bridge.applyRustGISSelection(names.target,[0]);
+      if(selected!==1)throw new Error('Spatial Join target fixture could not be selected');
+      const command=document.getElementById('runSpatialJoinDirect');
+      if(!command)throw new Error('Spatial Join toolbar command is missing');
+    },spatialJoinNames);
+    // Opening the Display accordion above may collapse Geoprocessing because
+    // the toolbox uses a single-open accordion. Reopen it before clicking the tool.
+    const geoprocessingSection=page.locator('.accordion-section[data-accordion="analysis"]');
+    if(!(await geoprocessingSection.locator('.accordion-body').isVisible())){
+      await geoprocessingSection.locator('.accordion-head').click();
+    }
+    await page.locator('#runSpatialJoinDirect').click();
+    await page.waitForTimeout(250);
+    const spatialJoinDialogState=await page.evaluate(()=>({
+      open:!!document.getElementById('arcMapToolDialog')?.classList.contains('open'),
+      status:document.getElementById('status')?.textContent||'',
+      layerNames:window.__sabzWebGISSharedBridge?.namedLayers?.map(item=>item.name)||[],
+      selected:window.__sabzWebGISSharedBridge?.selectedRecords?.().length||0
+    }));
+    if(!spatialJoinDialogState.open)throw new Error('Spatial Join dialog did not open: '+JSON.stringify(spatialJoinDialogState));
+    await page.locator('#arcMapToolDialog.open').waitFor({state:'visible'});
+    await page.locator('#arcToolDialogInput').selectOption({label:spatialJoinNames.join});
+    await page.locator('#arcToolDialogOk').click();
+    await page.locator('#arcMapToolDialog.open').waitFor({state:'visible'});
+    await page.locator('#arcToolDialogInput').selectOption({label:'Touches'});
+    await page.locator('#arcToolDialogOk').click();
+    await page.locator('#arcMapToolDialog.open').waitFor({state:'visible'});
+    await page.locator('#arcToolDialogInput').selectOption({label:'Join one to one (first match)'});
+    await page.locator('#arcToolDialogOk').click();
+    await page.waitForFunction(name=>window.__sabzWebGISSharedBridge.namedLayers.some(item=>item.name===name),'Spatial Join');
+    const spatialJoinResult=await page.evaluate(()=>{
+      const item=window.__sabzWebGISSharedBridge.namedLayers.find(layer=>layer.name==='Spatial Join');
+      const features=item?.layer?.toGeoJSON?.().features||[];
+      return {count:features.length,properties:features[0]?.properties||null};
+    });
+    assert.equal(spatialJoinResult.count,1,'Touches Spatial Join should return the touching join feature');
+    assert.equal(spatialJoinResult.properties?._spatial_join_rule,'touches');
+    assert.equal(spatialJoinResult.properties?._spatial_join_count,2,'One-to-one output should retain the total number of matching join features');
+    assert.equal(spatialJoinResult.properties?._spatial_join_operation,'oneToOne');
+    assert.equal(spatialJoinResult.properties?.join_zone_code,'Z-TOUCH');
+    await page.evaluate(()=>document.getElementById('clearGisSelection')?.click());
+
     // Exercise Graduated Colors and permanent labels, then verify their live layer state.
     const styleResult = await page.evaluate(name => {
       const bridge = window.__sabzWebGISSharedBridge;
@@ -308,6 +361,14 @@ const fixture = {
           geometry:{type:'Point',coordinates:[47.759,33.629]}}]
       });
       const firstName='__SabzCrossLayerLabelA__',secondName='__SabzCrossLayerLabelB__';
+      // Keep the persistence fixture's label configuration so the subsequent
+      // save/reload assertion tests application persistence, not test cleanup.
+      const fixtureOwner=bridge.namedLayers.find(owner=>owner.name==='__SabzBrowserRegressionFixture__');
+      const fixtureLabelState=fixtureOwner?{
+        enabled:fixtureOwner._labelsEnabled,field:fixtureOwner._labelField,size:fixtureOwner._labelSize,
+        color:fixtureOwner._labelColor,placement:fixtureOwner._labelPlacement,
+        minZoom:fixtureOwner._labelMinZoom,density:fixtureOwner._labelDensity
+      }:null;
       bridge.namedLayers.forEach(owner=>{owner._labelsEnabled=false;});
       bridge.addGeoJSONLayer(firstName,makeLayer(firstName,'Cross layer A'));
       bridge.addGeoJSONLayer(secondName,makeLayer(secondName,'Cross layer B'));
@@ -325,6 +386,23 @@ const fixture = {
         const element=featureLayer.getTooltip()?.getElement();
         return {content:featureLayer.getTooltip()?.getContent(),visibility:element?getComputedStyle(element).visibility:'missing'};
       }));
+      if(fixtureOwner&&fixtureLabelState){
+        Object.assign(fixtureOwner,{
+          _labelsEnabled:fixtureLabelState.enabled,_labelField:fixtureLabelState.field,
+          _labelSize:fixtureLabelState.size,_labelColor:fixtureLabelState.color,
+          _labelPlacement:fixtureLabelState.placement,_labelMinZoom:fixtureLabelState.minZoom,
+          _labelDensity:fixtureLabelState.density
+        });
+        const labelClass=fixtureOwner._labelClass||'gis-feature-label';
+        fixtureOwner.layer.eachLayer(featureLayer=>{
+          const value=window.SabzWebGISLabelingCore.labelText(featureLayer.feature?.properties?.[fixtureOwner._labelField]);
+          if(value!==null&&typeof featureLayer.bindTooltip==='function')featureLayer.bindTooltip(value,{
+            permanent:true,...window.SabzWebGISLabelingCore.labelPlacement(featureLayer.feature?.geometry?.type,fixtureOwner._labelPlacement),
+            className:labelClass,interactive:false
+          });
+        });
+        window.refreshLabelDecluttering?.();
+      }
       return {states,visible:states.flat().filter(item=>item.visibility!=='hidden'&&item.visibility!=='missing').length};
     });
     assert.equal(crossLayerLabels.visible,1,
