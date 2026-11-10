@@ -6400,7 +6400,6 @@ function checkEditTopology(openInspector=false,targetOverride=null,boundaryOverr
   polygons.forEach(p=>{try{const box=turf.bbox(p.r.feature);if(!box.every(Number.isFinite))throw new Error("non-finite bounding box");indexed.push({...p,box});}catch(e){issues.push({id:p.id,layer:p.r.layer,feature:p.r.feature,issue:"Topology validation incomplete: overlap bounding box failed ("+(e.message||"invalid geometry")+")"});}});
   indexed.sort((a,b)=>a.box[0]-b.box[0]);
   const candidates=[];
-  const ownerLabelClasses=new Set();
   for(let i=0;i<indexed.length;i++){
     const a=indexed[i];
     for(let j=i+1;j<indexed.length&&indexed[j].box[0]<=a.box[2];j++){
@@ -8131,6 +8130,7 @@ function refreshLabelDecluttering(){
   if(!map||!window.SabzWebGISLabelingCore||!window.SabzWebGISLabelingCore.selectVisibleLabels)return;
   const zoom=map.getZoom();
   const candidates=[];
+  const ownerLabelClasses=new Set();
   // One shared collision pass is required: labels from separate visible layers
   // compete for the same map space just as they do in a desktop GIS.
   [...namedLayers].reverse().forEach(owner=>{
