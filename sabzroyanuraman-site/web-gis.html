@@ -6400,6 +6400,7 @@ function checkEditTopology(openInspector=false,targetOverride=null,boundaryOverr
   polygons.forEach(p=>{try{const box=turf.bbox(p.r.feature);if(!box.every(Number.isFinite))throw new Error("non-finite bounding box");indexed.push({...p,box});}catch(e){issues.push({id:p.id,layer:p.r.layer,feature:p.r.feature,issue:"Topology validation incomplete: overlap bounding box failed ("+(e.message||"invalid geometry")+")"});}});
   indexed.sort((a,b)=>a.box[0]-b.box[0]);
   const candidates=[];
+  const ownerLabelClasses=new Set();
   for(let i=0;i<indexed.length;i++){
     const a=indexed[i];
     for(let j=i+1;j<indexed.length&&indexed[j].box[0]<=a.box[2];j++){
@@ -8139,6 +8140,7 @@ function refreshLabelDecluttering(){
     // Keep the zoom gate in CSS as well as inline state: Leaflet may recreate
     // permanent tooltip nodes and clear their inline visibility after zoomend.
     if(owner._labelClass){
+      ownerLabelClasses.add({className:owner._labelClass,minZoom});
       const guardId=owner._labelClass+"-zoom-guard";
       let guard=document.getElementById(guardId);
       if(!guard){guard=document.createElement("style");guard.id=guardId;document.head.appendChild(guard);}
@@ -8163,6 +8165,14 @@ function refreshLabelDecluttering(){
         density:owner._labelDensity||"balanced",
         box:{left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom}
       });
+    });
+  });
+  // Final live-DOM sweep covers Leaflet tooltips recreated outside the
+  // per-feature iteration timing window.
+  const tooltipPane=map.getPane&&map.getPane("tooltipPane");
+  if(tooltipPane)ownerLabelClasses.forEach(entry=>{
+    tooltipPane.querySelectorAll("."+entry.className).forEach(element=>{
+      if(zoom<entry.minZoom)element.style.setProperty("visibility","hidden","important");
     });
   });
   // The tooltip pane's DOM order reflects paint order; retain topmost labels first.
