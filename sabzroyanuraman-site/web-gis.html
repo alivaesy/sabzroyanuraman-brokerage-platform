@@ -8166,15 +8166,19 @@ function refreshLabelDecluttering(){
   candidates.forEach((item,index)=>{item.element.style.visibility=keep.has(index)?"":"hidden";});
 }
 map.on("zoomend moveend layeradd layerremove",refreshLabelDecluttering);
-// Leaflet may reopen permanent tooltips after a zoom transition. Reapply the
-// per-layer minimum zoom gate after each tooltip is attached to the map pane.
-map.on("tooltipopen",event=>{
-  const tooltip=event.tooltip,element=tooltip&&(tooltip.getElement?tooltip.getElement():tooltip._container);
-  if(!element)return;
-  const className=tooltip.options?.className||"";
-  const owner=namedLayers.find(item=>item?._labelsEnabled&&item._labelClass&&className.split(/\\s+/).includes(item._labelClass));
-  if(owner&&map.getZoom()<Math.max(0,Math.min(22,Number(owner._labelMinZoom)||0)))element.style.visibility="hidden";
-  else refreshLabelDecluttering();
+// Leaflet can reopen permanent tooltips after the zoomend pass. Defer one
+// coalesced refresh until the tooltip DOM is attached, then reapply min zoom
+// and cross-layer decluttering to every visible layer.
+let labelRefreshFramePending=false;
+map.on("tooltipopen",()=>{
+  if(labelRefreshFramePending)return;
+  labelRefreshFramePending=true;
+  const refreshAfterTooltipOpen=()=>{
+    labelRefreshFramePending=false;
+    refreshLabelDecluttering();
+  };
+  if(typeof window.requestAnimationFrame==="function")window.requestAnimationFrame(refreshAfterTooltipOpen);
+  else Promise.resolve().then(refreshAfterTooltipOpen);
 });
 function layerLabelClass(owner){
   if(!owner)return "gis-feature-label";
