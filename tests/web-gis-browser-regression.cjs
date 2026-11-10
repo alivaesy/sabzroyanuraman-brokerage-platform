@@ -276,6 +276,9 @@ const fixture = {
       bridge.map.setZoom(11,{animate:false});
       await settleMap();
       window.refreshLabelDecluttering?.();
+      // Simulate Leaflet reopening permanent tooltips after the zoom-end pass.
+      item.layer.eachLayer(featureLayer=>featureLayer.openTooltip());
+      await settleMap();
       const belowMinimum=visible();
       bridge.map.setZoom(15,{animate:false});
       await settleMap();
