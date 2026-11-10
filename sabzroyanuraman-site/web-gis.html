@@ -195,6 +195,8 @@ body{background:#dfe5e8;color:#173b57}
 /* Search belongs to Map View; hide its floating dock in Layout so it cannot become a second right-side panel. */
 body.layout-view-active .workspace>.arcmap-search-dock{display:none!important}
 body.layout-view-active #searchDock{display:none!important;width:0!important;min-width:0!important;visibility:hidden!important;pointer-events:none!important}
+/* A floating ArcToolbox dock must not cover Layout View controls or Map View close actions. */
+body.layout-view-active #gisDock{display:none!important;visibility:hidden!important;pointer-events:none!important}
 body.layout-view-active #map{background:#eef1f3}
 body.layout-view-active .webgis-layout-sheet{min-height:calc(100% - 30px)}
 #layoutModeToggle{min-width:88px;white-space:nowrap;position:relative}
@@ -8134,6 +8136,14 @@ function refreshLabelDecluttering(){
     if(!owner||!owner._labelsEnabled||!owner.layer||!map.hasLayer(owner.layer)||
       typeof owner.layer.eachLayer!=="function")return;
     const minZoom=Math.max(0,Math.min(22,Number(owner._labelMinZoom)||0));
+    // Keep the zoom gate in CSS as well as inline state: Leaflet may recreate
+    // permanent tooltip nodes and clear their inline visibility after zoomend.
+    if(owner._labelClass){
+      const guardId=owner._labelClass+"-zoom-guard";
+      let guard=document.getElementById(guardId);
+      if(!guard){guard=document.createElement("style");guard.id=guardId;document.head.appendChild(guard);}
+      guard.textContent=zoom<minZoom?"."+owner._labelClass+"{visibility:hidden!important;}":"";
+    }
     owner.layer.eachLayer(featureLayer=>{
       const tooltip=featureLayer.getTooltip&&featureLayer.getTooltip();
       const element=tooltip&&(tooltip.getElement?tooltip.getElement():tooltip._container);
@@ -8164,6 +8174,20 @@ function refreshLabelDecluttering(){
   candidates.forEach((item,index)=>{item.element.style.visibility=keep.has(index)?"":"hidden";});
 }
 map.on("zoomend moveend layeradd layerremove",refreshLabelDecluttering);
+// Leaflet can reopen permanent tooltips after the zoomend pass. Defer one
+// coalesced refresh until the tooltip DOM is attached, then reapply min zoom
+// and cross-layer decluttering to every visible layer.
+let labelRefreshFramePending=false;
+map.on("tooltipopen",()=>{
+  if(labelRefreshFramePending)return;
+  labelRefreshFramePending=true;
+  const refreshAfterTooltipOpen=()=>{
+    labelRefreshFramePending=false;
+    refreshLabelDecluttering();
+  };
+  if(typeof window.requestAnimationFrame==="function")window.requestAnimationFrame(refreshAfterTooltipOpen);
+  else Promise.resolve().then(refreshAfterTooltipOpen);
+});
 function layerLabelClass(owner){
   if(!owner)return "gis-feature-label";
   if(!owner._labelClass)owner._labelClass="gis-feature-label-"+Math.random().toString(36).slice(2,10);
