@@ -8140,6 +8140,14 @@ function refreshLabelDecluttering(){
     if(!owner||!owner._labelsEnabled||!owner.layer||!map.hasLayer(owner.layer)||
       typeof owner.layer.eachLayer!=="function")return;
     const minZoom=Math.max(0,Math.min(22,Number(owner._labelMinZoom)||0));
+    // Keep the zoom gate in CSS as well as inline state: Leaflet may recreate
+    // permanent tooltip nodes and clear their inline visibility after zoomend.
+    if(owner._labelClass){
+      const guardId=owner._labelClass+"-zoom-guard";
+      let guard=document.getElementById(guardId);
+      if(!guard){guard=document.createElement("style");guard.id=guardId;document.head.appendChild(guard);}
+      guard.textContent=zoom<minZoom?"."+owner._labelClass+"{visibility:hidden!important;}":"";
+    }
     owner.layer.eachLayer(featureLayer=>{
       const tooltip=featureLayer.getTooltip&&featureLayer.getTooltip();
       const element=tooltip&&(tooltip.getElement?tooltip.getElement():tooltip._container);
