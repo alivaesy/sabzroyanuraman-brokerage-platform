@@ -284,7 +284,7 @@ const fixture = {
       window.refreshLabelDecluttering?.();
       const closeVisible=visible();
       const closeOverlaps=overlapCount();
-      return {featureCount:features.length,domLabels:count(),belowMinimum,mediumVisible,closeVisible,mediumOverlaps,closeOverlaps};
+      return {featureCount:features.length,domLabels:count(),belowMinimum,mediumVisible,closeVisible,mediumOverlaps,closeOverlaps,diagnostics:{zoom:bridge.map.getZoom(),minZoom:item._labelMinZoom,labelClass:item._labelClass,firstLabelClass:document.querySelector('.'+item._labelClass)?.className,firstLabelVisibility:document.querySelector('.'+item._labelClass)?getComputedStyle(document.querySelector('.'+item._labelClass)).visibility:null,guardText:document.getElementById(item._labelClass+'-zoom-guard')?.textContent||null,visibleInline:document.querySelector('.'+item._labelClass)?.style.visibility||null}};
     });
     assert.equal(denseLabelResult.featureCount,300,'Dense regression fixture should contain 300 point features');
     assert.equal(denseLabelResult.belowMinimum,0,'Labels must be hidden below the configured minimum zoom');
