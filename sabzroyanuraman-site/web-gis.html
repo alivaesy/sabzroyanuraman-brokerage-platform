@@ -196,7 +196,7 @@ body{background:#dfe5e8;color:#173b57}
 body.layout-view-active .workspace>.arcmap-search-dock{display:none!important}
 body.layout-view-active #searchDock{display:none!important;width:0!important;min-width:0!important;visibility:hidden!important;pointer-events:none!important}
 /* A floating ArcToolbox dock must not cover Layout View controls or Map View close actions. */
-body.layout-view-active #gisDock{display:none!important;visibility:hidden!important;pointer-events:none!important}
+/* A/B diagnostic: temporarily remove the Layout-View GIS dock hiding rule. */
 body.layout-view-active #map{background:#eef1f3}
 body.layout-view-active .webgis-layout-sheet{min-height:calc(100% - 30px)}
 #layoutModeToggle{min-width:88px;white-space:nowrap;position:relative}
