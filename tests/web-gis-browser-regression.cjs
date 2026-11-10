@@ -274,6 +274,16 @@ const fixture = {
       item.layer.eachLayer(featureLayer=>featureLayer.openTooltip());
       await settleMap();
       const belowMinimum=visible();
+      const belowMinimumDetails=visibleElements().map(el=>({
+        text:el.textContent,
+        className:el.className,
+        inlineVisibility:el.style.visibility,
+        computedVisibility:getComputedStyle(el).visibility,
+        pane:el.parentElement?.className||null,
+        ownerClass:item._labelClass,
+        ownerMinZoom:item._labelMinZoom,
+        html:el.outerHTML.slice(0,500)
+      }));
       bridge.map.setZoom(15,{animate:false});
       await settleMap();
       window.refreshLabelDecluttering?.();
@@ -284,8 +294,9 @@ const fixture = {
       window.refreshLabelDecluttering?.();
       const closeVisible=visible();
       const closeOverlaps=overlapCount();
-      return {featureCount:features.length,domLabels:count(),belowMinimum,mediumVisible,closeVisible,mediumOverlaps,closeOverlaps,diagnostics:{zoom:bridge.map.getZoom(),minZoom:item._labelMinZoom,labelClass:item._labelClass,firstLabelClass:document.querySelector('.'+item._labelClass)?.className,firstLabelVisibility:document.querySelector('.'+item._labelClass)?getComputedStyle(document.querySelector('.'+item._labelClass)).visibility:null,guardText:document.getElementById(item._labelClass+'-zoom-guard')?.textContent||null,visibleInline:document.querySelector('.'+item._labelClass)?.style.visibility||null}};
+      return {featureCount:features.length,domLabels:count(),belowMinimum,belowMinimumDetails,mediumVisible,closeVisible,mediumOverlaps,closeOverlaps,diagnostics:{zoom:bridge.map.getZoom(),minZoom:item._labelMinZoom,labelClass:item._labelClass,firstLabelClass:document.querySelector('.'+item._labelClass)?.className,firstLabelVisibility:document.querySelector('.'+item._labelClass)?getComputedStyle(document.querySelector('.'+item._labelClass)).visibility:null,guardText:document.getElementById(item._labelClass+'-zoom-guard')?.textContent||null,visibleInline:document.querySelector('.'+item._labelClass)?.style.visibility||null}};
     });
+    console.log('Dense label minimum-zoom diagnostics: '+JSON.stringify(denseLabelResult));
     assert.equal(denseLabelResult.featureCount,300,'Dense regression fixture should contain 300 point features');
     assert.equal(denseLabelResult.belowMinimum,0,'Labels must be hidden below the configured minimum zoom');
     assert.ok(denseLabelResult.mediumVisible>0,'Some labels should be visible at the medium zoom');
