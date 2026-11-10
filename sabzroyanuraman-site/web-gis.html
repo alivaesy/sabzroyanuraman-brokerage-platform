@@ -8166,6 +8166,20 @@ function refreshLabelDecluttering(){
   candidates.forEach((item,index)=>{item.element.style.visibility=keep.has(index)?"":"hidden";});
 }
 map.on("zoomend moveend layeradd layerremove",refreshLabelDecluttering);
+// Leaflet can reopen permanent tooltips after the zoomend pass. Defer one
+// coalesced refresh until the tooltip DOM is attached, then reapply min zoom
+// and cross-layer decluttering to every visible layer.
+let labelRefreshFramePending=false;
+map.on("tooltipopen",()=>{
+  if(labelRefreshFramePending)return;
+  labelRefreshFramePending=true;
+  const refreshAfterTooltipOpen=()=>{
+    labelRefreshFramePending=false;
+    refreshLabelDecluttering();
+  };
+  if(typeof window.requestAnimationFrame==="function")window.requestAnimationFrame(refreshAfterTooltipOpen);
+  else Promise.resolve().then(refreshAfterTooltipOpen);
+});
 function layerLabelClass(owner){
   if(!owner)return "gis-feature-label";
   if(!owner._labelClass)owner._labelClass="gis-feature-label-"+Math.random().toString(36).slice(2,10);
