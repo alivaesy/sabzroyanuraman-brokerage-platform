@@ -195,6 +195,8 @@ body{background:#dfe5e8;color:#173b57}
 /* Search belongs to Map View; hide its floating dock in Layout so it cannot become a second right-side panel. */
 body.layout-view-active .workspace>.arcmap-search-dock{display:none!important}
 body.layout-view-active #searchDock{display:none!important;width:0!important;min-width:0!important;visibility:hidden!important;pointer-events:none!important}
+/* A floating ArcToolbox dock must not cover Layout View controls or Map View close actions. */
+/* A/B diagnostic: temporarily remove the Layout-View GIS dock hiding rule. */
 body.layout-view-active #map{background:#eef1f3}
 body.layout-view-active .webgis-layout-sheet{min-height:calc(100% - 30px)}
 #layoutModeToggle{min-width:88px;white-space:nowrap;position:relative}
@@ -8134,6 +8136,14 @@ function refreshLabelDecluttering(){
     if(!owner||!owner._labelsEnabled||!owner.layer||!map.hasLayer(owner.layer)||
       typeof owner.layer.eachLayer!=="function")return;
     const minZoom=Math.max(0,Math.min(22,Number(owner._labelMinZoom)||0));
+    // Keep the zoom gate in CSS as well as inline state: Leaflet may recreate
+    // permanent tooltip nodes and clear their inline visibility after zoomend.
+    if(owner._labelClass){
+      const guardId=owner._labelClass+"-zoom-guard";
+      let guard=document.getElementById(guardId);
+      if(!guard){guard=document.createElement("style");guard.id=guardId;document.head.appendChild(guard);}
+      guard.textContent=zoom<minZoom?"."+owner._labelClass+"{visibility:hidden!important;}":"";
+    }
     owner.layer.eachLayer(featureLayer=>{
       const tooltip=featureLayer.getTooltip&&featureLayer.getTooltip();
       const element=tooltip&&(tooltip.getElement?tooltip.getElement():tooltip._container);
@@ -8164,6 +8174,20 @@ function refreshLabelDecluttering(){
   candidates.forEach((item,index)=>{item.element.style.visibility=keep.has(index)?"":"hidden";});
 }
 map.on("zoomend moveend layeradd layerremove",refreshLabelDecluttering);
+// Leaflet can reopen permanent tooltips after the zoomend pass. Defer one
+// coalesced refresh until the tooltip DOM is attached, then reapply min zoom
+// and cross-layer decluttering to every visible layer.
+let labelRefreshFramePending=false;
+map.on("tooltipopen",()=>{
+  if(labelRefreshFramePending)return;
+  labelRefreshFramePending=true;
+  const refreshAfterTooltipOpen=()=>{
+    labelRefreshFramePending=false;
+    refreshLabelDecluttering();
+  };
+  if(typeof window.requestAnimationFrame==="function")window.requestAnimationFrame(refreshAfterTooltipOpen);
+  else Promise.resolve().then(refreshAfterTooltipOpen);
+});
 function layerLabelClass(owner){
   if(!owner)return "gis-feature-label";
   if(!owner._labelClass)owner._labelClass="gis-feature-label-"+Math.random().toString(36).slice(2,10);
@@ -8676,16 +8700,55 @@ async function runVectorAnalysis(mode){
       status("Simplified "+features.length+" feature(s); tolerance is an approximate degree conversion. Original features were preserved.");scheduleAutoSave();return;
     }
     if(mode==="geometry"){
-      const features=valid.map((r)=>{
+      const features=valid.map((r,featureIndex)=>{
         const f=JSON.parse(JSON.stringify(r.feature)),g=f.geometry;
-        let length=null,area=null;
-        try{if(["LineString","MultiLineString","Polygon","MultiPolygon"].includes(g.type))length=turf.length(f,{units:"kilometers"});}catch(_){}
-        try{if(["Polygon","MultiPolygon"].includes(g.type))area=turf.area(f)/10000;}catch(_){}
-        const props={...(f.properties||{}),_geom_length_km:length,_geom_area_ha:area,_geom_type:g.type,_geom_vertex_count:countGeometryVertices(g)};
+        if(!g||!g.type)throw new Error("Geometry is missing for feature "+(featureIndex+1));
+        const isLine=["LineString","MultiLineString","Polygon","MultiPolygon"].includes(g.type);
+        const isPolygon=["Polygon","MultiPolygon"].includes(g.type);
+        const isPoint=["Point","MultiPoint"].includes(g.type);
+        let lengthKm=null,areaM2=null,centroid=null;
+        if(isLine){
+          const measured=turf.length(f,{units:"kilometers"});
+          if(Number.isFinite(measured))lengthKm=measured;
+        }
+        if(isPolygon){
+          const measured=turf.area(f);
+          if(Number.isFinite(measured))areaM2=measured;
+        }
+        centroid=turf.centroid(f);
+        const xy=centroid?.geometry?.coordinates;
+        if(!Array.isArray(xy)||!Number.isFinite(xy[0])||!Number.isFinite(xy[1])){
+          throw new Error("Could not calculate centroid coordinates for feature "+(featureIndex+1));
+        }
+        const projectedXY=projectCoords("EPSG:4326",currentCRS,xy);
+        if(!Array.isArray(projectedXY)||!Number.isFinite(projectedXY[0])||!Number.isFinite(projectedXY[1])){
+          throw new Error("Could not project centroid coordinates to "+currentCRS+" for feature "+(featureIndex+1));
+        }
+        const pointXY=g.type==="Point"&&Array.isArray(g.coordinates)?g.coordinates:null;
+        const projectedPointXY=pointXY?projectCoords("EPSG:4326",currentCRS,pointXY):null;
+        const props={
+          ...(f.properties||{}),
+          _geom_length_km:lengthKm,
+          _geom_length_m:lengthKm===null?null:lengthKm*1000,
+          _geom_perimeter_m:isPolygon&&lengthKm!==null?lengthKm*1000:null,
+          _geom_area_m2:areaM2,
+          _geom_area_ha:areaM2===null?null:areaM2/10000,
+          _geom_centroid_x:projectedXY[0],
+          _geom_centroid_y:projectedXY[1],
+          _geom_centroid_lon:xy[0],
+          _geom_centroid_lat:xy[1],
+          _geom_point_x:projectedPointXY?projectedPointXY[0]:null,
+          _geom_point_y:projectedPointXY?projectedPointXY[1]:null,
+          _geom_point_lon:pointXY?pointXY[0]:null,
+          _geom_point_lat:pointXY?pointXY[1]:null,
+          _geom_coordinate_crs:currentCRS,
+          _geom_type:g.type,
+          _geom_vertex_count:countGeometryVertices(g)
+        };
         return {...f,properties:props};
       });
       resultLayerFromFeature({type:"FeatureCollection",features},"Geometry Attributes");
-      status("Calculated length (km), area (ha), geometry type and vertex count for "+features.length+" feature(s). Source attributes were preserved.");scheduleAutoSave();return;
+      status("Calculated length, polygon perimeter and area in metric units, centroid X/Y, point X/Y, geometry type and vertex count for "+features.length+" feature(s). Source attributes and geometries were preserved.");scheduleAutoSave();return;
     }
     if(mode==="singlepart"){
       const features=[];

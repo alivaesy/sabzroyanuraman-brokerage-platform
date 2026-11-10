@@ -170,6 +170,11 @@ const fixture = {
       apply('unique','parcel_id');
       const uniqueColors=item.layer.getLayers().map(feature=>feature.options?.fillColor).filter(Boolean);
       apply('graduated','area_ha','quantile');
+      // The renderer submitter closes Layer Properties; reopen it before configuring labels.
+      bridge.openLayerProperties(item);
+      const labelsTab=document.querySelector('[data-lp-tab="labels"]');
+      if(!labelsTab) throw new Error('Layer Properties Labels tab is missing');
+      labelsTab.click();
       const labels=document.getElementById('lpLabelsEnabled');
       if(!labels) throw new Error('Layer label toggle is missing');
       labels.checked=true;
@@ -221,7 +226,7 @@ const fixture = {
     assert.equal(styleResult.tooltipDirection,'top','Labels should use the requested placement');
     assert.match(styleResult.labelCss,/text-shadow:/,'Rendered labels should use a white halo rather than a tooltip box');
     assert.match(styleResult.labelCss,/background:transparent/,'Rendered labels should not have a tooltip background');
-    await page.locator('#layerPropertiesCancel').click();
+    // The line-symbology check submits with OK and has already closed Layer Properties.
     // Layout Legend must mirror the active renderer, show unambiguous class ranges,
     // and use a symbol shape matching the layer geometry.
     await page.locator('#layoutModeToggle').click();
@@ -270,6 +275,9 @@ const fixture = {
       bridge.map.setZoom(11,{animate:false});
       await settleMap();
       window.refreshLabelDecluttering?.();
+      // Simulate Leaflet reopening permanent tooltips after the zoom-end pass.
+      item.layer.eachLayer(featureLayer=>featureLayer.openTooltip());
+      await settleMap();
       const belowMinimum=visible();
       bridge.map.setZoom(15,{animate:false});
       await settleMap();
@@ -299,6 +307,14 @@ const fixture = {
           geometry:{type:'Point',coordinates:[47.759,33.629]}}]
       });
       const firstName='__SabzCrossLayerLabelA__',secondName='__SabzCrossLayerLabelB__';
+      // Keep the persistence fixture's label configuration so the subsequent
+      // save/reload assertion tests application persistence, not test cleanup.
+      const fixtureOwner=bridge.namedLayers.find(owner=>owner.name==='__SabzBrowserRegressionFixture__');
+      const fixtureLabelState=fixtureOwner?{
+        enabled:fixtureOwner._labelsEnabled,field:fixtureOwner._labelField,size:fixtureOwner._labelSize,
+        color:fixtureOwner._labelColor,placement:fixtureOwner._labelPlacement,
+        minZoom:fixtureOwner._labelMinZoom,density:fixtureOwner._labelDensity
+      }:null;
       bridge.namedLayers.forEach(owner=>{owner._labelsEnabled=false;});
       bridge.addGeoJSONLayer(firstName,makeLayer(firstName,'Cross layer A'));
       bridge.addGeoJSONLayer(secondName,makeLayer(secondName,'Cross layer B'));
@@ -316,11 +332,82 @@ const fixture = {
         const element=featureLayer.getTooltip()?.getElement();
         return {content:featureLayer.getTooltip()?.getContent(),visibility:element?getComputedStyle(element).visibility:'missing'};
       }));
+      if(fixtureOwner&&fixtureLabelState){
+        Object.assign(fixtureOwner,{
+          _labelsEnabled:fixtureLabelState.enabled,_labelField:fixtureLabelState.field,
+          _labelSize:fixtureLabelState.size,_labelColor:fixtureLabelState.color,
+          _labelPlacement:fixtureLabelState.placement,_labelMinZoom:fixtureLabelState.minZoom,
+          _labelDensity:fixtureLabelState.density
+        });
+        const labelClass=fixtureOwner._labelClass||'gis-feature-label';
+        fixtureOwner.layer.eachLayer(featureLayer=>{
+          const value=window.SabzWebGISLabelingCore.labelText(featureLayer.feature?.properties?.[fixtureOwner._labelField]);
+          if(value!==null&&typeof featureLayer.bindTooltip==='function')featureLayer.bindTooltip(value,{
+            permanent:true,...window.SabzWebGISLabelingCore.labelPlacement(featureLayer.feature?.geometry?.type,fixtureOwner._labelPlacement),
+            className:labelClass,interactive:false
+          });
+        });
+        window.refreshLabelDecluttering?.();
+      }
       return {states,visible:states.flat().filter(item=>item.visibility!=='hidden'&&item.visibility!=='missing').length};
     });
     assert.equal(crossLayerLabels.visible,1,
       'Overlapping labels belonging to two different visible layers must not both be displayed');
 
+
+    // ArcMap-style Calculate Geometry Attributes: verify metric measures and coordinate fields.
+    const geometryAttributes = await page.evaluate(() => {
+      const bridge=window.__sabzWebGISSharedBridge;
+      const name='__SabzGeometryAttributesRegression__';
+      const source={
+        type:'FeatureCollection',
+        features:[
+          {type:'Feature',id:'point',properties:{name:'Control point',keep:'point-value'},geometry:{type:'Point',coordinates:[47.75,33.63]}},
+          {type:'Feature',id:'line',properties:{name:'Test line',keep:'line-value'},geometry:{type:'LineString',coordinates:[[47.75,33.63],[47.751,33.63]]}},
+          {type:'Feature',id:'polygon',properties:{name:'Test polygon',keep:'polygon-value'},geometry:{type:'Polygon',coordinates:[[[47.75,33.63],[47.751,33.63],[47.751,33.631],[47.75,33.631],[47.75,33.63]]]}}
+        ]
+      };
+      bridge.addGeoJSONLayer(name,source);
+      const owner=bridge.namedLayers.find(layer=>layer.name===name);
+      if(!owner)throw new Error('Geometry Attributes fixture layer was not registered');
+      bridge.applyRustGISSelection(name,[0,1,2]);
+      return {name,source:owner.layer.toGeoJSON()};
+    });
+    await page.locator('#gisOperation').selectOption('vectorGeometry');
+    await page.locator('#runGisOperation').click();
+    await page.waitForFunction(() => {
+      const status=document.getElementById('status')?.textContent||'';
+      return /Calculated length, polygon perimeter and area/.test(status);
+    },null,{timeout:15000});
+    const geometryResults=await page.evaluate(name=>{
+      const bridge=window.__sabzWebGISSharedBridge;
+      const owner=bridge.namedLayers.find(layer=>layer.name===name);
+      const output=bridge.namedLayers.filter(layer=>layer.name.includes('Geometry Attributes')).at(-1);
+      const source=owner?.layer?.toGeoJSON?.();
+      const result=output?.layer?.toGeoJSON?.();
+      return {source,result};
+    },geometryAttributes.name);
+    assert.ok(geometryResults.result?.features?.length===3,'Calculate Geometry Attributes should create three output features');
+    const [pointGeometry,lineGeometry,polygonGeometry]=geometryResults.result.features;
+    assert.ok(pointGeometry.properties._geom_point_x>100000&&pointGeometry.properties._geom_point_x<900000,'Point X should use the active projected CRS');
+    assert.ok(pointGeometry.properties._geom_point_y>1000000&&pointGeometry.properties._geom_point_y<9000000,'Point Y should use the active projected CRS');
+    assert.equal(pointGeometry.properties._geom_coordinate_crs,'EPSG:32638','Coordinate attributes should record the active map CRS');
+    assert.equal(pointGeometry.properties._geom_point_lon,47.75,'Point longitude should remain available separately');
+    assert.equal(pointGeometry.properties._geom_point_lat,33.63,'Point latitude should remain available separately');
+    assert.equal(pointGeometry.properties._geom_length_m,null,'Point features must not receive a line length');
+    assert.ok(lineGeometry.properties._geom_length_m>90&&lineGeometry.properties._geom_length_m<100,
+      'Line length should be reported in meters');
+    assert.ok(lineGeometry.properties._geom_centroid_x>100000&&lineGeometry.properties._geom_centroid_x<900000,
+      'Line centroid X should be calculated in the active projected CRS');
+    assert.ok(polygonGeometry.properties._geom_area_m2>9000&&polygonGeometry.properties._geom_area_m2<11000,
+      'Polygon area should be reported in square meters');
+    assert.ok(polygonGeometry.properties._geom_perimeter_m>400&&polygonGeometry.properties._geom_perimeter_m<500,
+      'Polygon perimeter should be reported in meters');
+    assert.ok(polygonGeometry.properties._geom_area_ha>0,'Polygon area should also be available in hectares');
+    assert.deepEqual(geometryResults.source.features.map(feature=>feature.properties.keep),
+      ['point-value','line-value','polygon-value'],'Source attributes must remain unchanged');
+    assert.equal(geometryResults.source.features[1].geometry.coordinates.length,2,
+      'Source geometry must remain unchanged after calculating attributes');
 
     // Persist locally to IndexedDB, reload the page, and verify geometry + symbology + labels.
     const saved = await page.evaluate(async () => {
