@@ -8149,7 +8149,7 @@ function refreshLabelDecluttering(){
       const guardId=owner._labelClass+"-zoom-guard";
       let guard=document.getElementById(guardId);
       if(!guard){guard=document.createElement("style");guard.id=guardId;document.head.appendChild(guard);}
-      guard.textContent="."+belowMinZoomClass+" ."+owner._labelClass+"{visibility:hidden!important;}";
+      guard.textContent="."+belowMinZoomClass+"{visibility:hidden!important;}";
     }
     owner.layer.eachLayer(featureLayer=>{
       const tooltip=featureLayer.getTooltip&&featureLayer.getTooltip();
