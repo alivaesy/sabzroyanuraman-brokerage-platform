@@ -8254,12 +8254,31 @@ if(labelTooltipPane&&typeof MutationObserver==="function"){
       if(owner){
         const belowMinZoom=zoom<Math.max(0,Math.min(22,Number(owner._labelMinZoom)||0));
         element.classList.toggle(owner._labelClass+"-below-minzoom",belowMinZoom);
-        if(belowMinZoom)element.style.setProperty("visibility","hidden","important");
+        // Leaflet may reuse an existing tooltip and rewrite its inline style
+        // without inserting a new node. Reassert the hard zoom gate only when
+        // needed, so observing style mutations cannot create an observer loop.
+        if(belowMinZoom&&(
+          element.style.getPropertyValue("visibility")!=="hidden"||
+          element.style.getPropertyPriority("visibility")!=="important"
+        )){
+          element.style.setProperty("visibility","hidden","important");
+        }
       }
     });
   };
-  const labelTooltipObserver=new MutationObserver(records=>records.forEach(record=>record.addedNodes.forEach(enforceLabelZoomForNode)));
-  labelTooltipObserver.observe(labelTooltipPane,{childList:true,subtree:true});
+  const labelTooltipObserver=new MutationObserver(records=>records.forEach(record=>{
+    if(record.type==="childList"){
+      record.addedNodes.forEach(enforceLabelZoomForNode);
+    }else if(record.type==="attributes"){
+      enforceLabelZoomForNode(record.target);
+    }
+  }));
+  labelTooltipObserver.observe(labelTooltipPane,{
+    childList:true,
+    subtree:true,
+    attributes:true,
+    attributeFilter:["style","class"]
+  });
 }
 function layerLabelClass(owner){
   if(!owner)return "gis-feature-label";
