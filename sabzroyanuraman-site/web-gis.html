@@ -8214,6 +8214,26 @@ map.on("tooltipopen",event=>{
   if(typeof window.requestAnimationFrame==="function")window.requestAnimationFrame(refreshAfterTooltipOpen);
   else Promise.resolve().then(refreshAfterTooltipOpen);
 });
+// Observe late Leaflet tooltip insertions: some permanent labels are attached
+// after tooltipopen/zoomend and can otherwise escape the synchronous sweep.
+const labelTooltipPane=map.getPane&&map.getPane("tooltipPane");
+if(labelTooltipPane&&typeof MutationObserver==="function"){
+  const enforceLabelZoomForNode=node=>{
+    if(!node||node.nodeType!==1)return;
+    const elements=[];
+    if(node.classList?.contains("leaflet-tooltip"))elements.push(node);
+    if(typeof node.querySelectorAll==="function")elements.push(...node.querySelectorAll(".leaflet-tooltip"));
+    const zoom=map.getZoom();
+    if(zoom>=22)return;
+    elements.forEach(element=>{
+      const owner=namedLayers.find(item=>item&&item._labelsEnabled&&item._labelClass&&element.classList.contains(item._labelClass));
+      if(owner&&zoom<Math.max(0,Math.min(22,Number(owner._labelMinZoom)||0)))
+        element.style.setProperty("visibility","hidden","important");
+    });
+  };
+  const labelTooltipObserver=new MutationObserver(records=>records.forEach(record=>record.addedNodes.forEach(enforceLabelZoomForNode)));
+  labelTooltipObserver.observe(labelTooltipPane,{childList:true,subtree:true});
+}
 function layerLabelClass(owner){
   if(!owner)return "gis-feature-label";
   if(!owner._labelClass)owner._labelClass="gis-feature-label-"+Math.random().toString(36).slice(2,10);
