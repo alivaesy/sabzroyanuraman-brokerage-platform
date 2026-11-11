@@ -8199,9 +8199,15 @@ map.on("tooltipopen",event=>{
   // Leaflet may append/reopen a permanent tooltip after zoomend. Enforce the
   // owner's minimum zoom synchronously, before a paint can expose the label.
   const element=event.tooltip&&(event.tooltip.getElement?event.tooltip.getElement():event.tooltip._container);
-  if(element){
-    const owner=namedLayers.find(item=>item&&item._labelsEnabled&&item._labelClass&&element.classList.contains(item._labelClass));
-    if(owner&&map.getZoom()<Math.max(0,Math.min(22,Number(owner._labelMinZoom)||0))){
+  const sourceLayer=event.layer;
+  const owner=namedLayers.find(item=>item&&item._labelsEnabled&&item._labelClass&&(
+    (sourceLayer&&(item.layer===sourceLayer||
+      (typeof item.layer?.hasLayer==="function"&&item.layer.hasLayer(sourceLayer))))||
+    (element&&element.classList.contains(item._labelClass))
+  ));
+  if(owner&&element){
+    if(!element.classList.contains(owner._labelClass))element.classList.add(owner._labelClass);
+    if(map.getZoom()<Math.max(0,Math.min(22,Number(owner._labelMinZoom)||0))){
       element.style.setProperty("visibility","hidden","important");
     }
   }
