@@ -8141,10 +8141,15 @@ function refreshLabelDecluttering(){
     // permanent tooltip nodes and clear their inline visibility after zoomend.
     if(owner._labelClass){
       ownerLabelClasses.add({className:owner._labelClass,minZoom});
+      // Keep the zoom gate on the map container, not only on tooltip nodes:
+      // Leaflet can reset inline styles while reopening an existing tooltip.
+      const mapContainer=map.getContainer();
+      const belowMinZoomClass=owner._labelClass+"-below-minzoom";
+      mapContainer.classList.toggle(belowMinZoomClass,zoom<minZoom);
       const guardId=owner._labelClass+"-zoom-guard";
       let guard=document.getElementById(guardId);
       if(!guard){guard=document.createElement("style");guard.id=guardId;document.head.appendChild(guard);}
-      guard.textContent=zoom<minZoom?"."+owner._labelClass+"{visibility:hidden!important;}":"";
+      guard.textContent="."+belowMinZoomClass+" ."+owner._labelClass+"{visibility:hidden!important;}";
     }
     owner.layer.eachLayer(featureLayer=>{
       const tooltip=featureLayer.getTooltip&&featureLayer.getTooltip();
