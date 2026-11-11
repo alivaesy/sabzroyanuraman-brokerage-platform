@@ -299,6 +299,14 @@ const fixture = {
           geometry:{type:'Point',coordinates:[47.759,33.629]}}]
       });
       const firstName='__SabzCrossLayerLabelA__',secondName='__SabzCrossLayerLabelB__';
+      // Keep the persistence fixture's label configuration so the subsequent
+      // save/reload assertion tests application persistence, not test cleanup.
+      const fixtureOwner=bridge.namedLayers.find(owner=>owner.name==='__SabzBrowserRegressionFixture__');
+      const fixtureLabelState=fixtureOwner?{
+        enabled:fixtureOwner._labelsEnabled,field:fixtureOwner._labelField,size:fixtureOwner._labelSize,
+        color:fixtureOwner._labelColor,placement:fixtureOwner._labelPlacement,
+        minZoom:fixtureOwner._labelMinZoom,density:fixtureOwner._labelDensity
+      }:null;
       bridge.namedLayers.forEach(owner=>{owner._labelsEnabled=false;});
       bridge.addGeoJSONLayer(firstName,makeLayer(firstName,'Cross layer A'));
       bridge.addGeoJSONLayer(secondName,makeLayer(secondName,'Cross layer B'));
@@ -316,11 +324,60 @@ const fixture = {
         const element=featureLayer.getTooltip()?.getElement();
         return {content:featureLayer.getTooltip()?.getContent(),visibility:element?getComputedStyle(element).visibility:'missing'};
       }));
+      if(fixtureOwner&&fixtureLabelState){
+        Object.assign(fixtureOwner,{
+          _labelsEnabled:fixtureLabelState.enabled,_labelField:fixtureLabelState.field,
+          _labelSize:fixtureLabelState.size,_labelColor:fixtureLabelState.color,
+          _labelPlacement:fixtureLabelState.placement,_labelMinZoom:fixtureLabelState.minZoom,
+          _labelDensity:fixtureLabelState.density
+        });
+        const labelClass=fixtureOwner._labelClass||'gis-feature-label';
+        fixtureOwner.layer.eachLayer(featureLayer=>{
+          const value=window.SabzWebGISLabelingCore.labelText(featureLayer.feature?.properties?.[fixtureOwner._labelField]);
+          if(value!==null&&typeof featureLayer.bindTooltip==='function')featureLayer.bindTooltip(value,{
+            permanent:true,...window.SabzWebGISLabelingCore.labelPlacement(featureLayer.feature?.geometry?.type,fixtureOwner._labelPlacement),
+            className:labelClass,interactive:false
+          });
+        });
+        window.refreshLabelDecluttering?.();
+      }
       return {states,visible:states.flat().filter(item=>item.visibility!=='hidden'&&item.visibility!=='missing').length};
     });
     assert.equal(crossLayerLabels.visible,1,
       'Overlapping labels belonging to two different visible layers must not both be displayed');
 
+
+    // Feature To Point (Inside) must return a point on a concave polygon, unlike its centroid.
+    const pointOnFeatureName='__SabzFeatureToPointInsideRegression__';
+    await page.evaluate(name=>{
+      const bridge=window.__sabzWebGISSharedBridge;
+      bridge.addGeoJSONLayer(name,{type:'FeatureCollection',features:[
+        {type:'Feature',properties:{parcel:'L-shaped test',preserve:'source-value'},geometry:{type:'Polygon',coordinates:[[
+          [47.75,33.63],[47.76,33.63],[47.76,33.632],[47.7525,33.632],
+          [47.7525,33.64],[47.75,33.64],[47.75,33.63]
+        ]]}}
+      ]});
+    },pointOnFeatureName);
+    await page.locator('#gisOperation').selectOption('pointOnFeature');
+    await page.locator('#runGisOperation').click();
+    await page.locator('#arcMapToolDialog.open').waitFor({state:'visible'});
+    await page.locator('#arcToolDialogInput').selectOption('layers');
+    await page.locator('#arcToolDialogOk').click();
+    await page.locator('#arcMapToolDialog.open').waitFor({state:'visible'});
+    await page.locator('#arcToolDialogInput').selectOption({label:pointOnFeatureName});
+    await page.locator('#arcToolDialogOk').click();
+    await page.waitForFunction(name=>window.__sabzWebGISSharedBridge.namedLayers.some(item=>item.name==='Feature To Point (Inside) '+name),pointOnFeatureName);
+    const pointOnFeatureResult=await page.evaluate(name=>{
+      const bridge=window.__sabzWebGISSharedBridge;
+      const source=bridge.namedLayers.find(item=>item.name===name)?.layer?.toGeoJSON?.().features?.[0];
+      const output=bridge.namedLayers.find(item=>item.name==='Feature To Point (Inside) '+name)?.layer?.toGeoJSON?.().features?.[0];
+      const centroid=window.turf.centroid(source);
+      return {source,output,centroidInside:window.turf.booleanPointInPolygon(centroid,source),pointInside:window.turf.booleanPointInPolygon(output,source)};
+    },pointOnFeatureName);
+    assert.equal(pointOnFeatureResult.centroidInside,false,'The concave fixture centroid should lie outside its polygon');
+    assert.equal(pointOnFeatureResult.pointInside,true,'Feature To Point (Inside) must return a point within the polygon');
+    assert.equal(pointOnFeatureResult.output.properties.preserve,'source-value','Feature attributes must be preserved');
+    assert.equal(pointOnFeatureResult.output.properties._point_method,'pointOnFeature');
 
     // Persist locally to IndexedDB, reload the page, and verify geometry + symbology + labels.
     const saved = await page.evaluate(async () => {
