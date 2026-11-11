@@ -8195,6 +8195,16 @@ function refreshLabelDecluttering(){
   );
   const keep=new Set(visible);
   candidates.forEach((item,index)=>{item.element.style.visibility=keep.has(index)?"":"hidden";});
+  // Minimum zoom is a hard visibility constraint, not a decluttering hint.
+  // Apply it LAST so no candidate/decluttering pass can clear the hidden state.
+  const finalZoom=map.getZoom();
+  if(tooltipPane)ownerLabelClasses.forEach(entry=>{
+    if(finalZoom<entry.minZoom){
+      tooltipPane.querySelectorAll("."+entry.className).forEach(element=>{
+        element.style.setProperty("visibility","hidden","important");
+      });
+    }
+  });
 }
 map.on("zoomend moveend layeradd layerremove",refreshLabelDecluttering);
 // Leaflet can reopen permanent tooltips after the zoomend pass. Defer one
