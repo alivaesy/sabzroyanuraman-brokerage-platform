@@ -8195,7 +8195,16 @@ map.on("zoomend moveend layeradd layerremove",refreshLabelDecluttering);
 // coalesced refresh until the tooltip DOM is attached, then reapply min zoom
 // and cross-layer decluttering to every visible layer.
 let labelRefreshFramePending=false;
-map.on("tooltipopen",()=>{
+map.on("tooltipopen",event=>{
+  // Leaflet may append/reopen a permanent tooltip after zoomend. Enforce the
+  // owner's minimum zoom synchronously, before a paint can expose the label.
+  const element=event.tooltip&&(event.tooltip.getElement?event.tooltip.getElement():event.tooltip._container);
+  if(element){
+    const owner=namedLayers.find(item=>item&&item._labelsEnabled&&item._labelClass&&element.classList.contains(item._labelClass));
+    if(owner&&map.getZoom()<Math.max(0,Math.min(22,Number(owner._labelMinZoom)||0))){
+      element.style.setProperty("visibility","hidden","important");
+    }
+  }
   if(labelRefreshFramePending)return;
   labelRefreshFramePending=true;
   const refreshAfterTooltipOpen=()=>{
