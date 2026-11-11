@@ -8149,7 +8149,7 @@ function refreshLabelDecluttering(){
       const guardId=owner._labelClass+"-zoom-guard";
       let guard=document.getElementById(guardId);
       if(!guard){guard=document.createElement("style");guard.id=guardId;document.head.appendChild(guard);}
-      guard.textContent="."+belowMinZoomClass+" ."+owner._labelClass+"{visibility:hidden!important;}";
+      guard.textContent="."+belowMinZoomClass+"{visibility:hidden!important;}";
     }
     owner.layer.eachLayer(featureLayer=>{
       const tooltip=featureLayer.getTooltip&&featureLayer.getTooltip();
@@ -8158,6 +8158,7 @@ function refreshLabelDecluttering(){
       // Recreated Leaflet permanent tooltips may not retain the owner's label
       // class or inline visibility. Reapply both before any layout/declutter pass.
       if(owner._labelClass&&!element.classList.contains(owner._labelClass))element.classList.add(owner._labelClass);
+      if(owner._labelClass)element.classList.toggle(owner._labelClass+"-below-minzoom",zoom<minZoom);
       if(zoom<minZoom){
         element.style.setProperty("visibility","hidden","important");
         return;
@@ -8212,7 +8213,9 @@ map.on("tooltipopen",event=>{
   ));
   if(owner&&element){
     if(!element.classList.contains(owner._labelClass))element.classList.add(owner._labelClass);
-    if(map.getZoom()<Math.max(0,Math.min(22,Number(owner._labelMinZoom)||0))){
+    const belowMinZoom=map.getZoom()<Math.max(0,Math.min(22,Number(owner._labelMinZoom)||0));
+    element.classList.toggle(owner._labelClass+"-below-minzoom",belowMinZoom);
+    if(belowMinZoom){
       element.style.setProperty("visibility","hidden","important");
     }
   }
@@ -8238,8 +8241,11 @@ if(labelTooltipPane&&typeof MutationObserver==="function"){
     if(zoom>=22)return;
     elements.forEach(element=>{
       const owner=namedLayers.find(item=>item&&item._labelsEnabled&&item._labelClass&&element.classList.contains(item._labelClass));
-      if(owner&&zoom<Math.max(0,Math.min(22,Number(owner._labelMinZoom)||0)))
-        element.style.setProperty("visibility","hidden","important");
+      if(owner){
+        const belowMinZoom=zoom<Math.max(0,Math.min(22,Number(owner._labelMinZoom)||0));
+        element.classList.toggle(owner._labelClass+"-below-minzoom",belowMinZoom);
+        if(belowMinZoom)element.style.setProperty("visibility","hidden","important");
+      }
     });
   };
   const labelTooltipObserver=new MutationObserver(records=>records.forEach(record=>record.addedNodes.forEach(enforceLabelZoomForNode)));
