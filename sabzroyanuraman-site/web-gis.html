@@ -8216,11 +8216,20 @@ map.on("tooltipopen",event=>{
   // owner's minimum zoom synchronously, before a paint can expose the label.
   const element=event.tooltip&&(event.tooltip.getElement?event.tooltip.getElement():event.tooltip._container);
   const sourceLayer=event.layer;
-  const owner=namedLayers.find(item=>item&&item._labelsEnabled&&item._labelClass&&(
-    (sourceLayer&&(item.layer===sourceLayer||
-      (typeof item.layer?.hasLayer==="function"&&item.layer.hasLayer(sourceLayer))))||
-    (element&&element.classList.contains(item._labelClass))
-  ));
+  const owner=namedLayers.find(item=>{
+    if(!item||!item._labelsEnabled||!item._labelClass||!item.layer)return false;
+    if(sourceLayer&&(item.layer===sourceLayer||
+      (typeof item.layer.hasLayer==="function"&&item.layer.hasLayer(sourceLayer))))return true;
+    // Leaflet's tooltipopen event can fire before the tooltip DOM receives its
+    // owner class. Resolve ownership by the actual tooltip object instead.
+    let matched=false;
+    if(typeof item.layer.eachLayer==="function")item.layer.eachLayer(featureLayer=>{
+      if(matched)return;
+      if(featureLayer===sourceLayer||
+        (typeof featureLayer.getTooltip==="function"&&featureLayer.getTooltip()===event.tooltip))matched=true;
+    });
+    return matched||(element&&element.classList.contains(item._labelClass));
+  });
   if(owner&&element){
     if(!element.classList.contains(owner._labelClass))element.classList.add(owner._labelClass);
     const belowMinZoom=map.getZoom()<Math.max(0,Math.min(22,Number(owner._labelMinZoom)||0));
