@@ -165,7 +165,7 @@ const fixture = {
         set('lpColorRamp','green');
         set('lpClassCount','5');
         if(method)set('lpClassificationMethod',method);
-        document.getElementById('layerPropertiesForm').dispatchEvent(new SubmitEvent('submit',{bubbles:true,cancelable:true,submitter:document.getElementById('layerPropertiesOk')}));
+        document.getElementById('layerPropertiesForm').dispatchEvent(new SubmitEvent('submit',{bubbles:true,cancelable:true,submitter:document.querySelector('#layerPropertiesForm button[type="submit"]:not(#layerPropertiesOk)')}));
       };
       apply('unique','parcel_id');
       const uniqueColors=item.layer.getLayers().map(feature=>feature.options?.fillColor).filter(Boolean);
@@ -221,7 +221,7 @@ const fixture = {
     assert.equal(styleResult.tooltipDirection,'top','Labels should use the requested placement');
     assert.match(styleResult.labelCss,/text-shadow:/,'Rendered labels should use a white halo rather than a tooltip box');
     assert.match(styleResult.labelCss,/background:transparent/,'Rendered labels should not have a tooltip background');
-    await page.locator('#layerPropertiesCancel').click();
+    // The line-symbology check submits with OK and has already closed Layer Properties.
     // Layout Legend must mirror the active renderer, show unambiguous class ranges,
     // and use a symbol shape matching the layer geometry.
     await page.locator('#layoutModeToggle').click();
@@ -270,7 +270,20 @@ const fixture = {
       bridge.map.setZoom(11,{animate:false});
       await settleMap();
       window.refreshLabelDecluttering?.();
+      // Simulate Leaflet reopening permanent tooltips after the zoom-end pass.
+      item.layer.eachLayer(featureLayer=>featureLayer.openTooltip());
+      await settleMap();
       const belowMinimum=visible();
+      const belowMinimumDetails=visibleElements().map(el=>({
+        text:el.textContent,
+        className:el.className,
+        inlineVisibility:el.style.visibility,
+        computedVisibility:getComputedStyle(el).visibility,
+        pane:el.parentElement?.className||null,
+        ownerClass:item._labelClass,
+        ownerMinZoom:item._labelMinZoom,
+        html:el.outerHTML.slice(0,500)
+      }));
       bridge.map.setZoom(15,{animate:false});
       await settleMap();
       window.refreshLabelDecluttering?.();
@@ -281,8 +294,9 @@ const fixture = {
       window.refreshLabelDecluttering?.();
       const closeVisible=visible();
       const closeOverlaps=overlapCount();
-      return {featureCount:features.length,domLabels:count(),belowMinimum,mediumVisible,closeVisible,mediumOverlaps,closeOverlaps};
+      return {featureCount:features.length,domLabels:count(),belowMinimum,belowMinimumDetails,mediumVisible,closeVisible,mediumOverlaps,closeOverlaps,diagnostics:{zoom:bridge.map.getZoom(),minZoom:item._labelMinZoom,labelClass:item._labelClass,firstLabelClass:document.querySelector('.'+item._labelClass)?.className,firstLabelVisibility:document.querySelector('.'+item._labelClass)?getComputedStyle(document.querySelector('.'+item._labelClass)).visibility:null,guardText:document.getElementById(item._labelClass+'-zoom-guard')?.textContent||null,visibleInline:document.querySelector('.'+item._labelClass)?.style.visibility||null}};
     });
+    console.log('Dense label minimum-zoom diagnostics: '+JSON.stringify(denseLabelResult));
     assert.equal(denseLabelResult.featureCount,300,'Dense regression fixture should contain 300 point features');
     assert.equal(denseLabelResult.belowMinimum,0,'Labels must be hidden below the configured minimum zoom');
     assert.ok(denseLabelResult.mediumVisible>0,'Some labels should be visible at the medium zoom');
@@ -299,6 +313,14 @@ const fixture = {
           geometry:{type:'Point',coordinates:[47.759,33.629]}}]
       });
       const firstName='__SabzCrossLayerLabelA__',secondName='__SabzCrossLayerLabelB__';
+      // Keep the persistence fixture's label configuration so the subsequent
+      // save/reload assertion tests application persistence, not test cleanup.
+      const fixtureOwner=bridge.namedLayers.find(owner=>owner.name==='__SabzBrowserRegressionFixture__');
+      const fixtureLabelState=fixtureOwner?{
+        enabled:fixtureOwner._labelsEnabled,field:fixtureOwner._labelField,size:fixtureOwner._labelSize,
+        color:fixtureOwner._labelColor,placement:fixtureOwner._labelPlacement,
+        minZoom:fixtureOwner._labelMinZoom,density:fixtureOwner._labelDensity
+      }:null;
       bridge.namedLayers.forEach(owner=>{owner._labelsEnabled=false;});
       bridge.addGeoJSONLayer(firstName,makeLayer(firstName,'Cross layer A'));
       bridge.addGeoJSONLayer(secondName,makeLayer(secondName,'Cross layer B'));
@@ -316,6 +338,23 @@ const fixture = {
         const element=featureLayer.getTooltip()?.getElement();
         return {content:featureLayer.getTooltip()?.getContent(),visibility:element?getComputedStyle(element).visibility:'missing'};
       }));
+      if(fixtureOwner&&fixtureLabelState){
+        Object.assign(fixtureOwner,{
+          _labelsEnabled:fixtureLabelState.enabled,_labelField:fixtureLabelState.field,
+          _labelSize:fixtureLabelState.size,_labelColor:fixtureLabelState.color,
+          _labelPlacement:fixtureLabelState.placement,_labelMinZoom:fixtureLabelState.minZoom,
+          _labelDensity:fixtureLabelState.density
+        });
+        const labelClass=fixtureOwner._labelClass||'gis-feature-label';
+        fixtureOwner.layer.eachLayer(featureLayer=>{
+          const value=window.SabzWebGISLabelingCore.labelText(featureLayer.feature?.properties?.[fixtureOwner._labelField]);
+          if(value!==null&&typeof featureLayer.bindTooltip==='function')featureLayer.bindTooltip(value,{
+            permanent:true,...window.SabzWebGISLabelingCore.labelPlacement(featureLayer.feature?.geometry?.type,fixtureOwner._labelPlacement),
+            className:labelClass,interactive:false
+          });
+        });
+        window.refreshLabelDecluttering?.();
+      }
       return {states,visible:states.flat().filter(item=>item.visibility!=='hidden'&&item.visibility!=='missing').length};
     });
     assert.equal(crossLayerLabels.visible,1,

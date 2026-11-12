@@ -195,6 +195,8 @@ body{background:#dfe5e8;color:#173b57}
 /* Search belongs to Map View; hide its floating dock in Layout so it cannot become a second right-side panel. */
 body.layout-view-active .workspace>.arcmap-search-dock{display:none!important}
 body.layout-view-active #searchDock{display:none!important;width:0!important;min-width:0!important;visibility:hidden!important;pointer-events:none!important}
+/* A floating ArcToolbox dock must not cover Layout View controls or Map View close actions. */
+body.layout-view-active #gisDock{display:none!important;visibility:hidden!important;pointer-events:none!important}
 body.layout-view-active #map{background:#eef1f3}
 body.layout-view-active .webgis-layout-sheet{min-height:calc(100% - 30px)}
 #layoutModeToggle{min-width:88px;white-space:nowrap;position:relative}
@@ -8128,17 +8130,40 @@ function refreshLabelDecluttering(){
   if(!map||!window.SabzWebGISLabelingCore||!window.SabzWebGISLabelingCore.selectVisibleLabels)return;
   const zoom=map.getZoom();
   const candidates=[];
+  const ownerLabelClasses=new Set();
   // One shared collision pass is required: labels from separate visible layers
   // compete for the same map space just as they do in a desktop GIS.
   [...namedLayers].reverse().forEach(owner=>{
     if(!owner||!owner._labelsEnabled||!owner.layer||!map.hasLayer(owner.layer)||
       typeof owner.layer.eachLayer!=="function")return;
     const minZoom=Math.max(0,Math.min(22,Number(owner._labelMinZoom)||0));
+    // Keep the zoom gate in CSS as well as inline state: Leaflet may recreate
+    // permanent tooltip nodes and clear their inline visibility after zoomend.
+    if(owner._labelClass){
+      ownerLabelClasses.add({className:owner._labelClass,minZoom});
+      // Keep the zoom gate on the map container, not only on tooltip nodes:
+      // Leaflet can reset inline styles while reopening an existing tooltip.
+      const mapContainer=map.getContainer();
+      const belowMinZoomClass=owner._labelClass+"-below-minzoom";
+      mapContainer.classList.toggle(belowMinZoomClass,zoom<minZoom);
+      const guardId=owner._labelClass+"-zoom-guard";
+      let guard=document.getElementById(guardId);
+      if(!guard){guard=document.createElement("style");guard.id=guardId;document.head.appendChild(guard);}
+      guard.textContent="."+belowMinZoomClass+" ."+owner._labelClass+"{visibility:hidden!important;}";
+    }
     owner.layer.eachLayer(featureLayer=>{
       const tooltip=featureLayer.getTooltip&&featureLayer.getTooltip();
       const element=tooltip&&(tooltip.getElement?tooltip.getElement():tooltip._container);
       if(!element)return;
-      if(zoom<minZoom){element.style.visibility="hidden";return;}
+      // Recreated Leaflet permanent tooltips may not retain the owner's label
+      // class or inline visibility. Reapply both before any layout/declutter pass.
+      if(owner._labelClass&&!element.classList.contains(owner._labelClass))element.classList.add(owner._labelClass);
+      if(owner._labelClass)element.classList.toggle(owner._labelClass+"-below-minzoom",zoom<minZoom);
+      if(zoom<minZoom){
+        element.style.setProperty("visibility","hidden","important");
+        return;
+      }
+      element.style.removeProperty("visibility");
       const rect=element.getBoundingClientRect();
       if(!rect.width||!rect.height)return;
       candidates.push({
@@ -8146,6 +8171,14 @@ function refreshLabelDecluttering(){
         density:owner._labelDensity||"balanced",
         box:{left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom}
       });
+    });
+  });
+  // Final live-DOM sweep covers Leaflet tooltips recreated outside the
+  // per-feature iteration timing window.
+  const tooltipPane=map.getPane&&map.getPane("tooltipPane");
+  if(tooltipPane)ownerLabelClasses.forEach(entry=>{
+    tooltipPane.querySelectorAll("."+entry.className).forEach(element=>{
+      if(zoom<entry.minZoom)element.style.setProperty("visibility","hidden","important");
     });
   });
   // The tooltip pane's DOM order reflects paint order; retain topmost labels first.
@@ -8162,8 +8195,100 @@ function refreshLabelDecluttering(){
   );
   const keep=new Set(visible);
   candidates.forEach((item,index)=>{item.element.style.visibility=keep.has(index)?"":"hidden";});
+  // Minimum zoom is a hard visibility constraint, not a decluttering hint.
+  // Apply it LAST so no candidate/decluttering pass can clear the hidden state.
+  const finalZoom=map.getZoom();
+  if(tooltipPane)ownerLabelClasses.forEach(entry=>{
+    if(finalZoom<entry.minZoom){
+      tooltipPane.querySelectorAll("."+entry.className).forEach(element=>{
+        element.style.setProperty("visibility","hidden","important");
+      });
+    }
+  });
 }
 map.on("zoomend moveend layeradd layerremove",refreshLabelDecluttering);
+// Leaflet can reopen permanent tooltips after the zoomend pass. Defer one
+// coalesced refresh until the tooltip DOM is attached, then reapply min zoom
+// and cross-layer decluttering to every visible layer.
+let labelRefreshFramePending=false;
+map.on("tooltipopen",event=>{
+  // Leaflet may append/reopen a permanent tooltip after zoomend. Enforce the
+  // owner's minimum zoom synchronously, before a paint can expose the label.
+  const element=event.tooltip&&(event.tooltip.getElement?event.tooltip.getElement():event.tooltip._container);
+  const sourceLayer=event.layer;
+  const owner=namedLayers.find(item=>{
+    if(!item||!item._labelsEnabled||!item._labelClass||!item.layer)return false;
+    if(sourceLayer&&(item.layer===sourceLayer||
+      (typeof item.layer.hasLayer==="function"&&item.layer.hasLayer(sourceLayer))))return true;
+    // Leaflet's tooltipopen event can fire before the tooltip DOM receives its
+    // owner class. Resolve ownership by the actual tooltip object instead.
+    let matched=false;
+    if(typeof item.layer.eachLayer==="function")item.layer.eachLayer(featureLayer=>{
+      if(matched)return;
+      if(featureLayer===sourceLayer||
+        (typeof featureLayer.getTooltip==="function"&&featureLayer.getTooltip()===event.tooltip))matched=true;
+    });
+    return matched||(element&&element.classList.contains(item._labelClass));
+  });
+  if(owner&&element){
+    if(!element.classList.contains(owner._labelClass))element.classList.add(owner._labelClass);
+    const belowMinZoom=map.getZoom()<Math.max(0,Math.min(22,Number(owner._labelMinZoom)||0));
+    element.classList.toggle(owner._labelClass+"-below-minzoom",belowMinZoom);
+    if(belowMinZoom){
+      element.style.setProperty("visibility","hidden","important");
+    }
+  }
+  if(labelRefreshFramePending)return;
+  labelRefreshFramePending=true;
+  const refreshAfterTooltipOpen=()=>{
+    labelRefreshFramePending=false;
+    refreshLabelDecluttering();
+  };
+  if(typeof window.requestAnimationFrame==="function")window.requestAnimationFrame(refreshAfterTooltipOpen);
+  else Promise.resolve().then(refreshAfterTooltipOpen);
+});
+// Observe late Leaflet tooltip insertions: some permanent labels are attached
+// after tooltipopen/zoomend and can otherwise escape the synchronous sweep.
+const labelTooltipPane=map.getPane&&map.getPane("tooltipPane");
+if(labelTooltipPane&&typeof MutationObserver==="function"){
+  const enforceLabelZoomForNode=node=>{
+    if(!node||node.nodeType!==1)return;
+    const elements=[];
+    if(node.classList?.contains("leaflet-tooltip"))elements.push(node);
+    if(typeof node.querySelectorAll==="function")elements.push(...node.querySelectorAll(".leaflet-tooltip"));
+    const zoom=map.getZoom();
+    if(zoom>=22)return;
+    elements.forEach(element=>{
+      const owner=namedLayers.find(item=>item&&item._labelsEnabled&&item._labelClass&&element.classList.contains(item._labelClass));
+      if(owner){
+        const belowMinZoom=zoom<Math.max(0,Math.min(22,Number(owner._labelMinZoom)||0));
+        element.classList.toggle(owner._labelClass+"-below-minzoom",belowMinZoom);
+        // Leaflet may reuse an existing tooltip and rewrite its inline style
+        // without inserting a new node. Reassert the hard zoom gate only when
+        // needed, so observing style mutations cannot create an observer loop.
+        if(belowMinZoom&&(
+          element.style.getPropertyValue("visibility")!=="hidden"||
+          element.style.getPropertyPriority("visibility")!=="important"
+        )){
+          element.style.setProperty("visibility","hidden","important");
+        }
+      }
+    });
+  };
+  const labelTooltipObserver=new MutationObserver(records=>records.forEach(record=>{
+    if(record.type==="childList"){
+      record.addedNodes.forEach(enforceLabelZoomForNode);
+    }else if(record.type==="attributes"){
+      enforceLabelZoomForNode(record.target);
+    }
+  }));
+  labelTooltipObserver.observe(labelTooltipPane,{
+    childList:true,
+    subtree:true,
+    attributes:true,
+    attributeFilter:["style","class"]
+  });
+}
 function layerLabelClass(owner){
   if(!owner)return "gis-feature-label";
   if(!owner._labelClass)owner._labelClass="gis-feature-label-"+Math.random().toString(36).slice(2,10);
