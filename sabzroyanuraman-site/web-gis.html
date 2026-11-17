@@ -1337,6 +1337,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <script src="./vendor/web-gis/turf/turf.min.js"></script>
 <script src="./vendor/web-gis/geotiff/geotiff.js" onerror="this.onerror=null;this.src=\'https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js\'"></script>
 <script src="./webgis-attribute-table-core.js?v=20261105-attribute-core"></script>
+<script src="./webgis-attribute-table-render.js?v=20261105-attribute-render"></script>
 <script src="./webgis-labeling-core.js?v=20261104-labeling-core"></script>
 <script src="./webgis-symbology-core.js?v=20261104-symbology-core"></script>
 <script src="./raster-runtime.js?v=20261101-selftest"></script>
@@ -3281,28 +3282,30 @@ function ensureFeatureProperties(layer){
   return layer.feature.properties;
 }
 function renderAttributeEditor(){
-  const box=$("attributeEditor");
+  const ctx={ $ ,get selectedLayer(){return selectedLayer},ensureFeatureProperties,status,esc,isComputedAttributeField,saveAttributes };
+
+  const box=ctx.$("attributeEditor");
   if(!box)return;
-  if(!selectedLayer){box.style.display="none";status("Select the first input feature.");return}
-  const props=ensureFeatureProperties(selectedLayer);
+  if(!ctx.selectedLayer){box.style.display="none";ctx.status("Select the first input feature.");return}
+  const props=ctx.ensureFeatureProperties(ctx.selectedLayer);
   const keys=Object.keys(props).filter(k=>k!=="_attachments");
   let html="<div id='attributeRows'>";
   keys.forEach(k=>{
-    html+="<div class='row attr-edit-row' data-key='"+esc(k)+"' style='align-items:flex-start'>"+
-      "<input class='attr-key' value='"+esc(k)+"' title='Field Name' style='width:42%' "+(isComputedAttributeField(k)?"readonly aria-readonly='true' title='Calculated field name — read only'":"")+">"+
-      "<input class='attr-value"+(isComputedAttributeField(k)?" computed-field-readonly":"")+"' value='"+esc(typeof props[k]==="object"&&props[k]!==null?JSON.stringify(props[k]):props[k])+"' title='"+(isComputedAttributeField(k)?"Calculated field — read only":"Value")+"' style='width:48%' "+(isComputedAttributeField(k)?"readonly aria-readonly='true'":"")+">"+
-      (isComputedAttributeField(k)?"<span class='small' title='Calculated field'>Auto</span>":"<button class='action danger attr-delete' type='button' title='Delete Field'>×</button>")+"</div>";
+    html+="<div class='row attr-edit-row' data-key='"+ctx.esc(k)+"' style='align-items:flex-start'>"+
+      "<input class='attr-key' value='"+ctx.esc(k)+"' title='Field Name' style='width:42%' "+(ctx.isComputedAttributeField(k)?"readonly aria-readonly='true' title='Calculated field name — read only'":"")+">"+
+      "<input class='attr-value"+(ctx.isComputedAttributeField(k)?" computed-field-readonly":"")+"' value='"+ctx.esc(typeof props[k]==="object"&&props[k]!==null?JSON.stringify(props[k]):props[k])+"' title='"+(ctx.isComputedAttributeField(k)?"Calculated field — read only":"Value")+"' style='width:48%' "+(ctx.isComputedAttributeField(k)?"readonly aria-readonly='true'":"")+">"+
+      (ctx.isComputedAttributeField(k)?"<span class='small' title='Calculated field'>Auto</span>":"<button class='action danger attr-delete' type='button' title='Delete Field'>×</button>")+"</div>";
   });
   if(!keys.length)html+="<div class='small'>This feature has no editable attributes.</div>";
   html+="</div><div class='row'><button class='action secondary' id='addAttributeField' type='button'>+ Add Field</button><button class='action' id='saveAttributes' type='button'>Save Attribute</button></div>";
   box.innerHTML=html;box.style.display="block";
   box.querySelectorAll(".attr-delete").forEach(btn=>btn.onclick=()=>btn.closest(".attr-edit-row").remove());
-  $("addAttributeField").onclick=()=>{
+  ctx.$("addAttributeField").onclick=()=>{
     const row=document.createElement("div");row.className="row attr-edit-row";row.style.alignItems="flex-start";
     row.innerHTML="<input class='attr-key' placeholder='Field Name' style='width:42%'><input class='attr-value' placeholder='Value' style='width:48%'><button class='action danger attr-delete' type='button'>×</button>";
-    row.querySelector(".attr-delete").onclick=()=>row.remove();$("attributeRows").appendChild(row);
+    row.querySelector(".attr-delete").onclick=()=>row.remove();ctx.$("attributeRows").appendChild(row);
   };
-  $("saveAttributes").onclick=saveAttributes;
+  ctx.$("saveAttributes").onclick=ctx.saveAttributes;
 }
 function saveAttributes(){
   if(!selectedLayer){status("Select a feature before editing attributes.");return}
@@ -4138,166 +4141,7 @@ function tableKeys(items){
  return attributeTableCore.collectFields(schema,items.map(x=>x.feature.properties||{}));
 }
 let attributeSort={key:null,direction:1};
-function renderEditableTable(){
- if(!currentAttributeLayer()){status("Select a feature layer.");return}
- const tableWrap=$("attributeTableWrap");
- if(tableWrap)tableWrap.style.display="block";
-  showAttributeTableWindow();
- const items=currentAttributeItems(),filter=$("attributeFilter").value.trim().toLowerCase();
- let rows=items.map((x,i)=>({x,i})).filter(o=>!filter||Object.entries(o.x.feature.properties||{}).some(([k,v])=>!isReservedAttributeField(k)&&(k.toLowerCase().includes(filter)||String(v===null||v===undefined?"":typeof v==="object"?JSON.stringify(v):v).toLowerCase().includes(filter))));
- const keys=tableKeys(items);
- if(attributeSort.key&&keys.includes(attributeSort.key)){
-  const key=attributeSort.key,dir=attributeSort.direction;
-  rows.sort((a,b)=>{
-   const av=a.x.feature.properties?.[key],bv=b.x.feature.properties?.[key];
-   const cmp=attributeTableCore.compareValues(av,bv);
-   return cmp===0?a.i-b.i:cmp*dir;
-  });
- }
- let html="<div class='attribute-schema-toolbar'><details class='attribute-grid-menu'><summary>Table Options ▾</summary><div class='attribute-grid-menu-items'><button type='button' id='attributeAddField' title='Add a field to the feature class'>＋ Add Field</button><button type='button' id='attributeDeleteField' title='Delete a field from the feature class'>− Delete Field</button><button type='button' id='attributeSwitchSelection' title='Invert selection for displayed records'>Switch Selection</button><button type='button' id='attributeSelectByQuery' title='Select records using attribute criteria'>Select By Attributes</button><button type='button' id='attributeZoomSelected' title='Zoom the map to selected records'>Zoom To Selected</button><button type='button' id='attributeClearSelection' title='Clear the current map and table selection'>Clear Selection</button><button type='button' id='attributeExportCsv' title='Export selected records, or all currently displayed records, as CSV'>Export CSV</button><div class='attribute-menu-separator'></div><button type='button' data-forward-table-action='layout'>Dock / Horizontal</button><button type='button' data-forward-table-action='start-edit'>Start Editing</button><button type='button' data-forward-table-action='save'>Save Cell Edits</button><button type='button' data-forward-table-action='delete'>Delete Selected Rows</button><button type='button' data-forward-table-action='copy'>Copy Rows</button><button type='button' data-forward-table-action='paste'>Paste Rows</button><button type='button' data-forward-table-action='calculate'>Calculate Field</button><button type='button' data-forward-table-action='refresh'>Refresh</button></div></details><span id='attributeTableSummary'>"+keys.length+" field(s) · "+items.length+" record(s) · "+selectedFeatures.size+" selected</span></div><table class='arc-attribute-grid'><thead><tr><th><input type='checkbox' class='attr-check' id='checkAllRows'></th><th>#</th>"+
- keys.map(k=>"<th data-sort-key='"+esc(k)+"' title='Sort by "+esc(k)+"' style='padding:3px;border-bottom:1px solid #ccd9df;white-space:nowrap;cursor:pointer;user-select:none'>"+esc(k)+(attributeSort.key===k?(attributeSort.direction===1?" ▲":" ▼"):" ↕")+"</th>").join("")+"</tr></thead><tbody>";
- rows.forEach(o=>{html+="<tr data-index='"+o.i+"' tabindex='0' role='row' aria-selected='"+(selectedFeatures.has(o.x.layer)?"true":"false")+"' class='"+(selectedFeatures.has(o.x.layer)?"attribute-row-selected":"")+"'><td><input type='checkbox' class='row-check attr-check' "+(selectedFeatures.has(o.x.layer)?"checked":"")+"></td><td>"+(o.i+1)+"</td>"+
- keys.map(k=>{const v=(o.x.feature.properties||{})[k],shown=v===null||v===undefined?"":typeof v==="object"?JSON.stringify(v):String(v),computed=isComputedAttributeField(k);return "<td style='padding:2px'><input class='cell-edit"+(computed?" computed-field-readonly":"")+"' data-key='"+esc(k)+"' data-original='"+esc(shown)+"' value='"+esc(shown)+"' "+(computed?"readonly aria-readonly='true' title='Calculated field — read only'":"")+"></td>"}).join("")+"</tr>"});
- $("attributeTableWrap").innerHTML=html+"</tbody></table>";$("attributeTableWrap").style.display="block";
- // Resizable field columns, similar to the desktop ArcMap attribute grid.
- $("attributeTableWrap").querySelectorAll("th[data-sort-key]").forEach(th=>{
-  th.style.position="sticky";th.style.minWidth="90px";
-  const grip=document.createElement("span");
-  grip.setAttribute("role","separator");grip.setAttribute("aria-label","Resize column "+th.dataset.sortKey);
-  grip.title="Drag to resize column";grip.style.cssText="position:absolute;right:0;top:0;width:5px;height:100%;cursor:col-resize;user-select:none;touch-action:none;z-index:6";
-  grip.addEventListener("pointerdown",event=>{
-   if(event.button!==0)return;
-   event.preventDefault();event.stopPropagation();
-   const startX=event.clientX,startWidth=th.getBoundingClientRect().width;
-   const move=e=>{const width=Math.max(70,Math.min(600,startWidth+e.clientX-startX));th.style.width=width+"px";th.style.minWidth=width+"px";$("attributeTableWrap").querySelectorAll("input.cell-edit[data-key]").forEach(input=>{if(input.dataset.key===th.dataset.sortKey)input.style.width=Math.max(60,width-12)+"px";});};
-   const stop=()=>{document.removeEventListener("pointermove",move);document.removeEventListener("pointerup",stop);document.removeEventListener("pointercancel",stop);};
-   document.addEventListener("pointermove",move);document.addEventListener("pointerup",stop);document.addEventListener("pointercancel",stop);
-  });
-  th.appendChild(grip);
- });
- const queryBtn=$("attributeSelectByQuery");if(queryBtn)queryBtn.onclick=()=>selectByAttribute();
- $("attributeTableWrap").querySelectorAll("[data-forward-table-action]").forEach(button=>{button.onclick=()=>{const action=button.dataset.forwardTableAction;const target=attributeTableWindow?.querySelector(`[data-table-action="${action}"]`);if(target)target.click();};});
- const zoomBtn=$("attributeZoomSelected");if(zoomBtn)zoomBtn.onclick=()=>zoomToSelection();
- const clearBtn=$("attributeClearSelection");if(clearBtn)clearBtn.onclick=()=>{
-  items.forEach(item=>selectedFeatures.delete(item.layer));
-  const first=getFeatureRecords().find(r=>selectedFeatures.has(r.layer));
-  selectedLayer=first?.layer||null;selectedOverlay=null;
-  if(selectedLayer)renderAttributeEditor();else{const editor=$("attributeEditor");if(editor)editor.style.display="none";}
-  applySelectionVisual();status("Selection cleared for this attribute table layer.");
- };
- const addFieldBtn=$("attributeAddField");if(addFieldBtn)addFieldBtn.onclick=async()=>{
-  const layer=currentAttributeLayer();if(!layer)return;
-  if(hasUnsavedTableEdits()){status("Save Table Edits before adding a field.");return}
-  if(!editSessionActive||!isLayerInEditTarget(layer)){
-   if(editSessionActive){
-    await stopEditing();
-    if(editSessionActive){status("The current edit session could not be closed. Save edits before adding a field to another feature class.");return}
-   }
-   const targetSelect=$("editTargetLayer");
-   if(targetSelect){const idx=namedLayers.findIndex(x=>x.layer===layer);targetSelect.value=layer===drawn?"drawn":String(idx)}
-   startEditing({layer});
-   if(!editSessionActive||!isLayerInEditTarget(layer)){status("Could not start editing this feature class.");return}
-  }
-  const name=await arcMapDialog.prompt({title:"Add Field",message:"Enter a new field name (letters, numbers, underscore):",label:"Field name",value:"NEW_FIELD"});if(name===null)return;
-  const field=name.trim();if(!/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(field)){status("Field names must start with a letter and contain only letters, numbers, or underscores (max 64 characters).");return;}
-  if(keys.some(k=>k.toLowerCase()===field.toLowerCase())){status("A field with that name already exists.");return;}
-  const type=await arcMapDialog.select({title:"Add Field",message:"Choose the field data type:",label:"Field type",value:"TEXT",options:[{value:"TEXT",label:"TEXT — Text"},{value:"INTEGER",label:"INTEGER — Whole number"},{value:"REAL",label:"REAL — Decimal number"},{value:"DATE",label:"DATE — Date"}]});if(type===null)return;
-  const fieldType=type.trim().toUpperCase();if(!["TEXT","INTEGER","REAL","DATE"].includes(fieldType)){status("Choose TEXT, INTEGER, REAL, or DATE.");return;}
-  if(isComputedAttributeField(field)){status("Area_m2, Length_m, X and Y are reserved calculated field names.");return;}
-  recordUndoState();const meta=layer._gdbMetadata||(layer._gdbMetadata={fields:[]});meta.fields=meta.fields||[];meta.fields.push({name:field,type:fieldType});
-  items.forEach(item=>{const props=ensureFeatureProperties(item.layer);if(!(field in props))props[field]=null;});
-  const synced=await flushGeodatabaseEdits();const projectSaved=await scheduleAutoSave();renderEditableTable();status("Field "+field+" ("+fieldType+") added to the feature class."+(synced&&projectSaved?"":" Local save failed; retry Save Edits."));
- };
- const deleteFieldBtn=$("attributeDeleteField");if(deleteFieldBtn)deleteFieldBtn.onclick=async()=>{
-  const layer=currentAttributeLayer();if(!layer)return;
-  if(hasUnsavedTableEdits()){status("Save or discard pending cell edits before deleting a field.");return}
-  if(!editSessionActive||!isLayerInEditTarget(layer)){status("Start Editing this feature class before deleting fields.");return}
-  const deletableFields=keys.filter(k=>!isProtectedAttributeValueField(k));
-  if(!deletableFields.length){status("There are no deletable fields. Internal fields are protected.");return}
-  const field=await arcMapDialog.select({title:"Delete Field",message:"Select the field to permanently delete from this feature class:",label:"Field",value:deletableFields[0],options:deletableFields.map(name=>({value:name,label:name}))});if(field===null)return;
-  const name=field.trim(),actual=deletableFields.find(k=>k.toLowerCase()===name.toLowerCase());
-  if(!actual){status("Field not found or protected: "+name);return}
-  if(!await arcMapDialog.confirm({title:"Delete Field",message:"Permanently remove field '"+actual+"' from all features in this edit session?",confirmText:"Delete Field",danger:true}))return;
-  recordUndoState();
-  items.forEach(item=>{if(item.feature.properties)delete item.feature.properties[actual];updateFeaturePopup(item.layer)});
-  if(layer._gdbMetadata?.fields)layer._gdbMetadata.fields=layer._gdbMetadata.fields.filter(f=>(typeof f==="string"?f:f.name)!==actual);
-  if(attributeSort.key===actual)attributeSort={key:null,direction:1};
-  const synced=await flushGeodatabaseEdits();const projectSaved=await scheduleAutoSave();renderEditableTable();status("Field "+actual+" deleted."+(synced&&projectSaved?"":" Local save failed; retry Save Edits."));
- };
- const switchSelectionBtn=$("attributeSwitchSelection");if(switchSelectionBtn)switchSelectionBtn.onclick=()=>{
-  if(hasUnsavedTableEdits()){status("Save Table Edits before changing selection.");return}
-  const visibleRows=[...$("attributeTableWrap").querySelectorAll("tbody tr[data-index]")];
-  if(!visibleRows.length){status("There are no displayed records to switch.");return}
-  visibleRows.forEach(row=>{const item=items[Number(row.dataset.index)];if(item){if(selectedFeatures.has(item.layer))selectedFeatures.delete(item.layer);else selectedFeatures.add(item.layer)}});
-  const first=getFeatureRecords().find(item=>selectedFeatures.has(item.layer));
-  selectedLayer=first?.layer||null;selectedOverlay=null;
-  applySelectionVisual();updateMultiSelectionUI();renderEditableTable();
-  status("Selection switched for "+visibleRows.length+" displayed record(s).");
- };
- const exportCsvBtn=$("attributeExportCsv");
- if(exportCsvBtn)exportCsvBtn.onclick=()=>{
-  if(hasUnsavedTableEdits()){status("Save Table Edits before exporting; unsaved cell values have been preserved.");return}
-  const visible=[...$("attributeTableWrap").querySelectorAll("tbody tr[data-index]")];
-  const selected=visible.filter(row=>{const item=items[Number(row.dataset.index)];return item&&selectedFeatures.has(item.layer)});
-  const sourceRows=selected.length?selected:visible;
-  const csvCell=value=>{const text=String(value===null||value===undefined?"":typeof value==="object"?JSON.stringify(value):value);return '"'+text.replace(/"/g,'""')+'"';};
-  const lines=[keys.map(csvCell).join(",")];
-  sourceRows.forEach(row=>{const item=items[Number(row.dataset.index)];if(item)lines.push(keys.map(key=>csvCell(item.feature.properties?.[key])).join(","));});
-  const blob=new Blob(["\uFEFF"+lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});
-  const url=URL.createObjectURL(blob),link=document.createElement("a");
-  link.href=url;link.download="attribute-table-"+new Date().toISOString().slice(0,10)+".csv";
-  document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
-  status("Exported "+sourceRows.length+" record(s) to CSV"+(selected.length?" (selected records).":" (displayed records)."));
- };
- const clearTableSelectionBtn=$("attributeClearSelection");
- if(clearTableSelectionBtn)clearTableSelectionBtn.onclick=()=>{clearSelection();syncVisibleAttributeTableSelection();};
- const zoomTableSelectionBtn=$("attributeZoomSelected");
- if(zoomTableSelectionBtn)zoomTableSelectionBtn.onclick=()=>{
-  const chosen=getFeatureRecords().filter(item=>selectedFeatures.has(item.layer));
-  if(!chosen.length){status("Select one or more records first.");return}
-  let bounds=null;
-  chosen.forEach(item=>{try{const b=item.layer.getBounds?.();if(b&&b.isValid())bounds=bounds?bounds.extend(b):b;else{const ll=item.layer.getLatLng?.();if(ll)bounds=bounds?bounds.extend(ll):L.latLngBounds([ll,ll]);}}catch(e){}});
-  if(bounds&&bounds.isValid()){map.fitBounds(bounds.pad(0.12),{maxZoom:18});status("Zoomed to "+chosen.length+" selected feature(s).");}
-  else status("The selected features have no usable map bounds.");
- };
- const all=$("checkAllRows"),rowChecks=[...$("attributeTableWrap").querySelectorAll(".row-check")];
- const syncCheckAll=()=>{
-  if(all){
-   const checked=rowChecks.filter(ch=>ch.checked).length;
-   all.checked=rowChecks.length>0&&checked===rowChecks.length;
-   all.indeterminate=checked>0&&checked<rowChecks.length;
-  }
-  const summary=$("attributeTableSummary");
-  if(summary)summary.textContent=keys.length+" field(s) · "+items.length+" record(s) · "+selectedFeatures.size+" selected";
- };
- const syncMapSelection=event=>{
-  rowChecks.forEach(ch=>{
-   const row=ch.closest("tr"),item=items[Number(row?.dataset.index)];
-   if(!item)return;
-   if(ch.checked)selectedFeatures.add(item.layer);
-   else selectedFeatures.delete(item.layer);
-  });
-  const changedRow=event?.target?.closest("tr[data-index]");
-  const changedItem=changedRow?items[Number(changedRow.dataset.index)]:null;
-  synchronizeFeatureSelection({primary:changedItem&&selectedFeatures.has(changedItem.layer)?changedItem.layer:null,renderEditor:false});
-  syncCheckAll();
- };
- if(all)all.onchange=()=>{rowChecks.forEach(ch=>ch.checked=all.checked);syncMapSelection()};
- rowChecks.forEach(ch=>ch.onchange=syncMapSelection);
-  // Row selection is handled once by the delegated handler below.
- syncCheckAll();
- $("attributeTableWrap").querySelectorAll("th[data-sort-key]").forEach(th=>{
-  th.onclick=()=>{
-   if(hasUnsavedTableEdits()){status("Save Table Edits before sorting; unsaved cell values have been preserved.");return}
-   const key=th.dataset.sortKey;
-   if(attributeSort.key===key)attributeSort.direction*=-1;
-   else{attributeSort.key=key;attributeSort.direction=1}
-   renderEditableTable();
-  };
- });
- status(rows.length+" rows displayed."+(attributeSort.key?" · sorted by "+attributeSort.key+(attributeSort.direction===1?" ascending":" descending"):""));
-  updateAttributeTableWindowInfo();
-}
+function renderEditableTable(){return window.SabzAttributeTableRender.renderEditableTable({get $(){return $},get currentAttributeLayer(){return currentAttributeLayer},get status(){return status},get showAttributeTableWindow(){return showAttributeTableWindow},get currentAttributeItems(){return currentAttributeItems},get isReservedAttributeField(){return isReservedAttributeField},get tableKeys(){return tableKeys},get attributeSort(){return attributeSort},get attributeTableCore(){return attributeTableCore},get selectedFeatures(){return selectedFeatures},get esc(){return esc},get isComputedAttributeField(){return isComputedAttributeField},get selectByAttribute(){return selectByAttribute},get attributeTableWindow(){return attributeTableWindow},get zoomToSelection(){return zoomToSelection},get getFeatureRecords(){return getFeatureRecords},get selectedLayer(){return selectedLayer},get selectedOverlay(){return selectedOverlay},get renderAttributeEditor(){return renderAttributeEditor},get applySelectionVisual(){return applySelectionVisual},get hasUnsavedTableEdits(){return hasUnsavedTableEdits},get editSessionActive(){return editSessionActive},get isLayerInEditTarget(){return isLayerInEditTarget},get stopEditing(){return stopEditing},get namedLayers(){return namedLayers},get drawn(){return drawn},get startEditing(){return startEditing},get arcMapDialog(){return arcMapDialog},get recordUndoState(){return recordUndoState},get ensureFeatureProperties(){return ensureFeatureProperties},get flushGeodatabaseEdits(){return flushGeodatabaseEdits},get scheduleAutoSave(){return scheduleAutoSave},get isProtectedAttributeValueField(){return isProtectedAttributeValueField},get updateFeaturePopup(){return updateFeaturePopup},get updateMultiSelectionUI(){return updateMultiSelectionUI},get clearSelection(){return clearSelection},get syncVisibleAttributeTableSelection(){return syncVisibleAttributeTableSelection},get L(){return L},get map(){return map},get synchronizeFeatureSelection(){return synchronizeFeatureSelection},get updateAttributeTableWindowInfo(){return updateAttributeTableWindowInfo},set attributeSort(value){attributeSort=value},set selectedLayer(value){selectedLayer=value},set selectedOverlay(value){selectedOverlay=value}});}
 $("openTable").onclick=()=>{
  if(hasUnsavedTableEdits()){status("Save Table Edits before reopening the table; unsaved values have been preserved.");return}
  renderEditableTable();
@@ -4324,6 +4168,7 @@ $("attributeTableWrap").addEventListener("click",event=>{
  }
  attributeLastClickedIndex=Number(row.dataset.index);
  synchronizeFeatureSelection({primary:selectedFeatures.has(item.layer)?item.layer:null,renderEditor:false});
+ syncVisibleAttributeTableSelection();
  if(selectedLayer)showUTM(selectedLayer);
  status(selectedFeatures.size+" feature(s) selected from the Attribute Table.");
 });
@@ -4358,6 +4203,7 @@ $("attributeTableWrap").addEventListener("keydown",event=>{
   attributeLastClickedIndex=targetIndex;
  }
  synchronizeFeatureSelection({primary:selectedFeatures.has(targetItem.layer)?targetItem.layer:null,renderEditor:false});
+ syncVisibleAttributeTableSelection();
  target.focus({preventScroll:true});target.scrollIntoView({block:"nearest"});
  if(selectedLayer)showUTM(selectedLayer);
  status(selectedFeatures.size+" feature(s) selected from the Attribute Table.");
@@ -8134,11 +7980,28 @@ function refreshLabelDecluttering(){
     if(!owner||!owner._labelsEnabled||!owner.layer||!map.hasLayer(owner.layer)||
       typeof owner.layer.eachLayer!=="function")return;
     const minZoom=Math.max(0,Math.min(22,Number(owner._labelMinZoom)||0));
+    const className=String(owner._labelClass||"").replace(/[^a-z0-9_-]/gi,"");
+    const labelStyle=className?document.getElementById(className+"-style"):null;
+    const zoomHiddenRule=className?"."+className+"{visibility:hidden!important;pointer-events:none!important}":"";
+    if(zoom<minZoom){
+      // Keep the zoom gate in CSS as well as inline styles: Leaflet may recreate
+      // tooltip DOM after zoomend, and newly attached labels must remain hidden.
+      if(labelStyle&&zoomHiddenRule&&!labelStyle.textContent.includes(zoomHiddenRule))
+        labelStyle.textContent+=zoomHiddenRule;
+      owner.layer.eachLayer(featureLayer=>{
+        const tooltip=featureLayer.getTooltip&&featureLayer.getTooltip();
+        const element=tooltip&&(tooltip.getElement?tooltip.getElement():tooltip._container);
+        if(element)element.style.visibility="hidden";
+      });
+      if(className)document.querySelectorAll("."+className).forEach(element=>{element.style.visibility="hidden";});
+      return;
+    }
+    if(labelStyle&&zoomHiddenRule&&labelStyle.textContent.includes(zoomHiddenRule))
+      labelStyle.textContent=labelStyle.textContent.replace(zoomHiddenRule,"");
     owner.layer.eachLayer(featureLayer=>{
       const tooltip=featureLayer.getTooltip&&featureLayer.getTooltip();
       const element=tooltip&&(tooltip.getElement?tooltip.getElement():tooltip._container);
       if(!element)return;
-      if(zoom<minZoom){element.style.visibility="hidden";return;}
       const rect=element.getBoundingClientRect();
       if(!rect.width||!rect.height)return;
       candidates.push({

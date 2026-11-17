@@ -36,7 +36,7 @@ jobs:
           node-version: 22
       - name: Install Playwright
         run: |
-          npm install --no-save @playwright/test
+          npm install --no-save @playwright/test@1.64.1
           npx playwright install --with-deps chromium
       - name: Run real Chromium browser tests
         run: npx playwright test tests/web-gis-browser.spec.cjs --reporter=line
