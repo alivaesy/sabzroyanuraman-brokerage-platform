@@ -56,8 +56,8 @@ input,select,textarea{width:100%;border:1px solid #ccd7d0;border-radius:6px;back
 const API="api/article10.php";
 const steps=[
  {title:"گام اول ـ انتخاب نوع درخواست",desc:"نوع عملیات موردنظر را تعیین کنید. این پرونده برای ثبت ادعای جدید است؛ پیگیری پرونده‌های قبلی در مرحله بعد به شناسه پرونده نیاز دارد.",html:`
- <div class="field full"><label class="req">نوع درخواست</label><div class="choice"><label><input type="radio" name="requestType" value="new" checked> ثبت ادعای جدید</label><label><input type="radio" name="requestType" value="followup"> پیگیری ادعای ثبت‌شده در سبز رویان</label></div></div>
- <div class="field full hidden" id="followupBox"><label>شناسه پرونده سبز رویان</label><input name="followupNumber" placeholder="مانند SR-A10-..."></div>
+ <div class="field full"><label class="req">نوع درخواست</label><div class="choice"><label><input type="radio" name="requestType" value="new" checked> ثبت ادعای جدید</label></div></div>
+ 
  <div class="field full"><label class="req">نوع مدعی</label><div class="choice"><label><input type="radio" name="personType" value="natural" checked> شخص حقیقی</label><label><input type="radio" name="personType" value="legal"> شخص حقوقی</label></div></div>
  <div class="notice field full">مطابق راهنمای تصویری، فرایند ادعای جدید از انتخاب نوع درخواست آغاز می‌شود. اگر پرونده‌ای قبلاً در این سامانه تشکیل داده‌اید، گزینه پیگیری را انتخاب کنید.</div>`},
  {title:"گام دوم ـ اطلاعات مدعی",desc:"اطلاعات شخص مدعی را مطابق مدارک هویتی وارد کنید. اطلاعات نماینده قانونی، در صورت وجود، در همین بخش ثبت می‌شود.",html:`
@@ -88,7 +88,7 @@ const steps=[
  <div class="field"><label>شماره سند / قرارداد</label><input name="documentNo"></div><div class="field"><label>تاریخ تنظیم سند</label><input name="documentDate" placeholder="۱۴۰۰/۰۱/۰۱"></div><div class="field"><label>مرجع تنظیم / ثبت</label><input name="documentAuthority"></div>
  <div class="field"><label>مبلغ معامله (در صورت وجود)</label><input name="transactionAmount" inputmode="numeric"></div><div class="field"><label>نام فروشنده / انتقال‌دهنده</label><input name="transferorName"></div><div class="field"><label>نام خریدار / انتقال‌گیرنده</label><input name="transfereeName"></div>
  <div class="field full"><label>شرح زنجیره نقل و انتقال و توضیحات</label><textarea name="documentDetails"></textarea></div>
- <div class="field full"><label class="req">بارگذاری مستندات</label><div class="filebox"><input type="file" id="evidenceFiles" multiple accept=".pdf,.jpg,.jpeg,.png"><div class="hint">PDF، JPG یا PNG؛ حداکثر ۱۰ مگابایت برای هر فایل. فایل‌ها در فضای خصوصی سرور ذخیره می‌شوند.</div><div class="file-list" id="evidenceList">هنوز فایلی انتخاب نشده است.</div></div></div>`},
+ <div class="field full"><label class="req">بارگذاری حداقل یک مستند</label><div class="filebox"><input type="file" id="evidenceFiles" multiple accept=".pdf,.jpg,.jpeg,.png"><div class="hint">PDF، JPG یا PNG؛ حداکثر ۱۰ مگابایت برای هر فایل. فایل‌ها در فضای خصوصی سرور ذخیره می‌شوند.</div><div class="file-list" id="evidenceList">هنوز فایلی انتخاب نشده است.</div></div></div>`},
  {title:"گام ششم ـ سابقه تصرف",desc:"وضعیت تصرف ملک و اطلاعات مربوط به نحوه و مدت تصرف را ثبت کنید. این اطلاعات جایگزین بررسی حقوقی و میدانی پرونده نیست.",html:`
  <div class="field full"><label class="req">آیا ملک در تصرف مدعی است؟</label><div class="choice"><label><input type="radio" name="inPossession" value="yes"> بله</label><label><input type="radio" name="inPossession" value="no"> خیر</label><label><input type="radio" name="inPossession" value="shared"> تصرف مشترک</label></div></div>
  <div class="field"><label>نوع تصرف</label><select name="possessionType"><option value="">انتخاب کنید</option><option>زراعی و کشاورزی</option><option>باغداری</option><option>سکونت</option><option>ساخت و ساز</option><option>بهره‌برداری دیگر</option></select></div><div class="field"><label>مدت تقریبی تصرف</label><input name="possessionDuration" placeholder="مثلاً از سال ۱۳۸۵"></div><div class="field"><label>نحوه شروع تصرف</label><select name="possessionOrigin"><option value="">انتخاب کنید</option><option>خرید</option><option>ارث</option><option>واگذاری</option><option>احیاء و بهره‌برداری</option><option>سایر</option></select></div>
@@ -108,14 +108,25 @@ const steps=[
  <div id="review" class="summary">برای مشاهده خلاصه، ابتدا مراحل قبلی را تکمیل کنید.</div>
  <div class="field full" style="margin-top:14px"><label><input type="checkbox" name="truthConfirm" value="yes" style="width:auto;min-height:auto"> صحت اطلاعات واردشده و تعلق مدارک به این پرونده را تأیید می‌کنم.</label></div>`}
 ];
-let current=0, applicationId="", accessToken="", uploaded=[];
+let current=0, applicationId="", accessToken="", uploaded=[], state={};
 const $=s=>document.querySelector(s);
 const content=$("#stepContent"),error=$("#error"),saveStatus=$("#saveStatus");
-function formData(){const fd=new FormData($("#claimForm")),out={};for(const [k,v] of fd.entries()){if(v instanceof File)continue;if(k in out){if(!Array.isArray(out[k]))out[k]=[out[k]];out[k].push(v)}else out[k]=v}return out}
+function formData(){
+ const els=[...content.querySelectorAll("[name]")];
+ const names=[...new Set(els.filter(e=>e.type!=="file").map(e=>e.name))];
+ for(const name of names){
+  const group=els.filter(e=>e.name===name);
+  if(group[0].type==="radio"||group[0].type==="checkbox"){
+   const checked=group.filter(e=>e.checked).map(e=>e.value);
+   if(checked.length)state[name]=group[0].type==="radio"?checked[0]:checked;else delete state[name];
+  }else state[name]=group[0].value;
+ }
+ return {...state};
+}
 function render(){const st=steps[current];content.innerHTML='<h1>'+st.title+'</h1><p class="intro">'+st.desc+'</p><div class="grid">'+st.html+'</div>';
  document.querySelectorAll(".step").forEach((e,i)=>{e.classList.toggle("active",i===current);e.classList.toggle("done",i<current)});
  $("#progress").style.width=((current+1)/8*100)+"%";$("#prevBtn").disabled=current===0;$("#nextBtn").textContent=current===7?"ثبت نهایی پرونده":"مرحله بعد";
- const d=formData();Object.entries(d).forEach(([k,v])=>{const els=[...content.querySelectorAll('[name="'+CSS.escape(k)+'"]')];els.forEach(el=>{if(el.type==="radio")el.checked=el.value===v;else if(el.type==="checkbox"){const vals=Array.isArray(v)?v:[v];el.checked=vals.includes(el.value)}else if(el.type!=="file")el.value=v})});
+ const d={...state};Object.entries(d).forEach(([k,v])=>{const els=[...content.querySelectorAll('[name="'+CSS.escape(k)+'"]')];els.forEach(el=>{if(el.type==="radio")el.checked=el.value===v;else if(el.type==="checkbox"){const vals=Array.isArray(v)?v:[v];el.checked=vals.includes(el.value)}else if(el.type!=="file")el.value=v})});
  if(current===0){const follow=content.querySelectorAll('[name="requestType"]');follow.forEach(x=>x.addEventListener("change",()=>$("#followupBox").classList.toggle("hidden",x.value!=="followup"||!x.checked)))}
  if(current===2){content.querySelectorAll('[name="priorAction"]').forEach(x=>x.addEventListener("change",()=>$("#priorBox").classList.toggle("hidden",x.value!=="yes"||!x.checked)));$("#priorBox").classList.toggle("hidden",d.priorAction!=="yes")}
  renderFileLists();if(current===7)renderReview();
@@ -136,7 +147,7 @@ function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&l
 $("#prevBtn").addEventListener("click",()=>{if(current>0){current--;render()}});
 $("#saveBtn").addEventListener("click",save);
 $("#nextBtn").addEventListener("click",async()=>{if(!validate())return;if(current<7){if(!(await save()))return;current++;render()}else{try{if(!(await save()))return;const r=await api({action:"submit",application_id:applicationId,access_token:accessToken,data:formData()});$("#stepContent").innerHTML='<div class="notice"><h1>پرونده با موفقیت در سامانه سبز رویان ثبت شد.</h1><p>شناسه پیگیری داخلی شما:</p><h1 style="direction:ltr;text-align:center">'+esc(r.reference_number)+'</h1><p>وضعیت پرونده: '+esc(r.status_label)+'</p><p>این شناسه مربوط به کارگزاری است و کد رهگیری سامانه سازمان ثبت محسوب نمی‌شود.</p></div>';document.querySelector(".nav").classList.add("hidden");$("#statusText")?.remove();saveStatus.textContent="ثبت نهایی انجام شد."}catch(e){error.textContent=e.message}}});
-const creds=localStorage.getItem("sr_article10_credentials");if(creds){try{const c=JSON.parse(creds);applicationId=c.applicationId;accessToken=c.accessToken;api({action:"get",application_id:applicationId,access_token:accessToken}).then(r=>{const d=r.application?.data||{};Object.entries(d).forEach(([k,v])=>{const els=document.querySelectorAll('[name="'+CSS.escape(k)+'"]');els.forEach(el=>{if(el.type==="radio")el.checked=el.value===v;else if(el.type==="checkbox")el.checked=(Array.isArray(v)?v:[v]).includes(el.value);else if(el.type!=="file")el.value=v})});uploaded=r.files||[];saveStatus.textContent="پیش‌نویس قبلی بازیابی شد: "+applicationId}).catch(()=>{applicationId="";accessToken=""})}catch(e){}}
+const creds=localStorage.getItem("sr_article10_credentials");if(creds){try{const c=JSON.parse(creds);applicationId=c.applicationId;accessToken=c.accessToken;api({action:"get",application_id:applicationId,access_token:accessToken}).then(r=>{const d=r.application?.data||{};state=d;uploaded=r.files||[];render();saveStatus.textContent="پیش‌نویس قبلی بازیابی شد: "+applicationId}).catch(()=>{applicationId="";accessToken=""})}catch(e){}}
 render();
 })();
 </script>
