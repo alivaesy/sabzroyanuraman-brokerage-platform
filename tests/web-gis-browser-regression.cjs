@@ -224,7 +224,8 @@ const fixture = {
     assert.equal(styleResult.tooltipDirection,'top','Labels should use the requested placement');
     assert.match(styleResult.labelCss,/text-shadow:/,'Rendered labels should use a white halo rather than a tooltip box');
     assert.match(styleResult.labelCss,/background:transparent/,'Rendered labels should not have a tooltip background');
-    await page.locator('#layerPropertiesCancel').click();
+    const layerPropertiesCancel = page.locator('#layerPropertiesCancel');
+    if (await layerPropertiesCancel.isVisible()) await layerPropertiesCancel.click();
     // Layout Legend must mirror the active renderer, show unambiguous class ranges,
     // and use a symbol shape matching the layer geometry.
     await page.locator('#layoutModeToggle').click();
