@@ -436,6 +436,10 @@ h1 {
 .article10-note{margin-top:14px;padding:12px 14px;border-right:4px solid #d49b2a;background:#fff9e9;border-radius:8px;color:#6c5424;font-size:12px;line-height:2}
 .article10-source{margin-top:10px;color:#718078;font-size:11px;line-height:1.8}
 .article10-source a{color:#0878a8}
+.article10-start{display:inline-block;padding:11px 24px;border-radius:8px;background:#146c43;color:#fff;text-decoration:none;font-weight:700;font-size:13px}
+.article10-start:hover{background:#0d5433}
+.article10-mode #paymentSection{display:none!important}
+.article10-mode .pay{display:none!important}
 @media(max-width:650px){.article10-guide{padding:14px}.article10-steps{grid-template-columns:1fr}.article10-step{min-height:0}}
 
 </style>
@@ -850,13 +854,14 @@ const container =
    Only shown for service=5; does not alter payment flow.
    ===================================================== */
 if (serviceId === "5") {
+    document.body.classList.add("article10-mode");
     const guide = document.createElement("section");
     guide.className = "article10-guide";
     guide.setAttribute("aria-labelledby", "article10GuideTitle");
     guide.innerHTML = `
         <div class="article10-guide-head">
             <h2 id="article10GuideTitle">فرآیند ثبت ادعای موضوع ماده ۱۰ در ۸ گام</h2>
-            <p>راهنمای کلی آماده‌سازی و ثبت ادعا در سکوی کاتب؛ پیش از شروع، مدارک و اطلاعات ملک را آماده کنید.</p>
+            <p>فرایند ثبت و تکمیل پرونده در سامانه سبز رویان اورامان؛ مراحل به‌ترتیب تکمیل می‌شوند و امکان ذخیره پیش‌نویس وجود دارد.</p>
         </div>
         <div class="article10-steps">
             <article class="article10-step"><span class="article10-step-number">۱</span><div><h3>ورود به سکوی کاتب و احراز هویت</h3><p>به درگاه رسمی کاتب مراجعه کنید. برای ورود، اطلاعات هویتی و شماره تلفن همراه متعلق به متقاضی و حسب مورد احراز هویت ثنا لازم است.</p></div></article>
@@ -869,7 +874,8 @@ if (serviceId === "5") {
             <article class="article10-step"><span class="article10-step-number">۸</span><div><h3>ثبت نهایی و پیگیری اقدامات قانونی</h3><p>پس از ثبت نهایی، گواهی و کد رهگیری را دریافت کنید. سپس در مهلت مقرر قانونی، اقدام لازم را از مرجع صالح پیگیری و نتیجه آن را طبق ضوابط در سامانه درج کنید.</p></div></article>
         </div>
         <div class="article10-note"><strong>توجه حقوقی:</strong> درج ادعا به‌تنهایی به معنی صدور سند یا اثبات مالکیت نیست. مهلت‌ها و تکالیف قانونی به وضعیت هر ملک و تاریخ شمول آن بستگی دارد؛ پیش از اقدام، شرایط پرونده را از مرجع رسمی یا مشاور حقوقی صلاحیت‌دار بررسی کنید.</div>
-        <div class="article10-source">مبنای راهنما: آیین‌نامه اجرایی ماده ۱۰ قانون الزام به ثبت رسمی معاملات اموال غیرمنقول. <a href="https://kateb.ir/" target="_blank" rel="noopener noreferrer">درگاه کاتب</a></div>
+        <div class="article10-source">الگوی گردش کار با مطالعه راهنمای تصویری ثبت ادعا تنظیم شده است. ثبت در این وب‌سایت به‌معنای ارسال خودکار به سامانه سازمان ثبت یا صدور گواهی رسمی نیست.</div>
+        <div style="text-align:center;margin-top:16px"><a class="article10-start" href="article10-form.html">شروع فرایند ثبت ادعای ماده ۱۰ ←</a></div>
     `;
     container.appendChild(guide);
 }
