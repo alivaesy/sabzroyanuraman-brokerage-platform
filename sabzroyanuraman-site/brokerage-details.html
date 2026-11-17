@@ -420,6 +420,24 @@ h1 {
 
 }
 
+
+/* =========================
+   ARTICLE 10 - EIGHT STEP GUIDE
+   ========================= */
+.article10-guide{margin:22px 0 26px;padding:20px;background:#f7fbf9;border:1px solid #d7e8df;border-radius:16px}
+.article10-guide-head{text-align:center;margin-bottom:18px}
+.article10-guide-head h2{margin:0 0 7px;color:#075d40;font-size:19px}
+.article10-guide-head p{margin:0;color:#587166;font-size:12px;line-height:2}
+.article10-steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.article10-step{display:flex;gap:12px;align-items:flex-start;background:#fff;border:1px solid #dce9e3;border-radius:12px;padding:14px;min-height:118px}
+.article10-step-number{flex:0 0 34px;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#146c43;color:#fff;font-weight:bold;font-size:15px}
+.article10-step h3{margin:0 0 6px;color:#124d38;font-size:14px}
+.article10-step p{margin:0;color:#52675e;font-size:12px;line-height:2}
+.article10-note{margin-top:14px;padding:12px 14px;border-right:4px solid #d49b2a;background:#fff9e9;border-radius:8px;color:#6c5424;font-size:12px;line-height:2}
+.article10-source{margin-top:10px;color:#718078;font-size:11px;line-height:1.8}
+.article10-source a{color:#0878a8}
+@media(max-width:650px){.article10-guide{padding:14px}.article10-steps{grid-template-columns:1fr}.article10-step{min-height:0}}
+
 </style>
 
 </head>
@@ -825,6 +843,37 @@ document.getElementById("title").textContent =
 
 const container =
     document.getElementById("services");
+
+
+/* =====================================================
+   ARTICLE 10 - EIGHT STEP GUIDE
+   Only shown for service=5; does not alter payment flow.
+   ===================================================== */
+if (serviceId === "5") {
+    const guide = document.createElement("section");
+    guide.className = "article10-guide";
+    guide.setAttribute("aria-labelledby", "article10GuideTitle");
+    guide.innerHTML = `
+        <div class="article10-guide-head">
+            <h2 id="article10GuideTitle">فرآیند ثبت ادعای موضوع ماده ۱۰ در ۸ گام</h2>
+            <p>راهنمای کلی آماده‌سازی و ثبت ادعا در سکوی کاتب؛ پیش از شروع، مدارک و اطلاعات ملک را آماده کنید.</p>
+        </div>
+        <div class="article10-steps">
+            <article class="article10-step"><span class="article10-step-number">۱</span><div><h3>ورود به سکوی کاتب و احراز هویت</h3><p>به درگاه رسمی کاتب مراجعه کنید. برای ورود، اطلاعات هویتی و شماره تلفن همراه متعلق به متقاضی و حسب مورد احراز هویت ثنا لازم است.</p></div></article>
+            <article class="article10-step"><span class="article10-step-number">۲</span><div><h3>انتخاب نوع ادعا</h3><p>موضوع ادعا را متناسب با مدارک و وضعیت ملک مشخص کنید؛ از جمله ادعای مربوط به مالکیت عرصه، اعیان یا هر دو، یا حقوقی که در چارچوب سامانه قابل درج است.</p></div></article>
+            <article class="article10-step"><span class="article10-step-number">۳</span><div><h3>تعیین وضعیت نقشه و دریافت کد رهگیری</h3><p>نقشه دارای مختصات جغرافیایی ملک باید از مسیر اشخاص یا مراجع دارای صلاحیت تهیه شود. کد رهگیری نقشه را برای ادامه فرآیند دریافت و نگهداری کنید.</p></div></article>
+            <article class="article10-step"><span class="article10-step-number">۴</span><div><h3>ثبت مشخصات و موقعیت ملک</h3><p>اطلاعات ملک، پلاک ثبتی اصلی و فرعی، بخش ثبتی و محدوده مورد ادعا را مطابق نقشه و مدارک وارد کنید. هر ادعا باید ناظر به یک قطعه باشد.</p></div></article>
+            <article class="article10-step"><span class="article10-step-number">۵</span><div><h3>بارگذاری مستندات ادعا</h3><p>مدارک مرتبط مانند قولنامه و مبایعه‌نامه، صلح‌نامه، هبه‌نامه، نسق زراعی، آرای قضایی، استشهادیه یا گواهی انحصار وراثت را حسب مورد بارگذاری کنید.</p></div></article>
+            <article class="article10-step"><span class="article10-step-number">۶</span><div><h3>بازبینی و کنترل اطلاعات</h3><p>مشخصات هویتی، نوع ادعا، اطلاعات ثبتی، محدوده نقشه و فایل‌های پیوست را با دقت تطبیق دهید و مغایرت‌های احتمالی را پیش از تأیید اصلاح کنید.</p></div></article>
+            <article class="article10-step"><span class="article10-step-number">۷</span><div><h3>پرداخت هزینه اعلام‌شده در سامانه</h3><p>هزینه مربوط به ثبت ادعا را مطابق مبلغ و دستور پرداختی که در همان زمان توسط سامانه رسمی نمایش داده می‌شود پرداخت و رسید را نگهداری کنید.</p></div></article>
+            <article class="article10-step"><span class="article10-step-number">۸</span><div><h3>ثبت نهایی و پیگیری اقدامات قانونی</h3><p>پس از ثبت نهایی، گواهی و کد رهگیری را دریافت کنید. سپس در مهلت مقرر قانونی، اقدام لازم را از مرجع صالح پیگیری و نتیجه آن را طبق ضوابط در سامانه درج کنید.</p></div></article>
+        </div>
+        <div class="article10-note"><strong>توجه حقوقی:</strong> درج ادعا به‌تنهایی به معنی صدور سند یا اثبات مالکیت نیست. مهلت‌ها و تکالیف قانونی به وضعیت هر ملک و تاریخ شمول آن بستگی دارد؛ پیش از اقدام، شرایط پرونده را از مرجع رسمی یا مشاور حقوقی صلاحیت‌دار بررسی کنید.</div>
+        <div class="article10-source">مبنای راهنما: آیین‌نامه اجرایی ماده ۱۰ قانون الزام به ثبت رسمی معاملات اموال غیرمنقول. <a href="https://kateb.ir/" target="_blank" rel="noopener noreferrer">درگاه کاتب</a></div>
+    `;
+    container.appendChild(guide);
+}
+
 
 
 
