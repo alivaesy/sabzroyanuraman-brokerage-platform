@@ -82,8 +82,8 @@ if($action==='submit'){
  $required=['firstName','lastName','nationalId','mobile','address','claimRight','ownershipSubject','claimShare','province','registrationUnit','propertyType','area','propertyAddress','longitude','latitude'];
  foreach($required as $key){if(trim((string)($data[$key]??''))==='')out(422,['ok'=>false,'error'=>'فیلدهای ضروری پرونده کامل نیستند: '.$key]);}
  if(empty($data['truthConfirm']))out(422,['ok'=>false,'error'=>'تأیید صحت اطلاعات الزامی است.']);
- $q=$db->prepare('SELECT COUNT(*) FROM files WHERE application_id=?');$q->execute([$id]);
- if((int)$q->fetchColumn()<1)out(422,['ok'=>false,'error'=>'حداقل یک مدرک باید بارگذاری شود.']);
+ $q=$db->prepare('SELECT COUNT(*) FROM files WHERE application_id=? AND category='evidence'');$q->execute([$id]);
+ if((int)$q->fetchColumn()<1)out(422,['ok'=>false,'error'=>'حداقل یک مستند در بخش مستندات ادعا باید بارگذاری شود.']);
  $q=$db->prepare('UPDATE applications SET data_json=?,status=?,updated_at=?,submitted_at=? WHERE id=?');
  $q->execute([$json,'submitted',$now,$now,$id]);
  out(200,['ok'=>true,'reference_number'=>$row['reference_number'],'status'=>'submitted','status_label'=>'ثبت‌شده در کارگزاری؛ در انتظار بررسی کارشناسی']);
