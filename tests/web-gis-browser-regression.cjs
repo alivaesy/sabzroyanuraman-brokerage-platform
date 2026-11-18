@@ -239,6 +239,11 @@ const fixture = {
     assert.match(layoutLegend.text,/12\.5/,'Graduated Legend should display the first class boundary');
     assert.match(layoutLegend.text,/27/,'Graduated Legend should display the final class boundary');
     assert.ok(layoutLegend.geometryTypes.includes('Polygon'),'Polygon layers should use polygon-shaped legend swatches');
+    // The ArcToolbox dock overlays the layout edge while open; close it before the layout action.
+    const gisDock = page.locator("#gisDock");
+    if (await gisDock.evaluate(element => element.classList.contains("show"))) {
+      await page.locator("#closeGisDock").click();
+    }
     await page.locator('#webgisLayoutView [data-layout-action="close"]').click();
 
 
