@@ -267,7 +267,7 @@ const fixture = {
       const toggle=document.getElementById('lpLabelsEnabled');
       toggle.checked=true;
       set('lpLabelField','name');
-      set('lpLabelMinZoom','12');
+      set('lpLabelMinZoom','14');
       set('lpLabelDensity','balanced');
       document.getElementById('layerPropertiesForm').dispatchEvent(new SubmitEvent('submit',{bubbles:true,cancelable:true,submitter:document.getElementById('layerPropertiesOk')}));
       const settleMap=async()=>{await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));};
@@ -280,6 +280,7 @@ const fixture = {
       await settleMap();
       window.refreshLabelDecluttering?.();
       const belowMinimum=visible();
+      const belowMinimumZoom=bridge.map.getZoom();
       bridge.map.setZoom(15,{animate:false});
       await settleMap();
       window.refreshLabelDecluttering?.();
@@ -290,7 +291,7 @@ const fixture = {
       window.refreshLabelDecluttering?.();
       const closeVisible=visible();
       const closeOverlaps=overlapCount();
-      return {featureCount:features.length,domLabels:count(),belowMinimum,mediumVisible,closeVisible,mediumOverlaps,closeOverlaps,zoom:bridge.map.getZoom(),minZoom:item._labelMinZoom,visibility:visibleElements().map(el=>({text:el.textContent,visibility:getComputedStyle(el).visibility,inline:el.style.visibility}))};
+      return {featureCount:features.length,domLabels:count(),belowMinimum,belowMinimumZoom,mediumVisible,closeVisible,mediumOverlaps,closeOverlaps,zoom:bridge.map.getZoom(),minZoom:item._labelMinZoom,visibility:visibleElements().map(el=>({text:el.textContent,visibility:getComputedStyle(el).visibility,inline:el.style.visibility}))};
     });
     assert.equal(denseLabelResult.featureCount,300,'Dense regression fixture should contain 300 point features');
     assert.equal(denseLabelResult.belowMinimum,0,'Labels must be hidden below the configured minimum zoom: '+JSON.stringify(denseLabelResult));
