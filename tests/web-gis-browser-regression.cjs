@@ -261,6 +261,8 @@ const fixture = {
       bridge.addGeoJSONLayer(name,{type:'FeatureCollection',features});
       const item=bridge.namedLayers.find(layer=>layer.name===name);
       if(!item)throw new Error('Dense test layer was not registered');
+      const originalMinZoom=bridge.map.getMinZoom();
+      bridge.map.setMinZoom(0);
       bridge.map.setView([33.629,47.759],15);
       bridge.openLayerProperties(item);
       const set=(id,value)=>{const el=document.getElementById(id);if(!el)throw new Error('Missing '+id);el.value=String(value);el.dispatchEvent(new Event('change',{bubbles:true}));};
@@ -291,6 +293,7 @@ const fixture = {
       window.refreshLabelDecluttering?.();
       const closeVisible=visible();
       const closeOverlaps=overlapCount();
+      bridge.map.setMinZoom(originalMinZoom);
       return {featureCount:features.length,domLabels:count(),belowMinimum,belowMinimumZoom,mediumVisible,closeVisible,mediumOverlaps,closeOverlaps,zoom:bridge.map.getZoom(),minZoom:item._labelMinZoom,visibility:visibleElements().map(el=>({text:el.textContent,visibility:getComputedStyle(el).visibility,inline:el.style.visibility}))};
     });
     assert.equal(denseLabelResult.featureCount,300,'Dense regression fixture should contain 300 point features');
