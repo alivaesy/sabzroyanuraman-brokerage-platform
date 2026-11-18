@@ -8,6 +8,9 @@ const assert = require('node:assert/strict');
 
 const htmlPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'web-gis.html');
 const html = fs.readFileSync(htmlPath, 'utf8');
+const rendererPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-attribute-table-render.js');
+const renderer = fs.readFileSync(rendererPath, 'utf8');
+
 
 test('all inline JavaScript blocks parse', () => {
   const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)]
@@ -704,3 +707,5 @@ test('ArcCatalog geodatabase context menu exposes create, rename, delete and lay
   assert.match(html, /async function exportRealGDB\(workspaceName=null\)/);
   assert.match(html, /exportWorkspace\(workspace\)\{return exportRealGDB\(workspace\)\}/);
 });
+
+test('Attribute Table renderer extraction is loaded and delegated',()=>{assert.ok(html.includes('webgis-attribute-table-render.js'));assert.ok(html.includes('window.SabzAttributeTableRender.renderEditableTable'));assert.match(renderer,/function render\(ctx\)/);assert.match(renderer,/attributeSort/);});
