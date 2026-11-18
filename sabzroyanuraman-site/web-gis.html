@@ -7554,7 +7554,7 @@ function clearDefinitionQuery(item){
   try{applyDefinitionQuery(owner);status("Definition Query cleared for "+owner.name+".");}
   catch(error){status("Could not clear Definition Query: "+(error.message||error));}
 }
-const {refreshLabelDecluttering,layerLabelClass}=window.SabzWebGISLayerLabeling.create({map,namedLayers});
+const {refreshLabelDecluttering,layerLabelClass,labelLayer:labelingLabelLayer}=window.SabzWebGISLayerLabeling.create({contextLayerItem:()=>contextLayerItem,layerPropertiesRecords,getFeatureRecords,isReservedAttributeField,gisAsk,namedLayers,status,core:window.SabzWebGISLabelingCore,layerLabelClass,scheduleAutoSave,debug:console.debug,map});
 function openLayerProperties(item=null){
   const target=item?.layer||(selectedOverlay?getFeatureRecords().find(r=>r.layer===selectedOverlay)?.owner?.layer:null);
   if(!target){status("Select a layer in the Table Of Contents first.");return;}
@@ -7602,32 +7602,7 @@ $("layerPropertiesClose").onclick=$("layerPropertiesCancel").onclick=closeLayerP
 $("layerPropertiesDialog").addEventListener("click",e=>{if(e.target===$("layerPropertiesDialog"))closeLayerProperties()});
 $("layerPropertiesForm").addEventListener("submit",e=>applyLayerProperties(e));
 async function styleLayer(){openLayerProperties(contextLayerItem);}
-async function labelLayer(){
-  const target=contextLayerItem?.layer||null;const rs=target?layerPropertiesRecords(target):getFeatureRecords();
-  if(!rs.length){status("No vector features are available for labeling.");return;}
-  const fields=[...new Set(rs.flatMap(r=>Object.keys(r.feature.properties||{}).filter(k=>!isReservedAttributeField(k))))];
-  if(!fields.length){status("Features have no attribute fields to use as labels.");return;}
-  const fieldInput=await gisAsk("Label Features","Label field (case-sensitive):\n"+fields.join(", "),fields.includes("name")?"name":fields[0]);
-  if(fieldInput===null)return;
-  const field=fieldInput.trim();
-  if(!fields.includes(field)){status("Unknown label field. Choose one of the listed fields.");return;}
-  const owner=target?(namedLayers.find(x=>x.layer===target)||contextLayerItem):null;
-  if(owner){const config=window.SabzWebGISLabelingCore.normalizeLabelConfig({enabled:true,field,size:12,color:"#202020"});owner._labelsEnabled=config.enabled;owner._labelField=config.field;owner._labelSize=config.size;owner._labelColor=config.color;}
-  const labelClass=owner?layerLabelClass(owner):"gis-feature-label";
-  let count=0;
-  rs.forEach(r=>{
-    try{
-      if(typeof r.layer.unbindTooltip==="function")r.layer.unbindTooltip();
-      const value=window.SabzWebGISLabelingCore.labelText(r.feature.properties?.[field]);
-      if(value!==null&&typeof r.layer.bindTooltip==="function"){
-        r.layer.bindTooltip(value,{permanent:true,...window.SabzWebGISLabelingCore.labelPlacement(r.feature?.geometry?.type,owner?._labelPlacement),className:labelClass,interactive:false});
-        count++;
-      }
-    }catch(e){console.debug("Could not label feature",e);}
-  });
-  if(owner)scheduleAutoSave();
-  status("Labels enabled for "+count+" feature(s) using field '"+field+"'.");
-}
+async function labelLayer(){return labelingLabelLayer();}
 async function groupLayers(){
   if(!namedLayers.length){status("Add at least one data layer first.");return}
   const names=namedLayers.map((x,i)=>(i+1)+". "+x.name).join("\n");
