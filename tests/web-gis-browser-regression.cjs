@@ -269,7 +269,7 @@ const fixture = {
       const toggle=document.getElementById('lpLabelsEnabled');
       toggle.checked=true;
       set('lpLabelField','name');
-      set('lpLabelMinZoom','14');
+      set('lpLabelMinZoom','16');
       set('lpLabelDensity','balanced');
       document.getElementById('layerPropertiesForm').dispatchEvent(new SubmitEvent('submit',{bubbles:true,cancelable:true,submitter:document.getElementById('layerPropertiesOk')}));
       const settleMap=async()=>{await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));};
@@ -278,12 +278,12 @@ const fixture = {
       const visible=()=>visibleElements().length;
       const overlapCount=()=>{const boxes=visibleElements().map(el=>el.getBoundingClientRect());let overlaps=0;for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++){const a=boxes[i],b=boxes[j];if(a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top)overlaps++;}return overlaps;};
       await settleMap();
-      bridge.map.setZoom(11,{animate:false});
+      bridge.map.setZoom(15,{animate:false});
       await settleMap();
       window.refreshLabelDecluttering?.();
       const belowMinimum=visible();
       const belowMinimumZoom=bridge.map.getZoom();
-      bridge.map.setZoom(15,{animate:false});
+      bridge.map.setZoom(17,{animate:false});
       await settleMap();
       window.refreshLabelDecluttering?.();
       const mediumVisible=visible();
