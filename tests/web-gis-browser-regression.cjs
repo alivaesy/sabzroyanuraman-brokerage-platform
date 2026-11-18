@@ -54,6 +54,15 @@ const fixture = {
         assert.equal(await basemap.inputValue(), value, 'Basemap selector should retain ' + value);
       }
     }
+    // Close the shared ArcToolbox/GIS dock using its actual close control.
+    // Leaving it open can intercept later Playwright clicks across unrelated UI tests.
+    const gisDock=page.locator('#gisDock');
+    if(await gisDock.evaluate(element=>element.classList.contains('show'))){
+      await page.locator('#closeGisDock').click();
+      await page.waitForFunction(()=>!document.getElementById('gisDock')?.classList.contains('show'));
+    }
+    assert.equal(await gisDock.evaluate(element=>element.classList.contains('show')),false,
+      'ArcToolbox/GIS dock must be closed before subsequent browser regression steps');
 
     // The dock is a fixed overlay, not a flex column: closing it must not resize
     // the Leaflet map. Close it before the remaining Map View interactions.
