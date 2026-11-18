@@ -290,10 +290,10 @@ const fixture = {
       window.refreshLabelDecluttering?.();
       const closeVisible=visible();
       const closeOverlaps=overlapCount();
-      return {featureCount:features.length,domLabels:count(),belowMinimum,mediumVisible,closeVisible,mediumOverlaps,closeOverlaps};
+      return {featureCount:features.length,domLabels:count(),belowMinimum,mediumVisible,closeVisible,mediumOverlaps,closeOverlaps,zoom:bridge.map.getZoom(),minZoom:item._labelMinZoom,visibility:visibleElements().map(el=>({text:el.textContent,visibility:getComputedStyle(el).visibility,inline:el.style.visibility}))};
     });
     assert.equal(denseLabelResult.featureCount,300,'Dense regression fixture should contain 300 point features');
-    assert.equal(denseLabelResult.belowMinimum,0,'Labels must be hidden below the configured minimum zoom');
+    assert.equal(denseLabelResult.belowMinimum,0,'Labels must be hidden below the configured minimum zoom: '+JSON.stringify(denseLabelResult));
     assert.ok(denseLabelResult.mediumVisible>0,'Some labels should be visible at the medium zoom');
     assert.equal(denseLabelResult.mediumOverlaps,0,'Visible labels must not overlap at medium zoom');
     assert.equal(denseLabelResult.closeOverlaps,0,'Visible labels must not overlap at close zoom');
