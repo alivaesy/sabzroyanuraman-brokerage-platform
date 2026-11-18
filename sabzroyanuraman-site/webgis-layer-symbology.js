@@ -44,14 +44,14 @@ function applyLayerProperties(e){
   const {item,target}=ctx.layerPropertiesTarget,owner=ctx.namedLayers.find(x=>x.layer===target)||item;
   const records=ctx.layerPropertiesRecords(target);
   if(!owner&&!records.length){ctx.status("Could not resolve the selected layer.");return;}
-  const name=$("lpLayerName").value.trim();if(!name){ctx.status("Layer name cannot be empty.");return;}
-  const width=Number($("lpLineWidth").value),radius=Number($("lpPointSize").value),opacity=Number($("lpOpacity").value),fillOpacity=Number($("lpFillOpacity").value);
+  const name=ctx.$("lpLayerName").value.trim();if(!name){ctx.status("Layer name cannot be empty.");return;}
+  const width=Number(ctx.$("lpLineWidth").value),radius=Number(ctx.$("lpPointSize").value),opacity=Number(ctx.$("lpOpacity").value),fillOpacity=Number(ctx.$("lpFillOpacity").value);
   if(!Number.isFinite(width)||width<0||width>20||!Number.isFinite(radius)||radius<1||radius>40){ctx.status("Check the symbol width and point size.");return;}
-  if(owner){const labelConfig=ctx.labelCore.normalizeLabelConfig({enabled:$("lpLabelsEnabled").checked,field:$("lpLabelField").value,size:$("lpLabelSize").value,color:$("lpLabelColor").value,placement:$("lpLabelPlacement").value,minZoom:$("lpLabelMinZoom").value,density:$("lpLabelDensity").value});owner.name=name;owner._labelsEnabled=labelConfig.enabled;owner._labelField=labelConfig.field;owner._labelSize=labelConfig.size;owner._labelColor=labelConfig.color;owner._labelPlacement=labelConfig.placement;owner._labelMinZoom=labelConfig.minZoom;owner._labelDensity=labelConfig.density;ctx.layerLabelClass(owner);}
-  const visible=$("lpLayerVisible").checked;
+  if(owner){const labelConfig=ctx.labelCore.normalizeLabelConfig({enabled:ctx.$("lpLabelsEnabled").checked,field:ctx.$("lpLabelField").value,size:ctx.$("lpLabelSize").value,color:ctx.$("lpLabelColor").value,placement:ctx.$("lpLabelPlacement").value,minZoom:ctx.$("lpLabelMinZoom").value,density:ctx.$("lpLabelDensity").value});owner.name=name;owner._labelsEnabled=labelConfig.enabled;owner._labelField=labelConfig.field;owner._labelSize=labelConfig.size;owner._labelColor=labelConfig.color;owner._labelPlacement=labelConfig.placement;owner._labelMinZoom=labelConfig.minZoom;owner._labelDensity=labelConfig.density;ctx.layerLabelClass(owner);}
+  const visible=ctx.$("lpLayerVisible").checked;
   if(visible&&!ctx.map.hasLayer(target))ctx.map.addLayer(target);else if(!visible&&ctx.map.hasLayer(target))ctx.map.removeLayer(target);
-  const baseStyle={color:$("lpOutlineColor").value,fillColor:$("lpFillColor").value,weight:width,opacity,fillOpacity,radius};
-  const rendererMode=$("lpRenderer").value,styleField=$("lpStyleField").value,ramp=$("lpColorRamp").value,classCount=Math.max(2,Math.min(7,Number($("lpClassCount").value)||5)),method=$("lpClassificationMethod").value||"equal-interval";
+  const baseStyle={color:ctx.$("lpOutlineColor").value,fillColor:ctx.$("lpFillColor").value,weight:width,opacity,fillOpacity,radius};
+  const rendererMode=ctx.$("lpRenderer").value,styleField=ctx.$("lpStyleField").value,ramp=ctx.$("lpColorRamp").value,classCount=Math.max(2,Math.min(7,Number(ctx.$("lpClassCount").value)||5)),method=ctx.$("lpClassificationMethod").value||"equal-interval";
   const values=records.map(r=>r.feature?.properties?.[styleField]),core=ctx.core;
   const uniqueClasses=core.uniqueValueClasses(values,ramp),graduated=core.graduatedClasses(values,classCount,ramp,method);
   if(rendererMode==="graduated"&&!graduated.length){ctx.status("Graduated Colors requires a numeric field with values.");return}
