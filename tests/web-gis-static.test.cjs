@@ -29,12 +29,12 @@ test('Geoprocessing options have valid unique values and registered handlers', (
   const select = html.match(/<select\s+id=["']gisOperation["'][^>]*>([\s\S]*?)<\/select>/i)?.[1];
   assert.ok(select, 'gisOperation select was not found');
   const options = [...select.matchAll(/<option\s+value=["']([^"']+)["']/gi)].map(m => m[1]);
-  assert.equal(options.length, 23, 'expected 23 Geoprocessing operations');
+  assert.equal(options.length, 24, 'expected 24 Geoprocessing operations');
   assert.equal(new Set(options).size, options.length, 'operation values must be unique');
 
   const core = new Set([
     'buffer', 'clip', 'intersection', 'merge', 'union', 'erase', 'identity',
-    'append', 'split', 'centroid', 'convexHull', 'boundingBox'
+    'append', 'split', 'centroid', 'pointOnFeature', 'convexHull', 'boundingBox'
   ]);
   const toolEntries = [...html.matchAll(/\{\s*id:\s*["']([^"']+)["'](?:\s*,\s*op:\s*["']([^"']+)["'])?/g)];
   const registered = new Set(toolEntries.flatMap(([, id, op]) => [id, op].filter(Boolean)));
