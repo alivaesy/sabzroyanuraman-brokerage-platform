@@ -55,7 +55,33 @@ function layerLabelClass(owner){
   style.textContent=window.SabzWebGISLabelingCore.labelClassCss(id,config);
   return id;
 }
- return {refreshLabelDecluttering,layerLabelClass};
+ async function labelLayer(){
+  const target=ctx.contextLayerItem?.layer||null;const rs=target?ctx.layerPropertiesRecords(target):ctx.getFeatureRecords();
+  if(!rs.length){ctx.status("No vector features are available for labeling.");return;}
+  const fields=[...new Set(rs.flatMap(r=>Object.keys(r.feature.properties||{}).filter(k=>!ctx.isReservedAttributeField(k))))];
+  if(!fields.length){ctx.status("Features have no attribute fields to use as labels.");return;}
+  const fieldInput=await ctx.gisAsk("Label Features","Label field (case-sensitive):\n"+fields.join(", "),fields.includes("name")?"name":fields[0]);
+  if(fieldInput===null)return;
+  const field=fieldInput.trim();
+  if(!fields.includes(field)){ctx.status("Unknown label field. Choose one of the listed fields.");return;}
+  const owner=target?(ctx.namedLayers.find(x=>x.layer===target)||ctx.contextLayerItem):null;
+  if(owner){const config=ctx.core.normalizeLabelConfig({enabled:true,field,size:12,color:"#202020"});owner._labelsEnabled=config.enabled;owner._labelField=config.field;owner._labelSize=config.size;owner._labelColor=config.color;}
+  const labelClass=owner?ctx.layerLabelClass(owner):"gis-feature-label";
+  let count=0;
+  rs.forEach(r=>{
+    try{
+      if(typeof r.layer.unbindTooltip==="function")r.layer.unbindTooltip();
+      const value=ctx.core.labelText(r.feature.properties?.[field]);
+      if(value!==null&&typeof r.layer.bindTooltip==="function"){
+        r.layer.bindTooltip(value,{permanent:true,...ctx.core.labelPlacement(r.feature?.geometry?.type,owner?._labelPlacement),className:labelClass,interactive:false});
+        count++;
+      }
+    }catch(e){ctx.debug("Could not label feature",e);}
+  });
+  if(owner)ctx.scheduleAutoSave();
+  ctx.status("Labels enabled for "+count+" feature(s) using field '"+field+"'.");
+ }
+ return {refreshLabelDecluttering,layerLabelClass,labelLayer};
 }
 root.SabzWebGISLayerLabeling=Object.freeze({create});
 })(typeof window!=="undefined"?window:globalThis);
