@@ -299,7 +299,7 @@ const fixture = {
       const toggle=document.getElementById('lpLabelsEnabled');
       toggle.checked=true;
       set('lpLabelField','name');
-      set('lpLabelMinZoom','16');
+      set('lpLabelMinZoom','12');
       set('lpLabelDensity','balanced');
       document.getElementById('layerPropertiesForm').dispatchEvent(new SubmitEvent('submit',{bubbles:true,cancelable:true,submitter:document.getElementById('layerPropertiesOk')}));
       const settleMap=async()=>{await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));};
