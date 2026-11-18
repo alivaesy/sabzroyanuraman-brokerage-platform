@@ -55,6 +55,37 @@ const fixture = {
       }
     }
 
+    // The dock is a fixed overlay, not a flex column: closing it must not resize
+    // the Leaflet map. Close it before the remaining Map View interactions.
+    const gisDock = page.locator("#gisDock");
+    const mapSizeBeforeDockClose = await page.evaluate(() => {
+      const element=document.getElementById("map");
+      const rect=element.getBoundingClientRect();
+      const size=window.__sabzWebGISSharedBridge.map.getSize();
+      return {rectWidth:rect.width,rectHeight:rect.height,leafletWidth:size.x,leafletHeight:size.y};
+    });
+    if (await gisDock.evaluate(element => element.classList.contains("show"))) {
+      await page.locator("#closeGisDock").click();
+      await page.waitForFunction(() => !document.getElementById("gisDock")?.classList.contains("show"));
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => {
+        window.__sabzWebGISSharedBridge.map.invalidateSize({pan:false});
+        resolve();
+      }))));
+    }
+    const mapSizeAfterDockClose = await page.evaluate(() => {
+      const element=document.getElementById("map");
+      const rect=element.getBoundingClientRect();
+      const size=window.__sabzWebGISSharedBridge.map.getSize();
+      return {rectWidth:rect.width,rectHeight:rect.height,leafletWidth:size.x,leafletHeight:size.y};
+    });
+    console.log("Map viewport around ArcToolbox close:", JSON.stringify({before:mapSizeBeforeDockClose,after:mapSizeAfterDockClose}));
+    assert.ok(Math.abs(mapSizeAfterDockClose.rectWidth-mapSizeBeforeDockClose.rectWidth)<=1,
+      "Closing the fixed ArcToolbox dock must not change the map's rendered width");
+    assert.ok(Math.abs(mapSizeAfterDockClose.leafletWidth-mapSizeAfterDockClose.rectWidth)<=1,
+      "Leaflet size must match the rendered map width after dock close");
+    assert.equal(await gisDock.evaluate(element => element.classList.contains("show")),false,
+      "ArcToolbox/GIS dock must be closed before subsequent Map View interactions");
+
     // Open and close each visible top-level menu without invoking destructive actions.
     const visibleMenus = page.locator('.arc-menu-btn[data-menu]:visible');
     const menuCount = await visibleMenus.count();
@@ -239,12 +270,11 @@ const fixture = {
     assert.match(layoutLegend.text,/12\.5/,'Graduated Legend should display the first class boundary');
     assert.match(layoutLegend.text,/27/,'Graduated Legend should display the final class boundary');
     assert.ok(layoutLegend.geometryTypes.includes('Polygon'),'Polygon layers should use polygon-shaped legend swatches');
-    // The ArcToolbox dock overlays the layout edge while open; close it before the layout action.
-    const gisDock = page.locator("#gisDock");
-    if (await gisDock.evaluate(element => element.classList.contains("show"))) {
-      await page.locator("#closeGisDock").click();
-    }
     await page.locator('#webgisLayoutView [data-layout-action="close"]').click();
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => {
+      window.__sabzWebGISSharedBridge.map.invalidateSize({pan:false});
+      resolve();
+    }))));
 
 
     // Dense-layer E2E: exercise real Leaflet tooltip elements at several zoom levels.
@@ -294,11 +324,13 @@ const fixture = {
       const closeVisible=visible();
       const closeOverlaps=overlapCount();
       bridge.map.setMinZoom(originalMinZoom);
-      return {featureCount:features.length,domLabels:count(),belowMinimum,belowMinimumZoom,mediumVisible,closeVisible,mediumOverlaps,closeOverlaps,zoom:bridge.map.getZoom(),minZoom:item._labelMinZoom,visibility:visibleElements().map(el=>({text:el.textContent,visibility:getComputedStyle(el).visibility,inline:el.style.visibility}))};
+      const mapSize=bridge.map.getSize(),mapRect=bridge.map.getContainer().getBoundingClientRect();
+      const tooltips=Array.from(document.querySelectorAll('.'+item._labelClass));
+      return {featureCount:features.length,domLabels:count(),tooltipCount:tooltips.length,belowMinimum,belowMinimumZoom,mediumVisible,closeVisible,mediumOverlaps,closeOverlaps,zoom:bridge.map.getZoom(),minZoom:item._labelMinZoom,mapSize:{x:mapSize.x,y:mapSize.y},mapRect:{width:mapRect.width,height:mapRect.height},tooltipSamples:tooltips.slice(0,8).map(el=>{const r=el.getBoundingClientRect();return {text:el.textContent,visibility:getComputedStyle(el).visibility,inline:el.style.visibility,width:r.width,height:r.height,opacity:getComputedStyle(el).opacity}}),visibility:visibleElements().map(el=>({text:el.textContent,visibility:getComputedStyle(el).visibility,inline:el.style.visibility}))};
     });
     assert.equal(denseLabelResult.featureCount,300,'Dense regression fixture should contain 300 point features');
     assert.equal(denseLabelResult.belowMinimum,0,'Labels must be hidden below the configured minimum zoom: '+JSON.stringify(denseLabelResult));
-    assert.ok(denseLabelResult.mediumVisible>0,'Some labels should be visible at the medium zoom');
+    assert.ok(denseLabelResult.mediumVisible>0,'Some labels should be visible at the medium zoom: '+JSON.stringify(denseLabelResult));
     assert.equal(denseLabelResult.mediumOverlaps,0,'Visible labels must not overlap at medium zoom');
     assert.equal(denseLabelResult.closeOverlaps,0,'Visible labels must not overlap at close zoom');
     assert.ok(denseLabelResult.closeVisible>=denseLabelResult.mediumVisible,
