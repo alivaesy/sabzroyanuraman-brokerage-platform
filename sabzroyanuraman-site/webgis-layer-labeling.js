@@ -55,6 +55,29 @@ function layerLabelClass(owner){
   style.textContent=window.SabzWebGISLabelingCore.labelClassCss(id,config);
   return id;
 }
+
+ function configureLayerPropertiesLabels(owner,fields){
+  const fieldSelect=ctx.$("lpLabelField");fieldSelect.innerHTML="";
+  fields.forEach(field=>{const o=ctx.document.createElement("option");o.value=field;o.textContent=field;fieldSelect.appendChild(o)});
+  fieldSelect.value=fields.includes(owner?._labelField)?owner._labelField:(fields.includes("name")?"name":fields[0]||"");
+  ctx.$("lpLabelsEnabled").checked=!!owner?._labelsEnabled;
+  ctx.$("lpLabelSize").value=owner?._labelSize||12;
+  ctx.$("lpLabelColor").value=owner?._labelColor||"#202020";
+  ctx.$("lpLabelPlacement").value=owner?._labelPlacement||"auto";
+  ctx.$("lpLabelMinZoom").value=owner?._labelMinZoom??0;
+  ctx.$("lpLabelDensity").value=owner?._labelDensity||"balanced";
+ }
+ function resetLayerPropertiesTabs(){
+  ctx.document.querySelectorAll("[data-lp-tab]").forEach((b,i)=>{b.classList.toggle("active",i===0);b.setAttribute("aria-selected",i===0?"true":"false")});
+  ctx.document.querySelectorAll("[data-lp-pane]").forEach((p,i)=>p.hidden=i!==0);
+ }
+ function bindLayerPropertiesTabs(){
+  ctx.document.querySelectorAll("[data-lp-tab]").forEach(button=>button.addEventListener("click",()=>{
+   const key=button.dataset.lpTab;
+   ctx.document.querySelectorAll("[data-lp-tab]").forEach(b=>{const active=b===button;b.classList.toggle("active",active);b.setAttribute("aria-selected",active?"true":"false")});
+   ctx.document.querySelectorAll("[data-lp-pane]").forEach(p=>p.hidden=p.dataset.lpPane!==key);
+  }));
+ }
  async function labelLayer(){
   const target=ctx.contextLayerItem?.layer||null;const rs=target?ctx.layerPropertiesRecords(target):ctx.getFeatureRecords();
   if(!rs.length){ctx.status("No vector features are available for labeling.");return;}
@@ -81,7 +104,7 @@ function layerLabelClass(owner){
   if(owner)ctx.scheduleAutoSave();
   ctx.status("Labels enabled for "+count+" feature(s) using field '"+field+"'.");
  }
- return {refreshLabelDecluttering,layerLabelClass,labelLayer};
+ return {refreshLabelDecluttering,layerLabelClass,labelLayer,configureLayerPropertiesLabels,resetLayerPropertiesTabs,bindLayerPropertiesTabs};
 }
 root.SabzWebGISLayerLabeling=Object.freeze({create});
 })(typeof window!=="undefined"?window:globalThis);
