@@ -9,34 +9,34 @@ function create(ctx){
   return core.layerStyleRamp(name,count);
 }
 function refreshLayerRendererControls(){
-  const mode=$("lpRenderer")?.value||"single",field=$("lpStyleField")?.value||"",legend=$("lpRendererLegend");
-  ["lpStyleField","lpColorRamp","lpClassCount","lpClassificationMethod"].forEach(id=>{const el=$(id);if(el)el.disabled=mode==="single"});
+  const mode=ctx.$("lpRenderer")?.value||"single",field=ctx.$("lpStyleField")?.value||"",legend=ctx.$("lpRendererLegend");
+  ["lpStyleField","lpColorRamp","lpClassCount","lpClassificationMethod"].forEach(id=>{const el=ctx.$(id);if(el)el.disabled=mode==="single"});
   if(!legend)return;
   const records=ctx.layerPropertiesRecords(ctx.layerPropertiesTarget?.target),values=records.map(r=>r.feature?.properties?.[field]);
   if(mode==="single"){legend.textContent="Single symbol: one symbol for all features.";return}
   if(!field){legend.textContent="Choose an attribute field.";return}
   const core=window.SabzWebGISSymbologyCore;
   if(mode==="unique"){
-    const classes=core.uniqueValueClasses(values,$("lpColorRamp").value);
+    const classes=core.uniqueValueClasses(values,ctx.$("lpColorRamp").value);
     legend.replaceChildren();classes.slice(0,30).forEach(item=>{const row=document.createElement("div");row.className="lp-field-chip";const sw=document.createElement("span");sw.style.cssText="display:inline-block;width:12px;height:12px;border:1px solid #52616b;margin-right:6px;background:"+item.color+";vertical-align:middle";row.append(sw,document.createTextNode(item.value+" ("+item.count+")"));legend.appendChild(row)});
     if(!classes.length)legend.textContent="No non-empty values in this field.";
     if(classes.length>30){const note=document.createElement("div");note.textContent="Legend limited to first 30 values; all "+classes.length+" unique values are styled.";legend.appendChild(note)}return;
   }
-  const method=$("lpClassificationMethod").value||"equal-interval";
-  const classes=core.graduatedClasses(values,$("lpClassCount").value,$("lpColorRamp").value,method);
+  const method=ctx.$("lpClassificationMethod").value||"equal-interval";
+  const classes=core.graduatedClasses(values,ctx.$("lpClassCount").value,ctx.$("lpColorRamp").value,method);
   if(!classes.length){legend.textContent="Graduated Colors requires a numeric field.";return}
   legend.replaceChildren();classes.forEach(item=>{const row=document.createElement("div");row.className="lp-field-chip";const sw=document.createElement("span");sw.style.cssText="display:inline-block;width:12px;height:12px;border:1px solid #52616b;margin-right:6px;background:"+item.color+";vertical-align:middle";row.append(sw,document.createTextNode(item.min.toLocaleString()+" – "+item.max.toLocaleString()));legend.appendChild(row)});
 }
 function updateLayerSymbolPreview(){
-  const preview=$("lpSymbolPreview");if(!preview)return;
-  preview.style.borderColor=$("lpOutlineColor").value;preview.style.backgroundColor=$("lpFillColor").value;
-  preview.style.borderWidth=Math.min(8,Number($("lpLineWidth").value)||0)+"px";
-  preview.style.opacity=$("lpOpacity").value;
-  $("lpOpacityValue").textContent=Math.round(Number($("lpOpacity").value)*100)+"%";
-  $("lpFillOpacityValue").textContent=Math.round(Number($("lpFillOpacity").value)*100)+"%";
-  preview.style.backgroundColor=$("lpFillColor").value;
-  preview.style.setProperty("--lp-fill-opacity",$("lpFillOpacity").value);
-  preview.style.backgroundImage="linear-gradient(rgba(255,255,255,"+(1-Number($("lpFillOpacity").value))+"),rgba(255,255,255,"+(1-Number($("lpFillOpacity").value))+"))";
+  const preview=ctx.$("lpSymbolPreview");if(!preview)return;
+  preview.style.borderColor=ctx.$("lpOutlineColor").value;preview.style.backgroundColor=ctx.$("lpFillColor").value;
+  preview.style.borderWidth=Math.min(8,Number(ctx.$("lpLineWidth").value)||0)+"px";
+  preview.style.opacity=ctx.$("lpOpacity").value;
+  ctx.$("lpOpacityValue").textContent=Math.round(Number(ctx.$("lpOpacity").value)*100)+"%";
+  ctx.$("lpFillOpacityValue").textContent=Math.round(Number(ctx.$("lpFillOpacity").value)*100)+"%";
+  preview.style.backgroundColor=ctx.$("lpFillColor").value;
+  preview.style.setProperty("--lp-fill-opacity",ctx.$("lpFillOpacity").value);
+  preview.style.backgroundImage="linear-gradient(rgba(255,255,255,"+(1-Number(ctx.$("lpFillOpacity").value))+"),rgba(255,255,255,"+(1-Number(ctx.$("lpFillOpacity").value))+"))";
 }
 
 function applyLayerProperties(e){
