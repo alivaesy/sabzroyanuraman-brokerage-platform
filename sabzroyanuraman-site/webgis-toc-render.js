@@ -7,7 +7,27 @@ function create(ctx){
  const state=ctx.state;
  function renderLayerList(){
   const el=$("layers");if(!el)return;el.innerHTML="";
-  if(state.tocViewMode==="option"){el.innerHTML='<div style="padding:12px 10px;font-size:11px;line-height:1.6;color:#354b59"><strong>Table Of Contents Options</strong><p>Manage layer visibility from Drawing Order or Visibility. Use Source to inspect layer sources and Selection to review selected layers.</p><p>Layer ordering, grouping, and display preferences will be expanded in this panel.</p><div style="padding:7px;border:1px solid #c5d0d5;background:#f4f7f8">Catalog and data-source management are available from Windows → Catalog.</div></div>';return;}
+  if(state.tocViewMode==="option"){
+   const panel=document.createElement("div");panel.className="toc-options-panel";panel.style.cssText="padding:8px;font-size:11px;color:#354b59";
+   const heading=document.createElement("strong");heading.textContent="Table Of Contents Options";panel.appendChild(heading);
+   const note=document.createElement("p");note.textContent="Manage drawing order and layer visibility. Changes are saved with the current project.";panel.appendChild(note);
+   const list=document.createElement("div");list.setAttribute("role","list");list.style.cssText="display:flex;flex-direction:column;gap:4px";
+   namedLayers.forEach((owner,index)=>{
+    const row=document.createElement("div");row.setAttribute("role","listitem");row.style.cssText="display:flex;align-items:center;gap:5px;padding:5px;border:1px solid #c5d0d5;background:#f8fafb";
+    const visibility=document.createElement("input");visibility.type="checkbox";visibility.checked=!!(owner.layer&&map.hasLayer(owner.layer));visibility.title="Toggle layer visibility";visibility.setAttribute("aria-label","Show "+(owner.name||"layer"));
+    visibility.addEventListener("change",()=>{if(!owner.layer)return;if(visibility.checked)map.addLayer(owner.layer);else map.removeLayer(owner.layer);if(owner._definitionQuery)applyDefinitionQuery(owner);scheduleAutoSave();});
+    const label=document.createElement("span");label.textContent=owner.name||("Layer "+(index+1));label.style.cssText="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+    const source=document.createElement("span");source.textContent=owner.sourceName||owner.source||"";source.title=source.textContent;source.style.cssText="max-width:78px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#71808a";
+    const up=document.createElement("button");up.type="button";up.textContent="↑";up.title="Move layer up in drawing order";up.setAttribute("aria-label","Move "+label.textContent+" up");up.disabled=index===0;
+    const down=document.createElement("button");down.type="button";down.textContent="↓";down.title="Move layer down in drawing order";down.setAttribute("aria-label","Move "+label.textContent+" down");down.disabled=index===namedLayers.length-1;
+    [up,down].forEach(button=>button.style.cssText="width:23px;height:22px;padding:0;border:1px solid #aebbc2;background:#fff;cursor:pointer");
+    up.addEventListener("click",()=>{if(index<1)return;namedLayers.splice(index,1);namedLayers.splice(index-1,0,owner);renderLayerList();scheduleAutoSave();});
+    down.addEventListener("click",()=>{if(index>=namedLayers.length-1)return;namedLayers.splice(index,1);namedLayers.splice(index+1,0,owner);renderLayerList();scheduleAutoSave();});
+    row.append(visibility,label,source,up,down);list.appendChild(row);
+   });
+   if(!namedLayers.length){const empty=document.createElement("p");empty.textContent="No operational layers are loaded.";list.appendChild(empty);}
+   panel.appendChild(list);el.appendChild(panel);return;
+  }
   const selectedOwnerLayers=new Set(selectedRecords().map(record=>record.owner?.layer).filter(Boolean));
   const groups=new Map();
 const addRow=(x,label,indent)=>{
