@@ -83,6 +83,13 @@ const addRow=(x,label,indent)=>{
     }
   });
 }
+ renderLayerList.bindViewTabs=function(){
+  document.querySelectorAll("[data-toc-view]").forEach(button=>button.addEventListener("click",()=>{
+   state.setTocViewMode(button.dataset.tocView||"drawing");
+   document.querySelectorAll("[data-toc-view]").forEach(tab=>{const active=tab===button;tab.classList.toggle("active",active);tab.setAttribute("aria-selected",active?"true":"false")});
+   renderLayerList();
+  }));
+ };
  return renderLayerList;
 }
 root.SabzWebGISTocRenderer=Object.freeze({create});
