@@ -7554,7 +7554,7 @@ function clearDefinitionQuery(item){
   try{applyDefinitionQuery(owner);status("Definition Query cleared for "+owner.name+".");}
   catch(error){status("Could not clear Definition Query: "+(error.message||error));}
 }
-const {refreshLabelDecluttering,layerLabelClass,labelLayer:labelingLabelLayer}=window.SabzWebGISLayerLabeling.create({contextLayerItem:()=>contextLayerItem,layerPropertiesRecords,getFeatureRecords,isReservedAttributeField,gisAsk,namedLayers,status,core:window.SabzWebGISLabelingCore,layerLabelClass,scheduleAutoSave,debug:console.debug,map});
+const {refreshLabelDecluttering,layerLabelClass,labelLayer:labelingLabelLayer,configureLayerPropertiesLabels,resetLayerPropertiesTabs,bindLayerPropertiesTabs}=window.SabzWebGISLayerLabeling.create({contextLayerItem:()=>contextLayerItem,layerPropertiesRecords,getFeatureRecords,isReservedAttributeField,gisAsk,namedLayers,status,core:window.SabzWebGISLabelingCore,layerLabelClass,scheduleAutoSave,debug:console.debug,map,$,document});
 function openLayerProperties(item=null){
   const target=item?.layer||(selectedOverlay?getFeatureRecords().find(r=>r.layer===selectedOverlay)?.owner?.layer:null);
   if(!target){status("Select a layer in the Table Of Contents first.");return;}
@@ -7574,9 +7574,7 @@ function openLayerProperties(item=null){
   const fields=[...new Set(records.flatMap(r=>Object.keys(r.feature.properties||{}).filter(k=>!isReservedAttributeField(k))))];
   const sourceNode=$("lpSourceDetails");if(sourceNode){const source=owner?.sourceName||owner?.source||owner?._sourceUrl||owner?.url||"Local / imported data";const count=records.length;sourceNode.textContent=String(source)+" · "+count+" feature(s) · "+(fields.length||owner?.layer?._gdbMetadata?.fields?.length||0)+" field(s)";}
   const fieldsNode=$("lpFieldsList");if(fieldsNode){fieldsNode.replaceChildren();const schema=(owner?.layer?._gdbMetadata?.fields||[]).map(f=>typeof f==="string"?f:f?.name).filter(Boolean);[...new Set([...schema,...fields])].forEach(field=>{const chip=document.createElement("span");chip.className="lp-field-chip";chip.textContent=field;fieldsNode.appendChild(chip)});if(!fields.length&&!schema.length)fieldsNode.textContent="No attribute fields found.";}
-  const fieldSelect=$("lpLabelField");fieldSelect.innerHTML="";
-  fields.forEach(field=>{const o=document.createElement("option");o.value=field;o.textContent=field;fieldSelect.appendChild(o)});
-  fieldSelect.value=fields.includes(owner?._labelField) ? owner._labelField : (fields.includes("name")?"name":fields[0]||"");
+  configureLayerPropertiesLabels(owner,fields);
   const styleField=$("lpStyleField");styleField.replaceChildren();
   fields.forEach(field=>{const o=document.createElement("option");o.value=field;o.textContent=field;styleField.appendChild(o)});
   styleField.value=fields.includes(owner?._rendererConfig?.field)?owner._rendererConfig.field:(fields.includes("type")?"type":fields[0]||"");
@@ -7584,18 +7582,11 @@ function openLayerProperties(item=null){
   $("lpColorRamp").value=["green","blue","red","purple","spectral"].includes(owner?._rendererConfig?.ramp)?owner._rendererConfig.ramp:"green";
   $("lpClassCount").value=Math.max(2,Math.min(7,Number(owner?._rendererConfig?.classes)||5));
   $("lpClassificationMethod").value=owner?._rendererConfig?.method==="quantile"?"quantile":"equal-interval";
-  $("lpLabelsEnabled").checked=!!owner?._labelsEnabled;
-  $("lpLabelSize").value=owner?._labelSize||12;$("lpLabelColor").value=owner?._labelColor||"#202020";$("lpLabelPlacement").value=owner?._labelPlacement||"auto";$("lpLabelMinZoom").value=owner?._labelMinZoom??0;$("lpLabelDensity").value=owner?._labelDensity||"balanced";
-  document.querySelectorAll("[data-lp-tab]").forEach((b,i)=>{b.classList.toggle("active",i===0);b.setAttribute("aria-selected",i===0?"true":"false")});
-  document.querySelectorAll("[data-lp-pane]").forEach((p,i)=>p.hidden=i!==0);
+  resetLayerPropertiesTabs();
   updateLayerSymbolPreview();refreshLayerRendererControls();
   const d=$("layerPropertiesDialog");d.classList.add("show");d.setAttribute("aria-hidden","false");
 }
-document.querySelectorAll("[data-lp-tab]").forEach(button=>button.addEventListener("click",()=>{
-  const key=button.dataset.lpTab;
-  document.querySelectorAll("[data-lp-tab]").forEach(b=>{const active=b===button;b.classList.toggle("active",active);b.setAttribute("aria-selected",active?"true":"false")});
-  document.querySelectorAll("[data-lp-pane]").forEach(p=>p.hidden=p.dataset.lpPane!==key);
-}));
+bindLayerPropertiesTabs();
 ["lpOutlineColor","lpFillColor","lpLineWidth","lpOpacity","lpFillOpacity"].forEach(id=>$(id).addEventListener("input",updateLayerSymbolPreview));
 ["lpRenderer","lpStyleField","lpColorRamp","lpClassCount","lpClassificationMethod"].forEach(id=>$(id).addEventListener("change",refreshLayerRendererControls));
 $("layerPropertiesClose").onclick=$("layerPropertiesCancel").onclick=closeLayerProperties;
