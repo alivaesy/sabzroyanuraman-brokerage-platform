@@ -7575,23 +7575,13 @@ function openLayerProperties(item=null){
   const sourceNode=$("lpSourceDetails");if(sourceNode){const source=owner?.sourceName||owner?.source||owner?._sourceUrl||owner?.url||"Local / imported data";const count=records.length;sourceNode.textContent=String(source)+" · "+count+" feature(s) · "+(fields.length||owner?.layer?._gdbMetadata?.fields?.length||0)+" field(s)";}
   const fieldsNode=$("lpFieldsList");if(fieldsNode){fieldsNode.replaceChildren();const schema=(owner?.layer?._gdbMetadata?.fields||[]).map(f=>typeof f==="string"?f:f?.name).filter(Boolean);[...new Set([...schema,...fields])].forEach(field=>{const chip=document.createElement("span");chip.className="lp-field-chip";chip.textContent=field;fieldsNode.appendChild(chip)});if(!fields.length&&!schema.length)fieldsNode.textContent="No attribute fields found.";}
   configureLayerPropertiesLabels(owner,fields);
-  const styleField=$("lpStyleField");styleField.replaceChildren();
-  fields.forEach(field=>{const o=document.createElement("option");o.value=field;o.textContent=field;styleField.appendChild(o)});
-  styleField.value=fields.includes(owner?._rendererConfig?.field)?owner._rendererConfig.field:(fields.includes("type")?"type":fields[0]||"");
-  $("lpRenderer").value=["single","unique","graduated"].includes(owner?._rendererConfig?.mode)?owner._rendererConfig.mode:"single";
-  $("lpColorRamp").value=["green","blue","red","purple","spectral"].includes(owner?._rendererConfig?.ramp)?owner._rendererConfig.ramp:"green";
-  $("lpClassCount").value=Math.max(2,Math.min(7,Number(owner?._rendererConfig?.classes)||5));
-  $("lpClassificationMethod").value=owner?._rendererConfig?.method==="quantile"?"quantile":"equal-interval";
+   configureLayerPropertiesSymbology(owner,fields);
   resetLayerPropertiesTabs();
   updateLayerSymbolPreview();refreshLayerRendererControls();
   const d=$("layerPropertiesDialog");d.classList.add("show");d.setAttribute("aria-hidden","false");
 }
 bindLayerPropertiesTabs();
-["lpOutlineColor","lpFillColor","lpLineWidth","lpOpacity","lpFillOpacity"].forEach(id=>$(id).addEventListener("input",updateLayerSymbolPreview));
-["lpRenderer","lpStyleField","lpColorRamp","lpClassCount","lpClassificationMethod"].forEach(id=>$(id).addEventListener("change",refreshLayerRendererControls));
-$("layerPropertiesClose").onclick=$("layerPropertiesCancel").onclick=closeLayerProperties;
-$("layerPropertiesDialog").addEventListener("click",e=>{if(e.target===$("layerPropertiesDialog"))closeLayerProperties()});
-$("layerPropertiesForm").addEventListener("submit",e=>applyLayerProperties(e));
+ bindLayerPropertiesSymbology();
 async function styleLayer(){openLayerProperties(contextLayerItem);}
 async function labelLayer(){return labelingLabelLayer();}
 async function groupLayers(){
