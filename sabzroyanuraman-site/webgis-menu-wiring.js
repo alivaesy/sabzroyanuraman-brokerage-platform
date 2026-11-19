@@ -3,6 +3,26 @@
 function init(scope){
   with(scope){
 (function(){
+ const buttons=[...document.querySelectorAll(".arc-menu-btn")];
+ const panels=[...document.querySelectorAll(".arc-dropdown")];
+ const closeAll=()=>{panels.forEach(panel=>panel.classList.remove("show"));buttons.forEach(button=>{button.classList.remove("active");button.setAttribute("aria-expanded","false")})};
+ buttons.forEach(button=>{
+  button.type="button";button.setAttribute("aria-controls",button.dataset.menu);button.setAttribute("aria-expanded","false");
+  button.addEventListener("click",event=>{
+   event.preventDefault();event.stopPropagation();
+   const panel=document.getElementById(button.dataset.menu);if(!panel)return;
+   const shouldOpen=!panel.classList.contains("show");closeAll();
+   if(shouldOpen){
+    const maxLeft=Math.max(0,window.innerWidth-240);
+    panel.style.left=Math.max(0,Math.min(button.getBoundingClientRect().left,maxLeft))+"px";
+    if(button.closest(".classic-toolbar")){const root=document.getElementById("arcMenus");if(root)panel.style.top=Math.max(0,button.getBoundingClientRect().bottom-root.getBoundingClientRect().top)+"px"}else panel.style.top="0px";
+    panel.classList.add("show");button.classList.add("active");button.setAttribute("aria-expanded","true");
+   }
+  });
+ });
+ document.addEventListener("click",event=>{if(!event.target.closest(".arc-menu")&&!event.target.closest(".arc-dropdown"))closeAll()});
+})();
+(function(){
   const menus=[...document.querySelectorAll(".arc-menu-btn")];
   const drops=[...document.querySelectorAll(".arc-dropdown")];
   /* Menu commands must never submit an enclosing form or reload the GIS page. */
