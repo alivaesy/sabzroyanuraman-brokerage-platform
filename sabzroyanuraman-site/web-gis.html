@@ -1364,6 +1364,7 @@ window.__sabzWebGISSharedBridge={
   get namedLayers(){return namedLayers;},
   get renderLayerList(){return renderLayerList;},
   get tocViewMode(){return tocViewMode;},
+   setTocViewMode(value){tocViewMode=value;}
   get contextLayerItem(){return contextLayerItem;},
   get selectedFeatures(){return selectedFeatures;},
   layerPropertiesRecords:owner=>layerPropertiesRecords(owner),
@@ -3018,7 +3019,6 @@ function addNamedLayer(name,layer,zoom){
   }
 }
 let tocViewMode="drawing";
-document.querySelectorAll("[data-toc-view]").forEach(button=>button.addEventListener("click",()=>{tocViewMode=button.dataset.tocView||"drawing";document.querySelectorAll("[data-toc-view]").forEach(tab=>{const active=tab===button;tab.classList.toggle("active",active);tab.setAttribute("aria-selected",active?"true":"false")});renderLayerList()}));
 let contextLayerItem=null;
 function hideLayerContextMenu(){
   const m=$("layerContextMenu");if(m)m.classList.remove("show");contextLayerItem=null;
@@ -3086,6 +3086,7 @@ const renderLayerList=window.SabzWebGISTocRenderer.create({
   set selectedOverlay(value){selectedOverlay=value;}
  }
 });
+renderLayerList.bindViewTabs();
 // Keep the Table Of Contents empty until the user creates a feature.
 // drawingLayerForType() creates the matching Point/Line/Polygon child on demand.
 activeDrawingSetName="My Drawings";
