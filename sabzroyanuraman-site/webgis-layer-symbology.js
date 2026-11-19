@@ -92,7 +92,24 @@ function applyLayerProperties(e){
   ctx.status("Layer Properties applied to "+(owner?.name||name)+" ("+styled+" feature symbol(s)).");
   if(e.submitter?.id==="layerPropertiesOk")ctx.closeLayerProperties();
 }
- return {layerStyleRamp,refreshLayerRendererControls,updateLayerSymbolPreview,applyLayerProperties};
+
+function configureLayerPropertiesSymbology(owner,fields){
+ const styleField=ctx.$("lpStyleField");styleField.replaceChildren();
+ fields.forEach(field=>{const option=document.createElement("option");option.value=field;option.textContent=field;styleField.appendChild(option)});
+ styleField.value=fields.includes(owner?._rendererConfig?.field)?owner._rendererConfig.field:(fields.includes("type")?"type":fields[0]||"");
+ ctx.$("lpRenderer").value=["single","unique","graduated"].includes(owner?._rendererConfig?.mode)?owner._rendererConfig.mode:"single";
+ ctx.$("lpColorRamp").value=["green","blue","red","purple","spectral"].includes(owner?._rendererConfig?.ramp)?owner._rendererConfig.ramp:"green";
+ ctx.$("lpClassCount").value=Math.max(2,Math.min(7,Number(owner?._rendererConfig?.classes)||5));
+ ctx.$("lpClassificationMethod").value=owner?._rendererConfig?.method==="quantile"?"quantile":"equal-interval";
+}
+function bindLayerPropertiesSymbology(){
+ ["lpOutlineColor","lpFillColor","lpLineWidth","lpOpacity","lpFillOpacity"].forEach(id=>ctx.$(id).addEventListener("input",updateLayerSymbolPreview));
+ ["lpRenderer","lpStyleField","lpColorRamp","lpClassCount","lpClassificationMethod"].forEach(id=>ctx.$(id).addEventListener("change",refreshLayerRendererControls));
+ ctx.$("layerPropertiesClose").onclick=ctx.$("layerPropertiesCancel").onclick=ctx.closeLayerProperties;
+ ctx.$("layerPropertiesDialog").addEventListener("click",event=>{if(event.target===ctx.$("layerPropertiesDialog"))ctx.closeLayerProperties()});
+ ctx.$("layerPropertiesForm").addEventListener("submit",event=>applyLayerProperties(event));
+}
+ return {layerStyleRamp,refreshLayerRendererControls,updateLayerSymbolPreview,applyLayerProperties,configureLayerPropertiesSymbology,bindLayerPropertiesSymbology};
 }
 root.SabzWebGISLayerSymbology=Object.freeze({create});
 })(typeof window!=="undefined"?window:globalThis);
