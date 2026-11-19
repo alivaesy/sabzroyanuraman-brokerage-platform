@@ -24,6 +24,27 @@ const addRow=(x,label,indent)=>{
     const nm=document.createElement("span");nm.className="layer-name";nm.textContent=label;
     const layerOwner=x.layer?namedLayers.find(item=>item.layer===x.layer):null;
     if(layerOwner){row.dataset.tocLayerIndex=String(namedLayers.indexOf(layerOwner));row.dataset.tocLayerName=layerOwner.name||label;}
+    /* ArcMap-style layer reordering: only Drawing Order rows are draggable. */
+    if(layerOwner&&state.tocViewMode==="drawing"){
+      row.draggable=true;
+      row.addEventListener("dragstart",e=>{
+        e.dataTransfer.effectAllowed="move";
+        e.dataTransfer.setData("text/plain",String(namedLayers.indexOf(layerOwner)));
+        row.classList.add("toc-row-dragging");
+      });
+      row.addEventListener("dragend",()=>row.classList.remove("toc-row-dragging"));
+      row.addEventListener("dragover",e=>{e.preventDefault();e.dataTransfer.dropEffect="move";});
+      row.addEventListener("drop",e=>{
+        e.preventDefault();e.stopPropagation();
+        const from=Number(e.dataTransfer.getData("text/plain"));
+        const to=namedLayers.indexOf(layerOwner);
+        if(!Number.isInteger(from)||from<0||from>=namedLayers.length||to<0||from===to)return;
+        const moved=namedLayers.splice(from,1)[0];
+        namedLayers.splice(to,0,moved);
+        renderLayerList();
+        scheduleAutoSave();
+      });
+    }
     if(layerOwner?._definitionQuery){nm.title="Definition Query: "+layerOwner._definitionQuery.field+" "+layerOwner._definitionQuery.operator+(layerOwner._definitionQuery.value===""?"":" "+layerOwner._definitionQuery.value);const badge=document.createElement("span");badge.className="small";badge.textContent=" [Q]";badge.title=nm.title;row.append(cb,icon,nm,badge);}else row.append(cb,icon,nm);
     if(x.layer)nm.ondblclick=e=>{e.preventDefault();e.stopPropagation();const owner=namedLayers.find(item=>item.layer===x.layer);if(owner)openLayerProperties(owner)};
     if(x.layer){row.onclick=e=>{if(e.target.closest("input,button"))return;state.selectedOverlay=x.layer;applySelectionVisual();renderLayerList()};row.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();state.selectedOverlay=x.layer;renderLayerList();showLayerContextMenu(x,e.clientX,e.clientY)}}
