@@ -13,6 +13,8 @@ async function boot(page) {
   await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#map.leaflet-container')).toBeAttached({ timeout: 30000 });
   await page.waitForFunction(() => !!window.__sabzGISMap && !!window.__sabzWebGISSharedBridge);
+  // The main inline application script publishes its bridge before all later declarations finish.
+  await page.waitForTimeout(1800);
   return pageErrors;
 }
 
