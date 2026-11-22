@@ -7460,22 +7460,7 @@ function closeLayerProperties(){
   const d=$("layerPropertiesDialog");if(d){d.classList.remove("show");d.setAttribute("aria-hidden","true");}
   layerPropertiesTarget=null;
 }
-const {layerStyleRamp,refreshLayerRendererControls,updateLayerSymbolPreview,applyLayerProperties,configureLayerPropertiesSymbology,bindLayerPropertiesSymbology}=window.SabzWebGISLayerSymbology.create({
- $,
- get layerPropertiesTarget(){return layerPropertiesTarget;},
- layerPropertiesRecords,
- namedLayers,
- status,
- map,
- L,
- core:window.SabzWebGISSymbologyCore,
- labelCore:window.SabzWebGISLabelingCore,
- layerLabelClass,
- refreshLabelDecluttering,
- renderLayerList,
- scheduleAutoSave,
- closeLayerProperties
-});
+
 /* ArcMap parity follow-up: reversible definition query helpers */
 function definitionQueryMatches(query,properties){
  if(!query)return true;
@@ -7557,6 +7542,22 @@ function clearDefinitionQuery(item){
   catch(error){status("Could not clear Definition Query: "+(error.message||error));}
 }
 const {refreshLabelDecluttering,layerLabelClass,labelLayer:labelingLabelLayer,configureLayerPropertiesLabels,resetLayerPropertiesTabs,bindLayerPropertiesTabs}=window.SabzWebGISLayerLabeling.create({contextLayerItem:()=>contextLayerItem,layerPropertiesRecords,getFeatureRecords,isReservedAttributeField,gisAsk,namedLayers,status,core:window.SabzWebGISLabelingCore,scheduleAutoSave,debug:console.debug,map,$,document});
+const {layerStyleRamp,refreshLayerRendererControls,updateLayerSymbolPreview,applyLayerProperties,configureLayerPropertiesSymbology,bindLayerPropertiesSymbology}=window.SabzWebGISLayerSymbology.create({
+ $,
+ get layerPropertiesTarget(){return layerPropertiesTarget;},
+ layerPropertiesRecords,
+ namedLayers,
+ status,
+ map,
+ L,
+ core:window.SabzWebGISSymbologyCore,
+ labelCore:window.SabzWebGISLabelingCore,
+ layerLabelClass,
+ refreshLabelDecluttering,
+ renderLayerList,
+ scheduleAutoSave,
+ closeLayerProperties
+});
 function openLayerProperties(item=null){
   const target=item?.layer||(selectedOverlay?getFeatureRecords().find(r=>r.layer===selectedOverlay)?.owner?.layer:null);
   if(!target){status("Select a layer in the Table Of Contents first.");return;}
