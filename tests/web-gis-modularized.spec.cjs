@@ -45,13 +45,13 @@ test.describe('Extracted Symbology and TOC modules', () => {
     });
     await page.locator('[data-lp-tab="symbology"]').click();
     await expect(page.locator('[data-lp-pane="symbology"]')).toBeVisible();
-    await page.locator('#lpStyleField').selectOption('category');
     await page.locator('#lpRenderer').selectOption('unique');
+    await page.locator('#lpStyleField').selectOption('category');
     await expect(page.locator('#lpRendererLegend')).toContainText('A');
     await expect(page.locator('#lpRendererLegend')).toContainText('B');
 
-    await page.locator('#lpStyleField').selectOption('area');
     await page.locator('#lpRenderer').selectOption('graduated');
+    await page.locator('#lpStyleField').selectOption('area');
     await page.locator('#lpClassificationMethod').selectOption('quantile');
     await expect(page.locator('#lpRendererLegend')).toContainText('10');
     await page.locator('#lpRendererLegend').toContainText('30');
