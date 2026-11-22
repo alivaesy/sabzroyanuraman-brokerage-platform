@@ -247,7 +247,7 @@ test('FileGDB catalog filters internal and non-spatial tables and retains datase
 test('ModelBuilder and Layout enhancement is loaded through the renderer bridge', () => {
   const enhancementPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-rustgis-enhancements.js');
   const enhancement = fs.readFileSync(enhancementPath, 'utf8');
-  assert.match(html, /__sabzInstallModelBuilderRenderer\s*=\s*factory/);
+  assert.match(enhancement, /window\.renderModelBuilderGraph\s*=\s*\(\(original\)\s*=>/);
   assert.match(html, /<script\s+src=["']webgis-rustgis-enhancements\.js["']><\/script>/);
   assert.match(enhancement, /sabzMbNode/);
   assert.match(enhancement, /sabzSelectionInstalled/);
