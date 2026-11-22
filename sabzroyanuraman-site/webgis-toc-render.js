@@ -5,6 +5,18 @@ function create(ctx){
  if(!ctx||typeof ctx.$!=="function")throw new Error("TOC renderer context is incomplete.");
  const {$,map,namedLayers,drawn,selectedRecords,applyDefinitionQuery,openLayerProperties,applySelectionVisual,showLayerContextMenu,scheduleAutoSave}=ctx;
  const state=ctx.state;
+ function syncLayerDrawingOrder(){
+  // TOC order is top-to-bottom; Leaflet paints the last SVG path on top.
+  // Re-apply paths from bottom to top so map stacking matches the TOC.
+  [...namedLayers].reverse().forEach(owner=>{
+   const layer=owner?.layer;if(!layer)return;
+   if(typeof layer.eachLayer==="function")layer.eachLayer(child=>{
+    if(typeof child.bringToFront==="function")child.bringToFront();
+    else if(typeof child.setZIndex==="function"&&Number.isFinite(Number(owner._tocZIndex)))child.setZIndex(owner._tocZIndex);
+   });
+   else if(typeof layer.bringToFront==="function")layer.bringToFront();
+  });
+ }
  function renderLayerList(){
   const el=$("layers");if(!el)return;el.innerHTML="";
   if(state.tocViewMode==="option"){
@@ -21,8 +33,8 @@ function create(ctx){
     const up=document.createElement("button");up.type="button";up.textContent="↑";up.title="Move layer up in drawing order";up.setAttribute("aria-label","Move "+label.textContent+" up");up.disabled=index===0;
     const down=document.createElement("button");down.type="button";down.textContent="↓";down.title="Move layer down in drawing order";down.setAttribute("aria-label","Move "+label.textContent+" down");down.disabled=index===namedLayers.length-1;
     [up,down].forEach(button=>button.style.cssText="width:23px;height:22px;padding:0;border:1px solid #aebbc2;background:#fff;cursor:pointer");
-    up.addEventListener("click",()=>{if(index<1)return;namedLayers.splice(index,1);namedLayers.splice(index-1,0,owner);renderLayerList();scheduleAutoSave();});
-    down.addEventListener("click",()=>{if(index>=namedLayers.length-1)return;namedLayers.splice(index,1);namedLayers.splice(index+1,0,owner);renderLayerList();scheduleAutoSave();});
+    up.addEventListener("click",()=>{if(index<1)return;namedLayers.splice(index,1);namedLayers.splice(index-1,0,owner);syncLayerDrawingOrder();renderLayerList();scheduleAutoSave();});
+    down.addEventListener("click",()=>{if(index>=namedLayers.length-1)return;namedLayers.splice(index,1);namedLayers.splice(index+1,0,owner);syncLayerDrawingOrder();renderLayerList();scheduleAutoSave();});
     row.append(visibility,label,source,up,down);list.appendChild(row);
    });
    if(!namedLayers.length){const empty=document.createElement("p");empty.textContent="No operational layers are loaded.";list.appendChild(empty);}
@@ -61,6 +73,7 @@ const addRow=(x,label,indent)=>{
         if(!Number.isInteger(from)||from<0||from>=namedLayers.length||to<0||from===to)return;
         const moved=namedLayers.splice(from,1)[0];
         namedLayers.splice(to,0,moved);
+        syncLayerDrawingOrder();
         renderLayerList();
         scheduleAutoSave();
       });
