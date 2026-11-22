@@ -7556,7 +7556,7 @@ function clearDefinitionQuery(item){
   try{applyDefinitionQuery(owner);status("Definition Query cleared for "+owner.name+".");}
   catch(error){status("Could not clear Definition Query: "+(error.message||error));}
 }
-const {refreshLabelDecluttering,layerLabelClass,labelLayer:labelingLabelLayer,configureLayerPropertiesLabels,resetLayerPropertiesTabs,bindLayerPropertiesTabs}=window.SabzWebGISLayerLabeling.create({contextLayerItem:()=>contextLayerItem,layerPropertiesRecords,getFeatureRecords,isReservedAttributeField,gisAsk,namedLayers,status,core:window.SabzWebGISLabelingCore,layerLabelClass,scheduleAutoSave,debug:console.debug,map,$,document});
+const {refreshLabelDecluttering,layerLabelClass,labelLayer:labelingLabelLayer,configureLayerPropertiesLabels,resetLayerPropertiesTabs,bindLayerPropertiesTabs}=window.SabzWebGISLayerLabeling.create({contextLayerItem:()=>contextLayerItem,layerPropertiesRecords,getFeatureRecords,isReservedAttributeField,gisAsk,namedLayers,status,core:window.SabzWebGISLabelingCore,scheduleAutoSave,debug:console.debug,map,$,document});
 function openLayerProperties(item=null){
   const target=item?.layer||(selectedOverlay?getFeatureRecords().find(r=>r.layer===selectedOverlay)?.owner?.layer:null);
   if(!target){status("Select a layer in the Table Of Contents first.");return;}
