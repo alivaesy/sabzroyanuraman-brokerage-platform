@@ -119,8 +119,8 @@ test.describe('Extracted Symbology and TOC modules', () => {
     const errors = await boot(page);
     await page.evaluate(() => {
       const bridge = window.__sabzWebGISSharedBridge;
-      bridge.addGeoJSONLayer('__toc-order-A__', {type:'FeatureCollection',features:[{type:'Feature',properties:{name:'A'},geometry:{type:'Point',coordinates:[47.75,33.62]}}]});
-      bridge.addGeoJSONLayer('__toc-order-B__', {type:'FeatureCollection',features:[{type:'Feature',properties:{name:'B'},geometry:{type:'Point',coordinates:[47.76,33.62]}}]});
+      bridge.addGeoJSONLayer('__toc-order-A__', {type:'FeatureCollection',features:[{type:'Feature',properties:{name:'A'},geometry:{type:'LineString',coordinates:[[47.75,33.62],[47.751,33.621]]}}]});
+      bridge.addGeoJSONLayer('__toc-order-B__', {type:'FeatureCollection',features:[{type:'Feature',properties:{name:'B'},geometry:{type:'LineString',coordinates:[[47.76,33.62],[47.761,33.621]]}}]});
     });
     await page.locator('[data-toc-view="drawing"]').click();
     const rowA = page.locator('#layers .layer-row[data-toc-layer-name="__toc-order-A__"]');
