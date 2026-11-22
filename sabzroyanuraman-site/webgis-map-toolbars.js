@@ -5,7 +5,8 @@
   const d=document;
   d.querySelectorAll("[data-editor-draw]").forEach(button=>button.onclick=()=>ctx.startDraw(button.dataset.editorDraw,button));
   d.getElementById("finishSketchBtn").onclick=()=>{
-   if(ctx.activeDrawHandler&&ctx.activeDrawPurpose==="draw"&&typeof ctx.activeDrawHandler.completeShape==="function")ctx.activeDrawHandler.completeShape();
+   const active=ctx.getActiveDrawHandler();
+   if(active&&ctx.getActiveDrawPurpose()==="draw"&&typeof active.completeShape==="function")active.completeShape();
    else ctx.stopActiveDraw(true);
   };
   d.getElementById("zoomInBtn")?.addEventListener("click",()=>ctx.map.zoomIn());
