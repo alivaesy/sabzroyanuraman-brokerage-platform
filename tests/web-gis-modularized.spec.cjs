@@ -37,7 +37,9 @@ test.describe('Extracted Symbology and TOC modules', () => {
         type: 'FeatureCollection',
         features: [
           {type:'Feature',properties:{category:'A',area:10,name:'Parcel A'},geometry:{type:'Polygon',coordinates:[[[47.75,33.62],[47.752,33.62],[47.752,33.622],[47.75,33.622],[47.75,33.62]]]}},
-          {type:'Feature',properties:{category:'B',area:30,name:'Parcel B'},geometry:{type:'Polygon',coordinates:[[[47.753,33.62],[47.755,33.62],[47.755,33.622],[47.753,33.622],[47.753,33.62]]]}}
+          {type:'Feature',properties:{category:'B',area:30,name:'Parcel B'},geometry:{type:'Polygon',coordinates:[[[47.753,33.62],[47.755,33.62],[47.755,33.622],[47.753,33.622],[47.753,33.62]]]}},
+          {type:'Feature',properties:{category:'C',area:20,name:'Road'},geometry:{type:'LineString',coordinates:[[47.756,33.62],[47.758,33.622]]}},
+          {type:'Feature',properties:{category:'D',area:40,name:'Control point'},geometry:{type:'Point',coordinates:[47.759,33.621]}}
         ]
       });
       const item = bridge.namedLayers.find(layer => layer.name === '__symbology-module-test__');
@@ -49,6 +51,8 @@ test.describe('Extracted Symbology and TOC modules', () => {
     await page.locator('#lpStyleField').selectOption('category');
     await expect(page.locator('#lpRendererLegend')).toContainText('A');
     await expect(page.locator('#lpRendererLegend')).toContainText('B');
+    await expect(page.locator('#lpRendererLegend')).toContainText('C');
+    await expect(page.locator('#lpRendererLegend')).toContainText('D');
 
     await page.locator('#lpRenderer').selectOption('graduated');
     await page.locator('#lpStyleField').selectOption('area');
@@ -63,12 +67,13 @@ test.describe('Extracted Symbology and TOC modules', () => {
       return {
         config: item._rendererConfig,
         styled: features.length,
-        fillColors: features.map(feature => feature.options.fillColor)
+        styles: features.map(feature => ({color:feature.options.color,fillColor:feature.options.fillColor,geometry:feature.feature?.geometry?.type}))
       };
     });
     expect(result.config).toMatchObject({ mode: 'graduated', field: 'area', method: 'quantile' });
-    expect(result.styled).toBe(2);
-    expect(result.fillColors.every(Boolean)).toBeTruthy();
+    expect(result.styled).toBe(4);
+    expect(result.styles).toHaveLength(4);
+    expect(result.styles.every(style => style.geometry==='LineString' ? !!style.color : !!style.fillColor)).toBeTruthy();
     expect(errors).toEqual([]);
   });
 
