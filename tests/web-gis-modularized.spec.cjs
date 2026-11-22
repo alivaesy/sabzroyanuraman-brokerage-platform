@@ -154,9 +154,15 @@ test.describe('Extracted Symbology and TOC modules', () => {
     expect(order).toEqual(['__toc-order-B__', '__toc-order-A__']);
     const paintOrder = await page.evaluate(() => {
       const items = window.__sabzWebGISSharedBridge.namedLayers.filter(item => item.name.startsWith('__toc-order-'));
-      const paths = items.map(item => ({name:item.name,path:item.layer.getLayers()[0]._path}));
-      const positions = paths.map(item => ({name:item.name,index:[...item.path.parentNode.children].indexOf(item.path)}));
-      return positions;
+      return items.map(item => {
+        const layer=item.layer.getLayers()[0],renderer=layer._renderer;
+        if(renderer?._drawFirst){
+          let node=renderer._drawFirst,index=0;
+          while(node){if(node.layer===layer)return {name:item.name,index};node=node.next;index++;}
+        }
+        const path=layer._path;
+        return {name:item.name,index:path?.parentNode?[...path.parentNode.children].indexOf(path):-1};
+      });
     });
     expect(paintOrder.find(item => item.name === '__toc-order-B__').index)
       .toBeGreaterThan(paintOrder.find(item => item.name === '__toc-order-A__').index);
