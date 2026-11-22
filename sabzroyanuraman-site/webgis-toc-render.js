@@ -14,7 +14,7 @@ function create(ctx){
     if(!child)return;
     if(typeof child.setZIndex==="function")child.setZIndex(zIndex);
     if(typeof child.setZIndexOffset==="function")child.setZIndexOffset(zIndex);
-    if(typeof child.bringToFront==="function")child.bringToFront();
+    if(typeof child.bringToFront==="function"&&child._map)child.bringToFront();
     if(typeof child.eachLayer==="function")child.eachLayer(visit);
    };
    visit(layer);
