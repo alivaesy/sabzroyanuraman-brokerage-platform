@@ -1,8 +1,8 @@
 /* Sabz Royan WebGIS: ModelBuilder free-canvas and Layout editing layer. */
 (function () {
   "use strict";
-  const installRenderer = window.__sabzInstallModelBuilderRenderer;
-  if (typeof installRenderer === "function") installRenderer(original => {
+  const originalRenderer = window.renderModelBuilderGraph;
+  if (typeof originalRenderer === "function") window.renderModelBuilderGraph = ((original) => {
     if (typeof original !== "function" || original.__sabzEnhanced) return original;
     function enhanced(modal) {
       original(modal);
@@ -97,7 +97,7 @@
     }
     enhanced.__sabzEnhanced = true;
     return enhanced;
-  });
+  })(originalRenderer);
 
   const style=document.createElement("style");
   style.id="sabz-rustgis-package-style";
