@@ -1344,6 +1344,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <script src="./webgis-keyboard-shortcuts.js?v=20261122-keyboard-shortcuts"></script>
 <script src="./webgis-editor-task-menu.js?v=20261122-editor-task-menu"></script>
 <script src="./webgis-dock-accordion.js?v=20261122-dock-accordion"></script>
+<script src="./webgis-map-toolbars.js?v=20261122-map-toolbars"></script>
 <script src="./webgis-symbology-core.js?v=20261104-symbology-core"></script>
 <script src="./webgis-layer-symbology.js?v=20261118-layer-symbology"></script>
 <script src="./webgis-toc-render.js?v=20261118-toc-render"></script>
@@ -3198,15 +3199,15 @@ $("editTargetLayer").onchange=()=>{
  editTarget=next;
  updateEditorToolbar();
 };
-document.querySelectorAll("[data-editor-draw]").forEach(b=>b.onclick=()=>startDraw(b.dataset.editorDraw,b));
-$("finishSketchBtn").onclick=()=>{if(activeDrawHandler&&activeDrawPurpose==="draw"&&typeof activeDrawHandler.completeShape==="function")activeDrawHandler.completeShape();else stopActiveDraw(true)};
+
+
 $("goToXYBtn").onclick=goToXY;
 document.getElementById("closeGisDock")?.addEventListener("click",()=>document.getElementById("gisDock")?.classList.remove("show"));
 document.getElementById("closeCatalogDock")?.addEventListener("click",()=>{document.getElementById("catalogPanel")?.classList.remove("open");document.getElementById("searchDock")?.classList.remove("catalog-open")});
 document.getElementById("catalogTab")?.addEventListener("click",()=>{const d=document.getElementById("catalogPanel");if(!d)return;d.classList.toggle("open");if(d.classList.contains("open")){document.getElementById("searchDock")?.classList.add("catalog-open");document.getElementById("searchDock")?.classList.remove("open")}else document.getElementById("searchDock")?.classList.remove("catalog-open")});
 document.addEventListener("keydown",e=>{const tag=(e.target&&e.target.tagName||"").toLowerCase();if(e.key==="Escape"&&!e.defaultPrevented&&!activeDrawHandler&&!["input","textarea","select"].includes(tag)&&!e.target?.isContentEditable){document.getElementById("gisDock")?.classList.remove("show");document.getElementById("catalogPanel")?.classList.remove("open");document.getElementById("searchDock")?.classList.remove("open","catalog-open")}});
-document.getElementById("zoomInBtn")?.addEventListener("click",()=>map.zoomIn());
-document.getElementById("zoomOutBtn")?.addEventListener("click",()=>map.zoomOut());
+
+
 document.getElementById("searchTab")?.addEventListener("click",()=>{const d=document.getElementById("searchDock");d?.classList.toggle("open");if(d?.classList.contains("open")){document.getElementById("catalogPanel")?.classList.remove("open");d.classList.remove("catalog-open");document.getElementById("topToolSearch")?.focus()}});
 const mapScaleInput=document.getElementById("mapScale");
 const formatMapScale=n=>"1:"+Math.max(1,Math.round(n)).toLocaleString("en-US");
@@ -3225,22 +3226,18 @@ mapScaleInput?.addEventListener("keydown",event=>{
 map.on("zoomend moveend",refreshMapScale);refreshMapScale();
 map.on("moveend",recordMapExtent);
 recordMapExtent();updateExtentButtons();updateUndoButtons();updateStandardActionButtons();
-document.getElementById("panMapBtn")?.addEventListener("click",()=>{
-  stopActiveDraw(true);activeMapTool="pan";
-  document.querySelectorAll("#classicToolbars button.icon-tool").forEach(x=>x.classList.remove("active"));
-  document.getElementById("panMapBtn")?.classList.add("active");
-  map.dragging.enable();status("Pan tool is active.");
-});
-$("selectFeaturesBtn").onclick=()=>{stopActiveDraw(true);activeMapTool="select";map.dragging.enable();map.getContainer().style.cursor="";document.querySelectorAll("#classicToolbars button").forEach(x=>x.classList.remove("active"));$("selectFeaturesBtn").classList.add("active");status("Select Features is active. Click an existing feature to select it; Ctrl-click or Shift-click adds/removes features.")};
-$("selectRectangleBtn")?.addEventListener("click",selectByRectangle);
-$("selectPolygonBtn")?.addEventListener("click",selectByPolygon);
-$("identifyFeatureBtn").onclick=()=>{activeMapTool="identify";document.querySelectorAll("#classicToolbars button").forEach(x=>x.classList.remove("active"));$("identifyFeatureBtn").classList.add("active");status("Click a feature to identify it.")};
+window.SabzWebGISMapToolbars.init({map,L,drawn,namedLayers,startDraw:(type,button)=>startDraw(type,button),activeDrawHandler,activeDrawPurpose,stopActiveDraw,status,setActiveMapTool:tool=>{activeMapTool=tool},selectByRectangle,selectByPolygon});
+
+
+
+
+
 $("selectElementsBtn").onclick=()=>setMapTool("select",$("selectElementsBtn"),"Select Elements is active. Click a map feature to select it.");
 $("hyperlinkBtn").onclick=startHyperlinkTool;
 $("htmlPopupBtn").onclick=startHtmlPopupTool;
 $("measureToolBtn").onclick=startMeasureTool;
 $("clearSelectionBtn").onclick=clearSelection;
-$("fullExtentBtn").onclick=()=>{const layers=[drawn,...namedLayers.map(x=>x.layer)].filter(l=>l.getBounds&&l.getBounds().isValid());if(!layers.length)return;const bounds=L.latLngBounds(layers.map(l=>l.getBounds()));map.fitBounds(bounds,{padding:[20,20]})};
+
 
 
 function ensureFeatureProperties(layer){
