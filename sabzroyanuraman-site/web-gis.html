@@ -1348,6 +1348,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <script src="./webgis-symbology-core.js?v=20261104-symbology-core"></script>
 <script src="./webgis-layer-symbology.js?v=20261118-layer-symbology"></script>
 <script src="./webgis-selection.js?v=20261122-selection"></script>
+<script src="./webgis-feature-editing.js?v=20261122-feature-editing"></script>
 <script src="./webgis-toc-render.js?v=20261118-toc-render"></script>
 <script src="./raster-runtime.js?v=20261101-selftest"></script>
 <script src="./rust-raster-bridge.js"></script>
@@ -1362,6 +1363,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 (function(){
 "use strict";
 const selectionOperations=window.SabzWebGISSelection.create({turf:window.turf,nearestPointOnFeatureSafe});
+const featureEditingUI=window.SabzWebGISFeatureEditing.create({$:id=>document.getElementById(id),document,getEditSessionActive:()=>editSessionActive,getActiveDrawHandler:()=>activeDrawHandler,getActiveDrawPurpose:()=>activeDrawPurpose,updateStandardActionButtons});
 // Publish a diagnostic bridge immediately. Later scripts can distinguish a core startup
 // failure from an empty shared project instead of silently giving up before the bridge exists.
 window.__sabzWebGISSharedBridge={
@@ -1663,17 +1665,7 @@ function stopActiveDraw(cancel=true){
   updateEditorToolbar();
 }
 function updateEditorToolbar(){
-  $("editorToolbar")?.classList.toggle("editing-active",editSessionActive);
-  $("editMenu")?.classList.toggle("editing-active",editSessionActive);
-  $("startEditingBtn").disabled=editSessionActive;
-  $("saveEditsBtn").disabled=!editSessionActive;
-  ["saveTableEdits","addTableField","deleteTableField","deleteSelectedRows","fillSelected"].forEach(id=>{const b=$(id);if(b)b.disabled=!editSessionActive});
-  $("stopEditingBtn").disabled=!editSessionActive;
-  $("editTargetLayer").disabled=editSessionActive;
-  document.querySelectorAll("[data-editor-draw]").forEach(b=>{b.disabled=false;b.title=editSessionActive?"Create "+(b.getAttribute("aria-label")||"feature"):"Create "+(b.getAttribute("aria-label")||"feature")+" (starts editing automatically)";});
-  const finishButton=$("finishSketchBtn");if(finishButton)finishButton.disabled=!editSessionActive||!(activeDrawHandler&&activeDrawPurpose==="draw");
-  const state=$("editorStateLabel");if(state){state.textContent=editSessionActive?"Editing "+($("editTargetLayer").selectedOptions[0]?.textContent||"layer"):"Start Editing to enable drawing";state.classList.toggle("active",editSessionActive)}
-  updateStandardActionButtons();
+  return featureEditingUI.updateEditorToolbar();
 }
 function refreshEditorTargets(){
   const sel=$("editTargetLayer");if(!sel)return;
