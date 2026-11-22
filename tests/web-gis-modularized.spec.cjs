@@ -167,6 +167,7 @@ test.describe('Extracted Symbology and TOC modules', () => {
     expect(paintOrder.find(item => item.name === '__toc-order-B__').index)
       .toBeGreaterThan(paintOrder.find(item => item.name === '__toc-order-A__').index);
     expect(errors).toEqual([]);
+  });
 
   test('Selection module computes feature distance through injected dependencies', async ({ page }) => {
     const errors = await boot(page);
@@ -182,6 +183,5 @@ test.describe('Extracted Symbology and TOC modules', () => {
     expect(result).toBeGreaterThan(0);
     expect(result).toBeLessThan(100);
     expect(errors).toEqual([]);
-  });
   });
 });
