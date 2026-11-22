@@ -1363,7 +1363,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 (function(){
 "use strict";
 const selectionOperations=window.SabzWebGISSelection.create({turf:window.turf,nearestPointOnFeatureSafe});
-const featureEditingUI=window.SabzWebGISFeatureEditing.create({$:id=>document.getElementById(id),document,getEditSessionActive:()=>editSessionActive,getActiveDrawHandler:()=>activeDrawHandler,getActiveDrawPurpose:()=>activeDrawPurpose,updateStandardActionButtons});
+const featureEditingUI=window.SabzWebGISFeatureEditing.create({$:id=>document.getElementById(id),document,getEditSessionActive:()=>editSessionActive,getSelectedFeatures:()=>selectedFeatures,getFeatureClipboard:()=>featureClipboard,getActiveDrawHandler:()=>activeDrawHandler,getActiveDrawPurpose:()=>activeDrawPurpose});
 // Publish a diagnostic bridge immediately. Later scripts can distinguish a core startup
 // failure from an empty shared project instead of silently giving up before the bridge exists.
 window.__sabzWebGISSharedBridge={
@@ -2041,11 +2041,7 @@ function moveExtentHistory(offset){
   updateExtentButtons();setTimeout(()=>{if(mapExtentTarget===next)mapExtentTarget=null;},1000);
 }
 function updateStandardActionButtons(){
-  const hasSelection=selectedFeatures.size>0;
-  $("copyBtn").disabled=!hasSelection;
-  $("cutBtn").disabled=!hasSelection||!editSessionActive;
-  $("deleteBtn").disabled=!hasSelection||!editSessionActive;
-  $("pasteBtn").disabled=!featureClipboard.length||!editSessionActive;
+  return featureEditingUI.updateStandardActionButtons();
 }
 async function flushGeodatabaseEdits(){
   try{
