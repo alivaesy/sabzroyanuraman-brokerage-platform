@@ -6828,22 +6828,7 @@ function reshapeSelected(){
   h.enable();
 }
 function vertexGeometryIsValid(g){return featureEditingUI.vertexGeometryIsValid(g);}
-function restoreVertexGeometry(layer,geometry){
-  if(!layer||!geometry)return false;
-  try{
-    const g=JSON.parse(JSON.stringify(geometry));
-    if(g.type==="Point"&&layer.setLatLng){layer.setLatLng([g.coordinates[1],g.coordinates[0]])}
-    else if(layer.setLatLngs&&Array.isArray(g.coordinates)){
-      const levels={LineString:0,MultiLineString:1,Polygon:1,MultiPolygon:2}[g.type];
-      if(levels===undefined)return false;
-      layer.setLatLngs(L.GeoJSON.coordsToLatLngs(g.coordinates,levels));
-      if(layer.redraw)layer.redraw();
-    }else return false;
-    const old=layer.feature||{type:"Feature",properties:{}};
-    layer.feature={...old,type:"Feature",geometry:g,properties:{...(old.properties||{})}};
-    return true;
-  }catch(err){console.warn("Could not restore last valid vertex geometry",err);return false}
-}
+function restoreVertexGeometry(layer,geometry){return featureEditingUI.restoreVertexGeometry(layer,geometry);}
 function stopVertexEditing(){
   const owner=window._vertexEditOwner,layers=Array.isArray(window._vertexEditLayers)?window._vertexEditLayers:[],baseline=window._vertexEditBaseline,lastValid=window._vertexEditLastValid;
   let geometryChanged=false,invalidRestored=0;
