@@ -1347,6 +1347,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <script src="./webgis-map-toolbars.js?v=20261122-map-toolbars"></script>
 <script src="./webgis-symbology-core.js?v=20261104-symbology-core"></script>
 <script src="./webgis-layer-symbology.js?v=20261118-layer-symbology"></script>
+<script src="./webgis-selection.js?v=20261122-selection"></script>
 <script src="./webgis-toc-render.js?v=20261118-toc-render"></script>
 <script src="./raster-runtime.js?v=20261101-selftest"></script>
 <script src="./rust-raster-bridge.js"></script>
@@ -6347,31 +6348,7 @@ async function selectByLocation(){
   status(selectedFeatures.size+" feature(s) selected; spatial match count "+matches.length+" using "+relation+".");
 }
 function featureDistanceMeters(a,b){
-  if(!a?.geometry||!b?.geometry)return Infinity;
-  try{if(turf.booleanIntersects(a,b))return 0;}catch(_){}
-  const collectCoordinates=(geometry,out)=>{
-    if(!geometry)return;
-    if(geometry.type==="GeometryCollection"){
-      (geometry.geometries||[]).forEach(g=>collectCoordinates(g,out));
-      return;
-    }
-    const walk=value=>{
-      if(!Array.isArray(value))return;
-      if(value.length>=2&&typeof value[0]==="number"&&typeof value[1]==="number"){out.push([value[0],value[1]]);return;}
-      value.forEach(walk);
-    };
-    walk(geometry.coordinates);
-  };
-  const coords=[];collectCoordinates(a.geometry,coords);
-  let best=Infinity;
-  coords.forEach(c=>{
-    try{const near=nearestPointOnFeatureSafe(b,turf.point(c));if(near){const d=turf.distance(turf.point(c),near,{units:"meters"});if(d<best)best=d;}}catch(_){}
-  });
-  const reverse=[];collectCoordinates(b.geometry,reverse);
-  reverse.forEach(c=>{
-    try{const near=nearestPointOnFeatureSafe(a,turf.point(c));if(near){const d=turf.distance(turf.point(c),near,{units:"meters"});if(d<best)best=d;}}catch(_){}
-  });
-  return best;
+  return selectionOperations.featureDistanceMeters(a,b);
 }
 async function selectWithinDistance(){
   const raw=await arcMapDialog.prompt({title:"Select By Distance",message:"Maximum distance from selected reference feature(s), in meters:",label:"Distance (meters)",value:"5"});
