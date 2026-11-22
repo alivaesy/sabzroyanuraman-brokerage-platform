@@ -89,7 +89,7 @@ function layerLabelClass(owner){
   if(!fields.includes(field)){ctx.status("Unknown label field. Choose one of the listed fields.");return;}
   const owner=target?(ctx.namedLayers.find(x=>x.layer===target)||ctx.contextLayerItem):null;
   if(owner){const config=ctx.core.normalizeLabelConfig({enabled:true,field,size:12,color:"#202020"});owner._labelsEnabled=config.enabled;owner._labelField=config.field;owner._labelSize=config.size;owner._labelColor=config.color;}
-  const labelClass=owner?ctx.layerLabelClass(owner):"gis-feature-label";
+  const labelClass=owner?layerLabelClass(owner):"gis-feature-label";
   let count=0;
   rs.forEach(r=>{
     try{
