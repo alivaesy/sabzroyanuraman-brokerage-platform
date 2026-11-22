@@ -54,7 +54,7 @@ test.describe('Extracted Symbology and TOC modules', () => {
     await page.locator('#lpStyleField').selectOption('area');
     await page.locator('#lpClassificationMethod').selectOption('quantile');
     await expect(page.locator('#lpRendererLegend')).toContainText('10');
-    await page.locator('#lpRendererLegend').toContainText('30');
+    await expect(page.locator('#lpRendererLegend')).toContainText('30');
     await page.locator('#layerPropertiesForm button[type="submit"]:not(#layerPropertiesOk)').click();
 
     const result = await page.evaluate(() => {
