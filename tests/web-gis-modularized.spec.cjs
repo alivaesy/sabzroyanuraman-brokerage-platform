@@ -172,16 +172,34 @@ test.describe('Extracted Symbology and TOC modules', () => {
   test('Selection module computes feature distance through injected dependencies', async ({ page }) => {
     const errors = await boot(page);
     const result = await page.evaluate(() => {
+      const drawn = {name:'My Drawings'};
+      const vectorLayer = {name:'Parcels'};
+      const child = {id:'selected-child'};
+      const feature = {type:'Feature',properties:{name:'Parcel'},geometry:{type:'Point',coordinates:[47.75,33.62]}};
+      const selected = new Set([child]);
       const selection = window.SabzWebGISSelection.create({
         turf: window.turf,
-        nearestPointOnFeatureSafe: (feature) => window.turf.point(feature.geometry.coordinates)
+        nearestPointOnFeatureSafe: (target) => window.turf.point(target.geometry.coordinates),
+        getDrawnLayer: () => drawn,
+        getNamedLayers: () => [{name:'Parcels',layer:vectorLayer}],
+        isVectorLayer: () => true,
+        vectorFeatures: layer => layer===vectorLayer ? [{layer:child,feature}] : [],
+        getSelectedFeatures: () => selected
       });
       const a = window.turf.point([47.75,33.62]);
       const b = window.turf.point([47.751,33.62]);
-      return selection.featureDistanceMeters(a,b);
+      return {
+        distance: selection.featureDistanceMeters(a,b),
+        layerCount: selection.allSelectableFeatureLayers().length,
+        recordCount: selection.getFeatureRecords().length,
+        selectedOwner: selection.selectedRecords()[0]?.owner?.name
+      };
     });
-    expect(result).toBeGreaterThan(0);
-    expect(result).toBeLessThan(100);
+    expect(result.distance).toBeGreaterThan(0);
+    expect(result.distance).toBeLessThan(100);
+    expect(result.layerCount).toBe(2);
+    expect(result.recordCount).toBe(1);
+    expect(result.selectedOwner).toBe('Parcels');
     expect(errors).toEqual([]);
   });
   test('Feature Editing module controls toolbar and standard action states', async ({ page }) => {
