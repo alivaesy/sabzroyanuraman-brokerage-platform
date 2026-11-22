@@ -18,6 +18,7 @@ function create(ctx){
   });
  }
  function renderLayerList(){
+  syncLayerDrawingOrder();
   const el=$("layers");if(!el)return;el.innerHTML="";
   if(state.tocViewMode==="option"){
    const panel=document.createElement("div");panel.className="toc-options-panel";panel.style.cssText="padding:8px;font-size:11px;color:#354b59";
