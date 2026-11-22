@@ -1,0 +1,40 @@
+name: WebGIS modularized browser tests
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "sabzroyanuraman-site/web-gis.html"
+      - "sabzroyanuraman-site/webgis-layer-symbology.js"
+      - "sabzroyanuraman-site/webgis-symbology-core.js"
+      - "sabzroyanuraman-site/webgis-toc-render.js"
+      - "tests/web-gis-modularized.spec.cjs"
+      - ".github/workflows/webgis-modularized-browser.yml"
+  pull_request:
+    paths:
+      - "sabzroyanuraman-site/web-gis.html"
+      - "sabzroyanuraman-site/webgis-layer-symbology.js"
+      - "sabzroyanuraman-site/webgis-symbology-core.js"
+      - "sabzroyanuraman-site/webgis-toc-render.js"
+      - "tests/web-gis-modularized.spec.cjs"
+      - ".github/workflows/webgis-modularized-browser.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright
+        run: npm install --no-save @playwright/test
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run real-browser Symbology and TOC tests
+        run: npx playwright test tests/web-gis-modularized.spec.cjs --reporter=line
