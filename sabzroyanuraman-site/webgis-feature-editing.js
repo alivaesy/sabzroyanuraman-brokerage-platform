@@ -1,7 +1,14 @@
 (function(root){
   "use strict";
-  function create({$,document,getEditSessionActive,getActiveDrawHandler,getActiveDrawPurpose,updateStandardActionButtons}={}){
-    if(typeof $!=="function"||!document||typeof getEditSessionActive!=="function"||typeof updateStandardActionButtons!=="function")throw new Error("Feature editing UI dependencies are incomplete.");
+  function create({$,document,getEditSessionActive,getSelectedFeatures,getFeatureClipboard,getActiveDrawHandler,getActiveDrawPurpose}={}){
+    if(typeof $!=="function"||!document||typeof getEditSessionActive!=="function"||typeof getSelectedFeatures!=="function"||typeof getFeatureClipboard!=="function")throw new Error("Feature editing UI dependencies are incomplete.");
+    function updateStandardActionButtons(){
+      const hasSelection=getSelectedFeatures().size>0,editing=!!getEditSessionActive();
+      $("copyBtn").disabled=!hasSelection;
+      $("cutBtn").disabled=!hasSelection||!editing;
+      $("deleteBtn").disabled=!hasSelection||!editing;
+      $("pasteBtn").disabled=!getFeatureClipboard().length||!editing;
+    }
     function updateEditorToolbar(){
       const editing=!!getEditSessionActive();
       $("editorToolbar")?.classList.toggle("editing-active",editing);
@@ -16,7 +23,7 @@
       const state=$("editorStateLabel");if(state){state.textContent=editing?"Editing "+($("editTargetLayer").selectedOptions[0]?.textContent||"layer"):"Start Editing to enable drawing";state.classList.toggle("active",editing)}
       updateStandardActionButtons();
     }
-    return Object.freeze({updateEditorToolbar});
+    return Object.freeze({updateEditorToolbar,updateStandardActionButtons});
   }
   root.SabzWebGISFeatureEditing={create};
 })(window);
