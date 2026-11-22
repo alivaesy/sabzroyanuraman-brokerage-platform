@@ -11,7 +11,7 @@
    selectElementsBtn:ctx.selectElements,hyperlinkBtn:ctx.startHyperlink,htmlPopupBtn:ctx.startHtmlPopup,
    measureToolBtn:ctx.startMeasure,findRouteBtn:ctx.findRoute,timeSliderBtn:ctx.startTimeSlider,
    createViewerBtn:ctx.createMapViewer,saveEditsBtn:ctx.saveEdits,stopEditingBtn:ctx.stopEditing,
-   goToXYBtn:ctx.goToXY
+   goToXYBtn:ctx.goToXY,clearSelectionBtn:ctx.clearSelection
   };
   Object.entries(directBindings).forEach(([id,handler])=>{const el=d.getElementById(id);if(el&&typeof handler==="function")el.onclick=handler;});
   d.querySelectorAll("[data-editor-draw]").forEach(button=>button.onclick=()=>ctx.startDraw(button.dataset.editorDraw,button));
