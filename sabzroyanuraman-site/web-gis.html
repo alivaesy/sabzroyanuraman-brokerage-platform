@@ -3226,17 +3226,17 @@ mapScaleInput?.addEventListener("keydown",event=>{
 map.on("zoomend moveend",refreshMapScale);refreshMapScale();
 map.on("moveend",recordMapExtent);
 recordMapExtent();updateExtentButtons();updateUndoButtons();updateStandardActionButtons();
-window.SabzWebGISMapToolbars.init({map,L,drawn,namedLayers,startDraw:(type,button)=>startDraw(type,button),getActiveDrawHandler:()=>activeDrawHandler,getActiveDrawPurpose:()=>activeDrawPurpose,stopActiveDraw,status,setActiveMapTool:tool=>{activeMapTool=tool},selectByRectangle,selectByPolygon,startEditing:()=>startEditing(),clearWorkspace,printMap:()=>window.print(),copyFeatures:()=>copySelectedFeatures(false),cutFeatures:()=>copySelectedFeatures(true),pasteFeatures,deleteFeatures:deleteSelectedFeatures,undoMapEdit,redoMapEdit,openOnlineData,runMapCommandLine,backExtent:()=>moveExtentHistory(-1),nextExtent:()=>moveExtentHistory(1),selectElements:()=>setMapTool("select",$("selectElementsBtn"),"Select Elements is active. Click a map feature to select it."),startHyperlink:startHyperlinkTool,startHtmlPopup:startHtmlPopupTool,startMeasure:startMeasureTool,findRoute,startTimeSlider,createMapViewer,saveEdits,stopEditing,goToXY});
+window.SabzWebGISMapToolbars.init({map,L,drawn,namedLayers,startDraw:(type,button)=>startDraw(type,button),getActiveDrawHandler:()=>activeDrawHandler,getActiveDrawPurpose:()=>activeDrawPurpose,stopActiveDraw,status,setActiveMapTool:tool=>{activeMapTool=tool},selectByRectangle,selectByPolygon,startEditing:()=>startEditing(),clearWorkspace,printMap:()=>window.print(),copyFeatures:()=>copySelectedFeatures(false),cutFeatures:()=>copySelectedFeatures(true),pasteFeatures,deleteFeatures:deleteSelectedFeatures,undoMapEdit,redoMapEdit,openOnlineData,runMapCommandLine,backExtent:()=>moveExtentHistory(-1),nextExtent:()=>moveExtentHistory(1),selectElements:()=>setMapTool("select",$("selectElementsBtn"),"Select Elements is active. Click a map feature to select it."),startHyperlink:startHyperlinkTool,startHtmlPopup:startHtmlPopupTool,startMeasure:startMeasureTool,findRoute,startTimeSlider,createMapViewer,saveEdits,stopEditing,goToXY,clearSelection});
 
 
 
 
 
-$("selectElementsBtn").onclick=()=>setMapTool("select",$("selectElementsBtn"),"Select Elements is active. Click a map feature to select it.");
-$("hyperlinkBtn").onclick=startHyperlinkTool;
-$("htmlPopupBtn").onclick=startHtmlPopupTool;
-$("measureToolBtn").onclick=startMeasureTool;
-$("clearSelectionBtn").onclick=clearSelection;
+
+
+
+
+
 
 
 
