@@ -140,6 +140,22 @@ function vertexGeometryIsValid(g){
   return true;
 }
 
+function restoreVertexGeometry(L,layer,geometry){
+  if(!layer||!geometry)return false;
+  try{
+    const g=JSON.parse(JSON.stringify(geometry));
+    if(g.type==="Point"&&layer.setLatLng){layer.setLatLng([g.coordinates[1],g.coordinates[0]])}
+    else if(layer.setLatLngs&&Array.isArray(g.coordinates)){
+      const levels={LineString:0,MultiLineString:1,Polygon:1,MultiPolygon:2}[g.type];
+      if(levels===undefined)return false;
+      layer.setLatLngs(L.GeoJSON.coordsToLatLngs(g.coordinates,levels));
+      if(layer.redraw)layer.redraw();
+    }else return false;
+    const old=layer.feature||{type:"Feature",properties:{}};
+    layer.feature={...old,type:"Feature",geometry:g,properties:{...(old.properties||{})}};
+    return true;
+  }catch(err){console.warn("Could not restore last valid vertex geometry",err);return false}
+}
     function updateStandardActionButtons(){
       const hasSelection=getSelectedFeatures().size>0,editing=!!getEditSessionActive();
       $("copyBtn").disabled=!hasSelection;
@@ -161,7 +177,7 @@ function vertexGeometryIsValid(g){
       const state=$("editorStateLabel");if(state){state.textContent=editing?"Editing "+($("editTargetLayer").selectedOptions[0]?.textContent||"layer"):"Start Editing to enable drawing";state.classList.toggle("active",editing)}
       updateStandardActionButtons();
     }
-    return Object.freeze({updateEditorToolbar,updateStandardActionButtons,splitPolygonWithCutter,splitPolygonAtTargetArea,splitPolygonByRotatingCut,vertexGeometryIsValid});
+    return Object.freeze({updateEditorToolbar,updateStandardActionButtons,splitPolygonWithCutter,splitPolygonAtTargetArea,splitPolygonByRotatingCut,vertexGeometryIsValid,restoreVertexGeometry:(layer,geometry)=>restoreVertexGeometry(root.L,layer,geometry)});
   }
   root.SabzWebGISFeatureEditing={create};
 })(window);
