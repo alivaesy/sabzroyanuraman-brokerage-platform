@@ -3165,28 +3165,28 @@ map.on("zoomend",()=>updateCoordinateStatus(map.getCenter()));
 map.on("mouseout",()=>updateCoordinateStatus(map.getCenter()));
 map.whenReady(()=>updateCoordinateStatus(map.getCenter()));
 refreshEditorTargets();updateEditorToolbar();
-$("startEditingBtn").onclick=()=>startEditing();
-$("newMapBtn").onclick=clearWorkspace;
-$("printMapBtn").onclick=()=>window.print();
-$("copyBtn").onclick=()=>copySelectedFeatures(false);
-$("cutBtn").onclick=()=>copySelectedFeatures(true);
-$("pasteBtn").onclick=pasteFeatures;
-$("deleteBtn").onclick=deleteSelectedFeatures;
-$("undoBtn").onclick=undoMapEdit;
-$("redoBtn").onclick=redoMapEdit;
-$("addOnlineDataBtn").onclick=openOnlineData;
-$("commandLineBtn").onclick=runMapCommandLine;
-$("backExtentBtn").onclick=()=>moveExtentHistory(-1);
-$("nextExtentBtn").onclick=()=>moveExtentHistory(1);
-$("selectElementsBtn").onclick=()=>setMapTool("select",$("selectElementsBtn"),"Select Elements is active. Click a map feature to select it.");
-$("hyperlinkBtn").onclick=startHyperlinkTool;
-$("htmlPopupBtn").onclick=startHtmlPopupTool;
-$("measureToolBtn").onclick=startMeasureTool;
-$("findRouteBtn").onclick=findRoute;
-$("timeSliderBtn").onclick=startTimeSlider;
-$("createViewerBtn").onclick=createMapViewer;
-$("saveEditsBtn").onclick=saveEdits;
-$("stopEditingBtn").onclick=stopEditing;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 $("editTargetLayer").onchange=()=>{
  const v=$("editTargetLayer").value;
  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("changing the edit target")){
@@ -3201,7 +3201,7 @@ $("editTargetLayer").onchange=()=>{
 };
 
 
-$("goToXYBtn").onclick=goToXY;
+
 document.getElementById("closeGisDock")?.addEventListener("click",()=>document.getElementById("gisDock")?.classList.remove("show"));
 document.getElementById("closeCatalogDock")?.addEventListener("click",()=>{document.getElementById("catalogPanel")?.classList.remove("open");document.getElementById("searchDock")?.classList.remove("catalog-open")});
 document.getElementById("catalogTab")?.addEventListener("click",()=>{const d=document.getElementById("catalogPanel");if(!d)return;d.classList.toggle("open");if(d.classList.contains("open")){document.getElementById("searchDock")?.classList.add("catalog-open");document.getElementById("searchDock")?.classList.remove("open")}else document.getElementById("searchDock")?.classList.remove("catalog-open")});
@@ -3226,7 +3226,7 @@ mapScaleInput?.addEventListener("keydown",event=>{
 map.on("zoomend moveend",refreshMapScale);refreshMapScale();
 map.on("moveend",recordMapExtent);
 recordMapExtent();updateExtentButtons();updateUndoButtons();updateStandardActionButtons();
-window.SabzWebGISMapToolbars.init({map,L,drawn,namedLayers,startDraw:(type,button)=>startDraw(type,button),getActiveDrawHandler:()=>activeDrawHandler,getActiveDrawPurpose:()=>activeDrawPurpose,stopActiveDraw,status,setActiveMapTool:tool=>{activeMapTool=tool},selectByRectangle,selectByPolygon});
+window.SabzWebGISMapToolbars.init({map,L,drawn,namedLayers,startDraw:(type,button)=>startDraw(type,button),getActiveDrawHandler:()=>activeDrawHandler,getActiveDrawPurpose:()=>activeDrawPurpose,stopActiveDraw,status,setActiveMapTool:tool=>{activeMapTool=tool},selectByRectangle,selectByPolygon,startEditing:()=>startEditing(),clearWorkspace,printMap:()=>window.print(),copyFeatures:()=>copySelectedFeatures(false),cutFeatures:()=>copySelectedFeatures(true),pasteFeatures,deleteFeatures:deleteSelectedFeatures,undoMapEdit,redoMapEdit,openOnlineData,runMapCommandLine,backExtent:()=>moveExtentHistory(-1),nextExtent:()=>moveExtentHistory(1),selectElements:()=>setMapTool("select",$("selectElementsBtn"),"Select Elements is active. Click a map feature to select it."),startHyperlink:startHyperlinkTool,startHtmlPopup:startHtmlPopupTool,startMeasure:startMeasureTool,findRoute,startTimeSlider,createMapViewer,saveEdits,stopEditing,goToXY});
 
 
 
