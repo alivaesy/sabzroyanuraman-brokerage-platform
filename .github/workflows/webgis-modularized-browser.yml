@@ -8,6 +8,8 @@ on:
       - "sabzroyanuraman-site/webgis-layer-symbology.js"
       - "sabzroyanuraman-site/webgis-symbology-core.js"
       - "sabzroyanuraman-site/webgis-toc-render.js"
+      - "sabzroyanuraman-site/webgis-selection.js"
+      - "sabzroyanuraman-site/webgis-feature-editing.js"
       - "tests/web-gis-modularized.spec.cjs"
       - ".github/workflows/webgis-modularized-browser.yml"
   pull_request:
