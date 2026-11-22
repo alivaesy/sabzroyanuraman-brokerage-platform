@@ -184,4 +184,32 @@ test.describe('Extracted Symbology and TOC modules', () => {
     expect(result).toBeLessThan(100);
     expect(errors).toEqual([]);
   });
+  test('Feature Editing module controls toolbar and standard action states', async ({ page }) => {
+    const errors = await boot(page);
+    const result = await page.evaluate(() => {
+      const selected = new Set([{}];
+      const clipboard = [{}];
+      const editing = window.SabzWebGISFeatureEditing.create({
+        $: id => document.getElementById(id), document,
+        getEditSessionActive: () => true,
+        getSelectedFeatures: () => selected,
+        getFeatureClipboard: () => clipboard,
+        getActiveDrawHandler: () => ({}),
+        getActiveDrawPurpose: () => 'draw'
+      });
+      editing.updateEditorToolbar();
+      return {
+        startDisabled: document.getElementById('startEditingBtn').disabled,
+        saveEnabled: !document.getElementById('saveEditsBtn').disabled,
+        stopEnabled: !document.getElementById('stopEditingBtn').disabled,
+        copyEnabled: !document.getElementById('copyBtn').disabled,
+        cutEnabled: !document.getElementById('cutBtn').disabled,
+        pasteEnabled: !document.getElementById('pasteBtn').disabled,
+        finishEnabled: !document.getElementById('finishSketchBtn').disabled
+      };
+    });
+    expect(result).toEqual({startDisabled:true,saveEnabled:true,stopEnabled:true,copyEnabled:true,cutEnabled:true,pasteEnabled:true,finishEnabled:true});
+    expect(errors).toEqual([]);
+  });
+
 });
