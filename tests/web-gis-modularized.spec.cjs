@@ -261,4 +261,30 @@ test.describe('Extracted Symbology and TOC modules', () => {
     expect(errors).toEqual([]);
   });
 
+  test('Feature Editing geometry core validates vertices and splits a polygon', async ({ page }) => {
+    const errors = await boot(page);
+    const result = await page.evaluate(() => {
+      const api = window.SabzWebGISFeatureEditing.create({
+        $: id => document.getElementById(id), document, turf: window.turf,
+        getEditSessionActive: () => false, getSelectedFeatures: () => new Set(),
+        getFeatureClipboard: () => [], getActiveDrawHandler: () => null,
+        getActiveDrawPurpose: () => null
+      });
+      const polygon = window.turf.polygon([[[0,0],[4,0],[4,4],[0,4],[0,0]]]);
+      const cutter = window.turf.lineString([[-1,2],[5,2]]);
+      const parts = api.splitPolygonWithCutter(polygon,cutter);
+      return {
+        valid: api.vertexGeometryIsValid(polygon.geometry),
+        invalid: api.vertexGeometryIsValid({type:'LineString',coordinates:[[0,0]]}),
+        parts: parts.length,
+        areaDelta: Math.abs(parts.reduce((sum,p)=>sum+window.turf.area(p),0)-window.turf.area(polygon))
+      };
+    });
+    expect(result.valid).toBe(true);
+    expect(result.invalid).toBe(false);
+    expect(result.parts).toBe(2);
+    expect(result.areaDelta).toBeLessThan(0.01);
+    expect(errors).toEqual([]);
+  });
+
 });
