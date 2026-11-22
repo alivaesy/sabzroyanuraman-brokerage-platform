@@ -167,5 +167,21 @@ test.describe('Extracted Symbology and TOC modules', () => {
     expect(paintOrder.find(item => item.name === '__toc-order-B__').index)
       .toBeGreaterThan(paintOrder.find(item => item.name === '__toc-order-A__').index);
     expect(errors).toEqual([]);
+
+  test('Selection module computes feature distance through injected dependencies', async ({ page }) => {
+    const errors = await boot(page);
+    const result = await page.evaluate(() => {
+      const selection = window.SabzWebGISSelection.create({
+        turf: window.turf,
+        nearestPointOnFeatureSafe: (feature) => window.turf.point(feature.geometry.coordinates)
+      });
+      const a = window.turf.point([47.75,33.62]);
+      const b = window.turf.point([47.751,33.62]);
+      return selection.featureDistanceMeters(a,b);
+    });
+    expect(result).toBeGreaterThan(0);
+    expect(result).toBeLessThan(100);
+    expect(errors).toEqual([]);
+  });
   });
 });
