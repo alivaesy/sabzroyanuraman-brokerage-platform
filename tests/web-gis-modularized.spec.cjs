@@ -230,4 +230,35 @@ test.describe('Extracted Symbology and TOC modules', () => {
     expect(errors).toEqual([]);
   });
 
+  test('Selection module exposes full Select By Location and Attributes workflows', async ({ page }) => {
+    const errors = await boot(page);
+    const api = await page.evaluate(() => ({
+      location: typeof window.SabzWebGISSelection.create({
+        turf: window.turf,
+        nearestPointOnFeatureSafe: () => null,
+        getDrawnLayer: () => ({}), getNamedLayers: () => [],
+        isVectorLayer: () => false, vectorFeatures: () => [],
+        getSelectedFeatures: () => new Set(),
+        arcMapDialog: {}, status: () => {}, getFeatureRecords: () => [],
+        getSelectedLayer: () => null, setSelectedLayer: () => {},
+        setSelectedOverlay: () => {}, renderAttributeEditor: () => {},
+        applySelectionVisual: () => {}, $: () => null,
+        currentAttributeLayer: () => null, isReservedAttributeField: () => false
+      }).selectByLocation,
+      attributes: typeof window.SabzWebGISSelection.create({
+        turf: window.turf, nearestPointOnFeatureSafe: () => null,
+        getDrawnLayer: () => ({}), getNamedLayers: () => [],
+        isVectorLayer: () => false, vectorFeatures: () => [],
+        getSelectedFeatures: () => new Set(),
+        arcMapDialog: {}, status: () => {}, getFeatureRecords: () => [],
+        getSelectedLayer: () => null, setSelectedLayer: () => {},
+        setSelectedOverlay: () => {}, renderAttributeEditor: () => {},
+        applySelectionVisual: () => {}, $: () => null,
+        currentAttributeLayer: () => null, isReservedAttributeField: () => false
+      }).selectByAttribute
+    }));
+    expect(api).toEqual({location:'function',attributes:'function'});
+    expect(errors).toEqual([]);
+  });
+
 });
