@@ -72,6 +72,44 @@ test.describe('Extracted Symbology and TOC modules', () => {
     expect(errors).toEqual([]);
   });
 
+
+  test('Symbology applies renderer styles to point, line and polygon features', async ({ page }) => {
+    const errors = await boot(page);
+    await page.evaluate(() => {
+      const bridge = window.__sabzWebGISSharedBridge;
+      bridge.addGeoJSONLayer('__symbology-geometry-test__', {
+        type: 'FeatureCollection', features: [
+          {type:'Feature',properties:{kind:'Point',value:5},geometry:{type:'Point',coordinates:[47.75,33.62]}},
+          {type:'Feature',properties:{kind:'Line',value:15},geometry:{type:'LineString',coordinates:[[47.751,33.62],[47.753,33.622]]}},
+          {type:'Feature',properties:{kind:'Polygon',value:25},geometry:{type:'Polygon',coordinates:[[[47.754,33.62],[47.756,33.62],[47.756,33.622],[47.754,33.622],[47.754,33.62]]]}}
+        ]
+      });
+      const item = bridge.namedLayers.find(layer => layer.name === '__symbology-geometry-test__');
+      bridge.openLayerProperties(item);
+    });
+    await page.locator('[data-lp-tab="symbology"]').click();
+    await page.locator('#lpRenderer').selectOption('unique');
+    await page.locator('#lpStyleField').selectOption('kind');
+    await expect(page.locator('#lpRendererLegend')).toContainText('Point');
+    await expect(page.locator('#lpRendererLegend')).toContainText('Line');
+    await expect(page.locator('#lpRendererLegend')).toContainText('Polygon');
+    await page.locator('#layerPropertiesForm button[type="submit"]:not(#layerPropertiesOk)').click();
+    const styles = await page.evaluate(() => {
+      const item = window.__sabzWebGISSharedBridge.namedLayers.find(layer => layer.name === '__symbology-geometry-test__');
+      return item.layer.getLayers().map(layer => ({
+        type: layer.feature.geometry.type,
+        color: layer.options.color,
+        fillColor: layer.options.fillColor,
+        radius: layer.options.radius
+      }));
+    });
+    expect(styles).toHaveLength(3);
+    expect(styles.every(style => style.color && style.fillColor)).toBeTruthy();
+    expect(new Set(styles.map(style => style.fillColor)).size).toBeGreaterThan(1);
+    expect(styles.find(style => style.type === 'Point').radius).toBeGreaterThan(0);
+    expect(errors).toEqual([]);
+  });
+
   test('TOC visibility, selection, context menu, properties and drag reorder work', async ({ page }) => {
     const errors = await boot(page);
     await page.evaluate(() => {
@@ -109,6 +147,14 @@ test.describe('Extracted Symbology and TOC modules', () => {
       .filter(item => item.name.startsWith('__toc-order-'))
       .map(item => item.name));
     expect(order).toEqual(['__toc-order-B__', '__toc-order-A__']);
+    const paintOrder = await page.evaluate(() => {
+      const items = window.__sabzWebGISSharedBridge.namedLayers.filter(item => item.name.startsWith('__toc-order-'));
+      const paths = items.map(item => ({name:item.name,path:item.layer.getLayers()[0]._path}));
+      const positions = paths.map(item => ({name:item.name,index:[...item.path.parentNode.children].indexOf(item.path)}));
+      return positions;
+    });
+    expect(paintOrder.find(item => item.name === '__toc-order-B__').index)
+      .toBeGreaterThan(paintOrder.find(item => item.name === '__toc-order-A__').index);
     expect(errors).toEqual([]);
   });
 });
