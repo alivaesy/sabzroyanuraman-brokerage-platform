@@ -3226,7 +3226,7 @@ mapScaleInput?.addEventListener("keydown",event=>{
 map.on("zoomend moveend",refreshMapScale);refreshMapScale();
 map.on("moveend",recordMapExtent);
 recordMapExtent();updateExtentButtons();updateUndoButtons();updateStandardActionButtons();
-window.SabzWebGISMapToolbars.init({map,L,drawn,namedLayers,startDraw:(type,button)=>startDraw(type,button),activeDrawHandler,activeDrawPurpose,stopActiveDraw,status,setActiveMapTool:tool=>{activeMapTool=tool},selectByRectangle,selectByPolygon});
+window.SabzWebGISMapToolbars.init({map,L,drawn,namedLayers,startDraw:(type,button)=>startDraw(type,button),getActiveDrawHandler:()=>activeDrawHandler,getActiveDrawPurpose:()=>activeDrawPurpose,stopActiveDraw,status,setActiveMapTool:tool=>{activeMapTool=tool},selectByRectangle,selectByPolygon});
 
 
 
