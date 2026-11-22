@@ -1361,6 +1361,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <script>
 (function(){
 "use strict";
+const selectionOperations=window.SabzWebGISSelection.create({turf:window.turf,nearestPointOnFeatureSafe});
 // Publish a diagnostic bridge immediately. Later scripts can distinguish a core startup
 // failure from an empty shared project instead of silently giving up before the bridge exists.
 window.__sabzWebGISSharedBridge={
