@@ -30,6 +30,7 @@ function polygonFeature(id, category, area) {
 test.describe('Extracted Symbology and TOC modules', () => {
   test('Symbology tab configures real feature styles and applies renderer', async ({ page }) => {
     const errors = await boot(page);
+    expect(errors, 'uncaught errors during WebGIS initialization').toEqual([]);
     await page.evaluate(() => {
       const bridge = window.__sabzWebGISSharedBridge;
       bridge.addGeoJSONLayer('__symbology-module-test__', {
