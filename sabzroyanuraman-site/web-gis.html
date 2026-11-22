@@ -1368,7 +1368,7 @@ window.__sabzWebGISSharedBridge={
   get namedLayers(){return namedLayers;},
   get renderLayerList(){return renderLayerList;},
   get tocViewMode(){return tocViewMode;},
-   setTocViewMode(value){tocViewMode=value;}
+   setTocViewMode(value){tocViewMode=value;},
   get contextLayerItem(){return contextLayerItem;},
   get selectedFeatures(){return selectedFeatures;},
   layerPropertiesRecords:owner=>layerPropertiesRecords(owner),
@@ -7459,7 +7459,7 @@ function closeLayerProperties(){
   const d=$("layerPropertiesDialog");if(d){d.classList.remove("show");d.setAttribute("aria-hidden","true");}
   layerPropertiesTarget=null;
 }
-const {layerStyleRamp,refreshLayerRendererControls,updateLayerSymbolPreview,applyLayerProperties}=window.SabzWebGISLayerSymbology.create({
+const {layerStyleRamp,refreshLayerRendererControls,updateLayerSymbolPreview,applyLayerProperties,configureLayerPropertiesSymbology,bindLayerPropertiesSymbology}=window.SabzWebGISLayerSymbology.create({
  $,
  get layerPropertiesTarget(){return layerPropertiesTarget;},
  layerPropertiesRecords,
