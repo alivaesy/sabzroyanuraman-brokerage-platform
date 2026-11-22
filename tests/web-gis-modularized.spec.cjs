@@ -187,7 +187,7 @@ test.describe('Extracted Symbology and TOC modules', () => {
   test('Feature Editing module controls toolbar and standard action states', async ({ page }) => {
     const errors = await boot(page);
     const result = await page.evaluate(() => {
-      const selected = new Set([{}];
+      const selected = new Set([{}]);
       const clipboard = [{}];
       const editing = window.SabzWebGISFeatureEditing.create({
         $: id => document.getElementById(id), document,
