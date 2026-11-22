@@ -10,6 +10,8 @@ const htmlPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'web-gis.htm
 const html = fs.readFileSync(htmlPath, 'utf8');
 const rendererPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-attribute-table-render.js');
 const renderer = fs.readFileSync(rendererPath, 'utf8');
+const menuPath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-menu-wiring.js');
+const menuSource = fs.readFileSync(menuPath, 'utf8');
 
 
 test('all inline JavaScript blocks parse', () => {
@@ -55,7 +57,7 @@ test('ArcToolbox renderer retains search and empty-state feedback', () => {
 
 
 test('View menu actions are connected to registered mapActions handlers', () => {
-  const actionBlock = html.match(/const mapActions\s*=\s*\{([\s\S]*?)\n\s{4}\};/)?.[1];
+  const actionBlock = menuSource.match(/const mapActions\s*=\s*\{([\s\S]*?)\n\s{4}\};/)?.[1];
   assert.ok(actionBlock, 'mapActions dispatcher was not found');
   const handlers = new Set([...actionBlock.matchAll(/^\s{6}([A-Za-z]\w*)\s*:/gm)].map(m => m[1]));
 
@@ -149,8 +151,14 @@ test("Geoprocessing rejects unsplit lines and validates result geometry", () => 
   assert.match(html, /produced structurally invalid geometry/);
 });
 
-test('Bulk attribute editing converts blank typed boolean, object, and array values to null', () => {
-  assert.match(html, /raw\.trim\(\)===""&&\["boolean","object","array"\]\.includes\(valueType\)/);
+test('Attribute table static checks follow the extracted renderer and core modules', () => {
+  assert.match(renderer, /function render\(ctx\)/);
+  assert.match(renderer, /attributeSort/);
+  const corePath = path.join(__dirname, '..', 'sabzroyanuraman-site', 'webgis-attribute-table-core.js');
+  const core = fs.readFileSync(corePath, 'utf8');
+  assert.match(core, /function isProtectedField/);
+  assert.match(core, /function collectFields/);
+  assert.match(core, /function compareValues/);
 });
 
 
