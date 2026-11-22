@@ -6,15 +6,18 @@ function create(ctx){
  const {$,map,namedLayers,drawn,selectedRecords,applyDefinitionQuery,openLayerProperties,applySelectionVisual,showLayerContextMenu,scheduleAutoSave}=ctx;
  const state=ctx.state;
  function syncLayerDrawingOrder(){
-  // TOC order is top-to-bottom; Leaflet paints the last SVG path on top.
-  // Re-apply paths from bottom to top so map stacking matches the TOC.
-  [...namedLayers].reverse().forEach(owner=>{
+  // TOC index 0 is topmost. Reapply Leaflet paint order bottom-to-top.
+  [...namedLayers].reverse().forEach((owner,index)=>{
    const layer=owner?.layer;if(!layer)return;
-   if(typeof layer.eachLayer==="function")layer.eachLayer(child=>{
+   const zIndex=(index+1)*100;
+   const visit=child=>{
+    if(!child)return;
+    if(typeof child.setZIndex==="function")child.setZIndex(zIndex);
+    if(typeof child.setZIndexOffset==="function")child.setZIndexOffset(zIndex);
     if(typeof child.bringToFront==="function")child.bringToFront();
-    else if(typeof child.setZIndex==="function"&&Number.isFinite(Number(owner._tocZIndex)))child.setZIndex(owner._tocZIndex);
-   });
-   else if(typeof layer.bringToFront==="function")layer.bringToFront();
+    if(typeof child.eachLayer==="function")child.eachLayer(visit);
+   };
+   visit(layer);
   });
  }
  function renderLayerList(){
