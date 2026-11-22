@@ -1362,7 +1362,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <script>
 (function(){
 "use strict";
-const selectionOperations=window.SabzWebGISSelection.create({turf:window.turf,nearestPointOnFeatureSafe});
+const selectionOperations=window.SabzWebGISSelection.create({turf:window.turf,nearestPointOnFeatureSafe,getDrawnLayer:()=>drawn,getNamedLayers:()=>namedLayers,isVectorLayer,vectorFeatures,getSelectedFeatures:()=>selectedFeatures});
 const featureEditingUI=window.SabzWebGISFeatureEditing.create({$:id=>document.getElementById(id),document,getEditSessionActive:()=>editSessionActive,getSelectedFeatures:()=>selectedFeatures,getFeatureClipboard:()=>featureClipboard,getActiveDrawHandler:()=>activeDrawHandler,getActiveDrawPurpose:()=>activeDrawPurpose});
 // Publish a diagnostic bridge immediately. Later scripts can distinguish a core startup
 // failure from an empty shared project instead of silently giving up before the bridge exists.
@@ -6175,8 +6175,7 @@ function renderGisToolbox(query=""){
 }
 
 function allSelectableFeatureLayers(){
-  return [{name:"My Drawings",layer:drawn}].concat(namedLayers)
-    .filter(x=>isVectorLayer(x.layer));
+  return selectionOperations.allSelectableFeatureLayers();
 }
 function syncVisibleAttributeTableSelection(){
   const table=$("attributeTableWrap");
@@ -6380,16 +6379,10 @@ async function selectWithinDistance(){
    GIS GIS GIS Web GIS
    ========================= */
 function getFeatureRecords(){
-  return allSelectableFeatureLayers().flatMap(x=>vectorFeatures(x.layer).map(v=>({owner:x,layer:v.layer,feature:v.feature})));
+  return selectionOperations.getFeatureRecords();
 }
 function selectedRecords(){
-  // Resolve selected Leaflet children against the current owning layer registry.
-  // Keep the actual child-layer object as the identity shared by map, table and editor.
-  const records=getFeatureRecords(),byLayer=new Map();
-  records.forEach(record=>{
-    if(record?.layer&&!byLayer.has(record.layer))byLayer.set(record.layer,record);
-  });
-  return [...selectedFeatures].map(layer=>byLayer.get(layer)).filter(Boolean);
+  return selectionOperations.selectedRecords();
 }
 function synchronizeFeatureSelection({primary=null,overlay=null,renderEditor=true}={}){
   const records=getFeatureRecords();
