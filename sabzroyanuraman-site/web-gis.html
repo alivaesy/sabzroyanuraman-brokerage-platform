@@ -1342,6 +1342,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <script src="./webgis-layer-labeling.js?v=20261118-layer-labeling"></script>
 <script src="./webgis-menu-wiring.js?v=20261118-menu-wiring"></script>
 <script src="./webgis-keyboard-shortcuts.js?v=20261122-keyboard-shortcuts"></script>
+<script src="./webgis-editor-task-menu.js?v=20261122-editor-task-menu"></script>
 <script src="./webgis-symbology-core.js?v=20261104-symbology-core"></script>
 <script src="./webgis-layer-symbology.js?v=20261118-layer-symbology"></script>
 <script src="./webgis-toc-render.js?v=20261118-toc-render"></script>
@@ -9568,29 +9569,8 @@ document.addEventListener("click",e=>{if(e.target.closest("[data-raster-open]"))
 window.SabzWebGISKeyboardShortcuts.init({status});
 </script>
 <script>
-/* ArcMap Editor task menu + KMZ support */
-(function(){
- const toggle=document.getElementById("editorToolbarToggleBtn"),menu=document.getElementById("editorTaskMenu");
- if(!toggle||!menu)return;
- toggle.title="Editor Toolbar — click to open Editor tasks";
- toggle.addEventListener("click",function(e){
-  e.preventDefault();e.stopPropagation();
-  const r=toggle.getBoundingClientRect();menu.style.left=Math.min(r.left,window.innerWidth-230)+"px";menu.style.top=Math.min(r.bottom+3,window.innerHeight-360)+"px";
-  menu.classList.toggle("open");toggle.classList.toggle("active",menu.classList.contains("open"));
- });
- menu.addEventListener("click",function(e){
-  const b=e.target.closest("[data-editor-task]");if(!b)return;
-  const actions={start:"startEditingBtn",save:"saveEditsBtn",stop:"stopEditingBtn",attributes:"openTable",clear:null};
-  const draw={point:"Marker",line:"Polyline",polygon:"Polygon",rectangle:"Rectangle",circle:"Circle",ellipse:"Ellipse",freehandLine:"FreehandLine",freehandPolygon:"FreehandPolygon"};
-  const task=b.dataset.editorTask;
-  if(draw[task]){document.querySelector('[data-editor-draw="'+draw[task]+'"]')?.click();}
-  else if(task==="clear"){document.querySelector('[data-action="clearDraw"]')?.click();}
-  else document.getElementById(actions[task])?.click();
-  menu.classList.remove("open");toggle.classList.remove("active");
- });
- document.addEventListener("click",e=>{if(!menu.contains(e.target)&&e.target!==toggle){menu.classList.remove("open");toggle.classList.remove("active")}});
- document.addEventListener("keydown",e=>{if(e.key==="Escape"){menu.classList.remove("open");toggle.classList.remove("active")}});
-})();
+/* Editor task menu is initialized from its dedicated module. */
+window.SabzWebGISEditorTaskMenu.init();
 </script>
 <script>
 /* Geodatabase Catalog: workspace / dataset / feature-class authoring */
