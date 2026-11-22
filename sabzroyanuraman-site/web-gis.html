@@ -1343,6 +1343,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <script src="./webgis-menu-wiring.js?v=20261118-menu-wiring"></script>
 <script src="./webgis-keyboard-shortcuts.js?v=20261122-keyboard-shortcuts"></script>
 <script src="./webgis-editor-task-menu.js?v=20261122-editor-task-menu"></script>
+<script src="./webgis-dock-accordion.js?v=20261122-dock-accordion"></script>
 <script src="./webgis-symbology-core.js?v=20261104-symbology-core"></script>
 <script src="./webgis-layer-symbology.js?v=20261118-layer-symbology"></script>
 <script src="./webgis-toc-render.js?v=20261118-toc-render"></script>
@@ -9547,22 +9548,8 @@ document.addEventListener("click",e=>{if(e.target.closest("[data-raster-open]"))
 
 </script>
 <script>
-(function(){
-  const sections=[...document.querySelectorAll(".accordion-section")];
-  sections.forEach(sec=>{
-    const head=sec.querySelector(".accordion-head");
-    head?.addEventListener("click",()=>{
-      const wasOpen=sec.classList.contains("open");
-      sections.forEach(x=>x.classList.remove("open"));
-      if(!wasOpen)sec.classList.add("open");
-    });
-  });
-  const openSection=name=>{
-    const sec=document.querySelector('.accordion-section[data-accordion="'+name+'"]');
-    if(sec){sections.forEach(x=>x.classList.remove("open"));sec.classList.add("open");sec.scrollIntoView({block:"nearest"});}
-  };
-  window.openWebGisPanelSection=openSection;
-})();
+/* GIS dock accordion is initialized from its dedicated module. */
+window.SabzWebGISDockAccordion.init();
 </script>
 <script>
 /* Keyboard shortcuts are initialized from the dedicated module. */
