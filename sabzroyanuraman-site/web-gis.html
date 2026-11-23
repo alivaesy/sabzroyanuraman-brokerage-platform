@@ -1364,6 +1364,24 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 "use strict";
 const selectionOperations=window.SabzWebGISSelection.create({turf:window.turf,nearestPointOnFeatureSafe,getDrawnLayer:()=>drawn,getNamedLayers:()=>namedLayers,isVectorLayer,vectorFeatures,getSelectedFeatures:()=>selectedFeatures,arcMapDialog,status,getFeatureRecords:()=>getFeatureRecords(),getSelectedLayer:()=>selectedLayer,setSelectedLayer:value=>{selectedLayer=value;},setSelectedOverlay:value=>{selectedOverlay=value;},renderAttributeEditor:()=>renderAttributeEditor(),applySelectionVisual:()=>applySelectionVisual(),$:id=>document.getElementById(id),currentAttributeLayer,isReservedAttributeField});
 const featureEditingUI=window.SabzWebGISFeatureEditing.create({$:id=>document.getElementById(id),document,turf:window.turf,getEditSessionActive:()=>editSessionActive,getSelectedFeatures:()=>selectedFeatures,getFeatureClipboard:()=>featureClipboard,getActiveDrawHandler:()=>activeDrawHandler,getActiveDrawPurpose:()=>activeDrawPurpose});
+const geometryEditContext=featureEditingUI.createEditOperationContext({
+  getMap:()=>map,getLeaflet:()=>L,getTurf:()=>turf,getEditTarget:()=>editTarget,
+  getSelectedFeatures:()=>selectedFeatures,getSelectedLayer:()=>selectedLayer,setSelectedLayer:value=>{selectedLayer=value;},
+  getEditSessionActive:()=>editSessionActive,getEditTargetLayer:()=>editTarget?.layer||editTarget,
+  getEditTargetSource:()=>editTarget?.source||null,getUndoState:()=>({undoStack,redoStack}),
+  recordUndoState:()=>recordUndoState(),getEditableSelectedRecords:()=>editableSelectedRecords(false),
+  getSelectedRecords:()=>selectedRecords(),removeFeatureLayer:(owner,layer)=>owner.removeLayer(layer),
+  addFeatureLayer:(owner,layer)=>owner.addLayer(layer),attachFeatureSelection:layer=>attachFeatureSelection(layer),
+  applySelectionVisual:()=>applySelectionVisual(),refreshAll:()=>refreshAll(),
+  flushGeodatabaseEdits:()=>flushGeodatabaseEdits(),scheduleAutoSave:()=>scheduleAutoSave(),
+  prepareDerivedFeature:(feature,owner)=>prepareDerivedFeature(feature,owner),
+  validateGeometry:geometry=>vertexGeometryIsValid(geometry),status:message=>status(message),
+  blockForUnsavedTableEdits:reason=>blockForUnsavedTableEdits(reason),
+  stopActiveDraw:force=>stopActiveDraw(force),bindFeature:(feature,layer)=>bindFeature(layer,feature),
+  getDialog:()=>arcMapDialog,getActiveDrawHandler:()=>activeDrawHandler,
+  setActiveDrawHandler:value=>{activeDrawHandler=value;},getActiveDrawPurpose:()=>activeDrawPurpose,
+  setActiveDrawPurpose:value=>{activeDrawPurpose=value;}
+});
 // Publish a diagnostic bridge immediately. Later scripts can distinguish a core startup
 // failure from an empty shared project instead of silently giving up before the bridge exists.
 window.__sabzWebGISSharedBridge={
