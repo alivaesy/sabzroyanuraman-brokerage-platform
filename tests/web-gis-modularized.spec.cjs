@@ -340,7 +340,7 @@ test.describe('Extracted Symbology and TOC modules', () => {
         flushGeodatabaseEdits:async()=>true, scheduleAutoSave:async()=>true,
         arcMapDialog:{confirm:async()=>true}, rebuildVectorLayerGeometry:()=>{},
         validateAndSyncEditTarget:()=>({ok:true}), serializeProject:()=>({}),
-        pushUndoSnapshot:()=>{}, historyRestoring:false, bindFeature:()=>{},
+        pushUndoSnapshot:()=>{}, historyRestoring:false, bindFeature:()=>{}, restoreVertexGeometry:()=>true,
         getFeatureRecords:()=>[]
       });
       await operations.mergeSelectedFeatures();
