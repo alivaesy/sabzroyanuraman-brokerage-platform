@@ -184,7 +184,18 @@ test.describe('Extracted Symbology and TOC modules', () => {
         getNamedLayers: () => [{name:'Parcels',layer:vectorLayer}],
         isVectorLayer: () => true,
         vectorFeatures: layer => layer===vectorLayer ? [{layer:child,feature}] : [],
-        getSelectedFeatures: () => selected
+        getSelectedFeatures: () => selected,
+        arcMapDialog: {},
+        status: () => {},
+        getFeatureRecords: () => [],
+        getSelectedLayer: () => null,
+        setSelectedLayer: () => {},
+        setSelectedOverlay: () => {},
+        renderAttributeEditor: () => {},
+        applySelectionVisual: () => {},
+        $: () => null,
+        currentAttributeLayer: () => null,
+        isReservedAttributeField: () => false
       });
       const a = window.turf.point([47.75,33.62]);
       const b = window.turf.point([47.751,33.62]);
