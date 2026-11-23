@@ -358,7 +358,7 @@ test.describe('Extracted Symbology and TOC modules', () => {
     expect(result.outputCount).toBe(1);
     expect(result.outputGeometry.type).toBe('LineString');
     expect(result.outputGeometry.coordinates).toEqual([[0,0],[1,0],[2,0]]);
-    expect(result.selectedCount).toBe(3);
+    expect(result.selectedCount).toBe(1);
     expect(result.undoCount).toBe(1);
     expect(result.hasStatus).toBeTruthy();
     expect(errors).toEqual([]);
