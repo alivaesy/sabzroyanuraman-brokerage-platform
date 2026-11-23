@@ -214,7 +214,8 @@ function restoreVertexGeometry(L,layer,geometry){
         const map=deps.getMap(),L=deps.getLeaflet(),turf=deps.getTurf();
         const editSessionActive=!!deps.getEditSessionActive(),editTarget=deps.getEditTarget();
         const selectedFeatures=deps.getSelectedFeatures(),selectedLayer=deps.getSelectedLayer(),drawn=deps.getDrawn(),window=deps.getWindow();
-        const undoStack=deps.getUndoStack(),redoStack=deps.getRedoStack();\n        const arcMapDialog=deps.getArcMapDialog(),historyRestoring=deps.getHistoryRestoring();
+        const undoStack=deps.getUndoStack(),redoStack=deps.getRedoStack();
+        const arcMapDialog=deps.getArcMapDialog(),historyRestoring=deps.getHistoryRestoring();
         const setSelectedLayer=value=>deps.setSelectedLayer(value),setSelectedOverlay=value=>deps.setSelectedOverlay(value);
         const {blockForUnsavedTableEdits,status,editableSelectedRecords,selectedRecords,stopSplitDraw,stopReshapeDraw,stopActiveDraw,prepareDerivedFeature,vertexGeometryIsValid,recordUndoState,attachFeatureSelection,applySelectionVisual,refreshAll,updateStandardActionButtons,flushGeodatabaseEdits,scheduleAutoSave,rebuildVectorLayerGeometry,validateAndSyncEditTarget,serializeProject,pushUndoSnapshot,bindFeature,getFeatureRecords,restoreVertexGeometry}=deps;
         async function mergeSelectedFeatures(){
