@@ -177,7 +177,35 @@ function restoreVertexGeometry(L,layer,geometry){
       const state=$("editorStateLabel");if(state){state.textContent=editing?"Editing "+($("editTargetLayer").selectedOptions[0]?.textContent||"layer"):"Start Editing to enable drawing";state.classList.toggle("active",editing)}
       updateStandardActionButtons();
     }
-    return Object.freeze({updateEditorToolbar,updateStandardActionButtons,splitPolygonWithCutter,splitPolygonAtTargetArea,splitPolygonByRotatingCut,vertexGeometryIsValid,restoreVertexGeometry:(layer,geometry)=>restoreVertexGeometry(root.L,layer,geometry)});
+
+    // Shared contract for stateful geometry-edit operations. All mutable state is
+    // accessed through getters/setters so extracted commands never capture stale values.
+    function createEditOperationContext(deps={}){
+      const required=["getMap","getLeaflet","getTurf","getEditTarget","getSelectedFeatures","getSelectedLayer","setSelectedLayer","getEditSessionActive","getEditTargetLayer","getEditTargetSource","getUndoState","recordUndoState","getEditableSelectedRecords","getSelectedRecords","removeFeatureLayer","addFeatureLayer","attachFeatureSelection","applySelectionVisual","refreshAll","flushGeodatabaseEdits","scheduleAutoSave","prepareDerivedFeature","validateGeometry","status","blockForUnsavedTableEdits","stopActiveDraw","bindFeature","getDialog","getActiveDrawHandler","setActiveDrawHandler","getActiveDrawPurpose","setActiveDrawPurpose"];
+      const missing=required.filter(name=>typeof deps[name]!=="function");
+      if(missing.length)throw new Error("Geometry edit operation context is missing dependencies: "+missing.join(", "));
+      const read=name=>deps[name]();
+      return Object.freeze({
+        get map(){return read("getMap")},get L(){return read("getLeaflet")},get turf(){return read("getTurf")},
+        get editTarget(){return read("getEditTarget")},get editTargetLayer(){return read("getEditTargetLayer")},
+        get editTargetSource(){return read("getEditTargetSource")},get selectedFeatures(){return read("getSelectedFeatures")},
+        get selectedLayer(){return read("getSelectedLayer")},setSelectedLayer:value=>deps.setSelectedLayer(value),
+        get editSessionActive(){return !!read("getEditSessionActive")},get undoState(){return read("getUndoState")},
+        getEditableSelectedRecords:()=>read("getEditableSelectedRecords"),getSelectedRecords:()=>read("getSelectedRecords"),
+        recordUndoState:()=>deps.recordUndoState(),removeFeatureLayer:(owner,layer)=>deps.removeFeatureLayer(owner,layer),
+        addFeatureLayer:(owner,layer)=>deps.addFeatureLayer(owner,layer),attachFeatureSelection:layer=>deps.attachFeatureSelection(layer),
+        applySelectionVisual:()=>deps.applySelectionVisual(),refreshAll:()=>deps.refreshAll(),
+        flushGeodatabaseEdits:()=>deps.flushGeodatabaseEdits(),scheduleAutoSave:()=>deps.scheduleAutoSave(),
+        prepareDerivedFeature:(feature,owner)=>deps.prepareDerivedFeature(feature,owner),
+        validateGeometry:geometry=>deps.validateGeometry(geometry),status:message=>deps.status(message),
+        blockForUnsavedTableEdits:reason=>deps.blockForUnsavedTableEdits(reason),
+        stopActiveDraw:force=>deps.stopActiveDraw(force),bindFeature:(feature,layer)=>deps.bindFeature(feature,layer),
+        get dialog(){return read("getDialog")},
+        get activeDrawHandler(){return read("getActiveDrawHandler")},setActiveDrawHandler:value=>deps.setActiveDrawHandler(value),
+        get activeDrawPurpose(){return read("getActiveDrawPurpose")},setActiveDrawPurpose:value=>deps.setActiveDrawPurpose(value)
+      });
+    }
+    return Object.freeze({updateEditorToolbar,updateStandardActionButtons,splitPolygonWithCutter,splitPolygonAtTargetArea,splitPolygonByRotatingCut,vertexGeometryIsValid,restoreVertexGeometry:(layer,geometry)=>restoreVertexGeometry(root.L,layer,geometry),createEditOperationContext});
   }
   root.SabzWebGISFeatureEditing={create};
 })(window);
