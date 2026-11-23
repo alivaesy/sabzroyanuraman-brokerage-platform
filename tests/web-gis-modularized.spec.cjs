@@ -287,4 +287,97 @@ test.describe('Extracted Symbology and TOC modules', () => {
     expect(errors).toEqual([]);
   });
 
+
+  test('Extracted geometry operations merge real selected line features with injected dependencies', async ({ page }) => {
+    const errors = await boot(page);
+    const result = await page.evaluate(async () => {
+      const owner = {
+        layers: [],
+        removeLayer(layer) { this.layers = this.layers.filter(item => item !== layer); },
+        addLayer(layer) { this.layers.push(layer); },
+        hasLayer(layer) { return this.layers.includes(layer); }
+      };
+      const makeRecord = (id, coordinates) => {
+        const layer = { id, options: { color: '#123456' } };
+        const feature = { type:'Feature', properties:{id}, geometry:{type:'LineString',coordinates} };
+        layer.feature = feature;
+        owner.addLayer(layer);
+        return { owner:{layer:owner}, layer, feature };
+      };
+      const records = [
+        makeRecord('a', [[0,0],[1,0]]),
+        makeRecord('b', [[1,0],[2,0]])
+      ];
+      const selected = new Set(records.map(record => record.layer));
+      let activeLayer = records[0].layer;
+      let undoCount = 0;
+      const statuses = [];
+      const fakeLeaflet = {
+        geoJSON(feature) {
+          const layer = { options:{}, feature };
+          return { eachLayer(callback) { callback(layer); } };
+        },
+        circleMarker() { return {}; }
+      };
+      const ui = window.SabzWebGISFeatureEditing.create({
+        $: id => document.getElementById(id), document,
+        turf: window.turf, getEditSessionActive: () => true,
+        getSelectedFeatures: () => selected, getFeatureClipboard: () => [],
+        getActiveDrawHandler: () => null, getActiveDrawPurpose: () => null
+      });
+      const operations = ui.createGeometryEditOperations({
+        getMap:()=>({}), getLeaflet:()=>fakeLeaflet, getTurf:()=>window.turf,
+        getEditSessionActive:()=>true, getEditTarget:()=>owner,
+        getSelectedFeatures:()=>selected, getSelectedLayer:()=>activeLayer,
+        setSelectedLayer:value=>{activeLayer=value;}, setSelectedOverlay:()=>{},
+        getDrawn:()=>owner, getWindow:()=>window, getUndoStack:()=>[], getRedoStack:()=>[],
+        blockForUnsavedTableEdits:()=>false, status:message=>statuses.push(message),
+        editableSelectedRecords:()=>records, selectedRecords:()=>records,
+        stopSplitDraw:()=>{}, stopReshapeDraw:()=>{}, stopActiveDraw:()=>{},
+        prepareDerivedFeature:feature=>feature, vertexGeometryIsValid:()=>true,
+        recordUndoState:()=>{undoCount++;}, attachFeatureSelection:()=>{},
+        applySelectionVisual:()=>{}, refreshAll:()=>{}, updateStandardActionButtons:()=>{},
+        flushGeodatabaseEdits:async()=>true, scheduleAutoSave:async()=>true,
+        arcMapDialog:{confirm:async()=>true}, rebuildVectorLayerGeometry:()=>{},
+        validateAndSyncEditTarget:()=>({ok:true}), serializeProject:()=>({}),
+        pushUndoSnapshot:()=>{}, historyRestoring:false, bindFeature:()=>{},
+        getFeatureRecords:()=>[]
+      });
+      await operations.mergeSelectedFeatures();
+      await Promise.resolve();
+      return {
+        sourceLayersRemoved: records.every(record=>!owner.hasLayer(record.layer)),
+        outputCount: owner.layers.length,
+        outputGeometry: owner.layers[0]?.feature?.geometry,
+        selectedCount: selected.size,
+        undoCount,
+        hasStatus: statuses.some(message=>message.includes('Merged 2 features'))
+      };
+    });
+    expect(result.sourceLayersRemoved).toBeTruthy();
+    expect(result.outputCount).toBe(1);
+    expect(result.outputGeometry.type).toBe('LineString');
+    expect(result.outputGeometry.coordinates).toEqual([[0,0],[1,0],[2,0]]);
+    expect(result.selectedCount).toBe(3);
+    expect(result.undoCount).toBe(1);
+    expect(result.hasStatus).toBeTruthy();
+    expect(errors).toEqual([]);
+  });
+
+  test('Geometry operation factory rejects an incomplete dependency contract', async ({ page }) => {
+    const errors = await boot(page);
+    const message = await page.evaluate(() => {
+      const ui = window.SabzWebGISFeatureEditing.create({
+        $: id => document.getElementById(id), document, turf: window.turf,
+        getEditSessionActive:()=>false, getSelectedFeatures:()=>new Set(),
+        getFeatureClipboard:()=>[], getActiveDrawHandler:()=>null, getActiveDrawPurpose:()=>null
+      });
+      try { ui.createGeometryEditOperations({}); }
+      catch (error) { return error.message; }
+      return '';
+    });
+    expect(message).toContain('getMap');
+    expect(errors).toEqual([]);
+  });
+
 });
