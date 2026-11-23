@@ -1388,30 +1388,11 @@ const geometryEditOperations=featureEditingUI.createGeometryEditOperations({
   getEditTarget:()=>editTarget,getSelectedFeatures:()=>selectedFeatures,getSelectedLayer:()=>selectedLayer,
   setSelectedLayer:value=>{selectedLayer=value;},setSelectedOverlay:value=>{selectedOverlay=value;},
   getDrawn:()=>drawn,getWindow:()=>window,getUndoStack:()=>undoStack,getRedoStack:()=>redoStack,
-  blockForUnsavedTableEdits:blockForUnsavedTableEdits,
-  status:status,
-  editableSelectedRecords:editableSelectedRecords,
-  selectedRecords:selectedRecords,
-  stopSplitDraw:stopSplitDraw,
-  stopReshapeDraw:stopReshapeDraw,
-  stopActiveDraw:stopActiveDraw,
-  prepareDerivedFeature:prepareDerivedFeature,
-  vertexGeometryIsValid:vertexGeometryIsValid,
-  recordUndoState:recordUndoState,
-  attachFeatureSelection:attachFeatureSelection,
-  applySelectionVisual:applySelectionVisual,
-  refreshAll:refreshAll,
-  updateStandardActionButtons:updateStandardActionButtons,
-  flushGeodatabaseEdits:flushGeodatabaseEdits,
-  scheduleAutoSave:scheduleAutoSave,
-  arcMapDialog:arcMapDialog,
-  rebuildVectorLayerGeometry:rebuildVectorLayerGeometry,
-  validateAndSyncEditTarget:validateAndSyncEditTarget,
-  serializeProject:serializeProject,
-  pushUndoSnapshot:pushUndoSnapshot,
-  historyRestoring:historyRestoring,
-  bindFeature:bindFeature,
-  getFeatureRecords:getFeatureRecords
+  blockForUnsavedTableEdits,status,editableSelectedRecords,selectedRecords,stopSplitDraw,stopReshapeDraw,
+  stopActiveDraw,prepareDerivedFeature,vertexGeometryIsValid,recordUndoState,attachFeatureSelection,
+  applySelectionVisual,refreshAll,updateStandardActionButtons,flushGeodatabaseEdits,scheduleAutoSave,
+  arcMapDialog,rebuildVectorLayerGeometry,validateAndSyncEditTarget,serializeProject,pushUndoSnapshot,
+  historyRestoring,bindFeature,getFeatureRecords
 });
 // Publish a diagnostic bridge immediately. Later scripts can distinguish a core startup
 // failure from an empty shared project instead of silently giving up before the bridge exists.
@@ -6466,38 +6447,38 @@ async function explodeSelectedFeatures(){
   const replacements=[];
   try{
     multipart.forEach(r=>{
-      const g=r.feature.geometry,types={MultiPoint:"Poinasync function mergeSelectedFeatures(){return geometryEditOperations.mergeSelectedFeatures();} else continue;
-            remaining.splice(i,1);changed=true;break;
-          }
-        }
-        chains.push(chain);
-      }
-      merged={type:"Feature",properties:props,geometry:chains.length===1?{type:"LineString",coordinates:chains[0]}:{type:"MultiLineString",coordinates:chains}};
-    }
-    merged.properties={...props};
-    prepareDerivedFeature(merged,editTarget);
-    if(!merged.geometry||!vertexGeometryIsValid(merged.geometry))throw new Error("The merged geometry failed validity checks.");
-  }catch(err){status("Merge cancelled: "+(err.message||"geometry operation failed"));return;}
+      const g=r.feature.geometry,types={MultiPoint:"Point",MultiLineString:"LineString",MultiPolygon:"Polygon"};
+      const parts=g.coordinates.map(coordinates=>prepareDerivedFeature({type:"Feature",properties:{...(r.feature.properties||{})},geometry:{type:types[g.type],coordinates:JSON.parse(JSON.stringify(coordinates))}},r.owner.layer));
+      if(!parts.length)throw new Error("A selected multipart feature has no parts.");
+      replacements.push({r,parts});
+    });
+  }catch(err){status("Explode cancelled: "+err.message);return;}
   recordUndoState();
-  const owner=editTarget,selected=records.map(r=>r.layer);
-  selected.forEach(layer=>{owner.removeLayer(layer);selectedFeatures.delete(layer);});
-  const temp=L.geoJSON(masync function splitSelectedLines(){return geometryEditOperations.splitSelectedLines();}rs.length)throw new Error("Could not build a split output feature.");
-      });});
-      recordUndoState();
-      results.forEach(({r,parts})=>{
-        const owner=r.owner.layer,old=r.layer,wasSelected=selectedFeatures.has(old);owner.removeLayer(old);selectedFeatures.delete(old);
-        parts.forEach(part=>{
-          (part._preparedLayers||[]).forEach(layer=>{layer.feature={type:"Feature",properties:{...(part.properties||{})},geometry:part.geometry};owner.addLayer(layer);attachFeatureSelection(layer);if(wasSelected)selectedFeatures.add(layer);});
-          delete part._preparedLayers;
-        });
-      });
-      selectedLayer=selectedRecords()[0]?.layer||null;selectedOverlay=null;applySelectionVisual();refreshAll();updateStandardActionButtons();
-      Promise.all([flushGeodatabaseEdits(),scheduleAutoSave()]).then(([synced,saved])=>status((polygonMode?"Split polygon while preserving holes and interior rings.":"Split "+results.length+" selected line feature(s) into "+results.reduce((n,x)=>n+x.parts.length,0)+" line parts.")+(synced&&saved?"":" Saving failed; retry Save Edits."))).catch(err=>status("Split applied in memory but saving failed: "+err.message));
-    }catch(err){status("Split failed: "+(err.message||"invalid cutting geometry"));}
-    finally{if(event.layer&&map.hasLayer(event.layer))map.removeLayer(event.layer);}
-  };
-  window._splitCreatedHandler=created;map.once(L.Draw.Event.CREATED,created);handler.enable();
+  replacements.forEach(({r,parts})=>{
+    const owner=r.owner.layer,old=r.layer,wasSelected=selectedFeatures.has(old),wasActive=selectedLayer===old;
+    owner.removeLayer(old);selectedFeatures.delete(old);
+    parts.forEach(feature=>{
+      const group=L.geoJSON(feature,{style:old.options||{},pointToLayer:(f,ll)=>old instanceof L.CircleMarker?L.circleMarker(ll,old.options||{}):L.marker(ll,old.options||{}),onEachFeature:(f,l)=>bindFeature(l,f)});
+      group.eachLayer(layer=>{layer.feature=feature;owner.addLayer(layer);attachFeatureSelection(layer);if(wasSelected)selectedFeatures.add(layer);if(wasActive)selectedLayer=layer;});
+    });
+  });
+  selectedLayer=selectedRecords()[0]?.layer||null;selectedOverlay=null;
+  applySelectionVisual();refreshAll();updateStandardActionButtons();scheduleAutoSave();
+  status("Exploded "+replacements.length+" multipart feature(s) into "+replacements.reduce((n,x)=>n+x.parts.length,0)+" feature(s).");
 }
+async function mergeSelectedFeatures(){return geometryEditOperations.mergeSelectedFeatures();}
+function stopSplitDraw(){
+  const created=window._splitCreatedHandler,handler=window._splitDrawHandler;
+  if(created){map.off(L.Draw.Event.CREATED,created);window._splitCreatedHandler=null;}
+  if(handler){try{handler.disable()}catch(_){}window._splitDrawHandler=null;}
+}
+document.addEventListener("keydown",event=>{if(event.key==="Escape"&&window._splitDrawHandler)stopSplitDraw();});
+
+function splitPolygonWithCutter(feature,cutter){return featureEditingUI.splitPolygonWithCutter(feature,cutter);}
+function splitPolygonAtTargetArea(feature,line,area,side){return featureEditingUI.splitPolygonAtTargetArea(feature,line,area,side);}
+function splitPolygonByRotatingCut(feature,line,area,side,direction){return featureEditingUI.splitPolygonByRotatingCut(feature,line,area,side,direction);}
+
+async function splitSelectedLines(){return geometryEditOperations.splitSelectedLines();}
 function showEditToolOptions(title,fields){
   return new Promise(resolve=>{
     const toolbar=$("editorToolbar");if(!toolbar){resolve(null);return;}
@@ -6630,30 +6611,46 @@ function rebuildVectorLayerGeometry(rs){
       }else{
         const temp=L.geoJSON(r.feature,{
           style:opts,
-    function reshapeSelected(){return geometryEditOperations.reshapeSelected();};return;}
-      if(JSON.stringify(original.geometry)===JSON.stringify(result.geometry)){status("Reshape made no geometry changes.");return;}
-      recordUndoState();
-      try{
-        r.feature.gefunction stopVertexEditing(){return geometryEditOperations.stopVertexEditing();}dfunction editVertices(){return geometryEditOperations.editVertices();}fy(serializeProject()),previous=JSON.stringify(baseline);
-        if(current!==previous){pushUndoSnapshot(baseline);baseline=JSON.parse(current);window._vertexEditBaseline=baseline}
-      }catch(err){console.warn("Could not preserve vertex-edit history",err)}
-      refreshAll();
-      const synced=await flushGeodatabaseEdits();
-      const saved=await scheduleAutoSave();
-      status(synced&&saved?"Vertex edits saved for "+edited.length+" selected feature(s).":"Vertex edits are visible but could not be fully saved; retry Save Edits.");
-    };
-    map.on(L.Draw.Event.EDITED,window._vertexEditHandler);
-    window._vertexEditControl=new L.Control.Draw({draw:false,edit:{featureGroup:editableGroup,selectedPathOptions:{maintainColor:true,opacity:0.9}}});
-    map.addControl(window._vertexEditControl);
-    status("Vertex editor ready for "+selectedLayers.length+" selected feature(s): drag vertices, click a segment to add a vertex, or click a vertex to remove it; save with the pencil toolbar.");
-  }catch(e){
-    if(window._vertexEditHandler)map.off(L.Draw.Event.EDITED,window._vertexEditHandler);
-    window._vertexEditHandler=null;
-    if(window._vertexEditControl){try{map.removeControl(window._vertexEditControl)}catch(_){}window._vertexEditControl=null}
-    window._vertexEditOwner=null;window._vertexEditLayers=null;window._vertexEditBaseline=null;window._vertexEditLastValid=null;
-    status("Vertex editing failed: "+e.message);
+          pointToLayer:(feature,latlng)=>old instanceof L.CircleMarker?L.circleMarker(latlng,opts):L.marker(latlng,opts),
+          onEachFeature:(feature,layer)=>bindFeature(layer,feature)
+        });
+        replacement=temp.getLayers()[0];
+      }
+      if(!replacement)return;
+      replacement.feature=r.feature;
+      if(!owner||typeof owner.hasLayer!=="function"||!owner.hasLayer(old))throw new Error("The original feature is no longer in its owning layer.");
+      owner.removeLayer(old);
+      owner.addLayer(replacement);
+      attachFeatureSelection(replacement);
+      selectedFeatures.delete(old);
+      if(wasSelected)selectedFeatures.add(replacement);
+      if(wasActive)selectedLayer=replacement;
+      if(wasOverlay)selectedOverlay=replacement;
+      // Keep the operation record pointed at the live Leaflet child. This is
+      // essential for subsequent validation and rollback after a failed save.
+      r.layer=replacement;
+    }catch(err){
+      console.error("Could not rebuild feature geometry",err);
+      throw err;
+    }
+  });
+  applySelectionVisual();renderLayerList();refreshAttributeLayers();scheduleAutoSave();
+}
+function stopReshapeDraw(){
+  if(window._reshapeCreatedHandler){
+    map.off(L.Draw.Event.CREATED,window._reshapeCreatedHandler);
+    window._reshapeCreatedHandler=null;
+  }
+  if(window._reshapeDrawHandler){
+    try{window._reshapeDrawHandler.disable()}catch(_){}
+    window._reshapeDrawHandler=null;
   }
 }
+function reshapeSelected(){return geometryEditOperations.reshapeSelected();}
+function vertexGeometryIsValid(g){return featureEditingUI.vertexGeometryIsValid(g);}
+function restoreVertexGeometry(layer,geometry){return featureEditingUI.restoreVertexGeometry(layer,geometry);}
+function stopVertexEditing(){return geometryEditOperations.stopVertexEditing();}
+function editVertices(){return geometryEditOperations.editVertices();}
 async function spatialFilter(){
   const rs=getFeatureRecords();
   const typeInput=await arcMapDialog.select({title:"Spatial Filter",message:"Choose the spatial relationship:",label:"Relationship",value:"intersects",options:[{value:"intersects",label:"Intersects"},{value:"within",label:"Within"},{value:"contains",label:"Contains"},{value:"touches",label:"Touches"},{value:"overlaps",label:"Overlaps"},{value:"crosses",label:"Crosses"}]});
