@@ -338,9 +338,10 @@ test.describe('Extracted Symbology and TOC modules', () => {
         recordUndoState:()=>{undoCount++;}, attachFeatureSelection:()=>{},
         applySelectionVisual:()=>{}, refreshAll:()=>{}, updateStandardActionButtons:()=>{},
         flushGeodatabaseEdits:async()=>true, scheduleAutoSave:async()=>true,
-        arcMapDialog:{confirm:async()=>true}, rebuildVectorLayerGeometry:()=>{},
+        getArcMapDialog:()=>({confirm:async()=>true}), getHistoryRestoring:()=>false,
+        rebuildVectorLayerGeometry:()=>{},
         validateAndSyncEditTarget:()=>({ok:true}), serializeProject:()=>({}),
-        pushUndoSnapshot:()=>{}, historyRestoring:false, bindFeature:()=>{}, restoreVertexGeometry:()=>true,
+        pushUndoSnapshot:()=>{}, bindFeature:()=>{}, restoreVertexGeometry:()=>true,
         getFeatureRecords:()=>[]
       });
       await operations.mergeSelectedFeatures();
