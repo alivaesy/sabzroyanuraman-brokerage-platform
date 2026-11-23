@@ -1392,7 +1392,8 @@ const geometryEditOperations=featureEditingUI.createGeometryEditOperations({
   stopActiveDraw,prepareDerivedFeature,vertexGeometryIsValid,recordUndoState,attachFeatureSelection,
   applySelectionVisual,refreshAll,updateStandardActionButtons,flushGeodatabaseEdits,scheduleAutoSave,
   arcMapDialog,rebuildVectorLayerGeometry,validateAndSyncEditTarget,serializeProject,pushUndoSnapshot,
-  historyRestoring,bindFeature,getFeatureRecords
+  historyRestoring,bindFeature,getFeatureRecords,
+  restoreVertexGeometry:(layer,geometry)=>featureEditingUI.restoreVertexGeometry(layer,geometry)
 });
 // Publish a diagnostic bridge immediately. Later scripts can distinguish a core startup
 // failure from an empty shared project instead of silently giving up before the bridge exists.
