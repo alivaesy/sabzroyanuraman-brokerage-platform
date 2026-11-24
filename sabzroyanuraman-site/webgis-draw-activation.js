@@ -7,7 +7,7 @@ function create(ctx){
   arcMapDialog, stopActiveDraw, stopReshapeDraw, stopVertexEditing,
   window, namedLayers, getEditTarget, setEditTarget, drawn, setActiveDrawingSetName,
   getActiveDrawingSetName, drawingLayerForType, getEditSessionActive,
-  $, isVectorLayer, selectedOverlay, startEditing, status, startNativeDraw
+  $, isVectorLayer, getSelectedOverlay, startEditing, status, startNativeDraw
  }=ctx;
  return async function startDraw(type,button){
   let activeDrawHandler=getActiveDrawHandler(),activeDrawPurpose=getActiveDrawPurpose();
@@ -32,6 +32,7 @@ function create(ctx){
   }else if(!editSessionActive){
     // Respect an explicitly selected imported vector layer, like ArcMap.
     let preferredIndex=-1;
+    const selectedOverlay=getSelectedOverlay();
     if(selectedOverlay&&selectedOverlay!==drawn){
       preferredIndex=namedLayers.findIndex(item=>item.layer===selectedOverlay&&isVectorLayer(item.layer));
     }
