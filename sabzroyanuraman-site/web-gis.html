@@ -1350,6 +1350,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <script src="./webgis-coordinate-readout.js?v=20261124-coordinate-readout"></script>
 <script src="./webgis-go-to-xy.js?v=20261124-go-to-xy"></script>
 <script src="./webgis-measure-tool.js?v=20261124-measure-tool"></script>
+<script src="./webgis-find-route.js?v=20261124-find-route"></script>
 <script src="./webgis-symbology-core.js?v=20261104-symbology-core"></script>
 <script src="./webgis-layer-symbology.js?v=20261118-layer-symbology"></script>
 <script src="./webgis-selection.js?v=20261122-selection"></script>
@@ -2434,26 +2435,7 @@ function startHtmlPopupTool(){
   $("htmlPopupBtn").classList.add("active");status("Click a feature to open its attribute pop-up.");
 }
 const startMeasureTool=window.SabzWebGISMeasureTool.create({stopActiveDraw,arcMapDialog,startSelectionShape,turf,map,status,getLastMeasureLayer:()=>lastMeasureLayer,setLastMeasureLayer:value=>{lastMeasureLayer=value;}});
-async function findRoute(){
-  const c=map.getCenter(),from=await arcMapDialog.prompt({title:"Find Route",message:"Enter the start coordinate as longitude,latitude:",label:"Start coordinate",value:c.lng.toFixed(5)+","+c.lat.toFixed(5)});
-  if(!from)return;
-  const to=await arcMapDialog.prompt({title:"Find Route",message:"Enter the destination coordinate as longitude,latitude:",label:"Destination coordinate",value:""});
-  if(!to)return;
-  const parsePair=text=>text.split(/[ ,;]+/).map(Number).slice(0,2);
-  const a=parsePair(from),b=parsePair(to);
-  if(a.length!==2||b.length!==2||![...a,...b].every(Number.isFinite)||Math.abs(a[0])>180||Math.abs(b[0])>180||Math.abs(a[1])>90||Math.abs(b[1])>90){status("Enter valid longitude,latitude coordinates.");return;}
-  status("Requesting a driving route...");
-  try{
-    const response=await fetch("https://router.project-osrm.org/route/v1/driving/"+a.join(",")+";"+b.join(",")+"?overview=full&geometries=geojson");
-    if(!response.ok)throw new Error("HTTP "+response.status);
-    const data=await response.json(),route=data.routes?.[0];
-    if(data.code!=="Ok"||!route?.geometry)throw new Error(data.code||"No route found.");
-    const feature={type:"Feature",properties:{distance_m:Math.round(route.distance),duration_s:Math.round(route.duration),source:"OSRM"},geometry:route.geometry};
-    geoJsonLayer({type:"FeatureCollection",features:[feature]},"Route");
-    $("professionalToolOutput").textContent="Route distance: "+(route.distance/1000).toFixed(2)+" km | Estimated driving time: "+Math.round(route.duration/60)+" min.";
-    status("Driving route added.");
-  }catch(err){status("Route service unavailable: "+err.message);}
-}
+const findRoute=window.SabzWebGISFindRoute.create({map,arcMapDialog,fetch:window.fetch.bind(window),geoJsonLayer,status,$:id=>document.getElementById(id)});
 function createMapViewer(){
   const win=window.open("","sabzMapViewer","width=1200,height=820,resizable=yes");
   if(!win){status("Allow pop-ups to open the map viewer.");return;}
