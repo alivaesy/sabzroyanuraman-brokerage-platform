@@ -2394,6 +2394,13 @@ const {startHyperlinkTool,startHtmlPopupTool}=window.SabzWebGISMapInteractionToo
   status
 });
 
+const selectionShapeController=window.SabzWebGISSelectionShape.create({
+  window,Leaflet:L,map,stopActiveDraw,status,
+  setActiveDrawHandler:value=>{activeDrawHandler=value;},
+  setActiveDrawPurpose:value=>{activeDrawPurpose=value;},
+  getActiveDrawCreatedHandler:()=>activeDrawCreatedHandler,
+  setActiveDrawCreatedHandler:value=>{activeDrawCreatedHandler=value;}
+});
 const startMeasureTool=window.SabzWebGISMeasureTool.create({stopActiveDraw,arcMapDialog:{select:options=>window.arcMapDialog.select(options)},startSelectionShape,turf,map,status,getLastMeasureLayer:()=>lastMeasureLayer,setLastMeasureLayer:value=>{lastMeasureLayer=value;}});
 const findRoute=window.SabzWebGISFindRoute.create({map,arcMapDialog:{prompt:options=>window.arcMapDialog.prompt(options)},fetch:window.fetch.bind(window),geoJsonLayer,status,$:id=>document.getElementById(id)});
 function createMapViewer(){
@@ -2681,17 +2688,7 @@ function startNativeDraw(type,button){
   const instructions={Marker:"Click once on the map to place a point.",Polyline:"Click on the map to add line vertices.",Polygon:"Click on the map to add polygon vertices.",Rectangle:"Click the first rectangle corner.",Circle:"Click the circle center.",Ellipse:"Click one corner, then the opposite corner.",FreehandLine:"Hold left mouse button and drag to draw a freehand line.",FreehandPolygon:"Hold left mouse button and drag to draw a freehand polygon."};
   status(instructions[type]||"Drawing tool active.");
 }
-const startSelectionShape=window.SabzWebGISSelectionShape.create({
-  window,
-  Leaflet:L,
-  map,
-  stopActiveDraw,
-  status,
-  setActiveDrawHandler:value=>{activeDrawHandler=value;},
-  setActiveDrawPurpose:value=>{activeDrawPurpose=value;},
-  getActiveDrawCreatedHandler:()=>activeDrawCreatedHandler,
-  setActiveDrawCreatedHandler:value=>{activeDrawCreatedHandler=value;}
-});
+function startSelectionShape(type,options,callback){return selectionShapeController(type,options,callback);}
 document.addEventListener("keydown",e=>{
   if(e.key!=="Delete"||e.ctrlKey||e.metaKey||e.altKey||activeDrawHandler)return;
   const target=e.target;
