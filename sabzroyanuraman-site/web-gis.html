@@ -1357,6 +1357,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <script src="./webgis-draw-activation.js?v=20261124-draw-activation"></script>
 <script src="./webgis-drawing-layer.js?v=20261124-drawing-layer"></script>
 <script src="./webgis-geometry-transforms.js?v=20261124-geometry-transforms"></script>
+<script src="./webgis-selection-layer-operations.js?v=20261124-selection-layer-operations"></script>
 <script src="./webgis-wayback-config.js?v=20261124-wayback-config"></script>
 <script src="./webgis-crs.js?v=20261124-crs"></script>
 <script src="./webgis-symbology-core.js?v=20261104-symbology-core"></script>
@@ -5895,22 +5896,8 @@ async function selectByLasso(){
  });
 }
 async function selectByAttribute(){return selectionOperations.selectByAttribute();}
-function newLayerFromSelection(){
-  const rs=selectedRecords(); if(!rs.length){status("Select at least one feature first.");return;}
-  const fc={type:"FeatureCollection",features:rs.map(r=>JSON.parse(JSON.stringify(r.feature)))};
-  const layer=L.geoJSON(fc,{onEachFeature:(f,l)=>bindFeature(l,f)});
-  const name="Selection_"+new Date().toISOString().slice(0,19).replace(/[:T]/g,"-");
-  addNamedLayer(name,layer,false);
-  scheduleAutoSave(); status("Layer created from selected features.");
-}
-function cloneSelectedFeatures(){
-  const rs=editableSelectedRecords(false);if(!rs.length)return;
-  const clones=rs.map(r=>JSON.parse(JSON.stringify(r.feature)));
-  const layer=L.geoJSON({type:"FeatureCollection",features:clones},{onEachFeature:(f,l)=>bindFeature(l,f)});
-  addNamedLayer("Clone_"+new Date().toISOString().replace(/[:.]/g,"-"),layer,true);
-  refreshEditorTargets();refreshAttributeLayers();scheduleAutoSave();
-  status(clones.length+" feature(s) cloned into a new vector layer.");
-}
+
+
 function editableSelectedRecords(recordHistory=true){
   if(window._vertexEditControl||window._reshapeDrawHandler||activeDrawHandler){status("Finish or cancel the active drawing/geometry edit before starting another feature operation.");return [];}
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("modifying selected feature geometry"))return [];
@@ -5920,39 +5907,17 @@ function editableSelectedRecords(recordHistory=true){
   else if(recordHistory)recordUndoState();
   return rs;
 }
-async function explodeSelectedFeatures(){
-  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("exploding multipart features"))return;
-  if(!editSessionActive||!editTarget){status("Start Editing the target layer before exploding multipart features.");return;}
-  const records=editableSelectedRecords(false);
-  if(!records.length)return;
-  if(records.some(r=>(r.owner?.layer||drawn)!==editTarget)){status("Explode requires all selected features to belong to the active edit layer.");return;}
-  const multipart=records.filter(r=>["MultiPoint","MultiLineString","MultiPolygon"].includes(r.feature?.geometry?.type));
-  if(multipart.length!==records.length){status("Explode requires only multipart features in the selection; deselect single-part features and try again.");return;}
-  if(!multipart.length){status("Select at least one MultiPoint, MultiLineString, or MultiPolygon feature.");return;}
-  if(!await arcMapDialog.confirm({title:"Explode Multipart Features",message:"Explode "+multipart.length+" selected multipart feature(s) into individual features?",confirmText:"Explode"}))return;
-  const replacements=[];
-  try{
-    multipart.forEach(r=>{
-      const g=r.feature.geometry,types={MultiPoint:"Point",MultiLineString:"LineString",MultiPolygon:"Polygon"};
-      const parts=g.coordinates.map(coordinates=>prepareDerivedFeature({type:"Feature",properties:{...(r.feature.properties||{})},geometry:{type:types[g.type],coordinates:JSON.parse(JSON.stringify(coordinates))}},r.owner.layer));
-      if(!parts.length)throw new Error("A selected multipart feature has no parts.");
-      replacements.push({r,parts});
-    });
-  }catch(err){status("Explode cancelled: "+err.message);return;}
-  recordUndoState();
-  replacements.forEach(({r,parts})=>{
-    const owner=r.owner.layer,old=r.layer,wasSelected=selectedFeatures.has(old),wasActive=selectedLayer===old;
-    owner.removeLayer(old);selectedFeatures.delete(old);
-    parts.forEach(feature=>{
-      const group=L.geoJSON(feature,{style:old.options||{},pointToLayer:(f,ll)=>old instanceof L.CircleMarker?L.circleMarker(ll,old.options||{}):L.marker(ll,old.options||{}),onEachFeature:(f,l)=>bindFeature(l,f)});
-      group.eachLayer(layer=>{layer.feature=feature;owner.addLayer(layer);attachFeatureSelection(layer);if(wasSelected)selectedFeatures.add(layer);if(wasActive)selectedLayer=layer;});
-    });
-  });
-  selectedLayer=selectedRecords()[0]?.layer||null;selectedOverlay=null;
-  applySelectionVisual();refreshAll();updateStandardActionButtons();scheduleAutoSave();
-  status("Exploded "+replacements.length+" multipart feature(s) into "+replacements.reduce((n,x)=>n+x.parts.length,0)+" feature(s).");
-}
+
 async function mergeSelectedFeatures(){return geometryEditOperations.mergeSelectedFeatures();}
+const selectionLayerOperations=window.SabzWebGISSelectionLayerOperations.create({
+ selectedRecords,status,L,bindFeature,addNamedLayer,scheduleAutoSave,editableSelectedRecords,refreshEditorTargets,refreshAttributeLayers,
+ blockForUnsavedTableEdits,getEditSessionActive:()=>editSessionActive,getEditTarget:()=>editTarget,getDrawn:()=>drawn,arcMapDialog,
+ prepareDerivedFeature,recordUndoState,selectedFeatures,getSelectedLayer:()=>selectedLayer,setSelectedLayer:value=>{selectedLayer=value;},
+ attachFeatureSelection,applySelectionVisual,refreshAll,updateStandardActionButtons
+});
+function newLayerFromSelection(){return selectionLayerOperations.newLayerFromSelection();}
+function cloneSelectedFeatures(){return selectionLayerOperations.cloneSelectedFeatures();}
+async function explodeSelectedFeatures(){return selectionLayerOperations.explodeSelectedFeatures();}
 function stopSplitDraw(){
   const created=window._splitCreatedHandler,handler=window._splitDrawHandler;
   if(created){map.off(L.Draw.Event.CREATED,created);window._splitCreatedHandler=null;}
