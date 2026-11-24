@@ -2446,7 +2446,7 @@ function ellipseRing(a,b){
 const drawingLayerResolver=window.SabzWebGISDrawingLayer.create({
  namedLayers,L,addNamedLayer,drawn,getActiveDrawingSetName:()=>activeDrawingSetName,
  setSelectedOverlay:value=>{selectedOverlay=value;},setEditTarget:value=>{editTarget=value;},
- $:id=>$(id),refreshEditorTargets,refreshAttributeLayers,renderLayerList
+ $:id=>$(id),refreshEditorTargets,refreshAttributeLayers,renderLayerList:()=>renderLayerList()
 });
 function drawingLayerForType(type){return drawingLayerResolver(type);}
 const drawActivation=window.SabzWebGISDrawActivation.create({
