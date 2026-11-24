@@ -1363,7 +1363,15 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 (function(){
 "use strict";
 const selectionOperations=window.SabzWebGISSelection.create({turf:window.turf,nearestPointOnFeatureSafe,getDrawnLayer:()=>drawn,getNamedLayers:()=>namedLayers,isVectorLayer,vectorFeatures,getSelectedFeatures:()=>selectedFeatures,arcMapDialog:{prompt:opts=>window.arcMapDialog.prompt(opts),select:opts=>window.arcMapDialog.select(opts),confirm:opts=>window.arcMapDialog.confirm(opts),form:opts=>window.arcMapDialog.form(opts)},status,getFeatureRecords:()=>getFeatureRecords(),getSelectedLayer:()=>selectedLayer,setSelectedLayer:value=>{selectedLayer=value;},setSelectedOverlay:value=>{selectedOverlay=value;},renderAttributeEditor:()=>renderAttributeEditor(),applySelectionVisual:()=>applySelectionVisual(),$:id=>document.getElementById(id),currentAttributeLayer,isReservedAttributeField});
-const featureEditingUI=window.SabzWebGISFeatureEditing.create({$:id=>document.getElementById(id),document,turf:window.turf,getEditSessionActive:()=>editSessionActive,getSelectedFeatures:()=>selectedFeatures,getFeatureClipboard:()=>featureClipboard,getActiveDrawHandler:()=>activeDrawHandler,getActiveDrawPurpose:()=>activeDrawPurpose});
+
+const interactiveSelection=selectionOperations.createInteractiveSelectionController({
+  getMap:()=>map,getLeaflet:()=>L,getActiveMapTool:()=>activeMapTool,
+  getSelectedFeatures:()=>selectedFeatures,getSelectedLayer:()=>selectedLayer,setSelectedLayer:value=>{selectedLayer=value;},
+  getSelectedOverlay:()=>selectedOverlay,setSelectedOverlay:value=>{selectedOverlay=value;},
+  updateStandardActionButtons,renderAttributeEditor,applySelectionVisual,status,document,
+  $:id=>document.getElementById(id),esc,asFeature,identifyTool,showUTM,calcMeasure,
+  synchronizeFeatureSelection,getWindow:()=>window
+});const featureEditingUI=window.SabzWebGISFeatureEditing.create({$:id=>document.getElementById(id),document,turf:window.turf,getEditSessionActive:()=>editSessionActive,getSelectedFeatures:()=>selectedFeatures,getFeatureClipboard:()=>featureClipboard,getActiveDrawHandler:()=>activeDrawHandler,getActiveDrawPurpose:()=>activeDrawPurpose});
 const editSessionController=featureEditingUI.createEditSessionController({
   getMap:()=>map,getLeaflet:()=>L,getDrawn:()=>drawn,getNamedLayers:()=>namedLayers,
   getEditSessionActive:()=>editSessionActive,setEditSessionActive:value=>{editSessionActive=value;},
@@ -3272,167 +3280,13 @@ function saveAttributes(){
   scheduleAutoSave();renderAttributeEditor();
   if($("attributeLayer").value!=="")$("openTable").click();
 }
-function updateMultiSelectionUI(){
-  // Apply a real Leaflet style as well as a CSS class: this works even when SVG
-  // class styling is overridden by a renderer or a feature has no usable DOM node.
-  allSelectableFeatureLayers().forEach(entry=>vectorFeatures(entry.layer).forEach(record=>{
-    const layer=record.layer;if(!layer)return;
-    const selected=selectedFeatures.has(layer);
-    if(typeof layer.setStyle==="function"){
-      if(selected){
-        if(!layer._webgisPreSelectionStyle){
-          const o=layer.options||{};
-          layer._webgisPreSelectionStyle={};
-          ["color","weight","opacity","fillColor","fillOpacity","dashArray","lineCap","lineJoin"].forEach(k=>{
-            if(Object.prototype.hasOwnProperty.call(o,k))layer._webgisPreSelectionStyle[k]=o[k];
-          });
-        }
-        layer.setStyle({color:"#ff8c00",weight:5,opacity:1,fillColor:"#ffd54f",fillOpacity:.72});
-      }else if(layer._webgisPreSelectionStyle){
-        layer.setStyle(layer._webgisPreSelectionStyle);
-        delete layer._webgisPreSelectionStyle;
-      }
-    }
-    const el=(typeof layer.getElement==="function"&&layer.getElement())||layer._path||layer._icon;
-    if(el)el.classList.toggle("multi-selected-feature",selected);
-  }));
-  // Marker icons may not be returned by vectorFeatures in some layer types.
-  document.querySelectorAll(".multi-selected-feature").forEach(el=>{
-    const owner=selectedFeatures.has(el._leaflet_layer)?el._leaflet_layer:null;
-    if(!owner&&!el.classList.contains("leaflet-marker-icon"))el.classList.remove("multi-selected-feature");
-  });
-  const box=$("multiFeatureEditor"),info=$("multiSelectionInfo");
-  if(info)info.textContent=selectedFeatures.size+" Feature Selection selected";
-  if(box)box.style.display=selectedFeatures.size?"block":"none";
-  updateStandardActionButtons();
-}
-function clearMultiSelection(){
-  selectedFeatures.forEach(l=>{
-    const el=l&&((typeof l.getElement==="function"&&l.getElement())||l._path||l._icon);
-    if(el)L.DomUtil.removeClass(el,"multi-selected-feature");
-  });
-  selectedFeatures.clear();
-  selectedLayer=null;
-  selectedOverlay=null;
-  const editor=$("attributeEditor");
-  if(editor)editor.style.display="none";
-  applySelectionVisual();
-}
-function toggleMultiSelection(layer){
-  const wasSelected=selectedFeatures.has(layer);
-  if(wasSelected)selectedFeatures.delete(layer);
-  else selectedFeatures.add(layer);
-  if(!wasSelected){
-    selectedLayer=layer;
-  }else{
-    if(selectedLayer===layer)selectedLayer=[...selectedFeatures].pop()||null;
-    if(selectedOverlay===layer)selectedOverlay=null;
-  }
-  updateMultiSelectionUI();
-  renderAttributeEditor();
-}
-function setGisSelection(layer,second){
-  if(second){
-    selectedOverlay=layer;
-  }else{
-    selectedOverlay=null;
-    selectedLayer=layer;
-    renderAttributeEditor();
-  }
-  const a=selectedLayer?featureLabel(selectedLayer):"—";
-  const b=selectedOverlay?featureLabel(selectedOverlay):"—";
-  const el=$("gisSelectionInfo");
-  if(el)el.innerHTML="Input feature: "+esc(a)+"<br>Overlay feature: "+esc(b);
-}
-function featureLabel(layer){
-  try{
-    const p=layer.feature&&layer.feature.properties||{};
-    if(p.name)return String(p.name);
-    const keys=Object.keys(p);
-    if(keys.length)return String(p[keys[0]]);
-  }catch(e){}
-  return "Selected feature";
-}
-function handleFeatureSelectionClick(layer,ev){
-  if(!layer)return;
-  const originalEvent=ev?.originalEvent;
-  if(originalEvent){
-    if(originalEvent.__webgisSelectionHandled)return;
-    originalEvent.__webgisSelectionHandled=true;
-  }
-  if(activeMapTool==="identify"){
-    selectedOverlay=layer;
-    if(!layer.feature)layer.feature=asFeature(layer);
-    identifyTool();return;
-  }
-  if(activeMapTool==="hyperlink"){
-    const feature=layer.feature||asFeature(layer),props=feature?.properties||{};
-    const value=Object.entries(props).find(([key,val])=>/(url|link|website|href|hyperlink)/i.test(key)&&/^https?:/i.test(String(val||""))&&String(val||"").includes("://"));
-    if(!value){status("This feature has no HTTP or HTTPS link attribute.");return;}
-    window.open(value[1],"_blank","noopener,noreferrer");status("Feature link opened.");return;
-  }
-  if(activeMapTool==="htmlPopup"){
-    const feature=layer.feature||asFeature(layer),props=feature?.properties||{};
-    const rows=Object.entries(props).map(([key,val])=>"<tr><th>"+esc(key)+"</th><td>"+esc(val)+"</td></tr>").join("");
-    layer.bindPopup("<table class='identify-popup'>"+(rows||"<tr><td>No attributes</td></tr>")+"</table>").openPopup(ev?.latlng);
-    selectedOverlay=layer;status("Feature attributes opened.");return;
-  }
-  const multi=!!(originalEvent&&(originalEvent.ctrlKey||originalEvent.metaKey||originalEvent.shiftKey));
-  if(multi){
-    toggleMultiSelection(layer);
-    // Shift-click designates an overlay only while that feature remains selected.
-    if(originalEvent.shiftKey&&!originalEvent.ctrlKey&&!originalEvent.metaKey){
-      selectedOverlay=selectedFeatures.has(layer)?layer:null;
-      if(!selectedLayer&&selectedOverlay)selectedLayer=[...selectedFeatures].find(item=>item!==selectedOverlay)||selectedOverlay;
-      synchronizeFeatureSelection({primary:selectedLayer,overlay:selectedOverlay,renderEditor:true});
-      status(selectedFeatures.size+" feature(s) selected; Shift-click a selected feature to designate the overlay.");
-    }else{
-      if(selectedOverlay&&!selectedFeatures.has(selectedOverlay))selectedOverlay=null;
-      synchronizeFeatureSelection({primary:selectedLayer,overlay:selectedOverlay,renderEditor:true});
-      status(selectedFeatures.size+" feature(s) selected.");
-    }
-  }else{
-    selectedFeatures.clear();
-    selectedFeatures.add(layer);
-    synchronizeFeatureSelection({primary:layer,renderEditor:true});
-    showUTM(layer);
-    calcMeasure(layer);
-    status("Feature selected. Ctrl-click or Shift-click to add features to the selection.");
-  }
-}
-function attachFeatureSelection(layer){
-  if(!layer||!layer.on)return;
-  // Register exactly once; reloading or restyling a layer must not duplicate click events.
-  if(typeof layer.options==="object")layer.options.interactive=true;
-  const el=(typeof layer.getElement==="function"&&layer.getElement())||layer._path||layer._icon;
-  if(el)el.style.pointerEvents="auto";
-  if(!layer._webgisSelectionHandlerAttached){
-    layer._webgisSelectionHandlerAttached=true;
-    layer.on("click",ev=>handleFeatureSelectionClick(layer,ev));
-  }
-}
-// Fallback for map clicks when Leaflet's layer-level click dispatch is missing.
-// It only handles clicks directly on a rendered feature and avoids double selection.
-if(!map._webgisSelectionFallback){
-  map._webgisSelectionFallback=true;
-  map.on("click",ev=>{
-    if(ev?.originalEvent?.__webgisSelectionHandled)return;
-    const target=ev?.originalEvent?.target;
-    if(!target||!target.closest)return;
-    const hit=target.closest(".leaflet-interactive,.leaflet-marker-icon");
-    if(!hit)return;
-    for(const entry of allSelectableFeatureLayers()){
-      for(const record of vectorFeatures(entry.layer)){
-        const layer=record.layer;
-        const el=(typeof layer.getElement==="function"&&layer.getElement())||layer._path||layer._icon;
-        if(el===hit||el?.contains?.(hit)){
-          handleFeatureSelectionClick(layer,ev);
-          return;
-        }
-      }
-    }
-  });
-}
+function updateMultiSelectionUI(){return interactiveSelection.updateMultiSelectionUI();}
+function clearMultiSelection(){return interactiveSelection.clearMultiSelection();}
+function toggleMultiSelection(layer){return interactiveSelection.toggleMultiSelection(layer);}
+function setGisSelection(layer,second){return interactiveSelection.setGisSelection(layer,second);}
+function featureLabel(layer){return interactiveSelection.featureLabel(layer);}
+function handleFeatureSelectionClick(layer,ev){return interactiveSelection.handleFeatureSelectionClick(layer,ev);}
+function attachFeatureSelection(layer){return interactiveSelection.attachFeatureSelection(layer);}
 function asFeature(layer){
   if(!layer||!layer.toGeoJSON)return null;
   const f=layer.toGeoJSON();
