@@ -1354,7 +1354,8 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <script src="./webgis-time-slider.js?v=20261124-time-slider"></script>
 <script src="./webgis-map-interaction-tools.js?v=20261124-map-interaction"></script>
 <script src="./webgis-selection-shape.js?v=20261124-selection-shape">
-<script src="./webgis-draw-activation.js?v=20261124-draw-activation"></script></script>
+<script src="./webgis-draw-activation.js?v=20261124-draw-activation"></script>
+<script src="./webgis-drawing-layer.js?v=20261124-drawing-layer"></script></script>
 <script src="./webgis-wayback-config.js?v=20261124-wayback-config"></script>
 <script src="./webgis-crs.js?v=20261124-crs"></script>
 <script src="./webgis-symbology-core.js?v=20261104-symbology-core"></script>
@@ -2440,29 +2441,12 @@ function ellipseRing(a,b){
   }
   return ring;
 }
-function drawingLayerForType(type){
-  const kind=type==="Marker"?"Point":(["Polyline","FreehandLine"].includes(type)?"Line":"Polygon");
-  const suffix=kind==="Point"?"Points":kind==="Line"?"Lines":"Polygons";
-  const setName=activeDrawingSetName||"My Drawings";
-  let item=namedLayers.find(x=>x.drawingSet===setName&&x._webgisDrawingType===kind);
-  if(!item){
-    const name=setName+" / "+suffix;
-    const layer=new L.FeatureGroup();
-    addNamedLayer(name,layer,false);
-    item=namedLayers.find(x=>x.layer===layer);
-    if(item){item.drawingSet=setName;item._webgisDrawingType=kind;item.displayName=suffix;}
-  }
-  if(!item)return drawn;
-  selectedOverlay=item.layer;editTarget=item.layer;
-  const index=namedLayers.findIndex(x=>x.layer===item.layer);
-  if(index>=0)$("editTargetLayer").value=String(index);
-  refreshEditorTargets();
-  if(index>=0)$("editTargetLayer").value=String(index);
-  refreshAttributeLayers();
-  if($("attributeLayer"))$("attributeLayer").value=String(index);
-  renderLayerList();
-  return item.layer;
-}
+const drawingLayerResolver=window.SabzWebGISDrawingLayer.create({
+ namedLayers,L,addNamedLayer,drawn,getActiveDrawingSetName:()=>activeDrawingSetName,
+ setSelectedOverlay:value=>{selectedOverlay=value;},setEditTarget:value=>{editTarget=value;},
+ $:id=>$(id),refreshEditorTargets,refreshAttributeLayers,renderLayerList
+});
+function drawingLayerForType(type){return drawingLayerResolver(type);}
 const drawActivation=window.SabzWebGISDrawActivation.create({
  blockForUnsavedTableEdits, getActiveDrawHandler:()=>activeDrawHandler, getActiveDrawPurpose:()=>activeDrawPurpose,
  arcMapDialog, stopActiveDraw, stopReshapeDraw, stopVertexEditing, window, namedLayers,
