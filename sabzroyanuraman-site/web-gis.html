@@ -1349,6 +1349,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <script src="./webgis-map-scale.js?v=20261124-map-scale"></script>
 <script src="./webgis-coordinate-readout.js?v=20261124-coordinate-readout"></script>
 <script src="./webgis-go-to-xy.js?v=20261124-go-to-xy"></script>
+<script src="./webgis-measure-tool.js?v=20261124-measure-tool"></script>
 <script src="./webgis-symbology-core.js?v=20261104-symbology-core"></script>
 <script src="./webgis-layer-symbology.js?v=20261118-layer-symbology"></script>
 <script src="./webgis-selection.js?v=20261122-selection"></script>
@@ -2432,17 +2433,7 @@ function startHtmlPopupTool(){
   document.querySelectorAll("#classicToolbars button.icon-tool").forEach(b=>b.classList.remove("active"));
   $("htmlPopupBtn").classList.add("active");status("Click a feature to open its attribute pop-up.");
 }
-async function startMeasureTool(){
-  stopActiveDraw(true);const shapeType=await arcMapDialog.select({title:"Measure",message:"Choose the measurement type:",label:"Measurement",value:"distance",options:[{value:"distance",label:"Distance"},{value:"area",label:"Area"}]});
-  if(!shapeType)return;
-  const isArea=/^a/i.test(shapeType);
-  startSelectionShape(isArea?"Polygon":"Polyline",{allowIntersection:false,shapeOptions:{color:"#d17b00",weight:3,dashArray:"6,4"}},shape=>{
-    const geo=shape.toGeoJSON();let result;
-    if(isArea){result=turf.area(geo);shape.addTo(map);status("Measured area: "+(result/1e6).toFixed(4)+" km².");shape.bindPopup("Area: "+(result/1e6).toFixed(4)+" km²").openPopup();}
-    else{result=turf.length(geo,{units:"kilometers"});shape.addTo(map);status("Measured distance: "+result.toFixed(3)+" km.");shape.bindPopup("Distance: "+result.toFixed(3)+" km").openPopup();}
-    if(lastMeasureLayer&&map.hasLayer(lastMeasureLayer))map.removeLayer(lastMeasureLayer);lastMeasureLayer=shape;
-  });
-}
+const startMeasureTool=window.SabzWebGISMeasureTool.create({stopActiveDraw,arcMapDialog,startSelectionShape,turf,map,status,getLastMeasureLayer:()=>lastMeasureLayer,setLastMeasureLayer:value=>{lastMeasureLayer=value;}});
 async function findRoute(){
   const c=map.getCenter(),from=await arcMapDialog.prompt({title:"Find Route",message:"Enter the start coordinate as longitude,latitude:",label:"Start coordinate",value:c.lng.toFixed(5)+","+c.lat.toFixed(5)});
   if(!from)return;
