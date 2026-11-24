@@ -1364,6 +1364,20 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 "use strict";
 const selectionOperations=window.SabzWebGISSelection.create({turf:window.turf,nearestPointOnFeatureSafe,getDrawnLayer:()=>drawn,getNamedLayers:()=>namedLayers,isVectorLayer,vectorFeatures,getSelectedFeatures:()=>selectedFeatures,arcMapDialog:{prompt:opts=>window.arcMapDialog.prompt(opts),select:opts=>window.arcMapDialog.select(opts),confirm:opts=>window.arcMapDialog.confirm(opts),form:opts=>window.arcMapDialog.form(opts)},status,getFeatureRecords:()=>getFeatureRecords(),getSelectedLayer:()=>selectedLayer,setSelectedLayer:value=>{selectedLayer=value;},setSelectedOverlay:value=>{selectedOverlay=value;},renderAttributeEditor:()=>renderAttributeEditor(),applySelectionVisual:()=>applySelectionVisual(),$:id=>document.getElementById(id),currentAttributeLayer,isReservedAttributeField});
 const featureEditingUI=window.SabzWebGISFeatureEditing.create({$:id=>document.getElementById(id),document,turf:window.turf,getEditSessionActive:()=>editSessionActive,getSelectedFeatures:()=>selectedFeatures,getFeatureClipboard:()=>featureClipboard,getActiveDrawHandler:()=>activeDrawHandler,getActiveDrawPurpose:()=>activeDrawPurpose});
+const editSessionController=featureEditingUI.createEditSessionController({
+  getMap:()=>map,getLeaflet:()=>L,getDrawn:()=>drawn,getNamedLayers:()=>namedLayers,
+  getEditSessionActive:()=>editSessionActive,setEditSessionActive:value=>{editSessionActive=value;},
+  getEditTarget:()=>editTarget,setEditTarget:value=>{editTarget=value;},
+  getActiveMapTool:()=>activeMapTool,setActiveMapTool:value=>{activeMapTool=value;},
+  getActiveDrawHandler:()=>activeDrawHandler,setActiveDrawHandler:value=>{activeDrawHandler=value;},
+  getActiveDrawPurpose:()=>activeDrawPurpose,setActiveDrawPurpose:value=>{activeDrawPurpose=value;},
+  getActiveDrawButton:()=>activeDrawButton,setActiveDrawButton:value=>{activeDrawButton=value;},
+  getActiveDrawCreatedHandler:()=>activeDrawCreatedHandler,setActiveDrawCreatedHandler:value=>{activeDrawCreatedHandler=value;},
+  getSelectedFeatures:()=>selectedFeatures,selectedRecords:()=>selectedRecords(),isVectorLayer,
+  blockForUnsavedTableEdits:reason=>blockForUnsavedTableEdits(reason),hasUnsavedTableEdits:()=>hasUnsavedTableEdits(),
+  status,stopSplitDraw,stopReshapeDraw,stopVertexEditing,saveEdits,recordUndoState,
+  confirm:options=>arcMapDialog.confirm(options),updateEditorToolbar:()=>featureEditingUI.updateEditorToolbar()
+});
 const geometryEditContext=featureEditingUI.createEditOperationContext({
   getMap:()=>map,getLeaflet:()=>L,getTurf:()=>turf,getEditTarget:()=>editTarget,
   getSelectedFeatures:()=>selectedFeatures,getSelectedLayer:()=>selectedLayer,setSelectedLayer:value=>{selectedLayer=value;},
@@ -1675,27 +1689,8 @@ let editSessionActive=false;
 let activeMapTool="select";
 let editTarget=drawn;
 
-function stopActiveDraw(cancel=true){
-  // Never leave a Split sketch listener armed when switching to another tool.
-  if(typeof stopSplitDraw==="function")stopSplitDraw();
-  const wasDrawing=activeMapTool==="draw";
-  const handler=activeDrawHandler;
-  const purpose=activeDrawPurpose;
-  activeDrawHandler=null;
-  activeDrawPurpose=null;
-  if(activeDrawCreatedHandler){
-    try{map.off(L.Draw.Event.CREATED,activeDrawCreatedHandler)}catch(_){}
-    activeDrawCreatedHandler=null;
-  }
-  if(handler){try{if(typeof handler.disable==="function")handler.disable()}catch(err){console.warn("Could not stop active tool",err)}}
-  if(activeDrawButton)activeDrawButton.classList.remove("active");
-  activeDrawButton=null;
-  try{map.doubleClickZoom.enable()}catch(_){}
-  if(wasDrawing){activeMapTool="select";try{map.dragging.enable()}catch(_){} map.getContainer().style.cursor="";}
-  else if(purpose==="selection"){try{map.getContainer().style.cursor=""}catch(_){}}
-  if(cancel&&purpose==="draw")status("Sketch cancelled; no feature was added.");
-  updateEditorToolbar();
-}
+function stopActiveDraw(cancel=true){return editSessionController.stopActiveDraw(cancel);}
+
 function updateEditorToolbar(){
   return featureEditingUI.updateEditorToolbar();
 }
@@ -1712,51 +1707,8 @@ function refreshEditorTargets(){
   sel.value=previousTarget===drawn||targetIndex<0?"drawn":String(targetIndex);
   editTarget=sel.value==="drawn"?drawn:(namedLayers[Number(sel.value)]?.layer||drawn);
 }
-function startEditing(item=null){
-  if(window.__sharedProjectReadOnly){status("This shared map is read-only.");return}
-  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("changing the edit target"))return;
-  if(item&&item.layer!==drawn&&!isVectorLayer(item.layer)){status("This layer cannot be edited.");return}
-  const sel=$("editTargetLayer");
-  if(item&&sel){
-    const idx=namedLayers.findIndex(x=>x.layer===item.layer);
-    if(item.layer===drawn)sel.value="drawn";
-    else if(idx>=0)sel.value=String(idx);
-  }
-  // When editing starts after selecting a feature, use that feature's owning vector layer.
-  // This keeps selection and editing connected instead of silently targeting My Drawings.
-  if(!item&&selectedFeatures.size&&sel){
-    const records=selectedRecords();
-    const owners=[...new Set(records.map(r=>r.owner?.layer).filter(Boolean))];
-    if(owners.length>1){
-      status("Selected features belong to multiple layers. Select features from one layer before editing.");
-      return;
-    }
-    if(owners.length===1){
-      const owner=owners[0];
-      sel.value=owner===drawn?"drawn":String(namedLayers.findIndex(x=>x.layer===owner));
-    }
-  }
-  const value=sel?.value||"drawn";
-  const requestedTarget=value==="drawn"?drawn:(namedLayers[Number(value)]?.layer||null);
-  if(!requestedTarget||!isVectorLayer(requestedTarget)){
-    status("Choose a valid vector feature layer before starting editing.");return;
-  }
-  // Never overwrite the active target before checking it. Previously the
-  // target was assigned first, making the active-session comparison tautological.
-  if(editSessionActive){
-    if(requestedTarget!==editTarget){
-      if(sel)sel.value=editTarget===drawn?"drawn":String(namedLayers.findIndex(x=>x.layer===editTarget));
-      status("Stop the current edit session before switching to another layer.");return;
-    }
-    updateEditorToolbar();
-    status("This edit session is already active.");return;
-  }
-  editTarget=requestedTarget;
-  recordUndoState();
-  editSessionActive=true;
-  updateEditorToolbar();
-  status("Edit session started for "+(value==="drawn"?"My Drawings":namedLayers[Number(value)]?.name||"selected layer")+".");
-}
+function startEditing(item=null){return editSessionController.startEditing(item);}
+
 function isLayerInEditTarget(layer){if(!layer||!editTarget)return false;if(layer===editTarget)return true;return editTarget===drawn?drawn.hasLayer(layer):!!editTarget?.hasLayer?.(layer)}
 function validateAndSyncEditTarget(){
   const fail=(message)=>({ok:false,message});
@@ -1879,25 +1831,8 @@ async function saveEdits(){
     return false;
   }
 }
-async function stopEditing(){
-  if(!editSessionActive)return;
-  if(typeof hasUnsavedTableEdits==="function"&&hasUnsavedTableEdits()){
-    status("Save Table Edits before stopping the edit session; unsaved attribute values are still in the table.");
-    return;
-  }
-  if(activeDrawHandler&&activeDrawPurpose==="draw"&&!await arcMapDialog.confirm({title:"Stop Editing",message:"A drawing sketch is still in progress. Stop editing and discard this unfinished sketch?",confirmText:"Discard Sketch",danger:true})){
-    status("Edit session remains active; finish or cancel the current sketch first.");
-    return;
-  }
-  // Finalize live geometry before serializing the project. Leaflet.Draw can
-  // keep vertex edits on the layer while layer.feature.geometry is still stale.
-  // Cancel unfinished sketches first, then sync vertex edits, then persist.
-  stopActiveDraw(true);stopReshapeDraw();stopVertexEditing();
-  if(!await saveEdits())return;
-  editSessionActive=false;editTarget=drawn;
-  updateEditorToolbar();
-  status("Edit session stopped and project saved locally.");
-}
+async function stopEditing(){return editSessionController.stopEditing();}
+
 let featureClipboard=[];
 let undoStack=[],redoStack=[],historyRestoring=false;
 let mapExtentHistory=[],mapExtentIndex=-1,mapExtentTarget=null;
