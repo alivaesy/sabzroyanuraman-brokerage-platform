@@ -27,7 +27,6 @@ function projectCoords(from,to,coords){
   return proj4(from,to,coords);
 }
 
-    function projectCoords(from,to,coords){ensureCRSDefinition(to);return proj4(from,to,coords);}
     return {utmEpsg,defineUTM,ensureCRSDefinition,projectCoords};
   }
   root.SabzWebGISCRS={create};
