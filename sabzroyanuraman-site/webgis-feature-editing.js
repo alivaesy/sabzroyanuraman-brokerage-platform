@@ -575,9 +575,9 @@ function editVertices(){
         }
         const value=sel?.value||"drawn",requestedTarget=value==="drawn"?drawn:(namedLayers[Number(value)]?.layer||null);
         if(!requestedTarget||!deps.isVectorLayer(requestedTarget)){deps.status("Choose a valid vector feature layer before starting editing.");return}
-        if(read("getEditSessionActive")()){
-          if(requestedTarget!==read("getEditTarget")()){
-            if(sel)sel.value=read("getEditTarget")()===drawn?"drawn":String(namedLayers.findIndex(x=>x.layer===read("getEditTarget")()));
+        if(read("getEditSessionActive")){
+          if(requestedTarget!==read("getEditTarget")){
+            if(sel)sel.value=read("getEditTarget")===drawn?"drawn":String(namedLayers.findIndex(x=>x.layer===read("getEditTarget")));
             deps.status("Stop the current edit session before switching to another layer.");return
           }
           deps.updateEditorToolbar();deps.status("This edit session is already active.");return
@@ -586,11 +586,11 @@ function editVertices(){
         deps.status("Edit session started for "+(value==="drawn"?"My Drawings":namedLayers[Number(value)]?.name||"selected layer")+".");
       }
       async function stopEditing(){
-        if(!read("getEditSessionActive")())return;
+        if(!read("getEditSessionActive"))return;
         if(deps.hasUnsavedTableEdits()){
           deps.status("Save Table Edits before stopping the edit session; unsaved attribute values are still in the table.");return
         }
-        if(read("getActiveDrawHandler")()&&read("getActiveDrawPurpose")()==="draw"&&!await deps.confirm({title:"Stop Editing",message:"A drawing sketch is still in progress. Stop editing and discard this unfinished sketch?",confirmText:"Discard Sketch",danger:true})){
+        if(read("getActiveDrawHandler")&&read("getActiveDrawPurpose")==="draw"&&!await deps.confirm({title:"Stop Editing",message:"A drawing sketch is still in progress. Stop editing and discard this unfinished sketch?",confirmText:"Discard Sketch",danger:true})){
           deps.status("Edit session remains active; finish or cancel the current sketch first.");return
         }
         stopActiveDraw(true);deps.stopReshapeDraw();deps.stopVertexEditing();
