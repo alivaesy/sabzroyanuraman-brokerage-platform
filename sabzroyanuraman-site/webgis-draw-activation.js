@@ -5,7 +5,7 @@ function create(ctx){
  const {
   blockForUnsavedTableEdits, getActiveDrawHandler, getActiveDrawPurpose,
   arcMapDialog, stopActiveDraw, stopReshapeDraw, stopVertexEditing,
-  window, namedLayers, getEditTarget, setEditTarget, setActiveDrawingSetName,
+  window, namedLayers, getEditTarget, setEditTarget, drawn, setActiveDrawingSetName,
   getActiveDrawingSetName, drawingLayerForType, getEditSessionActive,
   $, isVectorLayer, selectedOverlay, startEditing, status, startNativeDraw
  }=ctx;
@@ -28,6 +28,7 @@ function create(ctx){
   const useAutomaticDrawingLayer=editTarget===drawn||isDrawingSetTarget;
   if(useAutomaticDrawingLayer){
     drawingLayerForType(type);
+    editTarget=getEditTarget();
   }else if(!editSessionActive){
     // Respect an explicitly selected imported vector layer, like ArcMap.
     let preferredIndex=-1;
@@ -46,9 +47,11 @@ function create(ctx){
       $("editTargetLayer").value="drawn";
       editTarget=drawn;setEditTarget(editTarget);
       drawingLayerForType(type);
+      editTarget=getEditTarget();
     }
   }
   if(!editSessionActive)startEditing();
+  editSessionActive=ctx.getEditSessionActive();
   // startEditing can refuse to start when table edits are pending; never let
   // drawing continue outside a valid editor session.
   if(!editSessionActive){status("Save or discard pending table edits before drawing.");return}
