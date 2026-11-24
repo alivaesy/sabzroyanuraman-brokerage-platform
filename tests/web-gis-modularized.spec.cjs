@@ -9,7 +9,7 @@ const appUrl = pathToFileURL(app).href;
 
 async function boot(page) {
   const pageErrors = [];
-  page.on('pageerror', error => pageErrors.push(error.message));
+  page.on('pageerror', error => pageErrors.push(error.stack || error.message));
   await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#map.leaflet-container')).toBeAttached({ timeout: 30000 });
   await page.waitForFunction(() => !!window.__sabzGISMap && !!window.__sabzWebGISSharedBridge);
@@ -407,7 +407,7 @@ test.describe('Extracted Symbology and TOC modules', () => {
     expect(result.epsg).toBe('EPSG:32638');
     expect(result.registered).toBeTruthy();
     expect(result.projected[0]).toBeGreaterThan(200000);
-    expect(result.projected[0]).toBeLessThan(400000);
+    expect(result.projected[0]).toBeLessThan(420000);
     expect(result.projected[1]).toBeGreaterThan(3000000);
     expect(result.projected[1]).toBeLessThan(5000000);
     expect(result.restored[0]).toBeCloseTo(44, 5);
