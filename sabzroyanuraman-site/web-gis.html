@@ -2452,11 +2452,12 @@ const startTimeSlider=window.SabzWebGISTimeSlider.create({
   document,
   status
 });
-function setMapTool(name,button,message){
-  stopActiveDraw(true);activeMapTool=name;
-  document.querySelectorAll("#classicToolbars button.icon-tool").forEach(b=>b.classList.remove("active"));
-  if(button)button.classList.add("active");status(message);
-}
+const setMapTool=window.SabzWebGISMapInteractionTools.createSetMapTool({
+  stopActiveDraw,
+  setActiveMapTool:value=>{activeMapTool=value;},
+  document,
+  status
+});
 
 /* GPS tracking implementation is loaded from webgis-gps-tracking.js. */function goToXY(){return window.SabzWebGISGoToXY.open({map,L,document,getCurrentCRS:()=>currentCRS,utmEpsg,projectCoords,status});}
 function ellipseRing(a,b){

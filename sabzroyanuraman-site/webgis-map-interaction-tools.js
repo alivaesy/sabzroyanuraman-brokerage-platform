@@ -15,5 +15,14 @@
       startHtmlPopupTool:()=>activate("htmlPopup","htmlPopupBtn","Click a feature to open its attribute pop-up.")
     };
   }
-  root.SabzWebGISMapInteractionTools={create};
+  function createSetMapTool({stopActiveDraw,setActiveMapTool,document,status}){
+    if(typeof stopActiveDraw!=="function"||typeof setActiveMapTool!=="function"||!document||typeof status!=="function")throw new Error("Map tool activation dependencies are required.");
+    return function setMapTool(name,button,message){
+      stopActiveDraw(true);setActiveMapTool(name);
+      document.querySelectorAll("#classicToolbars button.icon-tool").forEach(item=>item.classList.remove("active"));
+      if(button)button.classList.add("active");
+      status(message);
+    };
+  }
+  root.SabzWebGISMapInteractionTools={create,createSetMapTool};
 })(window);
