@@ -452,4 +452,51 @@ test.describe('Extracted Symbology and TOC modules', () => {
     expect(errors).toEqual([]);
   });
 
+
+  test('Selection shape controller activates, consumes and cleans up a Leaflet Draw event', async ({ page }) => {
+    const errors = await boot(page);
+    const result = await page.evaluate(() => {
+      const events = {};
+      let activeHandler = null, activePurpose = null, createdHandler = null;
+      let stopped = 0, enabled = false, removed = null, selected = null;
+      class Polygon {
+        constructor(map, options) { this.map = map; this.options = options; }
+        enable() { enabled = true; }
+      }
+      const map = {
+        on: (name, callback) => { events[name] = callback; },
+        off: (name, callback) => { if (events[name] === callback) delete events[name]; },
+        removeLayer: layer => { removed = layer; }
+      };
+      const api = window.SabzWebGISSelectionShape.create({
+        window: { _vertexEditControl: null, _reshapeDrawHandler: null },
+        Leaflet: { Draw: { Polygon, Event: { CREATED: 'draw:created' } } },
+        map,
+        stopActiveDraw: () => { stopped++; },
+        status: () => {},
+        setActiveDrawHandler: value => { activeHandler = value; },
+        setActiveDrawPurpose: value => { activePurpose = value; },
+        getActiveDrawCreatedHandler: () => createdHandler,
+        setActiveDrawCreatedHandler: value => { createdHandler = value; }
+      });
+      const options = { allowIntersection: false };
+      api('Polygon', options, layer => { selected = layer; });
+      const handler = events['draw:created'];
+      const layer = { id: 'selection-shape' };
+      handler({ layerType: 'polygon', layer });
+      return {
+        enabled, handlerCreated: !!handler, handlerStored: activeHandler instanceof Polygon,
+        activePurpose, stopped, removed: removed === layer, selected: selected === layer,
+        listenerRemoved: !events['draw:created'], createdHandlerCleared: createdHandler === null,
+        optionsPassed: activeHandler.options === options
+      };
+    });
+    expect(result).toEqual({
+      enabled: true, handlerCreated: true, handlerStored: true, activePurpose: 'selection',
+      stopped: 2, removed: true, selected: true, listenerRemoved: true,
+      createdHandlerCleared: true, optionsPassed: true
+    });
+    expect(errors).toEqual([]);
+  });
+
 });

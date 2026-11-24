@@ -13,6 +13,7 @@ on:
       - "sabzroyanuraman-site/webgis-wayback-config.js"
       - "sabzroyanuraman-site/webgis-crs.js"
       - "sabzroyanuraman-site/webgis-map-interaction-tools.js"
+      - "sabzroyanuraman-site/webgis-selection-shape.js"
       - "tests/web-gis-modularized.spec.cjs"
       - ".github/workflows/webgis-modularized-browser.yml"
   pull_request:
@@ -23,6 +24,7 @@ on:
       - "sabzroyanuraman-site/webgis-wayback-config.js"
       - "sabzroyanuraman-site/webgis-crs.js"
       - "sabzroyanuraman-site/webgis-map-interaction-tools.js"
+      - "sabzroyanuraman-site/webgis-selection-shape.js"
       - "sabzroyanuraman-site/webgis-layer-symbology.js"
       - "sabzroyanuraman-site/webgis-symbology-core.js"
       - "sabzroyanuraman-site/webgis-toc-render.js"

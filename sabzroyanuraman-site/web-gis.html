@@ -1353,6 +1353,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <script src="./webgis-find-route.js?v=20261124-find-route"></script>
 <script src="./webgis-time-slider.js?v=20261124-time-slider"></script>
 <script src="./webgis-map-interaction-tools.js?v=20261124-map-interaction"></script>
+<script src="./webgis-selection-shape.js?v=20261124-selection-shape"></script>
 <script src="./webgis-wayback-config.js?v=20261124-wayback-config"></script>
 <script src="./webgis-crs.js?v=20261124-crs"></script>
 <script src="./webgis-symbology-core.js?v=20261104-symbology-core"></script>
@@ -2393,6 +2394,13 @@ const {startHyperlinkTool,startHtmlPopupTool}=window.SabzWebGISMapInteractionToo
   status
 });
 
+const selectionShapeController=window.SabzWebGISSelectionShape.create({
+  window,Leaflet:L,map,stopActiveDraw,status,
+  setActiveDrawHandler:value=>{activeDrawHandler=value;},
+  setActiveDrawPurpose:value=>{activeDrawPurpose=value;},
+  getActiveDrawCreatedHandler:()=>activeDrawCreatedHandler,
+  setActiveDrawCreatedHandler:value=>{activeDrawCreatedHandler=value;}
+});
 const startMeasureTool=window.SabzWebGISMeasureTool.create({stopActiveDraw,arcMapDialog:{select:options=>window.arcMapDialog.select(options)},startSelectionShape,turf,map,status,getLastMeasureLayer:()=>lastMeasureLayer,setLastMeasureLayer:value=>{lastMeasureLayer=value;}});
 const findRoute=window.SabzWebGISFindRoute.create({map,arcMapDialog:{prompt:options=>window.arcMapDialog.prompt(options)},fetch:window.fetch.bind(window),geoJsonLayer,status,$:id=>document.getElementById(id)});
 function createMapViewer(){
@@ -2680,24 +2688,7 @@ function startNativeDraw(type,button){
   const instructions={Marker:"Click once on the map to place a point.",Polyline:"Click on the map to add line vertices.",Polygon:"Click on the map to add polygon vertices.",Rectangle:"Click the first rectangle corner.",Circle:"Click the circle center.",Ellipse:"Click one corner, then the opposite corner.",FreehandLine:"Hold left mouse button and drag to draw a freehand line.",FreehandPolygon:"Hold left mouse button and drag to draw a freehand polygon."};
   status(instructions[type]||"Drawing tool active.");
 }
-function startSelectionShape(type,options,callback){
-  if(window._vertexEditControl||window._reshapeDrawHandler){status("Finish or cancel the active geometry edit before starting a selection tool.");return;}
-  stopActiveDraw();
-  if(!window.L||!L.Draw){status("The drawing library is unavailable.");return}
-  const Ctor=L.Draw[type];if(typeof Ctor!=="function"){status("This selection shape is unavailable.");return}
-  let handler;try{handler=new Ctor(map,options)}catch(err){console.error(err);status("Could not start the selection tool.");return}
-  activeDrawHandler=handler;activeDrawPurpose="selection";
-  const once=e=>{
-    map.off(L.Draw.Event.CREATED,once);
-    if(activeDrawCreatedHandler===once)activeDrawCreatedHandler=null;
-    stopActiveDraw(true);
-    if(e.layerType!==type.toLowerCase())return;
-    map.removeLayer(e.layer);
-    callback(e.layer);
-  };
-  activeDrawCreatedHandler=once;
-  map.on(L.Draw.Event.CREATED,once);try{handler.enable()}catch(err){map.off(L.Draw.Event.CREATED,once);if(activeDrawCreatedHandler===once)activeDrawCreatedHandler=null;stopActiveDraw();console.error(err);status("Could not start the selection tool.")}
-}
+function startSelectionShape(type,options,callback){return selectionShapeController(type,options,callback);}
 document.addEventListener("keydown",e=>{
   if(e.key!=="Delete"||e.ctrlKey||e.metaKey||e.altKey||activeDrawHandler)return;
   const target=e.target;
