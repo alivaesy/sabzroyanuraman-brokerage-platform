@@ -168,7 +168,7 @@ async function selectByAttribute(){
     }
 
     function createInteractiveSelectionController(deps={}){
-      const required=["getMap","getLeaflet","getActiveMapTool","getSelectedFeatures","getSelectedLayer","setSelectedLayer","getSelectedOverlay","setSelectedOverlay","updateStandardActionButtons","renderAttributeEditor","applySelectionVisual","status","document","$","esc","asFeature","identifyTool","showUTM","calcMeasure","synchronizeFeatureSelection","getWindow"];
+      const required=["getMap","getLeaflet","getActiveMapTool","getSelectedFeatures","getSelectedLayer","setSelectedLayer","getSelectedOverlay","setSelectedOverlay","updateStandardActionButtons","renderAttributeEditor","applySelectionVisual","status","$","esc","asFeature","identifyTool","showUTM","calcMeasure","synchronizeFeatureSelection","getWindow"];
       const missing=required.filter(name=>typeof deps[name]!=="function");
       if(missing.length)throw new Error("Interactive selection controller is missing dependencies: "+missing.join(", "));
       const read=name=>deps[name]();
