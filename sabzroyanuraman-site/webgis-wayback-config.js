@@ -13,19 +13,19 @@
     const controller=typeof AbortController!=="undefined"?new AbortController():null;
     const timeout=controller?setTimeout(()=>controller.abort(),9000):null;
     try{
-      const res=await fetch(WAYBACK_CONFIG_URL,{cache:attempt===0?"no-cache":"reload",mode:"cors",signal:controller?controller.signal:undefined});
+      const res=await fetchImpl(WAYBACK_CONFIG_URL,{cache:attempt===0?"no-cache":"reload",mode:"cors",signal:controller?controller.signal:undefined});
       if(!res.ok)throw new Error("HTTP "+res.status);
       const data=await res.json();
       const normalized=waybackNormalize(data);
       if(!normalized.length)throw new Error("فهرست نسخه‌ها خالی یا با قالب نامعتبر است");
-      try{localStorage.setItem(WAYBACK_CACHE_KEY,JSON.stringify({savedAt:Date.now(),items:normalized}));}catch(_){}
+      try{storage.setItem(WAYBACK_CACHE_KEY,JSON.stringify({savedAt:Date.now(),items:normalized}));}catch(_){}
       return normalized;
     }catch(e){lastError=e;if(attempt<2)await new Promise(resolve=>setTimeout(resolve,500*(attempt+1)));}
     finally{if(timeout)clearTimeout(timeout);}
   }
   // Previously loaded metadata can keep the archive selector usable during an outage.
   try{
-    const cached=JSON.parse(localStorage.getItem(WAYBACK_CACHE_KEY)||"null");
+    const cached=JSON.parse(storage.getItem(WAYBACK_CACHE_KEY)||"null");
     const items=Array.isArray(cached?.items)?waybackNormalize(cached.items):[];
     if(items.length){items._fromCache=true;return items;}
   }catch(_){}
