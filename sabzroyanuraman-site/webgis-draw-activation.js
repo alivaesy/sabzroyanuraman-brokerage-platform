@@ -5,11 +5,14 @@ function create(ctx){
  const {
   blockForUnsavedTableEdits, getActiveDrawHandler, getActiveDrawPurpose,
   arcMapDialog, stopActiveDraw, stopReshapeDraw, stopVertexEditing,
-  window, namedLayers, getEditTarget, setActiveDrawingSetName,
+  window, namedLayers, getEditTarget, setEditTarget, setActiveDrawingSetName,
   getActiveDrawingSetName, drawingLayerForType, getEditSessionActive,
   $, isVectorLayer, selectedOverlay, startEditing, status, startNativeDraw
  }=ctx;
  return async function startDraw(type,button){
+  let activeDrawHandler=getActiveDrawHandler(),activeDrawPurpose=getActiveDrawPurpose();
+  let editTarget=getEditTarget(),editSessionActive=ctx.getEditSessionActive();
+  let activeDrawingSetName=ctx.getActiveDrawingSetName();
 
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("starting a drawing"))return;
   // Never silently throw away an unfinished sketch when switching tools.
@@ -21,7 +24,7 @@ function create(ctx){
   // Drawing tools always route to the matching geometry child of the active set.
   const currentDrawingItem=namedLayers.find(item=>item.layer===editTarget);
   const isDrawingSetTarget=!!currentDrawingItem&&!!currentDrawingItem.drawingSet;
-  if(isDrawingSetTarget)activeDrawingSetName=currentDrawingItem.drawingSet;
+  if(isDrawingSetTarget){activeDrawingSetName=currentDrawingItem.drawingSet;setActiveDrawingSetName(activeDrawingSetName);}
   const useAutomaticDrawingLayer=editTarget===drawn||isDrawingSetTarget;
   if(useAutomaticDrawingLayer){
     drawingLayerForType(type);
@@ -38,10 +41,10 @@ function create(ctx){
     }
     if(preferredIndex>=0){
       $("editTargetLayer").value=String(preferredIndex);
-      editTarget=namedLayers[preferredIndex].layer;
+      editTarget=namedLayers[preferredIndex].layer;setEditTarget(editTarget);
     }else if(attributeChoice==="drawn"){
       $("editTargetLayer").value="drawn";
-      editTarget=drawn;
+      editTarget=drawn;setEditTarget(editTarget);
       drawingLayerForType(type);
     }
   }
