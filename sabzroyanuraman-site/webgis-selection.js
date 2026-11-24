@@ -311,7 +311,6 @@ async function selectByAttribute(){
         });
         return true;
       }
-      attachMapSelectionFallback();
       return Object.freeze({updateMultiSelectionUI,clearMultiSelection,toggleMultiSelection,setGisSelection,featureLabel,handleFeatureSelectionClick,attachFeatureSelection,attachMapSelectionFallback});
     }
 
