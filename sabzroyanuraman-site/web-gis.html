@@ -1514,7 +1514,8 @@ function ensureSpecialBasemapPanels(){
  }
  if(!googleMyMapsPanel){googleMyMapsPanel=document.createElement("div");googleMyMapsPanel.id="gisGoogleMyMapsPanel";googleMyMapsPanel.style.cssText="display:none;position:absolute;z-index:1190;top:12px;right:12px;bottom:38px;width:min(48%,560px);min-width:280px;background:#fff;border:1px solid #9baebd;border-radius:8px;overflow:hidden;box-shadow:0 3px 12px #0002";googleMyMapsPanel.innerHTML='<div style="height:34px;background:#f4f7f8;display:flex;align-items:center;justify-content:space-between;padding:0 8px;font:12px sans-serif"><strong>Google My Maps</strong><button type="button" id="gisGoogleMyMapsClose" title="بستن">×</button></div><iframe title="Google My Maps" src="'+GOOGLE_MY_MAPS_EMBED+'" style="width:100%;height:calc(100% - 34px);border:0" loading="lazy" allowfullscreen></iframe>';host.appendChild(googleMyMapsPanel);googleMyMapsPanel.querySelector("#gisGoogleMyMapsClose").onclick=()=>{googleMyMapsPanel.style.display="none";if(currentBasemapKey==="googleMyMaps"){currentBasemapKey="osm";$("basemap").value="osm";}};}
 }
-const waybackConfig=window.SabzWebGISWaybackConfig.create({fetch:window.fetch.bind(window),storage:window.localStorage});
+const waybackStorage=(()=>{try{return window.localStorage;}catch(_){return {getItem:()=>null,setItem:()=>{}};}})();
+const waybackConfig=window.SabzWebGISWaybackConfig.create({fetch:window.fetch.bind(window),storage:waybackStorage});
 const waybackNormalize=waybackConfig.waybackNormalize;
 const fetchWaybackConfig=waybackConfig.fetchWaybackConfig;
 async function loadWaybackItems(){
@@ -2392,8 +2393,8 @@ const {startHyperlinkTool,startHtmlPopupTool}=window.SabzWebGISMapInteractionToo
   status
 });
 
-const startMeasureTool=window.SabzWebGISMeasureTool.create({stopActiveDraw,arcMapDialog,startSelectionShape,turf,map,status,getLastMeasureLayer:()=>lastMeasureLayer,setLastMeasureLayer:value=>{lastMeasureLayer=value;}});
-const findRoute=window.SabzWebGISFindRoute.create({map,arcMapDialog,fetch:window.fetch.bind(window),geoJsonLayer,status,$:id=>document.getElementById(id)});
+const startMeasureTool=window.SabzWebGISMeasureTool.create({stopActiveDraw,arcMapDialog:{select:options=>window.arcMapDialog.select(options)},startSelectionShape,turf,map,status,getLastMeasureLayer:()=>lastMeasureLayer,setLastMeasureLayer:value=>{lastMeasureLayer=value;}});
+const findRoute=window.SabzWebGISFindRoute.create({map,arcMapDialog:{prompt:options=>window.arcMapDialog.prompt(options)},fetch:window.fetch.bind(window),geoJsonLayer,status,$:id=>document.getElementById(id)});
 function createMapViewer(){
   const win=window.open("","sabzMapViewer","width=1200,height=820,resizable=yes");
   if(!win){status("Allow pop-ups to open the map viewer.");return;}

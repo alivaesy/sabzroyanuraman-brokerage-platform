@@ -9,7 +9,7 @@ const appUrl = pathToFileURL(app).href;
 
 async function boot(page) {
   const pageErrors = [];
-  page.on('pageerror', error => pageErrors.push(error.message));
+  page.on('pageerror', error => pageErrors.push(error.stack || error.message));
   await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#map.leaflet-container')).toBeAttached({ timeout: 30000 });
   await page.waitForFunction(() => !!window.__sabzGISMap && !!window.__sabzWebGISSharedBridge);
@@ -389,6 +389,66 @@ test.describe('Extracted Symbology and TOC modules', () => {
       return '';
     });
     expect(message).toContain('getMap');
+    expect(errors).toEqual([]);
+  });
+
+
+  test('Projected CRS module registers UTM 38N and round-trips real coordinates', async ({ page }) => {
+    const errors = await boot(page);
+    const result = await page.evaluate(() => {
+      const crs = window.SabzWebGISCRS.create({ proj4: window.proj4 });
+      const epsg = crs.utmEpsg(38, true);
+      const projected = crs.projectCoords('EPSG:4326', epsg, [44, 35]);
+      const restored = window.proj4(epsg, 'EPSG:4326', projected);
+      let invalidZone = false;
+      try { crs.utmEpsg(61, true); } catch (_) { invalidZone = true; }
+      return { epsg, projected, restored, invalidZone, registered: !!window.proj4.defs(epsg) };
+    });
+    expect(result.epsg).toBe('EPSG:32638');
+    expect(result.registered).toBeTruthy();
+    expect(result.projected[0]).toBeGreaterThan(200000);
+    expect(result.projected[0]).toBeLessThan(420000);
+    expect(result.projected[1]).toBeGreaterThan(3000000);
+    expect(result.projected[1]).toBeLessThan(5000000);
+    expect(result.restored[0]).toBeCloseTo(44, 5);
+    expect(result.restored[1]).toBeCloseTo(35, 5);
+    expect(result.invalidZone).toBeTruthy();
+    expect(errors).toEqual([]);
+  });
+
+  test('Wayback config module normalizes releases and caches fetched metadata', async ({ page }) => {
+    const errors = await boot(page);
+    const result = await page.evaluate(async () => {
+      const values = new Map();
+      let requests = 0;
+      const storage = {
+        setItem: (key, value) => values.set(key, value),
+        getItem: key => values.get(key) || null
+      };
+      const api = window.SabzWebGISWaybackConfig.create({
+        fetch: async () => {
+          requests++;
+          return { ok: true, json: async () => [
+            { releaseNum: 2, releaseDateLabel: '2021-01-01', releaseDatetime: 2, itemURL: 'https://tiles/2' },
+            { releaseNum: 1, releaseDateLabel: '2020-01-01', releaseDatetime: 1, itemURL: 'https://tiles/1' },
+            { releaseNum: 3, releaseDateLabel: 'invalid', releaseDatetime: 3, itemURL: '' }
+          ] };
+        },
+        storage
+      });
+      const normalized = api.waybackNormalize([
+        { releaseNum: 2, releaseDateLabel: '2021-01-01', releaseDatetime: 2, itemURL: 'https://tiles/2' },
+        { releaseNum: 1, releaseDateLabel: '2020-01-01', releaseDatetime: 1, itemURL: 'https://tiles/1' },
+        { releaseNum: 3, releaseDateLabel: 'invalid', releaseDatetime: 3, itemURL: '' }
+      ]);
+      const loaded = await api.fetchWaybackConfig();
+      const cached = JSON.parse(storage.getItem('sabzroyan-webgis-wayback-config-v1'));
+      return { order: normalized.map(item => item.releaseNum), loadedCount: loaded.length, cachedCount: cached.items.length, requests };
+    });
+    expect(result.order).toEqual([1, 2]);
+    expect(result.loadedCount).toBe(2);
+    expect(result.cachedCount).toBe(2);
+    expect(result.requests).toBe(1);
     expect(errors).toEqual([]);
   });
 
