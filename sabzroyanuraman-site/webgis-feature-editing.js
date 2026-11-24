@@ -542,7 +542,7 @@ function editVertices(){
 
 
     function createEditSessionController(deps={}){
-      const required=["getMap","getLeaflet","getDrawn","getNamedLayers","getEditSessionActive","setEditSessionActive","getEditTarget","setEditTarget","getActiveMapTool","setActiveMapTool","getActiveDrawHandler","setActiveDrawHandler","getActiveDrawPurpose","setActiveDrawPurpose","getActiveDrawButton","setActiveDrawButton","getActiveDrawCreatedHandler","setActiveDrawCreatedHandler","getSelectedFeatures","selectedRecords","isVectorLayer","blockForUnsavedTableEdits","status","stopSplitDraw","stopReshapeDraw","stopVertexEditing","saveEdits","recordUndoState","confirm","updateEditorToolbar"];
+      const required=["getMap","getLeaflet","getDrawn","getNamedLayers","getEditSessionActive","setEditSessionActive","getEditTarget","setEditTarget","getActiveMapTool","setActiveMapTool","getActiveDrawHandler","setActiveDrawHandler","getActiveDrawPurpose","setActiveDrawPurpose","getActiveDrawButton","setActiveDrawButton","getActiveDrawCreatedHandler","setActiveDrawCreatedHandler","getSelectedFeatures","selectedRecords","isVectorLayer","blockForUnsavedTableEdits","status","stopSplitDraw","stopReshapeDraw","stopVertexEditing","saveEdits","recordUndoState","confirm","updateEditorToolbar","hasUnsavedTableEdits"];
       const missing=required.filter(name=>typeof deps[name]!=="function");
       if(missing.length)throw new Error("Edit-session controller is missing dependencies: "+missing.join(", "));
       const read=name=>deps[name]();
@@ -595,7 +595,7 @@ function editVertices(){
         }
         stopActiveDraw(true);deps.stopReshapeDraw();deps.stopVertexEditing();
         if(!await deps.saveEdits())return;
-        deps.setEditSessionActive(false);deps.setEditTarget(read("getDrawn")());deps.updateEditorToolbar();
+        deps.setEditSessionActive(false);deps.setEditTarget(read("getDrawn"));deps.updateEditorToolbar();
         deps.status("Edit session stopped and project saved locally.");
       }
       return Object.freeze({stopActiveDraw,startEditing,stopEditing});
