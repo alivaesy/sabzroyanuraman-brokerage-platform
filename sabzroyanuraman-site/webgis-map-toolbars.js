@@ -1,8 +1,27 @@
-/* ArcMap map-navigation and drawing toolbar event bindings. */
+/* ArcMap-style map navigation and toolbar bindings. */
 (function(root){
  "use strict";
+
  function init(ctx){
-  const d=document;
+  if(!ctx||!ctx.map||!ctx.L||!root.document)throw new TypeError("Map toolbar requires map, Leaflet and document.");
+  const d=root.document;
+  if(d.__sabzMapToolbarsInitialized)return false;
+
+  const byId=id=>d.getElementById(id);
+  const bind=(id,handler)=>{
+   const el=byId(id);
+   if(el&&typeof handler==="function")el.addEventListener("click",handler);
+   return el;
+  };
+  const setActive=id=>{
+   d.querySelectorAll("#classicToolbars button.icon-tool").forEach(button=>button.classList.remove("active"));
+   const target=byId(id);
+   if(target)target.classList.add("active");
+  };
+  const report=message=>{if(typeof ctx.status==="function")ctx.status(message);};
+  const setTool=tool=>{if(typeof ctx.setActiveMapTool==="function")ctx.setActiveMapTool(tool);};
+  const enableDragging=()=>ctx.map.dragging?.enable?.();
+
   const directBindings={
    startEditingBtn:ctx.startEditing,newMapBtn:ctx.clearWorkspace,printMapBtn:ctx.printMap,
    copyBtn:ctx.copyFeatures,cutBtn:ctx.cutFeatures,pasteBtn:ctx.pasteFeatures,deleteBtn:ctx.deleteFeatures,
@@ -13,38 +32,57 @@
    createViewerBtn:ctx.createMapViewer,saveEditsBtn:ctx.saveEdits,stopEditingBtn:ctx.stopEditing,
    goToXYBtn:ctx.goToXY,clearSelectionBtn:ctx.clearSelection
   };
-  Object.entries(directBindings).forEach(([id,handler])=>{const el=d.getElementById(id);if(el&&typeof handler==="function")el.onclick=handler;});
-  d.querySelectorAll("[data-editor-draw]").forEach(button=>button.onclick=()=>ctx.startDraw(button.dataset.editorDraw,button));
-  d.getElementById("finishSketchBtn").onclick=()=>{
-   const active=ctx.getActiveDrawHandler();
-   if(active&&ctx.getActiveDrawPurpose()==="draw"&&typeof active.completeShape==="function")active.completeShape();
-   else ctx.stopActiveDraw(true);
-  };
-  d.getElementById("zoomInBtn")?.addEventListener("click",()=>ctx.map.zoomIn());
-  d.getElementById("zoomOutBtn")?.addEventListener("click",()=>ctx.map.zoomOut());
-  d.getElementById("panMapBtn")?.addEventListener("click",()=>{
-   ctx.stopActiveDraw(true);ctx.setActiveMapTool("pan");
-   d.querySelectorAll("#classicToolbars button.icon-tool").forEach(x=>x.classList.remove("active"));
-   d.getElementById("panMapBtn")?.classList.add("active");
-   ctx.map.dragging.enable();ctx.status("Pan tool is active.");
+  Object.entries(directBindings).forEach(([id,handler])=>bind(id,handler));
+
+  d.querySelectorAll("[data-editor-draw]").forEach(button=>{
+   button.addEventListener("click",()=>ctx.startDraw?.(button.dataset.editorDraw,button));
   });
-  d.getElementById("selectRectangleBtn")?.addEventListener("click",ctx.selectByRectangle);
-  d.getElementById("selectPolygonBtn")?.addEventListener("click",ctx.selectByPolygon);
-  d.getElementById("selectFeaturesBtn").onclick=()=>{
-   ctx.stopActiveDraw(true);ctx.setActiveMapTool("select");ctx.map.dragging.enable();ctx.map.getContainer().style.cursor="";
-   d.querySelectorAll("#classicToolbars button").forEach(x=>x.classList.remove("active"));
-   d.getElementById("selectFeaturesBtn").classList.add("active");
-   ctx.status("Select Features is active. Click an existing feature to select it; Ctrl-click or Shift-click adds/removes features.");
-  };
-  d.getElementById("identifyFeatureBtn").onclick=()=>{
-   ctx.setActiveMapTool("identify");d.querySelectorAll("#classicToolbars button").forEach(x=>x.classList.remove("active"));
-   d.getElementById("identifyFeatureBtn").classList.add("active");ctx.status("Click a feature to identify it.");
-  };
-  d.getElementById("fullExtentBtn").onclick=()=>{
-   const layers=[ctx.drawn,...ctx.namedLayers.map(x=>x.layer)].filter(layer=>layer.getBounds&&layer.getBounds().isValid());
-   if(!layers.length)return;
-   const bounds=ctx.L.latLngBounds(layers.map(layer=>layer.getBounds()));ctx.map.fitBounds(bounds,{padding:[20,20]});
-  };
+
+  bind("finishSketchBtn",()=>{
+   const active=ctx.getActiveDrawHandler?.();
+   if(active&&ctx.getActiveDrawPurpose?.()==="draw"&&typeof active.completeShape==="function")active.completeShape();
+   else ctx.stopActiveDraw?.(true);
+  });
+
+  bind("zoomInBtn",()=>ctx.map.zoomIn());
+  bind("zoomOutBtn",()=>ctx.map.zoomOut());
+
+  bind("panMapBtn",()=>{
+   ctx.stopActiveDraw?.(true);
+   setTool("pan");setActive("panMapBtn");enableDragging();
+   report("Pan tool is active.");
+  });
+
+  bind("selectRectangleBtn",()=>ctx.selectByRectangle?.());
+  bind("selectPolygonBtn",()=>ctx.selectByPolygon?.());
+
+  bind("selectFeaturesBtn",()=>{
+   ctx.stopActiveDraw?.(true);
+   setTool("select");enableDragging();
+   if(ctx.map.getContainer)ctx.map.getContainer().style.cursor="";
+   setActive("selectFeaturesBtn");
+   report("Select Features is active. Click an existing feature to select it; Ctrl-click or Shift-click adds/removes features.");
+  });
+
+  bind("identifyFeatureBtn",()=>{
+   setTool("identify");setActive("identifyFeatureBtn");
+   report("Click a feature to identify it.");
+  });
+
+  bind("fullExtentBtn",()=>{
+   const candidates=[ctx.drawn,...(Array.isArray(ctx.namedLayers)?ctx.namedLayers.map(item=>item?.layer):[])].filter(Boolean);
+   const bounds=[];
+   candidates.forEach(layer=>{
+    if(typeof layer.getBounds!=="function")return;
+    try{const value=layer.getBounds();if(value?.isValid?.())bounds.push(value);}catch(_){}
+   });
+   if(!bounds.length){report("No visible feature layers are available for Full Extent.");return;}
+   ctx.map.fitBounds(ctx.L.latLngBounds(bounds),{padding:[20,20]});
+  });
+
+  d.__sabzMapToolbarsInitialized=true;
+  return true;
  }
+
  root.SabzWebGISMapToolbars=Object.freeze({init});
 })(typeof window!=="undefined"?window:globalThis);
