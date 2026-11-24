@@ -1505,7 +1505,6 @@ nasaWms:L.tileLayer.wms("https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.c
 googleSat:(window.L&&L.gridLayer&&L.gridLayer.googleMutant)?L.gridLayer.googleMutant({type:"satellite"}):null,
  googleXyz:L.tileLayer("https://mt0.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",{maxZoom:20,maxNativeZoom:20,attribution:"Imagery © Google",crossOrigin:true}),
 };
-const WAYBACK_CONFIG_URL="https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json";
 let waybackItems=[],waybackIndex=0,waybackLoading=null,waybackPanel=null,googleMyMapsPanel=null;
 const GOOGLE_MY_MAPS_EMBED="https://www.google.com/maps/d/embed?mid=18GJ7jBoL2_MhwZpzE3sfbmIqwquXJwg&ehbc=2E312F&noprof=1";
 function ensureSpecialBasemapPanels(){
@@ -1518,7 +1517,6 @@ function ensureSpecialBasemapPanels(){
 const waybackConfig=window.SabzWebGISWaybackConfig.create({fetch:window.fetch.bind(window),storage:window.localStorage});
 const waybackNormalize=waybackConfig.waybackNormalize;
 const fetchWaybackConfig=waybackConfig.fetchWaybackConfig;
-const WAYBACK_CACHE_KEY="sabzroyan-webgis-wayback-config-v1";
 async function loadWaybackItems(){
   ensureSpecialBasemapPanels();if(waybackItems.length)return true;if(waybackLoading)return waybackLoading;
   waybackLoading=(async()=>{
