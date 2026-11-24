@@ -2453,7 +2453,7 @@ const drawActivation=window.SabzWebGISDrawActivation.create({
  arcMapDialog, stopActiveDraw, stopReshapeDraw, stopVertexEditing, window, namedLayers,
  getEditTarget:()=>editTarget, setEditTarget:value=>{editTarget=value;}, drawn, setActiveDrawingSetName:value=>{activeDrawingSetName=value;},
  getActiveDrawingSetName:()=>activeDrawingSetName, drawingLayerForType, getEditSessionActive:()=>editSessionActive,
- $:id=>$(id), isVectorLayer, selectedOverlay, startEditing, status, startNativeDraw
+ $:id=>$(id), isVectorLayer, getSelectedOverlay:()=>selectedOverlay, startEditing, status, startNativeDraw
 });
 async function startDraw(type,button){return drawActivation(type,button);}
 const geometryTransformTools=window.SabzWebGISGeometryTransforms.create({blockForUnsavedTableEdits,editableSelectedRecords,showEditToolOptions,turf,status,commitGeometryOperation});
