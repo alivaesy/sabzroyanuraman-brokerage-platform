@@ -166,7 +166,155 @@ async function selectByAttribute(){
       });
       return best;
     }
-    return Object.freeze({featureDistanceMeters,allSelectableFeatureLayers,getFeatureRecords,selectedRecords,selectByLocation,selectByAttribute});
+
+    function createInteractiveSelectionController(deps={}){
+      const required=["getMap","getLeaflet","getActiveMapTool","getSelectedFeatures","getSelectedLayer","setSelectedLayer","getSelectedOverlay","setSelectedOverlay","updateStandardActionButtons","renderAttributeEditor","applySelectionVisual","status","document","$","esc","asFeature","identifyTool","showUTM","calcMeasure","synchronizeFeatureSelection","getWindow"];
+      const missing=required.filter(name=>typeof deps[name]!=="function");
+      if(missing.length)throw new Error("Interactive selection controller is missing dependencies: "+missing.join(", "));
+      const read=name=>deps[name]();
+      function updateMultiSelectionUI(){
+        const selected=read("getSelectedFeatures");
+        allSelectableFeatureLayers().forEach(entry=>vectorFeatures(entry.layer).forEach(record=>{
+          const layer=record.layer;if(!layer)return;
+          const isSelected=selected.has(layer);
+          if(typeof layer.setStyle==="function"){
+            if(isSelected){
+              if(!layer._webgisPreSelectionStyle){
+                const options=layer.options||{};layer._webgisPreSelectionStyle={};
+                ["color","weight","opacity","fillColor","fillOpacity","dashArray","lineCap","lineJoin"].forEach(key=>{
+                  if(Object.prototype.hasOwnProperty.call(options,key))layer._webgisPreSelectionStyle[key]=options[key];
+                });
+              }
+              layer.setStyle({color:"#ff8c00",weight:5,opacity:1,fillColor:"#ffd54f",fillOpacity:.72});
+            }else if(layer._webgisPreSelectionStyle){
+              layer.setStyle(layer._webgisPreSelectionStyle);delete layer._webgisPreSelectionStyle;
+            }
+          }
+          const element=(typeof layer.getElement==="function"&&layer.getElement())||layer._path||layer._icon;
+          if(element)element.classList.toggle("multi-selected-feature",isSelected);
+        }));
+        read("document").querySelectorAll(".multi-selected-feature").forEach(element=>{
+          const owner=selected.has(element._leaflet_layer)?element._leaflet_layer:null;
+          if(!owner&&!element.classList.contains("leaflet-marker-icon"))element.classList.remove("multi-selected-feature");
+        });
+        const box=deps.$("multiFeatureEditor"),info=deps.$("multiSelectionInfo");
+        if(info)info.textContent=selected.size+" Feature Selection selected";
+        if(box)box.style.display=selected.size?"block":"none";
+        deps.updateStandardActionButtons();
+      }
+      function clearMultiSelection(){
+        const selected=read("getSelectedFeatures");
+        selected.forEach(layer=>{
+          const element=layer&&((typeof layer.getElement==="function"&&layer.getElement())||layer._path||layer._icon);
+          if(element)read("getLeaflet").DomUtil.removeClass(element,"multi-selected-feature");
+        });
+        selected.clear();deps.setSelectedLayer(null);deps.setSelectedOverlay(null);
+        const editor=deps.$("attributeEditor");if(editor)editor.style.display="none";
+        deps.applySelectionVisual();
+      }
+      function toggleMultiSelection(layer){
+        const selected=read("getSelectedFeatures"),wasSelected=selected.has(layer);
+        if(wasSelected)selected.delete(layer);else selected.add(layer);
+        if(!wasSelected)deps.setSelectedLayer(layer);
+        else{
+          if(deps.getSelectedLayer()===layer)deps.setSelectedLayer([...selected].pop()||null);
+          if(deps.getSelectedOverlay()===layer)deps.setSelectedOverlay(null);
+        }
+        updateMultiSelectionUI();deps.renderAttributeEditor();
+      }
+      function featureLabel(layer){
+        try{
+          const properties=layer.feature&&layer.feature.properties||{};
+          if(properties.name)return String(properties.name);
+          const keys=Object.keys(properties);if(keys.length)return String(properties[keys[0]]);
+        }catch(_){}
+        return "Selected feature";
+      }
+      function setGisSelection(layer,second){
+        if(second)deps.setSelectedOverlay(layer);
+        else{deps.setSelectedOverlay(null);deps.setSelectedLayer(layer);deps.renderAttributeEditor();}
+        const primary=deps.getSelectedLayer()?featureLabel(deps.getSelectedLayer()):"—";
+        const overlay=deps.getSelectedOverlay()?featureLabel(deps.getSelectedOverlay()):"—";
+        const element=deps.$("gisSelectionInfo");
+        if(element)element.innerHTML="Input feature: "+deps.esc(primary)+"<br>Overlay feature: "+deps.esc(overlay);
+      }
+      function handleFeatureSelectionClick(layer,event){
+        if(!layer)return;
+        const originalEvent=event?.originalEvent;
+        if(originalEvent){
+          if(originalEvent.__webgisSelectionHandled)return;
+          originalEvent.__webgisSelectionHandled=true;
+        }
+        const activeTool=deps.getActiveMapTool();
+        if(activeTool==="identify"){
+          deps.setSelectedOverlay(layer);if(!layer.feature)layer.feature=deps.asFeature(layer);
+          deps.identifyTool();return;
+        }
+        if(activeTool==="hyperlink"){
+          const feature=layer.feature||deps.asFeature(layer),properties=feature?.properties||{};
+          const value=Object.entries(properties).find(([key,val])=>/(url|link|website|href|hyperlink)/i.test(key)&&/^https?:/i.test(String(val||""))&&String(val||"").includes("://"));
+          if(!value){deps.status("This feature has no HTTP or HTTPS link attribute.");return;}
+          deps.getWindow().open(value[1],"_blank","noopener,noreferrer");deps.status("Feature link opened.");return;
+        }
+        if(activeTool==="htmlPopup"){
+          const feature=layer.feature||deps.asFeature(layer),properties=feature?.properties||{};
+          const rows=Object.entries(properties).map(([key,val])=>"<tr><th>"+deps.esc(key)+"</th><td>"+deps.esc(val)+"</td></tr>").join("");
+          layer.bindPopup("<table class='identify-popup'>"+(rows||"<tr><td>No attributes</td></tr>")+"</table>").openPopup(event?.latlng);
+          deps.setSelectedOverlay(layer);deps.status("Feature attributes opened.");return;
+        }
+        const selected=read("getSelectedFeatures"),multi=!!(originalEvent&&(originalEvent.ctrlKey||originalEvent.metaKey||originalEvent.shiftKey));
+        if(multi){
+          toggleMultiSelection(layer);
+          if(originalEvent.shiftKey&&!originalEvent.ctrlKey&&!originalEvent.metaKey){
+            deps.setSelectedOverlay(selected.has(layer)?layer:null);
+            if(!deps.getSelectedLayer()&&deps.getSelectedOverlay())deps.setSelectedLayer([...selected].find(item=>item!==deps.getSelectedOverlay())||deps.getSelectedOverlay());
+            deps.synchronizeFeatureSelection({primary:deps.getSelectedLayer(),overlay:deps.getSelectedOverlay(),renderEditor:true});
+            deps.status(selected.size+" feature(s) selected; Shift-click a selected feature to designate the overlay.");
+          }else{
+            if(deps.getSelectedOverlay()&&!selected.has(deps.getSelectedOverlay()))deps.setSelectedOverlay(null);
+            deps.synchronizeFeatureSelection({primary:deps.getSelectedLayer(),overlay:deps.getSelectedOverlay(),renderEditor:true});
+            deps.status(selected.size+" feature(s) selected.");
+          }
+        }else{
+          selected.clear();selected.add(layer);
+          deps.synchronizeFeatureSelection({primary:layer,renderEditor:true});
+          deps.showUTM(layer);deps.calcMeasure(layer);
+          deps.status("Feature selected. Ctrl-click or Shift-click to add features to the selection.");
+        }
+      }
+      function attachFeatureSelection(layer){
+        if(!layer||!layer.on)return;
+        if(typeof layer.options==="object")layer.options.interactive=true;
+        const element=(typeof layer.getElement==="function"&&layer.getElement())||layer._path||layer._icon;
+        if(element)element.style.pointerEvents="auto";
+        if(!layer._webgisSelectionHandlerAttached){
+          layer._webgisSelectionHandlerAttached=true;
+          layer.on("click",event=>handleFeatureSelectionClick(layer,event));
+        }
+      }
+      function attachMapSelectionFallback(){
+        const map=deps.getMap();
+        if(!map||map._webgisSelectionFallback)return false;
+        map._webgisSelectionFallback=true;
+        map.on("click",event=>{
+          if(event?.originalEvent?.__webgisSelectionHandled)return;
+          const target=event?.originalEvent?.target;if(!target||!target.closest)return;
+          const hit=target.closest(".leaflet-interactive,.leaflet-marker-icon");if(!hit)return;
+          for(const entry of allSelectableFeatureLayers()){
+            for(const record of vectorFeatures(entry.layer)){
+              const layer=record.layer;
+              const element=(typeof layer.getElement==="function"&&layer.getElement())||layer._path||layer._icon;
+              if(element===hit||element?.contains?.(hit)){handleFeatureSelectionClick(layer,event);return;}
+            }
+          }
+        });
+        return true;
+      }
+      attachMapSelectionFallback();
+      return Object.freeze({updateMultiSelectionUI,clearMultiSelection,toggleMultiSelection,setGisSelection,featureLabel,handleFeatureSelectionClick,attachFeatureSelection,attachMapSelectionFallback});
+    }
+
+    return Object.freeze({createInteractiveSelectionController,featureDistanceMeters,allSelectableFeatureLayers,getFeatureRecords,selectedRecords,selectByLocation,selectByAttribute});
   }
   root.SabzWebGISSelection={create};
 })(window);
