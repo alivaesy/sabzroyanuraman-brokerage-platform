@@ -1352,6 +1352,7 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <script src="./webgis-measure-tool.js?v=20261124-measure-tool"></script>
 <script src="./webgis-find-route.js?v=20261124-find-route"></script>
 <script src="./webgis-time-slider.js?v=20261124-time-slider"></script>
+<script src="./webgis-map-interaction-tools.js?v=20261124-map-interaction"></script>
 <script src="./webgis-symbology-core.js?v=20261104-symbology-core"></script>
 <script src="./webgis-layer-symbology.js?v=20261118-layer-symbology"></script>
 <script src="./webgis-selection.js?v=20261122-selection"></script>
@@ -2425,16 +2426,14 @@ async function runMapCommandLine(){
   }
   status("Unknown map command. Enter help for the supported commands.");
 }
-function startHyperlinkTool(){
-  stopActiveDraw(true);activeMapTool="hyperlink";
-  document.querySelectorAll("#classicToolbars button.icon-tool").forEach(b=>b.classList.remove("active"));
-  $("hyperlinkBtn").classList.add("active");status("Click a feature with a URL, link, website, or href attribute.");
-}
-function startHtmlPopupTool(){
-  stopActiveDraw(true);activeMapTool="htmlPopup";
-  document.querySelectorAll("#classicToolbars button.icon-tool").forEach(b=>b.classList.remove("active"));
-  $("htmlPopupBtn").classList.add("active");status("Click a feature to open its attribute pop-up.");
-}
+const {startHyperlinkTool,startHtmlPopupTool}=window.SabzWebGISMapInteractionTools.create({
+  stopActiveDraw,
+  setActiveMapTool:value=>{activeMapTool=value;},
+  document,
+  $:id=>document.getElementById(id),
+  status
+});
+
 const startMeasureTool=window.SabzWebGISMeasureTool.create({stopActiveDraw,arcMapDialog,startSelectionShape,turf,map,status,getLastMeasureLayer:()=>lastMeasureLayer,setLastMeasureLayer:value=>{lastMeasureLayer=value;}});
 const findRoute=window.SabzWebGISFindRoute.create({map,arcMapDialog,fetch:window.fetch.bind(window),geoJsonLayer,status,$:id=>document.getElementById(id)});
 function createMapViewer(){
