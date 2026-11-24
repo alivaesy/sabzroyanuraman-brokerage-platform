@@ -171,6 +171,7 @@ async function selectByAttribute(){
       const required=["getMap","getLeaflet","getActiveMapTool","getSelectedFeatures","getSelectedLayer","setSelectedLayer","getSelectedOverlay","setSelectedOverlay","updateStandardActionButtons","renderAttributeEditor","applySelectionVisual","status","$","esc","asFeature","identifyTool","showUTM","calcMeasure","synchronizeFeatureSelection","getWindow"];
       const missing=required.filter(name=>typeof deps[name]!=="function");
       if(missing.length)throw new Error("Interactive selection controller is missing dependencies: "+missing.join(", "));
+      if(!deps.document||typeof deps.document.querySelectorAll!=="function")throw new Error("Interactive selection controller requires a document.");
       const read=name=>deps[name]();
       function updateMultiSelectionUI(){
         const selected=read("getSelectedFeatures");
@@ -193,7 +194,7 @@ async function selectByAttribute(){
           const element=(typeof layer.getElement==="function"&&layer.getElement())||layer._path||layer._icon;
           if(element)element.classList.toggle("multi-selected-feature",isSelected);
         }));
-        read("document").querySelectorAll(".multi-selected-feature").forEach(element=>{
+        deps.document.querySelectorAll(".multi-selected-feature").forEach(element=>{
           const owner=selected.has(element._leaflet_layer)?element._leaflet_layer:null;
           if(!owner&&!element.classList.contains("leaflet-marker-icon"))element.classList.remove("multi-selected-feature");
         });
