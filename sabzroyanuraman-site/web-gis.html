@@ -2466,7 +2466,7 @@ function drawingLayerForType(type){
 const drawActivation=window.SabzWebGISDrawActivation.create({
  blockForUnsavedTableEdits, getActiveDrawHandler:()=>activeDrawHandler, getActiveDrawPurpose:()=>activeDrawPurpose,
  arcMapDialog, stopActiveDraw, stopReshapeDraw, stopVertexEditing, window, namedLayers,
- getEditTarget:()=>editTarget, setActiveDrawingSetName:value=>{activeDrawingSetName=value;},
+ getEditTarget:()=>editTarget, setEditTarget:value=>{editTarget=value;}, setActiveDrawingSetName:value=>{activeDrawingSetName=value;},
  getActiveDrawingSetName:()=>activeDrawingSetName, drawingLayerForType, getEditSessionActive:()=>editSessionActive,
  $:id=>$(id), isVectorLayer, selectedOverlay, startEditing, status, startNativeDraw
 });
