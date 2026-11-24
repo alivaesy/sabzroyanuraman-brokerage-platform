@@ -1354,6 +1354,10 @@ body.modelbuilder-view-active #gisModelBuilder .webgis-modelbuilder-workspace{
 <script src="./webgis-time-slider.js?v=20261124-time-slider"></script>
 <script src="./webgis-map-interaction-tools.js?v=20261124-map-interaction"></script>
 <script src="./webgis-selection-shape.js?v=20261124-selection-shape"></script>
+<script src="./webgis-draw-activation.js?v=20261124-draw-activation"></script>
+<script src="./webgis-drawing-layer.js?v=20261124-drawing-layer"></script>
+<script src="./webgis-geometry-transforms.js?v=20261124-geometry-transforms"></script>
+<script src="./webgis-selection-layer-operations.js?v=20261124-selection-layer-operations"></script>
 <script src="./webgis-wayback-config.js?v=20261124-wayback-config"></script>
 <script src="./webgis-crs.js?v=20261124-crs"></script>
 <script src="./webgis-symbology-core.js?v=20261104-symbology-core"></script>
@@ -2439,71 +2443,24 @@ function ellipseRing(a,b){
   }
   return ring;
 }
-function drawingLayerForType(type){
-  const kind=type==="Marker"?"Point":(["Polyline","FreehandLine"].includes(type)?"Line":"Polygon");
-  const suffix=kind==="Point"?"Points":kind==="Line"?"Lines":"Polygons";
-  const setName=activeDrawingSetName||"My Drawings";
-  let item=namedLayers.find(x=>x.drawingSet===setName&&x._webgisDrawingType===kind);
-  if(!item){
-    const name=setName+" / "+suffix;
-    const layer=new L.FeatureGroup();
-    addNamedLayer(name,layer,false);
-    item=namedLayers.find(x=>x.layer===layer);
-    if(item){item.drawingSet=setName;item._webgisDrawingType=kind;item.displayName=suffix;}
-  }
-  if(!item)return drawn;
-  selectedOverlay=item.layer;editTarget=item.layer;
-  const index=namedLayers.findIndex(x=>x.layer===item.layer);
-  if(index>=0)$("editTargetLayer").value=String(index);
-  refreshEditorTargets();
-  if(index>=0)$("editTargetLayer").value=String(index);
-  refreshAttributeLayers();
-  if($("attributeLayer"))$("attributeLayer").value=String(index);
-  renderLayerList();
-  return item.layer;
-}
-async function startDraw(type,button){
-  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("starting a drawing"))return;
-  // Never silently throw away an unfinished sketch when switching tools.
-  if(activeDrawHandler&&activeDrawPurpose==="draw"&&typeof activeDrawHandler.hasSketchVertices==="function"&&activeDrawHandler.hasSketchVertices()){if(!await arcMapDialog.confirm({title:"Drawing in Progress",message:"The current sketch is unfinished. Discard it and switch tools?",confirmText:"Discard Sketch",danger:true}))return;}
-  stopActiveDraw();
-  // A new sketch must not overlap an active reshape or vertex-edit handler.
-  if(window._reshapeDrawHandler)stopReshapeDraw();
-  if(window._vertexEditControl)stopVertexEditing();
-  // Drawing tools always route to the matching geometry child of the active set.
-  const currentDrawingItem=namedLayers.find(item=>item.layer===editTarget);
-  const isDrawingSetTarget=!!currentDrawingItem&&!!currentDrawingItem.drawingSet;
-  if(isDrawingSetTarget)activeDrawingSetName=currentDrawingItem.drawingSet;
-  const useAutomaticDrawingLayer=editTarget===drawn||isDrawingSetTarget;
-  if(useAutomaticDrawingLayer){
-    drawingLayerForType(type);
-  }else if(!editSessionActive){
-    // Respect an explicitly selected imported vector layer, like ArcMap.
-    let preferredIndex=-1;
-    if(selectedOverlay&&selectedOverlay!==drawn){
-      preferredIndex=namedLayers.findIndex(item=>item.layer===selectedOverlay&&isVectorLayer(item.layer));
-    }
-    const attributeChoice=$("attributeLayer")?.value;
-    if(preferredIndex<0&&attributeChoice&&attributeChoice!=="drawn"){
-      const idx=Number(attributeChoice);
-      if(Number.isInteger(idx)&&namedLayers[idx]&&isVectorLayer(namedLayers[idx].layer))preferredIndex=idx;
-    }
-    if(preferredIndex>=0){
-      $("editTargetLayer").value=String(preferredIndex);
-      editTarget=namedLayers[preferredIndex].layer;
-    }else if(attributeChoice==="drawn"){
-      $("editTargetLayer").value="drawn";
-      editTarget=drawn;
-      drawingLayerForType(type);
-    }
-  }
-  if(!editSessionActive)startEditing();
-  // startEditing can refuse to start when table edits are pending; never let
-  // drawing continue outside a valid editor session.
-  if(!editSessionActive){status("Save or discard pending table edits before drawing.");return}
-  if(!editTarget||typeof editTarget.addLayer!=="function"){status("Choose a vector layer in the Editor toolbar.");return}
-  startNativeDraw(type,button);
-}
+const drawingLayerResolver=window.SabzWebGISDrawingLayer.create({
+ namedLayers,L,addNamedLayer,drawn,getActiveDrawingSetName:()=>activeDrawingSetName,
+ setSelectedOverlay:value=>{selectedOverlay=value;},setEditTarget:value=>{editTarget=value;},
+ $:id=>$(id),refreshEditorTargets,refreshAttributeLayers,renderLayerList:()=>renderLayerList()
+});
+function drawingLayerForType(type){return drawingLayerResolver(type);}
+const drawActivation=window.SabzWebGISDrawActivation.create({
+ blockForUnsavedTableEdits, getActiveDrawHandler:()=>activeDrawHandler, getActiveDrawPurpose:()=>activeDrawPurpose,
+ arcMapDialog, stopActiveDraw, stopReshapeDraw, stopVertexEditing, window, namedLayers,
+ getEditTarget:()=>editTarget, setEditTarget:value=>{editTarget=value;}, drawn, setActiveDrawingSetName:value=>{activeDrawingSetName=value;},
+ getActiveDrawingSetName:()=>activeDrawingSetName, drawingLayerForType, getEditSessionActive:()=>editSessionActive,
+ $:id=>$(id), isVectorLayer, getSelectedOverlay:()=>selectedOverlay, startEditing, status, startNativeDraw
+});
+async function startDraw(type,button){return drawActivation(type,button);}
+const geometryTransformTools=window.SabzWebGISGeometryTransforms.create({blockForUnsavedTableEdits,editableSelectedRecords,showEditToolOptions,turf,status,commitGeometryOperation});
+async function moveSelected(){return geometryTransformTools.moveSelected();}
+async function rotateSelected(){return geometryTransformTools.rotateSelected();}
+async function scaleSelected(){return geometryTransformTools.scaleSelected();}
 function startNativeDraw(type,button){
   if(!editSessionActive||!editTarget||typeof editTarget.addLayer!=="function"){
     status("Start Editing and choose a vector target before drawing.");return;
@@ -5939,22 +5896,8 @@ async function selectByLasso(){
  });
 }
 async function selectByAttribute(){return selectionOperations.selectByAttribute();}
-function newLayerFromSelection(){
-  const rs=selectedRecords(); if(!rs.length){status("Select at least one feature first.");return;}
-  const fc={type:"FeatureCollection",features:rs.map(r=>JSON.parse(JSON.stringify(r.feature)))};
-  const layer=L.geoJSON(fc,{onEachFeature:(f,l)=>bindFeature(l,f)});
-  const name="Selection_"+new Date().toISOString().slice(0,19).replace(/[:T]/g,"-");
-  addNamedLayer(name,layer,false);
-  scheduleAutoSave(); status("Layer created from selected features.");
-}
-function cloneSelectedFeatures(){
-  const rs=editableSelectedRecords(false);if(!rs.length)return;
-  const clones=rs.map(r=>JSON.parse(JSON.stringify(r.feature)));
-  const layer=L.geoJSON({type:"FeatureCollection",features:clones},{onEachFeature:(f,l)=>bindFeature(l,f)});
-  addNamedLayer("Clone_"+new Date().toISOString().replace(/[:.]/g,"-"),layer,true);
-  refreshEditorTargets();refreshAttributeLayers();scheduleAutoSave();
-  status(clones.length+" feature(s) cloned into a new vector layer.");
-}
+
+
 function editableSelectedRecords(recordHistory=true){
   if(window._vertexEditControl||window._reshapeDrawHandler||activeDrawHandler){status("Finish or cancel the active drawing/geometry edit before starting another feature operation.");return [];}
   if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("modifying selected feature geometry"))return [];
@@ -5964,39 +5907,17 @@ function editableSelectedRecords(recordHistory=true){
   else if(recordHistory)recordUndoState();
   return rs;
 }
-async function explodeSelectedFeatures(){
-  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("exploding multipart features"))return;
-  if(!editSessionActive||!editTarget){status("Start Editing the target layer before exploding multipart features.");return;}
-  const records=editableSelectedRecords(false);
-  if(!records.length)return;
-  if(records.some(r=>(r.owner?.layer||drawn)!==editTarget)){status("Explode requires all selected features to belong to the active edit layer.");return;}
-  const multipart=records.filter(r=>["MultiPoint","MultiLineString","MultiPolygon"].includes(r.feature?.geometry?.type));
-  if(multipart.length!==records.length){status("Explode requires only multipart features in the selection; deselect single-part features and try again.");return;}
-  if(!multipart.length){status("Select at least one MultiPoint, MultiLineString, or MultiPolygon feature.");return;}
-  if(!await arcMapDialog.confirm({title:"Explode Multipart Features",message:"Explode "+multipart.length+" selected multipart feature(s) into individual features?",confirmText:"Explode"}))return;
-  const replacements=[];
-  try{
-    multipart.forEach(r=>{
-      const g=r.feature.geometry,types={MultiPoint:"Point",MultiLineString:"LineString",MultiPolygon:"Polygon"};
-      const parts=g.coordinates.map(coordinates=>prepareDerivedFeature({type:"Feature",properties:{...(r.feature.properties||{})},geometry:{type:types[g.type],coordinates:JSON.parse(JSON.stringify(coordinates))}},r.owner.layer));
-      if(!parts.length)throw new Error("A selected multipart feature has no parts.");
-      replacements.push({r,parts});
-    });
-  }catch(err){status("Explode cancelled: "+err.message);return;}
-  recordUndoState();
-  replacements.forEach(({r,parts})=>{
-    const owner=r.owner.layer,old=r.layer,wasSelected=selectedFeatures.has(old),wasActive=selectedLayer===old;
-    owner.removeLayer(old);selectedFeatures.delete(old);
-    parts.forEach(feature=>{
-      const group=L.geoJSON(feature,{style:old.options||{},pointToLayer:(f,ll)=>old instanceof L.CircleMarker?L.circleMarker(ll,old.options||{}):L.marker(ll,old.options||{}),onEachFeature:(f,l)=>bindFeature(l,f)});
-      group.eachLayer(layer=>{layer.feature=feature;owner.addLayer(layer);attachFeatureSelection(layer);if(wasSelected)selectedFeatures.add(layer);if(wasActive)selectedLayer=layer;});
-    });
-  });
-  selectedLayer=selectedRecords()[0]?.layer||null;selectedOverlay=null;
-  applySelectionVisual();refreshAll();updateStandardActionButtons();scheduleAutoSave();
-  status("Exploded "+replacements.length+" multipart feature(s) into "+replacements.reduce((n,x)=>n+x.parts.length,0)+" feature(s).");
-}
+
 async function mergeSelectedFeatures(){return geometryEditOperations.mergeSelectedFeatures();}
+const selectionLayerOperations=window.SabzWebGISSelectionLayerOperations.create({
+ selectedRecords,status,L,bindFeature,addNamedLayer,scheduleAutoSave,editableSelectedRecords,refreshEditorTargets,refreshAttributeLayers,
+ blockForUnsavedTableEdits,getEditSessionActive:()=>editSessionActive,getEditTarget:()=>editTarget,getDrawn:()=>drawn,arcMapDialog,
+ prepareDerivedFeature,recordUndoState,selectedFeatures,getSelectedLayer:()=>selectedLayer,setSelectedLayer:value=>{selectedLayer=value;},
+ attachFeatureSelection,applySelectionVisual,refreshAll,updateStandardActionButtons
+});
+function newLayerFromSelection(){return selectionLayerOperations.newLayerFromSelection();}
+function cloneSelectedFeatures(){return selectionLayerOperations.cloneSelectedFeatures();}
+async function explodeSelectedFeatures(){return selectionLayerOperations.explodeSelectedFeatures();}
 function stopSplitDraw(){
   const created=window._splitCreatedHandler,handler=window._splitDrawHandler;
   if(created){map.off(L.Draw.Event.CREATED,created);window._splitCreatedHandler=null;}
@@ -6024,64 +5945,9 @@ function showEditToolOptions(title,fields){
     cancel.addEventListener("click",()=>finish(null));panel.addEventListener("keydown",e=>{if(e.key==="Escape"){e.preventDefault();finish(null);}});inputs[0]?.focus();
   });
 }
-async function moveSelected(){
-  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("moving selected features"))return;
-  const rs=editableSelectedRecords(false);if(!rs.length)return;
-  const offsets=await showEditToolOptions("Move Features — offsets in meters",[{label:"East X (positive = east)",value:0},{label:"North Y (positive = north)",value:0}]);if(!offsets)return;
-  const [dx,dy]=offsets;
-  if(dx===0&&dy===0){status("No movement specified.");return;}
-  const distance=Math.hypot(dx,dy),bearing=(Math.atan2(dx,dy)*180/Math.PI+360)%360;
-  const updates=[];
-  try{rs.forEach(r=>{
-    if(!r.feature.geometry)throw new Error("A selected feature has no geometry.");
-    const moved=turf.transformTranslate(r.feature,distance,bearing,{units:"meters"});
-    updates.push({r,geometry:moved.geometry});
-  });}catch(e){status("Move cancelled: "+(e.message||"geometry transform failed"));return;}
-  commitGeometryOperation(updates,"Move").then(ok=>{if(ok)status(updates.length+" feature(s) moved "+distance.toFixed(2)+" m and saved.");});
-}
-async function rotateSelected(){
-  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("rotating selected features"))return;
-  const rs=editableSelectedRecords(false);if(!rs.length)return;
-  const values=await showEditToolOptions("Rotate Features",[{label:"Angle in degrees (positive = counterclockwise)",value:90}]);if(!values)return;
-  const [deg]=values;
-  if(deg===0){status("Rotation angle is zero.");return;}
-  const updates=[];
-  try{
-    const valid=rs.filter(r=>r.feature?.geometry);
-    if(valid.length!==rs.length)throw new Error("A selected feature has no geometry.");
-    // Rotate a multi-feature selection around one shared extent center, as in ArcMap.
-    const bounds=turf.bbox(turf.featureCollection(valid.map(r=>r.feature)));
-    const pivot=[(bounds[0]+bounds[2])/2,(bounds[1]+bounds[3])/2];
-    if(!pivot.every(Number.isFinite))throw new Error("Could not determine a common rotation origin.");
-    valid.forEach(r=>{
-      const rotated=turf.transformRotate(r.feature,deg,{pivot});
-      updates.push({r,geometry:rotated.geometry});
-    });
-  }catch(e){status("Rotation cancelled: "+(e.message||"geometry transform failed"));return;}
-  commitGeometryOperation(updates,"Rotate").then(ok=>{if(ok)status(updates.length+" feature(s) rotated by "+deg+"° and saved.");});
-}
-async function scaleSelected(){
-  if(typeof blockForUnsavedTableEdits==="function"&&blockForUnsavedTableEdits("scaling selected features"))return;
-  const rs=editableSelectedRecords(false);if(!rs.length)return;
-  const values=await showEditToolOptions("Scale Features",[{label:"Scale factor (greater than 0; 1 = unchanged)",value:1.1}]);if(!values)return;
-  const [factor]=values;
-  if(factor<=0){status("Scale cancelled: enter a number greater than zero.");return;}
-  if(factor===1){status("Scale factor is 1; geometry unchanged.");return;}
-  const updates=[];
-  try{
-    const valid=rs.filter(r=>r.feature?.geometry);
-    if(valid.length!==rs.length)throw new Error("A selected feature has no geometry.");
-    // Scale the whole selection around a shared extent center to preserve relative spacing.
-    const bounds=turf.bbox(turf.featureCollection(valid.map(r=>r.feature)));
-    const origin=[(bounds[0]+bounds[2])/2,(bounds[1]+bounds[3])/2];
-    if(!origin.every(Number.isFinite))throw new Error("Could not determine a common scale origin.");
-    valid.forEach(r=>{
-      const scaled=turf.transformScale(r.feature,factor,{origin});
-      updates.push({r,geometry:scaled.geometry});
-    });
-  }catch(e){status("Scale cancelled: "+(e.message||"geometry transform failed"));return;}
-  commitGeometryOperation(updates,"Scale").then(ok=>{if(ok)status(updates.length+" feature(s) scaled by ×"+factor+" and saved.");});
-}
+
+
+
 async function commitGeometryOperation(updates,label){
   if(!editSessionActive||!editTarget){status("Start Editing before "+label+".");return false;}
   if(!Array.isArray(updates)||!updates.length)return false;
