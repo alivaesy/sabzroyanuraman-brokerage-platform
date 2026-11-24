@@ -2393,8 +2393,8 @@ const {startHyperlinkTool,startHtmlPopupTool}=window.SabzWebGISMapInteractionToo
   status
 });
 
-const startMeasureTool=window.SabzWebGISMeasureTool.create({stopActiveDraw,arcMapDialog,startSelectionShape,turf,map,status,getLastMeasureLayer:()=>lastMeasureLayer,setLastMeasureLayer:value=>{lastMeasureLayer=value;}});
-const findRoute=window.SabzWebGISFindRoute.create({map,arcMapDialog,fetch:window.fetch.bind(window),geoJsonLayer,status,$:id=>document.getElementById(id)});
+const startMeasureTool=window.SabzWebGISMeasureTool.create({stopActiveDraw,arcMapDialog:{select:options=>window.arcMapDialog.select(options)},startSelectionShape,turf,map,status,getLastMeasureLayer:()=>lastMeasureLayer,setLastMeasureLayer:value=>{lastMeasureLayer=value;}});
+const findRoute=window.SabzWebGISFindRoute.create({map,arcMapDialog:{prompt:options=>window.arcMapDialog.prompt(options)},fetch:window.fetch.bind(window),geoJsonLayer,status,$:id=>document.getElementById(id)});
 function createMapViewer(){
   const win=window.open("","sabzMapViewer","width=1200,height=820,resizable=yes");
   if(!win){status("Allow pop-ups to open the map viewer.");return;}
