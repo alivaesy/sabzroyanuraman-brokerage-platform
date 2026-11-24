@@ -540,7 +540,68 @@ function editVertices(){
       return Object.freeze({mergeSelectedFeatures:invoke("mergeSelectedFeatures"),splitSelectedLines:invoke("splitSelectedLines"),reshapeSelected:invoke("reshapeSelected"),editVertices:invoke("editVertices"),stopVertexEditing:invoke("stopVertexEditing")});
     }
 
-    return Object.freeze({createGeometryEditOperations,updateEditorToolbar,updateStandardActionButtons,splitPolygonWithCutter,splitPolygonAtTargetArea,splitPolygonByRotatingCut,vertexGeometryIsValid,restoreVertexGeometry:(layer,geometry)=>restoreVertexGeometry(root.L,layer,geometry),createEditOperationContext});
+
+    function createEditSessionController(deps={}){
+      const required=["getMap","getLeaflet","getDrawn","getNamedLayers","getEditSessionActive","setEditSessionActive","getEditTarget","setEditTarget","getActiveMapTool","setActiveMapTool","getActiveDrawHandler","setActiveDrawHandler","getActiveDrawPurpose","setActiveDrawPurpose","getActiveDrawButton","setActiveDrawButton","getActiveDrawCreatedHandler","setActiveDrawCreatedHandler","getSelectedFeatures","selectedRecords","isVectorLayer","blockForUnsavedTableEdits","status","stopSplitDraw","stopReshapeDraw","stopVertexEditing","saveEdits","recordUndoState","confirm","updateEditorToolbar","hasUnsavedTableEdits"];
+      const missing=required.filter(name=>typeof deps[name]!=="function");
+      if(missing.length)throw new Error("Edit-session controller is missing dependencies: "+missing.join(", "));
+      const read=name=>deps[name]();
+      function stopActiveDraw(cancel=true){
+        deps.stopSplitDraw();
+        const map=read("getMap"),L=read("getLeaflet"),wasDrawing=read("getActiveMapTool")==="draw";
+        const handler=read("getActiveDrawHandler"),purpose=read("getActiveDrawPurpose");
+        deps.setActiveDrawHandler(null);deps.setActiveDrawPurpose(null);
+        const created=read("getActiveDrawCreatedHandler");
+        if(created){try{map.off(L.Draw.Event.CREATED,created)}catch(_){}deps.setActiveDrawCreatedHandler(null)}
+        if(handler){try{if(typeof handler.disable==="function")handler.disable()}catch(err){console.warn("Could not stop active tool",err)}}
+        const button=read("getActiveDrawButton");if(button)button.classList.remove("active");deps.setActiveDrawButton(null);
+        try{map.doubleClickZoom.enable()}catch(_){}
+        if(wasDrawing){deps.setActiveMapTool("select");try{map.dragging.enable()}catch(_){}map.getContainer().style.cursor=""}
+        else if(purpose==="selection"){try{map.getContainer().style.cursor=""}catch(_){}}
+        if(cancel&&purpose==="draw")deps.status("Sketch cancelled; no feature was added.");
+        deps.updateEditorToolbar();
+      }
+      function startEditing(item=null){
+        if(window.__sharedProjectReadOnly){deps.status("This shared map is read-only.");return}
+        if(deps.blockForUnsavedTableEdits("changing the edit target"))return;
+        const drawn=read("getDrawn"),namedLayers=read("getNamedLayers");
+        if(item&&item.layer!==drawn&&!deps.isVectorLayer(item.layer)){deps.status("This layer cannot be edited.");return}
+        const sel=$("editTargetLayer");
+        if(item&&sel){const idx=namedLayers.findIndex(x=>x.layer===item.layer);if(item.layer===drawn)sel.value="drawn";else if(idx>=0)sel.value=String(idx)}
+        if(!item&&read("getSelectedFeatures").size&&sel){
+          const records=deps.selectedRecords(),owners=[...new Set(records.map(r=>r.owner?.layer).filter(Boolean))];
+          if(owners.length>1){deps.status("Selected features belong to multiple layers. Select features from one layer before editing.");return}
+          if(owners.length===1){const owner=owners[0];sel.value=owner===drawn?"drawn":String(namedLayers.findIndex(x=>x.layer===owner))}
+        }
+        const value=sel?.value||"drawn",requestedTarget=value==="drawn"?drawn:(namedLayers[Number(value)]?.layer||null);
+        if(!requestedTarget||!deps.isVectorLayer(requestedTarget)){deps.status("Choose a valid vector feature layer before starting editing.");return}
+        if(read("getEditSessionActive")){
+          if(requestedTarget!==read("getEditTarget")){
+            if(sel)sel.value=read("getEditTarget")===drawn?"drawn":String(namedLayers.findIndex(x=>x.layer===read("getEditTarget")));
+            deps.status("Stop the current edit session before switching to another layer.");return
+          }
+          deps.updateEditorToolbar();deps.status("This edit session is already active.");return
+        }
+        deps.setEditTarget(requestedTarget);deps.recordUndoState();deps.setEditSessionActive(true);deps.updateEditorToolbar();
+        deps.status("Edit session started for "+(value==="drawn"?"My Drawings":namedLayers[Number(value)]?.name||"selected layer")+".");
+      }
+      async function stopEditing(){
+        if(!read("getEditSessionActive"))return;
+        if(deps.hasUnsavedTableEdits()){
+          deps.status("Save Table Edits before stopping the edit session; unsaved attribute values are still in the table.");return
+        }
+        if(read("getActiveDrawHandler")&&read("getActiveDrawPurpose")==="draw"&&!await deps.confirm({title:"Stop Editing",message:"A drawing sketch is still in progress. Stop editing and discard this unfinished sketch?",confirmText:"Discard Sketch",danger:true})){
+          deps.status("Edit session remains active; finish or cancel the current sketch first.");return
+        }
+        stopActiveDraw(true);deps.stopReshapeDraw();deps.stopVertexEditing();
+        if(!await deps.saveEdits())return;
+        deps.setEditSessionActive(false);deps.setEditTarget(read("getDrawn"));deps.updateEditorToolbar();
+        deps.status("Edit session stopped and project saved locally.");
+      }
+      return Object.freeze({stopActiveDraw,startEditing,stopEditing});
+    }
+
+    return Object.freeze({createEditSessionController,createGeometryEditOperations,updateEditorToolbar,updateStandardActionButtons,splitPolygonWithCutter,splitPolygonAtTargetArea,splitPolygonByRotatingCut,vertexGeometryIsValid,restoreVertexGeometry:(layer,geometry)=>restoreVertexGeometry(root.L,layer,geometry),createEditOperationContext});
   }
   root.SabzWebGISFeatureEditing={create};
 })(window);
